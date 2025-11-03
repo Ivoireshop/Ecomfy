@@ -1,0 +1,147 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sparkles } from "lucide-react";
+
+const Generator = () => {
+  const [productName, setProductName] = useState("");
+  const [niche, setNiche] = useState("");
+  const [description, setDescription] = useState("");
+  const [benefits, setBenefits] = useState("");
+  const [container, setContainer] = useState("");
+  const [platform, setPlatform] = useState("");
+  const [style, setStyle] = useState("");
+
+  const handleGenerate = () => {
+    console.log("Génération du visuel...");
+    // TODO: Implémenter la génération IA
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              Créez votre visuel publicitaire
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Remplissez le formulaire et laissez l'IA créer un visuel professionnel pour vous
+            </p>
+          </div>
+
+          <div className="bg-card rounded-xl shadow-lg p-8 border">
+            <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
+              <div className="space-y-2">
+                <Label htmlFor="productName">Nom du produit *</Label>
+                <Input
+                  id="productName"
+                  placeholder="Ex: Crème Éclat Naturel"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="niche">Niche du produit *</Label>
+                <Select value={niche} onValueChange={setNiche}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez une niche" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beaute">Beauté & Cosmétiques</SelectItem>
+                    <SelectItem value="mode">Mode & Accessoires</SelectItem>
+                    <SelectItem value="alimentation">Alimentation & Boissons</SelectItem>
+                    <SelectItem value="tech">Technologie & Électronique</SelectItem>
+                    <SelectItem value="sante">Santé & Bien-être</SelectItem>
+                    <SelectItem value="maison">Maison & Décoration</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description du produit *</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Décrivez votre produit en quelques mots..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="benefits">Avantages / Bienfaits</Label>
+                <Textarea
+                  id="benefits"
+                  placeholder="Quels sont les principaux bénéfices de votre produit ?"
+                  value={benefits}
+                  onChange={(e) => setBenefits(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="container">Type de contenant</Label>
+                <Input
+                  id="container"
+                  placeholder="Ex: Pot, Flacon, Bouteille, Sachet..."
+                  value={container}
+                  onChange={(e) => setContainer(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="platform">Plateforme cible *</Label>
+                <Select value={platform} onValueChange={setPlatform}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez une plateforme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                    <SelectItem value="all">Toutes les plateformes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="style">Style du visuel</Label>
+                <Select value={style} onValueChange={setStyle}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez un style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="moderne">Moderne</SelectItem>
+                    <SelectItem value="luxueux">Luxueux</SelectItem>
+                    <SelectItem value="humoristique">Humoristique</SelectItem>
+                    <SelectItem value="traditionnel">Traditionnel Africain</SelectItem>
+                    <SelectItem value="minimaliste">Minimaliste</SelectItem>
+                    <SelectItem value="dynamique">Dynamique</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full text-lg py-6"
+                size="lg"
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
+                Générer mon visuel
+              </Button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Generator;
