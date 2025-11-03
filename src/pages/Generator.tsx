@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Generator = () => {
   const [productName, setProductName] = useState("");
@@ -14,10 +16,57 @@ const Generator = () => {
   const [container, setContainer] = useState("");
   const [platform, setPlatform] = useState("");
   const [style, setStyle] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const handleGenerate = () => {
-    console.log("Génération du visuel...");
-    // TODO: Implémenter la génération IA
+  const handleGenerate = async () => {
+    if (!productName || !niche || !description || !platform) {
+      toast({
+        title: "Champs manquants",
+        description: "Veuillez remplir tous les champs obligatoires",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setGeneratedImage(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-ad-visual", {
+        body: {
+          productName,
+          niche,
+          description,
+          benefits,
+          container,
+          platform,
+          style,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setGeneratedImage(data.imageUrl);
+      toast({
+        title: "Succès !",
+        description: "Votre visuel a été généré avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur lors de la génération:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Une erreur est survenue lors de la génération",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -132,11 +181,54 @@ const Generator = () => {
                 type="submit"
                 className="w-full text-lg py-6"
                 size="lg"
+                disabled={isLoading}
               >
-                <Sparkles className="mr-2 h-5 w-5" />
-                Générer mon visuel
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Génération en cours...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Générer mon visuel
+                  </>
+                )}
               </Button>
             </form>
+
+            {generatedImage && (
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold mb-4 text-center">Votre visuel généré</h2>
+                <div className="relative rounded-lg overflow-hidden shadow-xl">
+                  <img 
+                    src={generatedImage} 
+                    alt="Visuel publicitaire généré" 
+                    className="w-full h-auto"
+                  />
+                </div>
+                <div className="mt-4 flex gap-4">
+                  <Button
+                    onClick={() => {
+                      const link = document.createElement("a");
+                      link.href = generatedImage;
+                      link.download = `${productName.replace(/\s+/g, "-")}-ad.png`;
+                      link.click();
+                    }}
+                    className="flex-1"
+                  >
+                    Télécharger
+                  </Button>
+                  <Button
+                    onClick={() => setGeneratedImage(null)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Générer un autre visuel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
