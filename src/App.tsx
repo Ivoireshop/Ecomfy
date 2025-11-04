@@ -10,6 +10,7 @@ import Generator from "./pages/Generator";
 import Library from "./pages/Library";
 import Auth from "./pages/Auth";
 import Subscription from "./pages/Subscription";
+import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
@@ -51,6 +52,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Library />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/feedback" 
+          element={
+            <ProtectedRoute>
+              <Feedback />
             </ProtectedRoute>
           } 
         />

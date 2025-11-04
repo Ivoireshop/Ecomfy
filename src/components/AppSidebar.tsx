@@ -1,4 +1,4 @@
-import { Home, Image, Video, LogOut } from "lucide-react";
+import { Home, Image, Video, MessageSquare, CreditCard, LogOut } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,8 @@ const items = [
   { title: "Accueil", url: "/", icon: Home },
   { title: "Générateur", url: "/generator", icon: Image },
   { title: "Bibliothèque", url: "/library", icon: Video },
+  { title: "Abonnement", url: "/subscription", icon: CreditCard },
+  { title: "Avis & Commentaires", url: "/feedback", icon: MessageSquare },
 ];
 
 export function AppSidebar() {

@@ -126,6 +126,40 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!signInEmail) {
+      toast({
+        title: "Email requis",
+        description: "Veuillez entrer votre email pour réinitialiser votre mot de passe",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(signInEmail, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email envoyé",
+        description: "Un lien de réinitialisation a été envoyé à votre email",
+      });
+    } catch (error) {
+      console.error("Erreur réinitialisation:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Une erreur est survenue",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -230,6 +264,16 @@ const Auth = () => {
                       "Se connecter"
                     )}
                   </Button>
+                  <div className="mt-4 text-center">
+                    <Button 
+                      type="button"
+                      variant="link" 
+                      className="text-sm"
+                      onClick={handleForgotPassword}
+                    >
+                      Mot de passe oublié ?
+                    </Button>
+                  </div>
                 </form>
               </TabsContent>
 

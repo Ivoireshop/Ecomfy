@@ -281,7 +281,7 @@ const Generator = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez une niche" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={5}>
                     <SelectItem value="beaute">Beauté & Cosmétiques</SelectItem>
                     <SelectItem value="mode">Mode & Accessoires</SelectItem>
                     <SelectItem value="alimentation">Alimentation & Boissons</SelectItem>
@@ -388,7 +388,7 @@ const Generator = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez une plateforme" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={5}>
                     <SelectItem value="facebook">Facebook</SelectItem>
                     <SelectItem value="instagram">Instagram</SelectItem>
                     <SelectItem value="tiktok">TikTok</SelectItem>
@@ -403,7 +403,7 @@ const Generator = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez un style" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={5}>
                     <SelectItem value="moderne">Moderne</SelectItem>
                     <SelectItem value="luxueux">Luxueux</SelectItem>
                     <SelectItem value="humoristique">Humoristique</SelectItem>
