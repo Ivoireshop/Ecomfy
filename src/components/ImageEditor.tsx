@@ -100,6 +100,7 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
     const dataURL = fabricCanvas.toDataURL({
       format: "png",
       quality: 1,
+      multiplier: 2,
     });
 
     onSave(dataURL);
@@ -112,6 +113,7 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
     const dataURL = fabricCanvas.toDataURL({
       format: "png",
       quality: 1,
+      multiplier: 2,
     });
 
     const link = document.createElement("a");

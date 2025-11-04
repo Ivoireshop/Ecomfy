@@ -97,6 +97,60 @@ const Index = () => {
           </Button>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-gradient-to-br from-[hsl(150,60%,15%)] to-[hsl(0,0%,10%)] text-white py-12 mt-16">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-3 gap-8 mb-8">
+            <div>
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                VisualPro
+              </h3>
+              <p className="text-gray-300">
+                L'outil de création de visuels publicitaires adapté au marché africain
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Liens Utiles</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a href="/auth" className="text-gray-300 hover:text-white transition-colors">
+                    Créer un compte
+                  </a>
+                </li>
+                <li>
+                  <a href="/auth" className="text-gray-300 hover:text-white transition-colors">
+                    Se connecter
+                  </a>
+                </li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="text-lg font-semibold mb-4">Légal</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a href="#" className="text-gray-300 hover:text-white transition-colors">
+                    Politique de confidentialité
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-300 hover:text-white transition-colors">
+                    Conditions d'utilisation
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-white/20 pt-8 text-center">
+            <p className="text-gray-300">
+              © {new Date().getFullYear()} VisualPro. Tous droits réservés.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
