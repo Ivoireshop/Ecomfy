@@ -72,6 +72,34 @@ serve(async (req) => {
         console.error("Error recording payment:", paymentError);
       }
 
+      // Récupérer les informations du profil pour l'email
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", user_id)
+        .single();
+
+      // Envoyer l'email de confirmation en arrière-plan (fire-and-forget)
+      if (profile?.email) {
+        supabase.functions.invoke("send-subscription-email", {
+          body: {
+            email: profile.email,
+            full_name: profile.full_name || "Cher utilisateur",
+            amount: parseFloat(amount),
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+          },
+        }).then((result) => {
+          if (result.error) {
+            console.error("Error sending confirmation email:", result.error);
+          } else {
+            console.log("Confirmation email sent successfully");
+          }
+        }).catch((err) => {
+          console.error("Failed to invoke email function:", err);
+        });
+      }
+
       // Rediriger l'utilisateur vers la page de succès
       const frontendUrl = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "lovableproject.com") || url.origin;
       return new Response(null, {
