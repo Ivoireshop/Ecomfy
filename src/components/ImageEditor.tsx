@@ -21,6 +21,7 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
   const [textColor, setTextColor] = useState("#000000");
   const [fontFamily, setFontFamily] = useState("Arial");
   const [underline, setUnderline] = useState(false);
+  const [textObjects, setTextObjects] = useState<any[]>([]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -30,6 +31,30 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
       height: 628,
       backgroundColor: "#ffffff",
     });
+    // Ensure selection is enabled (especially for touch devices)
+    canvas.selection = true;
+    canvas.targetFindTolerance = 10;
+    canvas.perPixelTargetFind = true;
+    if (canvasRef.current) {
+      canvasRef.current.style.touchAction = "none";
+      canvasRef.current.style.userSelect = "none";
+    }
+    if (canvas.upperCanvasEl) {
+      canvas.upperCanvasEl.style.touchAction = "none";
+      canvas.upperCanvasEl.style.userSelect = "none";
+    }
+
+    // Keep a reactive list of text objects for selection via panel
+    const updateTextObjects = () => {
+      const objs = canvas.getObjects().filter((o: any) =>
+        o && (o.type === "textbox" || o.type === "i-text" || typeof (o as any).text === "string")
+      );
+      setTextObjects(objs as any[]);
+    };
+    canvas.on("object:added", updateTextObjects);
+    canvas.on("object:removed", updateTextObjects);
+    canvas.on("text:changed", updateTextObjects);
+    updateTextObjects();
 
     // Charger l'image générée
     FabricImage.fromURL(imageUrl, {
@@ -57,6 +82,9 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
     setFabricCanvas(canvas);
 
     return () => {
+      canvas.off("object:added", updateTextObjects);
+      canvas.off("object:removed", updateTextObjects);
+      canvas.off("text:changed", updateTextObjects);
       canvas.dispose();
     };
   }, [imageUrl]);
@@ -76,6 +104,8 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
       underline: underline,
       editable: true,
       lockScalingFlip: true,
+      selectable: true,
+      padding: 8,
     });
 
     fabricCanvas.add(text);
@@ -85,18 +115,37 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
     toast.success("Texte ajouté ! Double-cliquez dessus pour l'éditer");
   };
 
+  const handleSelectTextByIndex = (index: number) => {
+    if (!fabricCanvas) return;
+    const texts = fabricCanvas.getObjects().filter((o: any) => o && (o.type === "textbox" || o.type === "i-text" || typeof (o as any).text === "string"));
+    const target = texts[index];
+    if (target) {
+      fabricCanvas.setActiveObject(target as any);
+      fabricCanvas.requestRenderAll();
+      toast.success("Texte sélectionné");
+    }
+  };
+
   const handleUpdateSelectedText = () => {
     if (!fabricCanvas) return;
 
-    const activeObject = fabricCanvas.getActiveObject();
-    if (activeObject && activeObject instanceof FabricText) {
+    let activeObject = fabricCanvas.getActiveObject() as any;
+    if (!activeObject) {
+      const texts = fabricCanvas.getObjects().filter((o: any) => o && (o.type === "textbox" || o.type === "i-text" || typeof (o as any).text === "string"));
+      if (texts.length === 1) {
+        activeObject = texts[0] as any;
+        fabricCanvas.setActiveObject(activeObject);
+      }
+    }
+
+    if (activeObject && typeof (activeObject as any).text === "string") {
       activeObject.set({
         fontSize: fontSize,
         fill: textColor,
         fontFamily: fontFamily,
         underline: underline,
       });
-      fabricCanvas.renderAll();
+      fabricCanvas.requestRenderAll();
       toast.success("Texte mis à jour !");
     } else {
       toast.error("Veuillez sélectionner un texte à modifier");
@@ -222,6 +271,28 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
                 <Label htmlFor="underline">Souligner le texte</Label>
               </div>
 
+              <div className="space-y-2">
+                <Label>Textes ajoutés</Label>
+                <div className="max-h-40 overflow-auto space-y-1">
+                  {textObjects.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Aucun texte pour le moment.</p>
+                  ) : (
+                    textObjects.map((obj, idx) => (
+                      <Button
+                        key={(obj as any).id ?? idx}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => handleSelectTextByIndex(idx)}
+                      >
+                        <Type className="mr-2 h-4 w-4" />
+                        {String((obj as any).text || "Texte").slice(0, 40)}
+                      </Button>
+                    ))
+                  )}
+                </div>
+              </div>
+
               <Button onClick={handleAddText} className="w-full">
                 <Type className="mr-2 h-4 w-4" />
                 Ajouter un nouveau texte
@@ -250,8 +321,8 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
 
             {/* Canvas */}
             <div className="lg:col-span-3">
-              <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                <canvas ref={canvasRef} className="max-w-full" />
+              <div className="border border-gray-200 rounded-lg overflow-auto bg-gray-50">
+                <canvas ref={canvasRef} className="touch-none" />
               </div>
               <div className="text-sm text-muted-foreground mt-2 space-y-1">
                 <p>💡 <strong>Cliquez</strong> sur un texte pour le sélectionner et le déplacer</p>
