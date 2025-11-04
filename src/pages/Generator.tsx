@@ -33,6 +33,17 @@ const Generator = () => {
   const [videoGenerationsRemaining, setVideoGenerationsRemaining] = useState<number>(5);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [generationType, setGenerationType] = useState<"image" | "video">("image");
+  const [isTouchUI, setIsTouchUI] = useState(false);
+  
+  useEffect(() => {
+    const check = () => {
+      const hasTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints ?? 0) > 0;
+      setIsTouchUI(hasTouch || window.innerWidth <= 1024);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -277,19 +288,36 @@ const Generator = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="niche">Niche du produit *</Label>
-                <Select value={niche} onValueChange={setNiche}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez une niche" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5}>
-                    <SelectItem value="beaute">Beauté & Cosmétiques</SelectItem>
-                    <SelectItem value="mode">Mode & Accessoires</SelectItem>
-                    <SelectItem value="alimentation">Alimentation & Boissons</SelectItem>
-                    <SelectItem value="tech">Technologie & Électronique</SelectItem>
-                    <SelectItem value="sante">Santé & Bien-être</SelectItem>
-                    <SelectItem value="maison">Maison & Décoration</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isTouchUI ? (
+                  <select
+                    id="niche"
+                    value={niche}
+                    onChange={(e) => setNiche(e.target.value)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option value="" disabled>Sélectionnez une niche</option>
+                    <option value="beaute">Beauté & Cosmétiques</option>
+                    <option value="mode">Mode & Accessoires</option>
+                    <option value="alimentation">Alimentation & Boissons</option>
+                    <option value="tech">Technologie & Électronique</option>
+                    <option value="sante">Santé & Bien-être</option>
+                    <option value="maison">Maison & Décoration</option>
+                  </select>
+                ) : (
+                  <Select value={niche} onValueChange={setNiche}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez une niche" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={5}>
+                      <SelectItem value="beaute">Beauté & Cosmétiques</SelectItem>
+                      <SelectItem value="mode">Mode & Accessoires</SelectItem>
+                      <SelectItem value="alimentation">Alimentation & Boissons</SelectItem>
+                      <SelectItem value="tech">Technologie & Électronique</SelectItem>
+                      <SelectItem value="sante">Santé & Bien-être</SelectItem>
+                      <SelectItem value="maison">Maison & Décoration</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -384,34 +412,66 @@ const Generator = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="platform">Plateforme cible *</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez une plateforme" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5}>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="tiktok">TikTok</SelectItem>
-                    <SelectItem value="all">Toutes les plateformes</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isTouchUI ? (
+                  <select
+                    id="platform"
+                    value={platform}
+                    onChange={(e) => setPlatform(e.target.value)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option value="" disabled>Sélectionnez une plateforme</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="all">Toutes les plateformes</option>
+                  </select>
+                ) : (
+                  <Select value={platform} onValueChange={setPlatform}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez une plateforme" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={5}>
+                      <SelectItem value="facebook">Facebook</SelectItem>
+                      <SelectItem value="instagram">Instagram</SelectItem>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="all">Toutes les plateformes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="style">Style du visuel</Label>
-                <Select value={style} onValueChange={setStyle}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un style" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5}>
-                    <SelectItem value="moderne">Moderne</SelectItem>
-                    <SelectItem value="luxueux">Luxueux</SelectItem>
-                    <SelectItem value="humoristique">Humoristique</SelectItem>
-                    <SelectItem value="traditionnel">Traditionnel Africain</SelectItem>
-                    <SelectItem value="minimaliste">Minimaliste</SelectItem>
-                    <SelectItem value="dynamique">Dynamique</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isTouchUI ? (
+                  <select
+                    id="style"
+                    value={style}
+                    onChange={(e) => setStyle(e.target.value)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option value="" disabled>Sélectionnez un style</option>
+                    <option value="moderne">Moderne</option>
+                    <option value="luxueux">Luxueux</option>
+                    <option value="humoristique">Humoristique</option>
+                    <option value="traditionnel">Traditionnel Africain</option>
+                    <option value="minimaliste">Minimaliste</option>
+                    <option value="dynamique">Dynamique</option>
+                  </select>
+                ) : (
+                  <Select value={style} onValueChange={setStyle}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez un style" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={5}>
+                      <SelectItem value="moderne">Moderne</SelectItem>
+                      <SelectItem value="luxueux">Luxueux</SelectItem>
+                      <SelectItem value="humoristique">Humoristique</SelectItem>
+                      <SelectItem value="traditionnel">Traditionnel Africain</SelectItem>
+                      <SelectItem value="minimaliste">Minimaliste</SelectItem>
+                      <SelectItem value="dynamique">Dynamique</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {generationType === "image" ? (
