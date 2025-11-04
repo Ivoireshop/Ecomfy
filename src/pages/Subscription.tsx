@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut } from "lucide-react";
@@ -23,6 +25,10 @@ const Subscription = () => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showMMModal, setShowMMModal] = useState(false);
+  const [mmProvider, setMmProvider] = useState<string | null>(null);
+  const [mmPhone, setMmPhone] = useState("");
+  const [submittingMM, setSubmittingMM] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -96,7 +102,10 @@ const Subscription = () => {
     }
   };
 
-  const handlePayment = async (method: string) => {
+  const handlePayment = async (
+    method: string,
+    options?: { provider?: string; phone?: string }
+  ) => {
     setIsProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke("process-payment", {
@@ -104,26 +113,25 @@ const Subscription = () => {
           amount: 10000,
           payment_method: method,
           user_id: session?.user?.id,
+          provider: options?.provider,
+          phone: options?.phone,
         },
       });
 
       if (error) throw error;
 
-      if (data.payment_url) {
-        // Rediriger vers la page de paiement
+      if (data?.payment_url) {
         window.location.href = data.payment_url;
-      } else if (data.success) {
-        toast({
-          title: "Paiement réussi !",
-          description: "Votre abonnement a été activé",
-        });
-        loadSubscription();
+        return;
       }
+
+      throw new Error("Impossible d'ouvrir la page de paiement. Veuillez réessayer.");
     } catch (error) {
       console.error("Erreur lors du paiement:", error);
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur est survenue lors du paiement",
+        description:
+          error instanceof Error ? error.message : "Une erreur est survenue lors du paiement",
         variant: "destructive",
       });
     } finally {
@@ -249,7 +257,7 @@ const Subscription = () => {
                   <Button
                     variant="outline"
                     className="h-auto py-6 flex flex-col items-center gap-2"
-                    onClick={() => handlePayment("mobile_money")}
+                    onClick={() => setShowMMModal(true)}
                     disabled={isProcessing}
                   >
                     <Smartphone className="h-8 w-8" />
@@ -281,6 +289,101 @@ const Subscription = () => {
                     </p>
                   </div>
                 )}
+
+                <Dialog open={showMMModal} onOpenChange={setShowMMModal}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Paiement Mobile Money</DialogTitle>
+                      <DialogDescription>
+                        Sélectionnez votre réseau et entrez le numéro à débiter.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { key: "orange", label: "Orange" },
+                        { key: "mtn", label: "MTN" },
+                        { key: "moov", label: "Moov" },
+                        { key: "wave", label: "Wave" },
+                      ].map((p) => (
+                        <Button
+                          key={p.key}
+                          type="button"
+                          variant={mmProvider === p.key ? "default" : "outline"}
+                          onClick={() => setMmProvider(p.key)}
+                        >
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Numéro de téléphone</label>
+                      <Input
+                        inputMode="numeric"
+                        placeholder="Ex: 0700000000"
+                        value={mmPhone}
+                        onChange={(e) => setMmPhone(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Le montant de 10 000 FCFA sera débité après validation sur votre téléphone.
+                      </p>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowMMModal(false)}
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={async () => {
+                          // Validation minimale
+                          if (!mmProvider) {
+                            toast({
+                              title: "Réseau requis",
+                              description: "Veuillez sélectionner un réseau.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          const digits = mmPhone.replace(/\D/g, "");
+                          if (digits.length < 8 || digits.length > 14) {
+                            toast({
+                              title: "Numéro invalide",
+                              description: "Veuillez entrer un numéro valide (8 à 14 chiffres).",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setSubmittingMM(true);
+                          try {
+                            await handlePayment("mobile_money", {
+                              provider: mmProvider,
+                              phone: digits,
+                            });
+                          } finally {
+                            setSubmittingMM(false);
+                            setShowMMModal(false);
+                          }
+                        }}
+                        disabled={submittingMM}
+                      >
+                        {submittingMM ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Redirection...
+                          </>
+                        ) : (
+                          "Continuer"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           )}

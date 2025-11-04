@@ -9,6 +9,8 @@ interface PaymentRequest {
   amount: number;
   payment_method: string;
   user_id: string;
+  provider?: string;
+  phone?: string;
 }
 
 serve(async (req) => {
@@ -17,7 +19,7 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, payment_method, user_id }: PaymentRequest = await req.json();
+    const { amount, payment_method, user_id, provider, phone }: PaymentRequest = await req.json();
     
     console.log("Processing payment:", { amount, payment_method, user_id });
 
@@ -55,9 +57,13 @@ serve(async (req) => {
         "api-key": LYGOS_API_KEY,
       },
       body: JSON.stringify({
-        amount: amount,
+        amount,
         shop_name: "Visuel Pro",
         message: "Abonnement Visuel Pro - Plan Premium",
+        payment_method,
+        user_id,
+        provider,
+        phone,
         success_url: `${supabaseUrl}/functions/v1/payment-callback?status=success&user_id=${user_id}&amount=${amount}&transaction_id=${orderId}`,
         failure_url: `${supabaseUrl}/functions/v1/payment-callback?status=failure&user_id=${user_id}`,
         order_id: orderId,
@@ -76,8 +82,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        payment_url: paymentData.payment_url || paymentData.url || paymentData.checkout_url,
-        transaction_id: paymentData.transaction_id || paymentData.order_id || orderId,
+        payment_url: paymentData.payment_url || paymentData.url || paymentData.checkout_url || paymentData.link,
+        transaction_id: paymentData.transaction_id || paymentData.order_id || paymentData.id || orderId,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
