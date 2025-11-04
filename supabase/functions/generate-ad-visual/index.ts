@@ -34,8 +34,9 @@ serve(async (req) => {
       }
     );
 
-    // verify_jwt=true dans config.toml valide déjà le JWT, utilise getUser() directement
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Extract JWT from Authorization header and pass it to getUser()
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError || !user) {
       console.error("Auth error:", userError);
       return new Response(
