@@ -86,44 +86,68 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build the prompt based on the form data
-    let prompt = `Create a professional advertising visual for "${productName}". `;
-    prompt += `Product niche: ${niche}. `;
-    prompt += `Description: ${description}. `;
+    // Build an advanced prompt that analyzes successful ads in the niche
+    let prompt = `You are an expert advertising visual creator specializing in the African market. 
+
+COMPETITIVE ANALYSIS CONTEXT:
+First, mentally analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and messaging patterns consistently perform well in this niche for African audiences.
+
+PRODUCT INFORMATION:
+- Product Name: ${productName}
+- Niche: ${niche}
+- Description: ${description}`;
     
     if (benefits) {
-      prompt += `Key benefits: ${benefits}. `;
+      prompt += `\n- Key Benefits: ${benefits}`;
     }
     
     if (container) {
-      prompt += `Container type: ${container}. `;
+      prompt += `\n- Container/Packaging: ${container}`;
     }
+
+    prompt += `\n\nVISUAL STYLE DIRECTION:`;
     
     if (style) {
       const styleDescriptions: Record<string, string> = {
-        moderne: "modern and clean design",
-        luxueux: "luxury and elegant design with premium feel",
-        humoristique: "fun and humorous style",
-        traditionnel: "traditional African style with cultural elements",
-        minimaliste: "minimalist and simple design",
-        dynamique: "dynamic and energetic style",
+        moderne: "Modern and clean design with contemporary African aesthetics - think bold typography, vibrant gradients, and sleek product presentation",
+        luxueux: "Luxury and premium design with elegant African touches - gold accents, sophisticated color palettes, refined imagery that conveys prestige and exclusivity",
+        humoristique: "Fun, playful, and humorous style that resonates with African humor and culture - bright colors, expressive faces, relatable situations",
+        traditionnel: "Traditional African style celebrating cultural heritage - authentic patterns (Kente, Ankara, Bogolan), warm earth tones, cultural symbols, community-focused imagery",
+        minimaliste: "Minimalist and clean with African warmth - simple composition, strategic use of negative space, focus on product, subtle cultural elements",
+        dynamique: "Dynamic and energetic style capturing African vibrancy - motion blur effects, bold contrasts, action-oriented composition, youthful energy",
       };
-      prompt += `Style: ${styleDescriptions[style] || style}. `;
+      prompt += `\n${styleDescriptions[style] || style}`;
     }
     
-    // Add platform-specific requirements
+    // Add platform-specific requirements with best practices
     const platformSpecs: Record<string, string> = {
-      facebook: "Optimized for Facebook ads (1200x628px recommended)",
-      instagram: "Optimized for Instagram square format (1080x1080px)",
-      tiktok: "Optimized for TikTok vertical format (1080x1920px)",
-      all: "Versatile design that works across all social media platforms",
+      facebook: "\n\nPLATFORM OPTIMIZATION: Facebook feed ad (1200x628px)\n- Inspired by top-performing Facebook ads: eye-catching headline text overlay, clear value proposition visible within 3 seconds, product prominently displayed in first 40% of image\n- Use Facebook's best practices: high contrast, mobile-first design, culturally relevant imagery",
+      instagram: "\n\nPLATFORM OPTIMIZATION: Instagram square post (1080x1080px)\n- Inspired by viral Instagram ads: aesthetically pleasing composition, Instagram-native feel, lifestyle integration of product, authentic African settings\n- Incorporate trending Instagram advertising elements: bold central focus, aspirational yet relatable imagery, visual storytelling",
+      tiktok: "\n\nPLATFORM OPTIMIZATION: TikTok vertical format (1080x1920px)\n- Inspired by successful TikTok ads: authentic and less polished feel, engaging hook in top third, product demonstration or transformation angle\n- TikTok advertising best practices: youthful energy, trending visual styles, stop-the-scroll impact, mobile-native vertical composition",
+      all: "\n\nPLATFORM OPTIMIZATION: Multi-platform versatile design\n- Inspired by cross-platform successful ads: clear focal point works in any crop, readable text at any size, platform-agnostic color psychology\n- Universal best practices: immediate visual impact, clear brand message, culturally resonant for African audiences across all platforms",
     };
     
     if (platform) {
-      prompt += platformSpecs[platform] || "";
+      prompt += platformSpecs[platform] || platformSpecs.all;
     }
     
-    prompt += " High quality, professional advertising photography, commercial product shot, perfect lighting, attention-grabbing.";
+    prompt += `\n\nCREATIVE EXECUTION INSPIRED BY TOP-PERFORMING ADS:
+- Apply proven visual patterns from successful ${niche} campaigns in African markets
+- Use color psychology that resonates with African consumers (warm, vibrant, trustworthy)
+- Incorporate culturally relevant visual cues and symbols that build instant connection
+- Design for thumb-stopping impact - the ad must make people pause their scroll
+- Balance professional quality with authentic, relatable aesthetics
+- Ensure the product is hero of the composition while telling a compelling story
+- Use lighting and composition techniques seen in high-converting ads
+
+TECHNICAL REQUIREMENTS:
+- Ultra high resolution, professional advertising photography
+- Commercial product shot quality with perfect lighting
+- Attention-grabbing composition that stands out in social feeds
+- Optimized for fast loading while maintaining visual quality
+- Colors and contrast optimized for mobile screens
+
+Create a stunning, conversion-focused advertising visual that combines the best elements of successful ads in this niche with authentic African cultural appeal.`;
 
     console.log("Generated prompt:", prompt);
 
