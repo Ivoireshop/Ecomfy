@@ -19,6 +19,8 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
   const [textContent, setTextContent] = useState("");
   const [fontSize, setFontSize] = useState(40);
   const [textColor, setTextColor] = useState("#000000");
+  const [fontFamily, setFontFamily] = useState("Arial");
+  const [underline, setUnderline] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -70,7 +72,8 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
       top: 100,
       fontSize: fontSize,
       fill: textColor,
-      fontFamily: "Arial",
+      fontFamily: fontFamily,
+      underline: underline,
       editable: true,
     });
 
@@ -170,6 +173,36 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="fontFamily">Police d'écriture</Label>
+                <select
+                  id="fontFamily"
+                  value={fontFamily}
+                  onChange={(e) => setFontFamily(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                >
+                  <option value="Arial">Arial</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Impact">Impact</option>
+                  <option value="Comic Sans MS">Comic Sans MS</option>
+                  <option value="Trebuchet MS">Trebuchet MS</option>
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="underline"
+                  checked={underline}
+                  onChange={(e) => setUnderline(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="underline">Souligner le texte</Label>
+              </div>
+
               <Button onClick={handleAddText} className="w-full">
                 <Type className="mr-2 h-4 w-4" />
                 Ajouter le texte
@@ -196,9 +229,11 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
               <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
                 <canvas ref={canvasRef} className="max-w-full" />
               </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                💡 Cliquez sur un texte pour le sélectionner, le déplacer ou le redimensionner
-              </p>
+              <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                <p>💡 <strong>Cliquez</strong> sur un texte pour le sélectionner, le déplacer ou le redimensionner</p>
+                <p>✏️ <strong>Double-cliquez</strong> sur un texte pour l'éditer directement</p>
+                <p>🗑️ <strong>Sélectionnez</strong> un élément et cliquez sur "Supprimer" pour l'effacer</p>
+              </div>
             </div>
           </div>
         </div>
