@@ -78,7 +78,7 @@ const Index = () => {
       <section id="features" className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           <div className="text-center p-6">
-            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+            <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
               <img 
                 src={featureRapide} 
                 alt="Rapidité et simplicité" 
@@ -92,7 +92,7 @@ const Index = () => {
           </div>
 
           <div className="text-center p-6">
-            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+            <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
               <img 
                 src={featureAfrique} 
                 alt="Adapté au marché africain" 
@@ -106,7 +106,7 @@ const Index = () => {
           </div>
 
           <div className="text-center p-6">
-            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+            <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
               <img 
                 src={featureIA} 
                 alt="Intelligence artificielle" 

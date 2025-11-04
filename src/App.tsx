@@ -21,7 +21,7 @@ const queryClient = new QueryClient();
 
 const AppContent = () => {
   const location = useLocation();
-  const showSidebar = ["/generator", "/library"].includes(location.pathname);
+  const showSidebar = !["/", "/auth"].includes(location.pathname);
   const showSupport = !["/", "/auth"].includes(location.pathname);
 
   return (
