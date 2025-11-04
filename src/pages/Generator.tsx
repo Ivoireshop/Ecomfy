@@ -192,9 +192,13 @@ const Generator = () => {
         }
       }
 
+      const successMessage = hasActiveSubscription && data.hasMultipleFormats
+        ? `Visuel généré avec ${data.additionalFormats.length + 1} formats optimisés !`
+        : "Votre visuel a été généré avec succès";
+      
       toast({
         title: "Succès !",
-        description: "Votre visuel a été généré avec succès",
+        description: successMessage,
       });
     } catch (error) {
       console.error("Erreur lors de la génération:", error);

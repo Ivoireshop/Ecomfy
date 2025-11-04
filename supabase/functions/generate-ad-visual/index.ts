@@ -257,7 +257,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
     }
 
     // Save the generated image to the database
-    const { error: saveError } = await supabaseClient
+    const { data: savedImage, error: saveError } = await supabaseClient
       .from("generated_images")
       .insert({
         user_id: userId,
@@ -272,11 +272,84 @@ Create a stunning, conversion-focused advertising visual that combines the best 
           price,
           promotionalPrice,
         },
-      });
+      })
+      .select()
+      .single();
 
     if (saveError) {
       console.error("Error saving image:", saveError);
       // Don't fail the request, just log the error
+    }
+
+    // Generate multiple formats for paid subscribers
+    const additionalFormats: any[] = [];
+    if (hasActiveSubscription && savedImage) {
+      console.log("Generating additional formats for paid subscriber");
+      
+      const formats = [
+        { name: "Facebook Feed", size: "1200x628", platform: "facebook" },
+        { name: "Facebook Story", size: "1080x1920", platform: "facebook" },
+        { name: "Instagram Feed", size: "1080x1080", platform: "instagram" },
+        { name: "Instagram Story", size: "1080x1920", platform: "instagram" },
+        { name: "TikTok", size: "1080x1920", platform: "tiktok" },
+        { name: "E-commerce", size: "1200x1200", platform: "ecommerce" },
+      ];
+
+      for (const format of formats) {
+        try {
+          const resizePrompt = `Resize and adapt this advertising visual to ${format.size} pixels for ${format.name}. Maintain all text readability and ensure the product is prominently displayed. Optimize the layout for the aspect ratio without losing important information.`;
+          
+          const resizeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-image-preview",
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: resizePrompt },
+                    { type: "image_url", image_url: { url: imageUrl } },
+                  ],
+                },
+              ],
+              modalities: ["image", "text"],
+            }),
+          });
+
+          if (resizeResponse.ok) {
+            const resizeData = await resizeResponse.json();
+            const formatImageUrl = resizeData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+            
+            if (formatImageUrl) {
+              // Save format to database
+              await supabaseClient
+                .from("image_formats")
+                .insert({
+                  image_id: savedImage.id,
+                  format_name: format.name,
+                  format_size: format.size,
+                  platform: format.platform,
+                  image_url: formatImageUrl,
+                });
+              
+              additionalFormats.push({
+                name: format.name,
+                size: format.size,
+                url: formatImageUrl,
+              });
+              
+              console.log(`Generated ${format.name} format`);
+            }
+          }
+        } catch (formatError) {
+          console.error(`Error generating ${format.name}:`, formatError);
+          // Continue with other formats even if one fails
+        }
+      }
     }
 
     // Decrement free generations if not subscribed
@@ -296,7 +369,9 @@ Create a stunning, conversion-focused advertising visual that combines the best 
     return new Response(
       JSON.stringify({ 
         imageUrl,
-        freeGenerationsRemaining: hasActiveSubscription ? null : updatedFreeGenerations
+        freeGenerationsRemaining: hasActiveSubscription ? null : updatedFreeGenerations,
+        additionalFormats: hasActiveSubscription ? additionalFormats : [],
+        hasMultipleFormats: hasActiveSubscription && additionalFormats.length > 0
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

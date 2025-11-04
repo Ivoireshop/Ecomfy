@@ -71,6 +71,44 @@ export type Database = {
         }
         Relationships: []
       }
+      image_formats: {
+        Row: {
+          created_at: string
+          format_name: string
+          format_size: string
+          id: string
+          image_id: string
+          image_url: string
+          platform: string
+        }
+        Insert: {
+          created_at?: string
+          format_name: string
+          format_size: string
+          id?: string
+          image_id: string
+          image_url: string
+          platform: string
+        }
+        Update: {
+          created_at?: string
+          format_name?: string
+          format_size?: string
+          id?: string
+          image_id?: string
+          image_url?: string
+          platform?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_formats_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "generated_images"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number

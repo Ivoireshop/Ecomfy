@@ -15,11 +15,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface ImageFormat {
+  id: string;
+  format_name: string;
+  format_size: string;
+  platform: string;
+  image_url: string;
+}
+
 interface GeneratedImage {
   id: string;
   image_url: string;
   product_details: any;
   created_at: string;
+  formats?: ImageFormat[];
 }
 
 interface GeneratedVideo {
@@ -48,10 +57,13 @@ const Library = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load images
+      // Load images with formats
       const { data: imagesData, error: imagesError } = await supabase
         .from("generated_images")
-        .select("*")
+        .select(`
+          *,
+          formats:image_formats(*)
+        `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -157,9 +169,55 @@ const Library = () => {
                       <h3 className="font-semibold mb-2">
                         {image.product_details?.productName || "Sans titre"}
                       </h3>
-                      <p className="text-sm text-muted-foreground mb-4">
+                      <p className="text-sm text-muted-foreground mb-2">
                         {new Date(image.created_at).toLocaleDateString("fr-FR")}
                       </p>
+                      
+                      {image.formats && image.formats.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-xs font-medium text-primary mb-2">
+                            ✨ {image.formats.length + 1} formats disponibles
+                          </p>
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                              Voir tous les formats
+                            </summary>
+                            <div className="mt-2 space-y-1 pl-2">
+                              <div className="flex justify-between items-center">
+                                <span>Original</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2"
+                                  onClick={() => handleDownload(
+                                    image.image_url,
+                                    `${image.product_details?.productName || 'image'}-original.png`
+                                  )}
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              {image.formats.map((format) => (
+                                <div key={format.id} className="flex justify-between items-center">
+                                  <span>{format.format_name} ({format.format_size})</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-2"
+                                    onClick={() => handleDownload(
+                                      format.image_url,
+                                      `${image.product_details?.productName || 'image'}-${format.format_name.toLowerCase().replace(/\s+/g, '-')}.png`
+                                    )}
+                                  >
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        </div>
+                      )}
+                      
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -171,7 +229,7 @@ const Library = () => {
                           )}
                         >
                           <Download className="h-4 w-4 mr-1" />
-                          Télécharger
+                          Original
                         </Button>
                         <Button
                           size="sm"
