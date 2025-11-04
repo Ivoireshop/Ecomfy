@@ -23,14 +23,24 @@ const Index = () => {
             Créez des visuels publicitaires professionnels adaptés au marché africain en moins d'une minute
           </p>
           
-          <Button 
-            size="lg" 
-            className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-            onClick={() => navigate("/generator")}
-          >
-            <Sparkles className="mr-2 h-5 w-5" />
-            Créer mon premier visuel
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
+              onClick={() => navigate("/auth")}
+            >
+              <Sparkles className="mr-2 h-5 w-5" />
+              Créer mon premier visuel
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              className="text-lg px-8 py-6"
+              onClick={() => navigate("/auth")}
+            >
+              Se connecter
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -81,9 +91,9 @@ const Index = () => {
           <Button 
             size="lg" 
             className="text-lg px-8 py-6"
-            onClick={() => navigate("/generator")}
+            onClick={() => navigate("/auth")}
           >
-            Commencer gratuitement
+            Commencer maintenant
           </Button>
         </div>
       </section>
