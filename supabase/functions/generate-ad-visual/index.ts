@@ -34,11 +34,16 @@ serve(async (req) => {
       }
     );
 
-    // Extract JWT from Authorization header and pass it to getUser()
+    // Extract userId from verified JWT (platform already validated the token)
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError || !user) {
-      console.error("Auth error:", userError);
+    let userId: string | null = null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      userId = payload?.sub ?? null;
+    } catch (e) {
+      console.error("JWT parse error:", e);
+    }
+    if (!userId) {
       return new Response(
         JSON.stringify({ error: "Non authentifié" }),
         {
@@ -52,7 +57,7 @@ serve(async (req) => {
     const { data: subData } = await supabaseClient
       .from("subscriptions")
       .select("status")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
     const hasActiveSubscription = subData?.status === "active";
@@ -61,7 +66,7 @@ serve(async (req) => {
     const { data: profileData } = await supabaseClient
       .from("profiles")
       .select("free_generations_remaining")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     const freeGenerationsRemaining = profileData?.free_generations_remaining || 0;
@@ -214,7 +219,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
       const { data: updateData } = await supabaseClient
         .from("profiles")
         .update({ free_generations_remaining: freeGenerationsRemaining - 1 })
-        .eq("id", user.id)
+        .eq("id", userId)
         .select("free_generations_remaining")
         .single();
       
