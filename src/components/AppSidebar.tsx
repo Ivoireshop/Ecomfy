@@ -1,8 +1,7 @@
-import { Home, Image, Video, MessageSquare, CreditCard, LogOut } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { Home, Image, Video, MessageSquare, CreditCard } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserAvatar } from "@/components/UserAvatar";
 
 import {
   Sidebar,
@@ -26,35 +25,17 @@ const items = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate("/");
-      toast({
-        title: "Déconnecté",
-        description: "Vous avez été déconnecté avec succès.",
-      });
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la déconnexion",
-        variant: "destructive",
-      });
-    }
-  };
-
   const isCollapsed = state === "collapsed";
 
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className={isCollapsed ? "text-center px-0" : ""}>
-            {isCollapsed ? "VP" : "VisualPro"}
+          <SidebarGroupLabel className={isCollapsed ? "text-center px-0 mb-4" : "mb-4"}>
+            <div className="flex items-center justify-between gap-2">
+              {!isCollapsed && <span>VisualPro</span>}
+              <UserAvatar />
+            </div>
           </SidebarGroupLabel>
 
           <SidebarGroupContent>
@@ -75,13 +56,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleSignOut}>
-                  <LogOut className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                  {!isCollapsed && <span>Déconnexion</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

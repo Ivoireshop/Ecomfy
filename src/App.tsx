@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
+import { SupportButton } from "@/components/SupportButton";
 import Index from "./pages/Index";
 import Generator from "./pages/Generator";
 import Library from "./pages/Library";
@@ -21,6 +22,7 @@ const queryClient = new QueryClient();
 const AppContent = () => {
   const location = useLocation();
   const showSidebar = ["/generator", "/library"].includes(location.pathname);
+  const showSupport = !["/", "/auth"].includes(location.pathname);
 
   return (
     <>
@@ -29,6 +31,7 @@ const AppContent = () => {
           <SidebarTrigger />
         </div>
       )}
+      {showSupport && <SupportButton />}
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
