@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Generator from "./pages/Generator";
 import Auth from "./pages/Auth";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -21,9 +22,17 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route 
-            path="/generator" 
+            path="/subscription" 
             element={
               <ProtectedRoute>
+                <Subscription />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/generator" 
+            element={
+              <ProtectedRoute requireActiveSubscription>
                 <Generator />
               </ProtectedRoute>
             } 
