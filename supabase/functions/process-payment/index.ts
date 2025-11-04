@@ -78,33 +78,56 @@ serve(async (req) => {
       order_id: orderId
     });
 
+    // Build payload based on method
+    const basePayload = {
+      amount,
+      currency: "XOF",
+      country: "CI",
+      shop_name: "Visuel Pro",
+      message: "Abonnement Visuel Pro - Plan Premium",
+      user_id,
+      order_id: orderId,
+      success_url: `${supabaseUrl}/functions/v1/payment-callback?status=success&user_id=${user_id}&amount=${amount}&transaction_id=${orderId}`,
+      failure_url: `${supabaseUrl}/functions/v1/payment-callback?status=failure&user_id=${user_id}`,
+    } as Record<string, unknown>;
+
+    let payload: Record<string, unknown> = { ...basePayload };
+    const methodLower = (payment_method || '').toLowerCase();
+    if (methodLower === 'card' || methodLower === 'bank_card') {
+      payload.payment_method = 'card';
+      // Do not include phone/provider for card payments
+    } else {
+      payload.payment_method = 'mobile_money';
+      if (normalizedProvider) {
+        payload.provider = normalizedProvider;
+        payload.operator = normalizedProvider;
+      }
+      if (normalizedPhone) {
+        payload.phone = normalizedPhone;
+      }
+    }
+
+    console.log('Gateway payload (sanitized):', { ...payload, phone: phoneMasked });
+
     const paymentResponse = await fetch("https://api.lygosapp.com/v1/gateway", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "api-key": LYGOS_API_KEY,
       },
-      body: JSON.stringify({
-        amount,
-        currency: "XOF",
-        country: "CI",
-        shop_name: "Visuel Pro",
-        message: "Abonnement Visuel Pro - Plan Premium",
-        payment_method,
-        user_id,
-        provider: normalizedProvider,
-        operator: normalizedProvider,
-        phone: normalizedPhone,
-        success_url: `${supabaseUrl}/functions/v1/payment-callback?status=success&user_id=${user_id}&amount=${amount}&transaction_id=${orderId}`,
-        failure_url: `${supabaseUrl}/functions/v1/payment-callback?status=failure&user_id=${user_id}`,
-        order_id: orderId,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!paymentResponse.ok) {
-      const errorText = await paymentResponse.text();
-      console.error("Lygos API error:", paymentResponse.status, errorText);
-      throw new Error("Erreur lors de l'initialisation du paiement avec Lygos");
+      let errDetail = '';
+      try {
+        const errJson = await paymentResponse.json();
+        errDetail = errJson?.message || errJson?.error || JSON.stringify(errJson);
+      } catch (_) {
+        errDetail = await paymentResponse.text();
+      }
+      console.error("Lygos API error:", paymentResponse.status, errDetail);
+      throw new Error(`Erreur Lygos: ${errDetail || paymentResponse.status}`);
     }
 
     const paymentData = await paymentResponse.json();
