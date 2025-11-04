@@ -20,8 +20,32 @@ serve(async (req) => {
 
   try {
     const { amount, payment_method, user_id, provider, phone }: PaymentRequest = await req.json();
-    
-    console.log("Processing payment:", { amount, payment_method, user_id });
+
+    // Normalize provider and phone for Lygos compatibility
+    const mapProvider = (p?: string) => {
+      if (!p) return undefined;
+      const val = p.toLowerCase().trim();
+      if (val === "move") return "moov"; // common typo
+      return val; // accepted: wave, orange, mtn, moov
+    };
+    const normalizePhone = (ph?: string) => {
+      if (!ph) return undefined;
+      let v = ph.trim().replace(/[^\d+]/g, "");
+      if (v.startsWith("+")) return v;
+      if (v.startsWith("225")) return `+${v}`; // CI format without plus
+      if (v.length === 10 && v.startsWith("0")) return `+225${v.slice(1)}`; // default to CI if local format
+      return v;
+    };
+    const maskPhone = (p?: string) => {
+      if (!p) return undefined;
+      return p.length > 6 ? `${p.slice(0, 4)}****${p.slice(-2)}` : p;
+    };
+
+    const normalizedProvider = mapProvider(provider);
+    const normalizedPhone = normalizePhone(phone);
+    const phoneMasked = maskPhone(normalizedPhone);
+
+    console.log("Processing payment:", { amount, payment_method, user_id, provider: normalizedProvider, phone: phoneMasked });
 
     const LYGOS_API_KEY = Deno.env.get("LYGOS_API_KEY");
     
@@ -46,6 +70,10 @@ serve(async (req) => {
       amount,
       payment_method,
       user_id,
+      provider: normalizedProvider,
+      phone: phoneMasked,
+      currency: "XOF",
+      country: "CI",
       shop_name: "Visuel Pro",
       order_id: orderId
     });
@@ -58,12 +86,15 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         amount,
+        currency: "XOF",
+        country: "CI",
         shop_name: "Visuel Pro",
         message: "Abonnement Visuel Pro - Plan Premium",
         payment_method,
         user_id,
-        provider,
-        phone,
+        provider: normalizedProvider,
+        operator: normalizedProvider,
+        phone: normalizedPhone,
         success_url: `${supabaseUrl}/functions/v1/payment-callback?status=success&user_id=${user_id}&amount=${amount}&transaction_id=${orderId}`,
         failure_url: `${supabaseUrl}/functions/v1/payment-callback?status=failure&user_id=${user_id}`,
         order_id: orderId,
