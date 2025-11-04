@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles, Zap, Globe, Palette } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Header } from "@/components/Header";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -30,8 +31,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
+      <Header />
+      
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20">
+      <section id="home" className="container mx-auto px-4 py-20">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6">
             <Sparkles className="h-4 w-4" />
@@ -68,7 +71,7 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-16">
+      <section id="features" className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           <div className="text-center p-6">
             <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
@@ -104,7 +107,7 @@ const Index = () => {
 
       {/* Testimonials Section */}
       {publishedFeedback.length > 0 && (
-        <section className="container mx-auto px-4 py-16">
+        <section id="testimonials" className="container mx-auto px-4 py-16">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
             Ce que disent nos utilisateurs
           </h2>
