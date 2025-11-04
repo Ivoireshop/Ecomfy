@@ -111,8 +111,8 @@ const Auth = () => {
       if (error) throw error;
 
       toast({
-        title: "Compte créé !",
-        description: "Votre compte a été créé avec succès. Vous pouvez maintenant vous connecter.",
+        title: "Vérifiez votre email !",
+        description: "Un email de confirmation a été envoyé à votre adresse. Veuillez cliquer sur le lien pour activer votre compte.",
       });
     } catch (error) {
       console.error("Erreur lors de l'inscription:", error);
