@@ -256,6 +256,29 @@ Create a stunning, conversion-focused advertising visual that combines the best 
       throw new Error("No image generated");
     }
 
+    // Save the generated image to the database
+    const { error: saveError } = await supabaseClient
+      .from("generated_images")
+      .insert({
+        user_id: userId,
+        image_url: imageUrl,
+        prompt: prompt.substring(0, 500),
+        product_details: {
+          productName,
+          niche,
+          description,
+          platform,
+          style,
+          price,
+          promotionalPrice,
+        },
+      });
+
+    if (saveError) {
+      console.error("Error saving image:", saveError);
+      // Don't fail the request, just log the error
+    }
+
     // Decrement free generations if not subscribed
     let updatedFreeGenerations = freeGenerationsRemaining;
     if (!hasActiveSubscription && freeGenerationsRemaining > 0) {

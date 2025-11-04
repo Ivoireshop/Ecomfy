@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      generated_images: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          product_details: Json | null
+          prompt: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          product_details?: Json | null
+          prompt: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          product_details?: Json | null
+          prompt?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      generated_videos: {
+        Row: {
+          created_at: string
+          id: string
+          product_details: Json | null
+          prompt: string
+          status: string
+          user_id: string
+          video_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_details?: Json | null
+          prompt: string
+          status?: string
+          user_id: string
+          video_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_details?: Json | null
+          prompt?: string
+          status?: string
+          user_id?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -107,6 +164,7 @@ export type Database = {
           status: string
           updated_at: string | null
           user_id: string
+          video_generations_remaining: number
         }
         Insert: {
           amount?: number
@@ -117,6 +175,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id: string
+          video_generations_remaining?: number
         }
         Update: {
           amount?: number
@@ -127,6 +186,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id?: string
+          video_generations_remaining?: number
         }
         Relationships: []
       }

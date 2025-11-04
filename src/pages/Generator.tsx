@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, LogOut } from "lucide-react";
+import { Sparkles, Loader2, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ImageEditor } from "@/components/ImageEditor";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -29,6 +30,9 @@ const Generator = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState<number | null>(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [videoGenerationsRemaining, setVideoGenerationsRemaining] = useState<number>(5);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [generationType, setGenerationType] = useState<"image" | "video">("image");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -43,12 +47,13 @@ const Generator = () => {
       // Check subscription
       const { data: subData } = await supabase
         .from("subscriptions")
-        .select("status")
+        .select("status, video_generations_remaining")
         .eq("user_id", user.id)
         .single();
 
       const hasActiveSub = subData?.status === "active";
       setHasActiveSubscription(hasActiveSub);
+      setVideoGenerationsRemaining(subData?.video_generations_remaining || 0);
 
       // Check free generations
       const { data: profileData } = await supabase
@@ -63,21 +68,61 @@ const Generator = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate("/");
+  const handleGenerateVideo = async () => {
+    if (!productName || !niche || !description || !platform || !price) {
       toast({
-        title: "Déconnecté",
-        description: "Vous avez été déconnecté avec succès.",
-      });
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la déconnexion",
+        title: "Champs manquants",
+        description: "Veuillez remplir tous les champs obligatoires",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!hasActiveSubscription) {
+      toast({
+        title: "Abonnement requis",
+        description: "La génération de vidéos nécessite un abonnement actif",
+        variant: "destructive",
+      });
+      navigate("/subscription");
+      return;
+    }
+
+    setIsGeneratingVideo(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-video", {
+        body: {
+          productName,
+          niche,
+          description,
+          benefits,
+          platform,
+          style,
+          price,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setVideoGenerationsRemaining(data.videoGenerationsRemaining || 0);
+
+      toast({
+        title: "Vidéo en cours de génération",
+        description: "Votre vidéo sera disponible dans quelques minutes dans la bibliothèque",
+      });
+
+      setTimeout(() => navigate("/library"), 2000);
+    } catch (error) {
+      console.error("Erreur lors de la génération vidéo:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Une erreur est survenue",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingVideo(false);
     }
   };
 
@@ -165,27 +210,14 @@ const Generator = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            VisualPro
-          </h1>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Déconnexion
-          </Button>
-        </div>
-      </header>
-
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Créez votre visuel publicitaire
+              Créez votre contenu publicitaire
             </h1>
             <p className="text-lg text-muted-foreground">
-              Remplissez le formulaire et laissez l'IA créer un visuel professionnel pour vous
+              Remplissez le formulaire et laissez l'IA créer du contenu professionnel pour vous
             </p>
             
             {!hasActiveSubscription && freeGenerationsRemaining !== null && (
@@ -193,7 +225,7 @@ const Generator = () => {
                 <AlertDescription className="text-center">
                   {freeGenerationsRemaining > 0 ? (
                     <>
-                      🎁 <strong>Essai gratuit :</strong> Il vous reste <strong>{freeGenerationsRemaining}</strong> génération{freeGenerationsRemaining > 1 ? 's' : ''} gratuite{freeGenerationsRemaining > 1 ? 's' : ''}
+                      🎁 <strong>Essai gratuit :</strong> Il vous reste <strong>{freeGenerationsRemaining}</strong> génération{freeGenerationsRemaining > 1 ? 's' : ''} d'image{freeGenerationsRemaining > 1 ? 's' : ''} gratuite{freeGenerationsRemaining > 1 ? 's' : ''}
                     </>
                   ) : (
                     <>
@@ -203,7 +235,28 @@ const Generator = () => {
                 </AlertDescription>
               </Alert>
             )}
+
+            {hasActiveSubscription && (
+              <Alert className="mt-4 max-w-2xl mx-auto">
+                <AlertDescription className="text-center">
+                  🎬 <strong>Génération de vidéos :</strong> Il vous reste <strong>{videoGenerationsRemaining}</strong> vidéo{videoGenerationsRemaining > 1 ? 's' : ''} ce mois-ci
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
+
+          <Tabs value={generationType} onValueChange={(v) => setGenerationType(v as "image" | "video")} className="mb-6">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+              <TabsTrigger value="image">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Image
+              </TabsTrigger>
+              <TabsTrigger value="video" disabled={!hasActiveSubscription}>
+                <Video className="mr-2 h-4 w-4" />
+                Vidéo {!hasActiveSubscription && "(Pro)"}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <div className="bg-card rounded-xl shadow-lg p-8 border">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
@@ -357,24 +410,46 @@ const Generator = () => {
                 </Select>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full text-lg py-6"
-                size="lg"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Génération en cours...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-5 w-5" />
-                    Générer mon visuel
-                  </>
-                )}
-              </Button>
+              {generationType === "image" ? (
+                <Button
+                  type="submit"
+                  className="w-full text-lg py-6"
+                  size="lg"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Génération en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Générer mon image
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleGenerateVideo}
+                  className="w-full text-lg py-6"
+                  size="lg"
+                  disabled={isGeneratingVideo || !hasActiveSubscription || videoGenerationsRemaining <= 0}
+                >
+                  {isGeneratingVideo ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Génération vidéo en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Video className="mr-2 h-5 w-5" />
+                      Générer ma vidéo (30s max)
+                    </>
+                  )}
+                </Button>
+              )}
             </form>
 
             {generatedImage && !isEditing && (
