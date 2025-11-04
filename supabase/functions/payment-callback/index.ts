@@ -12,26 +12,35 @@ serve(async (req) => {
   }
 
   try {
-    const paymentData = await req.json();
+    // Lygos peut envoyer les données via query params ou body JSON
+    const url = new URL(req.url);
+    let paymentData: any;
+
+    if (req.method === "POST") {
+      paymentData = await req.json();
+    } else if (req.method === "GET") {
+      // Extraire les paramètres de l'URL
+      paymentData = {
+        status: url.searchParams.get("status"),
+        user_id: url.searchParams.get("user_id"),
+        amount: url.searchParams.get("amount"),
+        transaction_id: url.searchParams.get("transaction_id"),
+      };
+    }
+
     console.log("Payment callback received:", paymentData);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // TODO: Vérifier la signature du webhook Lygos pour la sécurité
-    // const signature = req.headers.get("X-Lygos-Signature");
-    
-    // Extraire les informations du paiement (à adapter selon la structure Lygos)
     const { status, user_id, amount, transaction_id } = paymentData;
 
     if (status === "success" || status === "completed") {
-      // Calculer la date de fin (30 jours)
       const startDate = new Date();
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 30);
 
-      // Mettre à jour l'abonnement
       const { error: updateError } = await supabase
         .from("subscriptions")
         .update({
@@ -49,23 +58,39 @@ serve(async (req) => {
 
       console.log("Subscription activated for user:", user_id);
 
-      // TODO: Enregistrer la transaction dans une table payments
-      // pour garder un historique des paiements
+      // Enregistrer le paiement dans la table payments
+      const { error: paymentError } = await supabase
+        .from("payments")
+        .insert({
+          user_id: user_id,
+          amount: parseFloat(amount),
+          status: "completed",
+          transaction_id: transaction_id,
+        });
 
-      return new Response(
-        JSON.stringify({ success: true, message: "Subscription activated" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      if (paymentError) {
+        console.error("Error recording payment:", paymentError);
+      }
+
+      // Rediriger l'utilisateur vers la page de succès
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          "Location": `${url.origin}/subscription?payment=success`,
+        },
+      });
     } else {
       console.log("Payment not successful, status:", status);
-      return new Response(
-        JSON.stringify({ success: false, message: "Payment not completed" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      
+      // Rediriger vers la page d'échec
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          "Location": `${url.origin}/subscription?payment=failed`,
+        },
+      });
     }
 
   } catch (error) {

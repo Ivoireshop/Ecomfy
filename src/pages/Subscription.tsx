@@ -50,6 +50,30 @@ const Subscription = () => {
     }
   }, [session]);
 
+  useEffect(() => {
+    // Vérifier les paramètres de retour de paiement
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get("payment");
+
+    if (paymentStatus === "success") {
+      toast({
+        title: "Paiement réussi ! 🎉",
+        description: "Votre abonnement a été activé avec succès",
+      });
+      loadSubscription();
+      // Nettoyer l'URL
+      window.history.replaceState({}, "", "/subscription");
+    } else if (paymentStatus === "failed") {
+      toast({
+        title: "Paiement échoué",
+        description: "Le paiement n'a pas pu être effectué. Veuillez réessayer.",
+        variant: "destructive",
+      });
+      // Nettoyer l'URL
+      window.history.replaceState({}, "", "/subscription");
+    }
+  }, []);
+
   const loadSubscription = async () => {
     try {
       const { data, error } = await supabase
