@@ -89,7 +89,17 @@ const Generator = () => {
     setGeneratedImage(null);
 
     try {
+      // Assure l'envoi explicite du jeton utilisateur à la fonction
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error("Vous devez être connecté pour générer une image.");
+      }
+
       const { data, error } = await supabase.functions.invoke("generate-ad-visual", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           productName,
           niche,
@@ -101,18 +111,29 @@ const Generator = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Gestion claire des erreurs courantes
+        const status = (error as any)?.status as number | undefined;
+        if (status === 401) throw new Error("Session expirée ou non authentifiée. Veuillez vous reconnecter.");
+        if (status === 402) throw new Error("Crédits insuffisants pour l'IA. Veuillez recharger ou souscrire.");
+        if (status === 429) throw new Error("Limite de requêtes atteinte. Réessayez dans quelques instants.");
+        if (status === 404) throw new Error("Service de génération indisponible (404). Réessayez plus tard.");
+        throw error;
+      }
 
-      if (data.error) {
+      if (data?.error) {
         throw new Error(data.error);
       }
 
+      if (!data?.imageUrl) {
+        throw new Error("Aucune image générée par le service. Réessayez avec plus de détails.");
+      }
+
       setGeneratedImage(data.imageUrl);
-      
-      // Update free generations count
+
+      // Met à jour le compteur d'essais gratuits
       await loadUserGenerationStatus();
-      
-      // Check if user should be redirected to subscription
+
       if (!hasActiveSubscription && data.freeGenerationsRemaining !== undefined) {
         if (data.freeGenerationsRemaining <= 0) {
           toast({
@@ -124,7 +145,7 @@ const Generator = () => {
           return;
         }
       }
-      
+
       toast({
         title: "Succès !",
         description: "Votre visuel a été généré avec succès",
