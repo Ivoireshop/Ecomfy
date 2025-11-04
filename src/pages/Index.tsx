@@ -179,9 +179,12 @@ const Index = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">
                   Notre Fondateur
                 </h2>
-                <h3 className="text-2xl font-semibold text-primary mb-6">
+                <h3 className="text-2xl font-semibold text-primary mb-4">
                   Ulrich Djaté
                 </h3>
+                <p className="text-base text-muted-foreground mb-6">
+                  Ex prof de collège | Entrepreneur Ivoirien | Développeur No-Code | Expert en Intelligence Artificielle
+                </p>
                 <p className="text-lg text-muted-foreground leading-relaxed mb-6 italic">
                   "La détermination forge le succès. Ne jamais abandonner, c'est la clé pour transformer chaque obstacle en opportunité. Poursuivez vos rêves avec passion et courage, car chaque grand projet commence par un premier pas audacieux."
                 </p>
