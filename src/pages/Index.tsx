@@ -195,7 +195,7 @@ const Index = () => {
                   <img 
                     src={founderImage} 
                     alt="Ulrich Djaté - Fondateur de VisualPro" 
-                    className="relative w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-background"
+                    className="relative w-full h-full object-cover object-[center_30%] rounded-2xl shadow-2xl border-4 border-background"
                   />
                 </div>
               </div>
