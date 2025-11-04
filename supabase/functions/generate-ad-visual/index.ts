@@ -85,9 +85,9 @@ serve(async (req) => {
       );
     }
 
-    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage } = await req.json();
+    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription } = await req.json();
     
-    console.log("Generating visual for:", { productName, niche, platform, style });
+    console.log("Generating visual for:", { productName, niche, platform, style, personDescription });
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -128,6 +128,17 @@ PRODUCT INFORMATION:
     
     if (productImage) {
       prompt += `\n\nIMPORTANT: Use the provided product image as the base. Integrate it into a professional advertising composition while maintaining the actual product appearance. DO NOT create a different product - use the exact product shown in the image.`;
+    }
+    
+    if (personDescription) {
+      prompt += `\n\nPERSON/SCENE STAGING REQUEST (OPTIONAL):
+The user wants to feature a person with the product. Here's their description: "${personDescription}"
+- Integrate this person naturally into the composition with the product
+- The person should complement and highlight the product, not overshadow it
+- Ensure the scene looks authentic and professional
+- The person should be holding, using, or presenting the product in a natural way
+- Match the person's style and appearance to the described niche and target audience
+- Make sure the overall composition remains focused on the product as the hero element`;
     }
 
     prompt += `\n\nVISUAL STYLE DIRECTION:`;

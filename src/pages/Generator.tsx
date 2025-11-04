@@ -25,6 +25,7 @@ const Generator = () => {
   const [promotionalPrice, setPromotionalPrice] = useState("");
   const [posology, setPosology] = useState("");
   const [productImage, setProductImage] = useState<string | null>(null);
+  const [personDescription, setPersonDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -111,6 +112,7 @@ const Generator = () => {
           platform,
           style,
           price,
+          personDescription,
         },
       });
 
@@ -165,6 +167,7 @@ const Generator = () => {
           promotionalPrice,
           posology,
           productImage,
+          personDescription,
         },
       });
 
@@ -408,6 +411,20 @@ const Generator = () => {
                 {productImage && (
                   <p className="text-sm text-muted-foreground">✓ Image chargée</p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="personDescription">Mise en scène avec une personne (optionnel)</Label>
+                <Textarea
+                  id="personDescription"
+                  placeholder="Ex: Un homme musclé torse nu tenant le produit, une dame élégante assise sur une table avec le produit, un jeune sportif présentant le produit..."
+                  value={personDescription}
+                  onChange={(e) => setPersonDescription(e.target.value)}
+                  rows={3}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Décrivez une personne ou une scène pour mettre en valeur votre produit (laissez vide si vous voulez uniquement le produit)
+                </p>
               </div>
 
               <div className="space-y-2">

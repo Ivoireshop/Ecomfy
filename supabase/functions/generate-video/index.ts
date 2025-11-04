@@ -91,9 +91,9 @@ serve(async (req) => {
       );
     }
 
-    const { productName, niche, description, benefits, platform, style, price } = await req.json();
+    const { productName, niche, description, benefits, platform, style, price, personDescription } = await req.json();
     
-    console.log("Generating video for:", { productName, niche, platform });
+    console.log("Generating video for:", { productName, niche, platform, personDescription });
 
     // Build prompt for video generation
     const prompt = `Créez une vidéo publicitaire de 30 secondes maximum pour le produit suivant :
@@ -103,6 +103,7 @@ Niche: ${niche}
 Description: ${description}
 ${benefits ? `Avantages: ${benefits}` : ''}
 ${price ? `Prix: ${price}` : ''}
+${personDescription ? `Mise en scène: ${personDescription} - Intégrez cette personne de manière naturelle en train de présenter ou utiliser le produit` : ''}
 Plateforme cible: ${platform}
 Style: ${style}
 
@@ -112,7 +113,8 @@ La vidéo doit:
 - Mettre en valeur le produit de manière professionnelle
 - Inclure du texte en français parfait
 - Être optimisée pour ${platform}
-- Refléter le style ${style}`;
+- Refléter le style ${style}
+${personDescription ? '- Montrer la personne décrite en interaction avec le produit de façon professionnelle et naturelle' : ''}`;
 
     // Create a video record in processing state
     const { data: videoData, error: insertError } = await supabaseClient
