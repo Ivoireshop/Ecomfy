@@ -73,22 +73,24 @@ serve(async (req) => {
       }
 
       // Rediriger l'utilisateur vers la page de succès
+      const frontendUrl = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "lovableproject.com") || url.origin;
       return new Response(null, {
         status: 302,
         headers: {
           ...corsHeaders,
-          "Location": `${url.origin}/subscription?payment=success`,
+          "Location": `${frontendUrl}/subscription?payment=success`,
         },
       });
     } else {
       console.log("Payment not successful, status:", status);
       
       // Rediriger vers la page d'échec
+      const frontendUrl = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "lovableproject.com") || url.origin;
       return new Response(null, {
         status: 302,
         headers: {
           ...corsHeaders,
-          "Location": `${url.origin}/subscription?payment=failed`,
+          "Location": `${frontendUrl}/subscription?payment=failed`,
         },
       });
     }
