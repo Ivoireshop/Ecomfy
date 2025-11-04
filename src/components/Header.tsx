@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Menu, X, Sparkles } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Header() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export function Header() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
+            <ThemeToggle />
             <Button onClick={() => navigate("/auth")}>
               <Sparkles className="mr-2 h-4 w-4" />
               Commencer
@@ -73,6 +75,10 @@ export function Header() {
                 </nav>
 
                 <div className="flex flex-col gap-3 mt-6 pt-6 border-t">
+                  <div className="flex items-center justify-between px-2 mb-2">
+                    <span className="text-sm text-muted-foreground">Thème</span>
+                    <ThemeToggle />
+                  </div>
                   <Button
                     variant="outline"
                     className="w-full"

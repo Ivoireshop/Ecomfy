@@ -2,6 +2,7 @@ import { Home, Image, Video, MessageSquare, CreditCard, LogOut } from "lucide-re
 import { NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 import {
   Sidebar,
@@ -82,6 +83,15 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupContent>
+            <div className={isCollapsed ? "flex justify-center" : "flex items-center gap-2 px-2"}>
+              <ThemeToggle />
+              {!isCollapsed && <span className="text-sm text-muted-foreground">Thème</span>}
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
