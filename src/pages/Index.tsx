@@ -1,9 +1,32 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Zap, Globe, Palette } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [publishedFeedback, setPublishedFeedback] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadPublishedFeedback();
+  }, []);
+
+  const loadPublishedFeedback = async () => {
+    const { data, error } = await supabase
+      .from("feedback")
+      .select("*")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(6);
+
+    if (error) {
+      console.error("Error loading feedback:", error);
+      return;
+    }
+
+    setPublishedFeedback(data || []);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
@@ -78,6 +101,55 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Testimonials Section */}
+      {publishedFeedback.length > 0 && (
+        <section className="container mx-auto px-4 py-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+            Ce que disent nos utilisateurs
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {publishedFeedback.map((feedback) => (
+              <div
+                key={feedback.id}
+                className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start gap-4 mb-4">
+                  {feedback.photo_url && (
+                    <img
+                      src={feedback.photo_url}
+                      alt={feedback.full_name || "Utilisateur"}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-semibold">
+                        {feedback.full_name || "Utilisateur anonyme"}
+                      </h4>
+                      <div className="flex text-yellow-400">
+                        {Array.from({ length: feedback.rating }).map((_, i) => (
+                          <span key={i}>⭐</span>
+                        ))}
+                      </div>
+                    </div>
+                    {feedback.country && (
+                      <p className="text-sm text-muted-foreground">
+                        {feedback.country}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {feedback.comment && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    "{feedback.comment}"
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-16">

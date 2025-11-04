@@ -75,13 +75,32 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
       fontFamily: fontFamily,
       underline: underline,
       editable: true,
+      lockScalingFlip: true,
     });
 
     fabricCanvas.add(text);
     fabricCanvas.setActiveObject(text);
     fabricCanvas.renderAll();
     setTextContent("");
-    toast.success("Texte ajouté ! Vous pouvez le déplacer et le redimensionner");
+    toast.success("Texte ajouté ! Double-cliquez dessus pour l'éditer");
+  };
+
+  const handleUpdateSelectedText = () => {
+    if (!fabricCanvas) return;
+
+    const activeObject = fabricCanvas.getActiveObject();
+    if (activeObject && activeObject instanceof FabricText) {
+      activeObject.set({
+        fontSize: fontSize,
+        fill: textColor,
+        fontFamily: fontFamily,
+        underline: underline,
+      });
+      fabricCanvas.renderAll();
+      toast.success("Texte mis à jour !");
+    } else {
+      toast.error("Veuillez sélectionner un texte à modifier");
+    }
   };
 
   const handleDeleteSelected = () => {
@@ -205,7 +224,12 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
 
               <Button onClick={handleAddText} className="w-full">
                 <Type className="mr-2 h-4 w-4" />
-                Ajouter le texte
+                Ajouter un nouveau texte
+              </Button>
+
+              <Button onClick={handleUpdateSelectedText} variant="secondary" className="w-full">
+                <Type className="mr-2 h-4 w-4" />
+                Modifier le texte sélectionné
               </Button>
 
               <Button onClick={handleDeleteSelected} variant="destructive" className="w-full">
@@ -230,8 +254,9 @@ export const ImageEditor = ({ imageUrl, onClose, onSave, productName }: ImageEdi
                 <canvas ref={canvasRef} className="max-w-full" />
               </div>
               <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                <p>💡 <strong>Cliquez</strong> sur un texte pour le sélectionner, le déplacer ou le redimensionner</p>
+                <p>💡 <strong>Cliquez</strong> sur un texte pour le sélectionner et le déplacer</p>
                 <p>✏️ <strong>Double-cliquez</strong> sur un texte pour l'éditer directement</p>
+                <p>🎨 <strong>Sélectionnez</strong> un texte et modifiez les paramètres à gauche, puis cliquez sur "Modifier le texte sélectionné"</p>
                 <p>🗑️ <strong>Sélectionnez</strong> un élément et cliquez sur "Supprimer" pour l'effacer</p>
               </div>
             </div>

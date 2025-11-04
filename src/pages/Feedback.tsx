@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +15,9 @@ const Feedback = () => {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [country, setCountry] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [userFeedback, setUserFeedback] = useState<any[]>([]);
 
@@ -51,6 +55,15 @@ const Feedback = () => {
       return;
     }
 
+    if (!fullName.trim() || !country.trim()) {
+      toast({
+        title: "Informations requises",
+        description: "Veuillez renseigner votre nom et votre pays",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -61,6 +74,9 @@ const Feedback = () => {
         user_id: user.id,
         rating,
         comment: comment.trim() || null,
+        full_name: fullName.trim(),
+        country: country.trim(),
+        photo_url: photoUrl.trim() || null,
       });
 
       if (error) throw error;
@@ -72,6 +88,9 @@ const Feedback = () => {
 
       setRating(0);
       setComment("");
+      setFullName("");
+      setCountry("");
+      setPhotoUrl("");
       loadUserFeedback();
     } catch (error) {
       console.error("Erreur soumission feedback:", error);
@@ -150,6 +169,46 @@ const Feedback = () => {
                   )}
                 </div>
 
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Nom complet *</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Jean Dupont"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Pays *</Label>
+                    <Input
+                      id="country"
+                      type="text"
+                      placeholder="Côte d'Ivoire"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="photoUrl">URL de votre photo (optionnel)</Label>
+                  <Input
+                    id="photoUrl"
+                    type="url"
+                    placeholder="https://example.com/photo.jpg"
+                    value={photoUrl}
+                    onChange={(e) => setPhotoUrl(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Collez l'URL d'une photo en ligne (facultatif)
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="comment">
                     Votre commentaire (optionnel)
@@ -167,7 +226,7 @@ const Feedback = () => {
                   <Button
                     type="submit"
                     className="flex-1"
-                    disabled={isLoading || rating === 0}
+                    disabled={isLoading || rating === 0 || !fullName.trim() || !country.trim()}
                   >
                     {isLoading ? (
                       <>

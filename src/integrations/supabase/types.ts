@@ -17,24 +17,33 @@ export type Database = {
       feedback: {
         Row: {
           comment: string | null
+          country: string | null
           created_at: string
+          full_name: string | null
           id: string
+          photo_url: string | null
           rating: number
           status: string
           user_id: string
         }
         Insert: {
           comment?: string | null
+          country?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
+          photo_url?: string | null
           rating: number
           status?: string
           user_id: string
         }
         Update: {
           comment?: string | null
+          country?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
+          photo_url?: string | null
           rating?: number
           status?: string
           user_id?: string
