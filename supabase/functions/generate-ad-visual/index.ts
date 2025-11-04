@@ -34,7 +34,9 @@ serve(async (req) => {
       }
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Use explicit token to fetch user (more reliable on server-side)
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Non authentifié" }),
