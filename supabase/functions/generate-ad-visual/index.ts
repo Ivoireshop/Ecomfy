@@ -85,7 +85,7 @@ serve(async (req) => {
       );
     }
 
-    const { productName, niche, description, benefits, container, platform, style, price, posology, productImage } = await req.json();
+    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage } = await req.json();
     
     console.log("Generating visual for:", { productName, niche, platform, style });
 
@@ -107,7 +107,10 @@ PRODUCT INFORMATION:
 - Niche: ${niche}
 - Description: ${description}`;
     
-    if (price) {
+    if (price && promotionalPrice) {
+      prompt += `\n- Promotional Price (crossed out): ${promotionalPrice}`;
+      prompt += `\n- Current Price: ${price} (MUST be prominently displayed with promotional price crossed out to show discount)`;
+    } else if (price) {
       prompt += `\n- Price: ${price} (MUST be prominently displayed on the visual)`;
     }
     
@@ -161,7 +164,7 @@ PRODUCT INFORMATION:
 - Balance professional quality with authentic, relatable aesthetics
 - Ensure the product is hero of the composition while telling a compelling story
 - Use lighting and composition techniques seen in high-converting ads
-${price ? `- Display the price "${price}" prominently and legibly on the visual` : ''}
+${promotionalPrice && price ? `- Display the promotional price "${promotionalPrice}" crossed out (strikethrough) and the current price "${price}" prominently next to it to emphasize the discount` : price ? `- Display the price "${price}" prominently and legibly on the visual` : ''}
 ${posology ? `- Include dosage/usage instructions "${posology}" in a clear, readable format` : ''}
 
 TEXT QUALITY REQUIREMENTS (CRITICAL):

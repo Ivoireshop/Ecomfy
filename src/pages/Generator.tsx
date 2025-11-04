@@ -9,6 +9,7 @@ import { Sparkles, Loader2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ImageEditor } from "@/components/ImageEditor";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -20,10 +21,12 @@ const Generator = () => {
   const [platform, setPlatform] = useState("");
   const [style, setStyle] = useState("");
   const [price, setPrice] = useState("");
+  const [promotionalPrice, setPromotionalPrice] = useState("");
   const [posology, setPosology] = useState("");
   const [productImage, setProductImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState<number | null>(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const { toast } = useToast();
@@ -103,6 +106,7 @@ const Generator = () => {
           platform,
           style,
           price,
+          promotionalPrice,
           posology,
           productImage,
         },
@@ -276,6 +280,19 @@ const Generator = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="promotionalPrice">Prix promotionnel (optionnel)</Label>
+                <Input
+                  id="promotionalPrice"
+                  placeholder="Ex: 15 000 FCFA (sera barré)"
+                  value={promotionalPrice}
+                  onChange={(e) => setPromotionalPrice(e.target.value)}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Si renseigné, ce prix sera affiché barré pour montrer la réduction
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="posology">Posologie / Mode d'emploi</Label>
                 <Textarea
                   id="posology"
@@ -360,7 +377,7 @@ const Generator = () => {
               </Button>
             </form>
 
-            {generatedImage && (
+            {generatedImage && !isEditing && (
               <div className="mt-8">
                 <h2 className="text-2xl font-bold mb-4 text-center">Votre visuel généré</h2>
                 <div className="relative rounded-lg overflow-hidden shadow-xl">
@@ -371,6 +388,13 @@ const Generator = () => {
                   />
                 </div>
                 <div className="mt-4 flex gap-4">
+                  <Button
+                    onClick={() => setIsEditing(true)}
+                    variant="default"
+                    className="flex-1"
+                  >
+                    Éditer l'image
+                  </Button>
                   <Button
                     onClick={() => {
                       const link = document.createElement("a");
@@ -391,6 +415,18 @@ const Generator = () => {
                   </Button>
                 </div>
               </div>
+            )}
+
+            {isEditing && generatedImage && (
+              <ImageEditor
+                imageUrl={generatedImage}
+                productName={productName}
+                onClose={() => setIsEditing(false)}
+                onSave={(editedImageUrl) => {
+                  setGeneratedImage(editedImageUrl);
+                  setIsEditing(false);
+                }}
+              />
             )}
           </div>
         </div>
