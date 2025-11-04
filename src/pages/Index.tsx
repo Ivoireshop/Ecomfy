@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
 import featureIA from "@/assets/feature-ia.jpg";
+import founderImage from "@/assets/founder-ulrich-djate.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -168,6 +169,40 @@ const Index = () => {
           </div>
         </section>
       )}
+
+      {/* Founder Section */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-gradient-to-br from-card to-accent/5 rounded-2xl shadow-xl overflow-hidden border">
+            <div className="grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
+              <div className="order-2 md:order-1 text-center md:text-left">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                  Notre Fondateur
+                </h2>
+                <h3 className="text-2xl font-semibold text-primary mb-6">
+                  Ulrich Djaté
+                </h3>
+                <p className="text-lg text-muted-foreground leading-relaxed mb-6 italic">
+                  "La détermination forge le succès. Ne jamais abandonner, c'est la clé pour transformer chaque obstacle en opportunité. Poursuivez vos rêves avec passion et courage, car chaque grand projet commence par un premier pas audacieux."
+                </p>
+                <div className="inline-block bg-primary/10 text-primary px-6 py-3 rounded-lg font-medium">
+                  Fondateur & CEO - VisualPro
+                </div>
+              </div>
+              <div className="order-1 md:order-2">
+                <div className="relative w-64 h-64 md:w-80 md:h-80 mx-auto">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl blur-2xl"></div>
+                  <img 
+                    src={founderImage} 
+                    alt="Ulrich Djaté - Fondateur de VisualPro" 
+                    className="relative w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-background"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-16">
