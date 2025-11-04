@@ -120,11 +120,16 @@ const Subscription = () => {
 
       if (error) throw error;
 
-      if (data?.payment_url) {
-        window.location.href = data.payment_url;
+      // Debug: log raw response for visibility
+      console.log("process-payment response:", data);
+
+      const paymentUrl = data?.payment_url || data?.url || data?.checkout_url || data?.link;
+      if (paymentUrl && typeof paymentUrl === "string") {
+        window.location.assign(paymentUrl);
         return;
       }
 
+      console.error("Paiement: réponse inattendue", data);
       throw new Error("Impossible d'ouvrir la page de paiement. Veuillez réessayer.");
     } catch (error) {
       console.error("Erreur lors du paiement:", error);
