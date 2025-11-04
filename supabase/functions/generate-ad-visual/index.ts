@@ -85,7 +85,7 @@ serve(async (req) => {
       );
     }
 
-    const { productName, niche, description, benefits, container, platform, style } = await req.json();
+    const { productName, niche, description, benefits, container, platform, style, price, posology, productImage } = await req.json();
     
     console.log("Generating visual for:", { productName, niche, platform, style });
 
@@ -97,6 +97,8 @@ serve(async (req) => {
     // Build an advanced prompt that analyzes successful ads in the niche
     let prompt = `You are an expert advertising visual creator specializing in the African market. 
 
+CRITICAL: All text in the generated image MUST be in perfect French with NO spelling errors. Double-check every word for correct French orthography, grammar, and accents.
+
 COMPETITIVE ANALYSIS CONTEXT:
 First, mentally analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and messaging patterns consistently perform well in this niche for African audiences.
 
@@ -105,12 +107,24 @@ PRODUCT INFORMATION:
 - Niche: ${niche}
 - Description: ${description}`;
     
+    if (price) {
+      prompt += `\n- Price: ${price} (MUST be prominently displayed on the visual)`;
+    }
+    
     if (benefits) {
       prompt += `\n- Key Benefits: ${benefits}`;
     }
     
+    if (posology) {
+      prompt += `\n- Dosage/Usage: ${posology} (include this information on the visual)`;
+    }
+    
     if (container) {
       prompt += `\n- Container/Packaging: ${container}`;
+    }
+    
+    if (productImage) {
+      prompt += `\n\nIMPORTANT: Use the provided product image as the base. Integrate it into a professional advertising composition while maintaining the actual product appearance. DO NOT create a different product - use the exact product shown in the image.`;
     }
 
     prompt += `\n\nVISUAL STYLE DIRECTION:`;
@@ -147,6 +161,15 @@ PRODUCT INFORMATION:
 - Balance professional quality with authentic, relatable aesthetics
 - Ensure the product is hero of the composition while telling a compelling story
 - Use lighting and composition techniques seen in high-converting ads
+${price ? `- Display the price "${price}" prominently and legibly on the visual` : ''}
+${posology ? `- Include dosage/usage instructions "${posology}" in a clear, readable format` : ''}
+
+TEXT QUALITY REQUIREMENTS (CRITICAL):
+- ALL text must be in PERFECT French with correct spelling, grammar, and accents
+- Verify every word for orthographic accuracy before finalizing
+- Use proper French typography and punctuation
+- Ensure all accents (é, è, ê, à, ô, etc.) are correctly placed
+- Double-check product name, price, and dosage text for errors
 
 TECHNICAL REQUIREMENTS:
 - Ultra high resolution, professional advertising photography
@@ -154,10 +177,27 @@ TECHNICAL REQUIREMENTS:
 - Attention-grabbing composition that stands out in social feeds
 - Optimized for fast loading while maintaining visual quality
 - Colors and contrast optimized for mobile screens
+- All text must be sharp, legible, and professionally rendered
 
-Create a stunning, conversion-focused advertising visual that combines the best elements of successful ads in this niche with authentic African cultural appeal.`;
+Create a stunning, conversion-focused advertising visual that combines the best elements of successful ads in this niche with authentic African cultural appeal. Ensure ZERO spelling errors in all French text.`;
 
     console.log("Generated prompt:", prompt);
+
+    // Build the message content - if product image is provided, include it
+    const messageContent = productImage 
+      ? [
+          {
+            type: "text",
+            text: prompt,
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: productImage,
+            },
+          },
+        ]
+      : prompt;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -170,7 +210,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
         messages: [
           {
             role: "user",
-            content: prompt,
+            content: messageContent,
           },
         ],
         modalities: ["image", "text"],

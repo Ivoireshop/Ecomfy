@@ -19,6 +19,9 @@ const Generator = () => {
   const [container, setContainer] = useState("");
   const [platform, setPlatform] = useState("");
   const [style, setStyle] = useState("");
+  const [price, setPrice] = useState("");
+  const [posology, setPosology] = useState("");
+  const [productImage, setProductImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState<number | null>(null);
@@ -76,10 +79,10 @@ const Generator = () => {
   };
 
   const handleGenerate = async () => {
-    if (!productName || !niche || !description || !platform) {
+    if (!productName || !niche || !description || !platform || !price) {
       toast({
         title: "Champs manquants",
-        description: "Veuillez remplir tous les champs obligatoires",
+        description: "Veuillez remplir tous les champs obligatoires (nom, niche, description, plateforme, prix)",
         variant: "destructive",
       });
       return;
@@ -99,6 +102,9 @@ const Generator = () => {
           container,
           platform,
           style,
+          price,
+          posology,
+          productImage,
         },
       });
 
@@ -256,6 +262,50 @@ const Generator = () => {
                   value={container}
                   onChange={(e) => setContainer(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="price">Prix du produit *</Label>
+                <Input
+                  id="price"
+                  placeholder="Ex: 10 000 FCFA"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="posology">Posologie / Mode d'emploi</Label>
+                <Textarea
+                  id="posology"
+                  placeholder="Ex: 2 gélules par jour, matin et soir..."
+                  value={posology}
+                  onChange={(e) => setPosology(e.target.value)}
+                  className="min-h-[80px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="productImage">Image du produit (optionnel)</Label>
+                <Input
+                  id="productImage"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setProductImage(reader.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                {productImage && (
+                  <p className="text-sm text-muted-foreground">✓ Image chargée</p>
+                )}
               </div>
 
               <div className="space-y-2">
