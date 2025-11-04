@@ -89,17 +89,8 @@ const Generator = () => {
     setGeneratedImage(null);
 
     try {
-      // Assure l'envoi explicite du jeton utilisateur à la fonction
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (!accessToken) {
-        throw new Error("Vous devez être connecté pour générer une image.");
-      }
-
+      // supabase.functions.invoke ajoute automatiquement le token d'auth
       const { data, error } = await supabase.functions.invoke("generate-ad-visual", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
         body: {
           productName,
           niche,

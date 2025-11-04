@@ -34,10 +34,10 @@ serve(async (req) => {
       }
     );
 
-    // Use explicit token to fetch user (more reliable on server-side)
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    // verify_jwt=true dans config.toml valide déjà le JWT, utilise getUser() directement
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
+      console.error("Auth error:", userError);
       return new Response(
         JSON.stringify({ error: "Non authentifié" }),
         {
