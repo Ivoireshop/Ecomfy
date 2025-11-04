@@ -174,6 +174,12 @@ const Auth = () => {
           <p className="text-muted-foreground">
             Créez vos visuels publicitaires avec l'IA
           </p>
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">
+              🎁 3 générations gratuites à l'inscription
+            </span>
+          </div>
         </div>
 
         <Card>
