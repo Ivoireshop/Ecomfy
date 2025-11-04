@@ -175,12 +175,23 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: signInEmail,
         password: signInPassword,
       });
 
       if (error) throw error;
+
+      // Vérifier si l'email est confirmé
+      if (data.user && !data.user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        toast({
+          title: "Email non vérifié",
+          description: "Veuillez vérifier votre boîte mail et cliquer sur le lien de confirmation avant de vous connecter.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({
         title: "Connecté !",
@@ -188,11 +199,22 @@ const Auth = () => {
       });
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur est survenue lors de la connexion",
-        variant: "destructive",
-      });
+      const errorMessage = error instanceof Error ? error.message : "";
+      
+      // Gérer spécifiquement l'erreur d'email non confirmé
+      if (errorMessage.toLowerCase().includes("email not confirmed")) {
+        toast({
+          title: "Email non vérifié",
+          description: "Veuillez vérifier votre boîte mail et cliquer sur le lien de confirmation avant de vous connecter.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: errorMessage || "Une erreur est survenue lors de la connexion",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
