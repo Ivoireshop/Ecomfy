@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 
@@ -20,6 +20,8 @@ const Auth = () => {
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpFullName, setSignUpFullName] = useState("");
+  const [signUpPhone, setSignUpPhone] = useState("");
+  const [signUpCountry, setSignUpCountry] = useState("");
   
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
@@ -46,13 +48,43 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const validatePassword = (password: string): { valid: boolean; message?: string } => {
+    if (password.length < 8) {
+      return { valid: false, message: "Le mot de passe doit contenir au moins 8 caractères" };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, message: "Le mot de passe doit contenir au moins une lettre minuscule" };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, message: "Le mot de passe doit contenir au moins une lettre majuscule" };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, message: "Le mot de passe doit contenir au moins un chiffre" };
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      return { valid: false, message: "Le mot de passe doit contenir au moins un caractère spécial (!@#$%^&*...)" };
+    }
+    return { valid: true };
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!signUpEmail || !signUpPassword || !signUpFullName) {
+    if (!signUpEmail || !signUpPassword || !signUpFullName || !signUpPhone || !signUpCountry) {
       toast({
         title: "Erreur",
-        description: "Veuillez remplir tous les champs",
+        description: "Veuillez remplir tous les champs obligatoires",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password strength
+    const passwordCheck = validatePassword(signUpPassword);
+    if (!passwordCheck.valid) {
+      toast({
+        title: "Mot de passe faible",
+        description: passwordCheck.message,
         variant: "destructive",
       });
       return;
@@ -70,6 +102,8 @@ const Auth = () => {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: signUpFullName,
+            phone: signUpPhone,
+            country: signUpCountry,
           },
         },
       });
@@ -196,7 +230,7 @@ const Auth = () => {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nom complet</Label>
+                    <Label htmlFor="signup-name">Nom complet *</Label>
                     <Input
                       id="signup-name"
                       type="text"
@@ -207,7 +241,7 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email">Email *</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -218,7 +252,44 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Mot de passe</Label>
+                    <Label htmlFor="signup-phone">Numéro de téléphone *</Label>
+                    <Input
+                      id="signup-phone"
+                      type="tel"
+                      placeholder="+225 XX XX XX XX XX"
+                      value={signUpPhone}
+                      onChange={(e) => setSignUpPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-country">Pays *</Label>
+                    <select
+                      id="signup-country"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={signUpCountry}
+                      onChange={(e) => setSignUpCountry(e.target.value)}
+                      required
+                    >
+                      <option value="">Sélectionnez votre pays</option>
+                      <option value="benin">Bénin</option>
+                      <option value="burkina">Burkina Faso</option>
+                      <option value="cameroun">Cameroun</option>
+                      <option value="cote_ivoire">Côte d'Ivoire</option>
+                      <option value="gabon">Gabon</option>
+                      <option value="guinee">Guinée</option>
+                      <option value="mali">Mali</option>
+                      <option value="niger">Niger</option>
+                      <option value="senegal">Sénégal</option>
+                      <option value="togo">Togo</option>
+                      <option value="rdc">République Démocratique du Congo</option>
+                      <option value="congo">République du Congo</option>
+                      <option value="tchad">Tchad</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Mot de passe *</Label>
                     <Input
                       id="signup-password"
                       type="password"
@@ -226,8 +297,11 @@ const Auth = () => {
                       value={signUpPassword}
                       onChange={(e) => setSignUpPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={8}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Min. 8 caractères avec majuscules, minuscules, chiffres et caractères spéciaux
+                    </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
