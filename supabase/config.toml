@@ -1,7 +1,7 @@
 project_id = "dqlbmtkaamjohgbcjwtw"
 
 [functions.generate-ad-visual]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-payment]
 verify_jwt = true

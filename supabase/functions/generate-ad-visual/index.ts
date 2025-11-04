@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,71 @@ serve(async (req) => {
   }
 
   try {
+    // Get user from auth header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Non authentifié" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Non authentifié" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Check subscription status
+    const { data: subData } = await supabaseClient
+      .from("subscriptions")
+      .select("status")
+      .eq("user_id", user.id)
+      .single();
+
+    const hasActiveSubscription = subData?.status === "active";
+
+    // Check free generations
+    const { data: profileData } = await supabaseClient
+      .from("profiles")
+      .select("free_generations_remaining")
+      .eq("id", user.id)
+      .single();
+
+    const freeGenerationsRemaining = profileData?.free_generations_remaining || 0;
+
+    // Verify user can generate
+    if (!hasActiveSubscription && freeGenerationsRemaining <= 0) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Vous avez épuisé vos générations gratuites. Veuillez souscrire à un abonnement.",
+          freeGenerationsRemaining: 0
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const { productName, niche, description, benefits, container, platform, style } = await req.json();
     
     console.log("Generating visual for:", { productName, niche, platform, style });
@@ -115,8 +181,25 @@ serve(async (req) => {
       throw new Error("No image generated");
     }
 
+    // Decrement free generations if not subscribed
+    let updatedFreeGenerations = freeGenerationsRemaining;
+    if (!hasActiveSubscription && freeGenerationsRemaining > 0) {
+      const { data: updateData } = await supabaseClient
+        .from("profiles")
+        .update({ free_generations_remaining: freeGenerationsRemaining - 1 })
+        .eq("id", user.id)
+        .select("free_generations_remaining")
+        .single();
+      
+      updatedFreeGenerations = updateData?.free_generations_remaining ?? freeGenerationsRemaining - 1;
+      console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
+    }
+
     return new Response(
-      JSON.stringify({ imageUrl }),
+      JSON.stringify({ 
+        imageUrl,
+        freeGenerationsRemaining: hasActiveSubscription ? null : updatedFreeGenerations
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }

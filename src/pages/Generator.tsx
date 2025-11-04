@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sparkles, Loader2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -20,7 +21,41 @@ const Generator = () => {
   const [style, setStyle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState<number | null>(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadUserGenerationStatus();
+  }, []);
+
+  const loadUserGenerationStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check subscription
+      const { data: subData } = await supabase
+        .from("subscriptions")
+        .select("status")
+        .eq("user_id", user.id)
+        .single();
+
+      const hasActiveSub = subData?.status === "active";
+      setHasActiveSubscription(hasActiveSub);
+
+      // Check free generations
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("free_generations_remaining")
+        .eq("id", user.id)
+        .single();
+
+      setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
+    } catch (error) {
+      console.error("Error loading generation status:", error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -73,6 +108,23 @@ const Generator = () => {
       }
 
       setGeneratedImage(data.imageUrl);
+      
+      // Update free generations count
+      await loadUserGenerationStatus();
+      
+      // Check if user should be redirected to subscription
+      if (!hasActiveSubscription && data.freeGenerationsRemaining !== undefined) {
+        if (data.freeGenerationsRemaining <= 0) {
+          toast({
+            title: "Essai gratuit terminé",
+            description: "Vous avez utilisé toutes vos générations gratuites. Souscrivez maintenant pour continuer !",
+            variant: "destructive",
+          });
+          setTimeout(() => navigate("/subscription"), 2000);
+          return;
+        }
+      }
+      
       toast({
         title: "Succès !",
         description: "Votre visuel a été généré avec succès",
@@ -113,6 +165,22 @@ const Generator = () => {
             <p className="text-lg text-muted-foreground">
               Remplissez le formulaire et laissez l'IA créer un visuel professionnel pour vous
             </p>
+            
+            {!hasActiveSubscription && freeGenerationsRemaining !== null && (
+              <Alert className="mt-4 max-w-2xl mx-auto">
+                <AlertDescription className="text-center">
+                  {freeGenerationsRemaining > 0 ? (
+                    <>
+                      🎁 <strong>Essai gratuit :</strong> Il vous reste <strong>{freeGenerationsRemaining}</strong> génération{freeGenerationsRemaining > 1 ? 's' : ''} gratuite{freeGenerationsRemaining > 1 ? 's' : ''}
+                    </>
+                  ) : (
+                    <>
+                      ⚠️ Vous avez utilisé toutes vos générations gratuites. <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/subscription")}>Souscrire maintenant</Button>
+                    </>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           <div className="bg-card rounded-xl shadow-lg p-8 border">

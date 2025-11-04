@@ -69,6 +69,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           email: string | null
+          free_generations_remaining: number
           full_name: string | null
           id: string
           phone: string | null
@@ -78,6 +79,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           email?: string | null
+          free_generations_remaining?: number
           full_name?: string | null
           id: string
           phone?: string | null
@@ -87,6 +89,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           email?: string | null
+          free_generations_remaining?: number
           full_name?: string | null
           id?: string
           phone?: string | null

@@ -13,6 +13,7 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState(0);
 
   useEffect(() => {
     // Check for existing session
@@ -42,17 +43,32 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
 
   const checkSubscription = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Check subscription
+      const { data: subData, error: subError } = await supabase
         .from("subscriptions")
         .select("status")
         .eq("user_id", userId)
         .single();
 
-      if (error) throw error;
-      setHasActiveSubscription(data?.status === "active");
+      if (subError) throw subError;
+      const hasActiveSub = subData?.status === "active";
+      setHasActiveSubscription(hasActiveSub);
+
+      // Check free generations if no active subscription
+      if (!hasActiveSub) {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("free_generations_remaining")
+          .eq("id", userId)
+          .single();
+
+        if (profileError) throw profileError;
+        setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
+      }
     } catch (error) {
       console.error("Error checking subscription:", error);
       setHasActiveSubscription(false);
+      setFreeGenerationsRemaining(0);
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +86,7 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
     return <Navigate to="/auth" replace />;
   }
 
-  if (requireActiveSubscription && !hasActiveSubscription) {
+  if (requireActiveSubscription && !hasActiveSubscription && freeGenerationsRemaining <= 0) {
     return <Navigate to="/subscription" replace />;
   }
 
