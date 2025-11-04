@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Zap, Globe, Palette } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
+import featureRapide from "@/assets/feature-rapide.jpg";
+import featureAfrique from "@/assets/feature-afrique.jpg";
+import featureIA from "@/assets/feature-ia.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -74,8 +77,12 @@ const Index = () => {
       <section id="features" className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           <div className="text-center p-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
-              <Zap className="h-8 w-8 text-primary" />
+            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+              <img 
+                src={featureRapide} 
+                alt="Rapidité et simplicité" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <h3 className="text-xl font-semibold mb-2">Rapide et Simple</h3>
             <p className="text-muted-foreground">
@@ -84,8 +91,12 @@ const Index = () => {
           </div>
 
           <div className="text-center p-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-secondary/10 rounded-full flex items-center justify-center">
-              <Globe className="h-8 w-8 text-secondary" />
+            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+              <img 
+                src={featureAfrique} 
+                alt="Adapté au marché africain" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <h3 className="text-xl font-semibold mb-2">Adapté à l'Afrique</h3>
             <p className="text-muted-foreground">
@@ -94,8 +105,12 @@ const Index = () => {
           </div>
 
           <div className="text-center p-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
-              <Palette className="h-8 w-8 text-primary" />
+            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+              <img 
+                src={featureIA} 
+                alt="Intelligence artificielle" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <h3 className="text-xl font-semibold mb-2">IA Intelligente</h3>
             <p className="text-muted-foreground">
