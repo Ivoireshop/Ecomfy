@@ -170,6 +170,95 @@ const Index = () => {
         </section>
       )}
 
+      {/* Examples Section */}
+      <section id="examples" className="container mx-auto px-4 py-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+          Exemples de Visuels Créés avec VisualPro
+        </h2>
+        <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+          Découvrez la qualité exceptionnelle des visuels publicitaires générés par notre IA
+        </p>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
+            <img 
+              src="/src/assets/example-handbag-ad.jpg" 
+              alt="Exemple publicité sac à main - VisualPro" 
+              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-4 left-4 text-white">
+                <p className="font-semibold">Mode & Accessoires</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
+            <img 
+              src="/src/assets/example-phone-ad.jpg" 
+              alt="Exemple publicité smartphone - VisualPro" 
+              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-4 left-4 text-white">
+                <p className="font-semibold">Technologie</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
+            <img 
+              src="/src/assets/example-food-ad.jpg" 
+              alt="Exemple publicité restaurant - VisualPro" 
+              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-4 left-4 text-white">
+                <p className="font-semibold">Restauration</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
+            <img 
+              src="/src/assets/example-beauty-ad.jpg" 
+              alt="Exemple publicité produits beauté - VisualPro" 
+              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-4 left-4 text-white">
+                <p className="font-semibold">Beauté & Cosmétiques</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
+            <img 
+              src="/src/assets/example-fitness-ad.jpg" 
+              alt="Exemple publicité fitness - VisualPro" 
+              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-4 left-4 text-white">
+                <p className="font-semibold">Sport & Fitness</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
+            <img 
+              src="/src/assets/example-realestate-ad.jpg" 
+              alt="Exemple publicité immobilier - VisualPro" 
+              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-4 left-4 text-white">
+                <p className="font-semibold">Immobilier</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Founder Section */}
       <section className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
