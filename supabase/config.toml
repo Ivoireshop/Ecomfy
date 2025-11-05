@@ -6,6 +6,9 @@ verify_jwt = true
 [functions.generate-video]
 verify_jwt = true
 
+[functions.generate-homepage-videos]
+verify_jwt = false
+
 [functions.process-payment]
 verify_jwt = true
 
