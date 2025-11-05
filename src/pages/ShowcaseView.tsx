@@ -736,6 +736,22 @@ export default function ShowcaseView() {
         </section>
       )}
 
+      {/* Contact Form Section */}
+      <section id="contact" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-800/50' : 'bg-muted/30'}`}>
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto">
+            <ContactForm 
+              showcaseSiteId={site.id}
+              businessName={site.business_name}
+              theme={{
+                primaryColor,
+                secondaryColor,
+              }}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       {site.cta_title && (
         <section className="py-20 theme-gradient-cta">
@@ -773,22 +789,6 @@ export default function ShowcaseView() {
           </div>
         </section>
       )}
-
-      {/* Contact Form Section */}
-      <section id="contact" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-800/50' : 'bg-muted/30'}`}>
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
-            <ContactForm 
-              showcaseSiteId={site.id}
-              businessName={site.business_name}
-              theme={{
-                primaryColor,
-                secondaryColor,
-              }}
-            />
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="border-t bg-muted/50">
