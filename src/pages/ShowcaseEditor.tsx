@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showcaseTemplates, templateCategories } from "@/lib/showcaseTemplates";
 import { FeaturesEditorWithImages } from "@/components/FeaturesEditorWithImages";
 import { FormationsEditor } from "@/components/FormationsEditor";
+import { TestimonialsEditor } from "@/components/TestimonialsEditor";
 import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { SEOEditor } from "@/components/SEOEditor";
 import { AnalyticsViewer } from "@/components/AnalyticsViewer";
@@ -93,6 +94,7 @@ export default function ShowcaseEditor() {
   const [features, setFeatures] = useState<Array<{ title: string; description: string; image_url?: string }>>([]);
   const [formations, setFormations] = useState<Array<{ title: string; description: string; price: string; image_url?: string }>>([]);
   const [formationsTextAlign, setFormationsTextAlign] = useState<string>("center");
+  const [testimonials, setTestimonials] = useState<Array<{ id?: string; full_name: string; testimonial_text: string; result_image_url?: string; display_order: number }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("Tous");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
@@ -224,6 +226,17 @@ export default function ShowcaseEditor() {
       setSeoDescription(data.seo_description || "");
       setSeoKeywords((data.seo_keywords as string[]) || []);
       setOgImageUrl(data.og_image_url || "");
+
+      // Load testimonials
+      const { data: testimonialsData } = await supabase
+        .from("showcase_testimonials")
+        .select("*")
+        .eq("showcase_site_id", id)
+        .order("display_order", { ascending: true });
+      
+      if (testimonialsData) {
+        setTestimonials(testimonialsData);
+      }
 
     } catch (error) {
       console.error("Error loading site:", error);
@@ -374,6 +387,33 @@ export default function ShowcaseEditor() {
         return;
       }
 
+      // Save testimonials separately
+      // First, delete existing testimonials
+      await supabase
+        .from("showcase_testimonials")
+        .delete()
+        .eq("showcase_site_id", id);
+
+      // Then insert new testimonials
+      if (testimonials.length > 0) {
+        const testimonialsToInsert = testimonials.map((t, index) => ({
+          showcase_site_id: id,
+          full_name: t.full_name,
+          testimonial_text: t.testimonial_text,
+          result_image_url: t.result_image_url || null,
+          display_order: index,
+        }));
+
+        const { error: testimonialsError } = await supabase
+          .from("showcase_testimonials")
+          .insert(testimonialsToInsert);
+
+        if (testimonialsError) {
+          console.error("Error saving testimonials:", testimonialsError);
+          toast.error("Erreur lors de la sauvegarde des témoignages");
+        }
+      }
+
       if (shouldPublish) {
         toast.success("Site sauvegardé et publié avec succès ! 🎉");
         setIsPublished(true);
@@ -521,7 +561,7 @@ export default function ShowcaseEditor() {
         />
 
         <Tabs defaultValue="edit" className="w-full">
-          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-6 mb-6">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-7 mb-6">
             <TabsTrigger value="edit" className="gap-2">
               <Edit className="h-4 w-4" />
               Édition
@@ -529,6 +569,10 @@ export default function ShowcaseEditor() {
             <TabsTrigger value="galleries" className="gap-2">
               <Upload className="h-4 w-4" />
               Galeries
+            </TabsTrigger>
+            <TabsTrigger value="testimonials" className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Témoignages
             </TabsTrigger>
             <TabsTrigger value="advanced" className="gap-2">
               <Sparkles className="h-4 w-4" />
@@ -1133,6 +1177,18 @@ export default function ShowcaseEditor() {
           <TabsContent value="galleries">
             <div className="max-w-6xl mx-auto">
               {id && <GalleryManager showcaseId={id} />}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="testimonials">
+            <div className="max-w-4xl mx-auto">
+              {id && (
+                <TestimonialsEditor
+                  showcaseSiteId={id}
+                  testimonials={testimonials}
+                  onTestimonialsChange={setTestimonials}
+                />
+              )}
             </div>
           </TabsContent>
 

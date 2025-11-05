@@ -507,6 +507,47 @@ export type Database = {
         }
         Relationships: []
       }
+      showcase_testimonials: {
+        Row: {
+          created_at: string
+          display_order: number
+          full_name: string
+          id: string
+          result_image_url: string | null
+          showcase_site_id: string
+          testimonial_text: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          full_name: string
+          id?: string
+          result_image_url?: string | null
+          showcase_site_id: string
+          testimonial_text: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          full_name?: string
+          id?: string
+          result_image_url?: string | null
+          showcase_site_id?: string
+          testimonial_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_testimonials_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           amount: number

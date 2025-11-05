@@ -28,6 +28,14 @@ interface Formation {
   image_url?: string;
 }
 
+interface Testimonial {
+  id: string;
+  full_name: string;
+  testimonial_text: string;
+  result_image_url?: string;
+  display_order: number;
+}
+
 interface ShowcaseSite {
   id: string;
   subdomain: string;
@@ -79,6 +87,7 @@ export default function ShowcaseView() {
   const [site, setSite] = useState<ShowcaseSite | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [galleries, setGalleries] = useState<Record<string, GalleryImage[]>>({});
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
@@ -188,6 +197,17 @@ export default function ShowcaseView() {
             return acc;
           }, {} as Record<string, GalleryImage[]>);
           setGalleries(grouped);
+        }
+
+        // Load testimonials for this site
+        const { data: testimonialsData } = await supabase
+          .from("showcase_testimonials")
+          .select("*")
+          .eq("showcase_site_id", data.id)
+          .order("display_order", { ascending: true });
+        
+        if (testimonialsData) {
+          setTestimonials(testimonialsData as Testimonial[]);
         }
       }
     } catch (error) {
@@ -867,6 +887,56 @@ export default function ShowcaseView() {
           </div>
         </div>
       </section>
+
+      {/* Testimonials Section */}
+      {testimonials && testimonials.length > 0 && (
+        <section className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom animate-fade-in">
+                Témoignages de nos étudiants
+              </h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {testimonials.map((testimonial, index) => (
+                  <Card 
+                    key={testimonial.id} 
+                    className="theme-bg-card border-none shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden animate-fade-in"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-full theme-bg-primary opacity-20 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle className="h-6 w-6 theme-text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg theme-text-custom mb-1">
+                            {testimonial.full_name}
+                          </h3>
+                          <Badge className="text-xs">Étudiant</Badge>
+                        </div>
+                      </div>
+                      
+                      <p className="theme-text-secondary leading-relaxed italic">
+                        "{testimonial.testimonial_text}"
+                      </p>
+
+                      {testimonial.result_image_url && (
+                        <div className="mt-4 rounded-lg overflow-hidden hover-scale">
+                          <img 
+                            src={testimonial.result_image_url} 
+                            alt={`Résultats de ${testimonial.full_name}`}
+                            className="w-full h-48 object-cover"
+                          />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA Section */}
       {site.cta_title && (
