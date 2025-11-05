@@ -151,95 +151,108 @@ ${personDescription ? '- Show the described person interacting with the product 
       console.error("Error updating video generations:", updateError);
     }
 
-    // Call OpenRouter API for video generation
+    // Call Runway ML API for ultra-realistic video generation
     try {
-      const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-      if (!OPENROUTER_API_KEY) {
-        throw new Error('OPENROUTER_API_KEY is not configured');
+      const RUNWAY_API_KEY = Deno.env.get('RUNWAY_API_KEY');
+      if (!RUNWAY_API_KEY) {
+        throw new Error('RUNWAY_API_KEY is not configured');
       }
 
-      console.log("Starting OpenRouter video generation with prompt:", prompt);
+      console.log("Starting Runway ML Gen-3 Alpha video generation with prompt:", prompt);
 
-      // Use OpenRouter to generate video script and instructions
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      // Generate video with Runway ML Gen-3 Alpha
+      const runwayResponse = await fetch("https://api.runwayml.com/v1/image_to_video", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Authorization": `Bearer ${RUNWAY_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": Deno.env.get("SUPABASE_URL") ?? "",
-          "X-Title": "VisualPro Video Generator",
+          "X-Runway-Version": "2024-11-06",
         },
         body: JSON.stringify({
-          model: "anthropic/claude-3.5-sonnet", // Using Claude for high-quality video generation
-          messages: [
-            {
-              role: "user",
-              content: `Generate a detailed video generation prompt for a professional advertising video with the following details:
-
-${prompt}
-
-Create a comprehensive prompt that includes:
-- Scene composition and camera angles
-- Professional lighting setup
-- Color grading and mood
-- Timing and pacing suggestions
-- Background music style
-- Text overlays and positioning
-- Call-to-action placement
-
-Format the response as a detailed video generation prompt.`
-            }
-          ]
+          model: "gen3a_turbo",
+          prompt_text: prompt,
+          duration: 10, // 10 seconds for dynamic content
+          ratio: platform === "Instagram" || platform === "TikTok" ? "9:16" : "16:9",
+          watermark: false,
         })
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("OpenRouter API error:", response.status, errorText);
-        throw new Error(`OpenRouter API error: ${response.status}`);
+      if (!runwayResponse.ok) {
+        const errorText = await runwayResponse.text();
+        console.error("Runway ML API error:", runwayResponse.status, errorText);
+        throw new Error(`Runway ML API error: ${runwayResponse.status}`);
       }
 
-      const data = await response.json();
-      const enhancedPrompt = data.choices?.[0]?.message?.content;
+      const runwayData = await runwayResponse.json();
+      const taskId = runwayData.id;
 
-      console.log("Enhanced prompt generated:", enhancedPrompt);
+      console.log("Runway ML task created:", taskId);
 
-      // For now, we'll store the enhanced prompt and mark as processing
-      // In a future update, we can integrate actual video generation models
-      const output = `video_${videoData.id}_processing.mp4`;
+      // Poll for video completion (max 2 minutes)
+      let videoUrl = null;
+      let attempts = 0;
+      const maxAttempts = 24; // 2 minutes with 5 second intervals
 
-      console.log("Video generation initiated:", output);
+      while (attempts < maxAttempts && !videoUrl) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+        const statusResponse = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
+          headers: {
+            "Authorization": `Bearer ${RUNWAY_API_KEY}`,
+            "X-Runway-Version": "2024-11-06",
+          }
+        });
+
+        if (!statusResponse.ok) {
+          console.error("Error checking task status:", statusResponse.status);
+          attempts++;
+          continue;
+        }
+
+        const statusData = await statusResponse.json();
+        console.log("Task status:", statusData.status);
+
+        if (statusData.status === "SUCCEEDED") {
+          videoUrl = statusData.output?.[0];
+          console.log("Video generated successfully:", videoUrl);
+        } else if (statusData.status === "FAILED") {
+          throw new Error("Video generation failed");
+        }
+
+        attempts++;
+      }
+
+      if (!videoUrl) {
+        throw new Error("Video generation timeout - please try again");
+      }
 
       // Update the video record with the generated URL
-      if (output && typeof output === 'string') {
-        const { error: updateVideoError } = await supabaseClient
-          .from("generated_videos")
-          .update({
-            video_url: output,
-            status: "completed",
-          })
-          .eq("id", videoData.id);
+      const { error: updateVideoError } = await supabaseClient
+        .from("generated_videos")
+        .update({
+          video_url: videoUrl,
+          status: "completed",
+        })
+        .eq("id", videoData.id);
 
-        if (updateVideoError) {
-          console.error("Error updating video URL:", updateVideoError);
-        }
+      if (updateVideoError) {
+        console.error("Error updating video URL:", updateVideoError);
       }
 
       return new Response(
         JSON.stringify({ 
           success: true,
           videoId: videoData.id,
-          videoUrl: output,
-          message: "Génération de vidéo en cours... Le traitement peut prendre quelques minutes.",
+          videoUrl: videoUrl,
+          message: "Vidéo générée avec succès via Runway ML Gen-3 Alpha!",
           videoGenerationsRemaining: videoGenerationsRemaining - 1,
-          enhancedPrompt: enhancedPrompt
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
-    } catch (openRouterError) {
-      console.error("OpenRouter API error:", openRouterError);
+    } catch (runwayError) {
+      console.error("Runway ML API error:", runwayError);
       
       // Update video status to failed
       await supabaseClient
@@ -249,7 +262,7 @@ Format the response as a detailed video generation prompt.`
         })
         .eq("id", videoData.id);
 
-      const errorMessage = openRouterError instanceof Error ? openRouterError.message : "Erreur inconnue";
+      const errorMessage = runwayError instanceof Error ? runwayError.message : "Erreur inconnue";
       throw new Error(`Échec de la génération vidéo: ${errorMessage}`);
     }
   } catch (error) {
