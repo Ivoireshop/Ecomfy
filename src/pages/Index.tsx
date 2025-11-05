@@ -8,6 +8,12 @@ import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
 import featureIA from "@/assets/feature-ia.jpg";
 import founderImage from "@/assets/founder-ulrich-djate.jpg";
+import exampleHandbag from "@/assets/example-handbag-ad.jpg";
+import examplePhone from "@/assets/example-phone-ad.jpg";
+import exampleFood from "@/assets/example-food-ad.jpg";
+import exampleBeauty from "@/assets/example-beauty-ad.jpg";
+import exampleFitness from "@/assets/example-fitness-ad.jpg";
+import exampleRealestate from "@/assets/example-realestate-ad.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -181,7 +187,7 @@ const Index = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
             <img 
-              src="/src/assets/example-handbag-ad.jpg" 
+              src={exampleHandbag} 
               alt="Exemple publicité sac à main - VisualPro" 
               className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -194,7 +200,7 @@ const Index = () => {
           
           <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
             <img 
-              src="/src/assets/example-phone-ad.jpg" 
+              src={examplePhone} 
               alt="Exemple publicité smartphone - VisualPro" 
               className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -207,7 +213,7 @@ const Index = () => {
           
           <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
             <img 
-              src="/src/assets/example-food-ad.jpg" 
+              src={exampleFood} 
               alt="Exemple publicité restaurant - VisualPro" 
               className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -220,7 +226,7 @@ const Index = () => {
           
           <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
             <img 
-              src="/src/assets/example-beauty-ad.jpg" 
+              src={exampleBeauty} 
               alt="Exemple publicité produits beauté - VisualPro" 
               className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -233,7 +239,7 @@ const Index = () => {
           
           <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
             <img 
-              src="/src/assets/example-fitness-ad.jpg" 
+              src={exampleFitness} 
               alt="Exemple publicité fitness - VisualPro" 
               className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -246,7 +252,7 @@ const Index = () => {
           
           <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
             <img 
-              src="/src/assets/example-realestate-ad.jpg" 
+              src={exampleRealestate} 
               alt="Exemple publicité immobilier - VisualPro" 
               className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
             />
