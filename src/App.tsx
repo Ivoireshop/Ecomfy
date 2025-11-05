@@ -14,6 +14,9 @@ import Auth from "./pages/Auth";
 import Subscription from "./pages/Subscription";
 import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
+import ShowcaseBuilder from "./pages/ShowcaseBuilder";
+import ShowcaseView from "./pages/ShowcaseView";
+import ShowcaseManager from "./pages/ShowcaseManager";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -21,8 +24,9 @@ const queryClient = new QueryClient();
 
 const AppContent = () => {
   const location = useLocation();
-  const showSidebar = !["/", "/auth"].includes(location.pathname);
-  const showSupport = !["/", "/auth"].includes(location.pathname);
+  const isShowcaseView = location.pathname.startsWith("/showcase/");
+  const showSidebar = !["/", "/auth"].includes(location.pathname) && !isShowcaseView;
+  const showSupport = !["/", "/auth"].includes(location.pathname) && !isShowcaseView;
 
   return (
     <>
@@ -67,6 +71,23 @@ const AppContent = () => {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/showcase-builder" 
+          element={
+            <ProtectedRoute>
+              <ShowcaseBuilder />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/showcase-manager" 
+          element={
+            <ProtectedRoute>
+              <ShowcaseManager />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

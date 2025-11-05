@@ -1,4 +1,4 @@
-import { Home, Image, Video, MessageSquare, CreditCard } from "lucide-react";
+import { Home, Image, Video, MessageSquare, CreditCard, Globe } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -18,6 +18,7 @@ import {
 const items = [
   { title: "Accueil", url: "/", icon: Home },
   { title: "Générateur", url: "/generator", icon: Image },
+  { title: "Sites Vitrines", url: "/showcase-manager", icon: Globe },
   { title: "Bibliothèque", url: "/library", icon: Video },
   { title: "Abonnement", url: "/subscription", icon: CreditCard },
   { title: "Avis & Commentaires", url: "/feedback", icon: MessageSquare },

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Globe } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
@@ -67,6 +67,15 @@ const Index = () => {
             >
               <Sparkles className="mr-2 h-5 w-5" />
               Créer mon premier visuel
+            </Button>
+            <Button 
+              size="lg" 
+              variant="secondary"
+              className="text-lg px-8 py-6"
+              onClick={() => navigate("/auth")}
+            >
+              <Globe className="mr-2 h-5 w-5" />
+              Créer un site vitrine
             </Button>
             <Button 
               size="lg" 

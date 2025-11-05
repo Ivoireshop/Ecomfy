@@ -228,6 +228,66 @@ export type Database = {
         }
         Relationships: []
       }
+      showcase_sites: {
+        Row: {
+          business_description: string | null
+          business_name: string
+          created_at: string
+          custom_domain: string | null
+          formation_description: string | null
+          formation_image_url: string | null
+          formation_price: string | null
+          formation_title: string | null
+          id: string
+          is_published: boolean
+          owner_name: string
+          owner_photo_url: string | null
+          phone_number: string
+          subdomain: string
+          updated_at: string
+          user_id: string
+          whatsapp_number: string
+        }
+        Insert: {
+          business_description?: string | null
+          business_name: string
+          created_at?: string
+          custom_domain?: string | null
+          formation_description?: string | null
+          formation_image_url?: string | null
+          formation_price?: string | null
+          formation_title?: string | null
+          id?: string
+          is_published?: boolean
+          owner_name: string
+          owner_photo_url?: string | null
+          phone_number: string
+          subdomain: string
+          updated_at?: string
+          user_id: string
+          whatsapp_number: string
+        }
+        Update: {
+          business_description?: string | null
+          business_name?: string
+          created_at?: string
+          custom_domain?: string | null
+          formation_description?: string | null
+          formation_image_url?: string | null
+          formation_price?: string | null
+          formation_title?: string | null
+          id?: string
+          is_published?: boolean
+          owner_name?: string
+          owner_photo_url?: string | null
+          phone_number?: string
+          subdomain?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_number?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number
