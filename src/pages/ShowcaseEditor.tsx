@@ -9,11 +9,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit } from "lucide-react";
+import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { showcaseTemplates, templateCategories } from "@/lib/showcaseTemplates";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const themes = [
   { value: "professional", label: "Professionnel", description: "Sobre et corporate", colors: { primary: "#2563eb", secondary: "#7c3aed" } },
@@ -58,6 +69,8 @@ export default function ShowcaseEditor() {
   const [existingAboutUrl, setExistingAboutUrl] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string>("");
   const [features, setFeatures] = useState<Array<{ title: string; description: string }>>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("Tous");
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
   const {
     register,
@@ -75,6 +88,33 @@ export default function ShowcaseEditor() {
 
   // Get theme colors for preview
   const themeColors = themes.find(t => t.value === selectedTheme)?.colors;
+
+  const filteredTemplates = selectedCategory === "Tous" 
+    ? showcaseTemplates 
+    : showcaseTemplates.filter(t => t.category === selectedCategory);
+
+  const applyTemplate = (templateId: string) => {
+    const template = showcaseTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    // Apply template content to form
+    setValue("heroTitle", template.content.heroTitle);
+    setValue("heroSubtitle", template.content.heroSubtitle);
+    setValue("aboutTitle", template.content.aboutTitle);
+    setValue("aboutDescription", template.content.aboutDescription);
+    setValue("ctaTitle", template.content.ctaTitle);
+    setValue("ctaDescription", template.content.ctaDescription);
+    setValue("formationTitle", template.content.formationTitle || "");
+    setValue("formationDescription", template.content.formationDescription || "");
+    setValue("formationPrice", template.content.formationPrice || "");
+    setValue("theme", template.theme);
+
+    // Update features
+    setFeatures(template.content.features);
+
+    setTemplateDialogOpen(false);
+    toast.success(`Template "${template.name}" appliqué avec succès !`);
+  };
 
   useEffect(() => {
     loadSite();
@@ -279,6 +319,107 @@ export default function ShowcaseEditor() {
           <p className="text-muted-foreground text-lg">
             Éditez et prévisualisez vos modifications en temps réel
           </p>
+        </div>
+
+        {/* Templates Dialog */}
+        <div className="mb-6 flex justify-center">
+          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="lg" className="gap-2">
+                <Sparkles className="h-5 w-5" />
+                Utiliser un template prédéfini
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-5xl max-h-[85vh]">
+              <DialogHeader>
+                <DialogTitle className="text-2xl">Templates Prédéfinis</DialogTitle>
+                <DialogDescription>
+                  Choisissez un template et personnalisez-le selon vos besoins
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Category Filter */}
+                <div className="flex gap-2 flex-wrap">
+                  {templateCategories.map((category) => (
+                    <Button
+                      key={category}
+                      variant={selectedCategory === category ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedCategory(category)}
+                    >
+                      {category}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Templates Grid */}
+                <ScrollArea className="h-[500px] pr-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {filteredTemplates.map((template) => (
+                      <Card 
+                        key={template.id} 
+                        className="cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => applyTemplate(template.id)}
+                      >
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="flex items-center gap-2 mb-1">
+                                {template.name}
+                              </CardTitle>
+                              <Badge variant="secondary" className="text-xs">
+                                {template.category}
+                              </Badge>
+                            </div>
+                            <div 
+                              className="w-10 h-10 rounded-lg flex items-center justify-center"
+                              style={{ 
+                                backgroundColor: themes.find(t => t.value === template.theme)?.colors.primary + "20",
+                                color: themes.find(t => t.value === template.theme)?.colors.primary
+                              }}
+                            >
+                              <Sparkles className="h-5 w-5" />
+                            </div>
+                          </div>
+                          <CardDescription className="text-sm">
+                            {template.description}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2 text-sm">
+                            <div>
+                              <span className="font-medium">Titre:</span>
+                              <p className="text-muted-foreground line-clamp-1">
+                                {template.content.heroTitle}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="font-medium">Thème:</span>
+                              <span className="text-muted-foreground ml-2">
+                                {themes.find(t => t.value === template.theme)?.label}
+                              </span>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              className="w-full mt-3"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                applyTemplate(template.id);
+                              }}
+                            >
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Appliquer ce template
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Tabs defaultValue="edit" className="w-full">
