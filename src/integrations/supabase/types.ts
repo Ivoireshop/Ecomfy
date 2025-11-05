@@ -281,6 +281,50 @@ export type Database = {
           },
         ]
       }
+      showcase_galleries: {
+        Row: {
+          created_at: string
+          id: string
+          image_caption: string | null
+          image_order: number | null
+          image_url: string
+          section_title: string | null
+          section_type: string
+          showcase_site_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_caption?: string | null
+          image_order?: number | null
+          image_url: string
+          section_title?: string | null
+          section_type: string
+          showcase_site_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_caption?: string | null
+          image_order?: number | null
+          image_url?: string
+          section_title?: string | null
+          section_type?: string
+          showcase_site_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_galleries_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       showcase_sites: {
         Row: {
           about_description: string | null

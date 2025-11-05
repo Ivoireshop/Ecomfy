@@ -20,6 +20,7 @@ import { FeaturesEditor } from "@/components/FeaturesEditor";
 import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { SEOEditor } from "@/components/SEOEditor";
 import { AnalyticsViewer } from "@/components/AnalyticsViewer";
+import { GalleryManager } from "@/components/GalleryManager";
 import {
   Dialog,
   DialogContent,
@@ -440,10 +441,14 @@ export default function ShowcaseEditor() {
         </div>
 
         <Tabs defaultValue="edit" className="w-full">
-          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 mb-6">
+          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-5 mb-6">
             <TabsTrigger value="edit" className="gap-2">
               <Edit className="h-4 w-4" />
               Édition
+            </TabsTrigger>
+            <TabsTrigger value="galleries" className="gap-2">
+              <Upload className="h-4 w-4" />
+              Galeries
             </TabsTrigger>
             <TabsTrigger value="advanced" className="gap-2">
               <Sparkles className="h-4 w-4" />
@@ -821,6 +826,12 @@ export default function ShowcaseEditor() {
                   </Button>
                 </div>
               </form>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="galleries">
+            <div className="max-w-6xl mx-auto">
+              {id && <GalleryManager showcaseId={id} />}
             </div>
           </TabsContent>
 

@@ -41,11 +41,20 @@ interface ShowcaseSite {
   og_image_url: string | null;
 }
 
+interface GalleryImage {
+  id: string;
+  image_url: string;
+  image_caption: string | null;
+  section_type: string;
+  section_title: string | null;
+}
+
 export default function ShowcaseView() {
   const { subdomain } = useParams<{ subdomain: string }>();
   const navigate = useNavigate();
   const [site, setSite] = useState<ShowcaseSite | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [galleries, setGalleries] = useState<Record<string, GalleryImage[]>>({});
 
   useEffect(() => {
     loadSite();
@@ -119,6 +128,23 @@ export default function ShowcaseView() {
           features: data.features ? (data.features as unknown as Feature[]) : null
         };
         setSite(siteData as ShowcaseSite);
+        
+        // Load galleries for this site
+        const { data: galleryData } = await supabase
+          .from("showcase_galleries")
+          .select("*")
+          .eq("showcase_site_id", data.id)
+          .order("image_order", { ascending: true });
+        
+        if (galleryData) {
+          const grouped = galleryData.reduce((acc, img) => {
+            const section = img.section_type;
+            if (!acc[section]) acc[section] = [];
+            acc[section].push(img as GalleryImage);
+            return acc;
+          }, {} as Record<string, GalleryImage[]>);
+          setGalleries(grouped);
+        }
       }
     } catch (error) {
       console.error("Error:", error);
@@ -291,6 +317,117 @@ export default function ShowcaseView() {
                     {site.about_description}
                   </p>
                 </div>
+              </div>
+              
+              {/* Author Gallery */}
+              {galleries.author && galleries.author.length > 0 && (
+                <div className="mt-12">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {galleries.author.map((image) => (
+                      <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                        <img
+                          src={image.image_url}
+                          alt={image.image_caption || "Gallery"}
+                          className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {image.image_caption && (
+                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                            <p className="text-white text-sm">{image.image_caption}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Formations Gallery */}
+      {galleries.formations && galleries.formations.length > 0 && (
+        <section className="py-20 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+                Nos Formations
+              </h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {galleries.formations.map((image) => (
+                  <Card key={image.id} className="overflow-hidden border-none shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="relative h-64">
+                      <img
+                        src={image.image_url}
+                        alt={image.image_caption || "Formation"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    {image.image_caption && (
+                      <CardContent className="p-6">
+                        <h3 className="font-semibold text-lg">{image.image_caption}</h3>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Events/Conferences Gallery */}
+      {galleries.events && galleries.events.length > 0 && (
+        <section className="py-20 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+                Conférences & Événements
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {galleries.events.map((image) => (
+                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-xl">
+                    <img
+                      src={image.image_url}
+                      alt={image.image_caption || "Event"}
+                      className="w-full h-96 object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    {image.image_caption && (
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-6">
+                        <p className="text-white text-lg font-medium">{image.image_caption}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Portfolio Gallery */}
+      {galleries.portfolio && galleries.portfolio.length > 0 && (
+        <section className="py-20 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+                Portfolio
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {galleries.portfolio.map((image) => (
+                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow aspect-square">
+                    <img
+                      src={image.image_url}
+                      alt={image.image_caption || "Portfolio"}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    {image.image_caption && (
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
+                        <p className="text-white text-center font-medium">{image.image_caption}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
