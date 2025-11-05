@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Phone, MessageCircle, Palette } from "lucide-react";
+import { Loader2, Sparkles, Phone, MessageCircle, Palette, Upload, X } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const themes = [
@@ -36,6 +36,12 @@ export default function ShowcaseBuilder() {
   const navigate = useNavigate();
   const [isGenerating, setIsGenerating] = useState(false);
   const [useAITheme, setUseAITheme] = useState(true);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [aboutImageFile, setAboutImageFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
+  const [aboutImagePreview, setAboutImagePreview] = useState<string | null>(null);
   
   const {
     register,
@@ -52,6 +58,44 @@ export default function ShowcaseBuilder() {
 
   const subdomain = watch("subdomain");
   const selectedTheme = watch("theme");
+
+  const handleImageChange = (file: File | null, setFile: (file: File | null) => void, setPreview: (preview: string | null) => void) => {
+    setFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const uploadImage = async (file: File, userId: string, type: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}/${type}-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('showcase-images')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return null;
+      }
+
+      const { data } = supabase.storage
+        .from('showcase-images')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    }
+  };
 
   const onSubmit = async (data: ShowcaseFormData) => {
     setIsGenerating(true);
@@ -80,6 +124,22 @@ export default function ShowcaseBuilder() {
         console.error("AI generation error:", aiError);
         toast.error("Erreur lors de la génération du contenu");
         return;
+      }
+
+      // Upload images
+      toast.info("Upload des images...", { duration: 2000 });
+      let logoUrl = null;
+      let heroImageUrl = null;
+      let aboutImageUrl = null;
+
+      if (logoFile) {
+        logoUrl = await uploadImage(logoFile, user.id, 'logo');
+      }
+      if (heroImageFile) {
+        heroImageUrl = await uploadImage(heroImageFile, user.id, 'hero');
+      }
+      if (aboutImageFile) {
+        aboutImageUrl = await uploadImage(aboutImageFile, user.id, 'about');
       }
 
       // Determine theme and colors
@@ -112,6 +172,9 @@ export default function ShowcaseBuilder() {
           theme: finalTheme,
           primary_color: finalPrimaryColor,
           secondary_color: finalSecondaryColor,
+          logo_url: logoUrl,
+          hero_image_url: heroImageUrl,
+          about_image_url: aboutImageUrl,
           is_published: true,
         });
 
@@ -194,6 +257,116 @@ export default function ShowcaseBuilder() {
                 {errors.ownerName && (
                   <p className="text-sm text-destructive mt-1">{errors.ownerName.message}</p>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Images Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Images personnalisées
+              </CardTitle>
+              <CardDescription>
+                Ajoutez votre logo et des images pour personnaliser votre site
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Logo */}
+              <div className="space-y-2">
+                <Label>Logo (optionnel)</Label>
+                <div className="flex items-start gap-4">
+                  {logoPreview && (
+                    <div className="relative">
+                      <img src={logoPreview} alt="Logo preview" className="w-24 h-24 object-cover rounded-lg border" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => handleImageChange(null, setLogoFile, setLogoPreview)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        handleImageChange(file, setLogoFile, setLogoPreview);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG, WEBP (max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hero Image */}
+              <div className="space-y-2">
+                <Label>Image Hero / Bannière (optionnel)</Label>
+                <div className="flex items-start gap-4">
+                  {heroImagePreview && (
+                    <div className="relative">
+                      <img src={heroImagePreview} alt="Hero preview" className="w-32 h-20 object-cover rounded-lg border" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => handleImageChange(null, setHeroImageFile, setHeroImagePreview)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        handleImageChange(file, setHeroImageFile, setHeroImagePreview);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG, WEBP (max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* About Image */}
+              <div className="space-y-2">
+                <Label>Image À propos (optionnel)</Label>
+                <div className="flex items-start gap-4">
+                  {aboutImagePreview && (
+                    <div className="relative">
+                      <img src={aboutImagePreview} alt="About preview" className="w-32 h-20 object-cover rounded-lg border" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => handleImageChange(null, setAboutImageFile, setAboutImagePreview)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        handleImageChange(file, setAboutImageFile, setAboutImagePreview);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG, WEBP (max 5MB)</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

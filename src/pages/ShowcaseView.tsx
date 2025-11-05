@@ -31,6 +31,9 @@ interface ShowcaseSite {
   theme: string | null;
   primary_color: string | null;
   secondary_color: string | null;
+  logo_url: string | null;
+  hero_image_url: string | null;
+  about_image_url: string | null;
 }
 
 export default function ShowcaseView() {
@@ -136,11 +139,30 @@ export default function ShowcaseView() {
       `}</style>
       {/* Hero Section - HubSpot Style */}
       <section className="relative theme-gradient-hero">
-        <div className="container mx-auto px-4 py-20 md:py-32">
+        {site.hero_image_url && (
+          <div className="absolute inset-0 overflow-hidden">
+            <img 
+              src={site.hero_image_url} 
+              alt="Hero background" 
+              className="w-full h-full object-cover opacity-20"
+            />
+          </div>
+        )}
+        <div className="container mx-auto px-4 py-20 md:py-32 relative">
           <div className="max-w-4xl mx-auto text-center space-y-8">
-            <Badge variant="outline" className="text-sm px-4 py-2">
-              {site.business_name}
-            </Badge>
+            {site.logo_url ? (
+              <div className="flex justify-center mb-4">
+                <img 
+                  src={site.logo_url} 
+                  alt="Logo" 
+                  className="h-16 md:h-20 object-contain"
+                />
+              </div>
+            ) : (
+              <Badge variant="outline" className="text-sm px-4 py-2">
+                {site.business_name}
+              </Badge>
+            )}
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight">
               {site.hero_title || site.business_name}
@@ -170,14 +192,25 @@ export default function ShowcaseView() {
       {site.about_description && (
         <section className="py-20 bg-background">
           <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
                 {site.about_title || "À propos"}
               </h2>
-              <div className="prose prose-lg max-w-none text-muted-foreground">
-                <p className="text-lg leading-relaxed whitespace-pre-line">
-                  {site.about_description}
-                </p>
+              <div className={`grid ${site.about_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-12 items-center`}>
+                {site.about_image_url && (
+                  <div className="order-2 md:order-1">
+                    <img 
+                      src={site.about_image_url} 
+                      alt="About" 
+                      className="w-full rounded-lg shadow-xl"
+                    />
+                  </div>
+                )}
+                <div className={`prose prose-lg max-w-none text-muted-foreground ${site.about_image_url ? 'order-1 md:order-2' : ''}`}>
+                  <p className="text-lg leading-relaxed whitespace-pre-line">
+                    {site.about_description}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -290,6 +323,15 @@ export default function ShowcaseView() {
       <footer className="border-t bg-muted/50">
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-6xl mx-auto text-center space-y-4">
+            {site.logo_url && (
+              <div className="flex justify-center mb-4">
+                <img 
+                  src={site.logo_url} 
+                  alt="Logo" 
+                  className="h-12 object-contain"
+                />
+              </div>
+            )}
             <p className="text-lg font-medium">{site.owner_name}</p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button variant="ghost" onClick={handleWhatsAppClick} className="gap-2">

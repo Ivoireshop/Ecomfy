@@ -231,6 +231,7 @@ export type Database = {
       showcase_sites: {
         Row: {
           about_description: string | null
+          about_image_url: string | null
           about_title: string | null
           business_description: string | null
           business_name: string
@@ -243,10 +244,12 @@ export type Database = {
           formation_image_url: string | null
           formation_price: string | null
           formation_title: string | null
+          hero_image_url: string | null
           hero_subtitle: string | null
           hero_title: string | null
           id: string
           is_published: boolean
+          logo_url: string | null
           owner_name: string
           owner_photo_url: string | null
           phone_number: string
@@ -260,6 +263,7 @@ export type Database = {
         }
         Insert: {
           about_description?: string | null
+          about_image_url?: string | null
           about_title?: string | null
           business_description?: string | null
           business_name: string
@@ -272,10 +276,12 @@ export type Database = {
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
+          hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
           id?: string
           is_published?: boolean
+          logo_url?: string | null
           owner_name: string
           owner_photo_url?: string | null
           phone_number: string
@@ -289,6 +295,7 @@ export type Database = {
         }
         Update: {
           about_description?: string | null
+          about_image_url?: string | null
           about_title?: string | null
           business_description?: string | null
           business_name?: string
@@ -301,10 +308,12 @@ export type Database = {
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
+          hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
           id?: string
           is_published?: boolean
+          logo_url?: string | null
           owner_name?: string
           owner_photo_url?: string | null
           phone_number?: string
