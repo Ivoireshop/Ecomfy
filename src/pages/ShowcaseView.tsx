@@ -8,6 +8,7 @@ import { MessageCircle, Phone, Loader2, ArrowLeft, CheckCircle, Menu, X } from "
 import { Helmet } from "react-helmet";
 import { ContactForm } from "@/components/ContactForm";
 import { ShowcaseAIChat } from "@/components/ShowcaseAIChat";
+import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import {
   Sheet,
   SheetContent,
@@ -67,6 +68,15 @@ export default function ShowcaseView() {
   const [galleries, setGalleries] = useState<Record<string, GalleryImage[]>>({});
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Scroll animations for different sections
+  const heroAnimation = useScrollAnimation();
+  const aboutAnimation = useScrollAnimation();
+  const featuresAnimation = useScrollAnimation();
+  const formationAnimation = useScrollAnimation();
+  const galleryAnimation = useScrollAnimation();
+  const ctaAnimation = useScrollAnimation();
+  const contactAnimation = useScrollAnimation();
 
   // Handle scroll for navbar styling
   useEffect(() => {
@@ -403,7 +413,13 @@ export default function ShowcaseView() {
       </nav>
 
       {/* Hero Section - HubSpot Style */}
-      <section id="hero" className="relative theme-gradient-hero pt-20">
+      <section 
+        id="hero" 
+        ref={heroAnimation.elementRef as React.RefObject<HTMLElement>}
+        className={`relative theme-gradient-hero pt-20 transition-all duration-1000 ${
+          heroAnimation.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+        }`}
+      >
         {site.hero_image_url && (
           <div className="absolute inset-0 overflow-hidden">
             <img 
@@ -455,7 +471,13 @@ export default function ShowcaseView() {
 
       {/* About Section */}
       {site.about_description && (
-        <section id="about" className="py-20 bg-background">
+        <section 
+          id="about" 
+          ref={aboutAnimation.elementRef as React.RefObject<HTMLElement>}
+          className={`py-20 bg-background transition-all duration-1000 delay-100 ${
+            aboutAnimation.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
@@ -506,7 +528,12 @@ export default function ShowcaseView() {
 
       {/* Formations Gallery */}
       {galleries.formations && galleries.formations.length > 0 && (
-        <section className="py-20 bg-muted/30">
+        <section 
+          ref={galleryAnimation.elementRef as React.RefObject<HTMLElement>}
+          className={`py-20 bg-muted/30 transition-all duration-1000 delay-200 ${
+            galleryAnimation.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
@@ -595,7 +622,13 @@ export default function ShowcaseView() {
 
       {/* Features Section */}
       {site.features && site.features.length > 0 && (
-        <section id="features" className="py-20 bg-muted/30">
+        <section 
+          id="features" 
+          ref={featuresAnimation.elementRef as React.RefObject<HTMLElement>}
+          className={`py-20 bg-muted/30 transition-all duration-1000 delay-150 ${
+            featuresAnimation.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -620,7 +653,13 @@ export default function ShowcaseView() {
 
       {/* Formation Section */}
       {site.formation_title && (
-        <section id="formation" className="py-20 bg-background">
+        <section 
+          id="formation" 
+          ref={formationAnimation.elementRef as React.RefObject<HTMLElement>}
+          className={`py-20 bg-background transition-all duration-1000 delay-200 ${
+            formationAnimation.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
           <div className="container mx-auto px-4">
             <Card className="max-w-4xl mx-auto theme-border-primary shadow-2xl">
               <CardContent className="p-12 space-y-8">
@@ -659,7 +698,12 @@ export default function ShowcaseView() {
 
       {/* CTA Section */}
       {site.cta_title && (
-        <section className="py-20 theme-gradient-cta">
+        <section 
+          ref={ctaAnimation.elementRef as React.RefObject<HTMLElement>}
+          className={`py-20 theme-gradient-cta transition-all duration-1000 delay-250 ${
+            ctaAnimation.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center space-y-8 text-white">
               <h2 className="text-3xl md:text-5xl font-bold">
@@ -696,7 +740,13 @@ export default function ShowcaseView() {
       )}
 
       {/* Contact Form Section */}
-      <section id="contact" className="py-20 bg-muted/30">
+      <section 
+        id="contact" 
+        ref={contactAnimation.elementRef as React.RefObject<HTMLElement>}
+        className={`py-20 bg-muted/30 transition-all duration-1000 delay-300 ${
+          contactAnimation.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+        }`}
+      >
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto">
             <ContactForm 
