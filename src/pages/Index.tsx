@@ -1,13 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
 import featureIA from "@/assets/feature-ia.jpg";
 import founderImage from "@/assets/founder-ulrich-djate.jpg";
+import showcaseSneakers from "@/assets/showcase-sneakers.jpg";
+import showcaseWatch from "@/assets/showcase-watch.jpg";
+import showcaseCosmetics from "@/assets/showcase-cosmetics.jpg";
+import showcaseVideo1 from "@/assets/showcase-video1.jpg";
+import showcaseVideo2 from "@/assets/showcase-video2.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -39,37 +45,124 @@ const Index = () => {
       
       {/* Hero Section */}
       <section id="home" className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-medium">Intelligence Artificielle Africaine</span>
+        <div className="max-w-6xl mx-auto">
+          {/* Showcase Carousel */}
+          <div className="mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+              Exemples de visuels créés avec VisualPro
+            </h2>
+            <Carousel className="w-full max-w-5xl mx-auto">
+              <CarouselContent>
+                <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20">
+                      <img 
+                        src={showcaseSneakers} 
+                        alt="Visuel publicitaire - Chaussures africaines"
+                        className="w-full h-64 object-cover"
+                      />
+                    </div>
+                  </div>
+                </CarouselItem>
+                <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20">
+                      <img 
+                        src={showcaseWatch} 
+                        alt="Visuel publicitaire - Montre de luxe"
+                        className="w-full h-64 object-cover"
+                      />
+                    </div>
+                  </div>
+                </CarouselItem>
+                <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20">
+                      <img 
+                        src={showcaseCosmetics} 
+                        alt="Visuel publicitaire - Produits cosmétiques bio"
+                        className="w-full h-64 object-cover"
+                      />
+                    </div>
+                  </div>
+                </CarouselItem>
+                <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group">
+                      <img 
+                        src={showcaseVideo1} 
+                        alt="Vidéo publicitaire - Entrepreneur tech"
+                        className="w-full h-64 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                        <div className="bg-white/90 rounded-full p-4">
+                          <Play className="h-8 w-8 text-primary" />
+                        </div>
+                      </div>
+                      <div className="absolute top-3 right-3 bg-secondary/90 text-white px-3 py-1 rounded-full text-xs font-medium">
+                        Vidéo
+                      </div>
+                    </div>
+                  </div>
+                </CarouselItem>
+                <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group">
+                      <img 
+                        src={showcaseVideo2} 
+                        alt="Vidéo publicitaire - Restaurant africain"
+                        className="w-full h-64 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                        <div className="bg-white/90 rounded-full p-4">
+                          <Play className="h-8 w-8 text-primary" />
+                        </div>
+                      </div>
+                      <div className="absolute top-3 right-3 bg-secondary/90 text-white px-3 py-1 rounded-full text-xs font-medium">
+                        Vidéo
+                      </div>
+                    </div>
+                  </div>
+                </CarouselItem>
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
           </div>
+
+          {/* Hero Content */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-sm font-medium">Intelligence Artificielle Africaine</span>
+            </div>
           
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-            VisualPro
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
-            Créez des visuels publicitaires professionnels adaptés au marché africain en moins d'une minute
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-              onClick={() => navigate("/auth")}
-            >
-              <Sparkles className="mr-2 h-5 w-5" />
-              Créer mon premier visuel
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="text-lg px-8 py-6"
-              onClick={() => navigate("/auth")}
-            >
-              Se connecter
-            </Button>
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+              VisualPro
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
+              Créez des visuels publicitaires professionnels adaptés au marché africain en moins d'une minute
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg" 
+                className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
+                onClick={() => navigate("/auth")}
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
+                Créer mon premier visuel
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="text-lg px-8 py-6"
+                onClick={() => navigate("/auth")}
+              >
+                Se connecter
+              </Button>
+            </div>
           </div>
         </div>
       </section>
