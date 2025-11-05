@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, ExternalLink, Settings, Trash2 } from "lucide-react";
+import { Loader2, Plus, ExternalLink, Settings, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -87,6 +87,25 @@ export default function ShowcaseManager() {
     setSiteToDelete(null);
   };
 
+  const togglePublish = async (siteId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("showcase_sites")
+        .update({ is_published: !currentStatus })
+        .eq("id", siteId);
+
+      if (error) {
+        toast.error("Erreur lors de la modification");
+      } else {
+        toast.success(!currentStatus ? "Site publié avec succès !" : "Site dépublié");
+        loadSites();
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Une erreur est survenue");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 flex items-center justify-center min-h-[400px]">
@@ -150,6 +169,25 @@ export default function ShowcaseManager() {
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Voir le site
                   </Button>
+                  
+                  <Button
+                    variant={site.is_published ? "outline" : "default"}
+                    className="w-full"
+                    onClick={() => togglePublish(site.id, site.is_published)}
+                  >
+                    {site.is_published ? (
+                      <>
+                        <EyeOff className="mr-2 h-4 w-4" />
+                        Dépublier
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Publier
+                      </>
+                    )}
+                  </Button>
+
                   <div className="flex gap-2">
                     <Button
                       variant="ghost"

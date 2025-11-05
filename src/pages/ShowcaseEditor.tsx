@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showcaseTemplates, templateCategories } from "@/lib/showcaseTemplates";
+import { FeaturesEditor } from "@/components/FeaturesEditor";
 import {
   Dialog,
   DialogContent,
@@ -275,6 +276,7 @@ export default function ShowcaseEditor() {
           logo_url: logoUrl,
           hero_image_url: heroImageUrl,
           about_image_url: aboutImageUrl,
+          features: features,
         })
         .eq("id", id);
 
@@ -363,8 +365,13 @@ export default function ShowcaseEditor() {
                         onClick={() => applyTemplate(template.id)}
                       >
                         <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div>
+                          <div className="flex items-start gap-4">
+                            <img 
+                              src={template.previewImage} 
+                              alt={template.name}
+                              className="w-24 h-18 object-cover rounded-lg"
+                            />
+                            <div className="flex-1">
                               <CardTitle className="flex items-center gap-2 mb-1">
                                 {template.name}
                               </CardTitle>
@@ -372,17 +379,8 @@ export default function ShowcaseEditor() {
                                 {template.category}
                               </Badge>
                             </div>
-                            <div 
-                              className="w-10 h-10 rounded-lg flex items-center justify-center"
-                              style={{ 
-                                backgroundColor: themes.find(t => t.value === template.theme)?.colors.primary + "20",
-                                color: themes.find(t => t.value === template.theme)?.colors.primary
-                              }}
-                            >
-                              <Sparkles className="h-5 w-5" />
-                            </div>
                           </div>
-                          <CardDescription className="text-sm">
+                          <CardDescription className="text-sm mt-3">
                             {template.description}
                           </CardDescription>
                         </CardHeader>
@@ -504,6 +502,12 @@ export default function ShowcaseEditor() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Features Editor */}
+          <FeaturesEditor 
+            features={features}
+            onChange={setFeatures}
+          />
 
           {/* Formation Section */}
           <Card>
