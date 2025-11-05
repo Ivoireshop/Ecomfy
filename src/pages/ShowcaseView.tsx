@@ -42,6 +42,9 @@ interface ShowcaseSite {
   theme: string | null;
   primary_color: string | null;
   secondary_color: string | null;
+  text_color: string | null;
+  about_layout: string | null;
+  gallery_text_position: string | null;
   logo_url: string | null;
   hero_image_url: string | null;
   about_image_url: string | null;
@@ -146,7 +149,10 @@ export default function ShowcaseView() {
       } else {
         const siteData = {
           ...data,
-          features: data.features ? (data.features as unknown as Feature[]) : null
+          features: data.features ? (data.features as unknown as Feature[]) : null,
+          text_color: data.text_color,
+          about_layout: data.about_layout,
+          gallery_text_position: data.gallery_text_position,
         };
         setSite(siteData as ShowcaseSite);
         
@@ -255,6 +261,9 @@ export default function ShowcaseView() {
 
   const primaryColor = site.primary_color || "#2563eb";
   const secondaryColor = site.secondary_color || "#7c3aed";
+  const textColor = site.text_color || "#000000";
+  const aboutLayout = site.about_layout || "side-by-side";
+  const galleryTextPosition = site.gallery_text_position || "below";
 
   // SEO metadata
   const seoTitle = site.seo_title || site.hero_title || site.business_name;
@@ -287,6 +296,7 @@ export default function ShowcaseView() {
       <div className="min-h-screen" style={{
       "--theme-primary": primaryColor,
       "--theme-secondary": secondaryColor,
+      "--theme-text": textColor,
     } as React.CSSProperties}>
       <style>{`
         .theme-gradient-hero {
@@ -297,6 +307,9 @@ export default function ShowcaseView() {
         }
         .theme-text-primary {
           color: ${primaryColor};
+        }
+        .theme-text-custom {
+          color: ${textColor};
         }
         .theme-bg-primary {
           background-color: ${primaryColor};
@@ -429,12 +442,12 @@ export default function ShowcaseView() {
               </Badge>
             )}
             
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight theme-text-custom">
               {site.hero_title || site.business_name}
             </h1>
             
             {site.hero_subtitle && (
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              <p className="text-xl md:text-2xl max-w-3xl mx-auto leading-relaxed opacity-80">
                 {site.hero_subtitle}
               </p>
             )}
@@ -458,41 +471,66 @@ export default function ShowcaseView() {
         <section id="about" className="py-20 bg-background">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
                 {site.about_title || "À propos"}
               </h2>
-              <div className={`grid ${site.about_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-12 items-center`}>
-                {site.about_image_url && (
-                  <div className="order-2 md:order-1">
-                    <img 
-                      src={site.about_image_url} 
-                      alt="About" 
-                      className="w-full rounded-lg shadow-xl"
-                    />
+              {aboutLayout === "stacked" ? (
+                <div className="space-y-8">
+                  {site.about_image_url && (
+                    <div className="max-w-4xl mx-auto">
+                      <img 
+                        src={site.about_image_url} 
+                        alt="About" 
+                        className="w-full rounded-lg shadow-xl"
+                      />
+                    </div>
+                  )}
+                  <div className="prose prose-lg max-w-none">
+                    <p className="text-lg leading-relaxed whitespace-pre-line">
+                      {site.about_description}
+                    </p>
                   </div>
-                )}
-                <div className={`prose prose-lg max-w-none text-muted-foreground ${site.about_image_url ? 'order-1 md:order-2' : ''}`}>
-                  <p className="text-lg leading-relaxed whitespace-pre-line">
-                    {site.about_description}
-                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className={`grid ${site.about_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-12 items-center`}>
+                  {site.about_image_url && (
+                    <div>
+                      <img 
+                        src={site.about_image_url} 
+                        alt="About" 
+                        className="w-full rounded-lg shadow-xl"
+                      />
+                    </div>
+                  )}
+                  <div className="prose prose-lg max-w-none">
+                    <p className="text-lg leading-relaxed whitespace-pre-line">
+                      {site.about_description}
+                    </p>
+                  </div>
+                </div>
+              )}
               
               {/* Author Gallery */}
               {galleries.author && galleries.author.length > 0 && (
                 <div className="mt-12">
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className={`grid ${galleryTextPosition === 'beside' ? 'md:grid-cols-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'} gap-4`}>
                     {galleries.author.map((image) => (
-                      <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                      <div key={image.id} className={galleryTextPosition === 'beside' ? 'flex flex-col md:flex-row gap-4 items-start' : 'group relative'}>
                         <img
                           src={image.image_url}
                           alt={image.image_caption || "Gallery"}
-                          className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                          className={`${galleryTextPosition === 'beside' ? 'w-full md:w-1/2 h-48' : 'w-full h-64'} object-cover rounded-lg ${galleryTextPosition !== 'beside' ? 'group-hover:scale-105 transition-transform duration-300' : ''}`}
                         />
                         {image.image_caption && (
-                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                            <p className="text-white text-sm">{image.image_caption}</p>
-                          </div>
+                          galleryTextPosition === 'overlay' ? (
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                              <p className="text-white text-sm">{image.image_caption}</p>
+                            </div>
+                          ) : (
+                            <p className={`text-sm ${galleryTextPosition === 'beside' ? 'flex-1' : 'mt-2'} text-muted-foreground`}>
+                              {image.image_caption}
+                            </p>
+                          )
                         )}
                       </div>
                     ))}

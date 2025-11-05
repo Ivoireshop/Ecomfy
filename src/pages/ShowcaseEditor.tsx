@@ -22,6 +22,7 @@ import { SEOEditor } from "@/components/SEOEditor";
 import { AnalyticsViewer } from "@/components/AnalyticsViewer";
 import { GalleryManager } from "@/components/GalleryManager";
 import { ContactSubmissionsViewer } from "@/components/ContactSubmissionsViewer";
+import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,9 @@ const showcaseSchema = z.object({
   formationTitle: z.string().optional(),
   formationDescription: z.string().optional(),
   formationPrice: z.string().optional(),
+  textColor: z.string().optional(),
+  aboutLayout: z.string().optional(),
+  galleryTextPosition: z.string().optional(),
 });
 
 type ShowcaseFormData = z.infer<typeof showcaseSchema>;
@@ -80,6 +84,7 @@ export default function ShowcaseEditor() {
   const [isPublished, setIsPublished] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [subdomain, setSubdomain] = useState<string>("");
+  const [previewTemplate, setPreviewTemplate] = useState<string | null>(null);
   
   // SEO states
   const [seoTitle, setSeoTitle] = useState("");
@@ -177,6 +182,9 @@ export default function ShowcaseEditor() {
         formationTitle: data.formation_title || "",
         formationDescription: data.formation_description || "",
         formationPrice: data.formation_price || "",
+        textColor: data.text_color || "#000000",
+        aboutLayout: data.about_layout || "side-by-side",
+        galleryTextPosition: data.gallery_text_position || "below",
       });
 
       // Set existing images
@@ -315,6 +323,9 @@ export default function ShowcaseEditor() {
         theme: data.theme,
         primary_color: themeColors?.primary,
         secondary_color: themeColors?.secondary,
+        text_color: data.textColor,
+        about_layout: data.aboutLayout,
+        gallery_text_position: data.galleryTextPosition,
         logo_url: logoUrl,
         hero_image_url: heroImageUrl,
         about_image_url: aboutImageUrl,
@@ -479,6 +490,13 @@ export default function ShowcaseEditor() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Template Preview Dialog */}
+        <TemplatePreviewDialog
+          templateId={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+          onApply={applyTemplate}
+        />
 
         <Tabs defaultValue="edit" className="w-full">
           <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-6 mb-6">
@@ -838,6 +856,108 @@ export default function ShowcaseEditor() {
                   </div>
                 ))}
               </RadioGroup>
+            </CardContent>
+          </Card>
+
+          {/* Advanced Styling Options */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Options de personnalisation avancées</CardTitle>
+              <CardDescription>
+                Personnalisez l'apparence et la disposition de votre site
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label htmlFor="textColor">Couleur du texte principal</Label>
+                <div className="flex gap-2 items-center mt-2">
+                  <Input
+                    id="textColor"
+                    type="color"
+                    {...register("textColor")}
+                    className="w-20 h-10"
+                  />
+                  <Input
+                    type="text"
+                    {...register("textColor")}
+                    placeholder="#000000"
+                    className="flex-1"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Couleur utilisée pour les titres et textes importants
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="aboutLayout">Disposition de la section "À propos"</Label>
+                <RadioGroup
+                  value={watch("aboutLayout") || "side-by-side"}
+                  onValueChange={(value) => setValue("aboutLayout", value)}
+                  className="grid grid-cols-2 gap-4 mt-2"
+                >
+                  <div>
+                    <RadioGroupItem value="side-by-side" id="side-by-side" className="peer sr-only" />
+                    <Label
+                      htmlFor="side-by-side"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                    >
+                      <div className="text-sm font-medium">Côte à côte</div>
+                      <div className="text-xs text-muted-foreground mt-1 text-center">Image et texte côte à côte</div>
+                    </Label>
+                  </div>
+                  <div>
+                    <RadioGroupItem value="stacked" id="stacked" className="peer sr-only" />
+                    <Label
+                      htmlFor="stacked"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                    >
+                      <div className="text-sm font-medium">Empilé</div>
+                      <div className="text-xs text-muted-foreground mt-1 text-center">Image en haut, texte en bas</div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div>
+                <Label htmlFor="galleryTextPosition">Position du texte dans les galeries</Label>
+                <RadioGroup
+                  value={watch("galleryTextPosition") || "below"}
+                  onValueChange={(value) => setValue("galleryTextPosition", value)}
+                  className="grid grid-cols-3 gap-3 mt-2"
+                >
+                  <div>
+                    <RadioGroupItem value="below" id="below" className="peer sr-only" />
+                    <Label
+                      htmlFor="below"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                    >
+                      <div className="text-sm font-medium text-center">En dessous</div>
+                    </Label>
+                  </div>
+                  <div>
+                    <RadioGroupItem value="beside" id="beside" className="peer sr-only" />
+                    <Label
+                      htmlFor="beside"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                    >
+                      <div className="text-sm font-medium text-center">À côté</div>
+                    </Label>
+                  </div>
+                  <div>
+                    <RadioGroupItem value="overlay" id="overlay" className="peer sr-only" />
+                    <Label
+                      htmlFor="overlay"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                    >
+                      <div className="text-sm font-medium text-center">Superposé</div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Choisissez comment afficher les légendes dans vos galeries d'images
+                </p>
+              </div>
             </CardContent>
           </Card>
 
