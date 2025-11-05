@@ -109,12 +109,20 @@ const Index = () => {
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20 hover:border-primary/40 transition-all">
+                    <div className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20 hover:border-primary/40 transition-all group">
                       <img 
                         src={showcaseJewelry} 
-                        alt="Visuel publicitaire - Bijoux artisanaux"
-                        className="w-full h-64 object-cover hover:scale-105 transition-transform duration-300"
+                        alt="Pommade visage - modèle souriante tenant le produit"
+                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
+                      <div className="absolute bottom-3 left-3 right-3 bg-background/80 backdrop-blur-sm border rounded-lg p-3">
+                        <p className="text-sm font-semibold">Pommade Éclat - Beurre de karité</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground line-through text-sm">15 000 FCFA</span>
+                          <span className="text-primary font-bold">9 900 FCFA</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Hydrate, illumine et protège en 7 jours.</p>
+                      </div>
                     </div>
                   </div>
                 </CarouselItem>
@@ -122,7 +130,7 @@ const Index = () => {
                   <div className="p-2">
                     <div 
                       className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group cursor-pointer hover:border-secondary/40 transition-all"
-                      onClick={() => openVideoDialog("https://www.youtube.com/embed/dQw4w9WgXcQ")}
+                      onClick={() => openVideoDialog("/videos/video1.mp4")}
                     >
                       <img 
                         src={showcaseVideo1} 
@@ -144,7 +152,7 @@ const Index = () => {
                   <div className="p-2">
                     <div 
                       className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group cursor-pointer hover:border-secondary/40 transition-all"
-                      onClick={() => openVideoDialog("https://www.youtube.com/embed/dQw4w9WgXcQ")}
+                      onClick={() => openVideoDialog("/videos/video2.mp4")}
                     >
                       <img 
                         src={showcaseVideo2} 
@@ -413,16 +421,16 @@ const Index = () => {
 
       {/* Video Dialog */}
       <Dialog open={videoDialogOpen} onOpenChange={setVideoDialogOpen}>
-        <DialogContent className="max-w-4xl p-0">
-          <div className="relative pt-[56.25%]">
-            <iframe
-              className="absolute top-0 left-0 w-full h-full"
-              src={currentVideoUrl}
-              title="Vidéo publicitaire"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+        <DialogContent className="max-w-3xl p-0">
+          <video
+            key={currentVideoUrl}
+            controls
+            autoPlay
+            className="w-full h-auto rounded-b-xl"
+          >
+            <source src={currentVideoUrl} type="video/mp4" />
+            Votre navigateur ne supporte pas la lecture de vidéos.
+          </video>
         </DialogContent>
       </Dialog>
     </div>
