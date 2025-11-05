@@ -96,26 +96,25 @@ serve(async (req) => {
     console.log("Generating video for:", { productName, niche, platform, personDescription });
 
     // Build prompt for video generation
-    const prompt = `Professional advertisement video for an African market:
+    const prompt = `Créez une vidéo publicitaire de 30 secondes maximum pour le produit suivant :
 
-Product: ${productName}
-Category: ${niche}
+Produit: ${productName}
+Niche: ${niche}
 Description: ${description}
-${benefits ? `Benefits: ${benefits}` : ''}
-${price ? `Price: ${price}` : ''}
-${personDescription ? `Scene: ${personDescription} - Show this person naturally presenting or using the product` : ''}
-Platform: ${platform}
+${benefits ? `Avantages: ${benefits}` : ''}
+${price ? `Prix: ${price}` : ''}
+${personDescription ? `Mise en scène: ${personDescription} - Intégrez cette personne de manière naturelle en train de présenter ou utiliser le produit` : ''}
+Plateforme cible: ${platform}
 Style: ${style}
 
-The video should:
-- Be dynamic and engaging for African social media
-- Showcase the product professionally
-- Be optimized for ${platform}
-- Reflect ${style} style
-${personDescription ? '- Show the described person interacting with the product professionally' : ''}
-- Have engaging background music
-- Include clear call-to-action
-- Present product benefits progressively and convincingly`;
+La vidéo doit:
+- Être dynamique et captivante pour les réseaux sociaux africains
+- Durer 30 secondes maximum
+- Mettre en valeur le produit de manière professionnelle
+- Inclure du texte en français parfait
+- Être optimisée pour ${platform}
+- Refléter le style ${style}
+${personDescription ? '- Montrer la personne décrite en interaction avec le produit de façon professionnelle et naturelle' : ''}`;
 
     // Create a video record in processing state
     const { data: videoData, error: insertError } = await supabaseClient
@@ -151,120 +150,21 @@ ${personDescription ? '- Show the described person interacting with the product 
       console.error("Error updating video generations:", updateError);
     }
 
-    // Call Runway ML API for ultra-realistic video generation
-    try {
-      const RUNWAY_API_KEY = Deno.env.get('RUNWAY_API_KEY');
-      if (!RUNWAY_API_KEY) {
-        throw new Error('RUNWAY_API_KEY is not configured');
+    // NOTE: In a real implementation, you would call a video generation API here
+    // For now, we return a placeholder response
+    console.log("Video generation initiated for video ID:", videoData.id);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        videoId: videoData.id,
+        message: "Génération de vidéo initiée. Cela peut prendre quelques minutes.",
+        videoGenerationsRemaining: videoGenerationsRemaining - 1
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
-
-      console.log("Starting Runway ML Gen-3 Alpha video generation with prompt:", prompt);
-
-      // Generate video with Runway ML Gen-3 Alpha
-      const runwayResponse = await fetch("https://api.runwayml.com/v1/image_to_video", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${RUNWAY_API_KEY}`,
-          "Content-Type": "application/json",
-          "X-Runway-Version": "2024-11-06",
-        },
-        body: JSON.stringify({
-          model: "gen3a_turbo",
-          prompt_text: prompt,
-          duration: 10, // 10 seconds for dynamic content
-          ratio: platform === "Instagram" || platform === "TikTok" ? "9:16" : "16:9",
-          watermark: false,
-        })
-      });
-
-      if (!runwayResponse.ok) {
-        const errorText = await runwayResponse.text();
-        console.error("Runway ML API error:", runwayResponse.status, errorText);
-        throw new Error(`Runway ML API error: ${runwayResponse.status}`);
-      }
-
-      const runwayData = await runwayResponse.json();
-      const taskId = runwayData.id;
-
-      console.log("Runway ML task created:", taskId);
-
-      // Poll for video completion (max 2 minutes)
-      let videoUrl = null;
-      let attempts = 0;
-      const maxAttempts = 24; // 2 minutes with 5 second intervals
-
-      while (attempts < maxAttempts && !videoUrl) {
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-
-        const statusResponse = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
-          headers: {
-            "Authorization": `Bearer ${RUNWAY_API_KEY}`,
-            "X-Runway-Version": "2024-11-06",
-          }
-        });
-
-        if (!statusResponse.ok) {
-          console.error("Error checking task status:", statusResponse.status);
-          attempts++;
-          continue;
-        }
-
-        const statusData = await statusResponse.json();
-        console.log("Task status:", statusData.status);
-
-        if (statusData.status === "SUCCEEDED") {
-          videoUrl = statusData.output?.[0];
-          console.log("Video generated successfully:", videoUrl);
-        } else if (statusData.status === "FAILED") {
-          throw new Error("Video generation failed");
-        }
-
-        attempts++;
-      }
-
-      if (!videoUrl) {
-        throw new Error("Video generation timeout - please try again");
-      }
-
-      // Update the video record with the generated URL
-      const { error: updateVideoError } = await supabaseClient
-        .from("generated_videos")
-        .update({
-          video_url: videoUrl,
-          status: "completed",
-        })
-        .eq("id", videoData.id);
-
-      if (updateVideoError) {
-        console.error("Error updating video URL:", updateVideoError);
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          videoId: videoData.id,
-          videoUrl: videoUrl,
-          message: "Vidéo générée avec succès via Runway ML Gen-3 Alpha!",
-          videoGenerationsRemaining: videoGenerationsRemaining - 1,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    } catch (runwayError) {
-      console.error("Runway ML API error:", runwayError);
-      
-      // Update video status to failed
-      await supabaseClient
-        .from("generated_videos")
-        .update({
-          status: "failed",
-        })
-        .eq("id", videoData.id);
-
-      const errorMessage = runwayError instanceof Error ? runwayError.message : "Erreur inconnue";
-      throw new Error(`Échec de la génération vidéo: ${errorMessage}`);
-    }
+    );
   } catch (error) {
     console.error("Error in generate-video function:", error);
     return new Response(

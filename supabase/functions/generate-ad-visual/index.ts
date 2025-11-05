@@ -89,25 +89,15 @@ serve(async (req) => {
     
     console.log("Generating visual for:", { productName, niche, platform, style, personDescription });
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
-    }
-
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     // Build an advanced prompt that analyzes successful ads in the niche
     let prompt = `You are an expert advertising visual creator specializing in the African market. 
 
-CRITICAL REQUIREMENTS:
-- All text in the generated image MUST be in perfect French with NO spelling errors
-- Double-check every word for correct French orthography, grammar, and accents
-- Price format MUST be "FCFA" (Franc CFA) - NEVER use "FCMA" or any other variation
-- All numbers must be formatted correctly (e.g., "189,000 FCFA" not "189000FCFA")
-- Text must be clear, legible, and professionally positioned
+CRITICAL: All text in the generated image MUST be in perfect French with NO spelling errors. Double-check every word for correct French orthography, grammar, and accents.
 
 COMPETITIVE ANALYSIS CONTEXT:
 First, mentally analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and messaging patterns consistently perform well in this niche for African audiences.
@@ -223,24 +213,21 @@ Create a stunning, conversion-focused advertising visual that combines the best 
         ]
       : prompt;
 
-    // Use OpenRouter with gpt-image-1 for ultra-professional quality
-    console.log("Using OpenRouter with gpt-image-1 for ultra-professional image generation");
-    
-    const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": Deno.env.get("SUPABASE_URL") ?? "",
-        "X-Title": "VisualPro Ad Generator",
       },
       body: JSON.stringify({
-        model: "openai/gpt-image-1",
-        prompt: prompt,
-        size: "1536x1024",
-        quality: "high",
-        output_format: "png",
-        n: 1,
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: messageContent,
+          },
+        ],
+        modalities: ["image", "text"],
       }),
     });
 
@@ -272,57 +259,12 @@ Create a stunning, conversion-focused advertising visual that combines the best 
     }
 
     const data = await response.json();
-    console.log("OpenRouter image generated successfully");
+    console.log("AI response received");
     
-    // OpenRouter returns base64 data directly for gpt-image-1
-    let imageUrl = data.data?.[0]?.b64_json 
-      ? `data:image/png;base64,${data.data[0].b64_json}`
-      : data.data?.[0]?.url;
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     
     if (!imageUrl) {
-      console.error("No image in response:", data);
       throw new Error("No image generated");
-    }
-
-    // Add watermark for free users (non-subscribers)
-    if (!hasActiveSubscription) {
-      console.log("Adding watermark for free user using OpenRouter");
-      try {
-        // Re-generate with watermark using OpenRouter
-        const watermarkPrompt = `${prompt}\n\nIMPORTANT: Add a small, subtle "VP" logo watermark in the bottom right corner. The watermark should be semi-transparent, professional (about 3-5% of image height), and positioned 10-15 pixels from edges. Do not obstruct main content.`;
-
-        const watermarkResponse = await fetch("https://openrouter.ai/api/v1/images/generations", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": Deno.env.get("SUPABASE_URL") ?? "",
-            "X-Title": "VisualPro Ad Generator",
-          },
-          body: JSON.stringify({
-            model: "openai/gpt-image-1",
-            prompt: watermarkPrompt,
-            size: "1536x1024",
-            quality: "high",
-            output_format: "png",
-            n: 1,
-          }),
-        });
-
-        if (watermarkResponse.ok) {
-          const watermarkData = await watermarkResponse.json();
-          const watermarkedUrl = watermarkData.data?.[0]?.b64_json
-            ? `data:image/png;base64,${watermarkData.data[0].b64_json}`
-            : watermarkData.data?.[0]?.url;
-          if (watermarkedUrl) {
-            imageUrl = watermarkedUrl;
-            console.log("Watermark added successfully");
-          }
-        }
-      } catch (watermarkError) {
-        console.error("Error adding watermark:", watermarkError);
-        // Continue with unwatermarked image if watermarking fails
-      }
     }
 
     // Save the generated image to the database
@@ -368,30 +310,30 @@ Create a stunning, conversion-focused advertising visual that combines the best 
         try {
           const resizePrompt = `Resize and adapt this advertising visual to ${format.size} pixels for ${format.name}. Maintain all text readability and ensure the product is prominently displayed. Optimize the layout for the aspect ratio without losing important information.`;
           
-          // Use OpenAI for format generation with subscribers
-          const [width, height] = format.size.split("x").map(Number);
-          
-          const resizeResponse = await fetch("https://api.openai.com/v1/images/generations", {
+          const resizeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${OPENAI_API_KEY}`,
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "gpt-image-1",
-              prompt: `${prompt}\n\nOptimize this advertising visual for ${format.name} at ${format.size} resolution. Maintain all text readability and product prominence.`,
-              size: format.size,
-              quality: "high",
-              output_format: "png",
-              n: 1,
+              model: "google/gemini-2.5-flash-image-preview",
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: resizePrompt },
+                    { type: "image_url", image_url: { url: imageUrl } },
+                  ],
+                },
+              ],
+              modalities: ["image", "text"],
             }),
           });
 
           if (resizeResponse.ok) {
             const resizeData = await resizeResponse.json();
-            const formatImageUrl = resizeData.data?.[0]?.b64_json
-              ? `data:image/png;base64,${resizeData.data[0].b64_json}`
-              : resizeData.data?.[0]?.url;
+            const formatImageUrl = resizeData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
             
             if (formatImageUrl) {
               // Save format to database
