@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import Replicate from "https://esm.sh/replicate@0.25.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,29 +96,27 @@ serve(async (req) => {
     
     console.log("Generating video for:", { productName, niche, platform, personDescription });
 
-    // Build prompt for video generation (minimum 30 seconds)
-    const prompt = `Créez une vidéo publicitaire professionnelle d'au moins 30 secondes (et jusqu'à 60 secondes maximum) pour le produit suivant :
+    // Build prompt for video generation
+    const prompt = `Professional advertisement video for an African market:
 
-Produit: ${productName}
-Niche: ${niche}
+Product: ${productName}
+Category: ${niche}
 Description: ${description}
-${benefits ? `Avantages: ${benefits}` : ''}
-${price ? `Prix: ${price}` : ''}
-${personDescription ? `Mise en scène: ${personDescription} - Intégrez cette personne de manière naturelle en train de présenter ou utiliser le produit` : ''}
-Plateforme cible: ${platform}
+${benefits ? `Benefits: ${benefits}` : ''}
+${price ? `Price: ${price}` : ''}
+${personDescription ? `Scene: ${personDescription} - Show this person naturally presenting or using the product` : ''}
+Platform: ${platform}
 Style: ${style}
 
-La vidéo doit:
-- Durer AU MINIMUM 30 secondes (peut aller jusqu'à 60 secondes)
-- Être dynamique et captivante pour les réseaux sociaux africains
-- Mettre en valeur le produit de manière professionnelle
-- Inclure du texte en français parfait avec des sous-titres si nécessaire
-- Être optimisée pour ${platform}
-- Refléter le style ${style}
-${personDescription ? '- Montrer la personne décrite en interaction avec le produit de façon professionnelle et naturelle' : ''}
-- Avoir une narration ou musique de fond engageante
-- Inclure des appels à l'action clairs
-- Présenter les avantages du produit de manière progressive et convaincante`;
+The video should:
+- Be dynamic and engaging for African social media
+- Showcase the product professionally
+- Be optimized for ${platform}
+- Reflect ${style} style
+${personDescription ? '- Show the described person interacting with the product professionally' : ''}
+- Have engaging background music
+- Include clear call-to-action
+- Present product benefits progressively and convincingly`;
 
     // Create a video record in processing state
     const { data: videoData, error: insertError } = await supabaseClient
@@ -153,21 +152,78 @@ ${personDescription ? '- Montrer la personne décrite en interaction avec le pro
       console.error("Error updating video generations:", updateError);
     }
 
-    // NOTE: In a real implementation, you would call a video generation API here
-    // For now, we return a placeholder response
-    console.log("Video generation initiated for video ID:", videoData.id);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        videoId: videoData.id,
-        message: "Génération de vidéo initiée (30-60 secondes). Cela peut prendre quelques minutes.",
-        videoGenerationsRemaining: videoGenerationsRemaining - 1
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Call Replicate API for video generation
+    try {
+      const REPLICATE_API_KEY = Deno.env.get('REPLICATE_API_KEY');
+      if (!REPLICATE_API_KEY) {
+        throw new Error('REPLICATE_API_KEY is not configured');
       }
-    );
+
+      const replicate = new Replicate({
+        auth: REPLICATE_API_KEY,
+      });
+
+      console.log("Starting Replicate video generation with prompt:", prompt);
+
+      // Use zeroscope-v2-xl for text-to-video generation
+      const output = await replicate.run(
+        "anotherjesse/zeroscope-v2-xl:9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351",
+        {
+          input: {
+            prompt: prompt,
+            num_frames: 72, // About 3 seconds at 24fps
+            num_inference_steps: 50,
+            guidance_scale: 17.5,
+            width: 1024,
+            height: 576,
+            fps: 24
+          }
+        }
+      );
+
+      console.log("Replicate video generation completed:", output);
+
+      // Update the video record with the generated URL
+      if (output && typeof output === 'string') {
+        const { error: updateVideoError } = await supabaseClient
+          .from("generated_videos")
+          .update({
+            video_url: output,
+            status: "completed",
+          })
+          .eq("id", videoData.id);
+
+        if (updateVideoError) {
+          console.error("Error updating video URL:", updateVideoError);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          videoId: videoData.id,
+          videoUrl: output,
+          message: "Vidéo générée avec succès !",
+          videoGenerationsRemaining: videoGenerationsRemaining - 1
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } catch (replicateError) {
+      console.error("Replicate API error:", replicateError);
+      
+      // Update video status to failed
+      await supabaseClient
+        .from("generated_videos")
+        .update({
+          status: "failed",
+        })
+        .eq("id", videoData.id);
+
+      const errorMessage = replicateError instanceof Error ? replicateError.message : "Erreur inconnue";
+      throw new Error(`Échec de la génération vidéo: ${errorMessage}`);
+    }
   } catch (error) {
     console.error("Error in generate-video function:", error);
     return new Response(
