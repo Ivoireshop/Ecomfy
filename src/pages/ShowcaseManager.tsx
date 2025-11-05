@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, ExternalLink, Settings, Trash2, Eye, EyeOff } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Plus, ExternalLink, Settings, Trash2, Eye, EyeOff, Copy, CheckCircle2, Globe } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -31,6 +32,7 @@ export default function ShowcaseManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSites();
@@ -85,6 +87,21 @@ export default function ShowcaseManager() {
     }
     setDeleteDialogOpen(false);
     setSiteToDelete(null);
+  };
+
+  const getPublicUrl = (subdomain: string) => {
+    return `${window.location.origin}/showcase/${subdomain}`;
+  };
+
+  const copyPublicUrl = (subdomain: string, siteId: string) => {
+    const url = getPublicUrl(subdomain);
+    navigator.clipboard.writeText(url);
+    setCopiedId(siteId);
+    toast.success("Lien copié dans le presse-papier!");
+    
+    setTimeout(() => {
+      setCopiedId(null);
+    }, 2000);
   };
 
   const togglePublish = async (siteId: string, currentStatus: boolean) => {
@@ -160,14 +177,51 @@ export default function ShowcaseManager() {
                     {site.subdomain}.visualpro.app
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-3">
+                  {site.is_published && (
+                    <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <Globe className="h-3 w-3" />
+                        <span>Site en ligne</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={getPublicUrl(site.subdomain)}
+                          readOnly
+                          className="text-xs font-mono h-8"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2"
+                          onClick={() => copyPublicUrl(site.subdomain, site.id)}
+                        >
+                          {copiedId === site.id ? (
+                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-8 px-2"
+                          onClick={() => window.open(getPublicUrl(site.subdomain), "_blank")}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
                   <Button
                     variant="outline"
                     className="w-full"
                     onClick={() => window.open(`/showcase/${site.subdomain}`, "_blank")}
+                    disabled={!site.is_published}
                   >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Voir le site
+                    <Eye className="mr-2 h-4 w-4" />
+                    {site.is_published ? "Prévisualiser" : "Site non publié"}
                   </Button>
                   
                   <Button

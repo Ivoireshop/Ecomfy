@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles } from "lucide-react";
+import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -77,6 +77,8 @@ export default function ShowcaseEditor() {
   const [selectedCategory, setSelectedCategory] = useState<string>("Tous");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [subdomain, setSubdomain] = useState<string>("");
   
   // SEO states
   const [seoTitle, setSeoTitle] = useState("");
@@ -188,6 +190,7 @@ export default function ShowcaseEditor() {
       setBusinessName(data.business_name || "");
       setFeatures((data.features as any) || []);
       setIsPublished(data.is_published || false);
+      setSubdomain(data.subdomain || "");
       
       // Set SEO data
       setSeoTitle(data.seo_title || "");
@@ -237,6 +240,20 @@ export default function ShowcaseEditor() {
       console.error('Error uploading image:', error);
       return null;
     }
+  };
+
+  const getPublicUrl = () => {
+    return `${window.location.origin}/showcase/${subdomain}`;
+  };
+
+  const copyPublicUrl = () => {
+    navigator.clipboard.writeText(getPublicUrl());
+    setCopiedUrl(true);
+    toast.success("Lien du site copié!");
+    
+    setTimeout(() => {
+      setCopiedUrl(false);
+    }, 2000);
   };
 
   const onSubmit = async (data: ShowcaseFormData) => {
@@ -849,6 +866,49 @@ export default function ShowcaseEditor() {
                     </Button>
                   </div>
                   
+                  {isPublished && (
+                    <Card className="border-primary/50 bg-primary/5 mb-4">
+                      <CardContent className="pt-6">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="default" className="gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Site Publié
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Votre site est en ligne. Partagez le lien ci-dessous avec vos clients !
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={getPublicUrl()}
+                              readOnly
+                              className="font-mono text-sm"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={copyPublicUrl}
+                            >
+                              {copiedUrl ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => window.open(getPublicUrl(), "_blank")}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {!isPublished && (
                     <Button
                       type="button"
@@ -869,14 +929,6 @@ export default function ShowcaseEditor() {
                         </>
                       )}
                     </Button>
-                  )}
-                  
-                  {isPublished && (
-                    <div className="text-center p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                      <p className="text-sm text-green-700 dark:text-green-300 font-medium">
-                        ✓ Site publié et visible en ligne
-                      </p>
-                    </div>
                   )}
                 </div>
               </form>
