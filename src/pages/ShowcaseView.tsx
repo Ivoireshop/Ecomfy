@@ -19,6 +19,13 @@ import {
 interface Feature {
   title: string;
   description: string;
+  image_url?: string;
+}
+
+interface Formation {
+  title: string;
+  description: string;
+  image_url?: string;
 }
 
 interface ShowcaseSite {
@@ -34,6 +41,8 @@ interface ShowcaseSite {
   about_title: string | null;
   about_description: string | null;
   features: Feature[] | null;
+  formations: Formation[] | null;
+  formations_text_align: string | null;
   cta_title: string | null;
   cta_description: string | null;
   formation_title: string | null;
@@ -152,6 +161,8 @@ export default function ShowcaseView() {
         const siteData = {
           ...data,
           features: data.features ? (data.features as unknown as Feature[]) : null,
+          formations: data.formations ? (data.formations as unknown as Formation[]) : null,
+          formations_text_align: data.formations_text_align,
           text_color: data.text_color,
           about_layout: data.about_layout,
           gallery_text_position: data.gallery_text_position,
@@ -679,15 +690,28 @@ export default function ShowcaseView() {
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {site.features.map((feature, index) => (
-                  <Card key={index} className="theme-bg-card border-none shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                    <CardContent className="p-8 space-y-4">
-                      <div className="w-12 h-12 rounded-full theme-bg-primary opacity-10 flex items-center justify-center">
-                        <CheckCircle className="h-6 w-6 theme-text-primary" />
+                  <Card key={index} className="theme-bg-card border-none shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                    <CardContent className="p-0">
+                      {feature.image_url && (
+                        <div className="w-full h-48 overflow-hidden">
+                          <img 
+                            src={feature.image_url} 
+                            alt={feature.title}
+                            className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                          />
+                        </div>
+                      )}
+                      <div className="p-8 space-y-4">
+                        {!feature.image_url && (
+                          <div className="w-12 h-12 rounded-full theme-bg-primary opacity-10 flex items-center justify-center">
+                            <CheckCircle className="h-6 w-6 theme-text-primary" />
+                          </div>
+                        )}
+                        <h3 className="text-xl font-bold theme-text-custom">{feature.title}</h3>
+                        <p className="theme-text-secondary leading-relaxed">
+                          {feature.description}
+                        </p>
                       </div>
-                      <h3 className="text-xl font-bold theme-text-custom">{feature.title}</h3>
-                      <p className="theme-text-secondary leading-relaxed">
-                        {feature.description}
-                      </p>
                     </CardContent>
                   </Card>
                 ))}
@@ -697,8 +721,73 @@ export default function ShowcaseView() {
         </section>
       )}
 
-      {/* Formation Section */}
-      {site.formation_title && (
+      {/* Formations Section (New Multiple Formations) */}
+      {site.formations && site.formations.length > 0 && (
+        <section id="formation" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom">
+                Formations Professionnelles
+              </h2>
+              <div className="space-y-12">
+                {site.formations.map((formation, index) => {
+                  const textAlign = site.formations_text_align || 'left';
+                  const isEven = index % 2 === 0;
+                  
+                  return (
+                    <Card key={index} className="theme-bg-card border-none shadow-xl overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className={`grid ${formation.image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-0`}>
+                          {/* Image */}
+                          {formation.image_url && (
+                            <div className={`${textAlign === 'right' || (textAlign === 'center' && !isEven) ? 'md:order-2' : ''} relative h-64 md:h-full min-h-[300px]`}>
+                              <img 
+                                src={formation.image_url} 
+                                alt={formation.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Text Content */}
+                          <div className={`p-8 md:p-12 flex flex-col justify-center ${
+                            textAlign === 'center' ? 'text-center items-center' : 
+                            textAlign === 'right' ? 'text-right items-end' : 
+                            'text-left items-start'
+                          }`}>
+                            <Badge className="text-base px-4 py-2 theme-bg-primary mb-6">
+                              Formation {index + 1}
+                            </Badge>
+                            <h3 className="text-2xl md:text-3xl font-bold theme-text-custom mb-4">
+                              {formation.title}
+                            </h3>
+                            <p className="text-lg theme-text-secondary leading-relaxed whitespace-pre-line mb-8">
+                              {formation.description}
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <Button size="lg" onClick={handleWhatsAppClick}>
+                                <MessageCircle className="mr-2 h-5 w-5" />
+                                S'inscrire
+                              </Button>
+                              <Button size="lg" variant="outline" onClick={handlePhoneClick}>
+                                <Phone className="mr-2 h-5 w-5" />
+                                En savoir plus
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+      
+      {/* Formation Section (Legacy - Single Formation) */}
+      {site.formation_title && (!site.formations || site.formations.length === 0) && (
         <section id="formation" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
           <div className="container mx-auto px-4">
             <Card className="max-w-4xl mx-auto theme-bg-card theme-border-primary shadow-2xl">
