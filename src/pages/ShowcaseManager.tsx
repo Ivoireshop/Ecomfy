@@ -155,7 +155,7 @@ export default function ShowcaseManager() {
                       variant="ghost"
                       size="sm"
                       className="flex-1"
-                      onClick={() => toast.info("Fonction à venir")}
+                      onClick={() => navigate(`/showcase-editor/${site.id}`)}
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       Modifier

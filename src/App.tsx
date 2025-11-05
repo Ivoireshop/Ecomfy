@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import ShowcaseBuilder from "./pages/ShowcaseBuilder";
 import ShowcaseView from "./pages/ShowcaseView";
 import ShowcaseManager from "./pages/ShowcaseManager";
+import ShowcaseEditor from "./pages/ShowcaseEditor";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -84,6 +85,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <ShowcaseManager />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/showcase-editor/:id" 
+          element={
+            <ProtectedRoute>
+              <ShowcaseEditor />
             </ProtectedRoute>
           } 
         />
