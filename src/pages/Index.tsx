@@ -112,45 +112,55 @@ const Index = () => {
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group">
+                    <a 
+                      href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group cursor-pointer hover:border-secondary/40 transition-all"
+                    >
                       <img 
                         src={showcaseVideo1} 
                         alt="Vidéo publicitaire - Entrepreneur tech"
-                        className="w-full h-64 object-cover"
+                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
-                        <div className="bg-white/90 rounded-full p-4">
-                          <Play className="h-8 w-8 text-primary" />
+                        <div className="bg-white/90 rounded-full p-4 group-hover:scale-110 transition-transform">
+                          <Play className="h-8 w-8 text-primary" fill="currentColor" />
                         </div>
                       </div>
                       <div className="absolute top-3 right-3 bg-secondary/90 text-white px-3 py-1 rounded-full text-xs font-medium">
-                        Vidéo
+                        Vidéo 30s
                       </div>
-                    </div>
+                    </a>
                   </div>
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group">
+                    <a 
+                      href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group cursor-pointer hover:border-secondary/40 transition-all"
+                    >
                       <img 
                         src={showcaseVideo2} 
                         alt="Vidéo publicitaire - Restaurant africain"
-                        className="w-full h-64 object-cover"
+                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
-                        <div className="bg-white/90 rounded-full p-4">
-                          <Play className="h-8 w-8 text-primary" />
+                        <div className="bg-white/90 rounded-full p-4 group-hover:scale-110 transition-transform">
+                          <Play className="h-8 w-8 text-primary" fill="currentColor" />
                         </div>
                       </div>
                       <div className="absolute top-3 right-3 bg-secondary/90 text-white px-3 py-1 rounded-full text-xs font-medium">
-                        Vidéo
+                        Vidéo 30s
                       </div>
-                    </div>
+                    </a>
                   </div>
                 </CarouselItem>
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
+              <CarouselPrevious className="left-2" />
+              <CarouselNext className="right-2" />
             </Carousel>
           </div>
 

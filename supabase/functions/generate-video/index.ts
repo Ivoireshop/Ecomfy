@@ -95,8 +95,8 @@ serve(async (req) => {
     
     console.log("Generating video for:", { productName, niche, platform, personDescription });
 
-    // Build prompt for video generation
-    const prompt = `Créez une vidéo publicitaire de 30 secondes maximum pour le produit suivant :
+    // Build prompt for video generation (minimum 30 seconds)
+    const prompt = `Créez une vidéo publicitaire professionnelle d'au moins 30 secondes (et jusqu'à 60 secondes maximum) pour le produit suivant :
 
 Produit: ${productName}
 Niche: ${niche}
@@ -108,13 +108,16 @@ Plateforme cible: ${platform}
 Style: ${style}
 
 La vidéo doit:
+- Durer AU MINIMUM 30 secondes (peut aller jusqu'à 60 secondes)
 - Être dynamique et captivante pour les réseaux sociaux africains
-- Durer 30 secondes maximum
 - Mettre en valeur le produit de manière professionnelle
-- Inclure du texte en français parfait
+- Inclure du texte en français parfait avec des sous-titres si nécessaire
 - Être optimisée pour ${platform}
 - Refléter le style ${style}
-${personDescription ? '- Montrer la personne décrite en interaction avec le produit de façon professionnelle et naturelle' : ''}`;
+${personDescription ? '- Montrer la personne décrite en interaction avec le produit de façon professionnelle et naturelle' : ''}
+- Avoir une narration ou musique de fond engageante
+- Inclure des appels à l'action clairs
+- Présenter les avantages du produit de manière progressive et convaincante`;
 
     // Create a video record in processing state
     const { data: videoData, error: insertError } = await supabaseClient
@@ -158,7 +161,7 @@ ${personDescription ? '- Montrer la personne décrite en interaction avec le pro
       JSON.stringify({ 
         success: true,
         videoId: videoData.id,
-        message: "Génération de vidéo initiée. Cela peut prendre quelques minutes.",
+        message: "Génération de vidéo initiée (30-60 secondes). Cela peut prendre quelques minutes.",
         videoGenerationsRemaining: videoGenerationsRemaining - 1
       }),
       {
