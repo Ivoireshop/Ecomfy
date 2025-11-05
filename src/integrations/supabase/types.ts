@@ -230,14 +230,21 @@ export type Database = {
       }
       showcase_sites: {
         Row: {
+          about_description: string | null
+          about_title: string | null
           business_description: string | null
           business_name: string
           created_at: string
+          cta_description: string | null
+          cta_title: string | null
           custom_domain: string | null
+          features: Json | null
           formation_description: string | null
           formation_image_url: string | null
           formation_price: string | null
           formation_title: string | null
+          hero_subtitle: string | null
+          hero_title: string | null
           id: string
           is_published: boolean
           owner_name: string
@@ -249,14 +256,21 @@ export type Database = {
           whatsapp_number: string
         }
         Insert: {
+          about_description?: string | null
+          about_title?: string | null
           business_description?: string | null
           business_name: string
           created_at?: string
+          cta_description?: string | null
+          cta_title?: string | null
           custom_domain?: string | null
+          features?: Json | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
           id?: string
           is_published?: boolean
           owner_name: string
@@ -268,14 +282,21 @@ export type Database = {
           whatsapp_number: string
         }
         Update: {
+          about_description?: string | null
+          about_title?: string | null
           business_description?: string | null
           business_name?: string
           created_at?: string
+          cta_description?: string | null
+          cta_title?: string | null
           custom_domain?: string | null
+          features?: Json | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
           id?: string
           is_published?: boolean
           owner_name?: string

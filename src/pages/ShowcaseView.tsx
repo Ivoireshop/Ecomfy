@@ -3,21 +3,31 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MessageCircle, Phone, Loader2, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MessageCircle, Phone, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+
+interface Feature {
+  title: string;
+  description: string;
+}
 
 interface ShowcaseSite {
   id: string;
   subdomain: string;
   business_name: string;
-  business_description: string | null;
   owner_name: string;
-  owner_photo_url: string | null;
   whatsapp_number: string;
   phone_number: string;
+  hero_title: string | null;
+  hero_subtitle: string | null;
+  about_title: string | null;
+  about_description: string | null;
+  features: Feature[] | null;
+  cta_title: string | null;
+  cta_description: string | null;
   formation_title: string | null;
   formation_description: string | null;
   formation_price: string | null;
-  formation_image_url: string | null;
 }
 
 export default function ShowcaseView() {
@@ -45,7 +55,11 @@ export default function ShowcaseView() {
       if (error) {
         console.error("Error loading site:", error);
       } else {
-        setSite(data);
+        const siteData = {
+          ...data,
+          features: data.features ? (data.features as unknown as Feature[]) : null
+        };
+        setSite(siteData as ShowcaseSite);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -75,8 +89,8 @@ export default function ShowcaseView() {
 
   if (!site) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center space-y-4">
             <h2 className="text-2xl font-bold">Site non trouvé</h2>
             <p className="text-muted-foreground">
@@ -93,90 +107,178 @@ export default function ShowcaseView() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <h1 className="text-5xl md:text-6xl font-bold">{site.business_name}</h1>
-          {site.business_description && (
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              {site.business_description}
-            </p>
-          )}
-          
-          <div className="flex flex-wrap gap-4 justify-center pt-4">
-            <Button size="lg" onClick={handleWhatsAppClick} className="gap-2">
-              <MessageCircle className="h-5 w-5" />
-              Contactez-nous via WhatsApp
-            </Button>
-            <Button size="lg" variant="outline" onClick={handlePhoneClick} className="gap-2">
-              <Phone className="h-5 w-5" />
-              Appelez-nous
-            </Button>
+    <div className="min-h-screen">
+      {/* Hero Section - HubSpot Style */}
+      <section className="relative bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+        <div className="container mx-auto px-4 py-20 md:py-32">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <Badge variant="outline" className="text-sm px-4 py-2">
+              {site.business_name}
+            </Badge>
+            
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight">
+              {site.hero_title || site.business_name}
+            </h1>
+            
+            {site.hero_subtitle && (
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                {site.hero_subtitle}
+              </p>
+            )}
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
+              <Button size="lg" onClick={handleWhatsAppClick} className="text-lg px-8 py-6">
+                <MessageCircle className="mr-2 h-5 w-5" />
+                Contactez-nous via WhatsApp
+              </Button>
+              <Button size="lg" variant="outline" onClick={handlePhoneClick} className="text-lg px-8 py-6">
+                <Phone className="mr-2 h-5 w-5" />
+                Appelez-nous
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Formation Section */}
-      {site.formation_title && (
-        <section className="container mx-auto px-4 py-16">
-          <Card className="max-w-4xl mx-auto">
-            <CardContent className="p-8 space-y-6">
-              <div className="text-center space-y-4">
-                <h2 className="text-3xl font-bold">{site.formation_title}</h2>
-                {site.formation_description && (
-                  <p className="text-lg text-muted-foreground">
-                    {site.formation_description}
-                  </p>
-                )}
-                {site.formation_price && (
-                  <p className="text-2xl font-bold text-primary">
-                    {site.formation_price}
-                  </p>
-                )}
+      {/* About Section */}
+      {site.about_description && (
+        <section className="py-20 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center">
+                {site.about_title || "À propos"}
+              </h2>
+              <div className="prose prose-lg max-w-none text-muted-foreground">
+                <p className="text-lg leading-relaxed whitespace-pre-line">
+                  {site.about_description}
+                </p>
               </div>
-
-              <div className="flex flex-wrap gap-4 justify-center pt-4">
-                <Button size="lg" onClick={handleWhatsAppClick} className="gap-2">
-                  <MessageCircle className="h-5 w-5" />
-                  S'inscrire via WhatsApp
-                </Button>
-                <Button size="lg" variant="outline" onClick={handlePhoneClick} className="gap-2">
-                  <Phone className="h-5 w-5" />
-                  Appeler pour plus d'infos
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </section>
       )}
 
-      {/* About Section */}
-      <section className="container mx-auto px-4 py-16">
-        <Card className="max-w-4xl mx-auto">
-          <CardContent className="p-8 text-center space-y-4">
-            <h2 className="text-2xl font-bold">À propos</h2>
-            <p className="text-lg">
-              Ce site est géré par <strong>{site.owner_name}</strong>
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center pt-4">
-              <Button onClick={handleWhatsAppClick} className="gap-2">
-                <MessageCircle className="h-5 w-5" />
+      {/* Features Section */}
+      {site.features && site.features.length > 0 && (
+        <section className="py-20 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {site.features.map((feature, index) => (
+                  <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow">
+                    <CardContent className="p-8 space-y-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="text-xl font-bold">{feature.title}</h3>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {feature.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Formation Section */}
+      {site.formation_title && (
+        <section className="py-20 bg-background">
+          <div className="container mx-auto px-4">
+            <Card className="max-w-4xl mx-auto border-primary/20 shadow-2xl">
+              <CardContent className="p-12 space-y-8">
+                <div className="text-center space-y-6">
+                  <Badge className="text-base px-4 py-2">Formation Professionnelle</Badge>
+                  <h2 className="text-3xl md:text-4xl font-bold">{site.formation_title}</h2>
+                  {site.formation_description && (
+                    <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {site.formation_description}
+                    </p>
+                  )}
+                  {site.formation_price && (
+                    <div className="pt-4">
+                      <p className="text-4xl font-bold text-primary">
+                        {site.formation_price}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
+                  <Button size="lg" onClick={handleWhatsAppClick} className="text-lg px-8 py-6">
+                    <MessageCircle className="mr-2 h-5 w-5" />
+                    S'inscrire via WhatsApp
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={handlePhoneClick} className="text-lg px-8 py-6">
+                    <Phone className="mr-2 h-5 w-5" />
+                    Appeler pour plus d'infos
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
+
+      {/* CTA Section */}
+      {site.cta_title && (
+        <section className="py-20 bg-gradient-to-br from-primary via-primary/90 to-secondary">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto text-center space-y-8 text-white">
+              <h2 className="text-3xl md:text-5xl font-bold">
+                {site.cta_title}
+              </h2>
+              {site.cta_description && (
+                <p className="text-xl md:text-2xl opacity-90 leading-relaxed">
+                  {site.cta_description}
+                </p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
+                <Button 
+                  size="lg" 
+                  variant="secondary"
+                  onClick={handleWhatsAppClick} 
+                  className="text-lg px-8 py-6"
+                >
+                  <MessageCircle className="mr-2 h-5 w-5" />
+                  WhatsApp
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  onClick={handlePhoneClick} 
+                  className="text-lg px-8 py-6 bg-white/10 hover:bg-white/20 border-white/30 text-white"
+                >
+                  <Phone className="mr-2 h-5 w-5" />
+                  Téléphone
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Footer */}
+      <footer className="border-t bg-muted/50">
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-6xl mx-auto text-center space-y-4">
+            <p className="text-lg font-medium">{site.owner_name}</p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Button variant="ghost" onClick={handleWhatsAppClick} className="gap-2">
+                <MessageCircle className="h-4 w-4" />
                 WhatsApp
               </Button>
-              <Button variant="outline" onClick={handlePhoneClick} className="gap-2">
-                <Phone className="h-5 w-5" />
+              <Button variant="ghost" onClick={handlePhoneClick} className="gap-2">
+                <Phone className="h-4 w-4" />
                 Téléphone
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t mt-16">
-        <div className="container mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>Site créé avec VisualPro • {site.subdomain}.visualpro.app</p>
+            <p className="text-sm text-muted-foreground pt-6">
+              Site créé avec VisualPro • {site.subdomain}.visualpro.app
+            </p>
+          </div>
         </div>
       </footer>
     </div>
