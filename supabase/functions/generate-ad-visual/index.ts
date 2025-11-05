@@ -261,10 +261,57 @@ Create a stunning, conversion-focused advertising visual that combines the best 
     const data = await response.json();
     console.log("AI response received");
     
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    let imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     
     if (!imageUrl) {
       throw new Error("No image generated");
+    }
+
+    // Add watermark for free users (non-subscribers)
+    if (!hasActiveSubscription) {
+      console.log("Adding watermark for free user");
+      try {
+        const watermarkPrompt = `Add a small, subtle "VP" logo watermark in the bottom right corner of this image. The watermark should be:
+- Small and discreet (about 3-5% of image height)
+- Semi-transparent white text with a subtle shadow for visibility
+- Styled in a clean, modern sans-serif font
+- Positioned 10-15 pixels from the bottom and right edges
+- Should not obstruct the main content but be clearly visible
+Keep all other elements of the image exactly as they are.`;
+
+        const watermarkResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image-preview",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: watermarkPrompt },
+                  { type: "image_url", image_url: { url: imageUrl } },
+                ],
+              },
+            ],
+            modalities: ["image", "text"],
+          }),
+        });
+
+        if (watermarkResponse.ok) {
+          const watermarkData = await watermarkResponse.json();
+          const watermarkedUrl = watermarkData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          if (watermarkedUrl) {
+            imageUrl = watermarkedUrl;
+            console.log("Watermark added successfully");
+          }
+        }
+      } catch (watermarkError) {
+        console.error("Error adding watermark:", watermarkError);
+        // Continue with unwatermarked image if watermarking fails
+      }
     }
 
     // Save the generated image to the database

@@ -9,9 +9,11 @@ import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
 import featureIA from "@/assets/feature-ia.jpg";
 import founderImage from "@/assets/founder-ulrich-djate.jpg";
-import showcaseSneakers from "@/assets/showcase-sneakers.jpg";
-import showcaseWatch from "@/assets/showcase-watch.jpg";
-import showcaseCosmetics from "@/assets/showcase-cosmetics.jpg";
+import showcasePhone from "@/assets/showcase-phone.jpg";
+import showcaseFashion from "@/assets/showcase-fashion.jpg";
+import showcaseCoffee from "@/assets/showcase-coffee.jpg";
+import showcaseArchitecture from "@/assets/showcase-architecture.jpg";
+import showcaseJewelry from "@/assets/showcase-jewelry.jpg";
 import showcaseVideo1 from "@/assets/showcase-video1.jpg";
 import showcaseVideo2 from "@/assets/showcase-video2.jpg";
 
@@ -55,33 +57,55 @@ const Index = () => {
               <CarouselContent>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20 hover:border-primary/40 transition-all">
                       <img 
-                        src={showcaseSneakers} 
-                        alt="Visuel publicitaire - Chaussures africaines"
-                        className="w-full h-64 object-cover"
+                        src={showcasePhone} 
+                        alt="Visuel publicitaire - Smartphone moderne"
+                        className="w-full h-64 object-cover hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                   </div>
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20 hover:border-primary/40 transition-all">
                       <img 
-                        src={showcaseWatch} 
-                        alt="Visuel publicitaire - Montre de luxe"
-                        className="w-full h-64 object-cover"
+                        src={showcaseFashion} 
+                        alt="Visuel publicitaire - Mode africaine traditionnelle"
+                        className="w-full h-64 object-cover hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                   </div>
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20 hover:border-primary/40 transition-all">
                       <img 
-                        src={showcaseCosmetics} 
-                        alt="Visuel publicitaire - Produits cosmétiques bio"
-                        className="w-full h-64 object-cover"
+                        src={showcaseCoffee} 
+                        alt="Visuel publicitaire - Café africain premium"
+                        className="w-full h-64 object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  </div>
+                </CarouselItem>
+                <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20 hover:border-primary/40 transition-all">
+                      <img 
+                        src={showcaseArchitecture} 
+                        alt="Visuel publicitaire - Architecture moderne africaine"
+                        className="w-full h-64 object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  </div>
+                </CarouselItem>
+                <CarouselItem className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
+                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-primary/20 hover:border-primary/40 transition-all">
+                      <img 
+                        src={showcaseJewelry} 
+                        alt="Visuel publicitaire - Bijoux artisanaux"
+                        className="w-full h-64 object-cover hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                   </div>
