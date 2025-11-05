@@ -41,6 +41,23 @@ export function ContactForm({ showcaseSiteId, businessName, theme }: ContactForm
 
       if (error) throw error;
 
+      // Send email notification to site owner
+      try {
+        await supabase.functions.invoke("send-contact-notification", {
+          body: {
+            showcaseSiteId,
+            contactName: formData.fullName,
+            contactEmail: formData.email,
+            contactPhone: formData.phone,
+            message: formData.message,
+          },
+        });
+        console.log("Notification email sent");
+      } catch (emailError) {
+        // Log but don't fail the submission if email fails
+        console.error("Failed to send notification email:", emailError);
+      }
+
       toast.success("Message envoyé avec succès ! Nous vous contacterons bientôt.");
       setFormData({ fullName: "", email: "", phone: "", message: "" });
     } catch (error) {

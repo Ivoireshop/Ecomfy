@@ -15,3 +15,6 @@ verify_jwt = false
 [functions.showcase-chat]
 verify_jwt = false
 
+[functions.send-contact-notification]
+verify_jwt = false
+
