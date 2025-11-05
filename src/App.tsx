@@ -103,6 +103,32 @@ const AppContent = () => {
   );
 };
 
+const AppWithSidebar = () => {
+  const location = useLocation();
+  const isShowcaseView = location.pathname.startsWith("/showcase/");
+
+  // For showcase views, render without sidebar
+  if (isShowcaseView) {
+    return (
+      <main className="w-full">
+        <AppContent />
+      </main>
+    );
+  }
+
+  // For all other routes, render with sidebar
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        <main className="flex-1">
+          <AppContent />
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -110,14 +136,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full">
-              <AppSidebar />
-              <main className="flex-1">
-                <AppContent />
-              </main>
-            </div>
-          </SidebarProvider>
+          <AppWithSidebar />
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
