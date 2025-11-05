@@ -4,10 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Phone, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { MessageCircle, Phone, Loader2, ArrowLeft, CheckCircle, Menu, X } from "lucide-react";
 import { Helmet } from "react-helmet";
 import { ContactForm } from "@/components/ContactForm";
 import { ShowcaseAIChat } from "@/components/ShowcaseAIChat";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface Feature {
   title: string;
@@ -58,6 +65,17 @@ export default function ShowcaseView() {
   const [site, setSite] = useState<ShowcaseSite | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [galleries, setGalleries] = useState<Record<string, GalleryImage[]>>({});
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Handle scroll for navbar styling
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     loadSite();
@@ -185,6 +203,29 @@ export default function ShowcaseView() {
     window.location.href = `tel:${cleanNumber}`;
   };
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const offset = 80; // Height of navbar
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const navigationItems = [
+    { label: "Accueil", id: "hero" },
+    ...(site?.about_description ? [{ label: "À propos", id: "about" }] : []),
+    ...(site?.features && site.features.length > 0 ? [{ label: "Services", id: "features" }] : []),
+    ...(site?.formation_title ? [{ label: "Formations", id: "formation" }] : []),
+    { label: "Contact", id: "contact" },
+  ];
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -263,9 +304,106 @@ export default function ShowcaseView() {
         .theme-border-primary {
           border-color: ${primaryColor}33;
         }
+        .theme-nav-hover:hover {
+          color: ${primaryColor};
+        }
       `}</style>
+
+      {/* Navigation Bar */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled ? "bg-background/95 backdrop-blur-md shadow-md" : "bg-transparent"
+      }`}>
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-20">
+            {/* Logo */}
+            <button 
+              onClick={() => scrollToSection("hero")}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            >
+              {site.logo_url ? (
+                <img 
+                  src={site.logo_url} 
+                  alt={site.business_name}
+                  className="h-10 object-contain"
+                />
+              ) : (
+                <span className="text-xl font-bold">{site.business_name}</span>
+              )}
+            </button>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-8">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-sm font-medium theme-nav-hover transition-colors"
+                >
+                  {item.label}
+                </button>
+              ))}
+              <Button 
+                onClick={handleWhatsAppClick}
+                className="gap-2"
+                size="sm"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Contactez-nous
+              </Button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] bg-background">
+                <SheetHeader className="text-left mb-8">
+                  <SheetTitle className="flex items-center gap-3">
+                    {site.logo_url ? (
+                      <img 
+                        src={site.logo_url} 
+                        alt={site.business_name}
+                        className="h-8 object-contain"
+                      />
+                    ) : (
+                      <span className="text-lg font-bold">{site.business_name}</span>
+                    )}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4">
+                  {navigationItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => scrollToSection(item.id)}
+                      className="text-left py-3 px-4 rounded-lg hover:bg-muted transition-colors font-medium"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                  <div className="pt-4 border-t">
+                    <Button 
+                      onClick={() => {
+                        handleWhatsAppClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full gap-2"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Contactez-nous
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section - HubSpot Style */}
-      <section className="relative theme-gradient-hero">
+      <section id="hero" className="relative theme-gradient-hero pt-20">
         {site.hero_image_url && (
           <div className="absolute inset-0 overflow-hidden">
             <img 
@@ -317,7 +455,7 @@ export default function ShowcaseView() {
 
       {/* About Section */}
       {site.about_description && (
-        <section className="py-20 bg-background">
+        <section id="about" className="py-20 bg-background">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
@@ -457,7 +595,7 @@ export default function ShowcaseView() {
 
       {/* Features Section */}
       {site.features && site.features.length > 0 && (
-        <section className="py-20 bg-muted/30">
+        <section id="features" className="py-20 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -482,7 +620,7 @@ export default function ShowcaseView() {
 
       {/* Formation Section */}
       {site.formation_title && (
-        <section className="py-20 bg-background">
+        <section id="formation" className="py-20 bg-background">
           <div className="container mx-auto px-4">
             <Card className="max-w-4xl mx-auto theme-border-primary shadow-2xl">
               <CardContent className="p-12 space-y-8">
@@ -558,7 +696,7 @@ export default function ShowcaseView() {
       )}
 
       {/* Contact Form Section */}
-      <section className="py-20 bg-muted/30">
+      <section id="contact" className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto">
             <ContactForm 
