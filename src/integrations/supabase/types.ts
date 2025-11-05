@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          message: string
+          phone: string | null
+          read_at: string | null
+          showcase_site_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          message: string
+          phone?: string | null
+          read_at?: string | null
+          showcase_site_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          message?: string
+          phone?: string | null
+          read_at?: string | null
+          showcase_site_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_submissions_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           comment: string | null

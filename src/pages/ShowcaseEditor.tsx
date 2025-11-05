@@ -21,6 +21,7 @@ import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { SEOEditor } from "@/components/SEOEditor";
 import { AnalyticsViewer } from "@/components/AnalyticsViewer";
 import { GalleryManager } from "@/components/GalleryManager";
+import { ContactSubmissionsViewer } from "@/components/ContactSubmissionsViewer";
 import {
   Dialog,
   DialogContent,
@@ -243,7 +244,8 @@ export default function ShowcaseEditor() {
   };
 
   const getPublicUrl = () => {
-    return `${window.location.origin}/showcase/${subdomain}`;
+    // Use cleaner subdomain-based URL
+    return `https://${subdomain}.visualpro.cloud`;
   };
 
   const copyPublicUrl = () => {
@@ -480,7 +482,7 @@ export default function ShowcaseEditor() {
         </div>
 
         <Tabs defaultValue="edit" className="w-full">
-          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-5 mb-6">
+          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-6 mb-6">
             <TabsTrigger value="edit" className="gap-2">
               <Edit className="h-4 w-4" />
               Édition
@@ -492,6 +494,10 @@ export default function ShowcaseEditor() {
             <TabsTrigger value="advanced" className="gap-2">
               <Sparkles className="h-4 w-4" />
               Avancé
+            </TabsTrigger>
+            <TabsTrigger value="contacts" className="gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Messages
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <Eye className="h-4 w-4" />
@@ -970,6 +976,12 @@ export default function ShowcaseEditor() {
                   else if (field === "ogImageUrl") setOgImageUrl(value);
                 }}
               />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="contacts">
+            <div className="max-w-6xl mx-auto">
+              {id && <ContactSubmissionsViewer showcaseId={id} />}
             </div>
           </TabsContent>
 

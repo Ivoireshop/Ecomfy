@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Phone, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { Helmet } from "react-helmet";
+import { ContactForm } from "@/components/ContactForm";
+import { ShowcaseAIChat } from "@/components/ShowcaseAIChat";
 
 interface Feature {
   title: string;
@@ -16,6 +18,7 @@ interface ShowcaseSite {
   id: string;
   subdomain: string;
   business_name: string;
+  business_description: string | null;
   owner_name: string;
   whatsapp_number: string;
   phone_number: string;
@@ -554,6 +557,22 @@ export default function ShowcaseView() {
         </section>
       )}
 
+      {/* Contact Form Section */}
+      <section className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto">
+            <ContactForm 
+              showcaseSiteId={site.id}
+              businessName={site.business_name}
+              theme={{
+                primaryColor,
+                secondaryColor,
+              }}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t bg-muted/50">
         <div className="container mx-auto px-4 py-12">
@@ -579,11 +598,31 @@ export default function ShowcaseView() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground pt-6">
-              Site créé avec VisualPro • {site.subdomain}.visualpro.app
+              Site créé avec VisualPro
             </p>
           </div>
         </div>
       </footer>
+      
+      {/* AI Chat Assistant */}
+      <ShowcaseAIChat
+        siteContext={{
+          businessName: site.business_name,
+          businessDescription: site.business_description || undefined,
+          ownerName: site.owner_name,
+          whatsappNumber: site.whatsapp_number,
+          phoneNumber: site.phone_number,
+          aboutDescription: site.about_description || undefined,
+          features: site.features || undefined,
+          formationTitle: site.formation_title || undefined,
+          formationDescription: site.formation_description || undefined,
+          formationPrice: site.formation_price || undefined,
+        }}
+        theme={{
+          primaryColor,
+          secondaryColor,
+        }}
+      />
     </div>
     </>
   );

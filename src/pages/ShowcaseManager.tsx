@@ -90,7 +90,8 @@ export default function ShowcaseManager() {
   };
 
   const getPublicUrl = (subdomain: string) => {
-    return `${window.location.origin}/showcase/${subdomain}`;
+    // Use cleaner subdomain-based URL
+    return `https://${subdomain}.visualpro.cloud`;
   };
 
   const copyPublicUrl = (subdomain: string, siteId: string) => {
