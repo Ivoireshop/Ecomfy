@@ -10,8 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft } from "lucide-react";
+import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ShowcasePreview } from "@/components/ShowcasePreview";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const themes = [
   { value: "professional", label: "Professionnel", description: "Sobre et corporate", colors: { primary: "#2563eb", secondary: "#7c3aed" } },
@@ -54,6 +56,8 @@ export default function ShowcaseEditor() {
   const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
   const [existingHeroUrl, setExistingHeroUrl] = useState<string | null>(null);
   const [existingAboutUrl, setExistingAboutUrl] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState<string>("");
+  const [features, setFeatures] = useState<Array<{ title: string; description: string }>>([]);
 
   const {
     register,
@@ -67,6 +71,10 @@ export default function ShowcaseEditor() {
   });
 
   const selectedTheme = watch("theme");
+  const formValues = watch();
+
+  // Get theme colors for preview
+  const themeColors = themes.find(t => t.value === selectedTheme)?.colors;
 
   useEffect(() => {
     loadSite();
@@ -123,6 +131,10 @@ export default function ShowcaseEditor() {
       setLogoPreview(data.logo_url);
       setHeroImagePreview(data.hero_image_url);
       setAboutImagePreview(data.about_image_url);
+      
+      // Set business name and features
+      setBusinessName(data.business_name || "");
+      setFeatures((data.features as any) || []);
 
     } catch (error) {
       console.error("Error loading site:", error);
@@ -252,7 +264,7 @@ export default function ShowcaseEditor() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <Button
           variant="ghost"
           onClick={() => navigate("/showcase-manager")}
@@ -265,11 +277,25 @@ export default function ShowcaseEditor() {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-2">Modifier votre site vitrine</h1>
           <p className="text-muted-foreground text-lg">
-            Mettez à jour le contenu et les images de votre site
+            Éditez et prévisualisez vos modifications en temps réel
           </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <Tabs defaultValue="edit" className="w-full">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6">
+            <TabsTrigger value="edit" className="gap-2">
+              <Edit className="h-4 w-4" />
+              Édition
+            </TabsTrigger>
+            <TabsTrigger value="preview" className="gap-2">
+              <Eye className="h-4 w-4" />
+              Prévisualisation
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="edit">
+            <div className="max-w-3xl mx-auto">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Content Section */}
           <Card>
             <CardHeader>
@@ -594,35 +620,63 @@ export default function ShowcaseEditor() {
             </CardContent>
           </Card>
 
-          <div className="flex gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/showcase-manager")}
-              className="flex-1"
-            >
-              Annuler
-            </Button>
-            <Button 
-              type="submit" 
-              size="lg" 
-              className="flex-1" 
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sauvegarde...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Sauvegarder les modifications
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate("/showcase-manager")}
+                    className="flex-1"
+                  >
+                    Annuler
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    size="lg" 
+                    className="flex-1" 
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sauvegarde...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Sauvegarder les modifications
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="preview">
+            <ShowcasePreview 
+              data={{
+                heroTitle: formValues.heroTitle,
+                heroSubtitle: formValues.heroSubtitle,
+                aboutTitle: formValues.aboutTitle,
+                aboutDescription: formValues.aboutDescription,
+                ctaTitle: formValues.ctaTitle,
+                ctaDescription: formValues.ctaDescription,
+                formationTitle: formValues.formationTitle,
+                formationDescription: formValues.formationDescription,
+                formationPrice: formValues.formationPrice,
+                businessName: businessName,
+                ownerName: formValues.ownerName,
+                theme: selectedTheme,
+                primaryColor: themeColors?.primary,
+                secondaryColor: themeColors?.secondary,
+                logoPreview: logoPreview,
+                heroImagePreview: heroImagePreview,
+                aboutImagePreview: aboutImagePreview,
+                features: features,
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
