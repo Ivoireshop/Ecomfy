@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Phone, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 interface Feature {
   title: string;
@@ -34,6 +35,10 @@ interface ShowcaseSite {
   logo_url: string | null;
   hero_image_url: string | null;
   about_image_url: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  seo_keywords: string[] | null;
+  og_image_url: string | null;
 }
 
 export default function ShowcaseView() {
@@ -45,6 +50,54 @@ export default function ShowcaseView() {
   useEffect(() => {
     loadSite();
   }, [subdomain]);
+
+  // Track analytics
+  useEffect(() => {
+    if (!site) return;
+
+    const trackVisit = async () => {
+      try {
+        // Generate a session ID (or retrieve from sessionStorage)
+        let sessionId = sessionStorage.getItem('showcase_session_id');
+        if (!sessionId) {
+          sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          sessionStorage.setItem('showcase_session_id', sessionId);
+        }
+
+        // Detect device type
+        const userAgent = navigator.userAgent.toLowerCase();
+        let deviceType = 'Desktop';
+        if (/mobile|android|iphone|ipod/i.test(userAgent)) {
+          deviceType = 'Mobile';
+        } else if (/tablet|ipad/i.test(userAgent)) {
+          deviceType = 'Tablet';
+        }
+
+        // Detect browser
+        let browser = 'Unknown';
+        if (userAgent.indexOf('chrome') > -1) browser = 'Chrome';
+        else if (userAgent.indexOf('firefox') > -1) browser = 'Firefox';
+        else if (userAgent.indexOf('safari') > -1) browser = 'Safari';
+        else if (userAgent.indexOf('edge') > -1) browser = 'Edge';
+
+        await supabase.from('showcase_analytics').insert({
+          showcase_site_id: site.id,
+          visitor_ip: null, // Could be enhanced with an IP detection service
+          visitor_country: null, // Could be enhanced with geolocation
+          user_agent: navigator.userAgent,
+          referrer: document.referrer || null,
+          page_path: window.location.pathname,
+          session_id: sessionId,
+          device_type: deviceType,
+          browser: browser,
+        });
+      } catch (error) {
+        console.error('Error tracking visit:', error);
+      }
+    };
+
+    trackVisit();
+  }, [site]);
 
   const loadSite = async () => {
     if (!subdomain) return;
@@ -115,8 +168,35 @@ export default function ShowcaseView() {
   const primaryColor = site.primary_color || "#2563eb";
   const secondaryColor = site.secondary_color || "#7c3aed";
 
+  // SEO metadata
+  const seoTitle = site.seo_title || site.hero_title || site.business_name;
+  const seoDescription = site.seo_description || site.hero_subtitle || `Découvrez ${site.business_name}`;
+  const ogImage = site.og_image_url || site.hero_image_url || site.logo_url;
+  const keywords = site.seo_keywords?.join(', ') || '';
+
   return (
-    <div className="min-h-screen" style={{
+    <>
+      <Helmet>
+        <title>{seoTitle}</title>
+        <meta name="description" content={seoDescription} />
+        {keywords && <meta name="keywords" content={keywords} />}
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:title" content={seoTitle} />
+        <meta property="og:description" content={seoDescription} />
+        {ogImage && <meta property="og:image" content={ogImage} />}
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={window.location.href} />
+        <meta name="twitter:title" content={seoTitle} />
+        <meta name="twitter:description" content={seoDescription} />
+        {ogImage && <meta name="twitter:image" content={ogImage} />}
+      </Helmet>
+      
+      <div className="min-h-screen" style={{
       "--theme-primary": primaryColor,
       "--theme-secondary": secondaryColor,
     } as React.CSSProperties}>
@@ -350,5 +430,6 @@ export default function ShowcaseView() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

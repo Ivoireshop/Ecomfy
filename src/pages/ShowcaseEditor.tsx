@@ -17,6 +17,9 @@ import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showcaseTemplates, templateCategories } from "@/lib/showcaseTemplates";
 import { FeaturesEditor } from "@/components/FeaturesEditor";
+import { AIImageGenerator } from "@/components/AIImageGenerator";
+import { SEOEditor } from "@/components/SEOEditor";
+import { AnalyticsViewer } from "@/components/AnalyticsViewer";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +75,12 @@ export default function ShowcaseEditor() {
   const [features, setFeatures] = useState<Array<{ title: string; description: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("Tous");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  
+  // SEO states
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
+  const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
+  const [ogImageUrl, setOgImageUrl] = useState("");
 
   const {
     register,
@@ -176,6 +185,12 @@ export default function ShowcaseEditor() {
       // Set business name and features
       setBusinessName(data.business_name || "");
       setFeatures((data.features as any) || []);
+      
+      // Set SEO data
+      setSeoTitle(data.seo_title || "");
+      setSeoDescription(data.seo_description || "");
+      setSeoKeywords((data.seo_keywords as string[]) || []);
+      setOgImageUrl(data.og_image_url || "");
 
     } catch (error) {
       console.error("Error loading site:", error);
@@ -277,6 +292,10 @@ export default function ShowcaseEditor() {
           hero_image_url: heroImageUrl,
           about_image_url: aboutImageUrl,
           features: features,
+          seo_title: seoTitle,
+          seo_description: seoDescription,
+          seo_keywords: seoKeywords,
+          og_image_url: ogImageUrl,
         })
         .eq("id", id);
 
@@ -421,10 +440,18 @@ export default function ShowcaseEditor() {
         </div>
 
         <Tabs defaultValue="edit" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 mb-6">
             <TabsTrigger value="edit" className="gap-2">
               <Edit className="h-4 w-4" />
               Édition
+            </TabsTrigger>
+            <TabsTrigger value="advanced" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Avancé
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <Eye className="h-4 w-4" />
+              Analytics
             </TabsTrigger>
             <TabsTrigger value="preview" className="gap-2">
               <Eye className="h-4 w-4" />
@@ -797,8 +824,46 @@ export default function ShowcaseEditor() {
             </div>
           </TabsContent>
 
+          <TabsContent value="advanced">
+            <div className="max-w-3xl mx-auto space-y-6">
+              <AIImageGenerator 
+                onImageGenerated={(imageUrl, imageType) => {
+                  if (imageType === "logo") {
+                    setLogoPreview(imageUrl);
+                    setExistingLogoUrl(imageUrl);
+                  } else if (imageType === "hero") {
+                    setHeroImagePreview(imageUrl);
+                    setExistingHeroUrl(imageUrl);
+                  } else if (imageType === "about") {
+                    setAboutImagePreview(imageUrl);
+                    setExistingAboutUrl(imageUrl);
+                  }
+                }}
+              />
+              
+              <SEOEditor
+                seoTitle={seoTitle}
+                seoDescription={seoDescription}
+                seoKeywords={seoKeywords}
+                ogImageUrl={ogImageUrl}
+                onSEOChange={(field, value) => {
+                  if (field === "seoTitle") setSeoTitle(value);
+                  else if (field === "seoDescription") setSeoDescription(value);
+                  else if (field === "seoKeywords") setSeoKeywords(value);
+                  else if (field === "ogImageUrl") setOgImageUrl(value);
+                }}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <div className="max-w-6xl mx-auto">
+              {id && <AnalyticsViewer showcaseId={id} />}
+            </div>
+          </TabsContent>
+
           <TabsContent value="preview">
-            <ShowcasePreview 
+            <ShowcasePreview
               data={{
                 heroTitle: formValues.heroTitle,
                 heroSubtitle: formValues.heroSubtitle,

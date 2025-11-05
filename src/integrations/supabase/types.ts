@@ -228,6 +228,59 @@ export type Database = {
         }
         Relationships: []
       }
+      showcase_analytics: {
+        Row: {
+          browser: string | null
+          device_type: string | null
+          id: string
+          page_path: string | null
+          referrer: string | null
+          session_id: string | null
+          showcase_site_id: string
+          user_agent: string | null
+          visited_at: string
+          visitor_city: string | null
+          visitor_country: string | null
+          visitor_ip: string | null
+        }
+        Insert: {
+          browser?: string | null
+          device_type?: string | null
+          id?: string
+          page_path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          showcase_site_id: string
+          user_agent?: string | null
+          visited_at?: string
+          visitor_city?: string | null
+          visitor_country?: string | null
+          visitor_ip?: string | null
+        }
+        Update: {
+          browser?: string | null
+          device_type?: string | null
+          id?: string
+          page_path?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          showcase_site_id?: string
+          user_agent?: string | null
+          visited_at?: string
+          visitor_city?: string | null
+          visitor_country?: string | null
+          visitor_ip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_analytics_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       showcase_sites: {
         Row: {
           about_description: string | null
@@ -250,13 +303,19 @@ export type Database = {
           id: string
           is_published: boolean
           logo_url: string | null
+          og_image_url: string | null
+          og_type: string | null
           owner_name: string
           owner_photo_url: string | null
           phone_number: string
           primary_color: string | null
           secondary_color: string | null
+          seo_description: string | null
+          seo_keywords: string[] | null
+          seo_title: string | null
           subdomain: string
           theme: string | null
+          twitter_card: string | null
           updated_at: string
           user_id: string
           whatsapp_number: string
@@ -282,13 +341,19 @@ export type Database = {
           id?: string
           is_published?: boolean
           logo_url?: string | null
+          og_image_url?: string | null
+          og_type?: string | null
           owner_name: string
           owner_photo_url?: string | null
           phone_number: string
           primary_color?: string | null
           secondary_color?: string | null
+          seo_description?: string | null
+          seo_keywords?: string[] | null
+          seo_title?: string | null
           subdomain: string
           theme?: string | null
+          twitter_card?: string | null
           updated_at?: string
           user_id: string
           whatsapp_number: string
@@ -314,13 +379,19 @@ export type Database = {
           id?: string
           is_published?: boolean
           logo_url?: string | null
+          og_image_url?: string | null
+          og_type?: string | null
           owner_name?: string
           owner_photo_url?: string | null
           phone_number?: string
           primary_color?: string | null
           secondary_color?: string | null
+          seo_description?: string | null
+          seo_keywords?: string[] | null
+          seo_title?: string | null
           subdomain?: string
           theme?: string | null
+          twitter_card?: string | null
           updated_at?: string
           user_id?: string
           whatsapp_number?: string
