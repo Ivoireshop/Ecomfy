@@ -81,11 +81,13 @@ export default function ShowcaseView() {
   const [galleries, setGalleries] = useState<Record<string, GalleryImage[]>>({});
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
 
-  // Handle scroll for navbar styling
+  // Handle scroll for navbar styling and parallax
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
+      setScrollY(window.scrollY);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -465,9 +467,14 @@ export default function ShowcaseView() {
       </nav>
 
       {/* Hero Section - HubSpot Style */}
-      <section id="hero" className="relative theme-gradient-hero pt-20">
+      <section id="hero" className="relative theme-gradient-hero pt-20 overflow-hidden">
         {site.hero_image_url && (
-          <div className="absolute inset-0 overflow-hidden">
+          <div 
+            className="absolute inset-0 overflow-hidden"
+            style={{
+              transform: `translateY(${scrollY * 0.5}px)`,
+            }}
+          >
             <img 
               src={site.hero_image_url} 
               alt="Hero background" 
@@ -476,37 +483,37 @@ export default function ShowcaseView() {
           </div>
         )}
         <div className="container mx-auto px-4 py-20 md:py-32 relative">
-          <div className="max-w-4xl mx-auto text-center space-y-8">
+          <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
             {site.logo_url ? (
               <div className="flex justify-center mb-4">
                 <img 
                   src={site.logo_url} 
                   alt="Logo" 
-                  className="h-16 md:h-20 object-contain"
+                  className="h-16 md:h-20 object-contain animate-scale-in"
                 />
               </div>
             ) : (
-              <Badge variant="outline" className="text-sm px-4 py-2">
+              <Badge variant="outline" className="text-sm px-4 py-2 animate-scale-in">
                 {site.business_name}
               </Badge>
             )}
             
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight theme-text-custom">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight theme-text-custom" style={{ animationDelay: '0.1s' }}>
               {site.hero_title || site.business_name}
             </h1>
             
             {site.hero_subtitle && (
-              <p className="text-xl md:text-2xl max-w-3xl mx-auto leading-relaxed opacity-80">
+              <p className="text-xl md:text-2xl max-w-3xl mx-auto leading-relaxed opacity-80 animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 {site.hero_subtitle}
               </p>
             )}
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
-              <Button size="lg" onClick={handleWhatsAppClick} className="text-lg px-8 py-6">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <Button size="lg" onClick={handleWhatsAppClick} className="text-lg px-8 py-6 hover-scale">
                 <MessageCircle className="mr-2 h-5 w-5" />
                 Contactez-nous via WhatsApp
               </Button>
-              <Button size="lg" variant="outline" onClick={handlePhoneClick} className="text-lg px-8 py-6">
+              <Button size="lg" variant="outline" onClick={handlePhoneClick} className="text-lg px-8 py-6 hover-scale">
                 <Phone className="mr-2 h-5 w-5" />
                 Appelez-nous
               </Button>
@@ -520,17 +527,17 @@ export default function ShowcaseView() {
         <section id="about" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom animate-fade-in">
                 {site.about_title || "À propos"}
               </h2>
               {aboutLayout === "stacked" ? (
-                <div className="space-y-8">
+                <div className="space-y-8 animate-fade-in">
                   {site.about_image_url && (
                     <div className="max-w-4xl mx-auto">
                       <img 
                         src={site.about_image_url} 
                         alt="About" 
-                        className="w-full rounded-lg shadow-xl"
+                        className="w-full rounded-lg shadow-xl hover-scale"
                       />
                     </div>
                   )}
@@ -541,9 +548,9 @@ export default function ShowcaseView() {
                   </div>
                 </div>
               ) : (
-                <div className={`grid ${site.about_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-12 items-center`}>
+                <div className={`grid ${site.about_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-12 items-center animate-fade-in`}>
                   {site.about_image_url && (
-                    <div>
+                    <div className="hover-scale">
                       <img 
                         src={site.about_image_url} 
                         alt="About" 
@@ -564,7 +571,7 @@ export default function ShowcaseView() {
                 <div className="mt-12">
                   <div className={`grid ${galleryTextPosition === 'beside' ? 'md:grid-cols-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'} gap-4`}>
                     {galleries.author.map((image) => (
-                      <div key={image.id} className={`${galleryTextPosition === 'beside' ? 'flex flex-col md:flex-row gap-4 items-start theme-bg-card rounded-lg p-4' : 'group relative overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300'}`}>
+                      <div key={image.id} className={`${galleryTextPosition === 'beside' ? 'flex flex-col md:flex-row gap-4 items-start theme-bg-card rounded-lg p-4 animate-fade-in' : 'group relative overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 animate-fade-in'}`}>
                         <img
                           src={image.image_url}
                           alt={image.image_caption || "Gallery"}
@@ -596,17 +603,21 @@ export default function ShowcaseView() {
         <section className="py-20 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom animate-fade-in">
                 Nos Formations
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {galleries.formations.map((image) => (
-                  <Card key={image.id} className="overflow-hidden border-none shadow-lg hover:shadow-xl transition-shadow">
-                    <div className="relative h-64">
+                {galleries.formations.map((image, index) => (
+                  <Card 
+                    key={image.id} 
+                    className="overflow-hidden border-none shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 animate-fade-in"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <div className="relative h-64 overflow-hidden">
                       <img
                         src={image.image_url}
                         alt={image.image_caption || "Formation"}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
                       />
                     </div>
                     {image.image_caption && (
@@ -627,12 +638,16 @@ export default function ShowcaseView() {
         <section className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom animate-fade-in">
                 Conférences & Événements
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {galleries.events.map((image) => (
-                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300">
+                {galleries.events.map((image, index) => (
+                  <div 
+                    key={image.id} 
+                    className="group relative overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300 animate-fade-in"
+                    style={{ animationDelay: `${index * 0.15}s` }}
+                  >
                     <img
                       src={image.image_url}
                       alt={image.image_caption || "Event"}
@@ -656,12 +671,16 @@ export default function ShowcaseView() {
         <section className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-muted/30'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom animate-fade-in">
                 Portfolio
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {galleries.portfolio.map((image) => (
-                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 aspect-square">
+                {galleries.portfolio.map((image, index) => (
+                  <div 
+                    key={image.id} 
+                    className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 aspect-square animate-fade-in"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
                     <img
                       src={image.image_url}
                       alt={image.image_caption || "Portfolio"}
@@ -685,12 +704,16 @@ export default function ShowcaseView() {
         <section id="features" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-800/50' : 'bg-muted/30'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom">
+              <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom animate-fade-in">
                 Nos Services
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {site.features.map((feature, index) => (
-                  <Card key={index} className="theme-bg-card border-none shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                  <Card 
+                    key={index} 
+                    className="theme-bg-card border-none shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden animate-fade-in"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
                     <CardContent className="p-0">
                       {feature.image_url && (
                         <div className="w-full h-48 overflow-hidden">
@@ -726,7 +749,7 @@ export default function ShowcaseView() {
         <section id="formation" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom">
+              <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom animate-fade-in">
                 Formations Professionnelles
               </h2>
               <div className="space-y-12">
@@ -735,16 +758,20 @@ export default function ShowcaseView() {
                   const isEven = index % 2 === 0;
                   
                   return (
-                    <Card key={index} className="theme-bg-card border-none shadow-xl overflow-hidden">
+                    <Card 
+                      key={index} 
+                      className="theme-bg-card border-none shadow-xl overflow-hidden animate-fade-in"
+                      style={{ animationDelay: `${index * 0.2}s` }}
+                    >
                       <CardContent className="p-0">
                         <div className={`grid ${formation.image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-0`}>
                           {/* Image */}
                           {formation.image_url && (
-                            <div className={`${textAlign === 'right' || (textAlign === 'center' && !isEven) ? 'md:order-2' : ''} relative h-64 md:h-full min-h-[300px]`}>
+                            <div className={`${textAlign === 'right' || (textAlign === 'center' && !isEven) ? 'md:order-2' : ''} relative h-64 md:h-full min-h-[300px] overflow-hidden`}>
                               <img 
                                 src={formation.image_url} 
                                 alt={formation.title}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
                               />
                             </div>
                           )}
@@ -765,11 +792,11 @@ export default function ShowcaseView() {
                               {formation.description}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4">
-                              <Button size="lg" onClick={handleWhatsAppClick}>
+                              <Button size="lg" onClick={handleWhatsAppClick} className="hover-scale">
                                 <MessageCircle className="mr-2 h-5 w-5" />
                                 S'inscrire
                               </Button>
-                              <Button size="lg" variant="outline" onClick={handlePhoneClick}>
+                              <Button size="lg" variant="outline" onClick={handlePhoneClick} className="hover-scale">
                                 <Phone className="mr-2 h-5 w-5" />
                                 En savoir plus
                               </Button>
@@ -828,7 +855,7 @@ export default function ShowcaseView() {
       {/* Contact Form Section */}
       <section id="contact" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-800/50' : 'bg-muted/30'}`}>
         <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto animate-fade-in">
             <ContactForm 
               showcaseSiteId={site.id}
               businessName={site.business_name}
@@ -843,9 +870,16 @@ export default function ShowcaseView() {
 
       {/* CTA Section */}
       {site.cta_title && (
-        <section className="py-20 theme-gradient-cta">
-          <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto text-center space-y-8 text-white">
+        <section className="py-20 theme-gradient-cta relative overflow-hidden">
+          <div 
+            className="absolute inset-0 opacity-10"
+            style={{
+              transform: `translateY(${scrollY * 0.3}px)`,
+              backgroundImage: `radial-gradient(circle at 50% 50%, ${primaryColor} 0%, transparent 50%)`,
+            }}
+          />
+          <div className="container mx-auto px-4 relative">
+            <div className="max-w-4xl mx-auto text-center space-y-8 text-white animate-fade-in">
               <h2 className="text-3xl md:text-5xl font-bold">
                 {site.cta_title}
               </h2>
@@ -859,7 +893,7 @@ export default function ShowcaseView() {
                   size="lg" 
                   variant="secondary"
                   onClick={handleWhatsAppClick} 
-                  className="text-lg px-8 py-6"
+                  className="text-lg px-8 py-6 hover-scale"
                 >
                   <MessageCircle className="mr-2 h-5 w-5" />
                   WhatsApp
@@ -868,7 +902,7 @@ export default function ShowcaseView() {
                   size="lg" 
                   variant="outline"
                   onClick={handlePhoneClick} 
-                  className="text-lg px-8 py-6 bg-white/10 hover:bg-white/20 border-white/30 text-white"
+                  className="text-lg px-8 py-6 bg-white/10 hover:bg-white/20 border-white/30 text-white hover-scale"
                 >
                   <Phone className="mr-2 h-5 w-5" />
                   Téléphone
