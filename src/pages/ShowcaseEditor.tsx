@@ -16,7 +16,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showcaseTemplates, templateCategories } from "@/lib/showcaseTemplates";
-import { FeaturesEditor } from "@/components/FeaturesEditor";
+import { FeaturesEditorWithImages } from "@/components/FeaturesEditorWithImages";
+import { FormationsEditor } from "@/components/FormationsEditor";
 import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { SEOEditor } from "@/components/SEOEditor";
 import { AnalyticsViewer } from "@/components/AnalyticsViewer";
@@ -89,7 +90,9 @@ export default function ShowcaseEditor() {
   const [existingHeroUrl, setExistingHeroUrl] = useState<string | null>(null);
   const [existingAboutUrl, setExistingAboutUrl] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string>("");
-  const [features, setFeatures] = useState<Array<{ title: string; description: string }>>([]);
+  const [features, setFeatures] = useState<Array<{ title: string; description: string; image_url?: string }>>([]);
+  const [formations, setFormations] = useState<Array<{ title: string; description: string; price: string; image_url?: string }>>([]);
+  const [formationsTextAlign, setFormationsTextAlign] = useState<string>("center");
   const [selectedCategory, setSelectedCategory] = useState<string>("Tous");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
@@ -211,6 +214,8 @@ export default function ShowcaseEditor() {
       // Set business name and features
       setBusinessName(data.business_name || "");
       setFeatures((data.features as any) || []);
+      setFormations((data.formations as any) || []);
+      setFormationsTextAlign(data.formations_text_align || "center");
       setIsPublished(data.is_published || false);
       setSubdomain(data.subdomain || "");
       
@@ -345,6 +350,8 @@ export default function ShowcaseEditor() {
         hero_image_url: heroImageUrl,
         about_image_url: aboutImageUrl,
         features: features,
+        formations: formations,
+        formations_text_align: formationsTextAlign,
         seo_title: seoTitle,
         seo_description: seoDescription,
         seo_keywords: seoKeywords,
@@ -612,50 +619,19 @@ export default function ShowcaseEditor() {
             </CardContent>
           </Card>
 
-          {/* Features Editor */}
-          <FeaturesEditor 
+          {/* Features Editor with Images */}
+          <FeaturesEditorWithImages 
             features={features}
             onChange={setFeatures}
           />
 
-          {/* Formation Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Formation (optionnel)</CardTitle>
-              <CardDescription>
-                Si vous vendez une formation, remplissez ces champs
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="formationTitle">Titre de la formation</Label>
-                <Input
-                  id="formationTitle"
-                  {...register("formationTitle")}
-                  placeholder="Ex: Formation Marketing Digital"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="formationDescription">Description de la formation</Label>
-                <Textarea
-                  id="formationDescription"
-                  {...register("formationDescription")}
-                  placeholder="Décrivez le contenu de votre formation..."
-                  rows={4}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="formationPrice">Prix</Label>
-                <Input
-                  id="formationPrice"
-                  {...register("formationPrice")}
-                  placeholder="Ex: 50 000 FCFA"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Formations Editor */}
+          <FormationsEditor
+            formations={formations}
+            textAlign={formationsTextAlign}
+            onChange={setFormations}
+            onTextAlignChange={setFormationsTextAlign}
+          />
 
           {/* Owner Information */}
           <Card>

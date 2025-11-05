@@ -18,3 +18,11 @@ verify_jwt = false
 [functions.send-contact-notification]
 verify_jwt = false
 
+[functions.send-subscription-email]
+verify_jwt = false
+
+[functions.generate-showcase-site]
+verify_jwt = true
+
+[functions.generate-feature-image]
+verify_jwt = false

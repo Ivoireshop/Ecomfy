@@ -387,6 +387,8 @@ export type Database = {
           formation_image_url: string | null
           formation_price: string | null
           formation_title: string | null
+          formations: Json | null
+          formations_text_align: string | null
           gallery_text_position: string | null
           hero_image_url: string | null
           hero_subtitle: string | null
@@ -430,6 +432,8 @@ export type Database = {
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
+          formations?: Json | null
+          formations_text_align?: string | null
           gallery_text_position?: string | null
           hero_image_url?: string | null
           hero_subtitle?: string | null
@@ -473,6 +477,8 @@ export type Database = {
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
+          formations?: Json | null
+          formations_text_align?: string | null
           gallery_text_position?: string | null
           hero_image_url?: string | null
           hero_subtitle?: string | null
