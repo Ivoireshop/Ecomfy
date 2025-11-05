@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Play } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -20,6 +21,8 @@ import showcaseVideo2 from "@/assets/showcase-video2.jpg";
 const Index = () => {
   const navigate = useNavigate();
   const [publishedFeedback, setPublishedFeedback] = useState<any[]>([]);
+  const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState("");
 
   useEffect(() => {
     loadPublishedFeedback();
@@ -39,6 +42,11 @@ const Index = () => {
     }
 
     setPublishedFeedback(data || []);
+  };
+
+  const openVideoDialog = (videoUrl: string) => {
+    setCurrentVideoUrl(videoUrl);
+    setVideoDialogOpen(true);
   };
 
   return (
@@ -112,15 +120,20 @@ const Index = () => {
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group">
-                      <video 
-                        controls
-                        className="w-full h-64 object-cover bg-black"
-                        poster={showcaseVideo1}
-                      >
-                        <source src="https://www.youtube.com/watch?v=dQw4w9WgXcQ" type="video/mp4" />
-                        Votre navigateur ne supporte pas la lecture de vidéos.
-                      </video>
+                    <div 
+                      className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group cursor-pointer hover:border-secondary/40 transition-all"
+                      onClick={() => openVideoDialog("https://www.youtube.com/embed/dQw4w9WgXcQ")}
+                    >
+                      <img 
+                        src={showcaseVideo1} 
+                        alt="Vidéo publicitaire - Entrepreneur africain"
+                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                        <div className="bg-white/90 rounded-full p-4 group-hover:scale-110 transition-transform">
+                          <Play className="h-8 w-8 text-primary" fill="currentColor" />
+                        </div>
+                      </div>
                       <div className="absolute top-3 right-3 bg-secondary/90 text-white px-3 py-1 rounded-full text-xs font-medium">
                         Vidéo 30s
                       </div>
@@ -129,15 +142,20 @@ const Index = () => {
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-2">
-                    <div className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group">
-                      <video 
-                        controls
-                        className="w-full h-64 object-cover bg-black"
-                        poster={showcaseVideo2}
-                      >
-                        <source src="https://www.youtube.com/watch?v=dQw4w9WgXcQ" type="video/mp4" />
-                        Votre navigateur ne supporte pas la lecture de vidéos.
-                      </video>
+                    <div 
+                      className="rounded-xl overflow-hidden shadow-2xl border-2 border-secondary/20 relative group cursor-pointer hover:border-secondary/40 transition-all"
+                      onClick={() => openVideoDialog("https://www.youtube.com/embed/dQw4w9WgXcQ")}
+                    >
+                      <img 
+                        src={showcaseVideo2} 
+                        alt="Vidéo publicitaire - Produit africain"
+                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                        <div className="bg-white/90 rounded-full p-4 group-hover:scale-110 transition-transform">
+                          <Play className="h-8 w-8 text-primary" fill="currentColor" />
+                        </div>
+                      </div>
                       <div className="absolute top-3 right-3 bg-secondary/90 text-white px-3 py-1 rounded-full text-xs font-medium">
                         Vidéo 30s
                       </div>
@@ -392,6 +410,21 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* Video Dialog */}
+      <Dialog open={videoDialogOpen} onOpenChange={setVideoDialogOpen}>
+        <DialogContent className="max-w-4xl p-0">
+          <div className="relative pt-[56.25%]">
+            <iframe
+              className="absolute top-0 left-0 w-full h-full"
+              src={currentVideoUrl}
+              title="Vidéo publicitaire"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
