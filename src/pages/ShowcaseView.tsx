@@ -547,7 +547,7 @@ export default function ShowcaseView() {
         <section className="py-20 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
                 Nos Formations
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -578,7 +578,7 @@ export default function ShowcaseView() {
         <section className="py-20 bg-background">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
                 Conférences & Événements
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -607,7 +607,7 @@ export default function ShowcaseView() {
         <section className="py-20 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
                 Portfolio
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -636,6 +636,9 @@ export default function ShowcaseView() {
         <section id="features" className="py-20 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom">
+                Nos Services
+              </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {site.features.map((feature, index) => (
                   <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow">
@@ -643,7 +646,7 @@ export default function ShowcaseView() {
                       <div className="w-12 h-12 rounded-full theme-bg-primary opacity-10 flex items-center justify-center">
                         <CheckCircle className="h-6 w-6 theme-text-primary" />
                       </div>
-                      <h3 className="text-xl font-bold">{feature.title}</h3>
+                      <h3 className="text-xl font-bold theme-text-custom">{feature.title}</h3>
                       <p className="text-muted-foreground leading-relaxed">
                         {feature.description}
                       </p>
@@ -664,7 +667,7 @@ export default function ShowcaseView() {
               <CardContent className="p-12 space-y-8">
                 <div className="text-center space-y-6">
                   <Badge className="text-base px-4 py-2">Formation Professionnelle</Badge>
-                  <h2 className="text-3xl md:text-4xl font-bold">{site.formation_title}</h2>
+                  <h2 className="text-3xl md:text-4xl font-bold theme-text-custom">{site.formation_title}</h2>
                   {site.formation_description && (
                     <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
                       {site.formation_description}
