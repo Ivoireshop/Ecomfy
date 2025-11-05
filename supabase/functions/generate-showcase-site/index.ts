@@ -50,6 +50,8 @@ Le site doit inclure:
 4. 3-4 caractéristiques/avantages clés avec titres et descriptions (features array)
 5. Un appel à l'action final convaincant (cta_title, cta_description)
 6. Si c'est une formation: titre, description complète et prix suggéré (formation object)
+7. Un thème visuel adapté au type d'activité (professional/creative/modern/elegant/vibrant)
+8. Des couleurs primaire et secondaire harmonieuses en hex qui correspondent au secteur
 
 Génère du contenu professionnel et authentique qui convertit les visiteurs en clients.`;
 
@@ -118,9 +120,22 @@ Génère du contenu professionnel et authentique qui convertit les visiteurs en 
                       price: { type: "string" }
                     },
                     description: "Formation details if applicable, null otherwise"
+                  },
+                  theme: {
+                    type: "string",
+                    enum: ["professional", "creative", "modern", "elegant", "vibrant"],
+                    description: "Visual theme that best fits the business type"
+                  },
+                  primary_color: {
+                    type: "string",
+                    description: "Primary color in hex format (e.g., #2563eb)"
+                  },
+                  secondary_color: {
+                    type: "string",
+                    description: "Secondary color in hex format (e.g., #7c3aed)"
                   }
                 },
-                required: ["hero_title", "hero_subtitle", "about_title", "about_description", "features", "cta_title", "cta_description"],
+                required: ["hero_title", "hero_subtitle", "about_title", "about_description", "features", "cta_title", "cta_description", "theme", "primary_color", "secondary_color"],
                 additionalProperties: false
               }
             }

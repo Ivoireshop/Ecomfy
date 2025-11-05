@@ -250,7 +250,10 @@ export type Database = {
           owner_name: string
           owner_photo_url: string | null
           phone_number: string
+          primary_color: string | null
+          secondary_color: string | null
           subdomain: string
+          theme: string | null
           updated_at: string
           user_id: string
           whatsapp_number: string
@@ -276,7 +279,10 @@ export type Database = {
           owner_name: string
           owner_photo_url?: string | null
           phone_number: string
+          primary_color?: string | null
+          secondary_color?: string | null
           subdomain: string
+          theme?: string | null
           updated_at?: string
           user_id: string
           whatsapp_number: string
@@ -302,7 +308,10 @@ export type Database = {
           owner_name?: string
           owner_photo_url?: string | null
           phone_number?: string
+          primary_color?: string | null
+          secondary_color?: string | null
           subdomain?: string
+          theme?: string | null
           updated_at?: string
           user_id?: string
           whatsapp_number?: string

@@ -10,7 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Phone, MessageCircle } from "lucide-react";
+import { Loader2, Sparkles, Phone, MessageCircle, Palette } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+const themes = [
+  { value: "professional", label: "Professionnel", description: "Sobre et corporate", colors: { primary: "#2563eb", secondary: "#7c3aed" } },
+  { value: "creative", label: "Créatif", description: "Audacieux et artistique", colors: { primary: "#f97316", secondary: "#ec4899" } },
+  { value: "modern", label: "Moderne", description: "Épuré et minimaliste", colors: { primary: "#06b6d4", secondary: "#8b5cf6" } },
+  { value: "elegant", label: "Élégant", description: "Raffiné et luxueux", colors: { primary: "#0f172a", secondary: "#64748b" } },
+  { value: "vibrant", label: "Vibrant", description: "Coloré et énergique", colors: { primary: "#10b981", secondary: "#f59e0b" } },
+];
 
 const showcaseSchema = z.object({
   businessDescription: z.string().min(20, "La description doit contenir au moins 20 caractères"),
@@ -18,6 +27,7 @@ const showcaseSchema = z.object({
   whatsappNumber: z.string().min(8, "Numéro WhatsApp invalide"),
   phoneNumber: z.string().min(8, "Numéro de téléphone invalide"),
   subdomain: z.string().min(3, "Le sous-domaine doit contenir au moins 3 caractères").regex(/^[a-z0-9-]+$/, "Uniquement lettres minuscules, chiffres et tirets"),
+  theme: z.string().optional(),
 });
 
 type ShowcaseFormData = z.infer<typeof showcaseSchema>;
@@ -25,17 +35,23 @@ type ShowcaseFormData = z.infer<typeof showcaseSchema>;
 export default function ShowcaseBuilder() {
   const navigate = useNavigate();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [useAITheme, setUseAITheme] = useState(true);
   
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<ShowcaseFormData>({
     resolver: zodResolver(showcaseSchema),
+    defaultValues: {
+      theme: "professional",
+    },
   });
 
   const subdomain = watch("subdomain");
+  const selectedTheme = watch("theme");
 
   const onSubmit = async (data: ShowcaseFormData) => {
     setIsGenerating(true);
@@ -66,6 +82,12 @@ export default function ShowcaseBuilder() {
         return;
       }
 
+      // Determine theme and colors
+      const finalTheme = useAITheme ? aiContent.theme : (data.theme || "professional");
+      const themeColors = themes.find(t => t.value === finalTheme)?.colors;
+      const finalPrimaryColor = useAITheme ? aiContent.primary_color : themeColors?.primary;
+      const finalSecondaryColor = useAITheme ? aiContent.secondary_color : themeColors?.secondary;
+
       // Create the showcase site with AI-generated content
       const { error: insertError } = await supabase
         .from("showcase_sites")
@@ -87,6 +109,9 @@ export default function ShowcaseBuilder() {
           formation_title: aiContent.formation?.title,
           formation_description: aiContent.formation?.description,
           formation_price: aiContent.formation?.price,
+          theme: finalTheme,
+          primary_color: finalPrimaryColor,
+          secondary_color: finalSecondaryColor,
           is_published: true,
         });
 
@@ -209,6 +234,71 @@ export default function ShowcaseBuilder() {
                   <p className="text-sm text-destructive mt-1">{errors.phoneNumber.message}</p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Theme Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5" />
+                Thème visuel
+              </CardTitle>
+              <CardDescription>
+                Laissez l'IA choisir ou sélectionnez votre thème
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="useAITheme"
+                  checked={useAITheme}
+                  onChange={(e) => setUseAITheme(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="useAITheme" className="cursor-pointer flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Laisser l'IA suggérer le thème optimal
+                </Label>
+              </div>
+
+              {!useAITheme && (
+                <RadioGroup 
+                  value={selectedTheme} 
+                  onValueChange={(value) => setValue("theme", value)}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                >
+                  {themes.map((theme) => (
+                    <div key={theme.value} className="relative">
+                      <RadioGroupItem
+                        value={theme.value}
+                        id={theme.value}
+                        className="peer sr-only"
+                      />
+                      <Label
+                        htmlFor={theme.value}
+                        className="flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-primary peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="flex gap-1">
+                            <div 
+                              className="w-6 h-6 rounded-full border-2 border-background" 
+                              style={{ backgroundColor: theme.colors.primary }}
+                            />
+                            <div 
+                              className="w-6 h-6 rounded-full border-2 border-background" 
+                              style={{ backgroundColor: theme.colors.secondary }}
+                            />
+                          </div>
+                          <span className="font-semibold">{theme.label}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">{theme.description}</span>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              )}
             </CardContent>
           </Card>
 

@@ -28,6 +28,9 @@ interface ShowcaseSite {
   formation_title: string | null;
   formation_description: string | null;
   formation_price: string | null;
+  theme: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
 }
 
 export default function ShowcaseView() {
@@ -106,10 +109,33 @@ export default function ShowcaseView() {
     );
   }
 
+  const primaryColor = site.primary_color || "#2563eb";
+  const secondaryColor = site.secondary_color || "#7c3aed";
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{
+      "--theme-primary": primaryColor,
+      "--theme-secondary": secondaryColor,
+    } as React.CSSProperties}>
+      <style>{`
+        .theme-gradient-hero {
+          background: linear-gradient(135deg, ${primaryColor}08 0%, transparent 50%, ${secondaryColor}08 100%);
+        }
+        .theme-gradient-cta {
+          background: linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%);
+        }
+        .theme-text-primary {
+          color: ${primaryColor};
+        }
+        .theme-bg-primary {
+          background-color: ${primaryColor};
+        }
+        .theme-border-primary {
+          border-color: ${primaryColor}33;
+        }
+      `}</style>
       {/* Hero Section - HubSpot Style */}
-      <section className="relative bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+      <section className="relative theme-gradient-hero">
         <div className="container mx-auto px-4 py-20 md:py-32">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <Badge variant="outline" className="text-sm px-4 py-2">
@@ -167,8 +193,8 @@ export default function ShowcaseView() {
                 {site.features.map((feature, index) => (
                   <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow">
                     <CardContent className="p-8 space-y-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <CheckCircle className="h-6 w-6 text-primary" />
+                      <div className="w-12 h-12 rounded-full theme-bg-primary opacity-10 flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6 theme-text-primary" />
                       </div>
                       <h3 className="text-xl font-bold">{feature.title}</h3>
                       <p className="text-muted-foreground leading-relaxed">
@@ -187,7 +213,7 @@ export default function ShowcaseView() {
       {site.formation_title && (
         <section className="py-20 bg-background">
           <div className="container mx-auto px-4">
-            <Card className="max-w-4xl mx-auto border-primary/20 shadow-2xl">
+            <Card className="max-w-4xl mx-auto theme-border-primary shadow-2xl">
               <CardContent className="p-12 space-y-8">
                 <div className="text-center space-y-6">
                   <Badge className="text-base px-4 py-2">Formation Professionnelle</Badge>
@@ -199,7 +225,7 @@ export default function ShowcaseView() {
                   )}
                   {site.formation_price && (
                     <div className="pt-4">
-                      <p className="text-4xl font-bold text-primary">
+                      <p className="text-4xl font-bold theme-text-primary">
                         {site.formation_price}
                       </p>
                     </div>
@@ -224,7 +250,7 @@ export default function ShowcaseView() {
 
       {/* CTA Section */}
       {site.cta_title && (
-        <section className="py-20 bg-gradient-to-br from-primary via-primary/90 to-secondary">
+        <section className="py-20 theme-gradient-cta">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center space-y-8 text-white">
               <h2 className="text-3xl md:text-5xl font-bold">
