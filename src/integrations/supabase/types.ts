@@ -382,6 +382,7 @@ export type Database = {
           cta_title: string | null
           custom_domain: string | null
           features: Json | null
+          font_family: string | null
           formation_description: string | null
           formation_image_url: string | null
           formation_price: string | null
@@ -406,6 +407,7 @@ export type Database = {
           subdomain: string
           text_color: string | null
           theme: string | null
+          theme_mode: string | null
           twitter_card: string | null
           updated_at: string
           user_id: string
@@ -423,6 +425,7 @@ export type Database = {
           cta_title?: string | null
           custom_domain?: string | null
           features?: Json | null
+          font_family?: string | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
@@ -447,6 +450,7 @@ export type Database = {
           subdomain: string
           text_color?: string | null
           theme?: string | null
+          theme_mode?: string | null
           twitter_card?: string | null
           updated_at?: string
           user_id: string
@@ -464,6 +468,7 @@ export type Database = {
           cta_title?: string | null
           custom_domain?: string | null
           features?: Json | null
+          font_family?: string | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
@@ -488,6 +493,7 @@ export type Database = {
           subdomain?: string
           text_color?: string | null
           theme?: string | null
+          theme_mode?: string | null
           twitter_card?: string | null
           updated_at?: string
           user_id?: string

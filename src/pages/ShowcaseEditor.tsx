@@ -41,6 +41,15 @@ const themes = [
   { value: "vibrant", label: "Vibrant", description: "Coloré et énergique", colors: { primary: "#10b981", secondary: "#f59e0b" } },
 ];
 
+const fonts = [
+  { value: "poppins", label: "Poppins", description: "Moderne et lisible", family: "'Poppins', sans-serif" },
+  { value: "playfair", label: "Playfair Display", description: "Élégant et raffiné", family: "'Playfair Display', serif" },
+  { value: "montserrat", label: "Montserrat", description: "Géométrique et propre", family: "'Montserrat', sans-serif" },
+  { value: "lora", label: "Lora", description: "Classique et sophistiqué", family: "'Lora', serif" },
+  { value: "raleway", label: "Raleway", description: "Minimaliste et élégant", family: "'Raleway', sans-serif" },
+  { value: "roboto", label: "Roboto", description: "Polyvalent et moderne", family: "'Roboto', sans-serif" },
+];
+
 const showcaseSchema = z.object({
   businessDescription: z.string().min(20, "La description doit contenir au moins 20 caractères"),
   ownerName: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
@@ -59,6 +68,8 @@ const showcaseSchema = z.object({
   textColor: z.string().optional(),
   aboutLayout: z.string().optional(),
   galleryTextPosition: z.string().optional(),
+  fontFamily: z.string().optional(),
+  themeMode: z.string().optional(),
 });
 
 type ShowcaseFormData = z.infer<typeof showcaseSchema>;
@@ -185,6 +196,8 @@ export default function ShowcaseEditor() {
         textColor: data.text_color || "#000000",
         aboutLayout: data.about_layout || "side-by-side",
         galleryTextPosition: data.gallery_text_position || "below",
+        fontFamily: data.font_family || "poppins",
+        themeMode: data.theme_mode || "light",
       });
 
       // Set existing images
@@ -326,6 +339,8 @@ export default function ShowcaseEditor() {
         text_color: data.textColor,
         about_layout: data.aboutLayout,
         gallery_text_position: data.galleryTextPosition,
+        font_family: data.fontFamily,
+        theme_mode: data.themeMode,
         logo_url: logoUrl,
         hero_image_url: heroImageUrl,
         about_image_url: aboutImageUrl,
@@ -958,6 +973,85 @@ export default function ShowcaseEditor() {
                   Choisissez comment afficher les légendes dans vos galeries d'images
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Font Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Police de caractères</CardTitle>
+              <CardDescription>
+                Choisissez la police qui correspond à votre identité visuelle
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={watch("fontFamily") || "poppins"}
+                onValueChange={(value) => setValue("fontFamily", value)}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3"
+              >
+                {fonts.map((font) => (
+                  <div key={font.value}>
+                    <RadioGroupItem
+                      value={font.value}
+                      id={font.value}
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor={font.value}
+                      className="flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-primary peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
+                      style={{ fontFamily: font.family }}
+                    >
+                      <span className="font-semibold text-lg mb-1">{font.label}</span>
+                      <span className="text-sm text-muted-foreground">{font.description}</span>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </CardContent>
+          </Card>
+
+          {/* Theme Mode Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Mode d'affichage</CardTitle>
+              <CardDescription>
+                Choisissez entre le mode clair ou sombre pour votre site
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={watch("themeMode") || "light"}
+                onValueChange={(value) => setValue("themeMode", value)}
+                className="grid grid-cols-2 gap-4"
+              >
+                <div>
+                  <RadioGroupItem value="light" id="light" className="peer sr-only" />
+                  <Label
+                    htmlFor="light"
+                    className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                  >
+                    <div className="w-16 h-16 rounded-lg bg-white border-2 mb-3 flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded"></div>
+                    </div>
+                    <div className="text-base font-medium">Mode Clair</div>
+                    <div className="text-xs text-muted-foreground mt-1 text-center">Fond blanc, texte sombre</div>
+                  </Label>
+                </div>
+                <div>
+                  <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
+                  <Label
+                    htmlFor="dark"
+                    className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                  >
+                    <div className="w-16 h-16 rounded-lg bg-gray-900 border-2 mb-3 flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded"></div>
+                    </div>
+                    <div className="text-base font-medium">Mode Sombre</div>
+                    <div className="text-xs text-muted-foreground mt-1 text-center">Fond sombre, texte clair</div>
+                  </Label>
+                </div>
+              </RadioGroup>
             </CardContent>
           </Card>
 

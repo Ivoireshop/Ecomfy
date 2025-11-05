@@ -45,6 +45,8 @@ interface ShowcaseSite {
   text_color: string | null;
   about_layout: string | null;
   gallery_text_position: string | null;
+  font_family: string | null;
+  theme_mode: string | null;
   logo_url: string | null;
   hero_image_url: string | null;
   about_image_url: string | null;
@@ -153,6 +155,8 @@ export default function ShowcaseView() {
           text_color: data.text_color,
           about_layout: data.about_layout,
           gallery_text_position: data.gallery_text_position,
+          font_family: data.font_family,
+          theme_mode: data.theme_mode,
         };
         setSite(siteData as ShowcaseSite);
         
@@ -264,6 +268,25 @@ export default function ShowcaseView() {
   const textColor = site.text_color || "#000000";
   const aboutLayout = site.about_layout || "side-by-side";
   const galleryTextPosition = site.gallery_text_position || "below";
+  const fontFamily = site.font_family || "poppins";
+  const themeMode = site.theme_mode || "light";
+
+  // Font mapping
+  const fontFamilyMap: Record<string, string> = {
+    poppins: "'Poppins', sans-serif",
+    playfair: "'Playfair Display', serif",
+    montserrat: "'Montserrat', sans-serif",
+    lora: "'Lora', serif",
+    raleway: "'Raleway', sans-serif",
+    roboto: "'Roboto', sans-serif",
+  };
+
+  const selectedFont = fontFamilyMap[fontFamily] || fontFamilyMap.poppins;
+
+  // Theme colors based on mode
+  const bgColor = themeMode === 'dark' ? '#0f172a' : '#ffffff';
+  const textPrimary = themeMode === 'dark' ? '#f1f5f9' : textColor;
+  const textSecondary = themeMode === 'dark' ? '#cbd5e1' : '#64748b';
 
   // SEO metadata
   const seoTitle = site.seo_title || site.hero_title || site.business_name;
@@ -294,13 +317,18 @@ export default function ShowcaseView() {
       </Helmet>
       
       <div className="min-h-screen" style={{
-      "--theme-primary": primaryColor,
-      "--theme-secondary": secondaryColor,
-      "--theme-text": textColor,
-    } as React.CSSProperties}>
+        "--theme-primary": primaryColor,
+        "--theme-secondary": secondaryColor,
+        "--theme-text": textPrimary,
+        fontFamily: selectedFont,
+        backgroundColor: bgColor,
+        color: textPrimary,
+      } as React.CSSProperties}>
       <style>{`
         .theme-gradient-hero {
-          background: linear-gradient(135deg, ${primaryColor}08 0%, transparent 50%, ${secondaryColor}08 100%);
+          background: ${themeMode === 'dark' 
+            ? `linear-gradient(135deg, ${primaryColor}15 0%, transparent 50%, ${secondaryColor}15 100%)` 
+            : `linear-gradient(135deg, ${primaryColor}08 0%, transparent 50%, ${secondaryColor}08 100%)`};
         }
         .theme-gradient-cta {
           background: linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%);
@@ -309,10 +337,17 @@ export default function ShowcaseView() {
           color: ${primaryColor};
         }
         .theme-text-custom {
-          color: ${textColor};
+          color: ${textPrimary};
+        }
+        .theme-text-secondary {
+          color: ${textSecondary};
         }
         .theme-bg-primary {
           background-color: ${primaryColor};
+        }
+        .theme-bg-card {
+          background-color: ${themeMode === 'dark' ? '#1e293b' : '#ffffff'};
+          border-color: ${themeMode === 'dark' ? '#334155' : '#e2e8f0'};
         }
         .theme-border-primary {
           border-color: ${primaryColor}33;
@@ -320,11 +355,14 @@ export default function ShowcaseView() {
         .theme-nav-hover:hover {
           color: ${primaryColor};
         }
+        .theme-gallery-overlay {
+          background: ${themeMode === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.6)'};
+        }
       `}</style>
 
       {/* Navigation Bar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-background/95 backdrop-blur-md shadow-md" : "bg-transparent"
+        isScrolled ? `${themeMode === 'dark' ? 'bg-slate-900/95' : 'bg-background/95'} backdrop-blur-md shadow-md` : "bg-transparent"
       }`}>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
@@ -468,7 +506,7 @@ export default function ShowcaseView() {
 
       {/* About Section */}
       {site.about_description && (
-        <section id="about" className="py-20 bg-background">
+        <section id="about" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
@@ -486,7 +524,7 @@ export default function ShowcaseView() {
                     </div>
                   )}
                   <div className="prose prose-lg max-w-none">
-                    <p className="text-lg leading-relaxed whitespace-pre-line">
+                    <p className="text-lg leading-relaxed whitespace-pre-line theme-text-secondary">
                       {site.about_description}
                     </p>
                   </div>
@@ -503,7 +541,7 @@ export default function ShowcaseView() {
                     </div>
                   )}
                   <div className="prose prose-lg max-w-none">
-                    <p className="text-lg leading-relaxed whitespace-pre-line">
+                    <p className="text-lg leading-relaxed whitespace-pre-line theme-text-secondary">
                       {site.about_description}
                     </p>
                   </div>
@@ -515,19 +553,19 @@ export default function ShowcaseView() {
                 <div className="mt-12">
                   <div className={`grid ${galleryTextPosition === 'beside' ? 'md:grid-cols-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'} gap-4`}>
                     {galleries.author.map((image) => (
-                      <div key={image.id} className={galleryTextPosition === 'beside' ? 'flex flex-col md:flex-row gap-4 items-start' : 'group relative'}>
+                      <div key={image.id} className={`${galleryTextPosition === 'beside' ? 'flex flex-col md:flex-row gap-4 items-start theme-bg-card rounded-lg p-4' : 'group relative overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300'}`}>
                         <img
                           src={image.image_url}
                           alt={image.image_caption || "Gallery"}
-                          className={`${galleryTextPosition === 'beside' ? 'w-full md:w-1/2 h-48' : 'w-full h-64'} object-cover rounded-lg ${galleryTextPosition !== 'beside' ? 'group-hover:scale-105 transition-transform duration-300' : ''}`}
+                          className={`${galleryTextPosition === 'beside' ? 'w-full md:w-1/2 h-48' : 'w-full h-64'} object-cover rounded-lg ${galleryTextPosition !== 'beside' ? 'group-hover:scale-110 transition-transform duration-500' : ''}`}
                         />
                         {image.image_caption && (
                           galleryTextPosition === 'overlay' ? (
-                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                              <p className="text-white text-sm">{image.image_caption}</p>
+                            <div className="absolute inset-0 theme-gallery-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
+                              <p className="text-white text-sm text-center font-medium">{image.image_caption}</p>
                             </div>
                           ) : (
-                            <p className={`text-sm ${galleryTextPosition === 'beside' ? 'flex-1' : 'mt-2'} text-muted-foreground`}>
+                            <p className={`text-sm ${galleryTextPosition === 'beside' ? 'flex-1' : 'mt-2'} theme-text-secondary`}>
                               {image.image_caption}
                             </p>
                           )
@@ -575,7 +613,7 @@ export default function ShowcaseView() {
 
       {/* Events/Conferences Gallery */}
       {galleries.events && galleries.events.length > 0 && (
-        <section className="py-20 bg-background">
+        <section className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
@@ -583,11 +621,11 @@ export default function ShowcaseView() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {galleries.events.map((image) => (
-                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-xl">
+                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300">
                     <img
                       src={image.image_url}
                       alt={image.image_caption || "Event"}
-                      className="w-full h-96 object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-96 object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     {image.image_caption && (
                       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-6">
@@ -604,7 +642,7 @@ export default function ShowcaseView() {
 
       {/* Portfolio Gallery */}
       {galleries.portfolio && galleries.portfolio.length > 0 && (
-        <section className="py-20 bg-muted/30">
+        <section className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-muted/30'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center theme-text-custom">
@@ -612,14 +650,14 @@ export default function ShowcaseView() {
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {galleries.portfolio.map((image) => (
-                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow aspect-square">
+                  <div key={image.id} className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 aspect-square">
                     <img
                       src={image.image_url}
                       alt={image.image_caption || "Portfolio"}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     {image.image_caption && (
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
+                      <div className="absolute inset-0 theme-gallery-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
                         <p className="text-white text-center font-medium">{image.image_caption}</p>
                       </div>
                     )}
@@ -633,7 +671,7 @@ export default function ShowcaseView() {
 
       {/* Features Section */}
       {site.features && site.features.length > 0 && (
-        <section id="features" className="py-20 bg-muted/30">
+        <section id="features" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-800/50' : 'bg-muted/30'}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center theme-text-custom">
@@ -641,13 +679,13 @@ export default function ShowcaseView() {
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {site.features.map((feature, index) => (
-                  <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow">
+                  <Card key={index} className="theme-bg-card border-none shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
                     <CardContent className="p-8 space-y-4">
                       <div className="w-12 h-12 rounded-full theme-bg-primary opacity-10 flex items-center justify-center">
                         <CheckCircle className="h-6 w-6 theme-text-primary" />
                       </div>
                       <h3 className="text-xl font-bold theme-text-custom">{feature.title}</h3>
-                      <p className="text-muted-foreground leading-relaxed">
+                      <p className="theme-text-secondary leading-relaxed">
                         {feature.description}
                       </p>
                     </CardContent>
@@ -661,15 +699,15 @@ export default function ShowcaseView() {
 
       {/* Formation Section */}
       {site.formation_title && (
-        <section id="formation" className="py-20 bg-background">
+        <section id="formation" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-background'}`}>
           <div className="container mx-auto px-4">
-            <Card className="max-w-4xl mx-auto theme-border-primary shadow-2xl">
+            <Card className="max-w-4xl mx-auto theme-bg-card theme-border-primary shadow-2xl">
               <CardContent className="p-12 space-y-8">
                 <div className="text-center space-y-6">
-                  <Badge className="text-base px-4 py-2">Formation Professionnelle</Badge>
+                  <Badge className="text-base px-4 py-2 theme-bg-primary">Formation Professionnelle</Badge>
                   <h2 className="text-3xl md:text-4xl font-bold theme-text-custom">{site.formation_title}</h2>
                   {site.formation_description && (
-                    <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
+                    <p className="text-lg theme-text-secondary leading-relaxed whitespace-pre-line">
                       {site.formation_description}
                     </p>
                   )}
@@ -737,7 +775,7 @@ export default function ShowcaseView() {
       )}
 
       {/* Contact Form Section */}
-      <section id="contact" className="py-20 bg-muted/30">
+      <section id="contact" className={`py-20 ${themeMode === 'dark' ? 'bg-slate-800/50' : 'bg-muted/30'}`}>
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto">
             <ContactForm 
