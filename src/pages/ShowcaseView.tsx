@@ -155,13 +155,31 @@ export default function ShowcaseView() {
 
   const handleWhatsAppClick = () => {
     if (!site) return;
-    const cleanNumber = site.whatsapp_number.replace(/\D/g, "");
-    window.open(`https://wa.me/${cleanNumber}`, "_blank");
+    
+    // Clean the number and ensure it has the country code
+    let cleanNumber = site.whatsapp_number.replace(/\D/g, "");
+    
+    // If number doesn't start with country code, add it (assuming Cameroon +237)
+    if (!cleanNumber.startsWith("237") && cleanNumber.length < 12) {
+      cleanNumber = "237" + cleanNumber;
+    }
+    
+    // Open WhatsApp with the number
+    // On mobile, this will open the WhatsApp app
+    // On desktop, this will open WhatsApp Web
+    const message = encodeURIComponent(`Bonjour ${site.owner_name}, je suis intéressé(e) par vos services.`);
+    window.open(`https://wa.me/${cleanNumber}?text=${message}`, "_blank");
   };
 
   const handlePhoneClick = () => {
     if (!site) return;
-    window.location.href = `tel:${site.phone_number}`;
+    
+    // Clean the number
+    const cleanNumber = site.phone_number.replace(/\s/g, "");
+    
+    // On mobile, this will open the phone dialer
+    // On desktop, it might open a calling app if configured
+    window.location.href = `tel:${cleanNumber}`;
   };
 
   if (isLoading) {

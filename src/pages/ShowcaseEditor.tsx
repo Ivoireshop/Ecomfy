@@ -76,6 +76,7 @@ export default function ShowcaseEditor() {
   const [features, setFeatures] = useState<Array<{ title: string; description: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("Tous");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
   
   // SEO states
   const [seoTitle, setSeoTitle] = useState("");
@@ -186,6 +187,7 @@ export default function ShowcaseEditor() {
       // Set business name and features
       setBusinessName(data.business_name || "");
       setFeatures((data.features as any) || []);
+      setIsPublished(data.is_published || false);
       
       // Set SEO data
       setSeoTitle(data.seo_title || "");
@@ -238,6 +240,14 @@ export default function ShowcaseEditor() {
   };
 
   const onSubmit = async (data: ShowcaseFormData) => {
+    await saveShowcase(data, false);
+  };
+
+  const onSubmitAndPublish = async (data: ShowcaseFormData) => {
+    await saveShowcase(data, true);
+  };
+
+  const saveShowcase = async (data: ShowcaseFormData, shouldPublish: boolean = false) => {
     setIsSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -270,34 +280,41 @@ export default function ShowcaseEditor() {
       const themeColors = themes.find(t => t.value === data.theme)?.colors;
 
       // Update the showcase site
+      const updateData: any = {
+        business_description: data.businessDescription,
+        owner_name: data.ownerName,
+        whatsapp_number: data.whatsappNumber,
+        phone_number: data.phoneNumber,
+        hero_title: data.heroTitle,
+        hero_subtitle: data.heroSubtitle,
+        about_title: data.aboutTitle,
+        about_description: data.aboutDescription,
+        cta_title: data.ctaTitle,
+        cta_description: data.ctaDescription,
+        formation_title: data.formationTitle,
+        formation_description: data.formationDescription,
+        formation_price: data.formationPrice,
+        theme: data.theme,
+        primary_color: themeColors?.primary,
+        secondary_color: themeColors?.secondary,
+        logo_url: logoUrl,
+        hero_image_url: heroImageUrl,
+        about_image_url: aboutImageUrl,
+        features: features,
+        seo_title: seoTitle,
+        seo_description: seoDescription,
+        seo_keywords: seoKeywords,
+        og_image_url: ogImageUrl,
+      };
+
+      // Add is_published if we're publishing
+      if (shouldPublish) {
+        updateData.is_published = true;
+      }
+
       const { error: updateError } = await supabase
         .from("showcase_sites")
-        .update({
-          business_description: data.businessDescription,
-          owner_name: data.ownerName,
-          whatsapp_number: data.whatsappNumber,
-          phone_number: data.phoneNumber,
-          hero_title: data.heroTitle,
-          hero_subtitle: data.heroSubtitle,
-          about_title: data.aboutTitle,
-          about_description: data.aboutDescription,
-          cta_title: data.ctaTitle,
-          cta_description: data.ctaDescription,
-          formation_title: data.formationTitle,
-          formation_description: data.formationDescription,
-          formation_price: data.formationPrice,
-          theme: data.theme,
-          primary_color: themeColors?.primary,
-          secondary_color: themeColors?.secondary,
-          logo_url: logoUrl,
-          hero_image_url: heroImageUrl,
-          about_image_url: aboutImageUrl,
-          features: features,
-          seo_title: seoTitle,
-          seo_description: seoDescription,
-          seo_keywords: seoKeywords,
-          og_image_url: ogImageUrl,
-        })
+        .update(updateData)
         .eq("id", id);
 
       if (updateError) {
@@ -306,7 +323,12 @@ export default function ShowcaseEditor() {
         return;
       }
 
-      toast.success("Site mis à jour avec succès !");
+      if (shouldPublish) {
+        toast.success("Site sauvegardé et publié avec succès ! 🎉");
+        setIsPublished(true);
+      } else {
+        toast.success("Site mis à jour avec succès !");
+      }
       navigate("/showcase-manager");
     } catch (error) {
       console.error("Error updating showcase site:", error);
@@ -797,33 +819,65 @@ export default function ShowcaseEditor() {
             </CardContent>
           </Card>
 
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/showcase-manager")}
-                    className="flex-1"
-                  >
-                    Annuler
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    size="lg" 
-                    className="flex-1" 
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sauvegarde...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Sauvegarder les modifications
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-3">
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate("/showcase-manager")}
+                      className="flex-1"
+                    >
+                      Annuler
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      size="lg" 
+                      className="flex-1" 
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sauvegarde...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Sauvegarder
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {!isPublished && (
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                      disabled={isSaving}
+                      onClick={handleSubmit(onSubmitAndPublish)}
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Publication...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Sauvegarder et Publier le site
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  
+                  {isPublished && (
+                    <div className="text-center p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                      <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                        ✓ Site publié et visible en ligne
+                      </p>
+                    </div>
+                  )}
                 </div>
               </form>
             </div>
