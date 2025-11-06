@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Trash2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Trash2, Sparkles, Zap, Tag } from "lucide-react";
 import { toast } from "sonner";
 
 interface ImageTextEditorProps {
@@ -33,6 +34,227 @@ const FONTS = [
   "Impact",
   "Trebuchet MS",
   "Comic Sans MS",
+];
+
+interface TextTemplate {
+  id: string;
+  name: string;
+  category: "titre" | "slogan" | "prix";
+  text: string;
+  style: {
+    fontSize: number;
+    fontFamily: string;
+    fill: string;
+    fontWeight: "normal" | "bold";
+    fontStyle: "normal" | "italic";
+    textAlign: "left" | "center" | "right";
+    underline?: boolean;
+  };
+  icon: typeof Sparkles | typeof Zap | typeof Tag;
+}
+
+const TEXT_TEMPLATES: TextTemplate[] = [
+  // Titres accrocheurs
+  {
+    id: "titre-impact",
+    name: "Titre Impact",
+    category: "titre",
+    text: "VOTRE TITRE ICI",
+    style: {
+      fontSize: 60,
+      fontFamily: "Impact",
+      fill: "#FFFFFF",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Sparkles,
+  },
+  {
+    id: "titre-elegant",
+    name: "Titre Élégant",
+    category: "titre",
+    text: "Votre Titre Élégant",
+    style: {
+      fontSize: 48,
+      fontFamily: "Playfair Display",
+      fill: "#2C3E50",
+      fontWeight: "bold",
+      fontStyle: "italic",
+      textAlign: "center",
+    },
+    icon: Sparkles,
+  },
+  {
+    id: "titre-moderne",
+    name: "Titre Moderne",
+    category: "titre",
+    text: "Titre Moderne et Pro",
+    style: {
+      fontSize: 52,
+      fontFamily: "Montserrat",
+      fill: "#1A1A1A",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "left",
+    },
+    icon: Sparkles,
+  },
+  {
+    id: "titre-dynamique",
+    name: "Titre Dynamique",
+    category: "titre",
+    text: "DÉCOUVREZ MAINTENANT",
+    style: {
+      fontSize: 56,
+      fontFamily: "Raleway",
+      fill: "#E74C3C",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Sparkles,
+  },
+  
+  // Slogans
+  {
+    id: "slogan-court",
+    name: "Slogan Court",
+    category: "slogan",
+    text: "La différence qui compte",
+    style: {
+      fontSize: 28,
+      fontFamily: "Lora",
+      fill: "#34495E",
+      fontWeight: "normal",
+      fontStyle: "italic",
+      textAlign: "center",
+    },
+    icon: Zap,
+  },
+  {
+    id: "slogan-pro",
+    name: "Slogan Professionnel",
+    category: "slogan",
+    text: "Qualité garantie • Service premium",
+    style: {
+      fontSize: 24,
+      fontFamily: "Poppins",
+      fill: "#2C3E50",
+      fontWeight: "normal",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Zap,
+  },
+  {
+    id: "slogan-impact",
+    name: "Slogan à Impact",
+    category: "slogan",
+    text: "FAITES LA DIFFÉRENCE",
+    style: {
+      fontSize: 32,
+      fontFamily: "Roboto",
+      fill: "#27AE60",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Zap,
+  },
+  {
+    id: "slogan-elegant",
+    name: "Slogan Élégant",
+    category: "slogan",
+    text: "L'excellence à votre portée",
+    style: {
+      fontSize: 26,
+      fontFamily: "Playfair Display",
+      fill: "#8E44AD",
+      fontWeight: "normal",
+      fontStyle: "italic",
+      textAlign: "center",
+    },
+    icon: Zap,
+  },
+  
+  // Prix promotionnels
+  {
+    id: "prix-promo-gros",
+    name: "Prix Promo XL",
+    category: "prix",
+    text: "-50%",
+    style: {
+      fontSize: 80,
+      fontFamily: "Impact",
+      fill: "#E74C3C",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Tag,
+  },
+  {
+    id: "prix-montant",
+    name: "Prix Montant",
+    category: "prix",
+    text: "15 000 FCFA",
+    style: {
+      fontSize: 48,
+      fontFamily: "Montserrat",
+      fill: "#27AE60",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Tag,
+  },
+  {
+    id: "prix-avant-apres",
+    name: "Prix Barré",
+    category: "prix",
+    text: "25 000 FCFA",
+    style: {
+      fontSize: 36,
+      fontFamily: "Roboto",
+      fill: "#95A5A6",
+      fontWeight: "normal",
+      fontStyle: "normal",
+      textAlign: "center",
+      underline: true,
+    },
+    icon: Tag,
+  },
+  {
+    id: "prix-nouveau",
+    name: "Nouveau Prix",
+    category: "prix",
+    text: "SEULEMENT 12 500 FCFA",
+    style: {
+      fontSize: 42,
+      fontFamily: "Raleway",
+      fill: "#E67E22",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Tag,
+  },
+  {
+    id: "prix-gratuit",
+    name: "Offre Gratuite",
+    category: "prix",
+    text: "GRATUIT",
+    style: {
+      fontSize: 64,
+      fontFamily: "Impact",
+      fill: "#16A085",
+      fontWeight: "bold",
+      fontStyle: "normal",
+      textAlign: "center",
+    },
+    icon: Tag,
+  },
 ];
 
 export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageTextEditorProps) => {
@@ -133,6 +355,27 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
     toast.success("Texte ajouté - Double-cliquez pour éditer");
   };
 
+  const addTemplateText = (template: TextTemplate) => {
+    if (!fabricCanvas) return;
+
+    const text = new IText(template.text, {
+      left: fabricCanvas.width! / 2 - 100,
+      top: fabricCanvas.height! / 2 - 50,
+      fontSize: template.style.fontSize,
+      fill: template.style.fill,
+      fontFamily: template.style.fontFamily,
+      fontWeight: template.style.fontWeight,
+      fontStyle: template.style.fontStyle,
+      textAlign: template.style.textAlign,
+      underline: template.style.underline || false,
+    });
+
+    fabricCanvas.add(text);
+    fabricCanvas.setActiveObject(text);
+    fabricCanvas.renderAll();
+    toast.success(`Template "${template.name}" ajouté`);
+  };
+
   const updateSelectedText = () => {
     if (!selectedObject || !(selectedObject instanceof IText)) return;
 
@@ -208,10 +451,88 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
 
           {/* Controls */}
           <div className="space-y-4">
-            <Button onClick={addText} className="w-full" size="lg">
-              <Type className="w-4 h-4 mr-2" />
-              Ajouter du Texte
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={addText} className="w-full" size="lg">
+                <Type className="w-4 h-4 mr-2" />
+                Ajouter du Texte
+              </Button>
+              
+              <details className="border rounded-lg p-3 bg-card">
+                <summary className="cursor-pointer font-semibold text-sm flex items-center">
+                  <Sparkles className="w-4 h-4 mr-2 text-primary" />
+                  Templates Professionnels
+                </summary>
+                <ScrollArea className="h-64 mt-3">
+                  <div className="space-y-4">
+                    {/* Titres */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center">
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        Titres Accrocheurs
+                      </p>
+                      <div className="space-y-1">
+                        {TEXT_TEMPLATES.filter(t => t.category === "titre").map(template => (
+                          <Button
+                            key={template.id}
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs"
+                            onClick={() => addTemplateText(template)}
+                          >
+                            <template.icon className="w-3 h-3 mr-2" />
+                            {template.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Slogans */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center">
+                        <Zap className="w-3 h-3 mr-1" />
+                        Slogans
+                      </p>
+                      <div className="space-y-1">
+                        {TEXT_TEMPLATES.filter(t => t.category === "slogan").map(template => (
+                          <Button
+                            key={template.id}
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs"
+                            onClick={() => addTemplateText(template)}
+                          >
+                            <template.icon className="w-3 h-3 mr-2" />
+                            {template.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Prix */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center">
+                        <Tag className="w-3 h-3 mr-1" />
+                        Prix Promotionnels
+                      </p>
+                      <div className="space-y-1">
+                        {TEXT_TEMPLATES.filter(t => t.category === "prix").map(template => (
+                          <Button
+                            key={template.id}
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs"
+                            onClick={() => addTemplateText(template)}
+                          >
+                            <template.icon className="w-3 h-3 mr-2" />
+                            {template.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </details>
+            </div>
 
             {selectedObject && (
               <Tabs defaultValue="text" className="w-full">
