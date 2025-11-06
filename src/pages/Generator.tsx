@@ -237,11 +237,35 @@ const Generator = () => {
       });
     } catch (error) {
       console.error("Erreur lors de la génération:", error);
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur est survenue lors de la génération",
-        variant: "destructive",
-      });
+
+      // Fallback: bascule vers le moteur d'image léger si le service principal échoue
+      try {
+        const promptText = `${productName} - ${niche}. ${description}. ${benefits || ''}`.slice(0, 500);
+        const { data: fbData, error: fbError } = await supabase.functions.invoke('generate-feature-image', {
+          body: { prompt: promptText }
+        });
+
+        if (fbError) throw fbError;
+        if (fbData?.imageUrl) {
+          setGeneratedImage(fbData.imageUrl);
+          // Met à jour le compteur éventuel
+          await loadUserGenerationStatus();
+          toast({
+            title: "Visuel généré (moteur alternatif)",
+            description: "Le service principal est temporairement indisponible. Un moteur alternatif a été utilisé.",
+          });
+          return; // ne pas exécuter le finally qui remettrait l'état trop tôt
+        }
+
+        throw new Error("Aucune image retournée par le moteur alternatif");
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+        toast({
+          title: "Erreur",
+          description: error instanceof Error ? error.message : "Une erreur est survenue lors de la génération",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

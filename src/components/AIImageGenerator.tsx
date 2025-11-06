@@ -47,7 +47,17 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
         setGeneratedImage(data.imageUrl);
         toast.success("Image générée avec succès !");
       } else {
-        toast.error("Erreur lors de la génération de l'image");
+        // Fallback vers le moteur léger si pas d'image retournée
+        const { data: fbData, error: fbError } = await supabase.functions.invoke('generate-feature-image', {
+          body: { prompt }
+        });
+        if (fbError) throw fbError;
+        if (fbData?.imageUrl) {
+          setGeneratedImage(fbData.imageUrl);
+          toast.success("Image générée (moteur alternatif)");
+        } else {
+          toast.error("Erreur lors de la génération de l'image");
+        }
       }
     } catch (error: any) {
       console.error("Error generating image:", error);
