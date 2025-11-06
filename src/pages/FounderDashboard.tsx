@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -16,6 +17,21 @@ import {
   XCircle
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DashboardStats {
   totalUsers: number;
@@ -46,6 +62,18 @@ interface RecentPayment {
   user_email: string;
 }
 
+interface ChartDataPoint {
+  date: string;
+  value: number;
+  label?: string;
+}
+
+interface PaymentMethodData {
+  name: string;
+  value: number;
+  color: string;
+}
+
 const FounderDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -63,6 +91,10 @@ const FounderDashboard = () => {
   });
   const [topPromoCodes, setTopPromoCodes] = useState<PromoCodeUsage[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [revenueChartData, setRevenueChartData] = useState<ChartDataPoint[]>([]);
+  const [signupsChartData, setSignupsChartData] = useState<ChartDataPoint[]>([]);
+  const [paymentMethodsData, setPaymentMethodsData] = useState<PaymentMethodData[]>([]);
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -122,6 +154,7 @@ const FounderDashboard = () => {
         loadPromoStats(),
         loadRevenueStats(),
         loadRecentPayments(),
+        loadChartData(),
       ]);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
@@ -275,6 +308,97 @@ const FounderDashboard = () => {
     }
   };
 
+  const loadChartData = async () => {
+    try {
+      const daysBack = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+
+      // Load revenue data over time
+      const { data: payments, error: paymentsError } = await supabase
+        .from("payments")
+        .select("created_at, amount, payment_method, status")
+        .gte("created_at", startDate.toISOString())
+        .in("status", ["completed", "success"]);
+
+      if (paymentsError) throw paymentsError;
+
+      // Load signups data over time
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("created_at")
+        .gte("created_at", startDate.toISOString());
+
+      if (profilesError) throw profilesError;
+
+      // Process revenue data by day
+      const revenueByDay = new Map<string, number>();
+      const paymentMethodCount = new Map<string, number>();
+
+      payments?.forEach((payment) => {
+        const date = new Date(payment.created_at).toISOString().split("T")[0];
+        const currentRevenue = revenueByDay.get(date) || 0;
+        revenueByDay.set(date, currentRevenue + payment.amount);
+
+        // Count payment methods
+        const method = payment.payment_method || "mobile_money";
+        paymentMethodCount.set(method, (paymentMethodCount.get(method) || 0) + 1);
+      });
+
+      // Process signups data by day
+      const signupsByDay = new Map<string, number>();
+      profiles?.forEach((profile) => {
+        const date = new Date(profile.created_at).toISOString().split("T")[0];
+        signupsByDay.set(date, (signupsByDay.get(date) || 0) + 1);
+      });
+
+      // Generate chart data for all days in range
+      const revenueData: ChartDataPoint[] = [];
+      const signupsData: ChartDataPoint[] = [];
+      
+      for (let i = daysBack - 1; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split("T")[0];
+        const displayDate = date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+
+        revenueData.push({
+          date: displayDate,
+          value: revenueByDay.get(dateStr) || 0,
+        });
+
+        signupsData.push({
+          date: displayDate,
+          value: signupsByDay.get(dateStr) || 0,
+        });
+      }
+
+      setRevenueChartData(revenueData);
+      setSignupsChartData(signupsData);
+
+      // Process payment methods data
+      const colors = ["#2563eb", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b"];
+      const methodsData: PaymentMethodData[] = Array.from(paymentMethodCount.entries()).map(
+        ([method, count], index) => ({
+          name: method === "card" ? "Carte Bancaire" : "Mobile Money",
+          value: count,
+          color: colors[index % colors.length],
+        })
+      );
+
+      setPaymentMethodsData(methodsData);
+    } catch (error) {
+      console.error("Error loading chart data:", error);
+    }
+  };
+
+  // Reload chart data when time range changes
+  useEffect(() => {
+    if (!isLoading && session) {
+      loadChartData();
+    }
+  }, [timeRange]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -363,6 +487,143 @@ const FounderDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Charts Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Évolution des Performances</CardTitle>
+                <CardDescription>Analysez les tendances de votre plateforme</CardDescription>
+              </div>
+              <Tabs value={timeRange} onValueChange={(v) => setTimeRange(v as "7d" | "30d" | "90d")}>
+                <TabsList>
+                  <TabsTrigger value="7d">7 jours</TabsTrigger>
+                  <TabsTrigger value="30d">30 jours</TabsTrigger>
+                  <TabsTrigger value="90d">90 jours</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="revenue" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="revenue">Revenus</TabsTrigger>
+                <TabsTrigger value="signups">Inscriptions</TabsTrigger>
+                <TabsTrigger value="methods">Méthodes</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="revenue" className="mt-6">
+                <div className="h-[300px]">
+                  {revenueChartData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Aucune donnée de revenus disponible
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={revenueChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12 }}
+                          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => [`${value.toLocaleString()} FCFA`, "Revenus"]}
+                          labelStyle={{ color: "#000" }}
+                        />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="#2563eb" 
+                          strokeWidth={2}
+                          name="Revenus (FCFA)"
+                          dot={{ fill: "#2563eb", r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="signups" className="mt-6">
+                <div className="h-[300px]">
+                  {signupsChartData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Aucune donnée d'inscriptions disponible
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={signupsChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          formatter={(value: number) => [value, "Inscriptions"]}
+                          labelStyle={{ color: "#000" }}
+                        />
+                        <Legend />
+                        <Bar 
+                          dataKey="value" 
+                          fill="#7c3aed" 
+                          name="Nouvelles inscriptions"
+                          radius={[8, 8, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="methods" className="mt-6">
+                <div className="h-[300px]">
+                  {paymentMethodsData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Aucune donnée de paiement disponible
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={paymentMethodsData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {paymentMethodsData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         {/* Top Promo Codes */}
         <div className="grid gap-6 md:grid-cols-2 mb-8">
