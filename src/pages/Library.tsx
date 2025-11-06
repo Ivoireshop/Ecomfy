@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, Trash2 } from "lucide-react";
+import { Loader2, Download, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ImageTextEditor } from "@/components/ImageTextEditor";
 
 interface ImageFormat {
   id: string;
@@ -45,6 +46,7 @@ const Library = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteType, setDeleteType] = useState<"image" | "video">("image");
+  const [editingImage, setEditingImage] = useState<GeneratedImage | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -147,6 +149,55 @@ const Library = () => {
     }
   };
 
+  const handleSaveEditedImage = async (imageBlob: Blob) => {
+    if (!editingImage) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Upload edited image to storage
+      const fileName = `${user.id}/images/${editingImage.id}-edited-${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("generated-content")
+        .upload(fileName, imageBlob, {
+          contentType: "image/png",
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("generated-content")
+        .getPublicUrl(fileName);
+
+      // Update the image record
+      const { error: updateError } = await supabase
+        .from("generated_images")
+        .update({ image_url: urlData.publicUrl })
+        .eq("id", editingImage.id);
+
+      if (updateError) throw updateError;
+
+      // Reload library
+      await loadLibrary();
+      setEditingImage(null);
+
+      toast({
+        title: "Succès",
+        description: "Image modifiée enregistrée",
+      });
+    } catch (error) {
+      console.error("Error saving edited image:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'enregistrer l'image modifiée",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -233,29 +284,39 @@ const Library = () => {
                         </div>
                       )}
                       
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleDownload(
-                            image.image_url, 
-                            `${image.product_details?.productName || 'image'}.png`
-                          )}
+                          className="w-full"
+                          onClick={() => setEditingImage(image)}
                         >
-                          <Download className="h-4 w-4 mr-1" />
-                          Original
+                          <Edit className="h-4 w-4 mr-2" />
+                          Éditer le Texte
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setDeleteId(image.id);
-                            setDeleteType("image");
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => handleDownload(
+                              image.image_url, 
+                              `${image.product_details?.productName || 'image'}.png`
+                            )}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Original
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setDeleteId(image.id);
+                              setDeleteType("image");
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -360,6 +421,15 @@ const Library = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {editingImage && (
+        <ImageTextEditor
+          imageUrl={editingImage.image_url}
+          isOpen={!!editingImage}
+          onClose={() => setEditingImage(null)}
+          onSave={handleSaveEditedImage}
+        />
+      )}
     </div>
   );
 };
