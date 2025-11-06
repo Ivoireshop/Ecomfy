@@ -33,6 +33,7 @@ const Subscription = () => {
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoError, setPromoError] = useState("");
+  const [isFounder, setIsFounder] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -56,9 +57,27 @@ const Subscription = () => {
 
   useEffect(() => {
     if (session?.user) {
+      checkFounderStatus();
       loadSubscription();
     }
   }, [session]);
+
+  const checkFounderStatus = async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        // @ts-ignore - Role types will be updated after migration
+        .in("role", ["founder", "co_founder"]);
+
+      setIsFounder(roleData && roleData.length > 0);
+    } catch (error) {
+      console.error("Error checking founder status:", error);
+    }
+  };
 
   useEffect(() => {
     // Vérifier les paramètres de retour de paiement
@@ -233,7 +252,9 @@ const Subscription = () => {
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold mb-4">Votre Abonnement</h1>
             <p className="text-lg text-muted-foreground">
-              {isActive 
+              {isFounder
+                ? "Vous avez un accès illimité à toutes les fonctionnalités de VisualPro"
+                : isActive 
                 ? "Votre abonnement est actif" 
                 : "Activez votre abonnement pour créer des visuels et sites vitrine"}
             </p>
@@ -244,18 +265,20 @@ const Subscription = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 Statut
-                {isActive && (
+                {(isActive || isFounder) && (
                   <Badge variant="default" className="ml-2">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
-                    Actif
+                    {isFounder ? "Accès Illimité" : "Actif"}
                   </Badge>
                 )}
-                {!isActive && (
+                {!isActive && !isFounder && (
                   <Badge variant="secondary">Inactif</Badge>
                 )}
               </CardTitle>
               <CardDescription>
-                {isActive 
+                {isFounder
+                  ? "Accès illimité à toutes les fonctionnalités de VisualPro"
+                  : isActive 
                   ? `Valide jusqu'au ${subscription?.end_date ? new Date(subscription.end_date).toLocaleDateString() : "N/A"}`
                   : "Aucun abonnement actif"}
               </CardDescription>
@@ -263,59 +286,61 @@ const Subscription = () => {
           </Card>
 
           {/* Plan d'abonnement */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Plan Pro</CardTitle>
-              <CardDescription>Accès complet à la génération de visuels et création de sites vitrine</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    {promoDiscount > 0 ? (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl font-bold line-through text-muted-foreground">10 000 FCFA</span>
-                          <Badge variant="default" className="text-sm">-{promoDiscount}%</Badge>
-                        </div>
-                        <span className="text-3xl font-bold text-primary">
-                          {Math.round(10000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-3xl font-bold">10 000 FCFA</span>
-                    )}
+          {!isFounder && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Plan Pro</CardTitle>
+                <CardDescription>Accès complet à la génération de visuels et création de sites vitrine</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      {promoDiscount > 0 ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-bold line-through text-muted-foreground">10 000 FCFA</span>
+                            <Badge variant="default" className="text-sm">-{promoDiscount}%</Badge>
+                          </div>
+                          <span className="text-3xl font-bold text-primary">
+                            {Math.round(10000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-3xl font-bold">10 000 FCFA</span>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground">/ mois</span>
                   </div>
-                  <span className="text-muted-foreground">/ mois</span>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      <span>Génération illimitée de visuels</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      <span>Création de sites vitrine professionnels</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      <span>Édition d'images avec IA</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      <span>Tous les styles disponibles</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      <span>Support prioritaire</span>
+                    </li>
+                  </ul>
                 </div>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Génération illimitée de visuels</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Création de sites vitrine professionnels</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Édition d'images avec IA</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Tous les styles disponibles</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Support prioritaire</span>
-                  </li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Promo Code Section */}
-          {!isActive && (
+          {!isActive && !isFounder && (
             <Card className="mb-8">
               <CardHeader>
                 <CardTitle>Code promo</CardTitle>
@@ -363,7 +388,7 @@ const Subscription = () => {
           )}
 
           {/* Méthodes de paiement */}
-          {!isActive && (
+          {!isActive && !isFounder && (
             <Card>
               <CardHeader>
                 <CardTitle>Choisissez votre méthode de paiement</CardTitle>

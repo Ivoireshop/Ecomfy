@@ -162,14 +162,14 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(signInEmail, {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) throw error;
 
       toast({
         title: "Email envoyé",
-        description: "Un lien de réinitialisation a été envoyé à votre email",
+        description: "Un lien de réinitialisation a été envoyé à votre email. Veuillez vérifier votre boîte de réception.",
       });
     } catch (error) {
       console.error("Erreur réinitialisation:", error);

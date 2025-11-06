@@ -14,6 +14,7 @@ import Auth from "./pages/Auth";
 import Subscription from "./pages/Subscription";
 import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 import ShowcaseBuilder from "./pages/ShowcaseBuilder";
 import ShowcaseView from "./pages/ShowcaseView";
 import ShowcaseManager from "./pages/ShowcaseManager";
@@ -42,7 +43,8 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
-        <Route 
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route
           path="/subscription" 
           element={
             <ProtectedRoute>
