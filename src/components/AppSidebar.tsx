@@ -1,7 +1,9 @@
-import { Home, Image, Video, MessageSquare, CreditCard, Globe } from "lucide-react";
+import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   Sidebar,
@@ -27,6 +29,25 @@ const items = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const [isFounder, setIsFounder] = useState(false);
+
+  useEffect(() => {
+    const checkFounderStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          // @ts-ignore - Types will update after migration
+          .in("role", ["founder", "co_founder"]);
+        
+        setIsFounder(data && data.length > 0);
+      }
+    };
+    
+    checkFounderStatus();
+  }, []);
 
   return (
     <Sidebar collapsible="icon">
@@ -57,6 +78,22 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              {isFounder && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to="/promo-codes" 
+                      className={({ isActive }) =>
+                        isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+                      }
+                    >
+                      <Tag className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
+                      {!isCollapsed && <span>Codes Promo</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

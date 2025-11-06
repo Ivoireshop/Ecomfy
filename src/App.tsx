@@ -19,6 +19,7 @@ import ShowcaseView from "./pages/ShowcaseView";
 import ShowcaseManager from "./pages/ShowcaseManager";
 import ShowcaseEditor from "./pages/ShowcaseEditor";
 import PaymentHistory from "./pages/PaymentHistory";
+import PromoCodeManager from "./pages/PromoCodeManager";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -102,6 +103,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <ShowcaseEditor />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/promo-codes" 
+          element={
+            <ProtectedRoute>
+              <PromoCodeManager />
             </ProtectedRoute>
           } 
         />
