@@ -6,6 +6,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper to enforce timeouts on external calls
+async function fetchWithTimeout(input: Request | string, init: RequestInit & { timeoutMs?: number } = {}) {
+  const { timeoutMs = 30000, ...rest } = init as any;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort("timeout"), timeoutMs);
+  try {
+    const res = await fetch(input as any, { ...rest, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -91,9 +104,11 @@ serve(async (req) => {
       }
     }
 
-    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription } = await req.json();
+    const body = await req.json();
+    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast } = body;
     
-    console.log("Generating visual for:", { productName, niche, platform, style, personDescription });
+    const isFast = Boolean(fast);
+    
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -222,7 +237,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
     // Try Lovable AI first; fallback to OpenAI if credits exhausted
     let imageUrl: string | null = null;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -235,6 +250,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
         ],
         modalities: ["image", "text"],
       }),
+      timeoutMs: 30000,
     });
 
     if (!response.ok) {
@@ -345,7 +361,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
 
     // Generate multiple formats for paid subscribers
     const additionalFormats: any[] = [];
-    if (hasActiveSubscription && savedImage) {
+    if (!isFast && hasActiveSubscription && savedImage) {
       console.log("Generating additional formats for paid subscriber");
       
       const formats = [
@@ -361,7 +377,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
         try {
           const resizePrompt = `Resize and adapt this advertising visual to ${format.size} pixels for ${format.name}. Maintain all text readability and ensure the product is prominently displayed. Optimize the layout for the aspect ratio without losing important information.`;
           
-          const resizeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          const resizeResponse = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -380,6 +396,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
               ],
               modalities: ["image", "text"],
             }),
+            timeoutMs: 20000,
           });
 
           if (resizeResponse.ok) {

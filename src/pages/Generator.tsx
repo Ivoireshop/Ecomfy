@@ -174,8 +174,12 @@ const Generator = () => {
     setGeneratedImage(null);
 
     try {
-      // supabase.functions.invoke ajoute automatiquement le token d'auth
-      const { data, error } = await supabase.functions.invoke("generate-ad-visual", {
+      // Appel rapide (20s max) au service principal, sinon fallback
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 20000)
+      );
+
+      const invokePromise = supabase.functions.invoke("generate-ad-visual", {
         body: {
           productName,
           niche,
@@ -189,8 +193,11 @@ const Generator = () => {
           posology,
           productImage,
           personDescription,
+          fast: true,
         },
       });
+
+      const { data, error } = (await Promise.race([invokePromise, timeout])) as any;
 
       if (error) {
         // Gestion claire des erreurs courantes

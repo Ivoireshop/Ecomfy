@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to enforce timeouts on external calls
+async function fetchWithTimeout(input: Request | string, init: RequestInit & { timeoutMs?: number } = {}) {
+  const { timeoutMs = 20000, ...rest } = init as any;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort('timeout'), timeoutMs);
+  try {
+    const res = await fetch(input as any, { ...rest, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -31,7 +44,7 @@ serve(async (req) => {
 
     console.log('Generating image with prompt:', prompt);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetchWithTimeout('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -47,6 +60,7 @@ serve(async (req) => {
         ],
         modalities: ['image', 'text']
       }),
+      timeoutMs: 20000,
     });
 
     if (!response.ok) {
