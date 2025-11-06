@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut } from "lucide-react";
+import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut, Receipt } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 
 interface Subscription {
@@ -168,6 +168,10 @@ const Subscription = () => {
             VisualPro
           </h1>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/payment-history")}>
+              <Receipt className="mr-2 h-4 w-4" />
+              Historique
+            </Button>
             {isActive && (
               <Button onClick={() => navigate("/generator")}>
                 Accéder au générateur

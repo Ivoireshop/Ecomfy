@@ -18,6 +18,7 @@ import ShowcaseBuilder from "./pages/ShowcaseBuilder";
 import ShowcaseView from "./pages/ShowcaseView";
 import ShowcaseManager from "./pages/ShowcaseManager";
 import ShowcaseEditor from "./pages/ShowcaseEditor";
+import PaymentHistory from "./pages/PaymentHistory";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -73,7 +74,15 @@ const AppContent = () => {
           } 
         />
         <Route 
-          path="/showcase-builder" 
+          path="/payment-history" 
+          element={
+            <ProtectedRoute>
+              <PaymentHistory />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/showcase-builder"
           element={
             <ProtectedRoute requireActiveSubscription>
               <ShowcaseBuilder />
