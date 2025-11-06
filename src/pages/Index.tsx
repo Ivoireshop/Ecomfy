@@ -45,45 +45,92 @@ const Index = () => {
       
       {/* Hero Section */}
       <section id="home" className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-medium">Intelligence Artificielle Africaine</span>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6 animate-fade-in">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-sm font-medium">Intelligence Artificielle Africaine</span>
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent animate-fade-in">
+              Bienvenue sur VisualPro
+            </h1>
+            
+            <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
+              Votre plateforme qui vous permet de créer des <span className="font-semibold text-foreground">visuels publicitaires</span> pour 
+              <span className="font-semibold text-primary"> Facebook, Instagram, TikTok, YouTube, Google Ads et Snapchat</span> en un clic
+            </p>
+            
+            <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
+              Des visuels <span className="font-semibold text-secondary">adaptés au marché africain</span>
+            </p>
+            
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed max-w-4xl mx-auto">
+              Et aussi de pouvoir créer vos <span className="font-semibold text-foreground">sites vitrines</span> pour votre entreprise ou vos formations 
+              à l'aide de <span className="font-semibold text-primary">l'intelligence artificielle en un seul clic</span>
+            </p>
+
+            <div className="inline-block bg-accent/20 border border-primary/20 rounded-lg px-6 py-3 mb-8">
+              <p className="text-base font-medium text-foreground">
+                🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
+              </p>
+            </div>
           </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-            VisualPro
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
-            Créez des visuels publicitaires professionnels adaptés au marché africain en moins d'une minute
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+
+          {/* Image Gallery - Dynamic showcase */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
+            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in">
+              <img 
+                src={exampleHandbag} 
+                alt="Publicité sac à main" 
+                className="w-full h-48 object-cover"
+              />
+            </div>
+            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <img 
+                src={examplePhone} 
+                alt="Publicité smartphone" 
+                className="w-full h-48 object-cover"
+              />
+            </div>
+            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <img 
+                src={exampleFood} 
+                alt="Publicité restaurant" 
+                className="w-full h-48 object-cover"
+              />
+            </div>
+            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <img 
+                src={exampleBeauty} 
+                alt="Publicité beauté" 
+                className="w-full h-48 object-cover"
+              />
+            </div>
+            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+              <img 
+                src={exampleFitness} 
+                alt="Publicité fitness" 
+                className="w-full h-48 object-cover"
+              />
+            </div>
+            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+              <img 
+                src={exampleRealestate} 
+                alt="Publicité immobilier" 
+                className="w-full h-48 object-cover"
+              />
+            </div>
+          </div>
+
+          <div className="text-center">
             <Button 
               size="lg" 
-              className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
+              className="text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 animate-fade-in"
               onClick={() => navigate("/auth")}
             >
-              <Sparkles className="mr-2 h-5 w-5" />
-              Créer mon premier visuel
-            </Button>
-            <Button 
-              size="lg" 
-              variant="secondary"
-              className="text-lg px-8 py-6"
-              onClick={() => navigate("/auth")}
-            >
-              <Globe className="mr-2 h-5 w-5" />
-              Créer un site vitrine
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="text-lg px-8 py-6"
-              onClick={() => navigate("/auth")}
-            >
-              Se connecter
+              <Sparkles className="mr-2 h-6 w-6" />
+              Commencer maintenant
             </Button>
           </div>
         </div>

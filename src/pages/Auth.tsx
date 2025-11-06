@@ -31,22 +31,45 @@ const Auth = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
+        // Check if coming from email confirmation
+        const urlParams = new URLSearchParams(window.location.search);
+        const isEmailConfirmed = urlParams.get('type') === 'signup';
+        
+        if (isEmailConfirmed) {
+          toast({
+            title: "Félicitations ! 🎉",
+            description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+          });
+        }
+        
         navigate("/generator");
       }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         if (session) {
+          // Show welcome message for new sign ups
+          if (event === 'SIGNED_IN') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isEmailConfirmed = urlParams.get('type') === 'signup';
+            
+            if (isEmailConfirmed) {
+              toast({
+                title: "Félicitations ! 🎉",
+                description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+              });
+            }
+          }
           navigate("/generator");
         }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const validatePassword = (password: string): { valid: boolean; message?: string } => {
     if (password.length < 8) {
@@ -111,8 +134,8 @@ const Auth = () => {
       if (error) throw error;
 
       toast({
-        title: "Vérifiez votre email !",
-        description: "Un email de confirmation a été envoyé à votre adresse. Veuillez cliquer sur le lien pour activer votre compte.",
+        title: "Vérifiez votre email ! 📧",
+        description: "Nous vous avons envoyé un email de confirmation. Veuillez cliquer sur le lien dans l'email pour activer votre compte.",
       });
     } catch (error) {
       console.error("Erreur lors de l'inscription:", error);
