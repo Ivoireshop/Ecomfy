@@ -110,7 +110,7 @@ const Subscription = () => {
     try {
       const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
-          amount: 10000,
+          amount: 1000,
           payment_method: method,
           user_id: session?.user?.id,
           provider: options?.provider,
@@ -187,7 +187,7 @@ const Subscription = () => {
             <p className="text-lg text-muted-foreground">
               {isActive 
                 ? "Votre abonnement est actif" 
-                : "Activez votre abonnement pour créer des visuels"}
+                : "Activez votre abonnement pour créer des visuels et sites vitrine"}
             </p>
           </div>
 
@@ -218,18 +218,22 @@ const Subscription = () => {
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Plan Pro</CardTitle>
-              <CardDescription>Accès complet à la génération de visuels</CardDescription>
+              <CardDescription>Accès complet à la génération de visuels et création de sites vitrine</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-bold">10 000 FCFA</span>
+                  <span className="text-3xl font-bold">1 000 FCFA</span>
                   <span className="text-muted-foreground">/ mois</span>
                 </div>
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
                     <span>Génération illimitée de visuels</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                    <span>Création de sites vitrine professionnels</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -331,7 +335,7 @@ const Subscription = () => {
                         onChange={(e) => setMmPhone(e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Le montant de 10 000 FCFA sera débité après validation sur votre téléphone.
+                        Le montant de 1 000 FCFA sera débité après validation sur votre téléphone.
                       </p>
                     </div>
 

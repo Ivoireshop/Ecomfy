@@ -75,7 +75,7 @@ const AppContent = () => {
         <Route 
           path="/showcase-builder" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireActiveSubscription>
               <ShowcaseBuilder />
             </ProtectedRoute>
           } 
