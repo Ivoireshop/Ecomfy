@@ -260,11 +260,20 @@ Create a stunning, conversion-focused advertising visual that combines the best 
 
     const data = await response.json();
     console.log("AI response received");
+    console.log("Response structure:", JSON.stringify({
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      hasMessage: !!data.choices?.[0]?.message,
+      hasImages: !!data.choices?.[0]?.message?.images,
+      imagesLength: data.choices?.[0]?.message?.images?.length,
+      messageKeys: data.choices?.[0]?.message ? Object.keys(data.choices[0].message) : [],
+    }));
     
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     
     if (!imageUrl) {
-      throw new Error("No image generated");
+      console.error("Full AI response:", JSON.stringify(data, null, 2));
+      throw new Error("No image generated. The AI model returned a response but without an image. This may happen if the prompt is too complex or if the model couldn't generate an image matching the requirements.");
     }
 
     // Save the generated image to the database
