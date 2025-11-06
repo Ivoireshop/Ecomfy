@@ -232,13 +232,28 @@ Create a stunning Facebook advertising visual that looks like a professional mar
 
     const data = await response.json();
     console.log('AI response received');
+    console.log('Response structure:', JSON.stringify(data, null, 2));
 
-    // Extract the generated image
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    // Extract the generated image - try multiple possible paths
+    let imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    // Alternative path for image
+    if (!imageUrl) {
+      imageUrl = data.choices?.[0]?.message?.content?.images?.[0]?.image_url?.url;
+    }
+    
+    // Check if image is in a different structure
+    if (!imageUrl && data.choices?.[0]?.message?.images?.[0]) {
+      const img = data.choices[0].message.images[0];
+      imageUrl = img.url || img.image_url?.url || img.image_url;
+    }
     
     if (!imageUrl) {
+      console.error('Failed to extract image. Response:', JSON.stringify(data));
       throw new Error('No image generated in response');
     }
+
+    console.log('Image URL extracted successfully');
 
     return new Response(
       JSON.stringify({ imageUrl }),
