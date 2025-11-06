@@ -63,32 +63,39 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
         return;
       }
 
-      // Check subscription for regular users
+      // Always check free generations first for regular users
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("free_generations_remaining")
+        .eq("id", userId)
+        .single();
+
+      if (profileError) {
+        console.error("Error loading profile:", profileError);
+        // Don't block access if profile load fails - let them try
+        setFreeGenerationsRemaining(3); // Give benefit of the doubt
+      } else {
+        setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
+      }
+
+      // Then check subscription for regular users
       const { data: subData, error: subError } = await supabase
         .from("subscriptions")
         .select("status")
         .eq("user_id", userId)
         .single();
 
-      if (subError) throw subError;
-      const hasActiveSub = subData?.status === "active";
-      setHasActiveSubscription(hasActiveSub);
-
-      // Check free generations if no active subscription
-      if (!hasActiveSub) {
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("free_generations_remaining")
-          .eq("id", userId)
-          .single();
-
-        if (profileError) throw profileError;
-        setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
+      if (subError) {
+        console.error("Error loading subscription:", subError);
+        setHasActiveSubscription(false);
+      } else {
+        const hasActiveSub = subData?.status === "active";
+        setHasActiveSubscription(hasActiveSub);
       }
     } catch (error) {
-      console.error("Error checking subscription:", error);
+      console.error("Unexpected error checking subscription:", error);
+      // Don't block users on errors - let them access with free generations
       setHasActiveSubscription(false);
-      setFreeGenerationsRemaining(0);
     } finally {
       setIsLoading(false);
     }

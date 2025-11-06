@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +26,76 @@ serve(async (req) => {
   }
 
   try {
+    // Get user from auth header (optional for public access)
+    const authHeader = req.headers.get("Authorization");
+    
+    // Create Supabase client (with or without auth)
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      authHeader ? {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      } : undefined
+    );
+
+    let userId = null;
+    let isFounder = false;
+    let hasActiveSubscription = false;
+
+    if (authHeader) {
+      // Get authenticated user
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+      if (user) {
+        userId = user.id;
+
+        // Check founder/co-founder role for unlimited access
+        const { data: roleData } = await supabaseClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          // @ts-ignore enum type differences
+          .in("role", ["founder", "co_founder"]);
+
+        isFounder = Array.isArray(roleData) && roleData.length > 0;
+
+        // Check subscription status
+        const { data: subData } = await supabaseClient
+          .from("subscriptions")
+          .select("status")
+          .eq("user_id", userId)
+          .single();
+
+        hasActiveSubscription = isFounder || subData?.status === "active";
+      }
+    }
+
+    // Check free generations (only for non-subscribed users)
+    let freeGenerationsRemaining = 0;
+    if (userId && !hasActiveSubscription) {
+      const { data: profileData } = await supabaseClient
+        .from("profiles")
+        .select("free_generations_remaining")
+        .eq("id", userId)
+        .single();
+
+      freeGenerationsRemaining = profileData?.free_generations_remaining || 0;
+
+      if (freeGenerationsRemaining <= 0) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Vous avez épuisé vos générations gratuites. Veuillez souscrire à un abonnement.",
+            freeGenerationsRemaining: 0
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
     const body = await req.json();
     const { prompt, productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription } = body;
     
@@ -270,8 +341,25 @@ Create a stunning Facebook advertising visual that looks like a professional mar
 
     console.log('Image URL extracted successfully');
 
+    // Decrement free generations if not subscribed and not founder
+    let updatedFreeGenerations = typeof freeGenerationsRemaining === "number" ? freeGenerationsRemaining : 0;
+    if (userId && !hasActiveSubscription && !isFounder && updatedFreeGenerations > 0) {
+      const { data: updateData } = await supabaseClient
+        .from("profiles")
+        .update({ free_generations_remaining: updatedFreeGenerations - 1 })
+        .eq("id", userId)
+        .select("free_generations_remaining")
+        .single();
+      
+      updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
+      console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
+    }
+
     return new Response(
-      JSON.stringify({ imageUrl }),
+      JSON.stringify({ 
+        imageUrl,
+        freeGenerationsRemaining: hasActiveSubscription ? null : updatedFreeGenerations
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
