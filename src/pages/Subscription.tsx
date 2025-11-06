@@ -29,6 +29,10 @@ const Subscription = () => {
   const [mmProvider, setMmProvider] = useState<string | null>(null);
   const [mmPhone, setMmPhone] = useState("");
   const [submittingMM, setSubmittingMM] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoError, setPromoError] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -103,6 +107,44 @@ const Subscription = () => {
     }
   };
 
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) {
+      setPromoDiscount(0);
+      setPromoError("");
+      return;
+    }
+
+    setIsValidatingPromo(true);
+    setPromoError("");
+
+    try {
+      // @ts-ignore - RPC types will be updated after migration
+      const { data, error } = await supabase.rpc("validate_promo_code", {
+        promo_code: promoCode.trim().toUpperCase(),
+      });
+
+      if (error) throw error;
+
+      if (!data || !Array.isArray(data) || data.length === 0 || !data[0].is_valid) {
+        setPromoError(data?.[0]?.message || "Code promo invalide");
+        setPromoDiscount(0);
+        return;
+      }
+
+      setPromoDiscount(data[0].discount_percentage);
+      toast({
+        title: "Code promo appliqué !",
+        description: `Vous bénéficiez de ${data[0].discount_percentage}% de réduction`,
+      });
+    } catch (error) {
+      console.error("Error validating promo code:", error);
+      setPromoError("Erreur lors de la validation du code");
+      setPromoDiscount(0);
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
   const handlePayment = async (
     method: string,
     options?: { provider?: string; phone?: string }
@@ -111,11 +153,12 @@ const Subscription = () => {
     try {
       const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
-          amount: 1000,
+          amount: 10000,
           payment_method: method,
           user_id: session?.user?.id,
           provider: options?.provider,
           phone: options?.phone,
+          promo_code: promoCode.trim().toUpperCase() || undefined,
         },
       });
 
@@ -228,7 +271,21 @@ const Subscription = () => {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-bold">1 000 FCFA</span>
+                  <div>
+                    {promoDiscount > 0 ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl font-bold line-through text-muted-foreground">10 000 FCFA</span>
+                          <Badge variant="default" className="text-sm">-{promoDiscount}%</Badge>
+                        </div>
+                        <span className="text-3xl font-bold text-primary">
+                          {Math.round(10000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-3xl font-bold">10 000 FCFA</span>
+                    )}
+                  </div>
                   <span className="text-muted-foreground">/ mois</span>
                 </div>
                 <ul className="space-y-2">
@@ -256,6 +313,54 @@ const Subscription = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Promo Code Section */}
+          {!isActive && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Code promo</CardTitle>
+                <CardDescription>
+                  Vous avez un code promo ? Entrez-le pour bénéficier d'une réduction
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Entrez votre code promo"
+                    value={promoCode}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value.toUpperCase());
+                      setPromoError("");
+                      setPromoDiscount(0);
+                    }}
+                    className={promoError ? "border-destructive" : ""}
+                  />
+                  <Button
+                    onClick={validatePromoCode}
+                    disabled={isValidatingPromo || !promoCode.trim()}
+                    variant="outline"
+                  >
+                    {isValidatingPromo ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Appliquer"
+                    )}
+                  </Button>
+                </div>
+                {promoError && (
+                  <p className="text-sm text-destructive mt-2">{promoError}</p>
+                )}
+                {promoDiscount > 0 && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <p className="text-sm text-primary font-medium">
+                      Réduction de {promoDiscount}% appliquée !
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Méthodes de paiement */}
           {!isActive && (
@@ -340,7 +445,9 @@ const Subscription = () => {
                         onChange={(e) => setMmPhone(e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Le montant de 1 000 FCFA sera débité après validation sur votre téléphone.
+                        Le montant {promoDiscount > 0 
+                          ? `de ${Math.round(10000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA` 
+                          : "de 10 000 FCFA"} sera débité après validation sur votre téléphone.
                       </p>
                     </div>
 

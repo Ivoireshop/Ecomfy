@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,8 +9,8 @@ const corsHeaders = {
 
 // Zod validation schema
 const PaymentSchema = z.object({
-  amount: z.literal(10000, {
-    errorMap: () => ({ message: "Le montant doit être exactement 10000 FCFA pour l'abonnement Premium" })
+  amount: z.number().refine(val => val === 10000, {
+    message: "Le montant doit être exactement 10000 FCFA pour l'abonnement Premium"
   }),
   payment_method: z.enum(["mobile_money", "card", "bank_card"], {
     errorMap: () => ({ message: "Méthode de paiement invalide. Utilisez 'mobile_money' ou 'card'" })
@@ -18,7 +19,8 @@ const PaymentSchema = z.object({
     message: "ID utilisateur invalide"
   }),
   provider: z.string().optional(),
-  phone: z.string().optional()
+  phone: z.string().optional(),
+  promo_code: z.string().optional()
 });
 
 serve(async (req) => {
@@ -107,7 +109,77 @@ serve(async (req) => {
       );
     }
 
-    const { amount, payment_method, user_id, provider, phone } = validatedData;
+    const { amount, payment_method, user_id, provider, phone, promo_code } = validatedData;
+
+    // Initialize Supabase client for promo code validation
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate and apply promo code if provided
+    let finalAmount: number = amount;
+    let discountPercentage = 0;
+    let promoCodeId: string | null = null;
+
+    if (promo_code) {
+      console.log("Validating promo code:", promo_code);
+      
+      const { data: promoValidation, error: promoError } = await supabase
+        .rpc('validate_promo_code', { promo_code });
+
+      if (promoError) {
+        console.error("Promo code validation error:", promoError);
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "Erreur lors de la validation du code promo" 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+
+      if (!promoValidation || promoValidation.length === 0) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "Code promo invalide" 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+
+      const validationResult = promoValidation[0];
+      if (!validationResult.is_valid) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: validationResult.message 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+
+      // Apply discount
+      promoCodeId = validationResult.id;
+      discountPercentage = validationResult.discount_percentage;
+      finalAmount = Math.round(amount * (1 - discountPercentage / 100));
+      
+      console.log("Promo code applied:", { 
+        code: promo_code, 
+        discount: discountPercentage, 
+        originalAmount: amount,
+        finalAmount 
+      });
+    }
 
     // Normalize provider and phone for Lygos compatibility
     const mapProvider = (p?: string) => {
@@ -150,8 +222,6 @@ serve(async (req) => {
         }
       );
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const origin = req.headers.get("origin") || undefined;
     const referer = req.headers.get("referer") || undefined;
     const baseReturnUrl = origin || (referer ? new URL(referer).origin : undefined);
@@ -171,7 +241,7 @@ serve(async (req) => {
 
     // Build payload base (callback URLs will be attached after method/provider resolution)
     const basePayload = {
-      amount,
+      amount: finalAmount,
       currency: "XOF",
       country: "CI",
       shop_name: "Visuel Pro",
@@ -200,11 +270,14 @@ serve(async (req) => {
     const successParams = new URLSearchParams({
       status: 'success',
       user_id,
-      amount: String(amount),
+      amount: String(finalAmount),
+      original_amount: String(amount),
       transaction_id: orderId,
       payment_method: String((payload as any).payment_method || ''),
       provider: String((payload as any).provider || ''),
-      return_url: baseReturnUrl || ''
+      return_url: baseReturnUrl || '',
+      ...(promoCodeId && { promo_code_id: promoCodeId }),
+      ...(discountPercentage && { discount_percentage: String(discountPercentage) })
     });
     const failureParams = new URLSearchParams({
       status: 'failure',
