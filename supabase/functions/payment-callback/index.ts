@@ -6,20 +6,104 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to verify HMAC signature
+async function verifyWebhookSignature(
+  payload: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    // Convert hex signature to Uint8Array
+    const signatureBytes = new Uint8Array(
+      signature.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+    );
+
+    const isValid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBytes,
+      encoder.encode(payload)
+    );
+
+    return isValid;
+  } catch (error) {
+    console.error("Signature verification error:", error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Lygos peut envoyer les données via query params ou body JSON
     const url = new URL(req.url);
+    const webhookSecret = Deno.env.get("LYGOS_WEBHOOK_SECRET");
+
+    if (!webhookSecret) {
+      console.error("LYGOS_WEBHOOK_SECRET not configured");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Lygos peut envoyer les données via query params ou body JSON
     let paymentData: any;
+    let payloadString: string;
 
     if (req.method === "POST") {
-      paymentData = await req.json();
+      // Get raw body text for signature verification
+      const bodyText = await req.text();
+      payloadString = bodyText;
+      
+      try {
+        paymentData = JSON.parse(bodyText);
+      } catch (e) {
+        console.error("Invalid JSON in webhook body");
+        return new Response(
+          JSON.stringify({ error: "Invalid JSON" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Verify webhook signature for POST requests
+      const signature = req.headers.get("X-Lygos-Signature") || req.headers.get("x-lygos-signature");
+      
+      if (!signature) {
+        console.warn("Webhook received without signature");
+        return new Response(
+          JSON.stringify({ error: "Missing webhook signature" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const isValid = await verifyWebhookSignature(payloadString, signature, webhookSecret);
+      
+      if (!isValid) {
+        console.warn("Invalid webhook signature detected", {
+          receivedSignature: signature.substring(0, 10) + "...",
+          payloadLength: payloadString.length
+        });
+        return new Response(
+          JSON.stringify({ error: "Invalid webhook signature" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Webhook signature verified successfully");
     } else if (req.method === "GET") {
-      // Extraire les paramètres de l'URL
+      // For GET requests (redirect callbacks), construct payload from query params
       paymentData = {
         status: url.searchParams.get("status"),
         user_id: url.searchParams.get("user_id"),
@@ -29,9 +113,18 @@ serve(async (req) => {
         provider: url.searchParams.get("provider"),
         return_url: url.searchParams.get("return_url"),
       };
+      
+      // Note: GET redirects from Lygos are user-facing and don't need signature verification
+      // as they're not trusted for payment confirmation - only POST webhooks update the database
+      console.log("GET redirect received (user-facing, no signature required)");
     }
 
-    console.log("Payment callback received:", paymentData);
+    console.log("Payment callback received:", {
+      method: req.method,
+      status: paymentData.status,
+      user_id: paymentData.user_id,
+      amount: paymentData.amount
+    });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
