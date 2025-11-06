@@ -53,6 +53,16 @@ serve(async (req) => {
       );
     }
 
+    // Check founder/co-founder role for unlimited access
+    const { data: roleData } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      // @ts-ignore enum type differences
+      .in("role", ["founder", "co_founder"]);
+
+    const isFounder = Array.isArray(roleData) && roleData.length > 0;
+
     // Check subscription status
     const { data: subData } = await supabaseClient
       .from("subscriptions")
@@ -60,29 +70,31 @@ serve(async (req) => {
       .eq("user_id", userId)
       .single();
 
-    const hasActiveSubscription = subData?.status === "active";
+    const hasActiveSubscription = isFounder || subData?.status === "active";
 
-    // Check free generations
-    const { data: profileData } = await supabaseClient
-      .from("profiles")
-      .select("free_generations_remaining")
-      .eq("id", userId)
-      .single();
+    // Check free generations (ignored for founders or subscribers)
+    let freeGenerationsRemaining = 0;
+    if (!hasActiveSubscription) {
+      const { data: profileData } = await supabaseClient
+        .from("profiles")
+        .select("free_generations_remaining")
+        .eq("id", userId)
+        .single();
 
-    const freeGenerationsRemaining = profileData?.free_generations_remaining || 0;
+      freeGenerationsRemaining = profileData?.free_generations_remaining || 0;
 
-    // Verify user can generate
-    if (!hasActiveSubscription && freeGenerationsRemaining <= 0) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Vous avez épuisé vos générations gratuites. Veuillez souscrire à un abonnement.",
-          freeGenerationsRemaining: 0
-        }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      if (freeGenerationsRemaining <= 0) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Vous avez épuisé vos générations gratuites. Veuillez souscrire à un abonnement.",
+            freeGenerationsRemaining: 0
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
 
     const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription } = await req.json();
@@ -372,17 +384,17 @@ Create a stunning, conversion-focused advertising visual that combines the best 
       }
     }
 
-    // Decrement free generations if not subscribed
-    let updatedFreeGenerations = freeGenerationsRemaining;
-    if (!hasActiveSubscription && freeGenerationsRemaining > 0) {
+    // Decrement free generations if not subscribed and not founder
+    let updatedFreeGenerations = typeof freeGenerationsRemaining === "number" ? freeGenerationsRemaining : 0;
+    if (!hasActiveSubscription && !isFounder && updatedFreeGenerations > 0) {
       const { data: updateData } = await supabaseClient
         .from("profiles")
-        .update({ free_generations_remaining: freeGenerationsRemaining - 1 })
+        .update({ free_generations_remaining: updatedFreeGenerations - 1 })
         .eq("id", userId)
         .select("free_generations_remaining")
         .single();
       
-      updatedFreeGenerations = updateData?.free_generations_remaining ?? freeGenerationsRemaining - 1;
+      updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
       console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
     }
 

@@ -53,6 +53,16 @@ serve(async (req) => {
       );
     }
 
+    // Check founder/co-founder role for unlimited access
+    const { data: roleData } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      // @ts-ignore - enum types differ in edge env
+      .in("role", ["founder", "co_founder"]);
+
+    const isFounder = Array.isArray(roleData) && roleData.length > 0;
+
     // Check subscription status
     const { data: subData } = await supabaseClient
       .from("subscriptions")
@@ -62,8 +72,8 @@ serve(async (req) => {
 
     const hasActiveSubscription = subData?.status === "active";
 
-    // Video generation requires active subscription
-    if (!hasActiveSubscription) {
+    // Video generation requires active subscription unless founder
+    if (!isFounder && !hasActiveSubscription) {
       return new Response(
         JSON.stringify({ 
           error: "La génération de vidéos nécessite un abonnement actif.",
@@ -75,13 +85,16 @@ serve(async (req) => {
       );
     }
 
-    const videoGenerationsRemaining = subData?.video_generations_remaining || 0;
+    // Remaining generations (default to 5/month if null)
+    const videoGenerationsRemaining = typeof subData?.video_generations_remaining === "number"
+      ? subData!.video_generations_remaining
+      : 5;
 
-    // Check if user has remaining video generations
-    if (videoGenerationsRemaining <= 0) {
+    // Check if user has remaining video generations (founders bypass)
+    if (!isFounder && videoGenerationsRemaining <= 0) {
       return new Response(
         JSON.stringify({ 
-          error: "Vous avez épuisé vos 5 générations de vidéos mensuelles.",
+          error: "Vous avez épuisé vos générations de vidéos pour ce mois.",
           videoGenerationsRemaining: 0
         }),
         {
@@ -91,9 +104,13 @@ serve(async (req) => {
       );
     }
 
-    const { productName, niche, description, benefits, platform, style, price, personDescription } = await req.json();
+    const { productName, niche, description, benefits, platform, style, price, personDescription, duration } = await req.json();
     
-    console.log("Generating video for:", { productName, niche, platform, personDescription });
+    // Clamp duration between 5 and 15 seconds; default 10s; prefer 10 or 15 as per user request
+    const requestedDuration = Number(duration) || 10;
+    const safeDuration = Math.max(5, Math.min(15, requestedDuration));
+    
+    console.log("Generating video for:", { productName, niche, platform, personDescription, safeDuration });
 
     // Build prompt for image generation (optimized for speed)
     const imagePrompt = `Créez un visuel publicitaire professionnel et dynamique pour ${platform} :
@@ -136,14 +153,16 @@ Le visuel doit être:
       throw insertError;
     }
 
-    // Decrement video generations
-    const { error: updateError } = await supabaseClient
-      .from("subscriptions")
-      .update({ video_generations_remaining: videoGenerationsRemaining - 1 })
-      .eq("user_id", userId);
+    // Decrement video generations for subscribed non-founder users only
+    if (!isFounder && hasActiveSubscription) {
+      const { error: updateError } = await supabaseClient
+        .from("subscriptions")
+        .update({ video_generations_remaining: Math.max(0, videoGenerationsRemaining - 1) })
+        .eq("user_id", userId);
 
-    if (updateError) {
-      console.error("Error updating video generations:", updateError);
+      if (updateError) {
+        console.error("Error updating video generations:", updateError);
+      }
     }
 
     // Generate video using Lovable AI + Runway API - Fast generation (target: <15 seconds)
@@ -236,7 +255,7 @@ Le visuel doit être:
           model: "gen3a_turbo",
           promptImage: imagePublicUrl,
           promptText: `Animate this ${niche} advertisement for ${platform}. Add smooth transitions, dynamic camera movements, and professional effects. Style: ${style}. Make it engaging and eye-catching for social media.`,
-          duration: 5, // 5 seconds video for faster generation
+          duration: safeDuration, // clamp 5-15s
           ratio: "1280:768",
           watermark: false
         })
@@ -302,7 +321,7 @@ Le visuel doit être:
             videoId: videoData.id,
             videoUrl: imagePublicUrl,
             message: "Image générée, vidéo en cours de traitement...",
-            videoGenerationsRemaining: videoGenerationsRemaining - 1,
+            videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1),
             isProcessing: true
           }),
           {
@@ -361,7 +380,7 @@ Le visuel doit être:
           videoId: videoData.id,
           videoUrl: videoPublicUrl,
           message: `Vidéo MP4 animée générée avec succès en ${Math.round(totalTime/1000)}s !`,
-          videoGenerationsRemaining: videoGenerationsRemaining - 1
+          videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1)
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -383,7 +402,7 @@ Le visuel doit être:
         JSON.stringify({ 
           error: "Erreur lors de la génération de la vidéo",
           details: genError instanceof Error ? genError.message : "Unknown error",
-          videoGenerationsRemaining: videoGenerationsRemaining - 1
+          videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1)
         }),
         {
           status: 500,

@@ -35,6 +35,8 @@ const Generator = () => {
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [generationType, setGenerationType] = useState<"image" | "video">("image");
   const [isTouchUI, setIsTouchUI] = useState(false);
+  const [isFounder, setIsFounder] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<10 | 15>(10);
   
   useEffect(() => {
     const check = () => {
@@ -56,7 +58,25 @@ const Generator = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check subscription
+      // Check founder/co-founder role (unlimited access)
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        // @ts-ignore enum differences
+        .in("role", ["founder", "co_founder"]);
+
+      const isFounderOrCo = Array.isArray(roleData) && roleData.length > 0;
+      setIsFounder(isFounderOrCo);
+
+      if (isFounderOrCo) {
+        setHasActiveSubscription(true); // unlock all features in UI
+        setVideoGenerationsRemaining(999999);
+        setFreeGenerationsRemaining(999999);
+        return;
+      }
+
+      // Check subscription (regular users)
       const { data: subData } = await supabase
         .from("subscriptions")
         .select("status, video_generations_remaining")
