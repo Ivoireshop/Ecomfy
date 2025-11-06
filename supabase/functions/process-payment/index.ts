@@ -1,17 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface PaymentRequest {
-  amount: number;
-  payment_method: string;
-  user_id: string;
-  provider?: string;
-  phone?: string;
-}
+// Zod validation schema
+const PaymentSchema = z.object({
+  amount: z.literal(10000, {
+    errorMap: () => ({ message: "Le montant doit être exactement 10000 FCFA pour l'abonnement Premium" })
+  }),
+  payment_method: z.enum(["mobile_money", "card", "bank_card"], {
+    errorMap: () => ({ message: "Méthode de paiement invalide. Utilisez 'mobile_money' ou 'card'" })
+  }),
+  user_id: z.string().uuid({
+    message: "ID utilisateur invalide"
+  }),
+  provider: z.string().optional(),
+  phone: z.string().optional()
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -19,7 +27,87 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, payment_method, user_id, provider, phone }: PaymentRequest = await req.json();
+    // Extract and verify authenticated user from JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Non autorisé. Veuillez vous connecter." 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    let authUserId: string;
+    try {
+      const token = authHeader.replace("Bearer ", "");
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      authUserId = payload?.sub;
+      
+      if (!authUserId) {
+        throw new Error("Invalid token payload");
+      }
+    } catch (e) {
+      console.error("JWT parsing error:", e);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Token d'authentification invalide" 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // Parse and validate request body
+    const requestBody = await req.json();
+    
+    let validatedData;
+    try {
+      validatedData = PaymentSchema.parse(requestBody);
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        console.error("Validation error:", e.errors);
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "Données de paiement invalides",
+            details: e.errors.map(err => ({
+              field: err.path.join("."),
+              message: err.message
+            }))
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      throw e;
+    }
+
+    // Verify authenticated user matches the user_id in payment request
+    if (authUserId !== validatedData.user_id) {
+      console.warn("User ID mismatch:", { authUserId, requestUserId: validatedData.user_id });
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Vous ne pouvez initier un paiement que pour votre propre compte" 
+        }),
+        { 
+          status: 403, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    const { amount, payment_method, user_id, provider, phone } = validatedData;
 
     // Normalize provider and phone for Lygos compatibility
     const mapProvider = (p?: string) => {
