@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Gift } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { Badge } from "@/components/ui/badge";
 
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
@@ -22,11 +24,18 @@ const Auth = () => {
   const [signUpFullName, setSignUpFullName] = useState("");
   const [signUpPhone, setSignUpPhone] = useState("");
   const [signUpCountry, setSignUpCountry] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
 
   useEffect(() => {
+    // Check for referral code in URL
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode.toUpperCase());
+    }
+
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -132,6 +141,30 @@ const Auth = () => {
       });
 
       if (error) throw error;
+
+      // Process referral code if provided
+      if (referralCode && referralCode.length > 0) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: refResult, error: refError } = await supabase.rpc('process_referral_signup', {
+              referred_user_id: user.id,
+              referral_code_input: referralCode
+            });
+
+            if (refError) {
+              console.error("Erreur lors du traitement du parrainage:", refError);
+            } else if (refResult) {
+              toast({
+                title: "Bonus de parrainage ! 🎁",
+                description: "Vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) !",
+              });
+            }
+          }
+        } catch (refError) {
+          console.error("Erreur référence:", refError);
+        }
+      }
 
       toast({
         title: "Vérifiez votre email ! 📧",
@@ -256,7 +289,7 @@ const Auth = () => {
           <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary">
-              🎁 3 générations gratuites à l'inscription
+              🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
             </span>
           </div>
         </div>
@@ -382,23 +415,45 @@ const Auth = () => {
                       <option value="tchad">Tchad</option>
                       <option value="autre">Autre</option>
                     </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Mot de passe *</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signUpPassword}
-                      onChange={(e) => setSignUpPassword(e.target.value)}
-                      required
-                      minLength={8}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Min. 8 caractères avec majuscules, minuscules, chiffres et caractères spéciaux
-                    </p>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                   </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="signup-password">Mot de passe *</Label>
+                     <Input
+                       id="signup-password"
+                       type="password"
+                       placeholder="••••••••"
+                       value={signUpPassword}
+                       onChange={(e) => setSignUpPassword(e.target.value)}
+                       required
+                       minLength={8}
+                     />
+                     <p className="text-xs text-muted-foreground">
+                       Min. 8 caractères avec majuscules, minuscules, chiffres et caractères spéciaux
+                     </p>
+                   </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="referral-code">Code de parrainage (optionnel)</Label>
+                     <div className="relative">
+                       <Input
+                         id="referral-code"
+                         type="text"
+                         placeholder="Entrez un code"
+                         value={referralCode}
+                         onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                         className="pr-10"
+                       />
+                       {referralCode && (
+                         <Gift className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                       )}
+                     </div>
+                     {referralCode && (
+                       <Badge variant="secondary" className="gap-1 text-xs">
+                         <Gift className="h-3 w-3" />
+                         +5 générations gratuites au total
+                       </Badge>
+                     )}
+                   </div>
+                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -311,6 +311,39 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          bonus_generations: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          referral_code: string
+          referred_id: string | null
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          bonus_generations?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_id?: string | null
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          bonus_generations?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_id?: string | null
+          referrer_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       showcase_analytics: {
         Row: {
           browser: string | null
@@ -649,6 +682,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_referral_code: { Args: { user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -657,6 +691,10 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_usage: { Args: { promo_code: string }; Returns: boolean }
+      process_referral_signup: {
+        Args: { referral_code_input: string; referred_user_id: string }
+        Returns: boolean
+      }
       validate_promo_code: {
         Args: { promo_code: string }
         Returns: {
