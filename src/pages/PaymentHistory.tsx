@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeft, CreditCard, Smartphone, Receipt } from "lucide-react";
+import { Loader2, ArrowLeft, CreditCard, Smartphone, Receipt, Download } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 
 interface Payment {
@@ -119,6 +119,53 @@ const PaymentHistory = () => {
     });
   };
 
+  const exportToCSV = () => {
+    if (payments.length === 0) {
+      toast({
+        title: "Aucune donnée",
+        description: "Il n'y a aucun paiement à exporter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // En-têtes CSV
+    const headers = ["Date", "Méthode de paiement", "Fournisseur", "Montant", "Devise", "Statut", "ID Transaction"];
+    
+    // Données
+    const csvData = payments.map(payment => [
+      new Date(payment.created_at).toLocaleString("fr-FR"),
+      payment.payment_method === "card" || payment.payment_method === "bank_card" ? "Carte bancaire" : "Mobile Money",
+      payment.provider ? payment.provider.charAt(0).toUpperCase() + payment.provider.slice(1) : "N/A",
+      payment.amount.toString(),
+      payment.currency,
+      payment.status === "completed" ? "Complété" : payment.status === "pending" ? "En attente" : "Échoué",
+      payment.transaction_id || "N/A"
+    ]);
+
+    // Création du contenu CSV
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    // Création et téléchargement du fichier
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `historique_paiements_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export réussi",
+      description: "L'historique des paiements a été exporté en CSV",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -144,13 +191,23 @@ const PaymentHistory = () => {
       <div className="container mx-auto px-4 py-8">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Tous vos paiements
-            </CardTitle>
-            <CardDescription>
-              Consultez l'historique complet de vos transactions
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Tous vos paiements
+                </CardTitle>
+                <CardDescription>
+                  Consultez l'historique complet de vos transactions
+                </CardDescription>
+              </div>
+              {payments.length > 0 && (
+                <Button onClick={exportToCSV} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Exporter en CSV
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {payments.length === 0 ? (
