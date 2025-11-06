@@ -67,19 +67,49 @@ serve(async (req) => {
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Limite de requêtes dépassée. Veuillez réessayer plus tard.' }),
-          { 
-            status: 429, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Crédits insuffisants. Veuillez ajouter des crédits à votre workspace Lovable.' }),
-          { 
-            status: 402, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+        if (OPENAI_API_KEY) {
+          try {
+            const openaiResp = await fetch('https://api.openai.com/v1/images/generations', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'gpt-image-1',
+                prompt,
+                size: '1024x1024',
+                n: 1,
+              }),
+            });
+
+            if (openaiResp.ok) {
+              const openaiData = await openaiResp.json();
+              const b64 = openaiData.data?.[0]?.b64_json;
+              if (b64) {
+                const imageUrl = `data:image/png;base64,${b64}`;
+                return new Response(
+                  JSON.stringify({ imageUrl }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+            } else {
+              const t = await openaiResp.text();
+              console.error('OpenAI images API error:', openaiResp.status, t);
+            }
+          } catch (e) {
+            console.error('OpenAI fallback failed:', e);
           }
+        }
+
+        return new Response(
+          JSON.stringify({ error: 'Crédits IA épuisés. Ajoutez des crédits ou configurez OPENAI_API_KEY pour le fallback.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       const errorText = await response.text();
@@ -105,13 +135,14 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in generate-feature-image:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue';
+    const isTimeout = (error as any)?.name === 'AbortError' || (error as any)?.message === 'timeout' || (error as any) === 'timeout';
+    const status = isTimeout ? 504 : 500;
+    const errorMessage = isTimeout
+      ? 'Le service est temporairement lent. Réessayez dans un instant.'
+      : (error instanceof Error ? error.message : 'Une erreur est survenue');
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
