@@ -64,6 +64,9 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const origin = req.headers.get("origin") || undefined;
+    const referer = req.headers.get("referer") || undefined;
+    const baseReturnUrl = origin || (referer ? new URL(referer).origin : undefined);
     const orderId = `sub_${user_id}_${Date.now()}`;
 
     console.log("Calling Lygos API:", {
@@ -78,7 +81,7 @@ serve(async (req) => {
       order_id: orderId
     });
 
-    // Build payload based on method
+    // Build payload base (callback URLs will be attached after method/provider resolution)
     const basePayload = {
       amount,
       currency: "XOF",
@@ -87,8 +90,6 @@ serve(async (req) => {
       message: "Abonnement Visuel Pro - Plan Premium",
       user_id,
       order_id: orderId,
-      success_url: `${supabaseUrl}/functions/v1/payment-callback?status=success&user_id=${user_id}&amount=${amount}&transaction_id=${orderId}`,
-      failure_url: `${supabaseUrl}/functions/v1/payment-callback?status=failure&user_id=${user_id}`,
     } as Record<string, unknown>;
 
     let payload: Record<string, unknown> = { ...basePayload };
@@ -102,10 +103,31 @@ serve(async (req) => {
         payload.provider = normalizedProvider;
         payload.operator = normalizedProvider;
       }
-      if (normalizedPhone) {
+      if (normalizedPhone && normalizedProvider !== 'wave') {
         payload.phone = normalizedPhone;
       }
     }
+
+    // Attach callback URLs including return_url and metadata for recording
+    const successParams = new URLSearchParams({
+      status: 'success',
+      user_id,
+      amount: String(amount),
+      transaction_id: orderId,
+      payment_method: String((payload as any).payment_method || ''),
+      provider: String((payload as any).provider || ''),
+      return_url: baseReturnUrl || ''
+    });
+    const failureParams = new URLSearchParams({
+      status: 'failure',
+      user_id,
+      payment_method: String((payload as any).payment_method || ''),
+      provider: String((payload as any).provider || ''),
+      return_url: baseReturnUrl || ''
+    });
+
+    (payload as any).success_url = `${supabaseUrl}/functions/v1/payment-callback?${successParams.toString()}`;
+    (payload as any).failure_url = `${supabaseUrl}/functions/v1/payment-callback?${failureParams.toString()}`;
 
     console.log('Gateway payload (sanitized):', { ...payload, phone: phoneMasked });
 

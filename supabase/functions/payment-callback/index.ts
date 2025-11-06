@@ -25,6 +25,9 @@ serve(async (req) => {
         user_id: url.searchParams.get("user_id"),
         amount: url.searchParams.get("amount"),
         transaction_id: url.searchParams.get("transaction_id"),
+        payment_method: url.searchParams.get("payment_method"),
+        provider: url.searchParams.get("provider"),
+        return_url: url.searchParams.get("return_url"),
       };
     }
 
@@ -34,7 +37,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { status, user_id, amount, transaction_id } = paymentData;
+    const { status, user_id, amount, transaction_id, payment_method, provider, return_url } = paymentData;
 
     if (status === "success" || status === "completed") {
       const startDate = new Date();
@@ -58,14 +61,16 @@ serve(async (req) => {
 
       console.log("Subscription activated for user:", user_id);
 
-      // Enregistrer le paiement dans la table payments
       const { error: paymentError } = await supabase
         .from("payments")
         .insert({
           user_id: user_id,
+          payment_method: payment_method || "mobile_money",
           amount: parseFloat(amount),
-          status: "completed",
+          currency: "XOF",
+          provider: provider || null,
           transaction_id: transaction_id,
+          status: "completed",
         });
 
       if (paymentError) {
@@ -101,24 +106,31 @@ serve(async (req) => {
       }
 
       // Rediriger l'utilisateur vers la page de succès
-      const frontendUrl = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "lovableproject.com") || url.origin;
+      const explicitReturn = return_url || url.searchParams.get("return_url") || null;
+      const originHeader = req.headers.get("origin");
+      const refererHeader = req.headers.get("referer");
+      const computedOrigin = originHeader || (refererHeader ? new URL(refererHeader).origin : "");
+      const finalReturnUrl = explicitReturn || computedOrigin || "";
       return new Response(null, {
         status: 302,
         headers: {
           ...corsHeaders,
-          "Location": `${frontendUrl}/subscription?payment=success`,
+          "Location": `${finalReturnUrl || "/"}/?payment=success`,
         },
       });
     } else {
-      console.log("Payment not successful, status:", status);
       
       // Rediriger vers la page d'échec
-      const frontendUrl = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "lovableproject.com") || url.origin;
+      const explicitReturn = return_url || url.searchParams.get("return_url") || null;
+      const originHeader = req.headers.get("origin");
+      const refererHeader = req.headers.get("referer");
+      const computedOrigin = originHeader || (refererHeader ? new URL(refererHeader).origin : "");
+      const finalReturnUrl = explicitReturn || computedOrigin || "";
       return new Response(null, {
         status: 302,
         headers: {
           ...corsHeaders,
-          "Location": `${frontendUrl}/subscription?payment=failed`,
+          "Location": `${finalReturnUrl || "/"}/?payment=failed`,
         },
       });
     }

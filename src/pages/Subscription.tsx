@@ -59,17 +59,18 @@ const Subscription = () => {
   useEffect(() => {
     // Vérifier les paramètres de retour de paiement
     const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get("payment");
+    const paymentStatus = urlParams.get("payment") || urlParams.get("status");
 
-    if (paymentStatus === "success") {
+    if (paymentStatus === "success" || paymentStatus === "completed") {
       toast({
         title: "Paiement réussi ! 🎉",
         description: "Votre abonnement a été activé avec succès",
       });
       loadSubscription();
-      // Nettoyer l'URL
-      window.history.replaceState({}, "", "/subscription");
-    } else if (paymentStatus === "failed") {
+      // Rediriger vers l'accueil
+      window.history.replaceState({}, "", "/");
+      navigate("/");
+    } else if (paymentStatus === "failed" || paymentStatus === "failure") {
       toast({
         title: "Paiement échoué",
         description: "Le paiement n'a pas pu être effectué. Veuillez réessayer.",
