@@ -18,10 +18,28 @@ import exampleRealestate from "@/assets/example-realestate-ad.jpg";
 const Index = () => {
   const navigate = useNavigate();
   const [publishedFeedback, setPublishedFeedback] = useState<any[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const carouselImages = [
+    { src: exampleHandbag, alt: "Publicité sac à main" },
+    { src: examplePhone, alt: "Publicité smartphone" },
+    { src: exampleFood, alt: "Publicité restaurant" },
+    { src: exampleBeauty, alt: "Publicité beauté" },
+    { src: exampleFitness, alt: "Publicité fitness" },
+    { src: exampleRealestate, alt: "Publicité immobilier" },
+  ];
 
   useEffect(() => {
     loadPublishedFeedback();
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % carouselImages.length);
+    }, 3000); // Change image every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [carouselImages.length]);
 
   const loadPublishedFeedback = async () => {
     const { data, error } = await supabase
@@ -77,49 +95,45 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Image Gallery - Dynamic showcase */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
-            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in">
-              <img 
-                src={exampleHandbag} 
-                alt="Publicité sac à main" 
-                className="w-full h-48 object-cover"
-              />
+          {/* Image Carousel - Dynamic showcase */}
+          <div className="relative mb-12 max-w-4xl mx-auto">
+            <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
+              {carouselImages.map((image, index) => (
+                <div
+                  key={index}
+                  className={`absolute inset-0 transition-opacity duration-1000 ${
+                    index === currentImageIndex ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute bottom-8 left-8 right-8">
+                    <p className="text-white text-xl font-semibold drop-shadow-lg">
+                      {image.alt}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <img 
-                src={examplePhone} 
-                alt="Publicité smartphone" 
-                className="w-full h-48 object-cover"
-              />
-            </div>
-            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <img 
-                src={exampleFood} 
-                alt="Publicité restaurant" 
-                className="w-full h-48 object-cover"
-              />
-            </div>
-            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <img 
-                src={exampleBeauty} 
-                alt="Publicité beauté" 
-                className="w-full h-48 object-cover"
-              />
-            </div>
-            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              <img 
-                src={exampleFitness} 
-                alt="Publicité fitness" 
-                className="w-full h-48 object-cover"
-              />
-            </div>
-            <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 animate-fade-in" style={{ animationDelay: '0.5s' }}>
-              <img 
-                src={exampleRealestate} 
-                alt="Publicité immobilier" 
-                className="w-full h-48 object-cover"
-              />
+            
+            {/* Carousel indicators */}
+            <div className="flex justify-center gap-2 mt-6">
+              {carouselImages.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    index === currentImageIndex
+                      ? "w-8 bg-primary"
+                      : "w-2 bg-primary/30 hover:bg-primary/50"
+                  }`}
+                  aria-label={`Aller à l'image ${index + 1}`}
+                />
+              ))}
             </div>
           </div>
 
