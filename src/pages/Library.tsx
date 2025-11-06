@@ -283,6 +283,15 @@ const Library = () => {
                         <div className="text-center">
                           <p className="text-sm text-destructive">Échec de la génération</p>
                         </div>
+                      ) : video.video_url.endsWith('.mp4') ? (
+                        <video 
+                          src={video.video_url} 
+                          className="w-full h-full object-cover"
+                          controls
+                          loop
+                          muted
+                          playsInline
+                        />
                       ) : (
                         <img 
                           src={video.video_url} 
@@ -304,13 +313,16 @@ const Library = () => {
                             size="sm"
                             variant="outline"
                             className="flex-1"
-                            onClick={() => handleDownload(
-                              video.video_url, 
-                              `${video.product_details?.productName || 'video'}.png`
-                            )}
+                            onClick={() => {
+                              const extension = video.video_url.endsWith('.mp4') ? 'mp4' : 'png';
+                              handleDownload(
+                                video.video_url, 
+                                `${video.product_details?.productName || 'video'}.${extension}`
+                              );
+                            }}
                           >
                             <Download className="h-4 w-4 mr-1" />
-                            Télécharger PNG
+                            {video.video_url.endsWith('.mp4') ? 'Télécharger MP4' : 'Télécharger PNG'}
                           </Button>
                           <Button
                             size="sm"
