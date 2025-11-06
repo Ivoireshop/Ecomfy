@@ -112,6 +112,8 @@ serve(async (req) => {
         payment_method: url.searchParams.get("payment_method"),
         provider: url.searchParams.get("provider"),
         return_url: url.searchParams.get("return_url"),
+        promo_code_id: url.searchParams.get("promo_code_id"),
+        discount_percentage: url.searchParams.get("discount_percentage"),
       };
       
       // Note: GET redirects from Lygos are user-facing and don't need signature verification
@@ -130,7 +132,17 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { status, user_id, amount, transaction_id, payment_method, provider, return_url } = paymentData;
+    const { 
+      status, 
+      user_id, 
+      amount, 
+      transaction_id, 
+      payment_method, 
+      provider, 
+      return_url,
+      promo_code_id,
+      discount_percentage 
+    } = paymentData;
 
     if (status === "success" || status === "completed") {
       const startDate = new Date();
@@ -164,10 +176,40 @@ serve(async (req) => {
           provider: provider || null,
           transaction_id: transaction_id,
           status: "completed",
+          metadata: promo_code_id ? {
+            promo_code_id,
+            discount_percentage: discount_percentage ? parseInt(discount_percentage) : 0
+          } : null
         });
 
       if (paymentError) {
         console.error("Error recording payment:", paymentError);
+      }
+
+      // Increment promo code usage if a promo code was used
+      if (promo_code_id) {
+        try {
+          // Get the promo code to increment
+          const { data: promoCode } = await supabase
+            .from("promo_codes")
+            .select("code")
+            .eq("id", promo_code_id)
+            .single();
+
+          if (promoCode) {
+            const { error: incrementError } = await supabase
+              .rpc("increment_promo_usage", { promo_code: promoCode.code });
+
+            if (incrementError) {
+              console.error("Error incrementing promo code usage:", incrementError);
+            } else {
+              console.log("Promo code usage incremented:", promoCode.code);
+            }
+          }
+        } catch (promoError) {
+          console.error("Error processing promo code increment:", promoError);
+          // Don't fail the payment if promo increment fails
+        }
       }
 
       // Récupérer les informations du profil pour l'email

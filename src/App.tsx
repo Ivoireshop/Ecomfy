@@ -21,6 +21,7 @@ import ShowcaseManager from "./pages/ShowcaseManager";
 import ShowcaseEditor from "./pages/ShowcaseEditor";
 import PaymentHistory from "./pages/PaymentHistory";
 import PromoCodeManager from "./pages/PromoCodeManager";
+import FounderDashboard from "./pages/FounderDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -113,6 +114,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <PromoCodeManager />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/founder-dashboard" 
+          element={
+            <ProtectedRoute>
+              <FounderDashboard />
             </ProtectedRoute>
           } 
         />

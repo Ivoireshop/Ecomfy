@@ -1,4 +1,4 @@
-import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag } from "lucide-react";
+import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -80,19 +80,34 @@ export function AppSidebar() {
               ))}
               
               {isFounder && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to="/promo-codes" 
-                      className={({ isActive }) =>
-                        isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                      }
-                    >
-                      <Tag className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                      {!isCollapsed && <span>Codes Promo</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink 
+                        to="/founder-dashboard" 
+                        className={({ isActive }) =>
+                          isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+                        }
+                      >
+                        <BarChart className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
+                        {!isCollapsed && <span>Tableau de Bord</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink 
+                        to="/promo-codes" 
+                        className={({ isActive }) =>
+                          isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+                        }
+                      >
+                        <Tag className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
+                        {!isCollapsed && <span>Codes Promo</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
               )}
             </SidebarMenu>
           </SidebarGroupContent>

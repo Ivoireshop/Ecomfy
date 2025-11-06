@@ -272,6 +272,45 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          current_uses: number
+          discount_percentage: number
+          expires_at: string
+          id: string
+          is_active: boolean
+          max_uses: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          current_uses?: number
+          discount_percentage: number
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          max_uses: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          current_uses?: number
+          discount_percentage?: number
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       showcase_analytics: {
         Row: {
           browser: string | null
@@ -616,6 +655,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_promo_usage: { Args: { promo_code: string }; Returns: boolean }
+      validate_promo_code: {
+        Args: { promo_code: string }
+        Returns: {
+          discount_percentage: number
+          is_valid: boolean
+          message: string
+        }[]
       }
     }
     Enums: {
