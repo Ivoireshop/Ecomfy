@@ -125,11 +125,26 @@ const Library = () => {
     }
   };
 
-  const handleDownload = (url: string, filename: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger le fichier",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -264,10 +279,14 @@ const Library = () => {
                           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
                           <p className="text-sm text-muted-foreground">Génération en cours...</p>
                         </div>
+                      ) : video.status === "failed" ? (
+                        <div className="text-center">
+                          <p className="text-sm text-destructive">Échec de la génération</p>
+                        </div>
                       ) : (
-                        <video 
+                        <img 
                           src={video.video_url} 
-                          controls
+                          alt={video.product_details?.productName || "Vidéo générée"}
                           className="w-full h-full object-cover"
                         />
                       )}
@@ -287,11 +306,11 @@ const Library = () => {
                             className="flex-1"
                             onClick={() => handleDownload(
                               video.video_url, 
-                              `${video.product_details?.productName || 'video'}.mp4`
+                              `${video.product_details?.productName || 'video'}.png`
                             )}
                           >
                             <Download className="h-4 w-4 mr-1" />
-                            Télécharger
+                            Télécharger PNG
                           </Button>
                           <Button
                             size="sm"

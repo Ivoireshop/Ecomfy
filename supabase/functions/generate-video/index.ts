@@ -188,17 +188,41 @@ Le visuel doit être:
         throw new Error("No image URL in response");
       }
 
-      console.log("Image generated successfully, creating video...");
+      console.log("Image generated successfully, uploading to storage...");
 
-      // For now, use the generated image as the video thumbnail
-      // In a production environment, you would use a service like FFmpeg to create an actual video
-      // with animations, transitions, and effects from the generated image
+      // Extract base64 data
+      const base64Data = generatedImageUrl.split(',')[1];
+      const buffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
       
-      // Update the video record with the generated image
+      // Upload to Supabase Storage with user_id in path
+      const fileName = `${userId}/videos/${videoData.id}.png`;
+      const { error: uploadError } = await supabaseClient
+        .storage
+        .from('generated-content')
+        .upload(fileName, buffer, {
+          contentType: 'image/png',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabaseClient
+        .storage
+        .from('generated-content')
+        .getPublicUrl(fileName);
+
+      const publicUrl = urlData.publicUrl;
+      console.log("Image uploaded to storage:", publicUrl);
+      
+      // Update the video record with the public URL
       const { error: updateVideoError } = await supabaseClient
         .from("generated_videos")
         .update({
-          video_url: generatedImageUrl,
+          video_url: publicUrl,
           status: "completed",
         })
         .eq("id", videoData.id);
