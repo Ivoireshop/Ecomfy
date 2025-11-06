@@ -49,9 +49,13 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       } else {
         toast.error("Erreur lors de la génération de l'image");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating image:", error);
-      toast.error("Une erreur est survenue lors de la génération");
+      const status = error?.status as number | undefined;
+      if (status === 401) toast.error("Session expirée. Veuillez vous reconnecter.");
+      else if (status === 402) toast.error("Crédits IA insuffisants. Réessayez plus tard ou ajoutez des crédits.");
+      else if (status === 429) toast.error("Trop de requêtes. Patientez un instant et réessayez.");
+      else toast.error(error?.message || "Une erreur est survenue lors de la génération");
     } finally {
       setIsGenerating(false);
     }

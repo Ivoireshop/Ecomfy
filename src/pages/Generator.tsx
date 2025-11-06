@@ -133,6 +133,7 @@ const Generator = () => {
           style,
           price,
           personDescription,
+          duration: videoDuration,
         },
       });
 
@@ -258,6 +259,14 @@ const Generator = () => {
               Remplissez le formulaire et laissez l'IA créer du contenu professionnel pour vous
             </p>
             
+            {isFounder && (
+              <Alert className="mt-4 max-w-2xl mx-auto">
+                <AlertDescription className="text-center">
+                  🔓 Vous avez un accès illimité à la génération d'images et de vidéos.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {!hasActiveSubscription && freeGenerationsRemaining !== null && (
               <Alert className="mt-4 max-w-2xl mx-auto">
                 <AlertDescription className="text-center">
@@ -274,7 +283,7 @@ const Generator = () => {
               </Alert>
             )}
 
-            {hasActiveSubscription && (
+            {hasActiveSubscription && !isFounder && (
               <Alert className="mt-4 max-w-2xl mx-auto">
                 <AlertDescription className="text-center">
                   🎬 <strong>Génération de vidéos :</strong> Il vous reste <strong>{videoGenerationsRemaining}</strong> vidéo{videoGenerationsRemaining > 1 ? 's' : ''} ce mois-ci

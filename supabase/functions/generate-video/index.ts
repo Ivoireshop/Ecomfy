@@ -181,7 +181,9 @@ Le visuel doit être:
       }
 
       // Step 1: Generate base image with Lovable AI (fast, ~3-5 seconds)
+      // Step 1: Generate base image with Lovable AI, fallback to OpenAI if credits (402)
       console.log("Step 1: Generating base image with Lovable AI...");
+      let generatedImageUrl: string | null = null;
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -191,10 +193,7 @@ Le visuel doit être:
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-image-preview",
           messages: [
-            {
-              role: "user",
-              content: imagePrompt
-            }
+            { role: "user", content: imagePrompt }
           ],
           modalities: ["image", "text"]
         })
@@ -202,16 +201,43 @@ Le visuel doit être:
 
       if (!imageResponse.ok) {
         const errorText = await imageResponse.text();
-        console.error("Lovable AI image generation failed:", errorText);
-        throw new Error(`Image generation failed: ${imageResponse.status}`);
+        console.error("Lovable AI image generation failed:", imageResponse.status, errorText);
+        if (imageResponse.status === 402) {
+          const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+          if (OPENAI_API_KEY) {
+            console.log("Lovable AI crédits insuffisants. Fallback OpenAI gpt-image-1");
+            const openaiResp = await fetch("https://api.openai.com/v1/images/generations", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${OPENAI_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "gpt-image-1",
+                prompt: imagePrompt,
+                size: "1024x1024",
+                n: 1
+              }),
+            });
+            if (openaiResp.ok) {
+              const openaiData = await openaiResp.json();
+              const b64 = openaiData.data?.[0]?.b64_json;
+              if (b64) generatedImageUrl = `data:image/png;base64,${b64}`;
+            } else {
+              const t = await openaiResp.text();
+              console.error("OpenAI images API error:", openaiResp.status, t);
+            }
+          }
+        }
+      } else {
+        const imageData = await imageResponse.json();
+        generatedImageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
       }
 
-      const imageData = await imageResponse.json();
-      const generatedImageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-      
       if (!generatedImageUrl) {
-        throw new Error("No image URL in response");
+        throw new Error("Image source non disponible (Lovable/OPENAI). Réessayez plus tard.");
       }
+
 
       console.log("Base image generated successfully");
 
