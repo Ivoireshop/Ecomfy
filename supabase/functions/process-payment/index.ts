@@ -316,6 +316,36 @@ serve(async (req) => {
     const paymentData = await paymentResponse.json();
     console.log("Lygos API response:", paymentData);
     
+    // Send notification email to founders if promo code was used
+    if (promo_code && promoCodeId) {
+      try {
+        // Get user profile for notification
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', user_id)
+          .single();
+
+        if (userProfile) {
+          // Call notification function
+          await supabase.functions.invoke('send-promo-notification', {
+            body: {
+              userName: userProfile.full_name || 'Utilisateur',
+              userEmail: userProfile.email || '',
+              promoCode: promo_code,
+              discountPercentage,
+              originalAmount: amount,
+              discountedAmount: finalAmount
+            }
+          });
+          console.log('Promo notification sent to founders');
+        }
+      } catch (notifError) {
+        console.error('Error sending promo notification:', notifError);
+        // Don't fail the payment if notification fails
+      }
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: true,
