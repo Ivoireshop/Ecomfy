@@ -31,6 +31,8 @@ const PromoCodeManager = () => {
   const [discountPercentage, setDiscountPercentage] = useState(20);
   const [maxUses, setMaxUses] = useState(20);
   const [isFounder, setIsFounder] = useState(false);
+  const [customCode, setCustomCode] = useState("");
+  const [useCustomCode, setUseCustomCode] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -118,9 +120,36 @@ const PromoCodeManager = () => {
   const createPromoCode = async () => {
     if (!session?.user?.id) return;
 
+    // Validate custom code if using custom
+    if (useCustomCode) {
+      if (!customCode || customCode.trim().length < 4) {
+        toast({
+          title: "Code invalide",
+          description: "Le code personnalisé doit contenir au moins 4 caractères",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Check if code already exists
+      const { data: existing } = await (supabase as any)
+        .from("promo_codes")
+        .select("code")
+        .eq("code", customCode.toUpperCase().trim());
+      
+      if (existing && existing.length > 0) {
+        toast({
+          title: "Code existant",
+          description: "Ce code promo existe déjà. Veuillez en choisir un autre.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsCreating(true);
     try {
-      const code = generateCode();
+      const code = useCustomCode ? customCode.toUpperCase().trim() : generateCode();
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 48); // 48 hours from now
 
@@ -142,6 +171,7 @@ const PromoCodeManager = () => {
         description: `Le code ${code} a été créé avec succès`,
       });
 
+      setCustomCode("");
       loadPromoCodes();
     } catch (error) {
       console.error("Error creating promo code:", error);
@@ -231,6 +261,38 @@ const PromoCodeManager = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <Button
+                    variant={!useCustomCode ? "default" : "outline"}
+                    onClick={() => setUseCustomCode(false)}
+                    className="flex-1"
+                  >
+                    Générer automatiquement
+                  </Button>
+                  <Button
+                    variant={useCustomCode ? "default" : "outline"}
+                    onClick={() => setUseCustomCode(true)}
+                    className="flex-1"
+                  >
+                    Code personnalisé
+                  </Button>
+                </div>
+
+                {useCustomCode && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customCode">Code personnalisé</Label>
+                    <Input
+                      id="customCode"
+                      type="text"
+                      placeholder="Ex: PROMO2025"
+                      value={customCode}
+                      onChange={(e) => setCustomCode(e.target.value)}
+                      maxLength={20}
+                    />
+                    <p className="text-xs text-muted-foreground">Minimum 4 caractères, maximum 20</p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="discount">Réduction (%)</Label>
@@ -266,7 +328,7 @@ const PromoCodeManager = () => {
                   ) : (
                     <>
                       <Plus className="mr-2 h-4 w-4" />
-                      Générer un code promo
+                      {useCustomCode ? "Créer le code personnalisé" : "Générer un code promo"}
                     </>
                   )}
                 </Button>

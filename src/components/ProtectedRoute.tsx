@@ -14,6 +14,7 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
   const [isLoading, setIsLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState(0);
+  const [isFounder, setIsFounder] = useState(false);
 
   useEffect(() => {
     // Check for existing session
@@ -43,7 +44,26 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
 
   const checkSubscription = async (userId: string) => {
     try {
-      // Check subscription
+      // Check if user is founder or co-founder
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        // @ts-ignore - Role types will be updated after migration
+        .in("role", ["founder", "co_founder"]);
+
+      const isFounderOrCofounder = roleData && roleData.length > 0;
+      setIsFounder(isFounderOrCofounder);
+
+      // Founders and co-founders have unlimited access
+      if (isFounderOrCofounder) {
+        setHasActiveSubscription(true);
+        setFreeGenerationsRemaining(999999); // Effectively unlimited
+        setIsLoading(false);
+        return;
+      }
+
+      // Check subscription for regular users
       const { data: subData, error: subError } = await supabase
         .from("subscriptions")
         .select("status")
@@ -86,7 +106,8 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
     return <Navigate to="/auth" replace />;
   }
 
-  if (requireActiveSubscription && !hasActiveSubscription && freeGenerationsRemaining <= 0) {
+  // Founders and co-founders bypass subscription requirements
+  if (requireActiveSubscription && !isFounder && !hasActiveSubscription && freeGenerationsRemaining <= 0) {
     return <Navigate to="/subscription" replace />;
   }
 
