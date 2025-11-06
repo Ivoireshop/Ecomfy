@@ -25,63 +25,54 @@ serve(async (req) => {
   }
 
   try {
-    // Get user from auth header
+    // Get user from auth header (optional for public access)
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Non authentifié" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
+    
+    // Create Supabase client (with or without auth)
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
+      authHeader ? {
         global: {
           headers: { Authorization: authHeader },
         },
-      }
+      } : undefined
     );
 
-    // Get authenticated user using Supabase helper (avoids manual JWT parsing)
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Non authentifié" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    let userId = null;
+    let isFounder = false;
+    let hasActiveSubscription = false;
+
+    if (authHeader) {
+      // Get authenticated user
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+      if (user) {
+        userId = user.id;
+
+        // Check founder/co-founder role for unlimited access
+        const { data: roleData } = await supabaseClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          // @ts-ignore enum type differences
+          .in("role", ["founder", "co_founder"]);
+
+        isFounder = Array.isArray(roleData) && roleData.length > 0;
+
+        // Check subscription status
+        const { data: subData } = await supabaseClient
+          .from("subscriptions")
+          .select("status")
+          .eq("user_id", userId)
+          .single();
+
+        hasActiveSubscription = isFounder || subData?.status === "active";
+      }
     }
-    const userId = user.id;
 
-    // Check founder/co-founder role for unlimited access
-    const { data: roleData } = await supabaseClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      // @ts-ignore enum type differences
-      .in("role", ["founder", "co_founder"]);
-
-    const isFounder = Array.isArray(roleData) && roleData.length > 0;
-
-    // Check subscription status
-    const { data: subData } = await supabaseClient
-      .from("subscriptions")
-      .select("status")
-      .eq("user_id", userId)
-      .single();
-
-    const hasActiveSubscription = isFounder || subData?.status === "active";
-
-    // Check free generations (ignored for founders or subscribers)
+    // Check free generations (only for non-authenticated or non-subscribed users)
     let freeGenerationsRemaining = 0;
-    if (!hasActiveSubscription) {
+    if (userId && !hasActiveSubscription) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
         .select("free_generations_remaining")

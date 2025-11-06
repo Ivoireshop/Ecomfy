@@ -232,24 +232,39 @@ Create a stunning Facebook advertising visual that looks like a professional mar
 
     const data = await response.json();
     console.log('AI response received');
-    console.log('Response structure:', JSON.stringify(data, null, 2));
+    console.log('Full response data:', JSON.stringify(data, null, 2));
 
     // Extract the generated image - try multiple possible paths
-    let imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    let imageUrl = null;
     
-    // Alternative path for image
-    if (!imageUrl) {
-      imageUrl = data.choices?.[0]?.message?.content?.images?.[0]?.image_url?.url;
+    // Standard path
+    if (data.choices?.[0]?.message?.images?.[0]?.image_url?.url) {
+      imageUrl = data.choices[0].message.images[0].image_url.url;
+      console.log('Image found at standard path');
     }
-    
-    // Check if image is in a different structure
-    if (!imageUrl && data.choices?.[0]?.message?.images?.[0]) {
+    // Alternative path 1
+    else if (data.choices?.[0]?.message?.images?.[0]?.url) {
+      imageUrl = data.choices[0].message.images[0].url;
+      console.log('Image found at alternative path 1');
+    }
+    // Alternative path 2
+    else if (data.choices?.[0]?.message?.images?.[0]) {
       const img = data.choices[0].message.images[0];
-      imageUrl = img.url || img.image_url?.url || img.image_url;
+      imageUrl = img.image_url?.url || img.url || img;
+      console.log('Image found at alternative path 2');
+    }
+    // Alternative path 3 - in content
+    else if (data.choices?.[0]?.message?.content) {
+      const content = data.choices[0].message.content;
+      if (typeof content === 'string' && content.startsWith('data:image')) {
+        imageUrl = content;
+        console.log('Image found in content as data URL');
+      }
     }
     
     if (!imageUrl) {
-      console.error('Failed to extract image. Response:', JSON.stringify(data));
+      console.error('Failed to extract image from response');
+      console.error('Response structure:', JSON.stringify(data, null, 2));
       throw new Error('No image generated in response');
     }
 
