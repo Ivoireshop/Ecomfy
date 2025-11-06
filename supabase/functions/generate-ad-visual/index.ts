@@ -34,16 +34,9 @@ serve(async (req) => {
       }
     );
 
-    // Extract userId from verified JWT (platform already validated the token)
-    const token = authHeader.replace("Bearer ", "");
-    let userId: string | null = null;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      userId = payload?.sub ?? null;
-    } catch (e) {
-      console.error("JWT parse error:", e);
-    }
-    if (!userId) {
+    // Get authenticated user using Supabase helper (avoids manual JWT parsing)
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Non authentifié" }),
         {
@@ -52,6 +45,7 @@ serve(async (req) => {
         }
       );
     }
+    const userId = user.id;
 
     // Check founder/co-founder role for unlimited access
     const { data: roleData } = await supabaseClient
