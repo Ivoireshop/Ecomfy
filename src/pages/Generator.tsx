@@ -249,7 +249,20 @@ const Generator = () => {
       try {
         const promptText = `${productName} - ${niche}. ${description}. ${benefits || ''}`.slice(0, 500);
         const { data: fbData, error: fbError } = await supabase.functions.invoke('generate-feature-image', {
-          body: { prompt: promptText }
+          body: {
+            productName,
+            niche,
+            description,
+            benefits,
+            container,
+            platform,
+            style,
+            price,
+            promotionalPrice,
+            posology,
+            productImage,
+            personDescription
+          }
         });
 
         if (fbError) throw fbError;

@@ -57,7 +57,12 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       } else {
         // Fallback vers le moteur léger si pas d'image retournée
         const { data: fbData, error: fbError } = await supabase.functions.invoke('generate-feature-image', {
-          body: { prompt }
+          body: {
+            prompt,
+            productName: `${imageType}-image`,
+            niche: imageType,
+            description: prompt
+          }
         });
         if (fbError) throw fbError;
         if (fbData?.imageUrl) {
@@ -78,7 +83,14 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
 
       // Tentative finale de fallback si l'erreur survient avant le fallback ci-dessus
       try {
-        const { data: fbData } = await supabase.functions.invoke('generate-feature-image', { body: { prompt } });
+        const { data: fbData } = await supabase.functions.invoke('generate-feature-image', {
+          body: {
+            prompt,
+            productName: `${imageType}-image`,
+            niche: imageType,
+            description: prompt
+          }
+        });
         if (fbData?.imageUrl) {
           setGeneratedImage(fbData.imageUrl);
           toast.success("Image générée (moteur alternatif)");

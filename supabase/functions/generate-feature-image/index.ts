@@ -25,11 +25,12 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt } = await req.json();
+    const body = await req.json();
+    const { prompt, productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription } = body;
     
-    if (!prompt) {
+    if (!prompt && !productName) {
       return new Response(
-        JSON.stringify({ error: 'Prompt is required' }),
+        JSON.stringify({ error: 'Prompt or product information is required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -37,12 +38,124 @@ serve(async (req) => {
       );
     }
 
+    // Build professional advertising prompt if product details provided
+    let finalPrompt = prompt;
+    
+    if (productName) {
+      finalPrompt = `You are an expert advertising visual creator specializing in the African market. 
+
+CRITICAL: All text in the generated image MUST be in perfect French with NO spelling errors. Double-check every word for correct French orthography, grammar, and accents.
+
+PRODUCT INFORMATION:
+- Product Name: ${productName}
+- Niche: ${niche || 'Général'}
+- Description: ${description || ''}`;
+      
+      if (price && promotionalPrice) {
+        finalPrompt += `\n- Promotional Price (crossed out): ${promotionalPrice}`;
+        finalPrompt += `\n- Current Price: ${price} (MUST be prominently displayed with promotional price crossed out to show discount)`;
+      } else if (price) {
+        finalPrompt += `\n- Price: ${price} (MUST be prominently displayed on the visual)`;
+      }
+      
+      if (benefits) {
+        finalPrompt += `\n- Key Benefits: ${benefits}`;
+      }
+      
+      if (posology) {
+        finalPrompt += `\n- Dosage/Usage: ${posology} (include this information on the visual)`;
+      }
+      
+      if (container) {
+        finalPrompt += `\n- Container/Packaging: ${container}`;
+      }
+      
+      if (personDescription) {
+        finalPrompt += `\n\nPERSON/SCENE STAGING:
+The user wants to feature a person with the product. Description: "${personDescription}"
+- Integrate this person naturally with the product
+- The person should complement and highlight the product
+- Ensure authentic and professional scene`;
+      }
+
+      finalPrompt += `\n\nVISUAL STYLE:`;
+      
+      if (style) {
+        const styleDescriptions: Record<string, string> = {
+          moderne: "Modern and clean design with contemporary African aesthetics - bold typography, vibrant colors, sleek product presentation",
+          luxueux: "Luxury and premium design with elegant African touches - gold accents, sophisticated palettes, refined imagery",
+          humoristique: "Fun, playful style resonating with African humor - bright colors, expressive faces, relatable situations",
+          traditionnel: "Traditional African style celebrating cultural heritage - authentic patterns, warm earth tones, cultural symbols",
+          minimaliste: "Minimalist and clean with African warmth - simple composition, focus on product, subtle cultural elements",
+          dynamique: "Dynamic and energetic style capturing African vibrancy - motion effects, bold contrasts, youthful energy",
+        };
+        finalPrompt += `\n${styleDescriptions[style] || style}`;
+      }
+      
+      const platformSpecs: Record<string, string> = {
+        facebook: "\n\nFacebook ad (1200x628px): eye-catching headline, clear value proposition, product prominently displayed, high contrast, mobile-first design",
+        instagram: "\n\nInstagram post (1080x1080px): aesthetically pleasing, lifestyle integration, authentic African settings, bold central focus",
+        tiktok: "\n\nTikTok vertical (1080x1920px): authentic feel, engaging hook in top third, product demonstration angle, youthful energy",
+        all: "\n\nMulti-platform versatile: clear focal point, readable text at any size, immediate visual impact, culturally resonant",
+      };
+      
+      if (platform) {
+        finalPrompt += platformSpecs[platform] || platformSpecs.all;
+      }
+      
+      finalPrompt += `\n\nCREATIVE EXECUTION FOR FACEBOOK ADVERTISING:
+- Create a professional advertising visual optimized for social media
+- Use vibrant, attention-grabbing colors that work on mobile screens
+- Product must be the hero of the composition with clear visibility
+- Include the product in a real-world context or lifestyle setting
+- Show the product being used or its benefits in action
+- Use authentic African models, settings, or cultural elements when relevant
+- Professional photography quality with perfect lighting and composition
+- Text overlays must be bold, readable, and in perfect French
+- Create thumb-stopping impact that makes people pause their scroll
+- Balance professional quality with authentic, relatable aesthetics
+${promotionalPrice && price ? `- Display promotional price "${promotionalPrice}" crossed out and current price "${price}" prominently to show discount` : price ? `- Display price "${price}" prominently and legibly` : ''}
+${posology ? `- Include dosage/usage "${posology}" in clear, readable format` : ''}
+
+TEXT REQUIREMENTS (CRITICAL):
+- ALL text in PERFECT French with correct spelling, grammar, and accents
+- Verify every word for orthographic accuracy
+- Use proper French typography and punctuation
+- Ensure all accents (é, è, ê, à, ô, etc.) are correctly placed
+
+TECHNICAL SPECIFICATIONS:
+- Ultra high resolution, professional advertising photography
+- Commercial product shot quality
+- Optimized for social media feeds (Facebook, Instagram)
+- Colors and contrast optimized for mobile screens
+- All text sharp, legible, and professionally rendered
+- Create a conversion-focused advertising visual with authentic African appeal
+
+Create a stunning Facebook advertising visual that looks like a professional marketing campaign. ZERO spelling errors in French text.`;
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log('Generating image with prompt:', prompt);
+    console.log('Generating advertising image with prompt');
+
+    // Build message content with product image if provided
+    const messageContent = productImage 
+      ? [
+          {
+            type: "text",
+            text: finalPrompt,
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: productImage,
+            },
+          },
+        ]
+      : finalPrompt;
 
     const response = await fetchWithTimeout('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -55,7 +168,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: `Generate a professional, modern illustration for: ${prompt}. Style: clean, minimalist, business-appropriate, high quality.`
+            content: messageContent
           }
         ],
         modalities: ['image', 'text']
@@ -82,7 +195,7 @@ serve(async (req) => {
               },
               body: JSON.stringify({
                 model: 'gpt-image-1',
-                prompt,
+                prompt: finalPrompt,
                 size: '1024x1024',
                 n: 1,
               }),
