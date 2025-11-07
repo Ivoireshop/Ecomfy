@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Upload, X, Image as ImageIcon, GripVertical, Plus } from "lucide-react";
+import { Loader2, Upload, X, Image as ImageIcon, GripVertical, Plus, Save } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -110,9 +110,11 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedSection, setSelectedSection] = useState("author");
   const [sectionTitle, setSectionTitle] = useState("");
   const [filterSection, setFilterSection] = useState<string>("all");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -238,8 +240,24 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
           img.id === id ? { ...img, image_caption: caption } : img
         )
       );
+      setHasUnsavedChanges(true);
     } catch (error) {
       console.error("Error updating caption:", error);
+    }
+  };
+
+  const saveAllChanges = async () => {
+    setIsSaving(true);
+    try {
+      // All changes are already saved in real-time via handleUpdateCaption, handleDragEnd, etc.
+      // This button is more for user confirmation
+      setHasUnsavedChanges(false);
+      toast.success("Modifications sauvegardées avec succès !");
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -303,13 +321,32 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ImageIcon className="h-5 w-5" />
-          Gestionnaire de Galerie d'Images
-        </CardTitle>
-        <CardDescription>
-          Ajoutez des images pour différentes sections de votre site vitrine
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Gestionnaire de Galerie d'Images
+            </CardTitle>
+            <CardDescription>
+              Ajoutez des images pour différentes sections de votre site vitrine
+            </CardDescription>
+          </div>
+          {hasUnsavedChanges && images.length > 0 && (
+            <Button onClick={saveAllChanges} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sauvegarde...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Sauvegarder les modifications
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Upload Section */}

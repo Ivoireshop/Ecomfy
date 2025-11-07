@@ -728,15 +728,15 @@ export default function ShowcaseEditor() {
                     {filteredTemplates.map((template) => (
                       <Card 
                         key={template.id} 
-                        className="cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => applyTemplate(template.id)}
+                        className="hover:border-primary transition-colors"
                       >
                         <CardHeader>
                           <div className="flex items-start gap-4">
                             <img 
                               src={template.previewImage} 
                               alt={template.name}
-                              className="w-24 h-18 object-cover rounded-lg"
+                              className="w-24 h-18 object-cover rounded-lg cursor-pointer"
+                              onClick={() => setPreviewTemplate(template.id)}
                             />
                             <div className="flex-1">
                               <CardTitle className="flex items-center gap-2 mb-1">
@@ -765,17 +765,31 @@ export default function ShowcaseEditor() {
                                 {themes.find(t => t.value === template.theme)?.label}
                               </span>
                             </div>
-                            <Button 
-                              size="sm" 
-                              className="w-full mt-3"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                applyTemplate(template.id);
-                              }}
-                            >
-                              <Sparkles className="mr-2 h-4 w-4" />
-                              Appliquer ce template
-                            </Button>
+                            <div className="flex gap-2 mt-3">
+                              <Button 
+                                variant="outline"
+                                size="sm" 
+                                className="flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewTemplate(template.id);
+                                }}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                Prévisualiser
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                className="flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  applyTemplate(template.id);
+                                }}
+                              >
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                Appliquer
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -791,7 +805,11 @@ export default function ShowcaseEditor() {
         <TemplatePreviewDialog
           templateId={previewTemplate}
           onClose={() => setPreviewTemplate(null)}
-          onApply={applyTemplate}
+          onApply={(templateId) => {
+            applyTemplate(templateId);
+            setPreviewTemplate(null);
+            setTemplateDialogOpen(false);
+          }}
         />
 
         <Tabs defaultValue="edit" className="w-full">
