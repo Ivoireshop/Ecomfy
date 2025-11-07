@@ -280,9 +280,9 @@ const Generator = () => {
     setGeneratedImage(null);
 
     try {
-      // Appel rapide (20s max) au service principal, sinon fallback
+      // Timeout étendu pour permettre la génération de tous les formats
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 45000)
+        setTimeout(() => reject(new Error("timeout")), 90000)
       );
 
       const invokePromise = supabase.functions.invoke("generate-ad-visual", {
@@ -299,7 +299,7 @@ const Generator = () => {
           posology,
           productImage,
           personDescription,
-          fast: true,
+          fast: false, // Générer tous les formats pour la bibliothèque
           template: selectedTemplate, // Add template data
         },
       });
@@ -342,8 +342,8 @@ const Generator = () => {
       }
 
       const successMessage = hasActiveSubscription && data.hasMultipleFormats
-        ? `Visuel généré avec ${data.additionalFormats.length + 1} formats optimisés !`
-        : "Votre visuel a été généré avec succès";
+        ? `Visuel généré avec ${data.additionalFormats.length + 1} formats optimisés et sauvegardé dans la bibliothèque ! Cliquez sur "Voir dans la bibliothèque" ci-dessous pour télécharger tous les formats.`
+        : "Votre visuel a été généré avec succès et sauvegardé dans la bibliothèque ! Cliquez sur 'Voir dans la bibliothèque' pour accéder à tous vos formats.";
       
       toast({
         title: "Succès !",
@@ -918,16 +918,25 @@ const Generator = () => {
                       className="flex-1"
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Télécharger l'image seule
+                      Télécharger
                     </Button>
                   </div>
-                  <Button
-                    onClick={() => setGeneratedImage(null)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Générer un autre visuel
-                  </Button>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      onClick={() => navigate("/library")}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Voir dans la bibliothèque
+                    </Button>
+                    <Button
+                      onClick={() => setGeneratedImage(null)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Générer un autre visuel
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Voix off - affichée juste sous l'image générée */}
