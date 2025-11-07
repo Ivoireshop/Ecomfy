@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock } from "lucide-react";
+import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock, History } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +24,7 @@ import { SEOEditor } from "@/components/SEOEditor";
 import { AnalyticsViewer } from "@/components/AnalyticsViewer";
 import { GalleryManager } from "@/components/GalleryManager";
 import { ContactSubmissionsViewer } from "@/components/ContactSubmissionsViewer";
+import { ShowcaseVersionHistory } from "@/components/ShowcaseVersionHistory";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 import {
   Dialog,
@@ -435,6 +436,86 @@ export default function ShowcaseEditor() {
     }
   };
 
+  const createVersion = async (userId: string) => {
+    try {
+      // Get the current showcase site data
+      const { data: currentSite } = await supabase
+        .from("showcase_sites")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (!currentSite) return;
+
+      // Get current testimonials
+      const { data: currentTestimonials } = await supabase
+        .from("showcase_testimonials")
+        .select("*")
+        .eq("showcase_site_id", id)
+        .order("display_order");
+
+      // Get the last version number
+      const { data: lastVersion } = await supabase
+        .from("showcase_versions")
+        .select("version_number")
+        .eq("showcase_site_id", id)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextVersionNumber = (lastVersion?.version_number || 0) + 1;
+
+      // Create the version snapshot
+      await supabase
+        .from("showcase_versions")
+        .insert({
+          showcase_site_id: id,
+          version_number: nextVersionNumber,
+          created_by: userId,
+          business_name: currentSite.business_name,
+          business_description: currentSite.business_description,
+          owner_name: currentSite.owner_name,
+          owner_photo_url: currentSite.owner_photo_url,
+          whatsapp_number: currentSite.whatsapp_number,
+          phone_number: currentSite.phone_number,
+          hero_title: currentSite.hero_title,
+          hero_subtitle: currentSite.hero_subtitle,
+          about_title: currentSite.about_title,
+          about_description: currentSite.about_description,
+          cta_title: currentSite.cta_title,
+          cta_description: currentSite.cta_description,
+          formation_title: currentSite.formation_title,
+          formation_description: currentSite.formation_description,
+          formation_price: currentSite.formation_price,
+          formation_image_url: currentSite.formation_image_url,
+          theme: currentSite.theme,
+          primary_color: currentSite.primary_color,
+          secondary_color: currentSite.secondary_color,
+          text_color: currentSite.text_color,
+          logo_url: currentSite.logo_url,
+          hero_image_url: currentSite.hero_image_url,
+          about_image_url: currentSite.about_image_url,
+          features: currentSite.features,
+          formations: currentSite.formations,
+          formations_text_align: currentSite.formations_text_align,
+          about_layout: currentSite.about_layout,
+          gallery_text_position: currentSite.gallery_text_position,
+          font_family: currentSite.font_family,
+          theme_mode: currentSite.theme_mode,
+          seo_title: currentSite.seo_title,
+          seo_description: currentSite.seo_description,
+          seo_keywords: currentSite.seo_keywords,
+          og_image_url: currentSite.og_image_url,
+          og_type: currentSite.og_type,
+          twitter_card: currentSite.twitter_card,
+          testimonials: currentTestimonials || [],
+        });
+    } catch (error) {
+      console.error("Error creating version:", error);
+      // Don't block the save if version creation fails
+    }
+  };
+
   const saveShowcase = async (data: ShowcaseFormData, shouldPublish: boolean = false) => {
     setIsSaving(true);
     try {
@@ -445,6 +526,9 @@ export default function ShowcaseEditor() {
         navigate("/auth");
         return;
       }
+
+      // Create a version snapshot before making changes
+      await createVersion(user.id);
 
       // Upload new images if provided
       let logoUrl = existingLogoUrl;
@@ -711,7 +795,7 @@ export default function ShowcaseEditor() {
         />
 
         <Tabs defaultValue="edit" className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-7 mb-6">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-8 mb-6">
             <TabsTrigger value="edit" className="gap-2">
               <Edit className="h-4 w-4" />
               Édition
@@ -727,6 +811,10 @@ export default function ShowcaseEditor() {
             <TabsTrigger value="advanced" className="gap-2">
               <Sparkles className="h-4 w-4" />
               Avancé
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <History className="h-4 w-4" />
+              Historique
             </TabsTrigger>
             <TabsTrigger value="contacts" className="gap-2">
               <MessageCircle className="h-4 w-4" />
@@ -1371,6 +1459,20 @@ export default function ShowcaseEditor() {
                   else if (field === "ogImageUrl") setOgImageUrl(value);
                 }}
               />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <div className="max-w-6xl mx-auto">
+              {id && (
+                <ShowcaseVersionHistory
+                  showcaseSiteId={id}
+                  onRestore={() => {
+                    // Reload the page to show restored data
+                    window.location.reload();
+                  }}
+                />
+              )}
             </div>
           </TabsContent>
 

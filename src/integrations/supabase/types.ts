@@ -626,6 +626,144 @@ export type Database = {
           },
         ]
       }
+      showcase_versions: {
+        Row: {
+          about_description: string | null
+          about_image_url: string | null
+          about_layout: string | null
+          about_title: string | null
+          business_description: string | null
+          business_name: string
+          created_at: string
+          created_by: string
+          cta_description: string | null
+          cta_title: string | null
+          features: Json | null
+          font_family: string | null
+          formation_description: string | null
+          formation_image_url: string | null
+          formation_price: string | null
+          formation_title: string | null
+          formations: Json | null
+          formations_text_align: string | null
+          gallery_text_position: string | null
+          hero_image_url: string | null
+          hero_subtitle: string | null
+          hero_title: string | null
+          id: string
+          logo_url: string | null
+          og_image_url: string | null
+          og_type: string | null
+          owner_name: string
+          owner_photo_url: string | null
+          phone_number: string
+          primary_color: string | null
+          secondary_color: string | null
+          seo_description: string | null
+          seo_keywords: string[] | null
+          seo_title: string | null
+          showcase_site_id: string
+          testimonials: Json | null
+          text_color: string | null
+          theme: string | null
+          theme_mode: string | null
+          twitter_card: string | null
+          version_name: string | null
+          version_number: number
+          whatsapp_number: string
+        }
+        Insert: {
+          about_description?: string | null
+          about_image_url?: string | null
+          about_layout?: string | null
+          about_title?: string | null
+          business_description?: string | null
+          business_name: string
+          created_at?: string
+          created_by: string
+          cta_description?: string | null
+          cta_title?: string | null
+          features?: Json | null
+          font_family?: string | null
+          formation_description?: string | null
+          formation_image_url?: string | null
+          formation_price?: string | null
+          formation_title?: string | null
+          formations?: Json | null
+          formations_text_align?: string | null
+          gallery_text_position?: string | null
+          hero_image_url?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          logo_url?: string | null
+          og_image_url?: string | null
+          og_type?: string | null
+          owner_name: string
+          owner_photo_url?: string | null
+          phone_number: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          seo_description?: string | null
+          seo_keywords?: string[] | null
+          seo_title?: string | null
+          showcase_site_id: string
+          testimonials?: Json | null
+          text_color?: string | null
+          theme?: string | null
+          theme_mode?: string | null
+          twitter_card?: string | null
+          version_name?: string | null
+          version_number: number
+          whatsapp_number: string
+        }
+        Update: {
+          about_description?: string | null
+          about_image_url?: string | null
+          about_layout?: string | null
+          about_title?: string | null
+          business_description?: string | null
+          business_name?: string
+          created_at?: string
+          created_by?: string
+          cta_description?: string | null
+          cta_title?: string | null
+          features?: Json | null
+          font_family?: string | null
+          formation_description?: string | null
+          formation_image_url?: string | null
+          formation_price?: string | null
+          formation_title?: string | null
+          formations?: Json | null
+          formations_text_align?: string | null
+          gallery_text_position?: string | null
+          hero_image_url?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          logo_url?: string | null
+          og_image_url?: string | null
+          og_type?: string | null
+          owner_name?: string
+          owner_photo_url?: string | null
+          phone_number?: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          seo_description?: string | null
+          seo_keywords?: string[] | null
+          seo_title?: string | null
+          showcase_site_id?: string
+          testimonials?: Json | null
+          text_color?: string | null
+          theme?: string | null
+          theme_mode?: string | null
+          twitter_card?: string | null
+          version_name?: string | null
+          version_number?: number
+          whatsapp_number?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number
