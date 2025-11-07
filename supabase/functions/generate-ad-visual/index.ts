@@ -109,7 +109,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast } = body;
+    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast, template } = body;
     
     const isFast = Boolean(fast);
     
@@ -148,39 +148,31 @@ PRODUCT INFORMATION:
 - Product Name: ${productName}
 - Niche: ${niche}
 - Description: ${description}`;
-
-COMPETITIVE ANALYSIS CONTEXT:
-First, mentally analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and messaging patterns consistently perform well in this niche for African audiences.
-
-PRODUCT INFORMATION:
-- Product Name: ${productName}
-- Niche: ${niche}
-- Description: ${description}`;
     
-    if (price && promotionalPrice) {
-      prompt += `\n- Promotional Price (crossed out): ${promotionalPrice}`;
-      prompt += `\n- Current Price: ${price} (MUST be prominently displayed with promotional price crossed out to show discount)`;
-    } else if (price) {
-      prompt += `\n- Price: ${price} (MUST be prominently displayed on the visual)`;
-    }
-    
-    if (benefits) {
-      prompt += `\n- Key Benefits: ${benefits}`;
-    }
-    
-    if (posology) {
-      prompt += `\n- Dosage/Usage: ${posology} (include this information on the visual)`;
-    }
-    
-    if (container) {
-      prompt += `\n- Container/Packaging: ${container}`;
-    }
-    
-    if (productImage) {
-      prompt += `\n\nIMPORTANT: Use the provided product image as the base. Integrate it into a professional advertising composition while maintaining the actual product appearance. DO NOT create a different product - use the exact product shown in the image.`;
-    }
-    
-    if (personDescription) {
+      if (price && promotionalPrice) {
+        prompt += `\n- Promotional Price (crossed out): ${promotionalPrice}`;
+        prompt += `\n- Current Price: ${price} (MUST be prominently displayed with promotional price crossed out to show discount)`;
+      } else if (price) {
+        prompt += `\n- Price: ${price} (MUST be prominently displayed on the visual)`;
+      }
+      
+      if (benefits) {
+        prompt += `\n- Key Benefits: ${benefits}`;
+      }
+      
+      if (posology) {
+        prompt += `\n- Dosage/Usage: ${posology} (include this information on the visual)`;
+      }
+      
+      if (container) {
+        prompt += `\n- Container/Packaging: ${container}`;
+      }
+      
+      if (productImage) {
+        prompt += `\n\nIMPORTANT: Use the provided product image as the base. Integrate it into a professional advertising composition while maintaining the actual product appearance. DO NOT create a different product - use the exact product shown in the image.`;
+      }
+      
+      if (personDescription) {
       prompt += `\n\nPERSON/SCENE STAGING REQUEST (OPTIONAL):
 The user wants to feature a person with the product. Here's their description: "${personDescription}"
 - Integrate this person naturally into the composition with the product
@@ -189,11 +181,11 @@ The user wants to feature a person with the product. Here's their description: "
 - The person should be holding, using, or presenting the product in a natural way
 - Match the person's style and appearance to the described niche and target audience
 - Make sure the overall composition remains focused on the product as the hero element`;
-    }
+      }
 
-    prompt += `\n\nVISUAL STYLE DIRECTION:`;
-    
-    if (style) {
+      prompt += `\n\nVISUAL STYLE DIRECTION:`;
+      
+      if (style) {
       const styleDescriptions: Record<string, string> = {
         moderne: "Modern and clean design with contemporary African aesthetics - think bold typography, vibrant gradients, and sleek product presentation",
         luxueux: "Luxury and premium design with elegant African touches - gold accents, sophisticated color palettes, refined imagery that conveys prestige and exclusivity",
@@ -201,23 +193,23 @@ The user wants to feature a person with the product. Here's their description: "
         traditionnel: "Traditional African style celebrating cultural heritage - authentic patterns (Kente, Ankara, Bogolan), warm earth tones, cultural symbols, community-focused imagery",
         minimaliste: "Minimalist and clean with African warmth - simple composition, strategic use of negative space, focus on product, subtle cultural elements",
         dynamique: "Dynamic and energetic style capturing African vibrancy - motion blur effects, bold contrasts, action-oriented composition, youthful energy",
+        };
+        prompt += `\n${styleDescriptions[style] || style}`;
+      }
+      
+      // Add platform-specific requirements with best practices
+      const platformSpecs: Record<string, string> = {
+        facebook: "\n\nPLATFORM OPTIMIZATION: Facebook feed ad (1200x628px)\n- Inspired by top-performing Facebook ads: eye-catching headline text overlay, clear value proposition visible within 3 seconds, product prominently displayed in first 40% of image\n- Use Facebook's best practices: high contrast, mobile-first design, culturally relevant imagery",
+        instagram: "\n\nPLATFORM OPTIMIZATION: Instagram square post (1080x1080px)\n- Inspired by viral Instagram ads: aesthetically pleasing composition, Instagram-native feel, lifestyle integration of product, authentic African settings\n- Incorporate trending Instagram advertising elements: bold central focus, aspirational yet relatable imagery, visual storytelling",
+        tiktok: "\n\nPLATFORM OPTIMIZATION: TikTok vertical format (1080x1920px)\n- Inspired by successful TikTok ads: authentic and less polished feel, engaging hook in top third, product demonstration or transformation angle\n- TikTok advertising best practices: youthful energy, trending visual styles, stop-the-scroll impact, mobile-native vertical composition",
+        all: "\n\nPLATFORM OPTIMIZATION: Multi-platform versatile design\n- Inspired by cross-platform successful ads: clear focal point works in any crop, readable text at any size, platform-agnostic color psychology\n- Universal best practices: immediate visual impact, clear brand message, culturally resonant for African audiences across all platforms",
       };
-      prompt += `\n${styleDescriptions[style] || style}`;
-    }
-    
-    // Add platform-specific requirements with best practices
-    const platformSpecs: Record<string, string> = {
-      facebook: "\n\nPLATFORM OPTIMIZATION: Facebook feed ad (1200x628px)\n- Inspired by top-performing Facebook ads: eye-catching headline text overlay, clear value proposition visible within 3 seconds, product prominently displayed in first 40% of image\n- Use Facebook's best practices: high contrast, mobile-first design, culturally relevant imagery",
-      instagram: "\n\nPLATFORM OPTIMIZATION: Instagram square post (1080x1080px)\n- Inspired by viral Instagram ads: aesthetically pleasing composition, Instagram-native feel, lifestyle integration of product, authentic African settings\n- Incorporate trending Instagram advertising elements: bold central focus, aspirational yet relatable imagery, visual storytelling",
-      tiktok: "\n\nPLATFORM OPTIMIZATION: TikTok vertical format (1080x1920px)\n- Inspired by successful TikTok ads: authentic and less polished feel, engaging hook in top third, product demonstration or transformation angle\n- TikTok advertising best practices: youthful energy, trending visual styles, stop-the-scroll impact, mobile-native vertical composition",
-      all: "\n\nPLATFORM OPTIMIZATION: Multi-platform versatile design\n- Inspired by cross-platform successful ads: clear focal point works in any crop, readable text at any size, platform-agnostic color psychology\n- Universal best practices: immediate visual impact, clear brand message, culturally resonant for African audiences across all platforms",
-    };
-    
-    if (platform) {
-      prompt += platformSpecs[platform] || platformSpecs.all;
-    }
-    
-    prompt += `\n\nCREATIVE EXECUTION INSPIRED BY TOP-PERFORMING ADS:
+      
+      if (platform) {
+        prompt += platformSpecs[platform] || platformSpecs.all;
+      }
+      
+      prompt += `\n\nCREATIVE EXECUTION INSPIRED BY TOP-PERFORMING ADS:
 - Apply proven visual patterns from successful ${niche} campaigns in African markets
 - Use color psychology that resonates with African consumers (warm, vibrant, trustworthy)
 - Incorporate culturally relevant visual cues and symbols that build instant connection
@@ -244,6 +236,7 @@ TECHNICAL REQUIREMENTS:
 - All text must be sharp, legible, and professionally rendered
 
 Create a stunning, conversion-focused advertising visual that combines the best elements of successful ads in this niche with authentic African cultural appeal. Ensure ZERO spelling errors in all French text.`;
+    }
 
     console.log("Generated prompt:", prompt);
 
