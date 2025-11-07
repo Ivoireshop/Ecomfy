@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_templates: {
+        Row: {
+          animation_preset: string
+          animation_prompt_template: string
+          category: string
+          color_palette: Json | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          prompt_template: string
+          recommended_duration: number | null
+          recommended_platforms: string[] | null
+          style_preset: string
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          animation_preset: string
+          animation_prompt_template: string
+          category: string
+          color_palette?: Json | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          prompt_template: string
+          recommended_duration?: number | null
+          recommended_platforms?: string[] | null
+          style_preset: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          animation_preset?: string
+          animation_prompt_template?: string
+          category?: string
+          color_palette?: Json | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          prompt_template?: string
+          recommended_duration?: number | null
+          recommended_platforms?: string[] | null
+          style_preset?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           created_at: string

@@ -119,10 +119,35 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build an advanced prompt that analyzes successful ads in the niche
-    let prompt = `You are an expert advertising visual creator specializing in the African market. 
+    // Build an advanced prompt - use template if provided
+    let prompt: string;
+    
+    if (template && template.prompt_template) {
+      // Use template prompt
+      prompt = template.prompt_template
+        .replace(/\{productName\}/g, productName)
+        .replace(/\{niche\}/g, niche)
+        .replace(/\{description\}/g, description)
+        .replace(/\{benefits\}/g, benefits || '')
+        .replace(/\{platform\}/g, platform)
+        .replace(/\{style\}/g, style || template.style_preset)
+        .replace(/\{price\}/g, price || '')
+        .replace(/\{personDescription\}/g, personDescription || '');
+      
+      console.log("Using template prompt:", template.name);
+    } else {
+      // Default prompt
+      prompt = `You are an expert advertising visual creator specializing in the African market.
 
 CRITICAL: All text in the generated image MUST be in perfect French with NO spelling errors. Double-check every word for correct French orthography, grammar, and accents.
+
+COMPETITIVE ANALYSIS CONTEXT:
+First, mentally analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and messaging patterns consistently perform well in this niche for African audiences.
+
+PRODUCT INFORMATION:
+- Product Name: ${productName}
+- Niche: ${niche}
+- Description: ${description}`;
 
 COMPETITIVE ANALYSIS CONTEXT:
 First, mentally analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and messaging patterns consistently perform well in this niche for African audiences.

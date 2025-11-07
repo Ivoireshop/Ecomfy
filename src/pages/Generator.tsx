@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { ImageEditor } from "@/components/ImageEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdTemplateSelector } from "@/components/AdTemplateSelector";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -49,6 +50,9 @@ const Generator = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [freeVideoGenerationsRemaining, setFreeVideoGenerationsRemaining] = useState<number>(0);
+
+  // Template state
+  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
 
   // Voix africaines (ElevenLabs)
   const voices = [
@@ -176,6 +180,7 @@ const Generator = () => {
           price,
           personDescription,
           duration: videoDuration,
+          template: selectedTemplate, // Add template data
         },
       });
 
@@ -295,6 +300,7 @@ const Generator = () => {
           productImage,
           personDescription,
           fast: true,
+          template: selectedTemplate, // Add template data
         },
       });
 
@@ -811,6 +817,14 @@ const Generator = () => {
                     </SelectContent>
                   </Select>
                 )}
+              </div>
+
+              {/* Template Selector */}
+              <div className="space-y-4 pt-4 border-t">
+                <AdTemplateSelector
+                  selectedTemplateId={selectedTemplate?.id || null}
+                  onSelectTemplate={setSelectedTemplate}
+                />
               </div>
 
               {generationType === "image" ? (

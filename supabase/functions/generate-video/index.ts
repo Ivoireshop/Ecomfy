@@ -108,16 +108,33 @@ serve(async (req) => {
       );
     }
 
-    const { productName, niche, description, benefits, platform, style, price, personDescription, duration } = await req.json();
+    const { productName, niche, description, benefits, platform, style, price, personDescription, duration, template } = await req.json();
     
     // Clamp duration between 5 and 15 seconds; default 10s; prefer 10 or 15 as per user request
     const requestedDuration = Number(duration) || 10;
     const safeDuration = Math.max(5, Math.min(15, requestedDuration));
     
-    console.log("Generating video for:", { productName, niche, platform, personDescription, safeDuration });
+    console.log("Generating video for:", { productName, niche, platform, personDescription, safeDuration, hasTemplate: !!template });
 
     // Build prompt for image generation (optimized for speed)
-    const imagePrompt = `Créez un visuel publicitaire professionnel et dynamique pour ${platform} :
+    let imagePrompt: string;
+    
+    if (template && template.prompt_template) {
+      // Use template's prompt
+      imagePrompt = template.prompt_template
+        .replace(/\{productName\}/g, productName)
+        .replace(/\{niche\}/g, niche)
+        .replace(/\{description\}/g, description)
+        .replace(/\{benefits\}/g, benefits || '')
+        .replace(/\{platform\}/g, platform)
+        .replace(/\{style\}/g, style || template.style_preset)
+        .replace(/\{price\}/g, price || '')
+        .replace(/\{personDescription\}/g, personDescription || '');
+      
+      console.log("Using template prompt:", template.name);
+    } else {
+      // Default prompt
+      imagePrompt = `Créez un visuel publicitaire professionnel et dynamique pour ${platform} :
 
 Produit: ${productName}
 Niche: ${niche}
@@ -132,6 +149,7 @@ Le visuel doit être:
 - Professionnel et captivant pour ${platform}
 - Optimisé pour le format vidéo vertical (9:16)
 - Avec du texte en français si pertinent`;
+    }
 
     // Create a video record in processing state
     const { data: videoData, error: insertError } = await supabaseClient
@@ -325,11 +343,26 @@ Le visuel doit être:
         .eq("id", videoData.id);
       
       // Enhanced prompt for high-quality advertising videos
-      const enhancedPrompt = `Publicité professionnelle ${niche} pour ${platform} - Style: ${style}. 
+      let enhancedPrompt: string;
+      
+      if (template && template.animation_prompt_template) {
+        // Use template's animation prompt
+        enhancedPrompt = template.animation_prompt_template
+          .replace(/\{productName\}/g, productName)
+          .replace(/\{niche\}/g, niche)
+          .replace(/\{platform\}/g, platform)
+          .replace(/\{style\}/g, style || template.style_preset)
+          .replace(/\{personDescription\}/g, personDescription || '');
+        
+        console.log("Using template animation prompt:", template.name);
+      } else {
+        // Default animation prompt
+        enhancedPrompt = `Publicité professionnelle ${niche} pour ${platform} - Style: ${style}. 
 Effet cinématographique avec: mouvements de caméra fluides et dynamiques, zoom progressif engageant, 
 transitions professionnelles, éclairage publicitaire optimal, atmosphère captivante pour réseaux sociaux. 
 ${personDescription ? `Mise en scène: ${personDescription}.` : ''} 
 Animation de haute qualité avec profondeur, énergie et impact visuel maximum pour conversion publicitaire.`;
+      }
       
       const runwayResponse = await fetch("https://api.runwayml.com/v1/image_to_video", {
         method: "POST",
@@ -342,7 +375,7 @@ Animation de haute qualité avec profondeur, énergie et impact visuel maximum p
           model: "gen3a_turbo",
           promptImage: imagePublicUrl,
           promptText: enhancedPrompt,
-          duration: safeDuration,
+          duration: template?.recommended_duration || safeDuration,
           ratio: "9:16",
           watermark: false,
           seed: Math.floor(Math.random() * 1000000) // Random seed for variety
