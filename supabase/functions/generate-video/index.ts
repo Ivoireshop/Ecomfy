@@ -149,6 +149,8 @@ Le visuel doit être:
           price,
         },
         status: "processing",
+        progress_step: "initializing",
+        progress_percentage: 0,
       })
       .select()
       .single();
@@ -187,6 +189,16 @@ Le visuel doit être:
       // Step 1: Generate base image with Lovable AI (fast, ~3-5 seconds)
       // Step 1: Generate base image with Lovable AI, fallback to OpenAI if credits (402)
       console.log("Step 1: Generating base image with Lovable AI...");
+      
+      // Update progress: generating image
+      await supabaseClient
+        .from("generated_videos")
+        .update({
+          progress_step: "generating_image",
+          progress_percentage: 20,
+        })
+        .eq("id", videoData.id);
+      
       let generatedImageUrl: string | null = null;
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -290,9 +302,27 @@ Le visuel doit être:
 
       const imagePublicUrl = imageUrlData.publicUrl;
       console.log("Image uploaded to storage:", imagePublicUrl);
+      
+      // Update progress: image generated
+      await supabaseClient
+        .from("generated_videos")
+        .update({
+          progress_step: "image_generated",
+          progress_percentage: 40,
+        })
+        .eq("id", videoData.id);
 
       // Step 2: Generate video from image using Runway API (~5-10 seconds)
       console.log("Step 2: Generating video with Runway API...");
+      
+      // Update progress: animating video
+      await supabaseClient
+        .from("generated_videos")
+        .update({
+          progress_step: "animating_video",
+          progress_percentage: 50,
+        })
+        .eq("id", videoData.id);
       
       const runwayResponse = await fetch("https://api.runwayml.com/v1/image_to_video", {
         method: "POST",
@@ -348,6 +378,15 @@ Le visuel doit être:
             videoUrl = statusData.output?.[0];
             pollingComplete = true;
             console.log("Video generated successfully:", videoUrl);
+            
+            // Update progress: video ready
+            await supabaseClient
+              .from("generated_videos")
+              .update({
+                progress_step: "video_ready",
+                progress_percentage: 80,
+              })
+              .eq("id", videoData.id);
           } else if (statusData.status === "FAILED") {
             throw new Error("Runway video generation failed");
           }
@@ -382,6 +421,15 @@ Le visuel doit être:
 
       // Download the video from Runway and upload to our storage
       console.log("Downloading video from Runway...");
+      
+      // Update progress: finalizing
+      await supabaseClient
+        .from("generated_videos")
+        .update({
+          progress_step: "finalizing",
+          progress_percentage: 90,
+        })
+        .eq("id", videoData.id);
       const videoResponse = await fetch(videoUrl);
       const videoBlob = await videoResponse.arrayBuffer();
       
@@ -413,6 +461,8 @@ Le visuel doit être:
         .update({
           video_url: videoPublicUrl,
           status: "completed",
+          progress_step: "completed",
+          progress_percentage: 100,
         })
         .eq("id", videoData.id);
 

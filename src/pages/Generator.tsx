@@ -9,6 +9,7 @@ import { Sparkles, Loader2, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { ImageEditor } from "@/components/ImageEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -37,6 +38,7 @@ const Generator = () => {
   const [isTouchUI, setIsTouchUI] = useState(false);
   const [isFounder, setIsFounder] = useState(false);
   const [videoDuration, setVideoDuration] = useState<10 | 15>(10);
+  const [videoProgress, setVideoProgress] = useState<{step: string, percentage: number} | null>(null);
   
   useEffect(() => {
     const check = () => {
@@ -51,6 +53,13 @@ const Generator = () => {
 
   useEffect(() => {
     loadUserGenerationStatus();
+  }, []);
+
+  // Cleanup any realtime subscriptions on unmount
+  useEffect(() => {
+    return () => {
+      supabase.channel('video-progress').unsubscribe();
+    };
   }, []);
 
   const loadUserGenerationStatus = async () => {
@@ -156,13 +165,69 @@ const Generator = () => {
       }
 
       setVideoGenerationsRemaining(data.videoGenerationsRemaining || 0);
+      const videoId = data.videoId;
+
+      // Set up realtime listener for video progress
+      const channel = supabase
+        .channel(`video-progress-${videoId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'generated_videos',
+            filter: `id=eq.${videoId}`,
+          },
+          (payload) => {
+            const { progress_step, progress_percentage, status } = payload.new;
+            
+            setVideoProgress({ 
+              step: progress_step || 'processing', 
+              percentage: progress_percentage || 0 
+            });
+
+            // Show toast for each progress step
+            const stepMessages: Record<string, string> = {
+              initializing: "⏳ Initialisation de la génération...",
+              generating_image: "🎨 Génération de l'image de base...",
+              image_generated: "✅ Image générée avec succès!",
+              animating_video: "🎬 Animation de la vidéo en cours...",
+              video_ready: "🎉 Vidéo prête, finalisation...",
+              finalizing: "📦 Téléchargement et enregistrement...",
+              completed: "✨ Vidéo terminée avec succès!"
+            };
+
+            if (stepMessages[progress_step]) {
+              toast({
+                title: stepMessages[progress_step],
+                description: `Progression: ${progress_percentage}%`,
+              });
+            }
+
+            if (status === 'completed') {
+              setTimeout(() => {
+                setVideoProgress(null);
+                navigate("/library");
+              }, 2000);
+              supabase.removeChannel(channel);
+            } else if (status === 'failed') {
+              toast({
+                title: "Erreur",
+                description: "La génération de la vidéo a échoué",
+                variant: "destructive",
+              });
+              setVideoProgress(null);
+              setIsGeneratingVideo(false);
+              supabase.removeChannel(channel);
+            }
+          }
+        )
+        .subscribe();
 
       toast({
         title: "Vidéo en cours de génération",
-        description: "Votre vidéo sera disponible dans quelques minutes dans la bibliothèque",
+        description: "Suivez la progression ci-dessous",
       });
-
-      setTimeout(() => navigate("/library"), 2000);
     } catch (error) {
       console.error("Erreur lors de la génération vidéo:", error);
       toast({
@@ -620,6 +685,25 @@ const Generator = () => {
                 </Button>
               )}
             </form>
+
+            {videoProgress && (
+              <div className="mt-6 p-4 bg-muted rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Progression de la vidéo</span>
+                  <span className="text-sm text-muted-foreground">{videoProgress.percentage}%</span>
+                </div>
+                <Progress value={videoProgress.percentage} className="w-full" />
+                <p className="text-xs text-muted-foreground text-center">
+                  {videoProgress.step === 'initializing' && '⏳ Initialisation...'}
+                  {videoProgress.step === 'generating_image' && '🎨 Génération de l\'image...'}
+                  {videoProgress.step === 'image_generated' && '✅ Image générée!'}
+                  {videoProgress.step === 'animating_video' && '🎬 Animation en cours...'}
+                  {videoProgress.step === 'video_ready' && '🎉 Vidéo prête!'}
+                  {videoProgress.step === 'finalizing' && '📦 Finalisation...'}
+                  {videoProgress.step === 'completed' && '✨ Terminé!'}
+                </p>
+              </div>
+            )}
 
             {generatedImage && !isEditing && (
               <div className="mt-8">

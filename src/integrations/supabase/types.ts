@@ -126,6 +126,8 @@ export type Database = {
           created_at: string
           id: string
           product_details: Json | null
+          progress_percentage: number | null
+          progress_step: string | null
           prompt: string
           status: string
           user_id: string
@@ -135,6 +137,8 @@ export type Database = {
           created_at?: string
           id?: string
           product_details?: Json | null
+          progress_percentage?: number | null
+          progress_step?: string | null
           prompt: string
           status?: string
           user_id: string
@@ -144,6 +148,8 @@ export type Database = {
           created_at?: string
           id?: string
           product_details?: Json | null
+          progress_percentage?: number | null
+          progress_step?: string | null
           prompt?: string
           status?: string
           user_id?: string
