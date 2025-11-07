@@ -38,7 +38,6 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   
   // Voix off states
-  const [enableVoiceover, setEnableVoiceover] = useState(false);
   const [voiceoverText, setVoiceoverText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("Alice");
   const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
@@ -331,102 +330,6 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
           )}
         </Button>
 
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="flex items-center gap-2">
-            <Volume2 className="h-4 w-4" />
-            <Label htmlFor="voiceover-toggle">Ajouter une voix off</Label>
-          </div>
-          <Switch
-            id="voiceover-toggle"
-            checked={enableVoiceover}
-            onCheckedChange={setEnableVoiceover}
-          />
-        </div>
-
-        {enableVoiceover && (
-          <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-            <div>
-              <Label htmlFor="voiceover-text">Texte de la voix off</Label>
-              <Textarea
-                id="voiceover-text"
-                placeholder="Ex: Découvrez notre nouvelle collection de formations digitales..."
-                value={voiceoverText}
-                onChange={(e) => setVoiceoverText(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="voice">Voix</Label>
-              <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {voices.map((voice) => (
-                    <SelectItem key={voice.value} value={voice.value}>
-                      {voice.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              onClick={generateVoiceover}
-              disabled={isGeneratingVoice || !voiceoverText.trim()}
-              className="w-full"
-              variant="secondary"
-            >
-              {isGeneratingVoice ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Génération de la voix off...
-                </>
-              ) : (
-                <>
-                  <Volume2 className="mr-2 h-4 w-4" />
-                  Générer la voix off
-                </>
-              )}
-            </Button>
-
-            {generatedAudio && (
-              <div className="space-y-2">
-                <audio
-                  ref={audioRef}
-                  src={generatedAudio}
-                  onEnded={() => setIsPlaying(false)}
-                  className="hidden"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={togglePlayPause}
-                    variant="outline"
-                    size="icon"
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleDownloadAudio}
-                    variant="outline"
-                    size="icon"
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Voix off prête avec accent africain authentique
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
         {generatedImage && (
           <div className="space-y-4 pt-4 border-t">
             <div className="relative">
@@ -446,38 +349,139 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
                 </Button>
               </div>
               
-              {enableVoiceover && generatedAudio && generatedImage && (
-                <div className="space-y-2">
-                  {!canCreateVideo && (
-                    <Alert>
-                      <AlertDescription>
-                        Essai gratuit utilisé. Abonnez-vous pour créer plus de vidéos avec voix off.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <Button 
-                    onClick={createVideoMP4} 
-                    disabled={isCreatingVideo || !canCreateVideo}
+              {/* Interface de voix off après génération de l'image */}
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg border-2 border-dashed">
+                <div className="flex items-center gap-2">
+                  <Volume2 className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Ajouter une voix off pour rendre l'image dynamique en vidéo</h3>
+                </div>
+                
+                <div>
+                  <Label htmlFor="voiceover-text">Texte de la voix off (20-30 secondes maximum)</Label>
+                  <Textarea
+                    id="voiceover-text"
+                    placeholder="Ex: Découvrez notre nouvelle collection de formations digitales qui transformeront votre avenir..."
+                    value={voiceoverText}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      if (text.length <= 300) {
+                        setVoiceoverText(text);
+                      }
+                    }}
+                    rows={3}
+                    maxLength={300}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {voiceoverText.length}/300 caractères (~{Math.ceil(voiceoverText.length / 10)} secondes)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="voice">Voix avec accent africain</Label>
+                  <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {voices.map((voice) => (
+                        <SelectItem key={voice.value} value={voice.value}>
+                          {voice.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!generatedAudio ? (
+                  <Button
+                    onClick={generateVoiceover}
+                    disabled={isGeneratingVoice || !voiceoverText.trim()}
                     className="w-full"
-                    variant="secondary"
                   >
-                    {isCreatingVideo ? (
+                    {isGeneratingVoice ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Création de la vidéo MP4...
+                        Génération de la voix off...
                       </>
                     ) : (
                       <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Télécharger vidéo MP4 (Image + Voix Off)
-                        {!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining > 0 && (
-                          <span className="ml-2 text-xs">({freeVideoGenerationsRemaining} essai gratuit)</span>
-                        )}
+                        <Volume2 className="mr-2 h-4 w-4" />
+                        Générer la voix off
                       </>
                     )}
                   </Button>
-                </div>
-              )}
+                ) : (
+                  <div className="space-y-2">
+                    <audio
+                      ref={audioRef}
+                      src={generatedAudio}
+                      onEnded={() => setIsPlaying(false)}
+                      className="hidden"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={togglePlayPause}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        {isPlaying ? (
+                          <>
+                            <Pause className="mr-2 h-4 w-4" />
+                            Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="mr-2 h-4 w-4" />
+                            Écouter la voix off
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleDownloadAudio}
+                        variant="outline"
+                        size="icon"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      ✓ Voix off prête avec accent africain authentique
+                    </p>
+                    
+                    {/* Bouton de téléchargement vidéo */}
+                    <div className="space-y-2 pt-2 border-t">
+                      {!canCreateVideo && (
+                        <Alert>
+                          <AlertDescription>
+                            Essai gratuit utilisé. Abonnez-vous pour créer plus de vidéos avec voix off.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      <Button 
+                        onClick={createVideoMP4} 
+                        disabled={isCreatingVideo || !canCreateVideo}
+                        className="w-full"
+                        variant="default"
+                      >
+                        {isCreatingVideo ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Création de la vidéo MP4...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="mr-2 h-4 w-4" />
+                            Télécharger vidéo MP4 (Image + Voix Off)
+                            {!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining > 0 && (
+                              <span className="ml-2 text-xs">({freeVideoGenerationsRemaining} essai gratuit)</span>
+                            )}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
