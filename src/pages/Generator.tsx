@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { ImageEditor } from "@/components/ImageEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdTemplateSelector } from "@/components/AdTemplateSelector";
+import { SpellCheckText } from "@/components/SpellCheckText";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -1176,7 +1177,7 @@ const Generator = () => {
 
                     <Alert>
                       <AlertDescription>
-                        ⚠️ Vérifiez attentivement l'orthographe, la grammaire et le vocabulaire de chaque texte ci-dessous. Ces textes seront utilisés pour générer votre visuel publicitaire.
+                        ⚠️ Vérifiez attentivement l'orthographe, la grammaire et le vocabulaire de chaque texte ci-dessous. Les mots soulignés en rouge peuvent contenir des fautes - survolez-les pour voir les suggestions.
                       </AlertDescription>
                     </Alert>
 
@@ -1189,6 +1190,11 @@ const Generator = () => {
                           onChange={(e) => setPreviewTexts({...previewTexts, productName: e.target.value})}
                           className="text-lg font-semibold"
                         />
+                        {previewTexts.productName && (
+                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                            <SpellCheckText text={previewTexts.productName} />
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -1203,6 +1209,11 @@ const Generator = () => {
                         <p className="text-xs text-muted-foreground mt-1">
                           Ce texte apparaîtra en évidence sur votre visuel
                         </p>
+                        {previewTexts.tagline && (
+                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                            <SpellCheckText text={previewTexts.tagline} />
+                          </div>
+                        )}
                       </div>
 
                       {previewTexts.promotionalPrice && (
@@ -1214,6 +1225,11 @@ const Generator = () => {
                               value={previewTexts.promotionalPrice}
                               onChange={(e) => setPreviewTexts({...previewTexts, promotionalPrice: e.target.value})}
                             />
+                            {previewTexts.promotionalPrice && (
+                              <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                                <SpellCheckText text={previewTexts.promotionalPrice} />
+                              </div>
+                            )}
                           </div>
                           <div>
                             <Label htmlFor="preview-price">Prix actuel</Label>
@@ -1223,6 +1239,11 @@ const Generator = () => {
                               onChange={(e) => setPreviewTexts({...previewTexts, price: e.target.value})}
                               className="font-bold"
                             />
+                            {previewTexts.price && (
+                              <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                                <SpellCheckText text={previewTexts.price} />
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1236,6 +1257,11 @@ const Generator = () => {
                             onChange={(e) => setPreviewTexts({...previewTexts, price: e.target.value})}
                             className="font-bold text-lg"
                           />
+                          {previewTexts.price && (
+                            <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                              <SpellCheckText text={previewTexts.price} />
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1249,6 +1275,9 @@ const Generator = () => {
                             rows={2}
                             className="resize-none"
                           />
+                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                            <SpellCheckText text={previewTexts.benefits} />
+                          </div>
                         </div>
                       )}
 
@@ -1262,6 +1291,11 @@ const Generator = () => {
                         <p className="text-xs text-muted-foreground mt-1">
                           Exemple : "Commandez maintenant!", "Achetez aujourd'hui", "Contactez-nous"
                         </p>
+                        {previewTexts.callToAction && (
+                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                            <SpellCheckText text={previewTexts.callToAction} />
+                          </div>
+                        )}
                       </div>
                     </div>
 
