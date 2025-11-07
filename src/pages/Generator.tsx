@@ -1192,7 +1192,15 @@ const Generator = () => {
                         />
                         {previewTexts.productName && (
                           <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText text={previewTexts.productName} />
+                            <SpellCheckText 
+                              text={previewTexts.productName}
+                              onWordReplace={(oldWord, newWord) => {
+                                setPreviewTexts({
+                                  ...previewTexts,
+                                  productName: previewTexts.productName.replace(oldWord, newWord)
+                                });
+                              }}
+                            />
                           </div>
                         )}
                       </div>
@@ -1211,7 +1219,15 @@ const Generator = () => {
                         </p>
                         {previewTexts.tagline && (
                           <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText text={previewTexts.tagline} />
+                            <SpellCheckText 
+                              text={previewTexts.tagline}
+                              onWordReplace={(oldWord, newWord) => {
+                                setPreviewTexts({
+                                  ...previewTexts,
+                                  tagline: previewTexts.tagline.replace(oldWord, newWord)
+                                });
+                              }}
+                            />
                           </div>
                         )}
                       </div>
@@ -1227,7 +1243,15 @@ const Generator = () => {
                             />
                             {previewTexts.promotionalPrice && (
                               <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                                <SpellCheckText text={previewTexts.promotionalPrice} />
+                                <SpellCheckText 
+                                  text={previewTexts.promotionalPrice}
+                                  onWordReplace={(oldWord, newWord) => {
+                                    setPreviewTexts({
+                                      ...previewTexts,
+                                      promotionalPrice: previewTexts.promotionalPrice.replace(oldWord, newWord)
+                                    });
+                                  }}
+                                />
                               </div>
                             )}
                           </div>
@@ -1241,7 +1265,15 @@ const Generator = () => {
                             />
                             {previewTexts.price && (
                               <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                                <SpellCheckText text={previewTexts.price} />
+                                <SpellCheckText 
+                                  text={previewTexts.price}
+                                  onWordReplace={(oldWord, newWord) => {
+                                    setPreviewTexts({
+                                      ...previewTexts,
+                                      price: previewTexts.price.replace(oldWord, newWord)
+                                    });
+                                  }}
+                                />
                               </div>
                             )}
                           </div>
@@ -1259,7 +1291,15 @@ const Generator = () => {
                           />
                           {previewTexts.price && (
                             <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                              <SpellCheckText text={previewTexts.price} />
+                              <SpellCheckText 
+                                text={previewTexts.price}
+                                onWordReplace={(oldWord, newWord) => {
+                                  setPreviewTexts({
+                                    ...previewTexts,
+                                    price: previewTexts.price.replace(oldWord, newWord)
+                                  });
+                                }}
+                              />
                             </div>
                           )}
                         </div>
@@ -1276,7 +1316,15 @@ const Generator = () => {
                             className="resize-none"
                           />
                           <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText text={previewTexts.benefits} />
+                            <SpellCheckText 
+                              text={previewTexts.benefits}
+                              onWordReplace={(oldWord, newWord) => {
+                                setPreviewTexts({
+                                  ...previewTexts,
+                                  benefits: previewTexts.benefits.replace(oldWord, newWord)
+                                });
+                              }}
+                            />
                           </div>
                         </div>
                       )}
@@ -1293,7 +1341,15 @@ const Generator = () => {
                         </p>
                         {previewTexts.callToAction && (
                           <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText text={previewTexts.callToAction} />
+                            <SpellCheckText 
+                              text={previewTexts.callToAction}
+                              onWordReplace={(oldWord, newWord) => {
+                                setPreviewTexts({
+                                  ...previewTexts,
+                                  callToAction: previewTexts.callToAction.replace(oldWord, newWord)
+                                });
+                              }}
+                            />
                           </div>
                         )}
                       </div>

@@ -256,9 +256,10 @@ const ignoreWords = new Set([
 interface SpellCheckTextProps {
   text: string;
   className?: string;
+  onWordReplace?: (originalWord: string, newWord: string) => void;
 }
 
-export const SpellCheckText = ({ text, className = "" }: SpellCheckTextProps) => {
+export const SpellCheckText = ({ text, className = "", onWordReplace }: SpellCheckTextProps) => {
   const [suggestions, setSuggestions] = useState<Record<number, string[]>>({});
 
   const checkWord = (word: string): string[] | null => {
@@ -299,15 +300,18 @@ export const SpellCheckText = ({ text, className = "" }: SpellCheckTextProps) =>
                       key={i}
                       className="text-sm px-2 py-1 rounded hover:bg-accent cursor-pointer"
                       onClick={() => {
-                        // L'utilisateur peut copier la suggestion
-                        navigator.clipboard.writeText(suggestion);
+                        if (onWordReplace) {
+                          onWordReplace(trimmedWord, suggestion);
+                        } else {
+                          navigator.clipboard.writeText(suggestion);
+                        }
                       }}
                     >
                       {suggestion}
                     </div>
                   ))}
                   <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                    Cliquez pour copier
+                    {onWordReplace ? "Cliquez pour remplacer" : "Cliquez pour copier"}
                   </p>
                 </div>
               </HoverCardContent>
