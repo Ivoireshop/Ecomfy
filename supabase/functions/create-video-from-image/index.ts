@@ -28,7 +28,14 @@ serve(async (req) => {
       throw new Error('Utilisateur non authentifié');
     }
 
-    const { imageUrl, audioBase64, audioUrl, duration = 10 } = await req.json();
+    const body = await req.json();
+    const { imageUrl, audioBase64, audioUrl, duration = 10 } = body;
+    console.log('Payload reçu pour create-video-from-image', {
+      hasImageUrl: !!imageUrl,
+      hasAudioBase64: !!audioBase64,
+      hasAudioUrl: !!audioUrl,
+      duration
+    });
     
     if (!imageUrl || (!audioBase64 && !audioUrl)) {
       throw new Error('Image URL et audio requis');
@@ -98,10 +105,23 @@ serve(async (req) => {
     
     let audioBlob: Blob;
     if (audioUrl) {
-      // Fetch from URL
-      const audResp = await fetch(audioUrl);
-      if (!audResp.ok) throw new Error('Impossible de télécharger l\'audio');
-      audioBlob = await audResp.blob();
+      if (audioUrl.startsWith('data:')) {
+        // Data URL - convert to blob
+        const base64Data = audioUrl.split(',')[1];
+        const mimeMatch = audioUrl.match(/^data:(audio\/[^;]+);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'audio/mpeg';
+        const byteString = atob(base64Data);
+        const audioArray = new Uint8Array(byteString.length);
+        for (let i = 0; i < byteString.length; i++) {
+          audioArray[i] = byteString.charCodeAt(i);
+        }
+        audioBlob = new Blob([audioArray], { type: mimeType });
+      } else {
+        // Fetch from URL
+        const audResp = await fetch(audioUrl);
+        if (!audResp.ok) throw new Error('Impossible de télécharger l\'audio');
+        audioBlob = await audResp.blob();
+      }
     } else if (audioBase64) {
       // Convert base64 to blob
       const audioBinary = atob(audioBase64);
@@ -140,18 +160,19 @@ serve(async (req) => {
     
     // Build transformation: image as video background + audio overlay
     const videoTransformationUrl = `https://res.cloudinary.com/${cloudName}/video/upload/` +
-      `du_${Math.ceil(audioDuration)},` + // Duration matches audio
-      `l_${audioPublicId.replace(/\//g, ':')},fl_layer_apply,fl_splice/` + // Audio layer
-      `${imagePublicId}.mp4`; // Convert image to MP4
+      `e_loop:du_${Math.ceil(audioDuration)},` + // Loop image to match audio duration
+      `l_video:${audioPublicId.replace(/\//g, ':')},fl_layer_apply/` + // Add audio track
+      `${imagePublicId}.mp4`; // Render as MP4
     
     console.log('URL vidéo générée:', videoTransformationUrl);
     
-    // Verify the video is accessible
-    const videoCheckResp = await fetch(videoTransformationUrl, { method: 'HEAD' });
-    if (!videoCheckResp.ok) {
-      console.warn('Vidéo Cloudinary pas encore disponible, attente...');
-      // Wait a bit for Cloudinary processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    // Poll for video availability (Cloudinary may take a moment)
+    let available = false;
+    for (let i = 0; i < 3; i++) {
+      const head = await fetch(videoTransformationUrl, { method: 'HEAD' });
+      if (head.ok) { available = true; break; }
+      console.warn('Vidéo Cloudinary pas encore disponible, nouvelle tentative...', i + 1);
+      await new Promise(r => setTimeout(r, 3000));
     }
     
     const videoUrl = videoTransformationUrl;
