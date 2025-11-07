@@ -63,11 +63,18 @@ serve(async (req) => {
       throw new Error(`Erreur Eleven Labs: ${response.status} - ${errorText}`);
     }
 
-    // Convertir l'audio en base64
+    // Convertir l'audio en base64 par morceaux pour éviter le dépassement de pile
     const audioBuffer = await response.arrayBuffer();
-    const base64Audio = btoa(
-      String.fromCharCode(...new Uint8Array(audioBuffer))
-    );
+    const uint8Array = new Uint8Array(audioBuffer);
+    const chunkSize = 8192;
+    let binaryString = '';
+    
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    
+    const base64Audio = btoa(binaryString);
 
     return new Response(
       JSON.stringify({ 
