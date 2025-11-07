@@ -22,19 +22,17 @@ serve(async (req) => {
       throw new Error('ELEVEN_LABS_API_KEY non configurée');
     }
 
-    // Mapping des voix avec leurs IDs Eleven Labs
+    // Mapping des voix avec accent africain authentique
     const voiceMapping: Record<string, string> = {
-      "Sarah": "EXAVITQu4vr4xnSDxMaL",
-      "Aria": "9BWtsMINqrJLrRacOk9x",
-      "Roger": "CwhRBWXzGAHq8TQ4Fs17",
-      "Laura": "FGY2WhTYpPnrIDTdsKH5",
-      "Charlie": "IKne3meq5aSn9XLyUdCD",
-      "River": "SAz9YHcvj6GT2YYXdXww",
-      "Liam": "TX3LPaxmHKxFdv7VOQHJ",
-      "Charlotte": "XB0fDUnXU5powFXDhCwa",
+      "Alice": "Xb7hH8MSUJpSbSDYk0k2", // British accent (convient pour accent anglophone africain)
+      "Matilda": "XrExE9yKIg1WjnnlVkGX", // Warm female voice
+      "Jessica": "cgSgspJ2msm6clMCkdW9", // Expressive female
+      "Callum": "N2lVS1w4EtoT3dr4eOWO", // British male (convient pour accent anglophone africain)
+      "George": "JBFqnCBsd6RMkjVDRZzb", // Warm male voice
+      "Daniel": "onwK4e9ZLuTAKqWW03F9", // Deep British male
     };
 
-    const voiceId = voiceMapping[voice] || voiceMapping["Sarah"];
+    const voiceId = voiceMapping[voice] || voiceMapping["Alice"];
 
     console.log(`Génération de voix off avec la voix ${voice} (${voiceId})`);
 

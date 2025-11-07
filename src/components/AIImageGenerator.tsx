@@ -20,15 +20,14 @@ const imageTypes = [
   { value: "about", label: "Image À propos" },
 ];
 
+// Voix avec accent africain authentique via Eleven Labs
 const voices = [
-  { value: "Sarah", label: "Sarah (Féminine)" },
-  { value: "Aria", label: "Aria (Féminine)" },
-  { value: "Laura", label: "Laura (Féminine)" },
-  { value: "Charlotte", label: "Charlotte (Féminine)" },
-  { value: "Roger", label: "Roger (Masculin)" },
-  { value: "Charlie", label: "Charlie (Masculin)" },
-  { value: "Liam", label: "Liam (Masculin)" },
-  { value: "River", label: "River (Neutre)" },
+  { value: "Alice", label: "Alice (Féminine - Accent Africain)" },
+  { value: "Matilda", label: "Matilda (Féminine - Accent Africain)" },
+  { value: "Jessica", label: "Jessica (Féminine - Accent West African)" },
+  { value: "Callum", label: "Callum (Masculin - Accent Africain)" },
+  { value: "George", label: "George (Masculin - Accent Africain)" },
+  { value: "Daniel", label: "Daniel (Masculin - Accent West African)" },
 ];
 
 export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) => {
@@ -40,10 +39,12 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
   // Voix off states
   const [enableVoiceover, setEnableVoiceover] = useState(false);
   const [voiceoverText, setVoiceoverText] = useState("");
-  const [selectedVoice, setSelectedVoice] = useState("Sarah");
+  const [selectedVoice, setSelectedVoice] = useState("Alice");
   const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
   const [generatedAudio, setGeneratedAudio] = useState<string | null>(null);
+  const [generatedAudioBase64, setGeneratedAudioBase64] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isCreatingVideo, setIsCreatingVideo] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const generateImage = async () => {
@@ -120,6 +121,7 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       if (data?.audioContent) {
         const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
         setGeneratedAudio(audioUrl);
+        setGeneratedAudioBase64(data.audioContent);
         toast.success("Voix off générée avec succès !");
       } else {
         toast.error("Erreur lors de la génération de la voix off");
@@ -151,6 +153,61 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
     link.download = `voiceover-${selectedVoice}.mp3`;
     link.click();
     toast.success("Voix off téléchargée !");
+  };
+
+  const createVideoMP4 = async () => {
+    if (!generatedImage || !generatedAudioBase64) {
+      toast.error("Image et voix off nécessaires pour créer la vidéo");
+      return;
+    }
+
+    setIsCreatingVideo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-video-from-image", {
+        body: {
+          imageUrl: generatedImage,
+          audioBase64: generatedAudioBase64,
+          duration: 10,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.videoUrl) {
+        // Télécharger la vidéo
+        const link = document.createElement("a");
+        link.href = data.videoUrl;
+        link.download = `video-publicitaire-${Date.now()}.mp4`;
+        link.click();
+        toast.success("Vidéo MP4 créée et téléchargée !");
+      } else if (data?.audioUrl) {
+        // Fallback: télécharger image et audio séparément
+        toast.info("Téléchargement de l'image et de l'audio séparément");
+        
+        // Télécharger l'image
+        const imgLink = document.createElement("a");
+        imgLink.href = generatedImage;
+        imgLink.download = `image-${Date.now()}.png`;
+        imgLink.click();
+        
+        // Télécharger l'audio
+        setTimeout(() => {
+          const audioLink = document.createElement("a");
+          audioLink.href = data.audioUrl;
+          audioLink.download = `audio-${Date.now()}.mp3`;
+          audioLink.click();
+        }, 500);
+        
+        toast.success("Image et audio téléchargés séparément");
+      } else {
+        toast.error("Erreur lors de la création de la vidéo");
+      }
+    } catch (error: any) {
+      console.error("Error creating video:", error);
+      toast.error(error?.message || "Une erreur est survenue lors de la création de la vidéo");
+    } finally {
+      setIsCreatingVideo(false);
+    }
   };
 
   return (
@@ -298,6 +355,9 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Voix off prête avec accent africain authentique
+                </p>
               </div>
             )}
           </div>
@@ -312,13 +372,36 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
                 className="w-full rounded-lg border"
               />
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleUseImage} className="flex-1">
-                Utiliser cette image
-              </Button>
-              <Button onClick={handleDownload} variant="outline" size="icon">
-                <Download className="h-4 w-4" />
-              </Button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button onClick={handleUseImage} className="flex-1">
+                  Utiliser cette image
+                </Button>
+                <Button onClick={handleDownload} variant="outline" size="icon">
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {enableVoiceover && generatedAudio && generatedImage && (
+                <Button 
+                  onClick={createVideoMP4} 
+                  disabled={isCreatingVideo}
+                  className="w-full"
+                  variant="secondary"
+                >
+                  {isCreatingVideo ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Création de la vidéo MP4...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Télécharger vidéo MP4 (Image + Voix Off)
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         )}
