@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trash2, Upload, Image as ImageIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload, Image as ImageIcon, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -28,6 +28,7 @@ export function TestimonialsEditor({
   onTestimonialsChange 
 }: TestimonialsEditorProps) {
   const [isUploading, setIsUploading] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const addTestimonial = () => {
     const newTestimonial: Testimonial = {
@@ -73,6 +74,45 @@ export function TestimonialsEditor({
       toast.error("Erreur lors du téléchargement de l'image");
     } finally {
       setIsUploading(null);
+    }
+  };
+
+  const saveTestimonials = async () => {
+    setIsSaving(true);
+    try {
+      // First, delete existing testimonials
+      await supabase
+        .from("showcase_testimonials")
+        .delete()
+        .eq("showcase_site_id", showcaseSiteId);
+
+      // Then insert new testimonials
+      if (testimonials.length > 0) {
+        const testimonialsToInsert = testimonials.map((t, index) => ({
+          showcase_site_id: showcaseSiteId,
+          full_name: t.full_name,
+          testimonial_text: t.testimonial_text,
+          result_image_url: t.result_image_url || null,
+          display_order: index,
+        }));
+
+        const { error: testimonialsError } = await supabase
+          .from("showcase_testimonials")
+          .insert(testimonialsToInsert);
+
+        if (testimonialsError) {
+          console.error("Error saving testimonials:", testimonialsError);
+          toast.error("Erreur lors de la sauvegarde des témoignages");
+          return;
+        }
+      }
+
+      toast.success("Témoignages sauvegardés avec succès !");
+    } catch (error) {
+      console.error("Error saving testimonials:", error);
+      toast.error("Une erreur est survenue lors de la sauvegarde");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -188,6 +228,28 @@ export function TestimonialsEditor({
               </CardContent>
             </Card>
           ))
+        )}
+        
+        {testimonials.length > 0 && (
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={saveTestimonials}
+              disabled={isSaving}
+              size="lg"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sauvegarde en cours...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Sauvegarder les témoignages
+                </>
+              )}
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
