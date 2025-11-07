@@ -303,7 +303,26 @@ Create a stunning Facebook advertising visual that looks like a professional mar
 
     const data = await response.json();
     console.log('AI response received');
-    console.log('Full response data:', JSON.stringify(data, null, 2));
+
+    // Check if AI refused to generate content (content policy violation)
+    const responseContent = data.choices?.[0]?.message?.content;
+    if (responseContent && typeof responseContent === 'string') {
+      const lowerContent = responseContent.toLowerCase();
+      if (lowerContent.includes('cannot') || lowerContent.includes('inappropriate') || 
+          lowerContent.includes('policy') || lowerContent.includes('unable to')) {
+        console.log('Content policy refusal detected:', responseContent);
+        return new Response(
+          JSON.stringify({ 
+            error: "L'IA a refusé de générer cette image. Veuillez modifier la description du produit ou l'image de référence pour respecter les politiques de contenu.",
+            details: responseContent
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
 
     // Extract the generated image - try multiple possible paths
     let imageUrl = null;
@@ -324,13 +343,10 @@ Create a stunning Facebook advertising visual that looks like a professional mar
       imageUrl = img.image_url?.url || img.url || img;
       console.log('Image found at alternative path 2');
     }
-    // Alternative path 3 - in content
-    else if (data.choices?.[0]?.message?.content) {
-      const content = data.choices[0].message.content;
-      if (typeof content === 'string' && content.startsWith('data:image')) {
-        imageUrl = content;
-        console.log('Image found in content as data URL');
-      }
+    // Alternative path 3 - in content as data URL
+    else if (responseContent && typeof responseContent === 'string' && responseContent.startsWith('data:image')) {
+      imageUrl = responseContent;
+      console.log('Image found in content as data URL');
     }
     
     if (!imageUrl) {
