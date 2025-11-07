@@ -28,8 +28,8 @@ serve(async (req) => {
     // Get user from auth header (required for saving images)
     const authHeader = req.headers.get("Authorization");
     
-    // Create Supabase client with auth
-    const supabaseClient = createClient(
+    // Create Supabase client for auth verification
+    const authClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
@@ -40,7 +40,7 @@ serve(async (req) => {
     );
 
     // Get authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
     
     if (!user || userError) {
       return new Response(
@@ -55,6 +55,12 @@ serve(async (req) => {
     }
 
     const userId = user.id;
+    
+    // Create admin client for database operations (bypass RLS)
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
     let isFounder = false;
     let hasActiveSubscription = false;
 
