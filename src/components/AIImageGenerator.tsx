@@ -33,44 +33,22 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
 
     setIsGenerating(true);
     try {
-      // Course: service principal (20s max) puis fallback immédiat
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 20000)
-      );
-
-      const invokePromise = supabase.functions.invoke("generate-ad-visual", {
+      const { data, error } = await supabase.functions.invoke("generate-ad-visual", {
         body: {
           prompt,
           productName: `${imageType}-image`,
           category: imageType === "logo" ? "logo" : "website-visual",
-          fast: true,
+          fast: false, // Generate all formats
         },
       });
-
-      const { data, error } = (await Promise.race([invokePromise, timeout])) as any;
 
       if (error) throw error;
 
       if (data?.imageUrl) {
         setGeneratedImage(data.imageUrl);
-        toast.success("Image générée avec succès !");
+        toast.success("Image générée et sauvegardée dans la bibliothèque !");
       } else {
-        // Fallback vers le moteur léger si pas d'image retournée
-        const { data: fbData, error: fbError } = await supabase.functions.invoke('generate-feature-image', {
-          body: {
-            prompt,
-            productName: `${imageType}-image`,
-            niche: imageType,
-            description: prompt
-          }
-        });
-        if (fbError) throw fbError;
-        if (fbData?.imageUrl) {
-          setGeneratedImage(fbData.imageUrl);
-          toast.success("Image générée (moteur alternatif)");
-        } else {
-          toast.error("Erreur lors de la génération de l'image");
-        }
+        toast.error("Erreur lors de la génération de l'image");
       }
     } catch (error: any) {
       console.error("Error generating image:", error);
@@ -78,24 +56,7 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       if (status === 401) toast.error("Session expirée. Veuillez vous reconnecter.");
       else if (status === 402) toast.error("Crédits IA insuffisants. Réessayez plus tard ou ajoutez des crédits.");
       else if (status === 429) toast.error("Trop de requêtes. Patientez un instant et réessayez.");
-      else if (error?.message === 'timeout') toast.error("Le service est lent. Bascule vers le moteur alternatif.");
       else toast.error(error?.message || "Une erreur est survenue lors de la génération");
-
-      // Tentative finale de fallback si l'erreur survient avant le fallback ci-dessus
-      try {
-        const { data: fbData } = await supabase.functions.invoke('generate-feature-image', {
-          body: {
-            prompt,
-            productName: `${imageType}-image`,
-            niche: imageType,
-            description: prompt
-          }
-        });
-        if (fbData?.imageUrl) {
-          setGeneratedImage(fbData.imageUrl);
-          toast.success("Image générée (moteur alternatif)");
-        }
-      } catch {}
     } finally {
       setIsGenerating(false);
     }
