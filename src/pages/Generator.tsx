@@ -53,6 +53,17 @@ const Generator = () => {
 
   // Template state
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
+  
+  // Text preview and validation state
+  const [showTextPreview, setShowTextPreview] = useState(false);
+  const [previewTexts, setPreviewTexts] = useState({
+    productName: "",
+    tagline: "",
+    price: "",
+    promotionalPrice: "",
+    benefits: "",
+    callToAction: "Commandez maintenant!",
+  });
 
   // Voix africaines (ElevenLabs)
   const voices = [
@@ -266,7 +277,7 @@ const Generator = () => {
     }
   };
 
-  const handleGenerate = async () => {
+  const openTextPreview = () => {
     if (!productName || !niche || !description || !platform || !price) {
       toast({
         title: "Champs manquants",
@@ -276,6 +287,25 @@ const Generator = () => {
       return;
     }
 
+    // Préparer les textes qui seront sur l'image
+    const tagline = benefits 
+      ? benefits.split(',')[0].trim() 
+      : description.substring(0, 60) + (description.length > 60 ? '...' : '');
+
+    setPreviewTexts({
+      productName: productName,
+      tagline: tagline,
+      price: price,
+      promotionalPrice: promotionalPrice || "",
+      benefits: benefits || "",
+      callToAction: "Commandez maintenant!",
+    });
+
+    setShowTextPreview(true);
+  };
+
+  const handleGenerate = async () => {
+    setShowTextPreview(false);
     setIsLoading(true);
     setGeneratedImage(null);
 
@@ -287,20 +317,22 @@ const Generator = () => {
 
       const invokePromise = supabase.functions.invoke("generate-ad-visual", {
         body: {
-          productName,
+          productName: previewTexts.productName,
           niche,
           description,
-          benefits,
+          benefits: previewTexts.benefits || benefits,
           container,
           platform,
           style,
-          price,
-          promotionalPrice,
+          price: previewTexts.price,
+          promotionalPrice: previewTexts.promotionalPrice,
           posology,
           productImage,
           personDescription,
           fast: false, // Générer tous les formats pour la bibliothèque
           template: selectedTemplate, // Add template data
+          tagline: previewTexts.tagline,
+          callToAction: previewTexts.callToAction,
         },
       });
 
@@ -830,10 +862,11 @@ const Generator = () => {
 
               {generationType === "image" ? (
                 <Button
-                  type="submit"
+                  type="button"
+                  onClick={openTextPreview}
                   className="w-full text-lg py-6"
                   size="lg"
-                  disabled={isLoading}
+                  disabled={isLoading || (!hasActiveSubscription && freeGenerationsRemaining === 0)}
                 >
                   {isLoading ? (
                     <>
@@ -843,7 +876,7 @@ const Generator = () => {
                   ) : (
                     <>
                       <Sparkles className="mr-2 h-5 w-5" />
-                      Générer mon image
+                      Prévisualiser et générer
                     </>
                   )}
                 </Button>
@@ -1079,6 +1112,144 @@ const Generator = () => {
                   setIsEditing(false);
                 }}
               />
+            )}
+
+            {/* Text Preview Dialog */}
+            {showTextPreview && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-bold">Vérifiez les textes avant génération</h2>
+                      <Button
+                        onClick={() => setShowTextPreview(false)}
+                        variant="ghost"
+                        size="icon"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+
+                    <Alert>
+                      <AlertDescription>
+                        ⚠️ Vérifiez attentivement l'orthographe, la grammaire et le vocabulaire de chaque texte ci-dessous. Ces textes seront utilisés pour générer votre visuel publicitaire.
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="preview-productName">Nom du produit</Label>
+                        <Input
+                          id="preview-productName"
+                          value={previewTexts.productName}
+                          onChange={(e) => setPreviewTexts({...previewTexts, productName: e.target.value})}
+                          className="text-lg font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="preview-tagline">Phrase d'accroche / Slogan</Label>
+                        <Textarea
+                          id="preview-tagline"
+                          value={previewTexts.tagline}
+                          onChange={(e) => setPreviewTexts({...previewTexts, tagline: e.target.value})}
+                          rows={2}
+                          className="resize-none"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Ce texte apparaîtra en évidence sur votre visuel
+                        </p>
+                      </div>
+
+                      {previewTexts.promotionalPrice && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label htmlFor="preview-promotionalPrice">Prix promotionnel (barré)</Label>
+                            <Input
+                              id="preview-promotionalPrice"
+                              value={previewTexts.promotionalPrice}
+                              onChange={(e) => setPreviewTexts({...previewTexts, promotionalPrice: e.target.value})}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="preview-price">Prix actuel</Label>
+                            <Input
+                              id="preview-price"
+                              value={previewTexts.price}
+                              onChange={(e) => setPreviewTexts({...previewTexts, price: e.target.value})}
+                              className="font-bold"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {!previewTexts.promotionalPrice && (
+                        <div>
+                          <Label htmlFor="preview-price">Prix</Label>
+                          <Input
+                            id="preview-price"
+                            value={previewTexts.price}
+                            onChange={(e) => setPreviewTexts({...previewTexts, price: e.target.value})}
+                            className="font-bold text-lg"
+                          />
+                        </div>
+                      )}
+
+                      {previewTexts.benefits && (
+                        <div>
+                          <Label htmlFor="preview-benefits">Avantages / Bénéfices</Label>
+                          <Textarea
+                            id="preview-benefits"
+                            value={previewTexts.benefits}
+                            onChange={(e) => setPreviewTexts({...previewTexts, benefits: e.target.value})}
+                            rows={2}
+                            className="resize-none"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label htmlFor="preview-cta">Appel à l'action</Label>
+                        <Input
+                          id="preview-cta"
+                          value={previewTexts.callToAction}
+                          onChange={(e) => setPreviewTexts({...previewTexts, callToAction: e.target.value})}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Exemple : "Commandez maintenant!", "Achetez aujourd'hui", "Contactez-nous"
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        onClick={() => setShowTextPreview(false)}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        onClick={handleGenerate}
+                        className="flex-1"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Génération...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Confirmer et générer
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
