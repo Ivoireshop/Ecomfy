@@ -305,6 +305,18 @@ const Generator = () => {
   };
 
   const handleGenerate = async () => {
+    // Vérifier l'abonnement et les générations gratuites avant de générer
+    if (!hasActiveSubscription && freeGenerationsRemaining === 0) {
+      setShowTextPreview(false);
+      toast({
+        title: "Essai gratuit terminé",
+        description: "Vous avez utilisé toutes vos générations gratuites. Veuillez souscrire à un abonnement pour continuer.",
+        variant: "destructive",
+      });
+      setTimeout(() => navigate("/subscription"), 2000);
+      return;
+    }
+
     setShowTextPreview(false);
     setIsLoading(true);
     setGeneratedImage(null);
@@ -866,7 +878,7 @@ const Generator = () => {
                   onClick={openTextPreview}
                   className="w-full text-lg py-6"
                   size="lg"
-                  disabled={isLoading || (!hasActiveSubscription && freeGenerationsRemaining === 0)}
+                  disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
