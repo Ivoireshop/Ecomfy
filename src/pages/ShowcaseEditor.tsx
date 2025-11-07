@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe } from "lucide-react";
+import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,6 +81,8 @@ export default function ShowcaseEditor() {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [aboutImageFile, setAboutImageFile] = useState<File | null>(null);
@@ -155,6 +157,17 @@ export default function ShowcaseEditor() {
   useEffect(() => {
     loadSite();
   }, [id]);
+
+  // Auto-save every 30 seconds
+  useEffect(() => {
+    if (!id || isLoading) return;
+
+    const autoSaveInterval = setInterval(() => {
+      autoSave();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [id, isLoading, formValues, features, formations, testimonials, seoTitle, seoDescription, seoKeywords, ogImageUrl, formationsTextAlign]);
 
   const loadSite = async () => {
     if (!id) return;
@@ -304,6 +317,124 @@ export default function ShowcaseEditor() {
     await saveShowcase(data, true);
   };
 
+  const autoSave = async () => {
+    if (isAutoSaving || isSaving) return;
+    
+    setIsAutoSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      // Get current form values
+      const currentValues = formValues;
+      
+      // Determine theme colors
+      const themeColors = themes.find(t => t.value === currentValues.theme)?.colors;
+
+      // Upload new images if provided (but don't block auto-save for this)
+      let logoUrl = existingLogoUrl;
+      let heroImageUrl = existingHeroUrl;
+      let aboutImageUrl = existingAboutUrl;
+
+      if (logoFile) {
+        const newLogoUrl = await uploadImage(logoFile, user.id, 'logo');
+        if (newLogoUrl) {
+          logoUrl = newLogoUrl;
+          setExistingLogoUrl(newLogoUrl);
+          setLogoFile(null); // Clear file after upload
+        }
+      }
+      if (heroImageFile) {
+        const newHeroUrl = await uploadImage(heroImageFile, user.id, 'hero');
+        if (newHeroUrl) {
+          heroImageUrl = newHeroUrl;
+          setExistingHeroUrl(newHeroUrl);
+          setHeroImageFile(null);
+        }
+      }
+      if (aboutImageFile) {
+        const newAboutUrl = await uploadImage(aboutImageFile, user.id, 'about');
+        if (newAboutUrl) {
+          aboutImageUrl = newAboutUrl;
+          setExistingAboutUrl(newAboutUrl);
+          setAboutImageFile(null);
+        }
+      }
+
+      // Update the showcase site (silently)
+      const updateData: any = {
+        business_description: currentValues.businessDescription,
+        owner_name: currentValues.ownerName,
+        whatsapp_number: currentValues.whatsappNumber,
+        phone_number: currentValues.phoneNumber,
+        hero_title: currentValues.heroTitle,
+        hero_subtitle: currentValues.heroSubtitle,
+        about_title: currentValues.aboutTitle,
+        about_description: currentValues.aboutDescription,
+        cta_title: currentValues.ctaTitle,
+        cta_description: currentValues.ctaDescription,
+        formation_title: currentValues.formationTitle,
+        formation_description: currentValues.formationDescription,
+        formation_price: currentValues.formationPrice,
+        theme: currentValues.theme,
+        primary_color: themeColors?.primary,
+        secondary_color: themeColors?.secondary,
+        text_color: currentValues.textColor,
+        about_layout: currentValues.aboutLayout,
+        gallery_text_position: currentValues.galleryTextPosition,
+        font_family: currentValues.fontFamily,
+        theme_mode: currentValues.themeMode,
+        logo_url: logoUrl,
+        hero_image_url: heroImageUrl,
+        about_image_url: aboutImageUrl,
+        features: features,
+        formations: formations,
+        formations_text_align: formationsTextAlign,
+        seo_title: seoTitle,
+        seo_description: seoDescription,
+        seo_keywords: seoKeywords,
+        og_image_url: ogImageUrl,
+      };
+
+      const { error: updateError } = await supabase
+        .from("showcase_sites")
+        .update(updateData)
+        .eq("id", id);
+
+      if (updateError) {
+        console.error("Auto-save error:", updateError);
+        return;
+      }
+
+      // Save testimonials
+      await supabase
+        .from("showcase_testimonials")
+        .delete()
+        .eq("showcase_site_id", id);
+
+      if (testimonials.length > 0) {
+        const testimonialsToInsert = testimonials.map((t, index) => ({
+          showcase_site_id: id,
+          full_name: t.full_name,
+          testimonial_text: t.testimonial_text,
+          result_image_url: t.result_image_url || null,
+          display_order: index,
+        }));
+
+        await supabase
+          .from("showcase_testimonials")
+          .insert(testimonialsToInsert);
+      }
+
+      setLastAutoSave(new Date());
+    } catch (error) {
+      console.error("Error during auto-save:", error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
   const saveShowcase = async (data: ShowcaseFormData, shouldPublish: boolean = false) => {
     setIsSaving(true);
     try {
@@ -440,19 +571,38 @@ export default function ShowcaseEditor() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-7xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/showcase-manager")}
-          className="mb-6"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour
-        </Button>
+        <div className="flex items-center justify-between mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/showcase-manager")}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour
+          </Button>
+
+          {/* Auto-save indicator */}
+          <div className="flex items-center gap-2">
+            {isAutoSaving ? (
+              <Badge variant="secondary" className="gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Sauvegarde automatique...
+              </Badge>
+            ) : lastAutoSave ? (
+              <Badge variant="outline" className="gap-2">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                Dernière sauvegarde: {lastAutoSave.toLocaleTimeString()}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
 
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-2">Modifier votre site vitrine</h1>
           <p className="text-muted-foreground text-lg">
             Éditez et prévisualisez vos modifications en temps réel
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            💾 Sauvegarde automatique toutes les 30 secondes
           </p>
         </div>
 
