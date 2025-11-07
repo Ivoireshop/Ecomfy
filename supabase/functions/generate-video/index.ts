@@ -312,8 +312,8 @@ Le visuel doit être:
         })
         .eq("id", videoData.id);
 
-      // Step 2: Generate video from image using Runway API (~5-10 seconds)
-      console.log("Step 2: Generating video with Runway API...");
+      // Step 2: Generate video from image using Runway Gen-3 Turbo (~5-10 seconds)
+      console.log("Step 2: Génération vidéo avec Runway Gen-3 Turbo (optimisé pour qualité)...");
       
       // Update progress: animating video
       await supabaseClient
@@ -323,6 +323,13 @@ Le visuel doit être:
           progress_percentage: 50,
         })
         .eq("id", videoData.id);
+      
+      // Enhanced prompt for high-quality advertising videos
+      const enhancedPrompt = `Publicité professionnelle ${niche} pour ${platform} - Style: ${style}. 
+Effet cinématographique avec: mouvements de caméra fluides et dynamiques, zoom progressif engageant, 
+transitions professionnelles, éclairage publicitaire optimal, atmosphère captivante pour réseaux sociaux. 
+${personDescription ? `Mise en scène: ${personDescription}.` : ''} 
+Animation de haute qualité avec profondeur, énergie et impact visuel maximum pour conversion publicitaire.`;
       
       const runwayResponse = await fetch("https://api.runwayml.com/v1/image_to_video", {
         method: "POST",
@@ -334,12 +341,15 @@ Le visuel doit être:
         body: JSON.stringify({
           model: "gen3a_turbo",
           promptImage: imagePublicUrl,
-          promptText: `Animate this ${niche} advertisement for ${platform}. Add smooth transitions, dynamic camera movements, and professional effects. Style: ${style}. Make it engaging and eye-catching for social media.`,
-          duration: safeDuration, // clamp 5-15s
+          promptText: enhancedPrompt,
+          duration: safeDuration,
           ratio: "9:16",
-          watermark: false
+          watermark: false,
+          seed: Math.floor(Math.random() * 1000000) // Random seed for variety
         })
       });
+      
+      console.log("Runway request envoyé avec prompt amélioré");
 
       if (!runwayResponse.ok) {
         const errorText = await runwayResponse.text();

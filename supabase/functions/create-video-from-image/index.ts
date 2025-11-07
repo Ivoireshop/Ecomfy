@@ -34,140 +34,127 @@ serve(async (req) => {
       throw new Error('Image URL et audio requis');
     }
 
-    const REPLICATE_API_KEY = Deno.env.get('REPLICATE_API_KEY');
-    if (!REPLICATE_API_KEY) {
-      throw new Error('REPLICATE_API_KEY non configurée');
+    const CLOUDINARY_URL = Deno.env.get('CLOUDINARY_URL');
+    if (!CLOUDINARY_URL) {
+      throw new Error('CLOUDINARY_URL non configurée');
     }
 
-    console.log('Création de la vidéo avec image et audio...');
+    console.log('Création vidéo MP4 professionnelle avec Cloudinary...');
 
-    // Télécharger l'image
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error('Impossible de télécharger l\'image');
+    // Parse Cloudinary credentials from URL: cloudinary://api_key:api_secret@cloud_name
+    const cloudinaryMatch = CLOUDINARY_URL.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+    if (!cloudinaryMatch) {
+      throw new Error('Format CLOUDINARY_URL invalide');
     }
-    const imageBuffer = await imageResponse.arrayBuffer();
-    
-    // Convertir l'image en base64 par morceaux pour éviter le dépassement de pile
-    const imageUint8Array = new Uint8Array(imageBuffer);
-    const chunkSize = 8192;
-    let imageBinaryString = '';
-    
-    for (let i = 0; i < imageUint8Array.length; i += chunkSize) {
-      const chunk = imageUint8Array.subarray(i, Math.min(i + chunkSize, imageUint8Array.length));
-      imageBinaryString += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    
-    const imageBase64 = btoa(imageBinaryString);
+    const [, apiKey, apiSecret, cloudName] = cloudinaryMatch;
 
-    // Créer une vidéo statique avec l'audio en utilisant Replicate
-    const replicateResponse = await fetch('https://api.replicate.com/v1/predictions', {
+    // Upload image to Cloudinary
+    console.log('Upload de l\'image vers Cloudinary...');
+    const imageUploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+    const imageFormData = new FormData();
+    
+    let imageBlob: Blob;
+    if (imageUrl.startsWith('data:')) {
+      // Data URL - convert to blob
+      const base64Data = imageUrl.split(',')[1];
+      const mimeMatch = imageUrl.match(/^data:(image\/[^;]+);/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+      const byteString = atob(base64Data);
+      const byteArray = new Uint8Array(byteString.length);
+      for (let i = 0; i < byteString.length; i++) {
+        byteArray[i] = byteString.charCodeAt(i);
+      }
+      imageBlob = new Blob([byteArray], { type: mimeType });
+    } else {
+      // Public URL - fetch and convert to blob
+      const imgResp = await fetch(imageUrl);
+      if (!imgResp.ok) throw new Error('Impossible de télécharger l\'image');
+      imageBlob = await imgResp.blob();
+    }
+    
+    imageFormData.append('file', imageBlob);
+    imageFormData.append('upload_preset', 'ml_default');
+    imageFormData.append('api_key', apiKey);
+    
+    const imageUploadResp = await fetch(imageUploadUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Token ${REPLICATE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        version: "3abd7b78a4e8c5f2d6d9b5f8c7a4b3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6",
-        input: {
-          image: `data:image/png;base64,${imageBase64}`,
-          audio: `data:audio/mpeg;base64,${audioBase64}`,
-          duration: duration,
-        }
-      }),
+      body: imageFormData,
     });
-
-    if (!replicateResponse.ok) {
-      const errorText = await replicateResponse.text();
-      console.error('Erreur Replicate:', errorText);
-      
-      // Fallback: créer une vidéo simple en uploadant l'image sur Supabase
-      // et retourner les URLs pour que le client puisse les combiner
-      
-      // Si une URL audio est déjà fournie, renvoyer directement les URLs
-      if (audioUrl) {
-        return new Response(
-          JSON.stringify({ 
-            videoUrl: null,
-            imageUrl: imageUrl,
-            audioUrl: audioUrl,
-            message: "Vidéo non disponible, utilisez l'image et l'audio séparément"
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Sinon, uploader l'audio encodé en base64 pour fournir une URL publique
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-
-      // Uploader l'audio en MP3 - conversion par morceaux pour éviter le dépassement de pile
-      const audioString = atob(audioBase64);
-      const audioBuffer = new Uint8Array(audioString.length);
-      for (let i = 0; i < audioString.length; i++) {
-        audioBuffer[i] = audioString.charCodeAt(i);
-      }
-      const audioFileName = `audio-${Date.now()}.mp3`;
-      const { error: audioError } = await supabase.storage
-        .from('generated-content')
-        .upload(audioFileName, audioBuffer, {
-          contentType: 'audio/mpeg',
-          cacheControl: '3600',
-        });
-
-      if (audioError) throw audioError;
-
-      const { data: audioUrlData } = supabase.storage
-        .from('generated-content')
-        .getPublicUrl(audioFileName);
-
-      return new Response(
-        JSON.stringify({ 
-          videoUrl: null,
-          imageUrl: imageUrl,
-          audioUrl: audioUrlData.publicUrl,
-          message: "Vidéo non disponible, utilisez l'image et l'audio séparément"
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const prediction = await replicateResponse.json();
     
-    // Attendre que la vidéo soit générée (max 60 secondes)
-    let videoUrl = null;
-    let attempts = 0;
-    const maxAttempts = 30;
+    if (!imageUploadResp.ok) {
+      const errorText = await imageUploadResp.text();
+      console.error('Erreur upload image Cloudinary:', errorText);
+      throw new Error('Échec upload image sur Cloudinary');
+    }
+    
+    const imageData = await imageUploadResp.json();
+    const imagePublicId = imageData.public_id;
+    console.log('Image uploadée:', imagePublicId);
 
-    while (attempts < maxAttempts && !videoUrl) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const statusResponse = await fetch(
-        `https://api.replicate.com/v1/predictions/${prediction.id}`,
-        {
-          headers: {
-            'Authorization': `Token ${REPLICATE_API_KEY}`,
-          },
-        }
-      );
-
-      const status = await statusResponse.json();
-      
-      if (status.status === 'succeeded') {
-        videoUrl = status.output;
-        break;
-      } else if (status.status === 'failed') {
-        throw new Error('Échec de la génération de la vidéo');
+    // Upload audio to Cloudinary
+    console.log('Upload de l\'audio vers Cloudinary...');
+    const audioUploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
+    const audioFormData = new FormData();
+    
+    let audioBlob: Blob;
+    if (audioUrl) {
+      // Fetch from URL
+      const audResp = await fetch(audioUrl);
+      if (!audResp.ok) throw new Error('Impossible de télécharger l\'audio');
+      audioBlob = await audResp.blob();
+    } else if (audioBase64) {
+      // Convert base64 to blob
+      const audioBinary = atob(audioBase64);
+      const audioArray = new Uint8Array(audioBinary.length);
+      for (let i = 0; i < audioBinary.length; i++) {
+        audioArray[i] = audioBinary.charCodeAt(i);
       }
-      
-      attempts++;
+      audioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
+    } else {
+      throw new Error('Aucune source audio valide');
     }
+    
+    audioFormData.append('file', audioBlob);
+    audioFormData.append('upload_preset', 'ml_default');
+    audioFormData.append('api_key', apiKey);
+    audioFormData.append('resource_type', 'video');
+    
+    const audioUploadResp = await fetch(audioUploadUrl, {
+      method: 'POST',
+      body: audioFormData,
+    });
+    
+    if (!audioUploadResp.ok) {
+      const errorText = await audioUploadResp.text();
+      console.error('Erreur upload audio Cloudinary:', errorText);
+      throw new Error('Échec upload audio sur Cloudinary');
+    }
+    
+    const audioData = await audioUploadResp.json();
+    const audioPublicId = audioData.public_id;
+    const audioDuration = audioData.duration || duration;
+    console.log('Audio uploadé:', audioPublicId, 'durée:', audioDuration);
 
-    if (!videoUrl) {
-      throw new Error('Délai d\'attente dépassé pour la génération de la vidéo');
+    // Create video with image + audio using Cloudinary transformation
+    console.log('Création de la vidéo MP4 avec muxing audio/vidéo...');
+    
+    // Build transformation: image as video background + audio overlay
+    const videoTransformationUrl = `https://res.cloudinary.com/${cloudName}/video/upload/` +
+      `du_${Math.ceil(audioDuration)},` + // Duration matches audio
+      `l_${audioPublicId.replace(/\//g, ':')},fl_layer_apply,fl_splice/` + // Audio layer
+      `${imagePublicId}.mp4`; // Convert image to MP4
+    
+    console.log('URL vidéo générée:', videoTransformationUrl);
+    
+    // Verify the video is accessible
+    const videoCheckResp = await fetch(videoTransformationUrl, { method: 'HEAD' });
+    if (!videoCheckResp.ok) {
+      console.warn('Vidéo Cloudinary pas encore disponible, attente...');
+      // Wait a bit for Cloudinary processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
+    
+    const videoUrl = videoTransformationUrl;
 
     // Décrémenter le compteur de vidéos gratuites pour les utilisateurs non-fondateurs
     const { data: roles } = await supabaseClient
