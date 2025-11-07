@@ -251,6 +251,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           free_generations_remaining: number
+          free_video_generations_remaining: number
           full_name: string | null
           id: string
           phone: string | null
@@ -261,6 +262,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           free_generations_remaining?: number
+          free_video_generations_remaining?: number
           full_name?: string | null
           id: string
           phone?: string | null
@@ -271,6 +273,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           free_generations_remaining?: number
+          free_video_generations_remaining?: number
           full_name?: string | null
           id?: string
           phone?: string | null

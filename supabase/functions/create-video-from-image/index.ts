@@ -12,6 +12,22 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Non authentifié');
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      throw new Error('Utilisateur non authentifié');
+    }
+
     const { imageUrl, audioBase64, duration = 10 } = await req.json();
     
     if (!imageUrl || !audioBase64) {
@@ -123,6 +139,43 @@ serve(async (req) => {
 
     if (!videoUrl) {
       throw new Error('Délai d\'attente dépassé pour la génération de la vidéo');
+    }
+
+    // Décrémenter le compteur de vidéos gratuites pour les utilisateurs non-fondateurs
+    const { data: roles } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    const isFounder = roles?.some(r => r.role === 'founder' || r.role === 'co_founder');
+
+    if (!isFounder) {
+      // Vérifier l'abonnement
+      const { data: subscription } = await supabaseClient
+        .from('subscriptions')
+        .select('status')
+        .eq('user_id', user.id)
+        .single();
+
+      const hasActiveSubscription = subscription?.status === 'active';
+
+      // Décrémenter uniquement si pas d'abonnement actif
+      if (!hasActiveSubscription) {
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('free_video_generations_remaining')
+          .eq('id', user.id)
+          .single();
+
+        if (profile && profile.free_video_generations_remaining > 0) {
+          await supabaseClient
+            .from('profiles')
+            .update({ 
+              free_video_generations_remaining: profile.free_video_generations_remaining - 1 
+            })
+            .eq('id', user.id);
+        }
+      }
     }
 
     return new Response(

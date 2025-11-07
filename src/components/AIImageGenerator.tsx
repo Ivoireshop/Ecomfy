@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Loader2, Sparkles, Download, Volume2, Play, Pause } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface AIImageGeneratorProps {
   onImageGenerated: (imageUrl: string, imageType: "logo" | "hero" | "about") => void;
@@ -46,6 +47,55 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
   const [isPlaying, setIsPlaying] = useState(false);
   const [isCreatingVideo, setIsCreatingVideo] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // User subscription and video generations
+  const [freeVideoGenerationsRemaining, setFreeVideoGenerationsRemaining] = useState<number>(0);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [isFounder, setIsFounder] = useState(false);
+
+  useEffect(() => {
+    loadUserStatus();
+  }, []);
+
+  const loadUserStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user is founder or co-founder
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const isFounderOrCofounder = roles?.some(r => 
+        r.role === "founder" || r.role === "co_founder"
+      );
+      setIsFounder(!!isFounderOrCofounder);
+
+      // Get profile with video generations
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("free_video_generations_remaining")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setFreeVideoGenerationsRemaining(profile.free_video_generations_remaining);
+      }
+
+      // Check subscription status
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("status")
+        .eq("user_id", user.id)
+        .single();
+
+      setHasActiveSubscription(subscription?.status === "active");
+    } catch (error) {
+      console.error("Error loading user status:", error);
+    }
+  };
 
   const generateImage = async () => {
     if (!prompt.trim()) {
@@ -161,6 +211,12 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       return;
     }
 
+    // Check if user can create video
+    if (!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining <= 0) {
+      toast.error("Vous avez utilisé votre essai gratuit. Veuillez souscrire à un abonnement pour continuer.");
+      return;
+    }
+
     setIsCreatingVideo(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-video-from-image", {
@@ -180,6 +236,9 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
         link.download = `video-publicitaire-${Date.now()}.mp4`;
         link.click();
         toast.success("Vidéo MP4 créée et téléchargée !");
+        
+        // Recharger le statut de l'utilisateur après la génération
+        await loadUserStatus();
       } else if (data?.audioUrl) {
         // Fallback: télécharger image et audio séparément
         toast.info("Téléchargement de l'image et de l'audio séparément");
@@ -199,6 +258,9 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
         }, 500);
         
         toast.success("Image et audio téléchargés séparément");
+        
+        // Recharger le statut de l'utilisateur après la génération
+        await loadUserStatus();
       } else {
         toast.error("Erreur lors de la création de la vidéo");
       }
@@ -209,6 +271,8 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       setIsCreatingVideo(false);
     }
   };
+
+  const canCreateVideo = isFounder || hasActiveSubscription || freeVideoGenerationsRemaining > 0;
 
   return (
     <Card>
@@ -383,24 +447,36 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
               </div>
               
               {enableVoiceover && generatedAudio && generatedImage && (
-                <Button 
-                  onClick={createVideoMP4} 
-                  disabled={isCreatingVideo}
-                  className="w-full"
-                  variant="secondary"
-                >
-                  {isCreatingVideo ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Création de la vidéo MP4...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="mr-2 h-4 w-4" />
-                      Télécharger vidéo MP4 (Image + Voix Off)
-                    </>
+                <div className="space-y-2">
+                  {!canCreateVideo && (
+                    <Alert>
+                      <AlertDescription>
+                        Essai gratuit utilisé. Abonnez-vous pour créer plus de vidéos avec voix off.
+                      </AlertDescription>
+                    </Alert>
                   )}
-                </Button>
+                  <Button 
+                    onClick={createVideoMP4} 
+                    disabled={isCreatingVideo || !canCreateVideo}
+                    className="w-full"
+                    variant="secondary"
+                  >
+                    {isCreatingVideo ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Création de la vidéo MP4...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Télécharger vidéo MP4 (Image + Voix Off)
+                        {!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining > 0 && (
+                          <span className="ml-2 text-xs">({freeVideoGenerationsRemaining} essai gratuit)</span>
+                        )}
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
           </div>
