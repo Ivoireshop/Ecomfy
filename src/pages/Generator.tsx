@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, Video } from "lucide-react";
+import { Sparkles, Loader2, Video, Volume2, Play, Pause, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -39,6 +39,26 @@ const Generator = () => {
   const [isFounder, setIsFounder] = useState(false);
   const [videoDuration, setVideoDuration] = useState<10 | 15>(10);
   const [videoProgress, setVideoProgress] = useState<{step: string, percentage: number} | null>(null);
+
+  // Voix off states
+  const [voiceoverText, setVoiceoverText] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState("Alice");
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const [generatedAudio, setGeneratedAudio] = useState<string | null>(null);
+  const [generatedAudioBase64, setGeneratedAudioBase64] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [freeVideoGenerationsRemaining, setFreeVideoGenerationsRemaining] = useState<number>(0);
+
+  // Voix africaines (ElevenLabs)
+  const voices = [
+    { value: "Alice", label: "Alice (Féminine - Accent Africain)" },
+    { value: "Matilda", label: "Matilda (Féminine - Accent Africain)" },
+    { value: "Jessica", label: "Jessica (Féminine - Accent West African)" },
+    { value: "Callum", label: "Callum (Masculin - Accent Africain)" },
+    { value: "George", label: "George (Masculin - Accent Africain)" },
+    { value: "Daniel", label: "Daniel (Masculin - Accent West African)" },
+  ];
   
   useEffect(() => {
     const check = () => {
@@ -99,11 +119,12 @@ const Generator = () => {
       // Check free generations
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("free_generations_remaining")
+        .select("free_generations_remaining, free_video_generations_remaining")
         .eq("id", user.id)
         .single();
 
       setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
+      setFreeVideoGenerationsRemaining(profileData?.free_video_generations_remaining || 0);
     } catch (error) {
       console.error("Error loading generation status:", error);
     }
@@ -368,6 +389,120 @@ const Generator = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // --- Voix off & vidéo MP4 depuis l'image ---
+  const generateVoiceover = async () => {
+    if (!voiceoverText.trim()) {
+      toast({
+        title: "Texte manquant",
+        description: "Veuillez entrer un texte pour la voix off",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingVoice(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-voiceover", {
+        body: {
+          text: voiceoverText,
+          voice: selectedVoice,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.audioContent) {
+        const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+        setGeneratedAudio(audioUrl);
+        setGeneratedAudioBase64(data.audioContent);
+        toast({ title: "Voix off prête", description: "La voix off a été générée avec succès" });
+      } else {
+        toast({ title: "Erreur", description: "Erreur lors de la génération de la voix off", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error("Error generating voiceover:", err);
+      toast({ title: "Erreur", description: err?.message || "Une erreur est survenue", variant: "destructive" });
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (!audioRef.current || !generatedAudio) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const handleDownloadAudio = () => {
+    if (!generatedAudio) return;
+    const link = document.createElement("a");
+    link.href = generatedAudio;
+    link.download = `voiceover-${selectedVoice}.mp3`;
+    link.click();
+    toast({ title: "Téléchargé", description: "Voix off téléchargée" });
+  };
+
+  const createVideoMP4 = async () => {
+    if (!generatedImage || !generatedAudioBase64) {
+      toast({ title: "Image et voix off requises", description: "Générez d'abord l'image et la voix off", variant: "destructive" });
+      return;
+    }
+
+    if (!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining <= 0) {
+      toast({ title: "Essai gratuit utilisé", description: "Abonnez-vous pour créer des vidéos avec voix off", variant: "destructive" });
+      return;
+    }
+
+    setIsGeneratingVideo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-video-from-image", {
+        body: {
+          imageUrl: generatedImage,
+          audioBase64: generatedAudioBase64,
+          duration: 10,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.videoUrl) {
+        const link = document.createElement("a");
+        link.href = data.videoUrl;
+        link.download = `video-publicitaire-${Date.now()}.mp4`;
+        link.click();
+        toast({ title: "Vidéo prête", description: "Vidéo MP4 créée et téléchargée !" });
+        await loadUserGenerationStatus();
+      } else if (data?.audioUrl) {
+        const imgLink = document.createElement("a");
+        imgLink.href = generatedImage;
+        imgLink.download = `image-${Date.now()}.png`;
+        imgLink.click();
+
+        setTimeout(() => {
+          const audioLink = document.createElement("a");
+          audioLink.href = data.audioUrl;
+          audioLink.download = `audio-${Date.now()}.mp3`;
+          audioLink.click();
+        }, 500);
+
+        toast({ title: "Téléchargements prêts", description: "Image et audio téléchargés séparément" });
+        await loadUserGenerationStatus();
+      } else {
+        toast({ title: "Erreur", description: "Erreur lors de la création de la vidéo", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error("Error creating video:", err);
+      toast({ title: "Erreur", description: err?.message || "Une erreur est survenue", variant: "destructive" });
+    } finally {
+      setIsGeneratingVideo(false);
     }
   };
 
@@ -718,7 +853,6 @@ const Generator = () => {
                 <div className="mt-4 flex gap-4">
                   <Button
                     onClick={() => setIsEditing(true)}
-                    variant="default"
                     className="flex-1"
                   >
                     Éditer l'image
@@ -741,6 +875,128 @@ const Generator = () => {
                   >
                     Générer un autre visuel
                   </Button>
+                </div>
+
+                {/* Voix off - affichée juste sous l'image générée */}
+                <div className="space-y-4 p-4 mt-6 bg-muted/50 rounded-lg border-2 border-dashed">
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Ajouter une voix off pour rendre l'image dynamique en vidéo</h3>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="voiceover-text">Texte de la voix off (20-30 secondes max)</Label>
+                    <Textarea
+                      id="voiceover-text"
+                      placeholder="Ex: Découvrez notre nouvelle collection de formations digitales qui transformeront votre avenir..."
+                      value={voiceoverText}
+                      onChange={(e) => {
+                        const text = e.target.value;
+                        if (text.length <= 300) setVoiceoverText(text);
+                      }}
+                      rows={3}
+                      maxLength={300}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {voiceoverText.length}/300 caractères (~{Math.ceil(voiceoverText.length / 10)} s)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="voice">Voix avec accent africain</Label>
+                    <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {voices.map((voice) => (
+                          <SelectItem key={voice.value} value={voice.value}>
+                            {voice.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {!generatedAudio ? (
+                    <Button
+                      onClick={generateVoiceover}
+                      disabled={isGeneratingVoice || !voiceoverText.trim()}
+                      className="w-full"
+                    >
+                      {isGeneratingVoice ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Génération de la voix off...
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="mr-2 h-4 w-4" />
+                          Générer la voix off
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <audio
+                        ref={audioRef}
+                        src={generatedAudio}
+                        onEnded={() => setIsPlaying(false)}
+                        className="hidden"
+                      />
+                      <div className="flex gap-2">
+                        <Button onClick={togglePlayPause} variant="outline" className="flex-1">
+                          {isPlaying ? (
+                            <>
+                              <Pause className="mr-2 h-4 w-4" />
+                              Pause
+                            </>
+                          ) : (
+                            <>
+                              <Play className="mr-2 h-4 w-4" />
+                              Écouter la voix off
+                            </>
+                          )}
+                        </Button>
+                        <Button onClick={handleDownloadAudio} variant="outline" className="flex-1">
+                          <Download className="mr-2 h-4 w-4" />
+                          Télécharger l'audio
+                        </Button>
+                      </div>
+
+                      {/* Bouton vidéo MP4 (optionnel) */}
+                      <div className="space-y-2 pt-2 border-t">
+                        {!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining <= 0 && (
+                          <Alert>
+                            <AlertDescription>
+                              Essai gratuit utilisé. Abonnez-vous pour créer des vidéos avec voix off.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        <Button
+                          onClick={createVideoMP4}
+                          disabled={isGeneratingVideo || (!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining <= 0)}
+                          className="w-full"
+                          variant="default"
+                        >
+                          {isGeneratingVideo ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Création de la vidéo MP4...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="mr-2 h-4 w-4" />
+                              Télécharger vidéo MP4 (Image + Voix Off)
+                              {!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining > 0 && (
+                                <span className="ml-2 text-xs">({freeVideoGenerationsRemaining} essai gratuit)</span>
+                              )}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
