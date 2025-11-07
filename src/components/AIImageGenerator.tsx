@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Download } from "lucide-react";
+import { Loader2, Sparkles, Download, Volume2, Play, Pause } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface AIImageGeneratorProps {
   onImageGenerated: (imageUrl: string, imageType: "logo" | "hero" | "about") => void;
@@ -19,11 +20,31 @@ const imageTypes = [
   { value: "about", label: "Image À propos" },
 ];
 
+const voices = [
+  { value: "Sarah", label: "Sarah (Féminine)" },
+  { value: "Aria", label: "Aria (Féminine)" },
+  { value: "Laura", label: "Laura (Féminine)" },
+  { value: "Charlotte", label: "Charlotte (Féminine)" },
+  { value: "Roger", label: "Roger (Masculin)" },
+  { value: "Charlie", label: "Charlie (Masculin)" },
+  { value: "Liam", label: "Liam (Masculin)" },
+  { value: "River", label: "River (Neutre)" },
+];
+
 export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) => {
   const [prompt, setPrompt] = useState("");
   const [imageType, setImageType] = useState<"logo" | "hero" | "about">("hero");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  
+  // Voix off states
+  const [enableVoiceover, setEnableVoiceover] = useState(false);
+  const [voiceoverText, setVoiceoverText] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState("Sarah");
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const [generatedAudio, setGeneratedAudio] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const generateImage = async () => {
     if (!prompt.trim()) {
@@ -77,6 +98,59 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
     link.download = `${imageType}-generated.png`;
     link.click();
     toast.success("Image téléchargée !");
+  };
+
+  const generateVoiceover = async () => {
+    if (!voiceoverText.trim()) {
+      toast.error("Veuillez entrer un texte pour la voix off");
+      return;
+    }
+
+    setIsGeneratingVoice(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-voiceover", {
+        body: {
+          text: voiceoverText,
+          voice: selectedVoice,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.audioContent) {
+        const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+        setGeneratedAudio(audioUrl);
+        toast.success("Voix off générée avec succès !");
+      } else {
+        toast.error("Erreur lors de la génération de la voix off");
+      }
+    } catch (error: any) {
+      console.error("Error generating voiceover:", error);
+      toast.error(error?.message || "Une erreur est survenue lors de la génération de la voix off");
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (!audioRef.current || !generatedAudio) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const handleDownloadAudio = () => {
+    if (!generatedAudio) return;
+    const link = document.createElement("a");
+    link.href = generatedAudio;
+    link.download = `voiceover-${selectedVoice}.mp3`;
+    link.click();
+    toast.success("Voix off téléchargée !");
   };
 
   return (
@@ -135,6 +209,99 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
             </>
           )}
         </Button>
+
+        <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex items-center gap-2">
+            <Volume2 className="h-4 w-4" />
+            <Label htmlFor="voiceover-toggle">Ajouter une voix off</Label>
+          </div>
+          <Switch
+            id="voiceover-toggle"
+            checked={enableVoiceover}
+            onCheckedChange={setEnableVoiceover}
+          />
+        </div>
+
+        {enableVoiceover && (
+          <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+            <div>
+              <Label htmlFor="voiceover-text">Texte de la voix off</Label>
+              <Textarea
+                id="voiceover-text"
+                placeholder="Ex: Découvrez notre nouvelle collection de formations digitales..."
+                value={voiceoverText}
+                onChange={(e) => setVoiceoverText(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="voice">Voix</Label>
+              <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {voices.map((voice) => (
+                    <SelectItem key={voice.value} value={voice.value}>
+                      {voice.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={generateVoiceover}
+              disabled={isGeneratingVoice || !voiceoverText.trim()}
+              className="w-full"
+              variant="secondary"
+            >
+              {isGeneratingVoice ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Génération de la voix off...
+                </>
+              ) : (
+                <>
+                  <Volume2 className="mr-2 h-4 w-4" />
+                  Générer la voix off
+                </>
+              )}
+            </Button>
+
+            {generatedAudio && (
+              <div className="space-y-2">
+                <audio
+                  ref={audioRef}
+                  src={generatedAudio}
+                  onEnded={() => setIsPlaying(false)}
+                  className="hidden"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={togglePlayPause}
+                    variant="outline"
+                    size="icon"
+                  >
+                    {isPlaying ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleDownloadAudio}
+                    variant="outline"
+                    size="icon"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {generatedImage && (
           <div className="space-y-4 pt-4 border-t">
