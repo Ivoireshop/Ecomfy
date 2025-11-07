@@ -142,11 +142,11 @@ PRODUCT INFORMATION:
       }
       
       if (personDescription) {
-        finalPrompt += `\n\nPERSON/SCENE STAGING:
-The user wants to feature a person with the product. Description: "${personDescription}"
-- Integrate this person naturally with the product
-- The person should complement and highlight the product
-- Ensure authentic and professional scene`;
+        finalPrompt += `\n\nPERSON/SCENE STAGING:\nThe user wants to feature a person with the product. Description: "${personDescription}"\n- Integrate this person naturally with the product\n- The person should complement and highlight the product\n- Ensure authentic and professional scene`;
+      }
+
+      if (productImage) {
+        finalPrompt += `\n\nIMPORTANT ET OBLIGATOIRE: Utilise EXACTEMENT l'image de produit fournie comme base.\n- NE PAS inventer/imaginer un autre produit, emballage, logo ou marque\n- Conserver fidèlement la forme, l'étiquette, les couleurs et l'identité du produit\n- Le produit fourni doit être le HÉROS de la composition\n- Tu peux ajouter un décor, des textes et des éléments graphiques AUTOUR du produit sans le remplacer\n- Si un personnage est présent, il doit interagir avec CE produit (le tenir/présenter/utiliser)\n- Refuse toute substitution de produit.`;
       }
 
       finalPrompt += `\n\nVISUAL STYLE:`;
@@ -210,20 +210,16 @@ Create a stunning Facebook advertising visual that looks like a professional mar
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log('Generating advertising image with prompt');
-
-    // Build message content with product image if provided
+    // Build message content with product image if provided (put image FIRST)
     const messageContent = productImage 
       ? [
           {
-            type: "text",
-            text: finalPrompt,
+            type: "image_url",
+            image_url: { url: productImage },
           },
           {
-            type: "image_url",
-            image_url: {
-              url: productImage,
-            },
+            type: "text",
+            text: finalPrompt,
           },
         ]
       : finalPrompt;
@@ -244,7 +240,7 @@ Create a stunning Facebook advertising visual that looks like a professional mar
         ],
         modalities: ['image', 'text']
       }),
-      timeoutMs: 20000,
+      timeoutMs: 45000,
     });
 
     if (!response.ok) {

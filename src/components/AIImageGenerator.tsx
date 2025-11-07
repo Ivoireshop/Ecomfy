@@ -218,6 +218,13 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
 
     setIsCreatingVideo(true);
     try {
+      // Vérifier la session avant l'appel (meilleur message d'erreur)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expirée. Veuillez vous reconnecter pour créer la vidéo.");
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("create-video-from-image", {
         body: {
           imageUrl: generatedImage,

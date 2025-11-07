@@ -282,7 +282,7 @@ const Generator = () => {
     try {
       // Appel rapide (20s max) au service principal, sinon fallback
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 20000)
+        setTimeout(() => reject(new Error("timeout")), 45000)
       );
 
       const invokePromise = supabase.functions.invoke("generate-ad-visual", {

@@ -169,7 +169,7 @@ PRODUCT INFORMATION:
       }
       
       if (productImage) {
-        prompt += `\n\nIMPORTANT: Use the provided product image as the base. Integrate it into a professional advertising composition while maintaining the actual product appearance. DO NOT create a different product - use the exact product shown in the image.`;
+        prompt += `\n\nIMPORTANT ET OBLIGATOIRE: Utilise EXACTEMENT l'image de produit fournie comme base.\n- NE PAS inventer/imaginer un autre produit, emballage, logo ou marque\n- Conserver fidèlement la forme, l'étiquette, les couleurs et l'identité du produit\n- Le produit fourni doit être le HÉROS de la composition\n- Tu peux ajouter un décor, des textes et des éléments graphiques AUTOUR du produit sans le remplacer\n- Si un personnage est présent, il doit interagir avec CE produit (le tenir/présenter/utiliser)\n- Refuse toute substitution de produit.`;
       }
       
       if (personDescription) {
@@ -240,19 +240,17 @@ Create a stunning, conversion-focused advertising visual that combines the best 
 
     console.log("Generated prompt:", prompt);
 
-    // Build the message content - if product image is provided, include it
+    // Build the message content - if product image is provided, include it FIRST to enforce conditioning
     const messageContent = productImage 
       ? [
           {
-            type: "text",
-            text: prompt,
+            type: "image_url",
+            image_url: { url: productImage },
           },
           {
-            type: "image_url",
-            image_url: {
-              url: productImage,
-            },
-          },
+            type: "text",
+            text: prompt,
+          }
         ]
       : prompt;
 
@@ -272,7 +270,7 @@ Create a stunning, conversion-focused advertising visual that combines the best 
         ],
         modalities: ["image", "text"],
       }),
-      timeoutMs: 30000,
+      timeoutMs: 45000,
     });
 
     if (!response.ok) {
