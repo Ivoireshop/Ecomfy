@@ -199,7 +199,8 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
       if (error) throw error;
 
       await loadGalleryImages();
-      toast.success(`${files.length} image(s) ajoutée(s) avec succès !`);
+      setHasUnsavedChanges(false); // Images are already saved
+      toast.success(`${files.length} image(s) ajoutée(s) et sauvegardée(s) avec succès !`);
       setSectionTitle("");
     } catch (error) {
       console.error("Error adding images:", error);
