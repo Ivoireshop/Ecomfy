@@ -123,6 +123,18 @@ const Generator = () => {
     setIsGeneratingVideo(true);
 
     try {
+      // Verify user is authenticated before calling function
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast({
+          title: "Session expirée",
+          description: "Veuillez vous reconnecter pour continuer",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("generate-video", {
         body: {
           productName,

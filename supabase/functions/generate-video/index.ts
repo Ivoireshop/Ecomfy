@@ -14,9 +14,12 @@ serve(async (req) => {
   try {
     // Get user from auth header
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.error("Missing Authorization header");
       return new Response(
-        JSON.stringify({ error: "Non authentifié" }),
+        JSON.stringify({ error: "Non authentifié - token manquant" }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -36,9 +39,15 @@ serve(async (req) => {
 
     // Get authenticated user using Supabase helper (avoids manual JWT parsing)
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    console.log("User authentication result:", { hasUser: !!user, error: userError?.message });
+    
     if (userError || !user) {
+      console.error("Auth error:", userError?.message || "No user found");
       return new Response(
-        JSON.stringify({ error: "Non authentifié" }),
+        JSON.stringify({ 
+          error: "Non authentifié - session invalide",
+          details: userError?.message || "Veuillez vous reconnecter"
+        }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -46,6 +55,7 @@ serve(async (req) => {
       );
     }
     const userId = user.id;
+    console.log("User authenticated:", userId);
 
     // Check founder/co-founder role for unlimited access
     const { data: roleData } = await supabaseClient
