@@ -88,8 +88,12 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
-      // Uploader l'audio en MP3
-      const audioBuffer = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
+      // Uploader l'audio en MP3 - conversion par morceaux pour éviter le dépassement de pile
+      const audioString = atob(audioBase64);
+      const audioBuffer = new Uint8Array(audioString.length);
+      for (let i = 0; i < audioString.length; i++) {
+        audioBuffer[i] = audioString.charCodeAt(i);
+      }
       const audioFileName = `audio-${Date.now()}.mp3`;
       const { data: audioData, error: audioError } = await supabase.storage
         .from('generated-content')
