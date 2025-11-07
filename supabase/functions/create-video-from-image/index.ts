@@ -47,7 +47,18 @@ serve(async (req) => {
       throw new Error('Impossible de télécharger l\'image');
     }
     const imageBuffer = await imageResponse.arrayBuffer();
-    const imageBase64 = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+    
+    // Convertir l'image en base64 par morceaux pour éviter le dépassement de pile
+    const imageUint8Array = new Uint8Array(imageBuffer);
+    const chunkSize = 8192;
+    let imageBinaryString = '';
+    
+    for (let i = 0; i < imageUint8Array.length; i += chunkSize) {
+      const chunk = imageUint8Array.subarray(i, Math.min(i + chunkSize, imageUint8Array.length));
+      imageBinaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    
+    const imageBase64 = btoa(imageBinaryString);
 
     // Créer une vidéo statique avec l'audio en utilisant Replicate
     const replicateResponse = await fetch('https://api.replicate.com/v1/predictions', {
