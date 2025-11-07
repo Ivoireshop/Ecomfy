@@ -850,28 +850,32 @@ const Generator = () => {
                     className="w-full h-auto"
                   />
                 </div>
-                <div className="mt-4 flex gap-4">
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    className="flex-1"
-                  >
-                    Éditer l'image
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      const link = document.createElement("a");
-                      link.href = generatedImage;
-                      link.download = `${productName.replace(/\s+/g, "-")}-ad.png`;
-                      link.click();
-                    }}
-                    className="flex-1"
-                  >
-                    Télécharger
-                  </Button>
+                <div className="mt-4 flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setIsEditing(true)}
+                      className="flex-1"
+                    >
+                      Éditer l'image
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = generatedImage;
+                        link.download = `${productName.replace(/\s+/g, "-")}-ad.png`;
+                        link.click();
+                        toast({ title: "Téléchargé", description: "Image téléchargée avec succès" });
+                      }}
+                      className="flex-1"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Télécharger l'image seule
+                    </Button>
+                  </div>
                   <Button
                     onClick={() => setGeneratedImage(null)}
                     variant="outline"
-                    className="flex-1"
+                    className="w-full"
                   >
                     Générer un autre visuel
                   </Button>
@@ -881,8 +885,11 @@ const Generator = () => {
                 <div className="space-y-4 p-4 mt-6 bg-muted/50 rounded-lg border-2 border-dashed">
                   <div className="flex items-center gap-2">
                     <Volume2 className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Ajouter une voix off pour rendre l'image dynamique en vidéo</h3>
+                    <h3 className="font-semibold">Ajouter une voix off (optionnel)</h3>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    💡 Vous pouvez télécharger l'image seule ci-dessus, ou ajouter une voix off pour créer une vidéo MP4 dynamique.
+                  </p>
                   
                   <div>
                     <Label htmlFor="voiceover-text">Texte de la voix off (20-30 secondes max)</Label>
@@ -954,18 +961,21 @@ const Generator = () => {
                           ) : (
                             <>
                               <Play className="mr-2 h-4 w-4" />
-                              Écouter la voix off
+                              Écouter
                             </>
                           )}
                         </Button>
                         <Button onClick={handleDownloadAudio} variant="outline" className="flex-1">
                           <Download className="mr-2 h-4 w-4" />
-                          Télécharger l'audio
+                          Télécharger l'audio seul
                         </Button>
                       </div>
 
                       {/* Bouton vidéo MP4 (optionnel) */}
-                      <div className="space-y-2 pt-2 border-t">
+                      <div className="space-y-2 pt-3 border-t mt-3">
+                        <p className="text-sm text-muted-foreground mb-2">
+                          📹 Vous pouvez aussi combiner image + audio en vidéo MP4 :
+                        </p>
                         {!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining <= 0 && (
                           <Alert>
                             <AlertDescription>
