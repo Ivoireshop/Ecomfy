@@ -138,7 +138,10 @@ const Generator = () => {
       });
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        const msg = data.details ? `${data.error}: ${data.details}` : data.error;
+        throw new Error(msg);
+      }
 
       setVideoGenerationsRemaining(data.videoGenerationsRemaining || 0);
 

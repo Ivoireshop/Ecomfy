@@ -185,7 +185,7 @@ Le visuel doit être:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image-preview",
+          model: "google/gemini-2.5-flash-image",
           messages: [
             { role: "user", content: imagePrompt }
           ],
@@ -225,7 +225,16 @@ Le visuel doit être:
         }
       } else {
         const imageData = await imageResponse.json();
-        generatedImageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
+        // Try multiple response shapes from the AI gateway
+        generatedImageUrl = (
+          imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
+          imageData.choices?.[0]?.message?.content?.[0]?.image_url?.url ||
+          (Array.isArray(imageData.choices?.[0]?.message?.content)
+            ? imageData.choices?.[0]?.message?.content.find?.((c: any) => c?.type === 'image_url')?.image_url?.url
+            : null) ||
+          imageData.choices?.[0]?.delta?.images?.[0]?.image_url?.url ||
+          null
+        );
       }
 
       if (!generatedImageUrl) {
@@ -235,16 +244,27 @@ Le visuel doit être:
 
       console.log("Base image generated successfully");
 
-      // Extract base64 data and upload to storage
-      const base64Data = generatedImageUrl.split(',')[1];
-      const buffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      // Download image or decode data URL, then upload to storage
+      let imageBuffer: ArrayBuffer | Uint8Array;
+      let contentType = 'image/png';
+      if (generatedImageUrl.startsWith('data:image')) {
+        const mimeMatch = generatedImageUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,/);
+        if (mimeMatch) contentType = mimeMatch[1];
+        const base64Data = generatedImageUrl.split(',')[1];
+        imageBuffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+      } else {
+        const imgResp = await fetch(generatedImageUrl);
+        if (!imgResp.ok) throw new Error(`Failed to download generated image: ${imgResp.status}`);
+        imageBuffer = await imgResp.arrayBuffer();
+        contentType = imgResp.headers.get('content-type') || 'image/png';
+      }
       
       const imageFileName = `${userId}/images/${videoData.id}.png`;
       const { error: imageUploadError } = await supabaseClient
         .storage
         .from('generated-content')
-        .upload(imageFileName, buffer, {
-          contentType: 'image/png',
+        .upload(imageFileName, imageBuffer, {
+          contentType,
           upsert: true
         });
 
@@ -276,7 +296,7 @@ Le visuel doit être:
           promptImage: imagePublicUrl,
           promptText: `Animate this ${niche} advertisement for ${platform}. Add smooth transitions, dynamic camera movements, and professional effects. Style: ${style}. Make it engaging and eye-catching for social media.`,
           duration: safeDuration, // clamp 5-15s
-          ratio: "1280:768",
+          ratio: "9:16",
           watermark: false
         })
       });
@@ -292,8 +312,8 @@ Le visuel doit être:
       
       console.log("Runway task created:", taskId, "- Polling for completion...");
 
-      // Poll for video completion (with timeout after 15 seconds total)
-      const maxPollingTime = 12000; // 12 seconds (total with image gen should be ~15s)
+      // Poll for video completion (with timeout after ~60 seconds total)
+      const maxPollingTime = 60000; // give Runway more time
       const pollInterval = 2000; // Check every 2 seconds
       const startTime = Date.now();
       
@@ -421,7 +441,7 @@ Le visuel doit être:
       return new Response(
         JSON.stringify({ 
           error: "Erreur lors de la génération de la vidéo",
-          details: genError instanceof Error ? genError.message : "Unknown error",
+          details: genError instanceof Error ? genError.message : String(genError),
           videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1)
         }),
         {
