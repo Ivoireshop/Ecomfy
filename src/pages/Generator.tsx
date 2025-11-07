@@ -463,10 +463,44 @@ const Generator = () => {
 
     setIsGeneratingVideo(true);
     try {
+      // 1) Récupérer l'utilisateur
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Utilisateur non authentifié");
+
+      // 2) Uploader l'image (si data URL) dans le stockage pour obtenir une URL publique
+      let imagePublicUrl = generatedImage as string;
+      if (imagePublicUrl.startsWith("data:")) {
+        const base64Data = imagePublicUrl.split(",")[1];
+        const byteString = atob(base64Data);
+        const byteArray = new Uint8Array(byteString.length);
+        for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
+        const imagePath = `${user.id}/videos/image-${Date.now()}.png`;
+        const { error: upErr } = await supabase.storage
+          .from('generated-content')
+          .upload(imagePath, byteArray, { contentType: 'image/png', upsert: true });
+        if (upErr) throw upErr;
+        const { data: imgUrlData } = supabase.storage.from('generated-content').getPublicUrl(imagePath);
+        imagePublicUrl = imgUrlData.publicUrl;
+      }
+
+      // 3) Uploader l'audio MP3 en stockage et obtenir une URL publique
+      const audioBase64 = generatedAudioBase64!;
+      const audioBinary = atob(audioBase64);
+      const audioArray = new Uint8Array(audioBinary.length);
+      for (let i = 0; i < audioBinary.length; i++) audioArray[i] = audioBinary.charCodeAt(i);
+      const audioPath = `${user.id}/videos/audio-${Date.now()}.mp3`;
+      const { error: audErr } = await supabase.storage
+        .from('generated-content')
+        .upload(audioPath, audioArray, { contentType: 'audio/mpeg', upsert: true });
+      if (audErr) throw audErr;
+      const { data: audUrlData } = supabase.storage.from('generated-content').getPublicUrl(audioPath);
+      const audioPublicUrl = audUrlData.publicUrl;
+
+      // 4) Appeler la fonction avec des URLs (payload léger)
       const { data, error } = await supabase.functions.invoke("create-video-from-image", {
         body: {
-          imageUrl: generatedImage,
-          audioBase64: generatedAudioBase64,
+          imageUrl: imagePublicUrl,
+          audioUrl: audioPublicUrl,
           duration: 10,
         },
       });

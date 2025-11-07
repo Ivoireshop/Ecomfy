@@ -28,9 +28,9 @@ serve(async (req) => {
       throw new Error('Utilisateur non authentifié');
     }
 
-    const { imageUrl, audioBase64, duration = 10 } = await req.json();
+    const { imageUrl, audioBase64, audioUrl, duration = 10 } = await req.json();
     
-    if (!imageUrl || !audioBase64) {
+    if (!imageUrl || (!audioBase64 && !audioUrl)) {
       throw new Error('Image URL et audio requis');
     }
 
@@ -83,6 +83,21 @@ serve(async (req) => {
       
       // Fallback: créer une vidéo simple en uploadant l'image sur Supabase
       // et retourner les URLs pour que le client puisse les combiner
+      
+      // Si une URL audio est déjà fournie, renvoyer directement les URLs
+      if (audioUrl) {
+        return new Response(
+          JSON.stringify({ 
+            videoUrl: null,
+            imageUrl: imageUrl,
+            audioUrl: audioUrl,
+            message: "Vidéo non disponible, utilisez l'image et l'audio séparément"
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Sinon, uploader l'audio encodé en base64 pour fournir une URL publique
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -95,7 +110,7 @@ serve(async (req) => {
         audioBuffer[i] = audioString.charCodeAt(i);
       }
       const audioFileName = `audio-${Date.now()}.mp3`;
-      const { data: audioData, error: audioError } = await supabase.storage
+      const { error: audioError } = await supabase.storage
         .from('generated-content')
         .upload(audioFileName, audioBuffer, {
           contentType: 'audio/mpeg',
@@ -113,11 +128,9 @@ serve(async (req) => {
           videoUrl: null,
           imageUrl: imageUrl,
           audioUrl: audioUrlData.publicUrl,
-          message: 'Vidéo non disponible, utilisez l\'image et l\'audio séparément'
+          message: "Vidéo non disponible, utilisez l'image et l'audio séparément"
         }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
