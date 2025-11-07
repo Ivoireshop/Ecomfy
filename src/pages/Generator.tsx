@@ -514,11 +514,12 @@ const Generator = () => {
       if (error) throw error;
 
       if (data?.videoUrl) {
-        const link = document.createElement("a");
-        link.href = data.videoUrl;
-        link.download = `video-publicitaire-${Date.now()}.mp4`;
-        link.click();
-        toast({ title: "Vidéo prête", description: "Vidéo MP4 créée et téléchargée !" });
+        toast({ 
+          title: "Vidéo MP4 créée !", 
+          description: "La vidéo a été sauvegardée dans votre bibliothèque. Cliquez sur 'Bibliothèque' dans le menu pour la voir."
+        });
+        // Navigate after a short delay to let user see the toast
+        setTimeout(() => navigate("/library"), 2000);
         await loadUserGenerationStatus();
       } else if (data?.audioUrl) {
         const imgLink = document.createElement("a");

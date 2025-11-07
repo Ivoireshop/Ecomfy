@@ -177,6 +177,48 @@ serve(async (req) => {
     
     const videoUrl = videoTransformationUrl;
 
+    // Télécharger la vidéo depuis Cloudinary et l'uploader dans le bucket
+    console.log('Téléchargement de la vidéo depuis Cloudinary pour stockage...');
+    const videoResp = await fetch(videoUrl);
+    if (!videoResp.ok) throw new Error('Impossible de télécharger la vidéo depuis Cloudinary');
+    const videoBlob = await videoResp.blob();
+    
+    // Upload vers le bucket generated-content
+    const videoPath = `${user.id}/videos/video-${Date.now()}.mp4`;
+    const { error: uploadError } = await supabaseClient.storage
+      .from('generated-content')
+      .upload(videoPath, videoBlob, { contentType: 'video/mp4', upsert: true });
+    
+    if (uploadError) throw uploadError;
+    
+    // Obtenir l'URL publique
+    const { data: publicUrlData } = supabaseClient.storage
+      .from('generated-content')
+      .getPublicUrl(videoPath);
+    
+    const publicVideoUrl = publicUrlData.publicUrl;
+    console.log('Vidéo uploadée dans le bucket:', publicVideoUrl);
+
+    // Créer une entrée dans generated_videos
+    const { data: videoRecord, error: insertError } = await supabaseClient
+      .from('generated_videos')
+      .insert({
+        user_id: user.id,
+        video_url: publicVideoUrl,
+        prompt: 'Vidéo MP4 créée à partir d\'image et voix off',
+        status: 'completed',
+        product_details: {
+          imageUrl,
+          audioDuration: Math.ceil(audioDuration),
+          createdAt: new Date().toISOString()
+        }
+      })
+      .select()
+      .single();
+    
+    if (insertError) throw insertError;
+    console.log('Vidéo enregistrée dans la bibliothèque:', videoRecord.id);
+
     // Décrémenter le compteur de vidéos gratuites pour les utilisateurs non-fondateurs
     const { data: roles } = await supabaseClient
       .from('user_roles')
@@ -216,8 +258,9 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        videoUrl: videoUrl,
-        message: 'Vidéo créée avec succès'
+        videoUrl: publicVideoUrl,
+        videoId: videoRecord.id,
+        message: 'Vidéo créée et sauvegardée dans la bibliothèque'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

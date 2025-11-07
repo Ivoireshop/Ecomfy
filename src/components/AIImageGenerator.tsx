@@ -229,12 +229,13 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       if (error) throw error;
 
       if (data?.videoUrl) {
-        // Télécharger la vidéo
-        const link = document.createElement("a");
-        link.href = data.videoUrl;
-        link.download = `video-publicitaire-${Date.now()}.mp4`;
-        link.click();
-        toast.success("Vidéo MP4 créée et téléchargée !");
+        toast.success("Vidéo MP4 créée et sauvegardée dans la bibliothèque !", {
+          action: {
+            label: "Voir la bibliothèque",
+            onClick: () => window.location.href = "/library"
+          },
+          duration: 5000
+        });
         
         // Recharger le statut de l'utilisateur après la génération
         await loadUserStatus();
