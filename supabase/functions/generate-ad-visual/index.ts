@@ -109,7 +109,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast, template } = body;
+    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast, template, tagline, callToAction } = body;
     
     const isFast = Boolean(fast);
     
@@ -219,6 +219,15 @@ The user wants to feature a person with the product. Here's their description: "
 - Use lighting and composition techniques seen in high-converting ads
 ${promotionalPrice && price ? `- Display the promotional price "${promotionalPrice}" crossed out (strikethrough) and the current price "${price}" prominently next to it to emphasize the discount` : price ? `- Display the price "${price}" prominently and legibly on the visual` : ''}
 ${posology ? `- Include dosage/usage instructions "${posology}" in a clear, readable format` : ''}
+
+TEXTE À AFFICHER EXACTEMENT (NE PAS RÉÉCRIRE):
+- Nom du produit: "${productName}"
+${tagline ? `- Slogan: "${tagline}"` : ''}
+${promotionalPrice && price ? `- Prix promo (barré): "${promotionalPrice}" et Prix actuel: "${price}"` : price ? `- Prix: "${price}"` : ''}
+${benefits ? `- Bénéfices: "${benefits}"` : ''}
+${callToAction ? `- Appel à l'action: "${callToAction}"` : ''}
+
+Règles: utilise strictement ces chaînes en français, sans paraphrase ni traduction. Respecte la casse, la ponctuation et les accents. Ces mentions doivent apparaître sur l'image.
 
 TEXT QUALITY REQUIREMENTS (CRITICAL):
 - ALL text must be in PERFECT French with correct spelling, grammar, and accents
@@ -369,6 +378,9 @@ Create a stunning, conversion-focused advertising visual that combines the best 
           style,
           price,
           promotionalPrice,
+          benefits,
+          tagline,
+          callToAction,
         },
       })
       .select()
@@ -468,6 +480,8 @@ Create a stunning, conversion-focused advertising visual that combines the best 
     return new Response(
       JSON.stringify({ 
         imageUrl,
+        imageId: savedImage?.id || null,
+        saved: !!savedImage,
         freeGenerationsRemaining: hasActiveSubscription ? null : updatedFreeGenerations,
         additionalFormats: hasActiveSubscription ? additionalFormats : [],
         hasMultipleFormats: hasActiveSubscription && additionalFormats.length > 0

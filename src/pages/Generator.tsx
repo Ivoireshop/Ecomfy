@@ -370,6 +370,11 @@ const Generator = () => {
 
       setGeneratedImage(data.imageUrl);
 
+      // Ensure the image exists in Library even if backend couldn't save (fallback)
+      if (!data.saved) {
+        await saveImageToLibrary(data.imageUrl);
+      }
+ 
       // Met à jour le compteur d'essais gratuits
       await loadUserGenerationStatus();
 
@@ -439,6 +444,33 @@ const Generator = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Sauvegarde côté client (fallback) si l'edge function n'a pas pu enregistrer
+  const saveImageToLibrary = async (url: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from("generated_images").insert({
+        user_id: user.id,
+        image_url: url,
+        prompt: "client-fallback",
+        product_details: {
+          productName: previewTexts.productName || productName,
+          niche,
+          description,
+          platform,
+          style,
+          price: previewTexts.price || price,
+          promotionalPrice: previewTexts.promotionalPrice || promotionalPrice,
+          benefits: previewTexts.benefits || benefits,
+          tagline: previewTexts.tagline,
+          callToAction: previewTexts.callToAction,
+        },
+      });
+    } catch (e) {
+      console.error("Client-side save failed:", e);
     }
   };
 
