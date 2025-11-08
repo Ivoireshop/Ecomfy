@@ -20,6 +20,9 @@ const Index = () => {
   const navigate = useNavigate();
   const [publishedFeedback, setPublishedFeedback] = useState<any[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [session, setSession] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [subscription, setSubscription] = useState<any>(null);
 
   const carouselImages = [
     { src: exampleHandbag, alt: "Publicité sac à main" },
@@ -32,7 +35,32 @@ const Index = () => {
 
   useEffect(() => {
     loadPublishedFeedback();
+    checkSession();
   }, []);
+
+  const checkSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setSession(session);
+    
+    if (session?.user) {
+      // Charger le profil
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+      setProfile(profileData);
+      
+      // Charger l'abonnement
+      const { data: subData } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .eq("status", "active")
+        .maybeSingle();
+      setSubscription(subData);
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -131,28 +159,114 @@ const Index = () => {
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent animate-fade-in">
-              Bienvenue sur VisualPro
+              {session && profile 
+                ? `Bienvenue ${profile.full_name?.split(' ')[0] || 'sur VisualPro'}`
+                : "Bienvenue sur VisualPro"
+              }
             </h1>
             
-            <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
-              Votre plateforme qui vous permet de créer des <span className="font-semibold text-foreground">visuels publicitaires</span> pour 
-              <span className="font-semibold text-primary"> Facebook, Instagram, TikTok, YouTube, Google Ads et Snapchat</span> en un clic
-            </p>
-            
-            <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
-              Des visuels <span className="font-semibold text-secondary">adaptés au marché africain</span>
-            </p>
-            
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed max-w-4xl mx-auto">
-              Et aussi de pouvoir créer vos <span className="font-semibold text-foreground">sites vitrines</span> pour votre entreprise ou vos formations 
-              à l'aide de <span className="font-semibold text-primary">l'intelligence artificielle en un seul clic</span>
-            </p>
+            {session && profile ? (
+              <>
+                <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed max-w-4xl mx-auto">
+                  Vous pouvez maintenant créer des visuels professionnels en un clic !
+                </p>
+                
+                {/* CTA Buttons selon statut abonnement */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+                  {subscription || profile.purchased_credits > 0 ? (
+                    <>
+                      <Button 
+                        size="lg" 
+                        className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                        onClick={() => navigate("/generator")}
+                      >
+                        <Sparkles className="mr-2 h-5 w-5" />
+                        Création de visual
+                      </Button>
+                      <Button 
+                        size="lg" 
+                        variant="secondary"
+                        className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                        onClick={() => navigate("/generator")}
+                      >
+                        Publicité
+                      </Button>
+                      <Button 
+                        size="lg" 
+                        variant="outline"
+                        className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                        onClick={() => navigate("/generator")}
+                      >
+                        Vidéo
+                      </Button>
+                    </>
+                  ) : (
+                    <Button 
+                      size="lg" 
+                      className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                      onClick={() => navigate("/generator")}
+                    >
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Création de visual
+                    </Button>
+                  )}
+                </div>
 
-            <div className="inline-block bg-accent/20 border border-primary/20 rounded-lg px-6 py-3 mb-8">
-              <p className="text-base font-medium text-foreground">
-                🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
-              </p>
-            </div>
+                {/* Social Proof Stats */}
+                <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-2xl mx-auto mb-8">
+                  <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">500+</div>
+                    <div className="text-xs md:text-sm text-muted-foreground">Utilisateurs actifs</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">10k+</div>
+                    <div className="text-xs md:text-sm text-muted-foreground">Visuels créés</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">4.8/5</div>
+                    <div className="text-xs md:text-sm text-muted-foreground">Satisfaction</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
+                  Votre plateforme qui vous permet de créer des <span className="font-semibold text-foreground">visuels publicitaires</span> pour 
+                  <span className="font-semibold text-primary"> Facebook, Instagram, TikTok, YouTube, Google Ads et Snapchat</span> en un clic
+                </p>
+                
+                <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
+                  Des visuels <span className="font-semibold text-secondary">adaptés au marché africain</span>
+                </p>
+                
+                <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed max-w-4xl mx-auto">
+                  Et aussi de pouvoir créer vos <span className="font-semibold text-foreground">sites vitrines</span> pour votre entreprise ou vos formations 
+                  à l'aide de <span className="font-semibold text-primary">l'intelligence artificielle en un seul clic</span>
+                </p>
+
+                {/* Social Proof Stats */}
+                <div className="grid grid-cols-3 gap-4 md:gap-8 mb-8 max-w-2xl mx-auto">
+                  <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">500+</div>
+                    <div className="text-xs md:text-sm text-muted-foreground">Utilisateurs actifs</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">10k+</div>
+                    <div className="text-xs md:text-sm text-muted-foreground">Visuels créés</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">4.8/5</div>
+                    <div className="text-xs md:text-sm text-muted-foreground">Satisfaction</div>
+                  </div>
+                </div>
+
+                <div className="inline-block bg-accent/20 border border-primary/20 rounded-lg px-6 py-3 mb-8">
+                  <p className="text-base font-medium text-foreground">
+                    🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Image Carousel - Dynamic showcase */}
@@ -197,16 +311,18 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="text-center">
-            <Button 
-              size="lg" 
-              className="text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 animate-fade-in"
-              onClick={() => navigate("/auth")}
-            >
-              <Sparkles className="mr-2 h-6 w-6" />
-              Commencer maintenant
-            </Button>
-          </div>
+          {!session && (
+            <div className="text-center">
+              <Button 
+                size="lg" 
+                className="text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 animate-fade-in"
+                onClick={() => navigate("/auth")}
+              >
+                <Sparkles className="mr-2 h-6 w-6" />
+                Commencer maintenant
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
