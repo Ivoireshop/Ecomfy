@@ -425,6 +425,7 @@ export type Database = {
           full_name: string | null
           has_showcase_access: boolean | null
           id: string
+          onboarding_completed: boolean
           phone: string | null
           purchased_credits: number | null
           updated_at: string | null
@@ -438,6 +439,7 @@ export type Database = {
           full_name?: string | null
           has_showcase_access?: boolean | null
           id: string
+          onboarding_completed?: boolean
           phone?: string | null
           purchased_credits?: number | null
           updated_at?: string | null
@@ -451,6 +453,7 @@ export type Database = {
           full_name?: string | null
           has_showcase_access?: boolean | null
           id?: string
+          onboarding_completed?: boolean
           phone?: string | null
           purchased_credits?: number | null
           updated_at?: string | null

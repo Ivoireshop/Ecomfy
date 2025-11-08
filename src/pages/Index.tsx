@@ -5,6 +5,7 @@ import { Sparkles, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
+import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
 import featureIA from "@/assets/feature-ia.jpg";
@@ -24,6 +25,7 @@ const Index = () => {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const carouselImages = [
     { src: exampleHandbag, alt: "Publicité sac à main" },
@@ -51,6 +53,11 @@ const Index = () => {
         .eq("id", session.user.id)
         .single();
       setProfile(profileData);
+      
+      // Vérifier si l'utilisateur doit voir le tutoriel
+      if (profileData && !profileData.onboarding_completed) {
+        setShowOnboarding(true);
+      }
       
       // Charger l'abonnement
       const { data: subData } = await supabase
@@ -89,6 +96,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       <Header />
+      
+      {/* Onboarding Tutorial */}
+      {showOnboarding && session?.user && (
+        <OnboardingTutorial 
+          userId={session.user.id} 
+          onComplete={() => setShowOnboarding(false)} 
+        />
+      )}
       
       {/* Hero Section */}
       <section id="home" className="container mx-auto px-4 py-16 md:py-20">
