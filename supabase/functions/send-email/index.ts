@@ -1,8 +1,5 @@
-import React from 'npm:react@18.3.1'
 import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0'
-import { Resend } from 'npm:resend@4.0.0'
-import { renderAsync } from 'npm:@react-email/components@0.0.22'
-import { MagicLinkEmail } from './_templates/magic-link.tsx'
+import { Resend } from 'https://esm.sh/resend@4.0.0'
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') as string
@@ -33,15 +30,41 @@ Deno.serve(async (req) => {
       }
     }
 
-    const html = await renderAsync(
-      React.createElement(MagicLinkEmail, {
-        supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
-        token,
-        token_hash,
-        redirect_to,
-        email_action_type,
-      })
-    )
+    const magicLink = `${Deno.env.get('SUPABASE_URL')}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to}`
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; background-color: #ffffff; margin: 0; padding: 20px; }
+            .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+            h1 { color: #111827; font-size: 24px; font-weight: bold; margin: 40px 0; }
+            .button { display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; margin: 16px 0; }
+            .code-block { display: inline-block; padding: 16px; width: 90%; background-color: #f4f4f4; border-radius: 5px; border: 1px solid #eee; color: #111827; font-family: monospace; margin: 16px 0; }
+            .text { color: #111827; font-size: 14px; margin: 24px 0; }
+            .footer { color: #6b7280; font-size: 12px; margin-top: 40px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>${email_action_type === 'recovery' ? 'Réinitialisation du mot de passe' : 'Connexion'}</h1>
+            <a href="${magicLink}" class="button" target="_blank">
+              ${email_action_type === 'recovery' ? 'Cliquez ici pour réinitialiser votre mot de passe' : 'Cliquez ici pour vous connecter avec ce lien magique'}
+            </a>
+            <p class="text">Ou copiez-collez ce code temporaire :</p>
+            <div class="code-block">${token}</div>
+            <p class="text" style="color: #6b7280;">
+              Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+            </p>
+            <p class="footer">
+              VisualPro — Création de visuels publicitaires propulsée par l'IA
+            </p>
+          </div>
+        </body>
+      </html>
+    `
 
     const subject =
       email_action_type === 'recovery'
