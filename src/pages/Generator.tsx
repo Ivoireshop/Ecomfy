@@ -13,6 +13,8 @@ import { Progress } from "@/components/ui/progress";
 import { ImageEditor } from "@/components/ImageEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdTemplateSelector } from "@/components/AdTemplateSelector";
+import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
+import { GenerationQueue } from "@/components/GenerationQueue";
 import { SpellCheckText } from "@/components/SpellCheckText";
 import { createTextOverlay, dataURLtoBlob } from "@/lib/textOverlay";
 
@@ -747,6 +749,11 @@ const Generator = () => {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+
+          {/* Generation Queue Display */}
+          <div className="container mx-auto px-4 max-w-4xl mb-6">
+            <GenerationQueue />
+          </div>
 
           <div className="bg-card rounded-xl shadow-lg p-8 border">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>

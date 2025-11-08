@@ -24,6 +24,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let currentQueueItemId: string | undefined; // Declare at function scope
+  
+  // Create admin client at function scope for use in catch block
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+
   try {
     // Get user from auth header (required for saving images)
     const authHeader = req.headers.get("Authorization");
@@ -55,12 +63,6 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-    
-    // Create admin client for database operations (bypass RLS)
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
     let isFounder = false;
     let hasActiveSubscription = false;
 
@@ -109,9 +111,113 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast, template, tagline, callToAction } = body;
+    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast, template, tagline, callToAction, queueItemId, userId: requestUserId } = body;
+    
+    currentQueueItemId = queueItemId; // Assign to function-scoped variable
     
     const isFast = Boolean(fast);
+    const MAX_CONCURRENT_GENERATIONS = 10;
+
+    // Check if this is being called from the queue processor
+    const isFromQueue = Boolean(queueItemId);
+    
+    // If not from queue, check if we need to queue this request
+    if (!isFromQueue) {
+      // Count current processing generations
+      const { data: processingCount, error: countError } = await supabaseClient
+        .rpc("count_processing_generations");
+
+      if (countError) {
+        console.error("Error counting processing generations:", countError);
+      } else if (processingCount >= MAX_CONCURRENT_GENERATIONS) {
+        console.log(`Queue is full (${processingCount}/${MAX_CONCURRENT_GENERATIONS}), adding to queue`);
+        
+        // Create queue item
+        const { data: queueItem, error: queueError } = await supabaseClient
+          .from("generation_queue")
+          .insert({
+            user_id: userId,
+            status: "pending",
+            prompt: `${productName} - ${description}`,
+            product_details: {
+              productName,
+              niche,
+              description,
+              benefits,
+              container,
+              style,
+              price,
+              promotionalPrice,
+              posology,
+              productImage,
+              personDescription,
+              fast,
+              template,
+              tagline,
+              callToAction
+            },
+            platform: platform || "all"
+          })
+          .select()
+          .single();
+
+        if (queueError) {
+          console.error("Error creating queue item:", queueError);
+          throw queueError;
+        }
+
+        console.log(`Created queue item ${queueItem.id}, position: ${processingCount + 1}`);
+
+        return new Response(
+          JSON.stringify({ 
+            queued: true,
+            queueItemId: queueItem.id,
+            position: processingCount + 1,
+            message: "Votre génération a été ajoutée à la file d'attente"
+          }),
+          {
+            status: 202,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        console.log(`Processing immediately (${processingCount}/${MAX_CONCURRENT_GENERATIONS})`);
+        
+        // Create queue item in processing state
+        const { data: queueItem, error: queueError } = await supabaseClient
+          .from("generation_queue")
+          .insert({
+            user_id: userId,
+            status: "processing",
+            prompt: `${productName} - ${description}`,
+            product_details: {
+              productName,
+              niche,
+              description,
+              benefits,
+              container,
+              style,
+              price,
+              promotionalPrice,
+              posology,
+              productImage,
+              personDescription,
+              fast,
+              template,
+              tagline,
+              callToAction
+            },
+            platform: platform || "all",
+            started_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (queueError) {
+          console.error("Error creating processing queue item:", queueError);
+        }
+      }
+    }
     
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -469,6 +575,33 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
     }
 
+    // If this was from the queue, mark as completed and trigger next processing
+    if (queueItemId) {
+      console.log(`Updating queue item ${queueItemId} to completed`);
+      await supabaseClient
+        .from("generation_queue")
+        .update({
+          status: "completed",
+          image_url: imageUrl,
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", queueItemId);
+    }
+
+    // Trigger processing of next queue item (fire and forget)
+    try {
+      const processQueueUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-queue`;
+      fetch(processQueueUrl, { 
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+          "Content-Type": "application/json"
+        }
+      }).catch(console.error);
+    } catch (e) {
+      console.error("Error triggering process-queue:", e);
+    }
+
     return new Response(
       JSON.stringify({ 
         imageUrl,
@@ -484,6 +617,37 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
     );
   } catch (error) {
     console.error("Error in generate-ad-visual function:", error);
+    
+    // If there's a queue item, mark it as failed
+    if (currentQueueItemId) {
+      try {
+        await supabaseClient
+          .from("generation_queue")
+          .update({
+            status: "failed",
+            error_message: error instanceof Error ? error.message : "Unknown error",
+            completed_at: new Date().toISOString()
+          })
+          .eq("id", currentQueueItemId);
+      } catch (updateError) {
+        console.error("Error updating failed queue item:", updateError);
+      }
+      
+      // Trigger next item processing even if this one failed
+      try {
+        const processQueueUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-queue`;
+        fetch(processQueueUrl, { 
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            "Content-Type": "application/json"
+          }
+        }).catch(console.error);
+      } catch (e) {
+        console.error("Error triggering process-queue after failure:", e);
+      }
+    }
+    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Une erreur est survenue" }),
       {

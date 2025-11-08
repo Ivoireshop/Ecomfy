@@ -214,6 +214,57 @@ export type Database = {
         }
         Relationships: []
       }
+      generation_queue: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          image_url: string | null
+          platform: string
+          processing_time_ms: number | null
+          product_details: Json | null
+          prompt: string
+          queue_position: number | null
+          retry_count: number | null
+          started_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          platform: string
+          processing_time_ms?: number | null
+          product_details?: Json | null
+          prompt: string
+          queue_position?: number | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          platform?: string
+          processing_time_ms?: number | null
+          product_details?: Json | null
+          prompt?: string
+          queue_position?: number | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       image_formats: {
         Row: {
           created_at: string
@@ -886,7 +937,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      count_processing_generations: { Args: never; Returns: number }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
+      get_next_queue_item: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
