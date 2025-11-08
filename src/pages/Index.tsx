@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Globe } from "lucide-react";
+import { Sparkles, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
@@ -86,88 +87,28 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       <Header />
       
-      {/* Testimonials Carousel - Prominent at top */}
-      {publishedFeedback.length > 0 && (
-        <section className="bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 py-12 border-b">
-          <div className="container mx-auto px-4">
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
-              ⭐ Ce que disent nos utilisateurs
-            </h2>
-            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {publishedFeedback.slice(0, 3).map((feedback) => (
-                <div
-                  key={feedback.id}
-                  className="bg-card border-2 border-primary/10 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    {feedback.photo_url && (
-                      <img
-                        src={feedback.photo_url}
-                        alt={feedback.full_name || "Utilisateur"}
-                        className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-bold text-lg">
-                          {feedback.full_name || "Utilisateur anonyme"}
-                        </h4>
-                      </div>
-                      <div className="flex text-yellow-400 mb-2">
-                        {Array.from({ length: feedback.rating }).map((_, i) => (
-                          <span key={i} className="text-xl">⭐</span>
-                        ))}
-                      </div>
-                      {feedback.country && (
-                        <p className="text-sm font-medium text-primary">
-                          {feedback.country}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(feedback.created_at).toLocaleString("fr-FR", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  {feedback.comment && (
-                    <p className="text-sm text-muted-foreground leading-relaxed italic">
-                      "{feedback.comment}"
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-      
       {/* Hero Section */}
-      <section id="home" className="container mx-auto px-4 py-20">
-        <div className="max-w-5xl mx-auto">
+      <section id="home" className="container mx-auto px-4 py-16 md:py-20">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6 animate-fade-in">
-              <Sparkles className="h-4 w-4" />
-              <span className="text-sm font-medium">Intelligence Artificielle Africaine</span>
-            </div>
+            <Badge className="mb-4" variant="secondary">
+              <Sparkles className="w-3 h-3 mr-1" />
+              Plateforme de création visuelle pour l'Afrique
+            </Badge>
             
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent animate-fade-in">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-600 to-secondary bg-clip-text text-transparent leading-tight">
               {session && profile 
-                ? `Bienvenue ${profile.full_name?.split(' ')[0] || 'sur VisualPro'}`
-                : "Bienvenue sur VisualPro"
+                ? `Bienvenue ${profile.full_name?.split(' ')[0]}`
+                : "Créez des Visuels Pros en Quelques Secondes"
               }
             </h1>
             
             {session && profile ? (
               <>
-                <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed max-w-4xl mx-auto">
+                <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
                   Vous pouvez maintenant créer des visuels professionnels en un clic !
                 </p>
                 
@@ -230,18 +171,8 @@ const Index = () => {
               </>
             ) : (
               <>
-                <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
-                  Votre plateforme qui vous permet de créer des <span className="font-semibold text-foreground">visuels publicitaires</span> pour 
-                  <span className="font-semibold text-primary"> Facebook, Instagram, TikTok, YouTube, Google Ads et Snapchat</span> en un clic
-                </p>
-                
-                <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed max-w-4xl mx-auto">
-                  Des visuels <span className="font-semibold text-secondary">adaptés au marché africain</span>
-                </p>
-                
-                <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed max-w-4xl mx-auto">
-                  Et aussi de pouvoir créer vos <span className="font-semibold text-foreground">sites vitrines</span> pour votre entreprise ou vos formations 
-                  à l'aide de <span className="font-semibold text-primary">l'intelligence artificielle en un seul clic</span>
+                <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+                  Transformez vos idées en publicités professionnelles avec l'IA. Rejoignez des centaines d'entrepreneurs africains qui créent déjà.
                 </p>
 
                 {/* Social Proof Stats */}
@@ -256,18 +187,23 @@ const Index = () => {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl md:text-3xl font-bold text-primary mb-1">4.8/5</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">Satisfaction</div>
+                    <div className="text-xs md:text-sm text-muted-foreground flex items-center justify-center gap-1">
+                      <Star className="w-3 h-3 fill-primary text-primary" />
+                      Satisfaction
+                    </div>
                   </div>
-                </div>
-
-                <div className="inline-block bg-accent/20 border border-primary/20 rounded-lg px-6 py-3 mb-8">
-                  <p className="text-base font-medium text-foreground">
-                    🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
-                  </p>
                 </div>
               </>
             )}
           </div>
+
+          {!session && (
+            <div className="inline-block bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 mb-8">
+              <p className="text-base font-medium text-foreground">
+                🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
+              </p>
+            </div>
+          )}
 
           {/* Image Carousel - Dynamic showcase */}
           <div className="relative mb-12 max-w-4xl mx-auto">
@@ -315,7 +251,7 @@ const Index = () => {
             <div className="text-center">
               <Button 
                 size="lg" 
-                className="text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all hover:scale-105 animate-fade-in"
+                className="text-xl px-12 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
                 onClick={() => navigate("/auth")}
               >
                 <Sparkles className="mr-2 h-6 w-6" />
@@ -327,117 +263,61 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="text-center p-6">
-            <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
-              <img 
-                src={featureRapide} 
-                alt="Rapidité et simplicité" 
-                className="w-full h-full object-cover"
-              />
+      <section id="features" className="py-16 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="text-center p-6">
+              <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+                <img 
+                  src={featureRapide} 
+                  alt="Rapidité et simplicité" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Rapide et Simple</h3>
+              <p className="text-muted-foreground">
+                Créez vos visuels professionnels en moins d'une minute
+              </p>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Rapide et Simple</h3>
-            <p className="text-muted-foreground">
-              Obtenez votre visuel professionnel en moins d'une minute, sans compétences en design
-            </p>
-          </div>
 
-          <div className="text-center p-6">
-            <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
-              <img 
-                src={featureAfrique} 
-                alt="Adapté au marché africain" 
-                className="w-full h-full object-cover"
-              />
+            <div className="text-center p-6">
+              <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+                <img 
+                  src={featureAfrique} 
+                  alt="Adapté au marché africain" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Adapté à l'Afrique</h3>
+              <p className="text-muted-foreground">
+                Visuels qui reflètent la diversité du marché africain
+              </p>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Adapté à l'Afrique</h3>
-            <p className="text-muted-foreground">
-              Des visuels qui reflètent la diversité et la richesse culturelle du marché africain
-            </p>
-          </div>
 
-          <div className="text-center p-6">
-            <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
-              <img 
-                src={featureIA} 
-                alt="Intelligence artificielle" 
-                className="w-full h-full object-cover"
-              />
+            <div className="text-center p-6">
+              <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+                <img 
+                  src={featureIA} 
+                  alt="Intelligence artificielle" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">IA Intelligente</h3>
+              <p className="text-muted-foreground">
+                L'IA génère automatiquement visuels et textes publicitaires
+              </p>
             </div>
-            <h3 className="text-xl font-semibold mb-2">IA Intelligente</h3>
-            <p className="text-muted-foreground">
-              Notre IA génère automatiquement le visuel et le texte publicitaire parfaits pour votre produit
-            </p>
           </div>
         </div>
       </section>
 
-      {/* More Testimonials Section */}
-      {publishedFeedback.length > 3 && (
-        <section id="more-testimonials" className="container mx-auto px-4 py-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Plus d'avis de nos utilisateurs
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {publishedFeedback.slice(3).map((feedback) => (
-              <div
-                key={feedback.id}
-                className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start gap-4 mb-4">
-                  {feedback.photo_url && (
-                    <img
-                      src={feedback.photo_url}
-                      alt={feedback.full_name || "Utilisateur"}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-semibold">
-                        {feedback.full_name || "Utilisateur anonyme"}
-                      </h4>
-                      <div className="flex text-yellow-400">
-                        {Array.from({ length: feedback.rating }).map((_, i) => (
-                          <span key={i}>⭐</span>
-                        ))}
-                      </div>
-                    </div>
-                    {feedback.country && (
-                      <p className="text-sm text-muted-foreground">
-                        {feedback.country}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(feedback.created_at).toLocaleString("fr-FR", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-                {feedback.comment && (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    "{feedback.comment}"
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Examples Section */}
       <section id="examples" className="container mx-auto px-4 py-16">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-          Exemples de Visuels Créés avec VisualPro
+          Exemples de Visuels
         </h2>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Découvrez la qualité exceptionnelle des visuels publicitaires générés par notre IA
+          Découvrez la qualité des visuels générés par notre IA
         </p>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
@@ -591,24 +471,75 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      {publishedFeedback.length > 0 && (
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+              Ce que disent nos utilisateurs
+            </h2>
+            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {publishedFeedback.slice(0, 3).map((feedback) => (
+                <div
+                  key={feedback.id}
+                  className="bg-card border rounded-xl p-6 shadow-lg hover:shadow-xl transition-all"
+                >
+                  <div className="flex items-start gap-4 mb-4">
+                    {feedback.photo_url && (
+                      <img
+                        src={feedback.photo_url}
+                        alt={feedback.full_name || "Utilisateur"}
+                        className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h4 className="font-bold mb-1">
+                        {feedback.full_name || "Utilisateur anonyme"}
+                      </h4>
+                      <div className="flex text-yellow-400 mb-1">
+                        {Array.from({ length: feedback.rating }).map((_, i) => (
+                          <span key={i}>⭐</span>
+                        ))}
+                      </div>
+                      {feedback.country && (
+                        <p className="text-xs text-muted-foreground">
+                          {feedback.country}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {feedback.comment && (
+                    <p className="text-sm text-muted-foreground leading-relaxed italic">
+                      "{feedback.comment}"
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CTA Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="max-w-3xl mx-auto text-center bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-12 border">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Prêt à transformer votre marketing ?
-          </h2>
-          <p className="text-lg text-muted-foreground mb-6">
-            Rejoignez les entrepreneurs africains qui créent déjà leurs visuels avec VisualPro
-          </p>
-          <Button 
-            size="lg" 
-            className="text-lg px-8 py-6"
-            onClick={() => navigate("/auth")}
-          >
-            Commencer maintenant
-          </Button>
-        </div>
-      </section>
+      {!session && (
+        <section className="container mx-auto px-4 py-16">
+          <div className="max-w-3xl mx-auto text-center bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-12 border">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Prêt à créer vos visuels ?
+            </h2>
+            <p className="text-lg text-muted-foreground mb-6">
+              Rejoignez des centaines d'entrepreneurs africains
+            </p>
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-6"
+              onClick={() => navigate("/auth")}
+            >
+              Commencer maintenant
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-gradient-to-br from-[hsl(150,60%,15%)] to-[hsl(0,0%,10%)] text-white py-12 mt-16">
