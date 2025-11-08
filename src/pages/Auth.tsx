@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Gift } from "lucide-react";
+import { Loader2, Sparkles, Gift, Eye, EyeOff } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 
@@ -28,6 +28,8 @@ const Auth = () => {
   
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
   useEffect(() => {
     // Check for referral code in URL
@@ -321,17 +323,29 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Mot de passe</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signInPassword}
-                      onChange={(e) => setSignInPassword(e.target.value)}
-                      required
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-password">Mot de passe</Label>
+                      <div className="relative">
+                        <Input
+                          id="signin-password"
+                          type={showSignInPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={signInPassword}
+                          onChange={(e) => setSignInPassword(e.target.value)}
+                          required
+                          className="pr-10"
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignInPassword((s) => !s)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label={showSignInPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                        >
+                          {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
@@ -418,15 +432,27 @@ const Auth = () => {
                    </div>
                    <div className="space-y-2">
                      <Label htmlFor="signup-password">Mot de passe *</Label>
-                     <Input
-                       id="signup-password"
-                       type="password"
-                       placeholder="••••••••"
-                       value={signUpPassword}
-                       onChange={(e) => setSignUpPassword(e.target.value)}
-                       required
-                       minLength={8}
-                     />
+                     <div className="relative">
+                       <Input
+                         id="signup-password"
+                         type={showSignUpPassword ? "text" : "password"}
+                         placeholder="••••••••"
+                         value={signUpPassword}
+                         onChange={(e) => setSignUpPassword(e.target.value)}
+                         required
+                         minLength={8}
+                         className="pr-10"
+                         autoComplete="new-password"
+                       />
+                       <button
+                         type="button"
+                         onClick={() => setShowSignUpPassword((s) => !s)}
+                         className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                         aria-label={showSignUpPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                       >
+                         {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                       </button>
+                     </div>
                      <p className="text-xs text-muted-foreground">
                        Min. 8 caractères avec majuscules, minuscules, chiffres et caractères spéciaux
                      </p>
