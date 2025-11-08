@@ -81,9 +81,10 @@ export default {
           },
         },
         "wiggle": {
-          "0%, 100%": { transform: "translateX(0)" },
-          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-4px)" },
-          "20%, 40%, 60%, 80%": { transform: "translateX(4px)" },
+          "0%": { transform: "translateX(0)" },
+          "5%, 15%, 25%, 35%, 45%": { transform: "translateX(-4px)" },
+          "10%, 20%, 30%, 40%": { transform: "translateX(4px)" },
+          "50%, 100%": { transform: "translateX(0)" },
         },
         "pulse-glow": {
           "0%, 100%": { 
@@ -99,7 +100,7 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "wiggle": "wiggle 0.8s ease-in-out infinite",
+        "wiggle": "wiggle 6s ease-in-out infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
     },
