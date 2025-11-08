@@ -114,12 +114,14 @@ serve(async (req) => {
     const isFast = Boolean(fast);
     
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
+    
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY"); // For fallback and format generation
 
-    // Build an advanced prompt - use template if provided
+    // Build an advanced prompt optimized for DALL-E 3 - use template if provided
     let prompt: string;
     
     if (template && template.prompt_template) {
@@ -137,219 +139,210 @@ serve(async (req) => {
       console.log("Using template prompt:", template.name);
     } else {
       // Default prompt - BACKGROUND ONLY (zero-fault workflow)
-      prompt = `You are an expert advertising visual creator specializing in the African market.
+      // Optimized for DALL-E 3 (more concise, clear instructions)
+      prompt = `Professional advertising background for African market, no text overlay.
 
-IMPORTANT: Generate ONLY the background/scene for this advertisement. DO NOT include any text, product names, prices, or written content in the image. The text will be added separately as vector overlays to ensure perfect spelling.
+Product: ${productName} (${niche})
+Description: ${description}
 
-COMPETITIVE ANALYSIS CONTEXT:
-Analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and composition patterns consistently perform well for African audiences.
+CRITICAL: Generate ONLY the visual background/scene. Absolutely NO text, letters, words, prices, or product names in the image.`;
 
-PRODUCT CONTEXT (for background design only):
-- Product Name: ${productName}
-- Niche: ${niche}
-- Description: ${description}`;
     
-      if (price) {
-        prompt += `\n- Price context: ${price}${promotionalPrice ? ` (promotional discount from ${promotionalPrice})` : ''} (for visual context only - DO NOT write this text in the image)`;
-      }
-      
       if (benefits) {
-        prompt += `\n- Key Benefits: ${benefits} (for visual theme only - DO NOT write this text in the image)`;
-      }
-      
-      if (posology) {
-        prompt += `\n- Dosage/Usage context: ${posology} (for visual theme only - DO NOT write this text in the image)`;
+        prompt += `\nBenefits context: ${benefits}`;
       }
       
       if (container) {
-        prompt += `\n- Container/Packaging: ${container}`;
-      }
-      
-      if (productImage) {
-        prompt += `\n\nIMPORTANT: Use EXACTLY the provided product image as the hero.\n- DO NOT invent/imagine another product, packaging, logo or brand\n- Faithfully preserve the shape, label, colors and identity of the product\n- The provided product must be the HERO of the composition\n- You can add scenery, decorative elements AROUND the product without replacing it\n- If a person is present, they must interact with THIS product (hold/present/use it)\n- Leave space for text overlays (product name at top, price at bottom)\n- DO NOT add any text to the image`;
+        prompt += `\nPackaging: ${container}`;
       }
       
       if (personDescription) {
-      prompt += `\n\nPERSON/SCENE STAGING REQUEST (OPTIONAL):
-The user wants to feature a person with the product. Description: "${personDescription}"
-- Integrate this person naturally into the composition with the product
-- The person should complement and highlight the product, not overshadow it
-- Ensure the scene looks authentic and professional
-- The person should be holding, using, or presenting the product naturally
-- Match the person's style to the niche and target audience
-- Leave clear space for text overlays (top and bottom areas)`;
+        prompt += `\n\nScene: ${personDescription} - person naturally interacting with product, authentic African setting`;
       }
 
-      prompt += `\n\nVISUAL STYLE DIRECTION:`;
+      const styleMap: Record<string, string> = {
+        moderne: "Modern, clean, contemporary African aesthetic with vibrant gradients",
+        luxueux: "Luxury premium with gold accents, sophisticated palette, refined elegance",
+        humoristique: "Fun, playful, bright colors, expressive and relatable",
+        traditionnel: "Traditional African heritage - Kente/Ankara patterns, warm earth tones",
+        minimaliste: "Minimalist with African warmth, negative space, focused composition",
+        dynamique: "Dynamic energetic, bold contrasts, motion blur, youthful vibrancy",
+      };
       
       if (style) {
-      const styleDescriptions: Record<string, string> = {
-        moderne: "Modern and clean design with contemporary African aesthetics - think bold typography, vibrant gradients, and sleek product presentation",
-        luxueux: "Luxury and premium design with elegant African touches - gold accents, sophisticated color palettes, refined imagery that conveys prestige and exclusivity",
-        humoristique: "Fun, playful, and humorous style that resonates with African humor and culture - bright colors, expressive faces, relatable situations",
-        traditionnel: "Traditional African style celebrating cultural heritage - authentic patterns (Kente, Ankara, Bogolan), warm earth tones, cultural symbols, community-focused imagery",
-        minimaliste: "Minimalist and clean with African warmth - simple composition, strategic use of negative space, focus on product, subtle cultural elements",
-        dynamique: "Dynamic and energetic style capturing African vibrancy - motion blur effects, bold contrasts, action-oriented composition, youthful energy",
-        };
-        prompt += `\n${styleDescriptions[style] || style}`;
+        prompt += `\n\nStyle: ${styleMap[style] || style}`;
       }
       
-      // Add platform-specific requirements with best practices
-      const platformSpecs: Record<string, string> = {
-        facebook: "\n\nPLATFORM OPTIMIZATION: Facebook feed ad (1200x628px)\n- Inspired by top-performing Facebook ads: eye-catching headline text overlay, clear value proposition visible within 3 seconds, product prominently displayed in first 40% of image\n- Use Facebook's best practices: high contrast, mobile-first design, culturally relevant imagery",
-        instagram: "\n\nPLATFORM OPTIMIZATION: Instagram square post (1080x1080px)\n- Inspired by viral Instagram ads: aesthetically pleasing composition, Instagram-native feel, lifestyle integration of product, authentic African settings\n- Incorporate trending Instagram advertising elements: bold central focus, aspirational yet relatable imagery, visual storytelling",
-        tiktok: "\n\nPLATFORM OPTIMIZATION: TikTok vertical format (1080x1920px)\n- Inspired by successful TikTok ads: authentic and less polished feel, engaging hook in top third, product demonstration or transformation angle\n- TikTok advertising best practices: youthful energy, trending visual styles, stop-the-scroll impact, mobile-native vertical composition",
-        all: "\n\nPLATFORM OPTIMIZATION: Multi-platform versatile design\n- Inspired by cross-platform successful ads: clear focal point works in any crop, readable text at any size, platform-agnostic color psychology\n- Universal best practices: immediate visual impact, clear brand message, culturally resonant for African audiences across all platforms",
+      // Platform optimization (concise for DALL-E 3)
+      const platformMap: Record<string, string> = {
+        facebook: "Optimized for Facebook feed - high contrast, mobile-first, eye-catching",
+        instagram: "Instagram aesthetic - square composition, lifestyle feel, aspirational yet relatable",
+        tiktok: "TikTok vertical - authentic feel, youthful energy, stop-the-scroll impact",
+        all: "Multi-platform versatile - works in any crop, universal appeal",
       };
       
       if (platform) {
-        prompt += platformSpecs[platform] || platformSpecs.all;
+        prompt += `\nPlatform: ${platformMap[platform] || platformMap.all}`;
       }
       
-      prompt += `\n\nCREATIVE EXECUTION - BACKGROUND ONLY:
-- Apply proven visual patterns from successful ${niche} campaigns in African markets
-- Use color psychology that resonates with African consumers (warm, vibrant, trustworthy)
-- Incorporate culturally relevant visual cues and symbols that build instant connection
-- Design for thumb-stopping impact with strong visual hierarchy
-- Balance professional quality with authentic, relatable aesthetics
-- Ensure the product is hero of the composition while leaving clear space for text overlays
-- Use lighting and composition techniques seen in high-converting ads
-- Leave prominent space at the TOP for product name (approximately 15-20% of image height)
-- Leave clear space at the BOTTOM for price and call-to-action (approximately 15-20% of image height)
-- Create visual breathing room in key areas for text legibility
+      prompt += `
 
-CRITICAL - NO TEXT RULE:
-- DO NOT include any written text, letters, words, numbers, or symbols in the generated image
-- DO NOT write the product name, price, benefits, or any other text
-- DO NOT add labels, captions, or typography
-- The image should be a clean background/scene ready for text overlay
-- Focus purely on creating an engaging visual backdrop that supports the product
+Visual requirements:
+- Professional advertising photography quality, ultra high resolution
+- Vibrant colors optimized for African market preferences (warm, trustworthy)
+- Product as hero, authentic African cultural elements
+- Leave 20% space TOP and BOTTOM for text overlays
+- Commercial lighting, attention-grabbing composition
+- Mobile-optimized contrast and clarity
 
-TECHNICAL REQUIREMENTS:
-- Ultra high resolution, professional advertising photography quality
-- Commercial product shot quality with perfect lighting
-- Attention-grabbing composition that stands out in social feeds
-- Optimized color and contrast for mobile screens
-- Clear focal point for the product as the hero
-- Balanced composition with designated text areas
-
-Create a stunning, conversion-focused advertising background that combines the best visual elements of successful ads in this niche with authentic African cultural appeal. Remember: ABSOLUTELY NO TEXT in the generated image.`;
+ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean background only for text overlay.`;
     }
 
-    console.log("Generated prompt:", prompt);
+    console.log("Generated prompt (length:", prompt.length, ")");
 
-    // Build the message content - if product image is provided, include it FIRST to enforce conditioning
-    const messageContent = productImage 
-      ? [
-          {
-            type: "image_url",
-            image_url: { url: productImage },
-          },
-          {
-            type: "text",
-            text: prompt,
-          }
-        ]
-      : prompt;
+    // Determine image size based on platform
+    let imageSize: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024";
+    if (platform === "tiktok" || platform === "instagram_story") {
+      imageSize = "1024x1792"; // Vertical for stories/TikTok
+    } else if (platform === "facebook") {
+      imageSize = "1792x1024"; // Horizontal for Facebook feed
+    }
 
-    // Try Lovable AI first; fallback to OpenAI if credits exhausted
+    // Retry logic with exponential backoff for DALL-E 3
     let imageUrl: string | null = null;
+    const maxRetries = 3;
+    const retryDelayMs = 2000; // Start with 2 seconds
+    
+    for (let attempt = 1; attempt <= maxRetries && !imageUrl; attempt++) {
+      try {
+        console.log(`DALL-E 3 generation attempt ${attempt}/${maxRetries}`);
+        
+        const dalleResponse = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "dall-e-3",
+            prompt: prompt,
+            size: imageSize,
+            quality: "hd", // High quality for professional ads
+            style: style === "traditionnel" || style === "humoristique" ? "vivid" : "natural",
+            n: 1,
+          }),
+          timeoutMs: 60000, // DALL-E 3 can take longer
+        });
 
-    const response = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
-        messages: [
-          { role: "user", content: messageContent },
-        ],
-        modalities: ["image", "text"],
-      }),
-      timeoutMs: 45000,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requêtes dépassée. Veuillez réessayer plus tard." }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+        if (dalleResponse.ok) {
+          const dalleData = await dalleResponse.json();
+          const generatedUrl = dalleData.data?.[0]?.url;
+          
+          if (generatedUrl) {
+            // Convert URL to base64 for consistent storage
+            console.log("DALL-E 3 image generated, converting to base64...");
+            const imageResponse = await fetch(generatedUrl);
+            const imageBlob = await imageResponse.blob();
+            const arrayBuffer = await imageBlob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            
+            // Convert to base64 using Deno's standard encoding
+            const base64Chunks: string[] = [];
+            for (let i = 0; i < bytes.length; i += 3) {
+              const chunk = bytes.slice(i, i + 3);
+              base64Chunks.push(btoa(String.fromCharCode(...chunk)));
+            }
+            const base64 = base64Chunks.join('');
+            imageUrl = `data:image/png;base64,${base64}`;
+            console.log("DALL-E 3 generation successful on attempt", attempt);
+          } else {
+            console.warn("DALL-E 3 response missing URL:", dalleData);
           }
-        );
+        } else {
+          const errorText = await dalleResponse.text();
+          console.error(`DALL-E 3 error (attempt ${attempt}):`, dalleResponse.status, errorText);
+          
+          // Handle rate limits with exponential backoff
+          if (dalleResponse.status === 429 && attempt < maxRetries) {
+            const delay = retryDelayMs * Math.pow(2, attempt - 1);
+            console.log(`Rate limited, waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          
+          // Handle content policy violations
+          if (dalleResponse.status === 400 && errorText.includes("content_policy")) {
+            return new Response(
+              JSON.stringify({ 
+                error: "Le contenu demandé viole la politique d'utilisation. Veuillez modifier votre description." 
+              }),
+              {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          }
+          
+          // If last attempt, break to try fallback
+          if (attempt === maxRetries) {
+            break;
+          }
+        }
+      } catch (err) {
+        console.error(`DALL-E 3 attempt ${attempt} failed:`, err);
+        if (attempt < maxRetries) {
+          const delay = retryDelayMs * Math.pow(2, attempt - 1);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
+    }
+
+    // Fallback to Lovable AI if DALL-E 3 failed after retries
+    if (!imageUrl) {
+      console.log("DALL-E 3 failed after retries, falling back to Lovable AI...");
       
-      if (response.status === 402) {
-        // Fallback to OpenAI if configured
-        const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-        if (OPENAI_API_KEY) {
-          console.log("Lovable AI crédits insuffisants. Bascule sur OpenAI gpt-image-1.");
-          const openaiResp = await fetch("https://api.openai.com/v1/images/generations", {
+      if (LOVABLE_API_KEY) {
+        try {
+          const fallbackResponse = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${OPENAI_API_KEY}`,
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "gpt-image-1",
-              prompt,
-              size: "1024x1024",
-              n: 1
+              model: "google/gemini-2.5-flash-image-preview",
+              messages: [
+                { role: "user", content: prompt },
+              ],
+              modalities: ["image", "text"],
             }),
+            timeoutMs: 45000,
           });
 
-          if (openaiResp.ok) {
-            const openaiData = await openaiResp.json();
-            const b64 = openaiData.data?.[0]?.b64_json;
-            if (b64) {
-              imageUrl = `data:image/png;base64,${b64}`;
-            } else {
-              console.error("OpenAI response missing b64_json", openaiData);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            imageUrl = fallbackData.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
+            if (imageUrl) {
+              console.log("Fallback to Lovable AI successful");
             }
-          } else {
-            const t = await openaiResp.text();
-            console.error("OpenAI images API error:", openaiResp.status, t);
           }
+        } catch (fallbackErr) {
+          console.error("Lovable AI fallback failed:", fallbackErr);
         }
-
-        if (!imageUrl) {
-          return new Response(
-            JSON.stringify({ error: "Crédits IA insuffisants. Veuillez ajouter des crédits ou configurer OPENAI_API_KEY." }),
-            {
-              status: 402,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
-        }
-      } else {
-        throw new Error(`AI gateway error: ${response.status}`);
       }
-    }
-
-    if (!imageUrl) {
-      const data = await response.json();
-      console.log("AI response received");
-      console.log("Response structure:", JSON.stringify({
-        hasChoices: !!data.choices,
-        choicesLength: data.choices?.length,
-        hasMessage: !!data.choices?.[0]?.message,
-        hasImages: !!data.choices?.[0]?.message?.images,
-        imagesLength: data.choices?.[0]?.message?.images?.length,
-        messageKeys: data.choices?.[0]?.message ? Object.keys(data.choices[0].message) : [],
-      }));
-      
-      imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
     }
     
     if (!imageUrl) {
-      console.error("No image generated by either provider.");
-      throw new Error("No image generated. The AI service returned no image.");
+      console.error("All generation attempts failed");
+      return new Response(
+        JSON.stringify({ 
+          error: "Échec de la génération d'image après plusieurs tentatives. Veuillez réessayer." 
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Save the generated image to the database
