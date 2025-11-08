@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.send-24h-reminder]
 verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
