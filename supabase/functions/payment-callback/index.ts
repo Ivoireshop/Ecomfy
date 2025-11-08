@@ -114,6 +114,8 @@ serve(async (req) => {
         return_url: url.searchParams.get("return_url"),
         promo_code_id: url.searchParams.get("promo_code_id"),
         discount_percentage: url.searchParams.get("discount_percentage"),
+        payment_type: url.searchParams.get("payment_type"),
+        credits_size: url.searchParams.get("credits_size"),
       };
       
       // Note: GET redirects from Lygos are user-facing and don't need signature verification
@@ -141,30 +143,85 @@ serve(async (req) => {
       provider, 
       return_url,
       promo_code_id,
-      discount_percentage 
+      discount_percentage,
+      payment_type,
+      credits_size 
     } = paymentData;
 
     if (status === "success" || status === "completed") {
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 30);
+      const isCreditsPayment = payment_type === 'credits';
+      const creditsAmount = credits_size ? parseInt(credits_size) : 0;
+      
+      if (isCreditsPayment && creditsAmount > 0) {
+        // Handle credits purchase
+        console.log(`Processing credits purchase: ${creditsAmount} credits for user ${user_id}`);
+        
+        // Add credits to user profile
+        const { data: currentProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("purchased_credits, has_showcase_access")
+          .eq("id", user_id)
+          .single();
+        
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          throw profileError;
+        }
+        
+        const newCreditsTotal = (currentProfile?.purchased_credits || 0) + creditsAmount;
+        const shouldEnableShowcase = creditsAmount >= 50 || currentProfile?.has_showcase_access;
+        
+        const { error: updateProfileError } = await supabase
+          .from("profiles")
+          .update({
+            purchased_credits: newCreditsTotal,
+            has_showcase_access: shouldEnableShowcase,
+          })
+          .eq("id", user_id);
+        
+        if (updateProfileError) {
+          console.error("Error updating profile credits:", updateProfileError);
+          throw updateProfileError;
+        }
+        
+        console.log(`Credits added: ${creditsAmount} (total: ${newCreditsTotal}), showcase access: ${shouldEnableShowcase}`);
+        
+        // Record credit purchase
+        const { error: creditPurchaseError } = await supabase
+          .from("credit_purchases")
+          .insert({
+            user_id: user_id,
+            pack_size: creditsAmount,
+            pack_price: parseFloat(amount),
+            credits_added: creditsAmount,
+          });
+        
+        if (creditPurchaseError) {
+          console.error("Error recording credit purchase:", creditPurchaseError);
+        }
+      } else {
+        // Handle subscription payment
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 30);
 
-      const { error: updateError } = await supabase
-        .from("subscriptions")
-        .update({
-          status: "active",
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user_id);
+        const { error: updateError } = await supabase
+          .from("subscriptions")
+          .update({
+            status: "active",
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user_id);
 
-      if (updateError) {
-        console.error("Error updating subscription:", updateError);
-        throw updateError;
+        if (updateError) {
+          console.error("Error updating subscription:", updateError);
+          throw updateError;
+        }
+
+        console.log("Subscription activated for user:", user_id);
       }
-
-      console.log("Subscription activated for user:", user_id);
 
       const { error: paymentError } = await supabase
         .from("payments")

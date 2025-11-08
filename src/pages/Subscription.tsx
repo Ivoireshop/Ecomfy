@@ -259,7 +259,6 @@ const Subscription = () => {
   const isActive = subscription?.status === "active";
 
   const creditPacks = [
-    { size: 5, price: 500, popular: false },
     { size: 10, price: 1000, popular: false },
     { size: 20, price: 2000, popular: false },
     { size: 30, price: 3000, popular: false },
