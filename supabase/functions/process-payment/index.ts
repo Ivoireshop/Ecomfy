@@ -9,9 +9,7 @@ const corsHeaders = {
 
 // Zod validation schema
 const PaymentSchema = z.object({
-  amount: z.number().refine(val => val === 10000, {
-    message: "Le montant doit être exactement 10000 FCFA pour l'abonnement Premium"
-  }),
+  amount: z.number(),
   payment_method: z.enum(["mobile_money", "card", "bank_card"], {
     errorMap: () => ({ message: "Méthode de paiement invalide. Utilisez 'mobile_money' ou 'card'" })
   }),
@@ -20,7 +18,12 @@ const PaymentSchema = z.object({
   }),
   provider: z.string().optional(),
   phone: z.string().optional(),
-  promo_code: z.string().optional()
+  promo_code: z.string().optional(),
+  payment_type: z.enum(["subscription", "credits"]).default("subscription"),
+  credits_pack: z.object({
+    size: z.number(),
+    price: z.number()
+  }).optional()
 });
 
 serve(async (req) => {
@@ -225,11 +228,13 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || undefined;
     const referer = req.headers.get("referer") || undefined;
     const baseReturnUrl = origin || (referer ? new URL(referer).origin : undefined);
-    const orderId = `sub_${user_id}_${Date.now()}`;
+    const orderId = `${payment_type === 'credits' ? 'credits' : 'sub'}_${user_id}_${Date.now()}`;
 
     console.log("Calling Lygos API:", {
       amount,
       payment_method,
+      payment_type,
+      credits_pack,
       user_id,
       provider: normalizedProvider,
       phone: phoneMasked,
@@ -240,12 +245,16 @@ serve(async (req) => {
     });
 
     // Build payload base (callback URLs will be attached after method/provider resolution)
+    const messageText = payment_type === 'credits' && credits_pack 
+      ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
+      : "Abonnement Visuel Pro - Plan Premium";
+    
     const basePayload = {
       amount: finalAmount,
       currency: "XOF",
       country: "CI",
       shop_name: "Visuel Pro",
-      message: "Abonnement Visuel Pro - Plan Premium",
+      message: messageText,
       user_id,
       order_id: orderId,
     } as Record<string, unknown>;
@@ -275,6 +284,9 @@ serve(async (req) => {
       transaction_id: orderId,
       payment_method: String((payload as any).payment_method || ''),
       provider: String((payload as any).provider || ''),
+      payment_type: payment_type || 'subscription',
+      credits_size: credits_pack?.size ? String(credits_pack.size) : ''
+    });
       return_url: baseReturnUrl || '',
       ...(promoCodeId && { promo_code_id: promoCodeId }),
       ...(discountPercentage && { discount_percentage: String(discountPercentage) })

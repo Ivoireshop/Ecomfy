@@ -87,16 +87,19 @@ serve(async (req) => {
 
     // Check free generations (only for non-subscribed users)
     let freeGenerationsRemaining = 0;
+    let purchasedCredits = 0;
     if (!hasActiveSubscription) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
-        .select("free_generations_remaining")
+        .select("free_generations_remaining, purchased_credits")
         .eq("id", userId)
         .single();
 
       freeGenerationsRemaining = profileData?.free_generations_remaining || 0;
+      purchasedCredits = profileData?.purchased_credits || 0;
 
-      if (freeGenerationsRemaining <= 0) {
+      // Check if user has any credits available (free or purchased)
+      if (freeGenerationsRemaining <= 0 && purchasedCredits <= 0) {
         return new Response(
           JSON.stringify({ 
             error: "Vous avez épuisé vos générations gratuites. Veuillez souscrire à un abonnement.",
@@ -551,31 +554,50 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       }
     }
 
-    // Decrement free generations if not subscribed and not founder (must use admin client to bypass RLS)
+    // Decrement credits (purchased credits first, then free generations)
     let updatedFreeGenerations = typeof freeGenerationsRemaining === "number" ? freeGenerationsRemaining : 0;
-    if (userId && !hasActiveSubscription && !isFounder && updatedFreeGenerations > 0) {
+    let updatedPurchasedCredits = typeof purchasedCredits === "number" ? purchasedCredits : 0;
+    
+    if (userId && !hasActiveSubscription && !isFounder) {
       // Create admin client to bypass RLS for profile updates
       const adminClient = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
       );
       
-      const { data: updateData, error: updateError } = await adminClient
-        .from("profiles")
-        .update({ free_generations_remaining: updatedFreeGenerations - 1 })
-        .eq("id", userId)
-        .select("free_generations_remaining")
-        .single();
-      
-      if (updateError) {
-        console.error("Error decrementing free generations:", updateError);
-      }
-      
-      updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
-      console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
+      // Prioritize using purchased credits
+      if (updatedPurchasedCredits > 0) {
+        const { data: updateData, error: updateError } = await adminClient
+          .from("profiles")
+          .update({ purchased_credits: updatedPurchasedCredits - 1 })
+          .eq("id", userId)
+          .select("purchased_credits")
+          .single();
+        
+        if (updateError) {
+          console.error("Error decrementing purchased credits:", updateError);
+        }
+        
+        updatedPurchasedCredits = updateData?.purchased_credits ?? (updatedPurchasedCredits - 1);
+        console.log("Decremented purchased credits. Remaining:", updatedPurchasedCredits);
+      } else if (updatedFreeGenerations > 0) {
+        // Use free generations if no purchased credits
+        const { data: updateData, error: updateError } = await adminClient
+          .from("profiles")
+          .update({ free_generations_remaining: updatedFreeGenerations - 1 })
+          .eq("id", userId)
+          .select("free_generations_remaining")
+          .single();
+        
+        if (updateError) {
+          console.error("Error decrementing free generations:", updateError);
+        }
+        
+        updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
+        console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
 
-      // Send reminder emails based on generations remaining
-      if (updatedFreeGenerations === 1) {
+        // Send reminder emails based on generations remaining (only for free generations)
+        if (updatedPurchasedCredits === 0 && updatedFreeGenerations === 1) {
         // After 2nd generation (1 remaining) - send immediate reminder
         console.log("Sending 'after 2 generations' reminder email");
         try {
@@ -600,23 +622,24 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
               freeGenerationsRemaining: updatedFreeGenerations
             })
           }).catch(err => console.error("Error sending reminder:", err));
-        } catch (e) {
-          console.error("Error triggering reminder email:", e);
-        }
-      } else if (updatedFreeGenerations === 0) {
-        // After 3rd generation (0 remaining) - record for 24h follow-up
-        console.log("Recording user for 24h follow-up email");
-        try {
-          // Insert a record with current timestamp that the cron job will pick up
-          await adminClient
-            .from("email_reminders")
-            .insert({
-              user_id: userId,
-              reminder_type: 'after_3_generations',
-              sent_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h from now
-            });
-        } catch (e) {
-          console.error("Error recording 24h reminder:", e);
+          } catch (e) {
+            console.error("Error triggering reminder email:", e);
+          }
+        } else if (updatedPurchasedCredits === 0 && updatedFreeGenerations === 0) {
+          // After 3rd generation (0 remaining) - record for 24h follow-up
+          console.log("Recording user for 24h follow-up email");
+          try {
+            // Insert a record with current timestamp that the cron job will pick up
+            await adminClient
+              .from("email_reminders")
+              .insert({
+                user_id: userId,
+                reminder_type: 'after_3_generations',
+                sent_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h from now
+              });
+          } catch (e) {
+            console.error("Error recording 24h reminder:", e);
+          }
         }
       }
     }
@@ -654,6 +677,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
         imageId: savedImage?.id || null,
         saved: !!savedImage,
         freeGenerationsRemaining: hasActiveSubscription ? null : updatedFreeGenerations,
+        purchasedCredits: hasActiveSubscription ? null : updatedPurchasedCredits,
         additionalFormats: hasActiveSubscription ? additionalFormats : [],
         hasMultipleFormats: hasActiveSubscription && additionalFormats.length > 0
       }),

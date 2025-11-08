@@ -115,6 +115,44 @@ export type Database = {
           },
         ]
       }
+      credit_purchases: {
+        Row: {
+          created_at: string
+          credits_added: number
+          id: string
+          pack_price: number
+          pack_size: number
+          payment_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_added: number
+          id?: string
+          pack_price: number
+          pack_size: number
+          payment_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_added?: number
+          id?: string
+          pack_price?: number
+          pack_size?: number
+          payment_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_purchases_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_reminders: {
         Row: {
           created_at: string
@@ -385,8 +423,10 @@ export type Database = {
           free_generations_remaining: number
           free_video_generations_remaining: number
           full_name: string | null
+          has_showcase_access: boolean | null
           id: string
           phone: string | null
+          purchased_credits: number | null
           updated_at: string | null
         }
         Insert: {
@@ -396,8 +436,10 @@ export type Database = {
           free_generations_remaining?: number
           free_video_generations_remaining?: number
           full_name?: string | null
+          has_showcase_access?: boolean | null
           id: string
           phone?: string | null
+          purchased_credits?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -407,8 +449,10 @@ export type Database = {
           free_generations_remaining?: number
           free_video_generations_remaining?: number
           full_name?: string | null
+          has_showcase_access?: boolean | null
           id?: string
           phone?: string | null
+          purchased_credits?: number | null
           updated_at?: string | null
         }
         Relationships: []

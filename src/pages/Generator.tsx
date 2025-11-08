@@ -36,6 +36,7 @@ const Generator = () => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState<number | null>(null);
+  const [purchasedCredits, setPurchasedCredits] = useState<number>(0);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [videoGenerationsRemaining, setVideoGenerationsRemaining] = useState<number>(5);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
@@ -138,12 +139,13 @@ const Generator = () => {
       // Check free generations
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("free_generations_remaining, free_video_generations_remaining")
+        .select("free_generations_remaining, free_video_generations_remaining, purchased_credits")
         .eq("id", user.id)
         .single();
 
       setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
       setFreeVideoGenerationsRemaining(profileData?.free_video_generations_remaining || 0);
+      setPurchasedCredits(profileData?.purchased_credits || 0);
     } catch (error) {
       console.error("Error loading generation status:", error);
     }
@@ -736,27 +738,36 @@ const Generator = () => {
               </Alert>
             )}
 
-            {!hasActiveSubscription && freeGenerationsRemaining !== null && (
-              <Alert className={`mt-4 max-w-2xl mx-auto ${freeGenerationsRemaining === 0 ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
+            {!hasActiveSubscription && (freeGenerationsRemaining !== null || purchasedCredits > 0) && (
+              <Alert className={`mt-4 max-w-2xl mx-auto ${(freeGenerationsRemaining === 0 && purchasedCredits === 0) ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
                 <AlertDescription className="text-center">
-                  {freeGenerationsRemaining > 0 ? (
-                    <>
-                      🎁 <strong>Essai gratuit :</strong> Il vous reste <strong>{freeGenerationsRemaining}</strong> génération{freeGenerationsRemaining > 1 ? 's' : ''} d'image{freeGenerationsRemaining > 1 ? 's' : ''} gratuite{freeGenerationsRemaining > 1 ? 's' : ''}
-                    </>
+                  {(freeGenerationsRemaining > 0 || purchasedCredits > 0) ? (
+                    <div className="space-y-2">
+                      {freeGenerationsRemaining > 0 && (
+                        <p>
+                          🎁 <strong>Essai gratuit :</strong> <strong>{freeGenerationsRemaining}</strong> génération{freeGenerationsRemaining > 1 ? 's' : ''} gratuite{freeGenerationsRemaining > 1 ? 's' : ''}
+                        </p>
+                      )}
+                      {purchasedCredits > 0 && (
+                        <p>
+                          ✨ <strong>Crédits achetés :</strong> <strong>{purchasedCredits}</strong> création{purchasedCredits > 1 ? 's' : ''} disponible{purchasedCredits > 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       <p className="text-base font-bold text-red-700 dark:text-red-400">
                         ⚠️ Essai gratuit terminé
                       </p>
                       <p className="text-sm">
-                        Vous avez utilisé vos 3 générations gratuites. Pour continuer à créer des visuels professionnels, souscrivez maintenant !
+                        Vous avez utilisé vos 3 générations gratuites. Achetez des crédits à la carte ou souscrivez à l'abonnement illimité !
                       </p>
                       <Button 
                         size="lg" 
                         className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
                         onClick={() => navigate("/subscription")}
                       >
-                        🚀 Voir les abonnements
+                        🚀 Voir les options
                       </Button>
                     </div>
                   )}

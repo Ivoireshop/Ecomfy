@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,6 +42,45 @@ export default function ShowcaseBuilder() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
   const [aboutImagePreview, setAboutImagePreview] = useState<string | null>(null);
+  const [hasShowcaseAccess, setHasShowcaseAccess] = useState(false);
+  
+  useEffect(() => {
+    checkShowcaseAccess();
+  }, []);
+
+  const checkShowcaseAccess = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("has_showcase_access")
+        .eq("id", user.id)
+        .single();
+
+      const { data: subData } = await supabase
+        .from("subscriptions")
+        .select("status")
+        .eq("user_id", user.id)
+        .single();
+
+      const hasAccess = subData?.status === "active" || profileData?.has_showcase_access === true;
+      
+      if (!hasAccess) {
+        toast.error("Accès restreint", { description: "L'abonnement ou le pack 50 crédits (5000 FCFA) est requis pour créer un site vitrine" });
+        navigate("/subscription");
+      }
+      
+      setHasShowcaseAccess(hasAccess);
+    } catch (error) {
+      console.error("Error checking access:", error);
+      navigate("/subscription");
+    }
+  };
   
   const {
     register,
