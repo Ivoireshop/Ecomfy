@@ -136,32 +136,29 @@ serve(async (req) => {
       
       console.log("Using template prompt:", template.name);
     } else {
-      // Default prompt
+      // Default prompt - BACKGROUND ONLY (zero-fault workflow)
       prompt = `You are an expert advertising visual creator specializing in the African market.
 
-CRITICAL: All text in the generated image MUST be in perfect French with NO spelling errors. Double-check every word for correct French orthography, grammar, and accents.
+IMPORTANT: Generate ONLY the background/scene for this advertisement. DO NOT include any text, product names, prices, or written content in the image. The text will be added separately as vector overlays to ensure perfect spelling.
 
 COMPETITIVE ANALYSIS CONTEXT:
-First, mentally analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and messaging patterns consistently perform well in this niche for African audiences.
+Analyze successful advertising campaigns for "${productName}" in the ${niche} niche across Facebook, Instagram, TikTok, Pinterest, Snapchat, and Google Ads. Consider what visual elements, colors, layouts, and composition patterns consistently perform well for African audiences.
 
-PRODUCT INFORMATION:
+PRODUCT CONTEXT (for background design only):
 - Product Name: ${productName}
 - Niche: ${niche}
 - Description: ${description}`;
     
-      if (price && promotionalPrice) {
-        prompt += `\n- Promotional Price (crossed out): ${promotionalPrice}`;
-        prompt += `\n- Current Price: ${price} (MUST be prominently displayed with promotional price crossed out to show discount)`;
-      } else if (price) {
-        prompt += `\n- Price: ${price} (MUST be prominently displayed on the visual)`;
+      if (price) {
+        prompt += `\n- Price context: ${price}${promotionalPrice ? ` (promotional discount from ${promotionalPrice})` : ''} (for visual context only - DO NOT write this text in the image)`;
       }
       
       if (benefits) {
-        prompt += `\n- Key Benefits: ${benefits}`;
+        prompt += `\n- Key Benefits: ${benefits} (for visual theme only - DO NOT write this text in the image)`;
       }
       
       if (posology) {
-        prompt += `\n- Dosage/Usage: ${posology} (include this information on the visual)`;
+        prompt += `\n- Dosage/Usage context: ${posology} (for visual theme only - DO NOT write this text in the image)`;
       }
       
       if (container) {
@@ -169,18 +166,18 @@ PRODUCT INFORMATION:
       }
       
       if (productImage) {
-        prompt += `\n\nIMPORTANT ET OBLIGATOIRE: Utilise EXACTEMENT l'image de produit fournie comme base.\n- NE PAS inventer/imaginer un autre produit, emballage, logo ou marque\n- Conserver fidèlement la forme, l'étiquette, les couleurs et l'identité du produit\n- Le produit fourni doit être le HÉROS de la composition\n- Tu peux ajouter un décor, des textes et des éléments graphiques AUTOUR du produit sans le remplacer\n- Si un personnage est présent, il doit interagir avec CE produit (le tenir/présenter/utiliser)\n- Refuse toute substitution de produit.`;
+        prompt += `\n\nIMPORTANT: Use EXACTLY the provided product image as the hero.\n- DO NOT invent/imagine another product, packaging, logo or brand\n- Faithfully preserve the shape, label, colors and identity of the product\n- The provided product must be the HERO of the composition\n- You can add scenery, decorative elements AROUND the product without replacing it\n- If a person is present, they must interact with THIS product (hold/present/use it)\n- Leave space for text overlays (product name at top, price at bottom)\n- DO NOT add any text to the image`;
       }
       
       if (personDescription) {
       prompt += `\n\nPERSON/SCENE STAGING REQUEST (OPTIONAL):
-The user wants to feature a person with the product. Here's their description: "${personDescription}"
+The user wants to feature a person with the product. Description: "${personDescription}"
 - Integrate this person naturally into the composition with the product
 - The person should complement and highlight the product, not overshadow it
 - Ensure the scene looks authentic and professional
-- The person should be holding, using, or presenting the product in a natural way
-- Match the person's style and appearance to the described niche and target audience
-- Make sure the overall composition remains focused on the product as the hero element`;
+- The person should be holding, using, or presenting the product naturally
+- Match the person's style to the niche and target audience
+- Leave clear space for text overlays (top and bottom areas)`;
       }
 
       prompt += `\n\nVISUAL STYLE DIRECTION:`;
@@ -209,42 +206,34 @@ The user wants to feature a person with the product. Here's their description: "
         prompt += platformSpecs[platform] || platformSpecs.all;
       }
       
-      prompt += `\n\nCREATIVE EXECUTION INSPIRED BY TOP-PERFORMING ADS:
+      prompt += `\n\nCREATIVE EXECUTION - BACKGROUND ONLY:
 - Apply proven visual patterns from successful ${niche} campaigns in African markets
 - Use color psychology that resonates with African consumers (warm, vibrant, trustworthy)
 - Incorporate culturally relevant visual cues and symbols that build instant connection
-- Design for thumb-stopping impact - the ad must make people pause their scroll
+- Design for thumb-stopping impact with strong visual hierarchy
 - Balance professional quality with authentic, relatable aesthetics
-- Ensure the product is hero of the composition while telling a compelling story
+- Ensure the product is hero of the composition while leaving clear space for text overlays
 - Use lighting and composition techniques seen in high-converting ads
-${promotionalPrice && price ? `- Display the promotional price "${promotionalPrice}" crossed out (strikethrough) and the current price "${price}" prominently next to it to emphasize the discount` : price ? `- Display the price "${price}" prominently and legibly on the visual` : ''}
-${posology ? `- Include dosage/usage instructions "${posology}" in a clear, readable format` : ''}
+- Leave prominent space at the TOP for product name (approximately 15-20% of image height)
+- Leave clear space at the BOTTOM for price and call-to-action (approximately 15-20% of image height)
+- Create visual breathing room in key areas for text legibility
 
-TEXTE À AFFICHER EXACTEMENT (NE PAS RÉÉCRIRE):
-- Nom du produit: "${productName}"
-${tagline ? `- Slogan: "${tagline}"` : ''}
-${promotionalPrice && price ? `- Prix promo (barré): "${promotionalPrice}" et Prix actuel: "${price}"` : price ? `- Prix: "${price}"` : ''}
-${benefits ? `- Bénéfices: "${benefits}"` : ''}
-${callToAction ? `- Appel à l'action: "${callToAction}"` : ''}
-
-Règles: utilise strictement ces chaînes en français, sans paraphrase ni traduction. Respecte la casse, la ponctuation et les accents. Ces mentions doivent apparaître sur l'image.
-
-TEXT QUALITY REQUIREMENTS (CRITICAL):
-- ALL text must be in PERFECT French with correct spelling, grammar, and accents
-- Verify every word for orthographic accuracy before finalizing
-- Use proper French typography and punctuation
-- Ensure all accents (é, è, ê, à, ô, etc.) are correctly placed
-- Double-check product name, price, and dosage text for errors
+CRITICAL - NO TEXT RULE:
+- DO NOT include any written text, letters, words, numbers, or symbols in the generated image
+- DO NOT write the product name, price, benefits, or any other text
+- DO NOT add labels, captions, or typography
+- The image should be a clean background/scene ready for text overlay
+- Focus purely on creating an engaging visual backdrop that supports the product
 
 TECHNICAL REQUIREMENTS:
-- Ultra high resolution, professional advertising photography
+- Ultra high resolution, professional advertising photography quality
 - Commercial product shot quality with perfect lighting
 - Attention-grabbing composition that stands out in social feeds
-- Optimized for fast loading while maintaining visual quality
-- Colors and contrast optimized for mobile screens
-- All text must be sharp, legible, and professionally rendered
+- Optimized color and contrast for mobile screens
+- Clear focal point for the product as the hero
+- Balanced composition with designated text areas
 
-Create a stunning, conversion-focused advertising visual that combines the best elements of successful ads in this niche with authentic African cultural appeal. Ensure ZERO spelling errors in all French text.`;
+Create a stunning, conversion-focused advertising background that combines the best visual elements of successful ads in this niche with authentic African cultural appeal. Remember: ABSOLUTELY NO TEXT in the generated image.`;
     }
 
     console.log("Generated prompt:", prompt);

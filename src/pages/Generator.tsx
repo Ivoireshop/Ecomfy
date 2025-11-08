@@ -14,6 +14,7 @@ import { ImageEditor } from "@/components/ImageEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdTemplateSelector } from "@/components/AdTemplateSelector";
 import { SpellCheckText } from "@/components/SpellCheckText";
+import { createTextOverlay, dataURLtoBlob } from "@/lib/textOverlay";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -369,11 +370,76 @@ const Generator = () => {
         throw new Error("Aucune image générée par le service. Réessayez avec plus de détails.");
       }
 
-      setGeneratedImage(data.imageUrl);
+      // WORKFLOW ZÉRO-FAUTE: Apply text overlays on background
+      toast({
+        title: "Application du texte...",
+        description: "Superposition du texte vectoriel sans fautes sur le fond",
+      });
 
-      // Ensure the image exists in Library even if backend couldn't save (fallback)
-      if (!data.saved) {
-        await saveImageToLibrary(data.imageUrl);
+      try {
+        const finalImageDataUrl = await createTextOverlay(data.imageUrl, {
+          productName: previewTexts.productName,
+          tagline: previewTexts.tagline,
+          price: previewTexts.price,
+          promotionalPrice: previewTexts.promotionalPrice,
+          callToAction: previewTexts.callToAction,
+          benefits: previewTexts.benefits,
+        }, platform);
+
+        // Save final image with text overlay to library
+        const finalBlob = dataURLtoBlob(finalImageDataUrl);
+        const finalFileName = `ad-${Date.now()}.png`;
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        // Upload to storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("generated-images")
+          .upload(`${user.id}/${finalFileName}`, finalBlob, {
+            contentType: "image/png",
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from("generated-images")
+          .getPublicUrl(uploadData.path);
+
+        const finalImageUrl = urlData.publicUrl;
+        
+        // Save to database
+        await supabase.from("generated_images").insert({
+          user_id: user.id,
+          image_url: finalImageUrl,
+          prompt: `${previewTexts.productName} - ${niche}`,
+          product_details: {
+            productName: previewTexts.productName,
+            niche,
+            description,
+            platform,
+            style,
+            price: previewTexts.price,
+            promotionalPrice: previewTexts.promotionalPrice,
+            benefits: previewTexts.benefits,
+            tagline: previewTexts.tagline,
+            callToAction: previewTexts.callToAction,
+          },
+        });
+
+        setGeneratedImage(finalImageUrl);
+
+      } catch (overlayError) {
+        console.error("Error applying text overlay:", overlayError);
+        // Fallback: use background image without text overlay
+        setGeneratedImage(data.imageUrl);
+        toast({
+          title: "Attention",
+          description: "Le texte vectoriel n'a pas pu être appliqué. L'image de fond est disponible.",
+          variant: "destructive",
+        });
       }
  
       // Met à jour le compteur d'essais gratuits
