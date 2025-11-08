@@ -112,7 +112,7 @@ serve(async (req) => {
       );
     }
 
-    const { amount, payment_method, user_id, provider, phone, promo_code } = validatedData;
+    const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack } = validatedData;
 
     // Initialize Supabase client for promo code validation
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -276,7 +276,7 @@ serve(async (req) => {
     }
 
     // Attach callback URLs including return_url and metadata for recording
-    const successParams = new URLSearchParams({
+    const successParamsObj: Record<string, string> = {
       status: 'success',
       user_id,
       amount: String(finalAmount),
@@ -285,12 +285,18 @@ serve(async (req) => {
       payment_method: String((payload as any).payment_method || ''),
       provider: String((payload as any).provider || ''),
       payment_type: payment_type || 'subscription',
-      credits_size: credits_pack?.size ? String(credits_pack.size) : ''
-    });
-      return_url: baseReturnUrl || '',
-      ...(promoCodeId && { promo_code_id: promoCodeId }),
-      ...(discountPercentage && { discount_percentage: String(discountPercentage) })
-    });
+      credits_size: credits_pack?.size ? String(credits_pack.size) : '',
+      return_url: baseReturnUrl || ''
+    };
+    
+    if (promoCodeId) {
+      successParamsObj.promo_code_id = promoCodeId;
+    }
+    if (discountPercentage) {
+      successParamsObj.discount_percentage = String(discountPercentage);
+    }
+    
+    const successParams = new URLSearchParams(successParamsObj);
     const failureParams = new URLSearchParams({
       status: 'failure',
       user_id,
