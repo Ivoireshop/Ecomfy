@@ -47,8 +47,7 @@ const Index = () => {
       .from("feedback")
       .select("*")
       .eq("status", "published")
-      .order("created_at", { ascending: false })
-      .limit(6);
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error loading feedback:", error);
@@ -100,10 +99,12 @@ const Index = () => {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(feedback.created_at).toLocaleDateString("fr-FR", {
+                        {new Date(feedback.created_at).toLocaleString("fr-FR", {
                           year: "numeric",
                           month: "long",
                           day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })}
                       </p>
                     </div>
@@ -293,10 +294,12 @@ const Index = () => {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(feedback.created_at).toLocaleDateString("fr-FR", {
+                      {new Date(feedback.created_at).toLocaleString("fr-FR", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </p>
                   </div>
