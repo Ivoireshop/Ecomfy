@@ -573,6 +573,52 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       
       updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
       console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
+
+      // Send reminder emails based on generations remaining
+      if (updatedFreeGenerations === 1) {
+        // After 2nd generation (1 remaining) - send immediate reminder
+        console.log("Sending 'after 2 generations' reminder email");
+        try {
+          const { data: profileData } = await adminClient
+            .from("profiles")
+            .select("full_name")
+            .eq("id", userId)
+            .single();
+
+          const reminderUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-generation-reminder`;
+          fetch(reminderUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              userId,
+              userEmail: user.email,
+              userName: profileData?.full_name || user.email?.split('@')[0],
+              reminderType: 'after_2_generations',
+              freeGenerationsRemaining: updatedFreeGenerations
+            })
+          }).catch(err => console.error("Error sending reminder:", err));
+        } catch (e) {
+          console.error("Error triggering reminder email:", e);
+        }
+      } else if (updatedFreeGenerations === 0) {
+        // After 3rd generation (0 remaining) - record for 24h follow-up
+        console.log("Recording user for 24h follow-up email");
+        try {
+          // Insert a record with current timestamp that the cron job will pick up
+          await adminClient
+            .from("email_reminders")
+            .insert({
+              user_id: userId,
+              reminder_type: 'after_3_generations',
+              sent_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h from now
+            });
+        } catch (e) {
+          console.error("Error recording 24h reminder:", e);
+        }
+      }
     }
 
     // If this was from the queue, mark as completed and trigger next processing
