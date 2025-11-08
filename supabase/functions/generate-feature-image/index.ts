@@ -353,15 +353,25 @@ Create a stunning Facebook advertising visual that looks like a professional mar
 
     console.log('Image URL extracted successfully');
 
-    // Decrement free generations if not subscribed and not founder
+    // Decrement free generations if not subscribed and not founder (must use admin client to bypass RLS)
     let updatedFreeGenerations = typeof freeGenerationsRemaining === "number" ? freeGenerationsRemaining : 0;
     if (userId && !hasActiveSubscription && !isFounder && updatedFreeGenerations > 0) {
-      const { data: updateData } = await supabaseClient
+      // Create admin client to bypass RLS for profile updates
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+      
+      const { data: updateData, error: updateError } = await adminClient
         .from("profiles")
         .update({ free_generations_remaining: updatedFreeGenerations - 1 })
         .eq("id", userId)
         .select("free_generations_remaining")
         .single();
+      
+      if (updateError) {
+        console.error("Error decrementing free generations:", updateError);
+      }
       
       updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
       console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
