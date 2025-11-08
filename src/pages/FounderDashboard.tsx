@@ -62,6 +62,27 @@ interface RecentPayment {
   user_email: string;
 }
 
+interface FeedbackItem {
+  id: string;
+  full_name: string;
+  country: string;
+  rating: number;
+  comment: string;
+  status: string;
+  created_at: string;
+  photo_url: string | null;
+}
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  country: string | null;
+  created_at: string;
+  free_generations_remaining: number;
+}
+
 interface ChartDataPoint {
   date: string;
   value: number;
@@ -95,6 +116,8 @@ const FounderDashboard = () => {
   const [signupsChartData, setSignupsChartData] = useState<ChartDataPoint[]>([]);
   const [paymentMethodsData, setPaymentMethodsData] = useState<PaymentMethodData[]>([]);
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
+  const [pendingFeedback, setPendingFeedback] = useState<FeedbackItem[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -155,6 +178,8 @@ const FounderDashboard = () => {
         loadRevenueStats(),
         loadRecentPayments(),
         loadChartData(),
+        loadPendingFeedback(),
+        loadAllUsers(),
       ]);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
@@ -168,14 +193,29 @@ const FounderDashboard = () => {
     }
   };
 
+  const loadAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, phone, country, created_at, free_generations_remaining")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setAllUsers(data || []);
+    } catch (error) {
+      console.error("Error loading all users:", error);
+    }
+  };
+
   const loadUserStats = async () => {
     try {
       // Count total users
-      const { count: totalUsers, error: usersError } = await supabase
+      const { data: allProfiles, error: usersError } = await supabase
         .from("profiles")
-        .select("*", { count: "exact", head: true });
+        .select("id");
 
       if (usersError) throw usersError;
+      const totalUsers = allProfiles?.length || 0;
 
       // Count active subscriptions
       const { count: activeSubscriptions, error: subsError } = await supabase
@@ -198,7 +238,7 @@ const FounderDashboard = () => {
 
       setStats(prev => ({
         ...prev,
-        totalUsers: totalUsers || 0,
+        totalUsers,
         activeSubscriptions: activeSubscriptions || 0,
         freeGenerationsUsed,
       }));
@@ -389,6 +429,46 @@ const FounderDashboard = () => {
       setPaymentMethodsData(methodsData);
     } catch (error) {
       console.error("Error loading chart data:", error);
+    }
+  };
+
+  const loadPendingFeedback = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("feedback")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setPendingFeedback(data || []);
+    } catch (error) {
+      console.error("Error loading pending feedback:", error);
+    }
+  };
+
+  const handlePublishFeedback = async (feedbackId: string) => {
+    try {
+      const { error } = await supabase
+        .from("feedback")
+        .update({ status: "published" })
+        .eq("id", feedbackId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "L'avis a été publié sur la page d'accueil",
+      });
+
+      loadPendingFeedback();
+    } catch (error) {
+      console.error("Error publishing feedback:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de publier l'avis",
+        variant: "destructive",
+      });
     }
   };
 
@@ -724,6 +804,125 @@ const FounderDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* All Users List */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Tous les Utilisateurs</CardTitle>
+            <CardDescription>Liste complète de tous les comptes créés</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {allUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Aucun utilisateur
+                </p>
+              ) : (
+                allUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">
+                        {user.full_name || "Nom non renseigné"}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {user.country || "Pays non renseigné"} • {user.phone || "Tél non renseigné"}
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-sm font-medium">
+                        {user.free_generations_remaining} générations restantes
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Inscrit le {new Date(user.created_at).toLocaleDateString("fr-FR")}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pending Feedback Management */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Avis en Attente de Publication</CardTitle>
+            <CardDescription>Gérez les commentaires avant de les publier sur la page d'accueil</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {pendingFeedback.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Aucun avis en attente
+                </p>
+              ) : (
+                pendingFeedback.map((feedback) => (
+                  <div
+                    key={feedback.id}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        {feedback.photo_url && (
+                          <img
+                            src={feedback.photo_url}
+                            alt={feedback.full_name}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{feedback.full_name}</h4>
+                          <p className="text-sm text-muted-foreground">{feedback.country}</p>
+                          <div className="flex gap-1 my-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span
+                                key={star}
+                                className={`text-lg ${
+                                  star <= feedback.rating
+                                    ? "text-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                ⭐
+                              </span>
+                            ))}
+                          </div>
+                          {feedback.comment && (
+                            <p className="text-sm text-muted-foreground italic">
+                              "{feedback.comment}"
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Soumis le {new Date(feedback.created_at).toLocaleDateString("fr-FR", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handlePublishFeedback(feedback.id)}
+                        className="ml-4"
+                      >
+                        Publier
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <Card>

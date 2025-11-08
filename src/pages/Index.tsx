@@ -62,6 +62,64 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       <Header />
       
+      {/* Testimonials Carousel - Prominent at top */}
+      {publishedFeedback.length > 0 && (
+        <section className="bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 py-12 border-b">
+          <div className="container mx-auto px-4">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+              ⭐ Ce que disent nos utilisateurs
+            </h2>
+            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {publishedFeedback.slice(0, 3).map((feedback) => (
+                <div
+                  key={feedback.id}
+                  className="bg-card border-2 border-primary/10 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <div className="flex items-start gap-4 mb-4">
+                    {feedback.photo_url && (
+                      <img
+                        src={feedback.photo_url}
+                        alt={feedback.full_name || "Utilisateur"}
+                        className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-bold text-lg">
+                          {feedback.full_name || "Utilisateur anonyme"}
+                        </h4>
+                      </div>
+                      <div className="flex text-yellow-400 mb-2">
+                        {Array.from({ length: feedback.rating }).map((_, i) => (
+                          <span key={i} className="text-xl">⭐</span>
+                        ))}
+                      </div>
+                      {feedback.country && (
+                        <p className="text-sm font-medium text-primary">
+                          {feedback.country}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(feedback.created_at).toLocaleDateString("fr-FR", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  {feedback.comment && (
+                    <p className="text-sm text-muted-foreground leading-relaxed italic">
+                      "{feedback.comment}"
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+      
       {/* Hero Section */}
       <section id="home" className="container mx-auto px-4 py-20">
         <div className="max-w-5xl mx-auto">
@@ -198,14 +256,14 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      {publishedFeedback.length > 0 && (
-        <section id="testimonials" className="container mx-auto px-4 py-16">
+      {/* More Testimonials Section */}
+      {publishedFeedback.length > 3 && (
+        <section id="more-testimonials" className="container mx-auto px-4 py-16">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Ce que disent nos utilisateurs
+            Plus d'avis de nos utilisateurs
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {publishedFeedback.map((feedback) => (
+            {publishedFeedback.slice(3).map((feedback) => (
               <div
                 key={feedback.id}
                 className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
@@ -234,6 +292,13 @@ const Index = () => {
                         {feedback.country}
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(feedback.created_at).toLocaleDateString("fr-FR", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
                   </div>
                 </div>
                 {feedback.comment && (
