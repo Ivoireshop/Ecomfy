@@ -17,6 +17,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 const items = [
   { title: "Accueil", url: "/", icon: Home },
   { title: "Générateur", url: "/generator", icon: Image },
@@ -54,60 +61,88 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className={isCollapsed ? "text-center px-0 mb-4" : "mb-4"}>
-            <div className="flex items-center justify-between gap-2">
-              {!isCollapsed && <span>VisualPro</span>}
-              <UserAvatar />
-            </div>
-          </SidebarGroupLabel>
+        <TooltipProvider>
+          <SidebarGroup>
+            <SidebarGroupLabel className={isCollapsed ? "text-center px-0 mb-4" : "mb-4"}>
+              <div className="flex items-center justify-between gap-2">
+                {!isCollapsed && <span>VisualPro</span>}
+                <UserAvatar />
+              </div>
+            </SidebarGroupLabel>
 
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      end
-                      className={({ isActive }) =>
-                        isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                      }
-                    >
-                      <item.icon className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton asChild>
+                          <NavLink 
+                            to={item.url} 
+                            end
+                            className={({ isActive }) =>
+                              isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+                            }
+                          >
+                            <item.icon className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
+                            {!isCollapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                      {isCollapsed && (
+                        <TooltipContent side="right">
+                          <p>{item.title}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </SidebarMenuItem>
+                ))}
               
               {isFounder && (
                 <>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink 
-                        to="/founder-dashboard" 
-                        className={({ isActive }) =>
-                          isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                        }
-                      >
-                        <BarChart className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                        {!isCollapsed && <span>Tableau de Bord</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton asChild>
+                          <NavLink 
+                            to="/founder-dashboard" 
+                            className={({ isActive }) =>
+                              isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+                            }
+                          >
+                            <BarChart className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
+                            {!isCollapsed && <span>Tableau de Bord</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                      {isCollapsed && (
+                        <TooltipContent side="right">
+                          <p>Tableau de Bord</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink 
-                        to="/promo-codes" 
-                        className={({ isActive }) =>
-                          isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                        }
-                      >
-                        <Tag className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                        {!isCollapsed && <span>Codes Promo</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton asChild>
+                          <NavLink 
+                            to="/promo-codes" 
+                            className={({ isActive }) =>
+                              isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+                            }
+                          >
+                            <Tag className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
+                            {!isCollapsed && <span>Codes Promo</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                      {isCollapsed && (
+                        <TooltipContent side="right">
+                          <p>Codes Promo</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
                   </SidebarMenuItem>
                 </>
               )}
@@ -123,6 +158,7 @@ export function AppSidebar() {
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
+        </TooltipProvider>
       </SidebarContent>
     </Sidebar>
   );
