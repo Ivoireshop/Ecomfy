@@ -168,9 +168,12 @@ const Auth = () => {
         }
       }
 
+      // Rediriger vers la page de vérification avec l'email
+      navigate(`/verify-email?email=${encodeURIComponent(signUpEmail)}`);
+
       toast({
         title: "Vérifiez votre email ! 📧",
-        description: "Nous vous avons envoyé un email de confirmation. Veuillez cliquer sur le lien dans l'email pour activer votre compte.",
+        description: "Nous vous avons envoyé un code de vérification à 6 chiffres. Veuillez le saisir pour activer votre compte.",
       });
     } catch (error) {
       console.error("Erreur lors de l'inscription:", error);

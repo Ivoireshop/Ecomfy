@@ -15,6 +15,7 @@ import Subscription from "./pages/Subscription";
 import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 import ShowcaseBuilder from "./pages/ShowcaseBuilder";
 import ShowcaseView from "./pages/ShowcaseView";
 import ShowcaseManager from "./pages/ShowcaseManager";
@@ -31,8 +32,8 @@ const queryClient = new QueryClient();
 const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const showSidebar = !["/", "/auth"].includes(location.pathname) && !isShowcaseView;
-  const showSupport = !["/", "/auth"].includes(location.pathname) && !isShowcaseView;
+  const showSidebar = !["/", "/auth", "/verify-email"].includes(location.pathname) && !isShowcaseView;
+  const showSupport = !["/", "/auth", "/verify-email"].includes(location.pathname) && !isShowcaseView;
 
   return (
     <>
@@ -45,6 +46,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/subscription" 
