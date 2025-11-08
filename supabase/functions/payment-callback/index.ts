@@ -269,32 +269,37 @@ serve(async (req) => {
         }
       }
 
-      // Récupérer les informations du profil pour l'email
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email, full_name")
-        .eq("id", user_id)
-        .single();
+      // Envoyer l'email de confirmation uniquement pour les abonnements
+      if (!isCreditsPayment) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", user_id)
+          .single();
 
-      // Envoyer l'email de confirmation en arrière-plan (fire-and-forget)
-      if (profile?.email) {
-        supabase.functions.invoke("send-subscription-email", {
-          body: {
-            email: profile.email,
-            full_name: profile.full_name || "Cher utilisateur",
-            amount: parseFloat(amount),
-            start_date: startDate.toISOString(),
-            end_date: endDate.toISOString(),
-          },
-        }).then((result) => {
-          if (result.error) {
-            console.error("Error sending confirmation email:", result.error);
-          } else {
-            console.log("Confirmation email sent successfully");
-          }
-        }).catch((err) => {
-          console.error("Failed to invoke email function:", err);
-        });
+        if (profile?.email) {
+          const startDate = new Date();
+          const endDate = new Date();
+          endDate.setDate(endDate.getDate() + 30);
+          
+          supabase.functions.invoke("send-subscription-email", {
+            body: {
+              email: profile.email,
+              full_name: profile.full_name || "Cher utilisateur",
+              amount: parseFloat(amount),
+              start_date: startDate.toISOString(),
+              end_date: endDate.toISOString(),
+            },
+          }).then((result) => {
+            if (result.error) {
+              console.error("Error sending confirmation email:", result.error);
+            } else {
+              console.log("Confirmation email sent successfully");
+            }
+          }).catch((err) => {
+            console.error("Failed to invoke email function:", err);
+          });
+        }
       }
 
       // Rediriger l'utilisateur vers la page de succès
