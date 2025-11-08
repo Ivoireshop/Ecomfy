@@ -282,6 +282,17 @@ const Generator = () => {
   };
 
   const openTextPreview = () => {
+    // Bloquer si plus de générations gratuites
+    if (!hasActiveSubscription && freeGenerationsRemaining === 0) {
+      toast({
+        title: "Essai gratuit terminé",
+        description: "Vous avez utilisé vos 3 générations gratuites. Souscrivez pour continuer !",
+        variant: "destructive",
+      });
+      setTimeout(() => navigate("/subscription"), 2000);
+      return;
+    }
+
     if (!productName || !niche || !description || !platform || !price) {
       toast({
         title: "Champs manquants",
@@ -448,25 +459,38 @@ const Generator = () => {
       await loadUserGenerationStatus();
 
       if (!hasActiveSubscription && data.freeGenerationsRemaining !== undefined) {
+        setFreeGenerationsRemaining(data.freeGenerationsRemaining);
+        
         if (data.freeGenerationsRemaining <= 0) {
           toast({
-            title: "Essai gratuit terminé",
-            description: "Vous avez utilisé toutes vos générations gratuites. Souscrivez maintenant pour continuer !",
+            title: "🎉 Dernière génération gratuite utilisée !",
+            description: "Découvrez nos abonnements pour continuer à créer des visuels professionnels sans limite.",
             variant: "destructive",
+            duration: 5000,
           });
-          setTimeout(() => navigate("/subscription"), 2000);
+          setTimeout(() => navigate("/subscription"), 3000);
           return;
+        } else if (data.freeGenerationsRemaining === 1) {
+          toast({
+            title: "⚠️ Dernière génération gratuite !",
+            description: "Après cette génération, souscrivez pour continuer à créer des visuels illimités.",
+            duration: 4000,
+          });
+        } else {
+          toast({
+            title: "✅ Image générée avec succès",
+            description: `Il vous reste ${data.freeGenerationsRemaining} génération${data.freeGenerationsRemaining > 1 ? 's' : ''} gratuite${data.freeGenerationsRemaining > 1 ? 's' : ''}`,
+            duration: 3000,
+          });
         }
+      } else {
+        toast({
+          title: "✅ Image générée avec succès",
+          description: "Votre visuel est prêt !",
+          duration: 3000,
+        });
       }
 
-      const successMessage = hasActiveSubscription && data.hasMultipleFormats
-        ? `Visuel généré avec ${data.additionalFormats.length + 1} formats optimisés et sauvegardé dans la bibliothèque ! Cliquez sur "Voir dans la bibliothèque" ci-dessous pour télécharger tous les formats.`
-        : "Votre visuel a été généré avec succès et sauvegardé dans la bibliothèque ! Cliquez sur 'Voir dans la bibliothèque' pour accéder à tous vos formats.";
-      
-      toast({
-        title: "Succès !",
-        description: successMessage,
-      });
     } catch (error) {
       console.error("Erreur lors de la génération:", error);
 
@@ -713,16 +737,28 @@ const Generator = () => {
             )}
 
             {!hasActiveSubscription && freeGenerationsRemaining !== null && (
-              <Alert className="mt-4 max-w-2xl mx-auto">
+              <Alert className={`mt-4 max-w-2xl mx-auto ${freeGenerationsRemaining === 0 ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
                 <AlertDescription className="text-center">
                   {freeGenerationsRemaining > 0 ? (
                     <>
                       🎁 <strong>Essai gratuit :</strong> Il vous reste <strong>{freeGenerationsRemaining}</strong> génération{freeGenerationsRemaining > 1 ? 's' : ''} d'image{freeGenerationsRemaining > 1 ? 's' : ''} gratuite{freeGenerationsRemaining > 1 ? 's' : ''}
                     </>
                   ) : (
-                    <>
-                      ⚠️ Vous avez utilisé toutes vos générations gratuites. <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/subscription")}>Souscrire maintenant</Button>
-                    </>
+                    <div className="space-y-3">
+                      <p className="text-base font-bold text-red-700 dark:text-red-400">
+                        ⚠️ Essai gratuit terminé
+                      </p>
+                      <p className="text-sm">
+                        Vous avez utilisé vos 3 générations gratuites. Pour continuer à créer des visuels professionnels, souscrivez maintenant !
+                      </p>
+                      <Button 
+                        size="lg" 
+                        className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                        onClick={() => navigate("/subscription")}
+                      >
+                        🚀 Voir les abonnements
+                      </Button>
+                    </div>
                   )}
                 </AlertDescription>
               </Alert>
@@ -979,25 +1015,51 @@ const Generator = () => {
               </div>
 
               {generationType === "image" ? (
-                <Button
-                  type="button"
-                  onClick={openTextPreview}
-                  className="w-full text-lg py-6"
-                  size="lg"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Génération en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-5 w-5" />
-                      Prévisualiser et générer
-                    </>
+                <>
+                  {!hasActiveSubscription && freeGenerationsRemaining === 0 && (
+                    <Alert className="border-red-500 bg-red-50 dark:bg-red-950">
+                      <AlertDescription className="text-center space-y-2">
+                        <p className="font-bold text-red-700 dark:text-red-400">
+                          ⚠️ Essai gratuit terminé
+                        </p>
+                        <p className="text-sm">
+                          Pour continuer à créer des visuels professionnels avec l'IA
+                        </p>
+                        <Button 
+                          size="sm" 
+                          className="bg-gradient-to-r from-primary to-secondary"
+                          onClick={() => navigate("/subscription")}
+                        >
+                          🚀 Souscrire maintenant
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
                   )}
-                </Button>
+                  <Button
+                    type="button"
+                    onClick={openTextPreview}
+                    className="w-full text-lg py-6"
+                    size="lg"
+                    disabled={isLoading || (!hasActiveSubscription && freeGenerationsRemaining === 0)}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Génération en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-5 w-5" />
+                        Prévisualiser et générer
+                        {!hasActiveSubscription && freeGenerationsRemaining !== null && freeGenerationsRemaining > 0 && (
+                          <span className="ml-2 text-xs opacity-80">
+                            ({freeGenerationsRemaining} gratuit{freeGenerationsRemaining > 1 ? 's' : ''})
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Button>
+                </>
               ) : (
                 <Button
                   type="button"
