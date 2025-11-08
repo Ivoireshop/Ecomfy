@@ -213,10 +213,20 @@ const Index = () => {
           </div>
 
           {!session && (
-            <div className="inline-block bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 mb-8">
-              <p className="text-base font-medium text-foreground">
-                🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
-              </p>
+            <div className="flex flex-col items-center gap-4 mb-8">
+              <div className="inline-block bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 animate-pulse-glow">
+                <p className="text-base font-medium text-foreground animate-wiggle">
+                  🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
+                </p>
+              </div>
+              <Button 
+                size="lg" 
+                className="text-lg px-8 py-4 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                onClick={() => navigate("/auth")}
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
+                Inscrivez-vous maintenant
+              </Button>
             </div>
           )}
 
