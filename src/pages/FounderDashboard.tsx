@@ -116,7 +116,7 @@ const FounderDashboard = () => {
   const [signupsChartData, setSignupsChartData] = useState<ChartDataPoint[]>([]);
   const [paymentMethodsData, setPaymentMethodsData] = useState<PaymentMethodData[]>([]);
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
-  const [pendingFeedback, setPendingFeedback] = useState<FeedbackItem[]>([]);
+  const [allFeedback, setAllFeedback] = useState<FeedbackItem[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
   useEffect(() => {
@@ -178,7 +178,7 @@ const FounderDashboard = () => {
         loadRevenueStats(),
         loadRecentPayments(),
         loadChartData(),
-        loadPendingFeedback(),
+        loadAllFeedback(),
         loadAllUsers(),
       ]);
     } catch (error) {
@@ -432,41 +432,46 @@ const FounderDashboard = () => {
     }
   };
 
-  const loadPendingFeedback = async () => {
+  const loadAllFeedback = async () => {
     try {
       const { data, error } = await supabase
         .from("feedback")
         .select("*")
-        .eq("status", "pending")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setPendingFeedback(data || []);
+      setAllFeedback(data || []);
     } catch (error) {
-      console.error("Error loading pending feedback:", error);
+      console.error("Error loading all feedback:", error);
     }
   };
 
-  const handlePublishFeedback = async (feedbackId: string) => {
+  const handleChangeFeedbackStatus = async (feedbackId: string, newStatus: string) => {
     try {
       const { error } = await supabase
         .from("feedback")
-        .update({ status: "published" })
+        .update({ status: newStatus })
         .eq("id", feedbackId);
 
       if (error) throw error;
 
+      const statusMessages: { [key: string]: string } = {
+        published: "L'avis a été publié sur la page d'accueil",
+        pending: "L'avis a été retiré de la page d'accueil",
+        rejected: "L'avis a été rejeté",
+      };
+
       toast({
         title: "Succès",
-        description: "L'avis a été publié sur la page d'accueil",
+        description: statusMessages[newStatus] || "Statut mis à jour",
       });
 
-      loadPendingFeedback();
+      loadAllFeedback();
     } catch (error) {
-      console.error("Error publishing feedback:", error);
+      console.error("Error updating feedback status:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de publier l'avis",
+        description: "Impossible de modifier le statut de l'avis",
         variant: "destructive",
       });
     }
@@ -849,23 +854,29 @@ const FounderDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Pending Feedback Management */}
+        {/* All Feedback Management */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Avis en Attente de Publication</CardTitle>
-            <CardDescription>Gérez les commentaires avant de les publier sur la page d'accueil</CardDescription>
+            <CardTitle>Gestion des Avis Utilisateurs</CardTitle>
+            <CardDescription>Modérez et gérez tous les avis soumis par les utilisateurs</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {pendingFeedback.length === 0 ? (
+              {allFeedback.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  Aucun avis en attente
+                  Aucun avis soumis
                 </p>
               ) : (
-                pendingFeedback.map((feedback) => (
+                allFeedback.map((feedback) => (
                   <div
                     key={feedback.id}
-                    className="border rounded-lg p-4 space-y-3"
+                    className={`border rounded-lg p-4 space-y-3 ${
+                      feedback.status === "published" 
+                        ? "border-green-500/30 bg-green-50/10" 
+                        : feedback.status === "rejected"
+                        ? "border-red-500/30 bg-red-50/10"
+                        : "border-yellow-500/30 bg-yellow-50/10"
+                    }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3 flex-1">
@@ -877,7 +888,18 @@ const FounderDashboard = () => {
                           />
                         )}
                         <div className="flex-1">
-                          <h4 className="font-semibold">{feedback.full_name}</h4>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold">{feedback.full_name}</h4>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              feedback.status === "published" 
+                                ? "bg-green-500/20 text-green-700 dark:text-green-400" 
+                                : feedback.status === "rejected"
+                                ? "bg-red-500/20 text-red-700 dark:text-red-400"
+                                : "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400"
+                            }`}>
+                              {feedback.status === "published" ? "Publié" : feedback.status === "rejected" ? "Rejeté" : "En attente"}
+                            </span>
+                          </div>
                           <p className="text-sm text-muted-foreground">{feedback.country}</p>
                           <div className="flex gap-1 my-2">
                             {[1, 2, 3, 4, 5].map((star) => (
@@ -899,7 +921,7 @@ const FounderDashboard = () => {
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground mt-2">
-                            Soumis le {new Date(feedback.created_at).toLocaleDateString("fr-FR", {
+                            Soumis le {new Date(feedback.created_at).toLocaleString("fr-FR", {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
@@ -909,13 +931,35 @@ const FounderDashboard = () => {
                           </p>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handlePublishFeedback(feedback.id)}
-                        className="ml-4"
-                      >
-                        Publier
-                      </Button>
+                      <div className="flex flex-col gap-2 ml-4">
+                        {feedback.status !== "published" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleChangeFeedbackStatus(feedback.id, "published")}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Publier
+                          </Button>
+                        )}
+                        {feedback.status === "published" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleChangeFeedbackStatus(feedback.id, "pending")}
+                          >
+                            Dépublier
+                          </Button>
+                        )}
+                        {feedback.status !== "rejected" && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleChangeFeedbackStatus(feedback.id, "rejected")}
+                          >
+                            Rejeter
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
