@@ -16,7 +16,7 @@ export function BackButton() {
       variant="ghost"
       size="sm"
       onClick={() => navigate(-1)}
-      className="fixed top-20 left-4 z-40 bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-accent"
+      className="fixed top-4 right-4 z-40 bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-accent"
     >
       <ArrowLeft className="h-4 w-4 mr-2" />
       Retour

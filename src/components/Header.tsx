@@ -15,8 +15,11 @@ export function Header() {
       // On homepage, scroll to pricing section
       document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
     } else {
-      // On other pages, navigate to subscription page
-      navigate("/subscription");
+      // On other pages, navigate to homepage then scroll
+      navigate("/");
+      setTimeout(() => {
+        document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     }
   };
 
@@ -30,8 +33,19 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
+          {/* Logo - Always visible */}
+          <div
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              VisualPro
+            </span>
+          </div>
+
           {/* Desktop Navigation */}
-          <nav className="flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-6">
             {menuItems.map((item) => (
               <a
                 key={item.href}
