@@ -1,4 +1,4 @@
-import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, Gift, HelpCircle } from "lucide-react";
+import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, Gift, HelpCircle, PlayCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -32,6 +32,7 @@ const items = [
   { title: "Parrainage", url: "/referral", icon: Gift },
   { title: "Abonnement", url: "/subscription", icon: CreditCard },
   { title: "Tutoriel", url: "/tutorial", icon: HelpCircle },
+  { title: "Démo Vidéo", url: "/demo", icon: PlayCircle },
   { title: "Avis & Commentaires", url: "/feedback", icon: MessageSquare },
 ];
 

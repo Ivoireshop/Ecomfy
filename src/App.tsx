@@ -26,6 +26,7 @@ import PromoCodeManager from "./pages/PromoCodeManager";
 import FounderDashboard from "./pages/FounderDashboard";
 import Referral from "./pages/Referral";
 import Tutorial from "./pages/Tutorial";
+import Demo from "./pages/Demo";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -144,6 +145,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Tutorial />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/demo" 
+          element={
+            <ProtectedRoute>
+              <Demo />
             </ProtectedRoute>
           } 
         />
