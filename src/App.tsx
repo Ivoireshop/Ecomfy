@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
 import { SupportButton } from "@/components/SupportButton";
+import { BackButton } from "@/components/BackButton";
 import Index from "./pages/Index";
 import Generator from "./pages/Generator";
 import Library from "./pages/Library";
@@ -38,6 +39,7 @@ const AppContent = () => {
 
   return (
     <>
+      <BackButton />
       {showSidebar && (
         <div className="fixed top-4 left-4 z-50">
           <SidebarTrigger />

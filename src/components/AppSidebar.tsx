@@ -84,8 +84,8 @@ export function AppSidebar() {
                               isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
                             }
                           >
-                            <item.icon className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                            {!isCollapsed && <span>{item.title}</span>}
+                            <item.icon className="h-4 w-4" />
+                            <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
                           </NavLink>
                         </SidebarMenuButton>
                       </TooltipTrigger>
@@ -110,8 +110,8 @@ export function AppSidebar() {
                               isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
                             }
                           >
-                            <BarChart className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                            {!isCollapsed && <span>Tableau de Bord</span>}
+                            <BarChart className="h-4 w-4" />
+                            <span className={isCollapsed ? "md:hidden" : ""}>Tableau de Bord</span>
                           </NavLink>
                         </SidebarMenuButton>
                       </TooltipTrigger>
@@ -132,8 +132,8 @@ export function AppSidebar() {
                               isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
                             }
                           >
-                            <Tag className={isCollapsed ? "mx-auto" : "mr-2 h-4 w-4"} />
-                            {!isCollapsed && <span>Codes Promo</span>}
+                            <Tag className="h-4 w-4" />
+                            <span className={isCollapsed ? "md:hidden" : ""}>Codes Promo</span>
                           </NavLink>
                         </SidebarMenuButton>
                       </TooltipTrigger>

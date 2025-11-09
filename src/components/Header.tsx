@@ -9,10 +9,21 @@ export function Header() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
+  const handleTarifClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    if (window.location.pathname === "/") {
+      // On homepage, scroll to pricing section
+      document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      // On other pages, navigate to subscription page
+      navigate("/subscription");
+    }
+  };
+
   const menuItems = [
     { label: "Accueil", href: "#home" },
     { label: "Fonctionnalités", href: "#features" },
-    { label: "Tarif", href: "#pricing" },
+    { label: "Tarif", href: "#pricing", onClick: handleTarifClick },
   ];
 
   return (
@@ -25,6 +36,7 @@ export function Header() {
               <a
                 key={item.href}
                 href={item.href}
+                onClick={item.onClick}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}
@@ -67,7 +79,12 @@ export function Header() {
                       key={item.href}
                       href={item.href}
                       className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setIsOpen(false)}
+                      onClick={(e) => {
+                        if (item.onClick) {
+                          item.onClick(e);
+                        }
+                        setIsOpen(false);
+                      }}
                     >
                       {item.label}
                     </a>
