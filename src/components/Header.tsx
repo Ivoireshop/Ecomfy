@@ -18,6 +18,7 @@ export function Header() {
     { label: "Accueil", href: "#home" },
     { label: "Fonctionnalités", href: "#features" },
     { label: "Tarif", href: "/subscription", onClick: handleTarifClick },
+    { label: "Tutoriel", href: "/tutorial", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/tutorial"); } },
   ];
 
   return (

@@ -254,9 +254,18 @@ const Auth = () => {
         return;
       }
 
+      // Récupérer le profil de l'utilisateur pour le message de bienvenue
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', data.user.id)
+        .single();
+
+      const userName = profile?.full_name || data.user.email?.split('@')[0] || 'utilisateur';
+      
       toast({
-        title: "Connecté !",
-        description: "Vous êtes maintenant connecté.",
+        title: "Heureux de vous revoir !",
+        description: `Bienvenue ${userName}`,
       });
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
