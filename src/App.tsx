@@ -41,7 +41,7 @@ const AppContent = () => {
     <>
       <BackButton />
       {showSidebar && (
-        <div className="fixed top-2 left-2 md:top-3 md:left-3 z-50">
+        <div className="fixed top-1 left-1 md:top-2 md:left-3 z-50">
           <SidebarTrigger />
         </div>
       )}

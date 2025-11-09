@@ -4,26 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { Menu, X, Sparkles } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
+import logo from "@/assets/visualpro-logo.svg";
 export function Header() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleTarifClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    if (window.location.pathname === "/") {
-      // On homepage, scroll to pricing section
-      document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      // On other pages, navigate to subscription page
-      navigate("/subscription");
-    }
+    navigate("/subscription");
   };
 
   const menuItems = [
     { label: "Accueil", href: "#home" },
     { label: "Fonctionnalités", href: "#features" },
-    { label: "Tarif", href: "#pricing", onClick: handleTarifClick },
+    { label: "Tarif", href: "/subscription", onClick: handleTarifClick },
   ];
 
   return (
@@ -35,7 +29,7 @@ export function Header() {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
           >
-            <Sparkles className="h-5 w-5 text-primary" />
+            <img src={logo} alt="Logo VisualPro" className="h-6 w-6" />
             <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               VisualPro
             </span>
@@ -78,7 +72,7 @@ export function Header() {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <div className="flex flex-col gap-6 mt-8">
                 <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-6 w-6 text-primary" />
+                  <img src={logo} alt="Logo VisualPro" className="h-7 w-7" />
                   <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                     VisualPro
                   </span>
