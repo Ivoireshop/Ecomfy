@@ -16,10 +16,10 @@ export function BackButton() {
       variant="ghost"
       size="sm"
       onClick={() => navigate(-1)}
-      className="fixed top-4 right-4 z-40 bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-accent"
+      className="fixed top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-40 bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-accent"
     >
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Retour
+      <ArrowLeft className="h-4 w-4 sm:mr-2" />
+      <span className="hidden sm:inline">Retour</span>
     </Button>
   );
 }

@@ -15,11 +15,8 @@ export function Header() {
       // On homepage, scroll to pricing section
       document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
     } else {
-      // On other pages, navigate to homepage then scroll
-      navigate("/");
-      setTimeout(() => {
-        document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      // On other pages, navigate to subscription page
+      navigate("/subscription");
     }
   };
 
