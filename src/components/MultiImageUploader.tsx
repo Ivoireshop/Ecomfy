@@ -9,9 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 interface MultiImageUploaderProps {
   onImagesUploaded: (imageUrls: string[]) => void;
   maxImages?: number;
+  minImages?: number;
 }
 
-export function MultiImageUploader({ onImagesUploaded, maxImages = 10 }: MultiImageUploaderProps) {
+export function MultiImageUploader({
+  onImagesUploaded,
+  maxImages = 3,
+  minImages = 1,
+}: MultiImageUploaderProps) {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -106,7 +111,7 @@ export function MultiImageUploader({ onImagesUploaded, maxImages = 10 }: MultiIm
           Images de Référence du Produit
         </CardTitle>
         <CardDescription>
-          Uploadez 5-10 images de votre produit pour un fine-tuning précis (max 5MB par image)
+          Uploadez 1 à 3 images de votre produit sous différents angles (max 5MB par image)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

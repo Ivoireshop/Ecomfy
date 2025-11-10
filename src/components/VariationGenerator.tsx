@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,19 +22,32 @@ interface VariationGeneratorProps {
     platform: string;
     price: string;
     benefits?: string;
+    productType?: string;
+    features?: string;
+    keywords?: string;
+    colors?: string[];
   };
   onVariationSelected: (imageUrl: string) => void;
   numberOfVariations?: number;
+  autoGenerate?: boolean;
 }
 
 export function VariationGenerator({
   productData,
   onVariationSelected,
   numberOfVariations = 5,
+  autoGenerate = false,
 }: VariationGeneratorProps) {
   const [variations, setVariations] = useState<Variation[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<string | null>(null);
+
+  // Auto-generate when component mounts if autoGenerate is true
+  useEffect(() => {
+    if (autoGenerate && variations.length === 0 && !isGenerating) {
+      generateVariations();
+    }
+  }, [autoGenerate]);
 
   const styles = [
     { name: "Moderne", prompt: "modern, clean, minimalist design with sharp edges" },
@@ -56,19 +69,29 @@ export function VariationGenerator({
     try {
       const stylesToGenerate = styles.slice(0, numberOfVariations);
       
+      // Build enhanced prompt with brand data
+      const enhancedDescription = [
+        productData.description,
+        productData.productType && `Type: ${productData.productType}`,
+        productData.features && `Caractéristiques: ${productData.features}`,
+        productData.benefits || productData.benefits,
+        productData.keywords && `Mots-clés: ${productData.keywords}`,
+      ].filter(Boolean).join(". ");
+
       // Generate all variations in parallel
       const generationPromises = stylesToGenerate.map(async (style) => {
         const { data, error } = await supabase.functions.invoke("generate-ad-visual", {
           body: {
             productName: productData.productName,
             niche: productData.niche,
-            description: productData.description,
+            description: enhancedDescription,
             platform: productData.platform,
             price: productData.price,
             benefits: productData.benefits,
-            style: style.prompt,
-            fast: true, // Quick generation for variations
+            style: `${style.prompt}, adapté au marché africain, professionnel et moderne`,
+            fast: true,
             variationMode: true,
+            colors: productData.colors,
           },
         });
 

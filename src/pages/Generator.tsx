@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles, Loader2, Video, Volume2, Play, Pause, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -813,26 +814,58 @@ const Generator = () => {
           {/* Mode Pro - Workflow Omneky-style */}
           {generationType === "pro" && (
             <div className="container mx-auto px-4 max-w-6xl">
-              <SimpleWorkflow
-                productData={{
-                  productName,
-                  niche,
-                  description,
-                  platform,
-                  price,
-                  benefits,
-                }}
-                onComplete={(data) => {
-                  console.log("Workflow completed:", data);
-                  if (data.selectedVariation) {
-                    setGeneratedImage(data.selectedVariation);
-                    toast({
-                      title: "Génération terminée !",
-                      description: "Votre annonce a été générée avec succès",
-                    });
-                  }
-                }}
-              />
+              {!hasActiveSubscription && !isFounder ? (
+                <Card className="border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Mode Pro - Abonnement Requis
+                    </CardTitle>
+                    <CardDescription>
+                      Le Mode Pro est réservé aux abonnés. Générez vos visuels automatiquement depuis votre URL avec l'IA.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                      <h4 className="font-semibold">Fonctionnalités Mode Pro :</h4>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
+                        <li>✨ Extraction automatique de votre marque depuis votre URL</li>
+                        <li>🎨 Génération de 5 variations professionnelles</li>
+                        <li>🎯 Optimisé pour le marché africain</li>
+                        <li>⚡ Workflow ultra-rapide en 3 étapes</li>
+                      </ul>
+                    </div>
+                    <Button 
+                      onClick={() => navigate("/subscription")}
+                      className="w-full"
+                      size="lg"
+                    >
+                      Voir les plans d'abonnement
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <SimpleWorkflow
+                  productData={{
+                    productName,
+                    niche,
+                    description,
+                    platform,
+                    price,
+                    benefits,
+                  }}
+                  onComplete={(data) => {
+                    console.log("Workflow completed:", data);
+                    if (data.selectedVariation) {
+                      setGeneratedImage(data.selectedVariation);
+                      toast({
+                        title: "Génération terminée !",
+                        description: "Votre annonce a été générée avec succès",
+                      });
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
 
