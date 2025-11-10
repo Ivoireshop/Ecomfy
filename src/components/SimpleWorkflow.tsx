@@ -42,6 +42,7 @@ interface SimpleWorkflowProps {
     brandData?: any;
     productImages?: string[];
     selectedVariation?: string;
+    enrichedProductData?: any;
   }) => void;
 }
 
@@ -58,11 +59,25 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
     if (currentStep < STEPS.length) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Complete workflow
+      // Complete workflow with enriched product data
+      const enrichedData = {
+        ...productData,
+        productName: brandData?.productName || productData.productName,
+        niche: brandData?.niche || productData.niche,
+        description: brandData?.description || productData.description,
+        price: brandData?.price || productData.price,
+        productType: brandData?.productType,
+        features: brandData?.productFeatures?.join(", "),
+        benefits: brandData?.productBenefits?.join(", "),
+        keywords: brandData?.keywords?.join(", "),
+        colors: brandData?.colors,
+      };
+      
       onComplete({
         brandData,
         productImages,
         selectedVariation: selectedVariation || undefined,
+        enrichedProductData: enrichedData,
       });
     }
   };
@@ -140,12 +155,15 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
         {currentStep === 3 && (
           <VariationGenerator
             productData={{
-              ...productData,
-              // Enrich with brand data for better generation
-              description: brandData?.description || productData.description,
+              // Use extracted brand data as primary source
+              productName: brandData?.productName || productData.productName || "Produit",
+              niche: brandData?.niche || productData.niche || "beaute",
+              description: brandData?.description || productData.description || "Produit de qualité",
+              platform: productData.platform || "instagram",
+              price: brandData?.price || productData.price || "Prix sur demande",
+              benefits: brandData?.productBenefits?.join(", ") || productData.benefits,
               productType: brandData?.productType,
               features: brandData?.productFeatures?.join(", "),
-              benefits: brandData?.productBenefits?.join(", "),
               keywords: brandData?.keywords?.join(", "),
               colors: brandData?.colors,
             }}

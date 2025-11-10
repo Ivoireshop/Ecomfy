@@ -55,11 +55,15 @@ serve(async (req) => {
 
     const brandData = {
       ...basicBrandData,
+      productName: aiAnalysis.productName || basicBrandData.companyName,
+      niche: aiAnalysis.niche || 'beaute',
+      description: aiAnalysis.description || basicBrandData.description,
       productType: aiAnalysis.productType,
       productFeatures: aiAnalysis.productFeatures,
       productBenefits: aiAnalysis.productBenefits,
       targetMarket: aiAnalysis.targetMarket,
       keywords: aiAnalysis.keywords,
+      price: aiAnalysis.price,
     };
 
     console.log("Complete brand data with AI analysis:", brandData);
@@ -91,21 +95,33 @@ async function analyzeWithAI(html: string, basicData: any) {
       .trim()
       .slice(0, 3000); // Limit to first 3000 chars
 
-    const prompt = `Analysez ce site web et extrayez les informations suivantes en français pour le marché africain:
+    const prompt = `Analysez cette page produit et extrayez les informations EXACTES du produit principal vendu sur cette page.
 
-Nom de l'entreprise: ${basicData.companyName}
-Description: ${basicData.description}
+IMPORTANT: Concentrez-vous uniquement sur LE produit principal de cette page, PAS sur d'autres produits ou la marque générale.
 
-Contenu du site:
+Nom de la marque/boutique: ${basicData.companyName || 'Inconnu'}
+Description trouvée: ${basicData.description || 'Non disponible'}
+
+Contenu de la page:
 ${textContent}
 
-Fournissez UNIQUEMENT un objet JSON valide avec cette structure exacte (sans texte avant ou après):
+INSTRUCTIONS CRITIQUES:
+1. Identifiez le NOM EXACT du produit principal (pas le nom de la boutique)
+2. Trouvez la VRAIE description de CE produit spécifique
+3. Listez les caractéristiques de CE produit uniquement
+4. Identifiez la niche/catégorie appropriée parmi: beaute, mode, alimentation, tech, sante, maison
+
+Fournissez UNIQUEMENT un objet JSON valide avec cette structure exacte:
 {
-  "productType": "type de produit vendu",
+  "productName": "Nom exact du produit principal de cette page",
+  "niche": "Une des options: beaute, mode, alimentation, tech, sante, maison",
+  "description": "Description détaillée du produit principal",
+  "productType": "Type précis du produit",
   "productFeatures": ["caractéristique 1", "caractéristique 2", "caractéristique 3"],
   "productBenefits": ["avantage 1", "avantage 2", "avantage 3"],
-  "targetMarket": "description du marché cible africain",
-  "keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3", "mot-clé 4", "mot-clé 5"]
+  "targetMarket": "Marché cible africain",
+  "keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3", "mot-clé 4", "mot-clé 5"],
+  "price": "Prix trouvé sur la page (avec devise) ou 'Non spécifié'"
 }`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -150,11 +166,15 @@ Fournissez UNIQUEMENT un objet JSON valide avec cette structure exacte (sans tex
     console.error("AI analysis error:", error);
     // Return default structure if AI fails
     return {
+      productName: basicData.companyName || "Produit",
+      niche: "beaute",
+      description: basicData.description || "Produit de qualité",
       productType: "Produit ou service",
       productFeatures: ["Qualité premium", "Service rapide", "Prix compétitif"],
       productBenefits: ["Gain de temps", "Satisfaction garantie", "Support client"],
       targetMarket: "Entrepreneurs et entreprises en Afrique",
       keywords: ["innovation", "qualité", "service", "professionnel", "africain"],
+      price: "Non spécifié",
     };
   }
 }

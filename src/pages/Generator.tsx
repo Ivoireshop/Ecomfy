@@ -850,16 +850,27 @@ const Generator = () => {
                     productName,
                     niche,
                     description,
-                    platform,
+                    platform: platform || "instagram",
                     price,
                     benefits,
                   }}
                   onComplete={(data) => {
                     console.log("Workflow completed:", data);
+                    
+                    // Update form fields with extracted data
+                    if (data.enrichedProductData) {
+                      const enriched = data.enrichedProductData;
+                      if (enriched.productName) setProductName(enriched.productName);
+                      if (enriched.niche) setNiche(enriched.niche);
+                      if (enriched.description) setDescription(enriched.description);
+                      if (enriched.price && enriched.price !== "Non spécifié") setPrice(enriched.price);
+                      if (enriched.benefits) setBenefits(enriched.benefits);
+                    }
+                    
                     if (data.selectedVariation) {
                       setGeneratedImage(data.selectedVariation);
                       toast({
-                        title: "Génération terminée !",
+                        title: "✨ Génération terminée !",
                         description: "Votre annonce a été générée avec succès",
                       });
                     }
