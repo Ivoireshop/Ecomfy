@@ -138,6 +138,25 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
     toast.success("Données confirmées ! Vous pouvez maintenant continuer.");
   };
 
+  const handleStartEdit = () => {
+    if (!brandData) return;
+    setEditableData({
+      companyName: brandData.companyName || "",
+      productName: brandData.productName || brandData.companyName || "",
+      niche: brandData.niche || "beaute",
+      description: brandData.description || "",
+      price: brandData.price || "",
+      productType: brandData.productType || "",
+      productFeatures: brandData.productFeatures || [],
+      productBenefits: brandData.productBenefits || [],
+      keywords: brandData.keywords || [],
+      colors: brandData.colors || [],
+      targetMarket: brandData.targetMarket || "Marché africain",
+    });
+    setCurrentStep(1);
+    setShowPreview(true);
+  };
+
   const CurrentStepIcon = STEPS[currentStep - 1].icon;
 
   return (
@@ -159,9 +178,16 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
                 </CardDescription>
               </div>
             </div>
-            <Badge variant="outline" className="text-sm">
-              {Math.round(progress)}% complété
-            </Badge>
+            <div className="flex items-center gap-2">
+              {brandData && !showPreview && (
+                <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                  Modifier les informations
+                </Button>
+              )}
+              <Badge variant="outline" className="text-sm">
+                {Math.round(progress)}% complété
+              </Badge>
+            </div>
           </div>
           <Progress value={progress} className="h-2" />
         </CardHeader>
