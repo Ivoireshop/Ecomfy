@@ -33,24 +33,26 @@ serve(async (req) => {
   );
 
   try {
-    // Get user from auth header (required for saving images)
+    // Get JWT from Authorization header
     const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Authentification requise pour générer des images."
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
     
-    // Create Supabase client for auth verification
-    const authClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: authHeader || "" },
-        },
-      }
-    );
-
-    // Get authenticated user
-    const { data: { user }, error: userError } = await authClient.auth.getUser();
+    // Extract token and verify with service role client
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (!user || userError) {
+      console.error("Auth error:", userError);
       return new Response(
         JSON.stringify({ 
           error: "Authentification requise pour générer des images."
