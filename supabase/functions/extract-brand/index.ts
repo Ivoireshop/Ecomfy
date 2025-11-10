@@ -38,20 +38,23 @@ serve(async (req) => {
 
     const html = await response.text();
 
-    // Extract basic brand data using regex and parsing
+    // Extract product-focused data first
+    const productInfo = extractProductInfo(html, url);
+
+    // Build basic brand data prioritizing the specific page content
     const basicBrandData = {
       colors: extractColors(html),
       fonts: extractFonts(html),
       logo: extractLogo(html, url),
-      images: extractImages(html, url).slice(0, 10),
-      companyName: extractCompanyName(html),
-      description: extractDescription(html),
+      images: Array.from(new Set([...(productInfo.images || []).map((i: string) => resolveUrl(i, url)), ...extractImages(html, url)])).slice(0, 10),
+      companyName: productInfo.brandName || extractCompanyName(html),
+      description: productInfo.description || extractDescription(html),
     };
 
     console.log("Basic brand data extracted:", basicBrandData);
 
     // Use AI to extract deeper insights about the product
-    const aiAnalysis = await analyzeWithAI(html, basicBrandData);
+    const aiAnalysis = await analyzeWithAI(html, basicBrandData, url);
 
     const brandData = {
       ...basicBrandData,
@@ -84,7 +87,7 @@ serve(async (req) => {
   }
 });
 
-async function analyzeWithAI(html: string, basicData: any) {
+async function analyzeWithAI(html: string, basicData: any, pageUrl: string) {
   try {
     // Extract text content from HTML
     const textContent = html
@@ -93,35 +96,52 @@ async function analyzeWithAI(html: string, basicData: any) {
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 3000); // Limit to first 3000 chars
+      .slice(0, 5000); // Give the model more in-page context
 
-    const prompt = `Analysez cette page produit et extrayez les informations EXACTES du produit principal vendu sur cette page.
+    const slug = (() => {
+      try {
+        const u = new URL(pageUrl);
+        const segs = u.pathname.split('/').filter(Boolean);
+        return segs[segs.length - 1] || '';
+      } catch {
+        return '';
+      }
+    })();
 
-IMPORTANT: Concentrez-vous uniquement sur LE produit principal de cette page, PAS sur d'autres produits ou la marque générale.
+    const prompt = `Analyse uniquement CE LIEN précis et extrais les informations EXACTES du produit principal de CETTE page.
 
-Nom de la marque/boutique: ${basicData.companyName || 'Inconnu'}
-Description trouvée: ${basicData.description || 'Non disponible'}
+URL de la page: ${pageUrl}
+Slug de la page (indice produit): ${slug}
 
-Contenu de la page:
+IMPORTANT ET OBLIGATOIRE:
+- NE PAS utiliser d'informations globales du domaine ou de la plateforme (Youcan, Shopify, etc.)
+- NE PAS inférer à partir de la marque générale du site
+- Utilise UNIQUEMENT le contenu HTML fourni de cette page.
+
+Nom de la marque/boutique détecté: ${basicData.companyName || 'Inconnu'}
+Description détectée: ${basicData.description || 'Non disponible'}
+
+Contenu texte de la page (nettoyé):
 ${textContent}
 
 INSTRUCTIONS CRITIQUES:
-1. Identifiez le NOM EXACT du produit principal (pas le nom de la boutique)
-2. Trouvez la VRAIE description de CE produit spécifique
-3. Listez les caractéristiques de CE produit uniquement
-4. Identifiez la niche/catégorie appropriée parmi: beaute, mode, alimentation, tech, sante, maison
+1. Identifie le NOM EXACT du produit principal de cette page (pas le nom de la boutique)
+2. Donne la description du produit spécifique (pas des informations génériques du site)
+3. Liste uniquement les caractéristiques et bénéfices de CE produit
+4. Catégorise la niche parmi: beaute, mode, alimentation, tech, sante, maison
+5. Si une info est introuvable dans le contenu ci-dessus, renvoie "Non spécifié"
 
-Fournissez UNIQUEMENT un objet JSON valide avec cette structure exacte:
+Retourne UNIQUEMENT un objet JSON STRICTEMENT VALIDE avec la structure exacte suivante:
 {
-  "productName": "Nom exact du produit principal de cette page",
-  "niche": "Une des options: beaute, mode, alimentation, tech, sante, maison",
-  "description": "Description détaillée du produit principal",
+  "productName": "Nom exact du produit",
+  "niche": "beaute|mode|alimentation|tech|sante|maison",
+  "description": "Description détaillée du produit",
   "productType": "Type précis du produit",
   "productFeatures": ["caractéristique 1", "caractéristique 2", "caractéristique 3"],
   "productBenefits": ["avantage 1", "avantage 2", "avantage 3"],
   "targetMarket": "Marché cible africain",
   "keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3", "mot-clé 4", "mot-clé 5"],
-  "price": "Prix trouvé sur la page (avec devise) ou 'Non spécifié'"
+  "price": "Prix trouvé (avec devise) ou 'Non spécifié'"
 }`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -135,7 +155,7 @@ Fournissez UNIQUEMENT un objet JSON valide avec cette structure exacte:
         messages: [
           { 
             role: 'system', 
-            content: 'Tu es un expert en marketing digital pour l\'Afrique. Réponds uniquement avec un objet JSON valide, sans texte supplémentaire.' 
+            content: 'Tu es un expert en marketing digital pour l\'Afrique. Réponds UNIQUEMENT avec un objet JSON valide, sans texte supplémentaire.' 
           },
           { role: 'user', content: prompt }
         ],
@@ -315,6 +335,80 @@ function extractDescription(html: string): string {
   if (pMatch) return pMatch[1].trim();
   
   return "";
+}
+
+// --- Product-focused helpers ---
+function extractOgMeta(html: string, property: string): string | null {
+  const re = new RegExp(`<meta\\s+(?:property|name)="${property}"\\s+content="([^"]+)"`, 'i');
+  const m = html.match(re);
+  return m ? m[1] : null;
+}
+
+function extractProductFromJsonLd(html: string): any | null {
+  const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const s of scripts) {
+    const raw = s[1]?.trim();
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      const nodes: any[] = Array.isArray(parsed)
+        ? parsed
+        : (parsed['@graph'] && Array.isArray(parsed['@graph']))
+          ? parsed['@graph']
+          : [parsed];
+      for (const node of nodes) {
+        const type = node['@type'];
+        const types: string[] = Array.isArray(type) ? type : [type];
+        if (types && types.some((t) => String(t).toLowerCase() === 'product')) {
+          const name = node.name || node.title || '';
+          const description = node.description || '';
+          let images: string[] = [];
+          if (Array.isArray(node.image)) images = node.image;
+          else if (typeof node.image === 'string') images = [node.image];
+          else if (node.image?.url) images = [node.image.url];
+
+          let price = '';
+          const offers = node.offers;
+          if (offers) {
+            const offer = Array.isArray(offers) ? offers[0] : offers;
+            if (offer?.price) {
+              const currency = offer.priceCurrency || '';
+              price = currency ? `${offer.price} ${currency}` : `${offer.price}`;
+            }
+          }
+
+          let brandName = '';
+          if (typeof node.brand === 'string') brandName = node.brand;
+          else if (node.brand?.name) brandName = node.brand.name;
+
+          return { name, description, images, price, brandName };
+        }
+      }
+    } catch { /* ignore invalid JSON-LD blocks */ }
+  }
+  return null;
+}
+
+function extractProductInfo(html: string, pageUrl: string): { name?: string; description?: string; images?: string[]; price?: string; brandName?: string } {
+  const fromJsonLd = extractProductFromJsonLd(html);
+  if (fromJsonLd) return fromJsonLd;
+
+  // Fallback to OG/meta
+  const name = extractOgMeta(html, 'og:title') || undefined;
+  const description = extractOgMeta(html, 'og:description') || extractDescription(html) || undefined;
+  const ogImages = [
+    ...[...html.matchAll(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["'][^>]*>/gi)].map(m => m[1])
+  ];
+  const price = extractOgMeta(html, 'product:price:amount') || extractOgMeta(html, 'og:price:amount') || undefined;
+  const brandName = extractOgMeta(html, 'og:site_name') || undefined;
+
+  return {
+    name,
+    description,
+    images: ogImages.length ? ogImages : undefined,
+    price,
+    brandName,
+  };
 }
 
 function resolveUrl(url: string, baseUrl: string): string {
