@@ -113,6 +113,7 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
     
     // Prepare editable data for preview
     setEditableData({
+      companyName: data.companyName || "",
       productName: data.productName || data.companyName || "",
       niche: data.niche || "beaute",
       description: data.description || "",
@@ -186,6 +187,15 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                  <Label htmlFor="edit-company">Nom de l'entreprise *</Label>
+                  <Input
+                    id="edit-company"
+                    value={editableData.companyName}
+                    onChange={(e) => setEditableData({...editableData, companyName: e.target.value})}
+                    placeholder="Nom de l'entreprise"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="edit-name">Nom du produit *</Label>
                   <Input
                     id="edit-name"
@@ -194,15 +204,16 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
                     placeholder="Nom du produit"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="edit-price">Prix</Label>
-                  <Input
-                    id="edit-price"
-                    value={editableData.price}
-                    onChange={(e) => setEditableData({...editableData, price: e.target.value})}
-                    placeholder="Ex: 5000 FCFA"
-                  />
-                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-price">Prix</Label>
+                <Input
+                  id="edit-price"
+                  value={editableData.price}
+                  onChange={(e) => setEditableData({...editableData, price: e.target.value})}
+                  placeholder="Ex: 5000 FCFA"
+                />
               </div>
               
               <div>
@@ -278,7 +289,7 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
                 <Button 
                   onClick={handleConfirmPreview} 
                   className="flex-1"
-                  disabled={!editableData.productName || !editableData.description}
+                  disabled={!editableData.companyName || !editableData.productName || !editableData.description}
                 >
                   <Check className="mr-2 h-4 w-4" />
                   Confirmer et Continuer
