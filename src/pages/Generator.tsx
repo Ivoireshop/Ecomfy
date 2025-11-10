@@ -17,6 +17,10 @@ import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 import { GenerationQueue } from "@/components/GenerationQueue";
 import { SpellCheckText } from "@/components/SpellCheckText";
 import { createTextOverlay, dataURLtoBlob } from "@/lib/textOverlay";
+import { SimpleWorkflow } from "@/components/SimpleWorkflow";
+import { BrandExtractor } from "@/components/BrandExtractor";
+import { MultiImageUploader } from "@/components/MultiImageUploader";
+import { VariationGenerator } from "@/components/VariationGenerator";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -40,7 +44,7 @@ const Generator = () => {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [videoGenerationsRemaining, setVideoGenerationsRemaining] = useState<number>(5);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
-  const [generationType, setGenerationType] = useState<"image" | "video">("image");
+  const [generationType, setGenerationType] = useState<"image" | "video" | "pro">("image");
   const [isTouchUI, setIsTouchUI] = useState(false);
   const [isFounder, setIsFounder] = useState(false);
   const [videoDuration, setVideoDuration] = useState<10 | 15>(10);
@@ -784,11 +788,15 @@ const Generator = () => {
             )}
           </div>
 
-          <Tabs value={generationType} onValueChange={(v) => setGenerationType(v as "image" | "video")} className="mb-6">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+          <Tabs value={generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro")} className="mb-6">
+            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
               <TabsTrigger value="image">
                 <Sparkles className="mr-2 h-4 w-4" />
-                Image
+                Classique
+              </TabsTrigger>
+              <TabsTrigger value="pro">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Mode Pro
               </TabsTrigger>
               <TabsTrigger value="video" disabled={!hasActiveSubscription}>
                 <Video className="mr-2 h-4 w-4" />
@@ -802,6 +810,34 @@ const Generator = () => {
             <GenerationQueue />
           </div>
 
+          {/* Mode Pro - Workflow Omneky-style */}
+          {generationType === "pro" && (
+            <div className="container mx-auto px-4 max-w-6xl">
+              <SimpleWorkflow
+                productData={{
+                  productName,
+                  niche,
+                  description,
+                  platform,
+                  price,
+                  benefits,
+                }}
+                onComplete={(data) => {
+                  console.log("Workflow completed:", data);
+                  if (data.selectedVariation) {
+                    setGeneratedImage(data.selectedVariation);
+                    toast({
+                      title: "Génération terminée !",
+                      description: "Votre annonce a été générée avec succès",
+                    });
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {/* Mode Classique - Formulaire existant */}
+          {generationType === "image" && (
           <div className="bg-card rounded-xl shadow-lg p-8 border">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
               <div className="space-y-2">
@@ -1304,8 +1340,10 @@ const Generator = () => {
                 }}
               />
             )}
+          </div>
+          )}
 
-            {/* Text Preview Dialog */}
+          {/* Text Preview Dialog */}
             {showTextPreview && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -1531,7 +1569,6 @@ const Generator = () => {
                 </div>
               </div>
             )}
-          </div>
         </div>
       </div>
     </div>
