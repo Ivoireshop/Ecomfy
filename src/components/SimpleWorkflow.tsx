@@ -138,20 +138,21 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
     toast.success("Données confirmées ! Vous pouvez maintenant continuer.");
   };
 
-  const handleStartEdit = () => {
-    if (!brandData) return;
+  const handleStartEdit = (dataOverride?: any) => {
+    const source = dataOverride || brandData;
+    if (!source) return;
     setEditableData({
-      companyName: brandData.companyName || "",
-      productName: brandData.productName || brandData.companyName || "",
-      niche: brandData.niche || "beaute",
-      description: brandData.description || "",
-      price: brandData.price || "",
-      productType: brandData.productType || "",
-      productFeatures: brandData.productFeatures || [],
-      productBenefits: brandData.productBenefits || [],
-      keywords: brandData.keywords || [],
-      colors: brandData.colors || [],
-      targetMarket: brandData.targetMarket || "Marché africain",
+      companyName: source.companyName || "",
+      productName: source.productName || source.companyName || "",
+      niche: source.niche || "beaute",
+      description: source.description || "",
+      price: source.price || "",
+      productType: source.productType || "",
+      productFeatures: source.productFeatures || [],
+      productBenefits: source.productBenefits || [],
+      keywords: source.keywords || [],
+      colors: source.colors || [],
+      targetMarket: source.targetMarket || "Marché africain",
     });
     setCurrentStep(1);
     setShowPreview(true);
@@ -196,7 +197,7 @@ export function SimpleWorkflow({ productData, onComplete }: SimpleWorkflowProps)
       {/* Step Content */}
       <div className="min-h-[400px]">
         {currentStep === 1 && !showPreview && (
-          <BrandExtractor onBrandExtracted={handleBrandExtracted} />
+          <BrandExtractor onBrandExtracted={handleBrandExtracted} onEditRequested={(b:any)=>handleStartEdit(b)} />
         )}
 
         {currentStep === 1 && showPreview && editableData && (

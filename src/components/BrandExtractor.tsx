@@ -19,9 +19,10 @@ interface BrandData {
 
 interface BrandExtractorProps {
   onBrandExtracted: (brandData: BrandData) => void;
+  onEditRequested?: (brand: BrandData) => void;
 }
 
-export function BrandExtractor({ onBrandExtracted }: BrandExtractorProps) {
+export function BrandExtractor({ onBrandExtracted, onEditRequested }: BrandExtractorProps) {
   const [url, setUrl] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedBrand, setExtractedBrand] = useState<BrandData | null>(null);
@@ -119,24 +120,31 @@ export function BrandExtractor({ onBrandExtracted }: BrandExtractorProps) {
                 <Check className="h-4 w-4 text-green-500" />
                 Marque extraite
               </h3>
-              <Button onClick={handleUseBrand} size="sm">
-                Utiliser cette marque
-              </Button>
+              <div className="flex items-center gap-2">
+                {onEditRequested && (
+                  <Button variant="outline" size="sm" onClick={() => onEditRequested(extractedBrand)}>
+                    Modifier
+                  </Button>
+                )}
+                <Button onClick={handleUseBrand} size="sm">
+                  Utiliser cette marque
+                </Button>
+              </div>
             </div>
 
-            {extractedBrand.companyName && (
-              <div>
-                <Label className="text-xs text-muted-foreground">Nom de l'entreprise</Label>
-                <p className="font-medium">{extractedBrand.companyName}</p>
-              </div>
-            )}
+            <div className={onEditRequested ? "cursor-pointer" : ""} onClick={() => onEditRequested?.(extractedBrand)}>
+              <Label className="text-xs text-muted-foreground">Nom de l'entreprise</Label>
+              <p className="font-medium">
+                {extractedBrand.companyName?.trim() ? extractedBrand.companyName : "Non spécifié"}
+              </p>
+            </div>
 
-            {extractedBrand.description && (
-              <div>
-                <Label className="text-xs text-muted-foreground">Description</Label>
-                <p className="text-sm">{extractedBrand.description}</p>
-              </div>
-            )}
+            <div className={onEditRequested ? "cursor-pointer" : ""} onClick={() => onEditRequested?.(extractedBrand)}>
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <p className="text-sm">
+                {extractedBrand.description?.trim() ? extractedBrand.description : "Non spécifié"}
+              </p>
+            </div>
 
             {extractedBrand.colors.length > 0 && (
               <div>
