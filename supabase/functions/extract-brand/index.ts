@@ -89,59 +89,59 @@ serve(async (req) => {
 
 async function analyzeWithAI(html: string, basicData: any, pageUrl: string) {
   try {
-    // Extract text content from HTML
+    // Extract product-specific content from HTML
+    const productContent = extractProductContent(html);
+    
+    console.info('Extracted product content for AI:', {
+      title: productContent.title,
+      hasDescription: !!productContent.description,
+      priceFound: !!productContent.price,
+      featuresCount: productContent.features.length
+    });
+
+    // Extract text content from HTML for additional context
     const textContent = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 5000); // Give the model more in-page context
+      .slice(0, 3000);
 
-    const slug = (() => {
-      try {
-        const u = new URL(pageUrl);
-        const segs = u.pathname.split('/').filter(Boolean);
-        return segs[segs.length - 1] || '';
-      } catch {
-        return '';
-      }
-    })();
+    const prompt = `Tu es un expert en extraction de données produit e-commerce. Analyse cette page et extrais les informations du PRODUIT PRINCIPAL.
 
-    const prompt = `Analyse uniquement CE LIEN précis et extrais les informations EXACTES du produit principal de CETTE page.
+URL: ${pageUrl}
 
-URL de la page: ${pageUrl}
-Slug de la page (indice produit): ${slug}
+DONNÉES EXTRAITES DU HTML (PRIORITAIRES):
+Titre du produit: ${productContent.title || 'Non trouvé'}
+Prix: ${productContent.price || 'Non trouvé'}
+Description: ${productContent.description || 'Non trouvé'}
+Caractéristiques: ${productContent.features.length > 0 ? productContent.features.join(', ') : 'Non trouvé'}
 
-IMPORTANT ET OBLIGATOIRE:
-- NE PAS utiliser d'informations globales du domaine ou de la plateforme (Youcan, Shopify, etc.)
-- NE PAS inférer à partir de la marque générale du site
-- Utilise UNIQUEMENT le contenu HTML fourni de cette page.
+Images produit disponibles: ${basicData.images?.length || 0}
 
-Nom de la marque/boutique détecté: ${basicData.companyName || 'Inconnu'}
-Description détectée: ${basicData.description || 'Non disponible'}
-
-Contenu texte de la page (nettoyé):
+Contenu additionnel de la page:
 ${textContent}
 
 INSTRUCTIONS CRITIQUES:
-1. Identifie le NOM EXACT du produit principal de cette page (pas le nom de la boutique)
-2. Donne la description du produit spécifique (pas des informations génériques du site)
-3. Liste uniquement les caractéristiques et bénéfices de CE produit
-4. Catégorise la niche parmi: beaute, mode, alimentation, tech, sante, maison
-5. Si une info est introuvable dans le contenu ci-dessus, renvoie "Non spécifié"
+1. Utilise EN PRIORITÉ les "DONNÉES EXTRAITES DU HTML" ci-dessus
+2. Le "Titre du produit" est le nom réel du produit - utilise-le pour productName
+3. Si tu as une description, utilise-la (pas de textes génériques comme "troisième produit")
+4. NE JAMAIS utiliser des textes génériques ou placeholder comme "Troisième produit"
+5. Si une information n'est pas disponible, renvoie "Non spécifié"
+6. Catégorise la niche parmi: beaute, mode, alimentation, tech, sante, maison, autre
 
-Retourne UNIQUEMENT un objet JSON STRICTEMENT VALIDE avec la structure exacte suivante:
+Retourne UNIQUEMENT un objet JSON valide:
 {
-  "productName": "Nom exact du produit",
-  "niche": "beaute|mode|alimentation|tech|sante|maison",
+  "productName": "Nom exact du produit (utilise le titre extrait)",
+  "niche": "beaute|mode|alimentation|tech|sante|maison|autre",
   "description": "Description détaillée du produit",
-  "productType": "Type précis du produit",
-  "productFeatures": ["caractéristique 1", "caractéristique 2", "caractéristique 3"],
-  "productBenefits": ["avantage 1", "avantage 2", "avantage 3"],
-  "targetMarket": "Marché cible africain",
-  "keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3", "mot-clé 4", "mot-clé 5"],
-  "price": "Prix trouvé (avec devise) ou 'Non spécifié'"
+  "productType": "Type spécifique",
+  "productFeatures": ["caractéristique 1", "caractéristique 2"],
+  "productBenefits": ["bénéfice 1", "bénéfice 2"],
+  "targetMarket": "Public cible",
+  "keywords": ["mot-clé 1", "mot-clé 2"],
+  "price": "Prix avec devise"
 }`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -335,6 +335,92 @@ function extractDescription(html: string): string {
   if (pMatch) return pMatch[1].trim();
   
   return "";
+}
+
+// Extract product-specific content from HTML structure
+function extractProductContent(html: string): {
+  title: string | null;
+  description: string | null;
+  price: string | null;
+  features: string[];
+} {
+  let title = null;
+  let description = null;
+  let price = null;
+  const features: string[] = [];
+  
+  // Extract title - prioritize product-specific selectors
+  const titlePatterns = [
+    /<h1[^>]*class="[^"]*product[^"]*"[^>]*>([^<]+)<\/h1>/i,
+    /<h1[^>]*>([^<]+)<\/h1>/i,
+    /<h2[^>]*class="[^"]*product[^"]*title[^"]*"[^>]*>([^<]+)<\/h2>/i,
+  ];
+  
+  for (const pattern of titlePatterns) {
+    const match = html.match(pattern);
+    if (match && match[1]) {
+      const extracted = match[1].trim();
+      // Avoid generic terms
+      if (!extracted.toLowerCase().includes('shop') && 
+          !extracted.toLowerCase().includes('store') &&
+          extracted.length > 2 &&
+          extracted.toLowerCase() !== 'troisième produit') {
+        title = extracted;
+        break;
+      }
+    }
+  }
+  
+  // Extract description - look for product description sections
+  const descPatterns = [
+    /<div[^>]*class="[^"]*product.*description[^"]*"[^>]*>([^<]+)<\/div>/i,
+    /<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]+)<\/p>/i,
+    /<div[^>]*class="[^"]*description[^"]*"[^>]*>([^<]+)<\/div>/i,
+  ];
+  
+  for (const pattern of descPatterns) {
+    const match = html.match(pattern);
+    if (match && match[1]) {
+      const extracted = match[1].trim();
+      if (extracted.length > 20 && extracted.toLowerCase() !== 'le troisième produit') {
+        description = extracted;
+        break;
+      }
+    }
+  }
+  
+  // Extract price
+  const pricePatterns = [
+    /<span[^>]*class="[^"]*price[^"]*"[^>]*>([^<]+)<\/span>/i,
+    /<div[^>]*class="[^"]*price[^"]*"[^>]*>([^<]+)<\/div>/i,
+    /(\d+(?:[.,]\d+)?)\s*(?:FCFA|CFA|€|EUR|USD|\$|MAD|DH|دينار)/i,
+  ];
+  
+  for (const pattern of pricePatterns) {
+    const match = html.match(pattern);
+    if (match && match[1]) {
+      price = match[1].trim();
+      break;
+    }
+  }
+  
+  // Extract features from lists
+  const listMatch = html.match(/<ul[^>]*class="[^"]*(?:feature|specification|benefit)[^"]*"[^>]*>([\s\S]*?)<\/ul>/i);
+  if (listMatch) {
+    const liMatches = listMatch[1].match(/<li[^>]*>([^<]+)<\/li>/gi);
+    if (liMatches) {
+      features.push(...liMatches.map(li => li.replace(/<\/?li[^>]*>/gi, '').trim()).filter(f => f.length > 0));
+    }
+  }
+  
+  console.info('Product content extraction:', { 
+    title: title || 'NOT FOUND', 
+    description: description ? description.substring(0, 50) + '...' : 'NOT FOUND',
+    price: price || 'NOT FOUND',
+    featuresCount: features.length 
+  });
+  
+  return { title, description, price, features };
 }
 
 // --- Product-focused helpers ---
