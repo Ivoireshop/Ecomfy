@@ -181,6 +181,8 @@ export default function ShowcaseView() {
           gallery_text_position: data.gallery_text_position,
           font_family: data.font_family,
           theme_mode: data.theme_mode,
+          hero_video_url: (data as any).hero_video_url ?? null,
+          about_video_url: (data as any).about_video_url ?? null,
         };
         setSite(siteData as ShowcaseSite);
         

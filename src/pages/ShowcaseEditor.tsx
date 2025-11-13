@@ -220,8 +220,8 @@ export default function ShowcaseEditor() {
         galleryTextPosition: data.gallery_text_position || "below",
         fontFamily: data.font_family || "poppins",
         themeMode: data.theme_mode || "light",
-        heroVideoUrl: data.hero_video_url || "",
-        aboutVideoUrl: data.about_video_url || "",
+        heroVideoUrl: (data as any).hero_video_url || "",
+        aboutVideoUrl: (data as any).about_video_url || "",
       });
 
       // Set existing images
