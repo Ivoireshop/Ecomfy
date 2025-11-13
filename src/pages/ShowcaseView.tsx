@@ -67,6 +67,8 @@ interface ShowcaseSite {
   logo_url: string | null;
   hero_image_url: string | null;
   about_image_url: string | null;
+  hero_video_url: string | null;
+  about_video_url: string | null;
   seo_title: string | null;
   seo_description: string | null;
   seo_keywords: string[] | null;
@@ -488,7 +490,18 @@ export default function ShowcaseView() {
 
       {/* Hero Section - HubSpot Style */}
       <section id="hero" className="relative theme-gradient-hero pt-20 overflow-hidden">
-        {site.hero_image_url && (
+        {site.hero_video_url ? (
+          <div className="absolute inset-0 overflow-hidden">
+            <video 
+              src={site.hero_video_url} 
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover opacity-30"
+            />
+          </div>
+        ) : site.hero_image_url ? (
           <div 
             className="absolute inset-0 overflow-hidden"
             style={{
@@ -501,7 +514,7 @@ export default function ShowcaseView() {
               className="w-full h-full object-cover opacity-20"
             />
           </div>
-        )}
+        ) : null}
         <div className="container mx-auto px-4 py-20 md:py-32 relative">
           <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
             {site.logo_url ? (
@@ -552,7 +565,15 @@ export default function ShowcaseView() {
               </h2>
               {aboutLayout === "stacked" ? (
                 <div className="space-y-8 animate-fade-in">
-                  {site.about_image_url && (
+                  {site.about_video_url ? (
+                    <div className="max-w-4xl mx-auto">
+                      <video 
+                        src={site.about_video_url} 
+                        controls
+                        className="w-full rounded-lg shadow-xl hover-scale"
+                      />
+                    </div>
+                  ) : site.about_image_url ? (
                     <div className="max-w-4xl mx-auto">
                       <img 
                         src={site.about_image_url} 
@@ -560,7 +581,7 @@ export default function ShowcaseView() {
                         className="w-full rounded-lg shadow-xl hover-scale"
                       />
                     </div>
-                  )}
+                  ) : null}
                   <div className="prose prose-lg max-w-none">
                     <p className="text-lg leading-relaxed whitespace-pre-line theme-text-secondary">
                       {site.about_description}
@@ -568,8 +589,16 @@ export default function ShowcaseView() {
                   </div>
                 </div>
               ) : (
-                <div className={`grid ${site.about_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-12 items-center animate-fade-in`}>
-                  {site.about_image_url && (
+                <div className={`grid ${(site.about_video_url || site.about_image_url) ? 'md:grid-cols-2' : 'grid-cols-1'} gap-12 items-center animate-fade-in`}>
+                  {site.about_video_url ? (
+                    <div className="hover-scale">
+                      <video 
+                        src={site.about_video_url} 
+                        controls
+                        className="w-full rounded-lg shadow-xl"
+                      />
+                    </div>
+                  ) : site.about_image_url ? (
                     <div className="hover-scale">
                       <img 
                         src={site.about_image_url} 
@@ -577,7 +606,7 @@ export default function ShowcaseView() {
                         className="w-full rounded-lg shadow-xl"
                       />
                     </div>
-                  )}
+                  ) : null}
                   <div className="prose prose-lg max-w-none">
                     <p className="text-lg leading-relaxed whitespace-pre-line theme-text-secondary">
                       {site.about_description}

@@ -25,6 +25,7 @@ import { AnalyticsViewer } from "@/components/AnalyticsViewer";
 import { GalleryManager } from "@/components/GalleryManager";
 import { ContactSubmissionsViewer } from "@/components/ContactSubmissionsViewer";
 import { ShowcaseVersionHistory } from "@/components/ShowcaseVersionHistory";
+import { VideoUploader } from "@/components/VideoUploader";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 import {
   Dialog,
@@ -73,6 +74,8 @@ const showcaseSchema = z.object({
   galleryTextPosition: z.string().optional(),
   fontFamily: z.string().optional(),
   themeMode: z.string().optional(),
+  heroVideoUrl: z.string().optional(),
+  aboutVideoUrl: z.string().optional(),
 });
 
 type ShowcaseFormData = z.infer<typeof showcaseSchema>;
@@ -217,6 +220,8 @@ export default function ShowcaseEditor() {
         galleryTextPosition: data.gallery_text_position || "below",
         fontFamily: data.font_family || "poppins",
         themeMode: data.theme_mode || "light",
+        heroVideoUrl: data.hero_video_url || "",
+        aboutVideoUrl: data.about_video_url || "",
       });
 
       // Set existing images
@@ -1431,8 +1436,25 @@ export default function ShowcaseEditor() {
           </TabsContent>
 
           <TabsContent value="galleries">
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-6xl mx-auto space-y-6">
               {id && <GalleryManager showcaseId={id} />}
+              
+              <div className="grid md:grid-cols-2 gap-6 mt-6">
+                <VideoUploader
+                  showcaseSiteId={id || ""}
+                  currentVideoUrl={formValues.heroVideoUrl}
+                  videoType="hero"
+                  onVideoUploaded={(url) => setValue("heroVideoUrl", url)}
+                  onVideoRemoved={() => setValue("heroVideoUrl", null)}
+                />
+                <VideoUploader
+                  showcaseSiteId={id || ""}
+                  currentVideoUrl={formValues.aboutVideoUrl}
+                  videoType="about"
+                  onVideoUploaded={(url) => setValue("aboutVideoUrl", url)}
+                  onVideoRemoved={() => setValue("aboutVideoUrl", null)}
+                />
+              </div>
             </div>
           </TabsContent>
 
