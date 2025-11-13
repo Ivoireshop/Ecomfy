@@ -332,8 +332,12 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
               Ajoutez des images pour différentes sections de votre site vitrine
             </CardDescription>
           </div>
-          {hasUnsavedChanges && images.length > 0 && (
-            <Button onClick={saveAllChanges} disabled={isSaving}>
+          {images.length > 0 && (
+            <Button 
+              onClick={saveAllChanges} 
+              disabled={isSaving}
+              variant={hasUnsavedChanges ? "default" : "outline"}
+            >
               {isSaving ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -342,7 +346,7 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />
-                  Sauvegarder les modifications
+                  {hasUnsavedChanges ? "Sauvegarder les modifications" : "Tout sauvegarder"}
                 </>
               )}
             </Button>
