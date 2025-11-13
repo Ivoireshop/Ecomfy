@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Video, Volume2, Play, Pause, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -468,25 +469,33 @@ const Generator = () => {
       if (!hasActiveSubscription && data.freeGenerationsRemaining !== undefined) {
         setFreeGenerationsRemaining(data.freeGenerationsRemaining);
         
-        if (data.freeGenerationsRemaining <= 0) {
+        const totalRemaining = data.freeGenerationsRemaining + (purchasedCredits > 0 ? purchasedCredits : 0);
+        
+        if (totalRemaining <= 0) {
           toast({
-            title: "🎉 Dernière génération gratuite utilisée !",
-            description: "Découvrez nos abonnements pour continuer à créer des visuels professionnels sans limite.",
+            title: "🎉 Dernière génération utilisée !",
+            description: "Vous avez épuisé vos crédits. Découvrez nos abonnements pour continuer à créer des visuels professionnels sans limite.",
             variant: "destructive",
             duration: 5000,
           });
           setTimeout(() => navigate("/subscription"), 3000);
           return;
-        } else if (data.freeGenerationsRemaining === 1) {
+        } else if (totalRemaining === 1) {
           toast({
-            title: "⚠️ Dernière génération gratuite !",
-            description: "Après cette génération, souscrivez pour continuer à créer des visuels illimités.",
+            title: "⚠️ Dernière génération disponible !",
+            description: "Il ne vous reste plus qu'une génération. Souscrivez pour continuer à créer des visuels illimités.",
             duration: 4000,
           });
-        } else {
+        } else if (data.freeGenerationsRemaining > 0) {
           toast({
             title: "✅ Image générée avec succès",
-            description: `Il vous reste ${data.freeGenerationsRemaining} génération${data.freeGenerationsRemaining > 1 ? 's' : ''} gratuite${data.freeGenerationsRemaining > 1 ? 's' : ''}`,
+            description: `Il vous reste ${data.freeGenerationsRemaining} essai${data.freeGenerationsRemaining > 1 ? 's' : ''} gratuit${data.freeGenerationsRemaining > 1 ? 's' : ''}${purchasedCredits > 0 ? ` + ${purchasedCredits} crédit${purchasedCredits > 1 ? 's' : ''}` : ''}`,
+            duration: 3000,
+          });
+        } else if (purchasedCredits > 0) {
+          toast({
+            title: "✅ Image générée avec succès",
+            description: `Il vous reste ${purchasedCredits} crédit${purchasedCredits > 1 ? 's' : ''} acheté${purchasedCredits > 1 ? 's' : ''}`,
             duration: 3000,
           });
         }
@@ -728,9 +737,33 @@ const Generator = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Créez votre contenu publicitaire
-            </h1>
+            <div className="flex flex-col items-center gap-3 mb-4">
+              <h1 className="text-4xl md:text-5xl font-bold">
+                Créez votre contenu publicitaire
+              </h1>
+              {!isFounder && !hasActiveSubscription && (freeGenerationsRemaining !== null || purchasedCredits > 0) && (
+                <Badge 
+                  variant={(freeGenerationsRemaining > 0 || purchasedCredits > 0) ? "default" : "destructive"}
+                  className="text-sm px-4 py-1.5"
+                >
+                  {freeGenerationsRemaining > 0 && (
+                    <span>🎁 {freeGenerationsRemaining} essai{freeGenerationsRemaining > 1 ? 's' : ''} gratuit{freeGenerationsRemaining > 1 ? 's' : ''}</span>
+                  )}
+                  {freeGenerationsRemaining > 0 && purchasedCredits > 0 && <span className="mx-2">+</span>}
+                  {purchasedCredits > 0 && (
+                    <span>✨ {purchasedCredits} crédit{purchasedCredits > 1 ? 's' : ''}</span>
+                  )}
+                  {freeGenerationsRemaining <= 0 && purchasedCredits <= 0 && (
+                    <span>⚠️ Quota épuisé</span>
+                  )}
+                </Badge>
+              )}
+              {hasActiveSubscription && !isFounder && (
+                <Badge variant="secondary" className="text-sm px-4 py-1.5">
+                  ✨ Abonné Pro - Créations illimitées
+                </Badge>
+              )}
+            </div>
             <p className="text-lg text-muted-foreground">
               Remplissez le formulaire et laissez l'IA créer du contenu professionnel pour vous
             </p>
