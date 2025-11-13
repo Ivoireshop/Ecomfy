@@ -16,7 +16,7 @@ import { ImageEditor } from "@/components/ImageEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdTemplateSelector } from "@/components/AdTemplateSelector";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
-import { GenerationQueue } from "@/components/GenerationQueue";
+
 import { SpellCheckText } from "@/components/SpellCheckText";
 import { createTextOverlay, dataURLtoBlob } from "@/lib/textOverlay";
 import { SimpleWorkflow } from "@/components/SimpleWorkflow";
@@ -839,10 +839,6 @@ const Generator = () => {
             </TabsList>
           </Tabs>
 
-          {/* Generation Queue Display */}
-          <div className="container mx-auto px-4 max-w-4xl mb-6">
-            <GenerationQueue />
-          </div>
 
           {/* Mode Pro - Workflow Omneky-style */}
           {generationType === "pro" && (
