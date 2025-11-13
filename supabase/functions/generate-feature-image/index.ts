@@ -25,64 +25,82 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    // Get user from auth header (optional for public access)
-    const authHeader = req.headers.get("Authorization");
-    
-    // Create Supabase client (with or without auth)
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      authHeader ? {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      } : undefined
-    );
+  // Create admin client with SERVICE_ROLE_KEY for all database operations
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
 
-    let userId = null;
+  try {
+    // Get JWT from Authorization header - REQUIRED
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Authentification requise pour générer des images."
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    
+    // Extract token and verify with service role client
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (!user || userError) {
+      console.error("Auth error:", userError);
+      return new Response(
+        JSON.stringify({ 
+          error: "Authentification requise pour générer des images."
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const userId = user.id;
     let isFounder = false;
     let hasActiveSubscription = false;
 
-    if (authHeader) {
-      // Get authenticated user
-      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-      if (user) {
-        userId = user.id;
+    // Check founder/co-founder role for unlimited access
+    const { data: roleData } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      // @ts-ignore enum type differences
+      .in("role", ["founder", "co_founder"]);
 
-        // Check founder/co-founder role for unlimited access
-        const { data: roleData } = await supabaseClient
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId)
-          // @ts-ignore enum type differences
-          .in("role", ["founder", "co_founder"]);
+    isFounder = Array.isArray(roleData) && roleData.length > 0;
 
-        isFounder = Array.isArray(roleData) && roleData.length > 0;
+    // Check subscription status
+    const { data: subData } = await supabaseClient
+      .from("subscriptions")
+      .select("status")
+      .eq("user_id", userId)
+      .single();
 
-        // Check subscription status
-        const { data: subData } = await supabaseClient
-          .from("subscriptions")
-          .select("status")
-          .eq("user_id", userId)
-          .single();
-
-        hasActiveSubscription = isFounder || subData?.status === "active";
-      }
-    }
+    hasActiveSubscription = isFounder || subData?.status === "active";
 
     // Check free generations (only for non-subscribed users)
     let freeGenerationsRemaining = 0;
-    if (userId && !hasActiveSubscription) {
+    let purchasedCredits = 0;
+    if (!hasActiveSubscription) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
-        .select("free_generations_remaining")
+        .select("free_generations_remaining, purchased_credits")
         .eq("id", userId)
         .single();
 
       freeGenerationsRemaining = profileData?.free_generations_remaining || 0;
+      purchasedCredits = profileData?.purchased_credits || 0;
 
-      if (freeGenerationsRemaining <= 0) {
+      // Check if user has any credits available (free or purchased)
+      if (freeGenerationsRemaining <= 0 && purchasedCredits <= 0) {
         return new Response(
           JSON.stringify({ 
             error: "Vous avez épuisé vos générations gratuites. Veuillez souscrire à un abonnement.",
@@ -353,28 +371,68 @@ Create a stunning Facebook advertising visual that looks like a professional mar
 
     console.log('Image URL extracted successfully');
 
-    // Decrement free generations if not subscribed and not founder (must use admin client to bypass RLS)
+    // Save image to database FIRST (server-side storage)
+    const { data: savedImage, error: saveError } = await supabaseClient
+      .from("generated_images")
+      .insert({
+        user_id: userId,
+        image_url: imageUrl,
+        prompt: finalPrompt.substring(0, 500),
+        product_details: {
+          productName,
+          niche,
+          description,
+          platform,
+          style,
+          price,
+          promotionalPrice,
+          benefits,
+        },
+      })
+      .select()
+      .single();
+
+    if (saveError) {
+      console.error("Error saving image:", saveError);
+      // Continue even if save fails
+    } else {
+      console.log("Image saved to database successfully");
+    }
+
+    // Decrement free generations if not subscribed and not founder
     let updatedFreeGenerations = typeof freeGenerationsRemaining === "number" ? freeGenerationsRemaining : 0;
-    if (userId && !hasActiveSubscription && !isFounder && updatedFreeGenerations > 0) {
-      // Create admin client to bypass RLS for profile updates
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-      
-      const { data: updateData, error: updateError } = await adminClient
-        .from("profiles")
-        .update({ free_generations_remaining: updatedFreeGenerations - 1 })
-        .eq("id", userId)
-        .select("free_generations_remaining")
-        .single();
-      
-      if (updateError) {
-        console.error("Error decrementing free generations:", updateError);
+    if (!hasActiveSubscription && !isFounder && updatedFreeGenerations > 0) {
+      // Use purchased credits first if available
+      if (purchasedCredits > 0) {
+        const { data: updateData, error: updateError } = await supabaseClient
+          .from("profiles")
+          .update({ purchased_credits: purchasedCredits - 1 })
+          .eq("id", userId)
+          .select("purchased_credits, free_generations_remaining")
+          .single();
+        
+        if (updateError) {
+          console.error("Error decrementing purchased credits:", updateError);
+        } else {
+          console.log("Decremented purchased credits. Remaining:", updateData?.purchased_credits);
+          updatedFreeGenerations = updateData?.free_generations_remaining ?? updatedFreeGenerations;
+        }
+      } else {
+        // Use free generations
+        const { data: updateData, error: updateError } = await supabaseClient
+          .from("profiles")
+          .update({ free_generations_remaining: updatedFreeGenerations - 1 })
+          .eq("id", userId)
+          .select("free_generations_remaining")
+          .single();
+        
+        if (updateError) {
+          console.error("Error decrementing free generations:", updateError);
+        } else {
+          updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
+          console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
+        }
       }
-      
-      updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
-      console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
     }
 
     return new Response(

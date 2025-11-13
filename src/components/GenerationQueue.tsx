@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, CheckCircle, AlertCircle, Loader2, X, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 interface QueueItem {
   id: string;
@@ -21,6 +23,8 @@ export const GenerationQueue = () => {
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
   const [currentProcessing, setCurrentProcessing] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadQueueItems();
@@ -71,6 +75,75 @@ export const GenerationQueue = () => {
       console.error("Error loading queue items:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCancelItem = async (itemId: string) => {
+    setCancelingId(itemId);
+    try {
+      const { error } = await supabase.functions.invoke('cancel-queue-item', {
+        body: { queueItemId: itemId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Génération annulée",
+        description: "L'item a été retiré de la file d'attente",
+      });
+
+      loadQueueItems();
+    } catch (error) {
+      console.error("Error canceling queue item:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'annuler cette génération",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelingId(null);
+    }
+  };
+
+  const handleClearCompleted = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const completedIds = queueItems
+        .filter(item => item.status === "completed" || item.status === "failed")
+        .map(item => item.id);
+
+      if (completedIds.length === 0) {
+        toast({
+          title: "Aucun item à nettoyer",
+          description: "Aucune génération terminée ou échouée à supprimer",
+        });
+        return;
+      }
+
+      // Delete completed/failed items
+      const { error } = await supabase
+        .from("generation_queue")
+        .delete()
+        .in("id", completedIds)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "File nettoyée",
+        description: `${completedIds.length} item(s) supprimé(s)`,
+      });
+
+      loadQueueItems();
+    } catch (error) {
+      console.error("Error clearing completed items:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de nettoyer la file",
+        variant: "destructive",
+      });
     }
   };
 
@@ -126,18 +199,35 @@ export const GenerationQueue = () => {
     return null;
   }
 
+  const completedCount = queueItems.filter(item => item.status === "completed" || item.status === "failed").length;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>File d'attente des générations</span>
-          <Badge variant="secondary">
-            {currentProcessing} / 10 en cours
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          Suivi en temps réel de vos générations d'images
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2">
+              <span>File d'attente des générations</span>
+              <Badge variant="secondary">
+                {currentProcessing} / 10 en cours
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              Suivi en temps réel de vos générations d'images
+            </CardDescription>
+          </div>
+          {completedCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearCompleted}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Vider terminés ({completedCount})
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {showAlert && (
@@ -157,7 +247,7 @@ export const GenerationQueue = () => {
               key={item.id}
               className="border rounded-lg p-4 space-y-2 hover:border-primary/50 transition-colors"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     {getStatusBadge(item.status)}
@@ -172,13 +262,31 @@ export const GenerationQueue = () => {
                     </p>
                   )}
                 </div>
-                {item.image_url && item.status === "completed" && (
-                  <img
-                    src={item.image_url}
-                    alt="Generated"
-                    className="w-16 h-16 rounded object-cover ml-3"
-                  />
-                )}
+                <div className="flex items-center gap-2">
+                  {item.image_url && item.status === "completed" && (
+                    <img
+                      src={item.image_url}
+                      alt="Generated"
+                      className="w-16 h-16 rounded object-cover"
+                    />
+                  )}
+                  {(item.status === "pending" || item.status === "processing") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCancelItem(item.id)}
+                      disabled={cancelingId === item.id}
+                      className="h-8 w-8 p-0"
+                      title="Annuler cette génération"
+                    >
+                      {cancelingId === item.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span>Créé: {new Date(item.created_at).toLocaleTimeString("fr-FR")}</span>
