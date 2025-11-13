@@ -462,7 +462,7 @@ const Generator = () => {
         });
       }
  
-      // Met à jour le compteur d'essais gratuits
+      // Met à jour le compteur d'essais gratuits (le serveur a déjà décrémenté et sauvegardé l'image)
       await loadUserGenerationStatus();
 
       if (!hasActiveSubscription && data.freeGenerationsRemaining !== undefined) {
@@ -1131,13 +1131,15 @@ const Generator = () => {
                     onClick={openTextPreview}
                     className="w-full text-lg py-6"
                     size="lg"
-                    disabled={isLoading || (!hasActiveSubscription && freeGenerationsRemaining === 0)}
+                    disabled={isLoading || (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0)}
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                         Génération en cours...
                       </>
+                    ) : (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0) ? (
+                      "Quota épuisé - Prenez un abonnement"
                     ) : (
                       <>
                         <Sparkles className="mr-2 h-5 w-5" />
