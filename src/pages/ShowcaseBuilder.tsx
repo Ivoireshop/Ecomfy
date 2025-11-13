@@ -39,10 +39,16 @@ export default function ShowcaseBuilder() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [aboutImageFile, setAboutImageFile] = useState<File | null>(null);
+  const [heroVideoFile, setHeroVideoFile] = useState<File | null>(null);
+  const [aboutVideoFile, setAboutVideoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
   const [aboutImagePreview, setAboutImagePreview] = useState<string | null>(null);
+  const [heroVideoPreview, setHeroVideoPreview] = useState<string | null>(null);
+  const [aboutVideoPreview, setAboutVideoPreview] = useState<string | null>(null);
   const [hasShowcaseAccess, setHasShowcaseAccess] = useState(false);
+  const [showcaseLimit, setShowcaseLimit] = useState<number>(0);
+  const [existingSitesCount, setExistingSitesCount] = useState<number>(0);
   
   useEffect(() => {
     checkShowcaseAccess();
@@ -56,23 +62,60 @@ export default function ShowcaseBuilder() {
         return;
       }
 
+      // Get profile data
       const { data: profileData } = await supabase
         .from("profiles")
         .select("has_showcase_access")
         .eq("id", user.id)
         .single();
 
+      // Get subscription data
       const { data: subData } = await supabase
         .from("subscriptions")
         .select("status")
         .eq("user_id", user.id)
         .single();
 
-      const hasAccess = subData?.status === "active" || profileData?.has_showcase_access === true;
+      // Get credit purchases to check if user bought 5000 FCFA pack
+      const { data: creditPurchases } = await supabase
+        .from("credit_purchases")
+        .select("pack_price")
+        .eq("user_id", user.id);
+
+      const hasBought5000Pack = creditPurchases?.some(purchase => purchase.pack_price >= 5000) || false;
+      const isProSubscriber = subData?.status === "active";
+      const hasAccess = isProSubscriber || profileData?.has_showcase_access === true || hasBought5000Pack;
+      
+      // Determine showcase limit
+      let limit = 0;
+      if (isProSubscriber) {
+        limit = 5; // Pro subscribers can create up to 5 showcase sites
+      } else if (hasBought5000Pack || profileData?.has_showcase_access) {
+        limit = 2; // 5000 FCFA pack buyers can create up to 2 showcase sites
+      }
+
+      // Count existing showcase sites
+      const { count } = await supabase
+        .from("showcase_sites")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      setExistingSitesCount(count || 0);
+      setShowcaseLimit(limit);
       
       if (!hasAccess) {
         toast.error("Accès restreint", { description: "L'abonnement ou le pack 50 crédits (5000 FCFA) est requis pour créer un site vitrine" });
         navigate("/subscription");
+        return;
+      }
+
+      // Check if user has reached their limit
+      if (count !== null && count >= limit) {
+        toast.error("Limite atteinte", { 
+          description: `Vous avez atteint votre limite de ${limit} site${limit > 1 ? 's' : ''} vitrine${limit > 1 ? 's' : ''}. ${isProSubscriber ? '' : 'Passez à l\'abonnement Pro pour créer jusqu\'à 5 sites vitrines.'}` 
+        });
+        navigate("/showcase-manager");
+        return;
       }
       
       setHasShowcaseAccess(hasAccess);
@@ -136,6 +179,48 @@ export default function ShowcaseBuilder() {
     }
   };
 
+  const uploadVideo = async (file: File, userId: string, siteId: string, type: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${siteId}/${type}-${Date.now()}.${fileExt}`;
+      
+      toast.info(`Upload de la vidéo ${type} en cours...`, { duration: 3000 });
+      
+      const { error: uploadError } = await supabase.storage
+        .from('showcase-videos')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error(`Erreur lors de l'upload de la vidéo ${type}`);
+        return null;
+      }
+
+      const { data } = supabase.storage
+        .from('showcase-videos')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      toast.error(`Erreur lors de l'upload de la vidéo`);
+      return null;
+    }
+  };
+
+  const handleVideoChange = (file: File | null, setFile: (file: File | null) => void, setPreview: (preview: string | null) => void) => {
+    setFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreview(null);
+    }
+  };
+
   const onSubmit = async (data: ShowcaseFormData) => {
     setIsGenerating(true);
     try {
@@ -188,7 +273,7 @@ export default function ShowcaseBuilder() {
       const finalSecondaryColor = useAITheme ? aiContent.secondary_color : themeColors?.secondary;
 
       // Create the showcase site with AI-generated content
-      const { error: insertError } = await supabase
+      const { data: newSite, error: insertError } = await supabase
         .from("showcase_sites")
         .insert({
           user_id: user.id,
@@ -215,7 +300,9 @@ export default function ShowcaseBuilder() {
           hero_image_url: heroImageUrl,
           about_image_url: aboutImageUrl,
           is_published: true,
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) {
         if (insertError.code === "23505") {
@@ -225,6 +312,32 @@ export default function ShowcaseBuilder() {
           toast.error("Erreur lors de la création du site vitrine");
         }
         return;
+      }
+
+      // Upload videos if provided
+      if (newSite && (heroVideoFile || aboutVideoFile)) {
+        const updateData: any = {};
+        
+        if (heroVideoFile) {
+          const heroVideoUrl = await uploadVideo(heroVideoFile, user.id, newSite.id, 'hero');
+          if (heroVideoUrl) {
+            updateData.hero_video_url = heroVideoUrl;
+          }
+        }
+        
+        if (aboutVideoFile) {
+          const aboutVideoUrl = await uploadVideo(aboutVideoFile, user.id, newSite.id, 'about');
+          if (aboutVideoUrl) {
+            updateData.about_video_url = aboutVideoUrl;
+          }
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await supabase
+            .from("showcase_sites")
+            .update(updateData)
+            .eq("id", newSite.id);
+        }
       }
 
       toast.success("Site vitrine créé avec succès !");
@@ -404,6 +517,70 @@ export default function ShowcaseBuilder() {
                       }}
                     />
                     <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG, WEBP (max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hero Video */}
+              <div className="space-y-2">
+                <Label>Vidéo Hero / Bannière (optionnel)</Label>
+                <div className="flex items-start gap-4">
+                  {heroVideoPreview && (
+                    <div className="relative">
+                      <video src={heroVideoPreview} className="w-32 h-20 object-cover rounded-lg border" controls />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => handleVideoChange(null, setHeroVideoFile, setHeroVideoPreview)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        handleVideoChange(file, setHeroVideoFile, setHeroVideoPreview);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Format: MP4, WEBM, MOV (max 50MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* About Video */}
+              <div className="space-y-2">
+                <Label>Vidéo À propos (optionnel)</Label>
+                <div className="flex items-start gap-4">
+                  {aboutVideoPreview && (
+                    <div className="relative">
+                      <video src={aboutVideoPreview} className="w-32 h-20 object-cover rounded-lg border" controls />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => handleVideoChange(null, setAboutVideoFile, setAboutVideoPreview)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        handleVideoChange(file, setAboutVideoFile, setAboutVideoPreview);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Format: MP4, WEBM, MOV (max 50MB)</p>
                   </div>
                 </div>
               </div>
