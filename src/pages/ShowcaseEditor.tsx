@@ -23,6 +23,7 @@ import { AIImageGenerator } from "@/components/AIImageGenerator";
 import { SEOEditor } from "@/components/SEOEditor";
 import { AnalyticsViewer } from "@/components/AnalyticsViewer";
 import { GalleryManager } from "@/components/GalleryManager";
+import { VideoGalleryManager } from "@/components/VideoGalleryManager";
 import { ContactSubmissionsViewer } from "@/components/ContactSubmissionsViewer";
 import { ShowcaseVersionHistory } from "@/components/ShowcaseVersionHistory";
 import { VideoUploader } from "@/components/VideoUploader";
@@ -1437,16 +1438,9 @@ export default function ShowcaseEditor() {
 
           <TabsContent value="galleries">
             <div className="max-w-6xl mx-auto space-y-6">
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Save className="h-4 w-4" />
-                    <p>Les images et vidéos sont sauvegardées automatiquement après chaque ajout. Utilisez le bouton "Sauvegarder" pour enregistrer les modifications de légendes et d'ordre.</p>
-                  </div>
-                </CardContent>
-              </Card>
-              
               {id && <GalleryManager showcaseId={id} />}
+              
+              {id && <VideoGalleryManager showcaseId={id} />}
               
               <div className="grid md:grid-cols-2 gap-6 mt-6">
                 <VideoUploader
