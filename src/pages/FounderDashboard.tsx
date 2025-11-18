@@ -141,6 +141,49 @@ const FounderDashboard = () => {
     return () => authSubscription.unsubscribe();
   }, [navigate]);
 
+  // Realtime updates pour abonnements et paiements
+  useEffect(() => {
+    if (!session) return;
+
+    const subscriptionsChannel = supabase
+      .channel('subscriptions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions'
+        },
+        () => {
+          // Recharger les stats quand un abonnement change
+          loadUserStats();
+        }
+      )
+      .subscribe();
+
+    const paymentsChannel = supabase
+      .channel('payments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payments'
+        },
+        () => {
+          // Recharger les revenus et paiements récents
+          loadRevenueStats();
+          loadRecentPayments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscriptionsChannel);
+      supabase.removeChannel(paymentsChannel);
+    };
+  }, [session]);
+
   const checkFounderRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
