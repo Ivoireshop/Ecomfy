@@ -629,12 +629,57 @@ export type Database = {
           },
         ]
       }
+      showcase_gallery_videos: {
+        Row: {
+          created_at: string | null
+          id: string
+          section_title: string | null
+          section_type: string
+          showcase_site_id: string
+          updated_at: string | null
+          video_caption: string | null
+          video_order: number | null
+          video_url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          section_title?: string | null
+          section_type: string
+          showcase_site_id: string
+          updated_at?: string | null
+          video_caption?: string | null
+          video_order?: number | null
+          video_url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          section_title?: string | null
+          section_type?: string
+          showcase_site_id?: string
+          updated_at?: string | null
+          video_caption?: string | null
+          video_order?: number | null
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_gallery_videos_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       showcase_sites: {
         Row: {
           about_description: string | null
           about_image_url: string | null
           about_layout: string | null
           about_title: string | null
+          about_video_url: string | null
           business_description: string | null
           business_name: string
           created_at: string
@@ -653,6 +698,7 @@ export type Database = {
           hero_image_url: string | null
           hero_subtitle: string | null
           hero_title: string | null
+          hero_video_url: string | null
           id: string
           is_published: boolean
           logo_url: string | null
@@ -680,6 +726,7 @@ export type Database = {
           about_image_url?: string | null
           about_layout?: string | null
           about_title?: string | null
+          about_video_url?: string | null
           business_description?: string | null
           business_name: string
           created_at?: string
@@ -698,6 +745,7 @@ export type Database = {
           hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
+          hero_video_url?: string | null
           id?: string
           is_published?: boolean
           logo_url?: string | null
@@ -725,6 +773,7 @@ export type Database = {
           about_image_url?: string | null
           about_layout?: string | null
           about_title?: string | null
+          about_video_url?: string | null
           business_description?: string | null
           business_name?: string
           created_at?: string
@@ -743,6 +792,7 @@ export type Database = {
           hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
+          hero_video_url?: string | null
           id?: string
           is_published?: boolean
           logo_url?: string | null
