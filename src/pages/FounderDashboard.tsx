@@ -217,13 +217,14 @@ const FounderDashboard = () => {
       if (usersError) throw usersError;
       const totalUsers = allProfiles?.length || 0;
 
-      // Count active subscriptions
-      const { count: activeSubscriptions, error: subsError } = await supabase
+      // Count active subscriptions - en temps réel
+      const { data: activeSubs, error: subsError } = await supabase
         .from("subscriptions")
-        .select("*", { count: "exact", head: true })
+        .select("*")
         .eq("status", "active");
 
       if (subsError) throw subsError;
+      const activeSubscriptions = activeSubs?.length || 0;
 
       // Calculate free generations used (3 - remaining)
       const { data: profilesData, error: profilesError } = await supabase
@@ -239,7 +240,7 @@ const FounderDashboard = () => {
       setStats(prev => ({
         ...prev,
         totalUsers,
-        activeSubscriptions: activeSubscriptions || 0,
+        activeSubscriptions,
         freeGenerationsUsed,
       }));
     } catch (error) {
