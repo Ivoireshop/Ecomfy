@@ -11,7 +11,6 @@ import {
   Globe, 
   CreditCard, 
   Users, 
-  ArrowLeft,
   PlayCircle,
   CheckCircle2
 } from "lucide-react";
@@ -113,19 +112,9 @@ const Demo = () => {
       {/* Header */}
       <div className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour
-            </Button>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Démonstrations Vidéo
-            </h1>
-          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Démonstrations Vidéo
+          </h1>
         </div>
       </div>
 

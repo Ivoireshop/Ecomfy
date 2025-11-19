@@ -366,15 +366,6 @@ export default function ShowcaseView() {
                     {item.label}
                   </button>
                 ))}
-                <Button 
-                  onClick={handleWhatsAppClick}
-                  className="gap-2"
-                  size="sm"
-                  style={{ backgroundColor: site.primary_color || '#D4AF37', color: '#ffffff' }}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  WhatsApp
-                </Button>
               </div>
 
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -409,19 +400,6 @@ export default function ShowcaseView() {
                         {item.label}
                       </button>
                     ))}
-                    <div className="pt-4 border-t">
-                      <Button 
-                        onClick={() => {
-                          handleWhatsAppClick();
-                          setMobileMenuOpen(false);
-                        }}
-                        className="w-full gap-2"
-                        style={{ backgroundColor: site.primary_color || '#D4AF37', color: '#ffffff' }}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        WhatsApp
-                      </Button>
-                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
@@ -501,6 +479,20 @@ export default function ShowcaseView() {
             secondaryColor: site.secondary_color || '#10B981',
           }}
         />
+
+        {/* Bouton WhatsApp fixe en bas à gauche */}
+        <Button
+          onClick={handleWhatsAppClick}
+          className="fixed bottom-6 left-6 z-40 shadow-2xl hover-scale"
+          size="lg"
+          style={{ 
+            backgroundColor: site.primary_color || '#D4AF37', 
+            color: '#ffffff',
+          }}
+        >
+          <MessageCircle className="h-5 w-5 mr-2" />
+          WhatsApp
+        </Button>
       </div>
     </>
   );

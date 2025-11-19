@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Copy, CheckCircle2, XCircle, ArrowLeft, Percent, Users, Calendar } from "lucide-react";
+import { Loader2, Plus, Copy, CheckCircle2, XCircle, Percent, Users, Calendar } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 
 interface PromoCode {
@@ -235,10 +235,6 @@ const PromoCodeManager = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour
-          </Button>
         </div>
       </header>
 

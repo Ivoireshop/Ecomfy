@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeft, CreditCard, Smartphone, Receipt, Download } from "lucide-react";
+import { Loader2, CreditCard, Smartphone, Receipt, Download } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 
 interface Payment {
@@ -178,10 +178,6 @@ const PaymentHistory = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour
-          </Button>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Historique des paiements
           </h1>
