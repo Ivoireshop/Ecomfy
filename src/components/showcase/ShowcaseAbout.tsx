@@ -2,7 +2,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { User, Target, Award, MessageCircle, Heart } from "lucide-react";
-import { useState, useEffect } from "react";
 
 interface ShowcaseAboutProps {
   site: any;
@@ -11,14 +10,8 @@ interface ShowcaseAboutProps {
 }
 
 export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAboutProps) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
   return (
-    <div className={`min-h-screen py-20 px-4 transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className="min-h-screen py-20 px-4 animate-fade-in">
       <div className="container mx-auto">
         {/* Header */}
         <div className="text-center mb-16 animate-fade-in">
