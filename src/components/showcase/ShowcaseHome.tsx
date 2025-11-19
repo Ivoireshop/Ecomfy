@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle, ArrowRight, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useEffect, useState, useCallback } from "react";
+import Particles, { initParticlesEngine } from "@tsparticles/react";
+import { loadSlim } from "@tsparticles/slim";
+import type { Engine } from "@tsparticles/engine";
 
 interface ShowcaseHomeProps {
   site: any;
@@ -9,6 +13,26 @@ interface ShowcaseHomeProps {
 }
 
 export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeProps) => {
+  const [scrollY, setScrollY] = useState(0);
+  const [init, setInit] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine);
+    }).then(() => {
+      setInit(true);
+    });
+  }, []);
+
   const heroStyles = {
     background: site.theme_mode === 'dark' 
       ? `linear-gradient(135deg, ${site.primary_color}20, ${site.secondary_color}20)`
@@ -20,12 +44,93 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section avec animation améliorée */}
+      {/* Hero Section avec animation améliorée et parallax */}
       <section 
         className="relative min-h-[90vh] flex items-center justify-center overflow-hidden animate-fade-in"
         style={heroStyles}
       >
-        <div className="absolute inset-0 overflow-hidden">
+        {/* Particles Effect */}
+        {init && (
+          <Particles
+            id="tsparticles"
+            className="absolute inset-0 z-0"
+            options={{
+              background: {
+                color: {
+                  value: "transparent",
+                },
+              },
+              fpsLimit: 120,
+              interactivity: {
+                events: {
+                  onClick: {
+                    enable: true,
+                    mode: "push",
+                  },
+                  onHover: {
+                    enable: true,
+                    mode: "repulse",
+                  },
+                  resize: {
+                    enable: true,
+                    delay: 0.5,
+                  },
+                },
+                modes: {
+                  push: {
+                    quantity: 4,
+                  },
+                  repulse: {
+                    distance: 100,
+                    duration: 0.4,
+                  },
+                },
+              },
+              particles: {
+                color: {
+                  value: site.primary_color || '#D4AF37',
+                },
+                links: {
+                  color: site.primary_color || '#D4AF37',
+                  distance: 150,
+                  enable: true,
+                  opacity: 0.3,
+                  width: 1,
+                },
+                move: {
+                  direction: "none",
+                  enable: true,
+                  outModes: {
+                    default: "bounce",
+                  },
+                  random: false,
+                  speed: 1,
+                  straight: false,
+                },
+                number: {
+                  density: {
+                    enable: true,
+                    width: 800,
+                    height: 800,
+                  },
+                  value: 80,
+                },
+                opacity: {
+                  value: 0.5,
+                },
+                shape: {
+                  type: "circle",
+                },
+                size: {
+                  value: { min: 1, max: 3 },
+                },
+              },
+              detectRetina: true,
+            }}
+          />
+        )}
+
+        <div className="absolute inset-0 overflow-hidden z-[1]">
           {site.hero_video_url ? (
             <video
               src={site.hero_video_url}
@@ -34,17 +139,22 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
               muted
               playsInline
               className="absolute w-full h-full object-cover opacity-30"
+              style={{ transform: `translateY(${scrollY * 0.5}px)` }}
             />
           ) : site.hero_image_url ? (
             <img
               src={site.hero_image_url}
               alt="Hero"
               className="absolute w-full h-full object-cover opacity-30"
+              style={{ transform: `translateY(${scrollY * 0.5}px)` }}
             />
           ) : null}
         </div>
         
-        <div className="container mx-auto px-4 sm:px-6 relative z-10">
+        <div 
+          className="container mx-auto px-4 sm:px-6 relative z-10"
+          style={{ transform: `translateY(${scrollY * -0.2}px)` }}
+        >
           <div className="max-w-4xl mx-auto text-center">
             {site.logo_url && (
               <div className="mb-6 sm:mb-8 animate-fade-in">
