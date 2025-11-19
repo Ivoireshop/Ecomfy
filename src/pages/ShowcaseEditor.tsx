@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, ArrowLeft, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock, History } from "lucide-react";
+import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock, History } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -661,15 +661,7 @@ export default function ShowcaseEditor() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/showcase-manager")}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour
-          </Button>
-
+        <div className="mb-6">
           {/* Auto-save indicator */}
           <div className="flex items-center gap-2">
             {isAutoSaving ? (

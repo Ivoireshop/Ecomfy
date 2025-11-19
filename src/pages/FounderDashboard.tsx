@@ -11,7 +11,6 @@ import {
   Ticket, 
   TrendingUp, 
   DollarSign, 
-  ArrowLeft,
   Calendar,
   CheckCircle2,
   XCircle
@@ -539,17 +538,11 @@ const FounderDashboard = () => {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Tableau de Bord Fondateurs</h1>
-            <p className="text-muted-foreground">
-              Statistiques et performance de VisualPro
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => navigate("/generator")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">Tableau de Bord Fondateurs</h1>
+          <p className="text-muted-foreground">
+            Statistiques et performance de VisualPro
+          </p>
         </div>
 
         {/* Key Metrics */}

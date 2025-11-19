@@ -40,8 +40,20 @@ export function ShowcaseAIChat({ siteContext, theme }: ShowcaseAIChatProps) {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-open on first visit
+  useEffect(() => {
+    if (!hasAutoOpened) {
+      const timer = setTimeout(() => {
+        setIsOpen(true);
+        setHasAutoOpened(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasAutoOpened]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
