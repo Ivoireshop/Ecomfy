@@ -20,7 +20,7 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section avec animation */}
+      {/* Hero Section avec animation améliorée */}
       <section 
         className="relative min-h-[90vh] flex items-center justify-center overflow-hidden animate-fade-in"
         style={heroStyles}
@@ -44,20 +44,20 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
           ) : null}
         </div>
         
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             {site.logo_url && (
-              <div className="mb-8 animate-fade-in">
+              <div className="mb-6 sm:mb-8 animate-fade-in">
                 <img 
                   src={site.logo_url} 
                   alt={site.business_name}
-                  className="h-24 w-auto mx-auto"
+                  className="h-16 sm:h-20 md:h-24 w-auto mx-auto"
                 />
               </div>
             )}
             
             <h1 
-              className="text-4xl md:text-6xl font-bold mb-6 animate-fade-in"
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 animate-fade-in leading-tight px-2"
               style={{ 
                 color: site.text_color || '#000000',
                 animationDelay: '0.2s',
@@ -68,7 +68,7 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
             </h1>
             
             <p 
-              className="text-xl md:text-2xl mb-8 opacity-90 animate-fade-in"
+              className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 opacity-90 animate-fade-in leading-relaxed px-4"
               style={{ 
                 color: site.text_color || '#000000',
                 animationDelay: '0.4s',
@@ -78,17 +78,17 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
               {site.hero_subtitle || site.business_description}
             </p>
             
-            <div className="flex flex-wrap gap-4 justify-center animate-fade-in" style={{ animationDelay: '0.6s', animationFillMode: 'backwards' }}>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-stretch sm:items-center animate-fade-in px-4" style={{ animationDelay: '0.6s', animationFillMode: 'backwards' }}>
               <Button
                 size="lg"
                 onClick={onContactClick}
-                className="hover-scale"
+                className="hover-scale text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto"
                 style={{ 
                   backgroundColor: site.primary_color || '#D4AF37',
                   color: '#ffffff'
                 }}
               >
-                <MessageCircle className="mr-2 h-5 w-5" />
+                <MessageCircle className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                 Contactez-nous
               </Button>
               
@@ -97,14 +97,14 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                   size="lg"
                   variant="outline"
                   onClick={() => onNavigate('about')}
-                  className="hover-scale"
+                  className="hover-scale text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto"
                   style={{ 
                     borderColor: site.primary_color || '#D4AF37',
                     color: site.text_color || '#000000'
                   }}
                 >
                   En savoir plus
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               )}
             </div>
@@ -114,27 +114,27 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
 
       {/* Features Section avec scroll animations */}
       {features.length > 0 && (
-        <section className="py-20 px-4">
+        <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6">
           <div className="container mx-auto">
             <h2 
-              className="text-3xl md:text-4xl font-bold text-center mb-12 scroll-fade-in"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-8 sm:mb-12 scroll-fade-in px-2"
               style={{ color: site.text_color || '#000000' }}
             >
               Nos Services
             </h2>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               {features.map((feature: any, index: number) => (
                 <Card 
                   key={index}
-                  className="scroll-fade-in hover-scale overflow-hidden group cursor-pointer"
+                  className="scroll-fade-in hover-scale overflow-hidden group cursor-pointer shadow-lg"
                   style={{ 
                     animationDelay: `${index * 0.1}s`,
                     animationFillMode: 'backwards'
                   }}
                 >
                   {feature.image_url && (
-                    <div className="relative overflow-hidden h-48">
+                    <div className="relative overflow-hidden h-40 sm:h-48">
                       <img 
                         src={feature.image_url}
                         alt={feature.title}
@@ -146,15 +146,15 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                       />
                     </div>
                   )}
-                  <div className="p-6">
+                  <div className="p-4 sm:p-6">
                     <h3 
-                      className="text-xl font-semibold mb-3 flex items-center gap-2"
+                      className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3 flex items-center gap-2 leading-tight"
                       style={{ color: site.primary_color || '#D4AF37' }}
                     >
-                      <Sparkles className="h-5 w-5" />
-                      {feature.title}
+                      <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                      <span>{feature.title}</span>
                     </h3>
-                    <p style={{ color: site.text_color || '#000000' }}>
+                    <p className="text-sm sm:text-base leading-relaxed" style={{ color: site.text_color || '#000000' }}>
                       {feature.description}
                     </p>
                   </div>
@@ -168,20 +168,20 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
       {/* CTA Section */}
       {site.cta_title && (
         <section 
-          className="py-20 px-4 scroll-fade-in"
+          className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 scroll-fade-in"
           style={{ 
             background: `linear-gradient(135deg, ${site.primary_color}15, ${site.secondary_color}15)`
           }}
         >
           <div className="container mx-auto text-center">
             <h2 
-              className="text-3xl md:text-4xl font-bold mb-6"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 leading-tight px-2"
               style={{ color: site.text_color || '#000000' }}
             >
               {site.cta_title}
             </h2>
             <p 
-              className="text-xl mb-8 max-w-2xl mx-auto"
+              className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-4"
               style={{ color: site.text_color || '#000000' }}
             >
               {site.cta_description}
@@ -189,13 +189,13 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
             <Button
               size="lg"
               onClick={onContactClick}
-              className="hover-scale"
+              className="hover-scale text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto max-w-md mx-auto"
               style={{ 
                 backgroundColor: site.primary_color || '#D4AF37',
                 color: '#ffffff'
               }}
             >
-              <MessageCircle className="mr-2 h-5 w-5" />
+              <MessageCircle className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
               Contactez-nous maintenant
             </Button>
           </div>

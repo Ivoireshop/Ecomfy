@@ -108,6 +108,9 @@ export default function ShowcaseEditor() {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [subdomain, setSubdomain] = useState<string>("");
   const [previewTemplate, setPreviewTemplate] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState<string>("#2563eb");
+  const [secondaryColor, setSecondaryColor] = useState<string>("#7c3aed");
+  const [baseFontSize, setBaseFontSize] = useState<number>(16);
   
   // SEO states
   const [seoTitle, setSeoTitle] = useState("");
@@ -1145,6 +1148,117 @@ export default function ShowcaseEditor() {
                   </div>
                 ))}
               </RadioGroup>
+              
+              {/* Custom Color Pickers */}
+              <div className="mt-6 space-y-4 pt-6 border-t">
+                <h4 className="font-semibold text-sm">Personnalisation des couleurs</h4>
+                
+                <div>
+                  <Label htmlFor="primaryColor">Couleur primaire</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <Input
+                      id="primaryColor"
+                      type="color"
+                      value={primaryColor}
+                      onChange={(e) => {
+                        setPrimaryColor(e.target.value);
+                        const selectedTheme = themes.find(t => t.value === watch("theme"));
+                        if (selectedTheme) {
+                          selectedTheme.colors.primary = e.target.value;
+                        }
+                      }}
+                      className="w-20 h-10"
+                    />
+                    <Input
+                      type="text"
+                      value={primaryColor}
+                      onChange={(e) => {
+                        setPrimaryColor(e.target.value);
+                        const selectedTheme = themes.find(t => t.value === watch("theme"));
+                        if (selectedTheme) {
+                          selectedTheme.colors.primary = e.target.value;
+                        }
+                      }}
+                      placeholder="#2563eb"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Couleur principale utilisée pour les boutons et accents
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="secondaryColor">Couleur secondaire</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <Input
+                      id="secondaryColor"
+                      type="color"
+                      value={secondaryColor}
+                      onChange={(e) => {
+                        setSecondaryColor(e.target.value);
+                        const selectedTheme = themes.find(t => t.value === watch("theme"));
+                        if (selectedTheme) {
+                          selectedTheme.colors.secondary = e.target.value;
+                        }
+                      }}
+                      className="w-20 h-10"
+                    />
+                    <Input
+                      type="text"
+                      value={secondaryColor}
+                      onChange={(e) => {
+                        setSecondaryColor(e.target.value);
+                        const selectedTheme = themes.find(t => t.value === watch("theme"));
+                        if (selectedTheme) {
+                          selectedTheme.colors.secondary = e.target.value;
+                        }
+                      }}
+                      placeholder="#7c3aed"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Couleur complémentaire pour les dégradés et variations
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Font Size Control */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Taille de police</CardTitle>
+              <CardDescription>
+                Ajustez la taille globale du texte sur votre site
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <Label htmlFor="baseFontSize">Taille de base</Label>
+                  <span className="text-sm text-muted-foreground">{baseFontSize}px</span>
+                </div>
+                <input
+                  type="range"
+                  id="baseFontSize"
+                  min="12"
+                  max="20"
+                  step="1"
+                  value={baseFontSize}
+                  onChange={(e) => setBaseFontSize(Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>Petit (12px)</span>
+                  <span>Moyen (16px)</span>
+                  <span>Grand (20px)</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Cette taille affecte tous les textes du site proportionnellement
+                </p>
+              </div>
             </CardContent>
           </Card>
 
