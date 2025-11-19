@@ -81,6 +81,10 @@ const Generator = () => {
   // Price display option
   const [showPrice, setShowPrice] = useState(true);
 
+  // Correction post-génération
+  const [correctionText, setCorrectionText] = useState("");
+  const [isCorrectingAndRegenerating, setIsCorrectingAndRegenerating] = useState(false);
+
   // Voix africaines (ElevenLabs)
   const voices = [
     { value: "Alice", label: "Alice (Féminine - Accent Africain)" },
@@ -338,6 +342,134 @@ const Generator = () => {
     });
 
     setShowTextPreview(true);
+  };
+
+  const handleCorrectAndRegenerate = async () => {
+    if (!correctionText.trim()) {
+      toast({
+        title: "Champ vide",
+        description: "Veuillez indiquer les corrections à apporter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCorrectingAndRegenerating(true);
+
+    try {
+      // 1. Construire le texte original complet
+      const originalText = `
+Nom du produit: ${previewTexts.productName}
+Description: ${description}
+Bénéfices: ${previewTexts.benefits || benefits}
+${showPrice && previewTexts.price ? `Prix: ${previewTexts.price}` : ''}
+${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewTexts.promotionalPrice}` : ''}
+      `.trim();
+
+      // 2. Envoyer à l'Edge Function pour correction
+      const { data, error } = await supabase.functions.invoke("correct-text", {
+        body: { 
+          text: `${originalText}\n\nCorrections demandées: ${correctionText}`
+        },
+      });
+
+      if (error) throw error;
+
+      if (!data?.correctedText) {
+        throw new Error("Aucune correction générée");
+      }
+
+      // 3. Extraire les données corrigées du texte
+      const correctedLines = data.correctedText.split('\n');
+      let correctedProductName = previewTexts.productName;
+      let correctedBenefits = previewTexts.benefits || benefits;
+      let correctedPrice = previewTexts.price;
+      let correctedPromotionalPrice = previewTexts.promotionalPrice;
+
+      correctedLines.forEach((line: string) => {
+        if (line.startsWith('Nom du produit:')) {
+          correctedProductName = line.replace('Nom du produit:', '').trim();
+        } else if (line.startsWith('Bénéfices:')) {
+          correctedBenefits = line.replace('Bénéfices:', '').trim();
+        } else if (line.startsWith('Prix:') && !line.includes('promotionnel')) {
+          correctedPrice = line.replace('Prix:', '').trim();
+        } else if (line.startsWith('Prix promotionnel:')) {
+          correctedPromotionalPrice = line.replace('Prix promotionnel:', '').trim();
+        }
+      });
+
+      // 4. Mettre à jour les textes avec les versions corrigées
+      setPreviewTexts(prev => ({
+        ...prev,
+        productName: correctedProductName,
+        benefits: correctedBenefits,
+        price: correctedPrice,
+        promotionalPrice: correctedPromotionalPrice,
+      }));
+
+      // 5. Régénérer l'image avec les textes corrigés
+      setIsLoading(true);
+      setGeneratedImage(null);
+
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 90000)
+      );
+
+      const invokePromise = supabase.functions.invoke("generate-ad-visual", {
+        body: {
+          productName: correctedProductName,
+          niche,
+          description,
+          benefits: correctedBenefits,
+          container,
+          platform,
+          style,
+          price: correctedPrice,
+          promotionalPrice: correctedPromotionalPrice,
+          posology,
+          productImage,
+          personDescription,
+          template: selectedTemplate,
+        },
+      });
+
+      const response = await Promise.race([invokePromise, timeout]);
+
+      if (response.error) throw response.error;
+      if (response.data?.error) throw new Error(response.data.error);
+
+      setGeneratedImage(response.data.imageUrl);
+      
+      // Mettre à jour les générations restantes
+      const { data: updatedProfile } = await supabase
+        .from("profiles")
+        .select("free_generations_remaining, purchased_credits")
+        .single();
+      
+      if (updatedProfile) {
+        setFreeGenerationsRemaining(updatedProfile.free_generations_remaining);
+        setPurchasedCredits(updatedProfile.purchased_credits || 0);
+      }
+
+      toast({
+        title: "Image corrigée et régénérée !",
+        description: "Votre nouveau visuel a été généré avec les corrections",
+      });
+
+      // Réinitialiser le champ de correction
+      setCorrectionText("");
+
+    } catch (error: any) {
+      console.error("Erreur correction et régénération:", error);
+      toast({
+        title: "Erreur",
+        description: error?.message || "Une erreur est survenue lors de la correction",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCorrectingAndRegenerating(false);
+      setIsLoading(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -1272,6 +1404,47 @@ const Generator = () => {
                     className="w-full h-auto"
                   />
                 </div>
+
+                {/* Section correction post-génération */}
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Corriger et régénérer</CardTitle>
+                    <CardDescription>
+                      Indiquez les mots ou phrases à corriger dans l'image, puis cliquez sur "Corriger et régénérer"
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="correction-input">Écrivez ici les mots ou phrases à corriger</Label>
+                      <Textarea
+                        id="correction-input"
+                        placeholder="Ex: Changer 'Santé' par 'Santée', corriger 'bienfais' en 'bienfaits'..."
+                        value={correctionText}
+                        onChange={(e) => setCorrectionText(e.target.value)}
+                        className="min-h-[100px] mt-2"
+                        disabled={isCorrectingAndRegenerating}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleCorrectAndRegenerate}
+                      disabled={isCorrectingAndRegenerating || !correctionText.trim()}
+                      className="w-full"
+                    >
+                      {isCorrectingAndRegenerating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Correction et régénération en cours...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Corriger et régénérer l'image
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+
                 <div className="mt-4 flex flex-col gap-2">
                   <div className="flex gap-2">
                     <Button
