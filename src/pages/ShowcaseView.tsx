@@ -81,6 +81,8 @@ interface ShowcaseSite {
   seo_description: string | null;
   seo_keywords: string[] | null;
   og_image_url: string | null;
+  hero_title_size: number | null;
+  hero_title_color: string | null;
 }
 
 interface GalleryImage {

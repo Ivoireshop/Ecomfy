@@ -111,6 +111,8 @@ export default function ShowcaseEditor() {
   const [primaryColor, setPrimaryColor] = useState<string>("#2563eb");
   const [secondaryColor, setSecondaryColor] = useState<string>("#7c3aed");
   const [baseFontSize, setBaseFontSize] = useState<number>(16);
+  const [heroTitleSize, setHeroTitleSize] = useState<number>(48);
+  const [heroTitleColor, setHeroTitleColor] = useState<string>("#000000");
   
   // SEO states
   const [seoTitle, setSeoTitle] = useState("");
@@ -249,6 +251,12 @@ export default function ShowcaseEditor() {
       setSeoDescription(data.seo_description || "");
       setSeoKeywords((data.seo_keywords as string[]) || []);
       setOgImageUrl(data.og_image_url || "");
+      
+      // Set custom colors and sizes
+      setPrimaryColor(data.primary_color || "#2563eb");
+      setSecondaryColor(data.secondary_color || "#7c3aed");
+      setHeroTitleSize((data as any).hero_title_size || 48);
+      setHeroTitleColor((data as any).hero_title_color || "#000000");
 
       // Load testimonials
       const { data: testimonialsData } = await supabase
@@ -388,8 +396,8 @@ export default function ShowcaseEditor() {
         formation_description: currentValues.formationDescription,
         formation_price: currentValues.formationPrice,
         theme: currentValues.theme,
-        primary_color: themeColors?.primary,
-        secondary_color: themeColors?.secondary,
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
         text_color: currentValues.textColor,
         about_layout: currentValues.aboutLayout,
         gallery_text_position: currentValues.galleryTextPosition,
@@ -405,6 +413,8 @@ export default function ShowcaseEditor() {
         seo_description: seoDescription,
         seo_keywords: seoKeywords,
         og_image_url: ogImageUrl,
+        hero_title_size: heroTitleSize,
+        hero_title_color: heroTitleColor,
       };
 
       const { error: updateError } = await supabase
@@ -867,7 +877,48 @@ export default function ShowcaseEditor() {
                   id="heroTitle"
                   {...register("heroTitle")}
                   placeholder="Ex: Votre succès commence ici"
+                  maxLength={100}
                 />
+                <p className="text-xs text-muted-foreground mt-1">Maximum 100 caractères</p>
+              </div>
+
+              {/* Hero Title Customization */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="heroTitleSize" className="text-sm">Taille du titre</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <input
+                      type="range"
+                      id="heroTitleSize"
+                      min="24"
+                      max="80"
+                      step="2"
+                      value={heroTitleSize}
+                      onChange={(e) => setHeroTitleSize(Number(e.target.value))}
+                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-sm font-medium w-12 text-right">{heroTitleSize}px</span>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="heroTitleColor" className="text-sm">Couleur du titre</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <Input
+                      id="heroTitleColor"
+                      type="color"
+                      value={heroTitleColor}
+                      onChange={(e) => setHeroTitleColor(e.target.value)}
+                      className="w-16 h-10"
+                    />
+                    <Input
+                      type="text"
+                      value={heroTitleColor}
+                      onChange={(e) => setHeroTitleColor(e.target.value)}
+                      placeholder="#000000"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -877,7 +928,9 @@ export default function ShowcaseEditor() {
                   {...register("heroSubtitle")}
                   placeholder="Ex: Des formations de qualité pour développer vos compétences"
                   rows={3}
+                  maxLength={200}
                 />
+                <p className="text-xs text-muted-foreground mt-1">Maximum 200 caractères</p>
               </div>
 
               <div>
@@ -896,7 +949,9 @@ export default function ShowcaseEditor() {
                   {...register("aboutDescription")}
                   placeholder="Décrivez votre activité en détail..."
                   rows={6}
+                  maxLength={800}
                 />
+                <p className="text-xs text-muted-foreground mt-1">Maximum 800 caractères</p>
               </div>
 
               <div>
@@ -946,10 +1001,12 @@ export default function ShowcaseEditor() {
                   id="ownerName"
                   {...register("ownerName")}
                   placeholder="Ex: Jean Kouassi"
+                  maxLength={50}
                 />
                 {errors.ownerName && (
                   <p className="text-sm text-destructive mt-1">{errors.ownerName.message}</p>
                 )}
+                <p className="text-xs text-muted-foreground mt-1">Maximum 50 caractères</p>
               </div>
             </CardContent>
           </Card>

@@ -165,7 +165,7 @@ export function ShowcaseAIChat({ siteContext, theme }: ShowcaseAIChatProps) {
 
       {/* Chat Window */}
       {isOpen && (
-        <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col">
+        <Card className="fixed bottom-6 right-6 w-[90vw] sm:w-96 h-[70vh] sm:h-[600px] max-h-[600px] shadow-2xl z-50 flex flex-col">
           <CardHeader className="border-b flex flex-row items-center justify-between py-4">
             <div className="flex items-center gap-2">
               <div
