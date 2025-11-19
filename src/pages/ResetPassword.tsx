@@ -71,8 +71,8 @@ const ResetPassword = () => {
       if (error) throw error;
 
       toast({
-        title: "Email envoyé !",
-        description: "Un lien de réinitialisation a été envoyé à votre adresse email. Veuillez vérifier votre boîte de réception.",
+        title: "Email envoyé ! 📧",
+        description: "Un email contenant un lien de réinitialisation vous a été envoyé. Cliquez sur ce lien pour créer un nouveau mot de passe.",
       });
 
       setEmail("");
