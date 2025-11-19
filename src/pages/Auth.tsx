@@ -39,7 +39,7 @@ const Auth = () => {
     }
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session) {
         // Check if coming from email confirmation
@@ -47,10 +47,44 @@ const Auth = () => {
         const isEmailConfirmed = urlParams.get('type') === 'signup';
         
         if (isEmailConfirmed) {
-          toast({
-            title: "Félicitations ! 🎉",
-            description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
-          });
+          // Process referral code if stored in localStorage
+          const referralKey = `referral_${session.user.email}`;
+          const storedReferralCode = localStorage.getItem(referralKey);
+          
+          if (storedReferralCode) {
+            try {
+              const { data: refResult, error: refError } = await supabase.rpc('process_referral_signup', {
+                referred_user_id: session.user.id,
+                referral_code_input: storedReferralCode
+              });
+
+              if (!refError && refResult) {
+                toast({
+                  title: "Félicitations ! 🎉",
+                  description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) ! Bienvenue sur VisualPro !",
+                });
+              } else {
+                toast({
+                  title: "Félicitations ! 🎉",
+                  description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+                });
+              }
+              
+              // Clean up localStorage
+              localStorage.removeItem(referralKey);
+            } catch (error) {
+              console.error("Erreur lors du traitement du parrainage:", error);
+              toast({
+                title: "Félicitations ! 🎉",
+                description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+              });
+            }
+          } else {
+            toast({
+              title: "Félicitations ! 🎉",
+              description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+            });
+          }
         }
         
         navigate("/generator");
@@ -59,7 +93,7 @@ const Auth = () => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         if (session) {
           // Show welcome message for new sign ups
@@ -68,10 +102,46 @@ const Auth = () => {
             const isEmailConfirmed = urlParams.get('type') === 'signup';
             
             if (isEmailConfirmed) {
-              toast({
-                title: "Félicitations ! 🎉",
-                description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
-              });
+              // Process referral code if stored in localStorage
+              const referralKey = `referral_${session.user.email}`;
+              const storedReferralCode = localStorage.getItem(referralKey);
+              
+              if (storedReferralCode) {
+                setTimeout(async () => {
+                  try {
+                    const { data: refResult, error: refError } = await supabase.rpc('process_referral_signup', {
+                      referred_user_id: session.user.id,
+                      referral_code_input: storedReferralCode
+                    });
+
+                    if (!refError && refResult) {
+                      toast({
+                        title: "Félicitations ! 🎉",
+                        description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites ! Bienvenue sur VisualPro !",
+                      });
+                    } else {
+                      toast({
+                        title: "Félicitations ! 🎉",
+                        description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+                      });
+                    }
+                    
+                    // Clean up localStorage
+                    localStorage.removeItem(referralKey);
+                  } catch (error) {
+                    console.error("Erreur lors du traitement du parrainage:", error);
+                    toast({
+                      title: "Félicitations ! 🎉",
+                      description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+                    });
+                  }
+                }, 0);
+              } else {
+                toast({
+                  title: "Félicitations ! 🎉",
+                  description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+                });
+              }
             }
           }
           navigate("/generator");
@@ -129,6 +199,11 @@ const Auth = () => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
+      // Store referral code in localStorage if provided
+      if (referralCode && referralCode.trim()) {
+        localStorage.setItem(`referral_${signUpEmail}`, referralCode);
+      }
+      
       const { error } = await supabase.auth.signUp({
         email: signUpEmail,
         password: signUpPassword,
@@ -144,37 +219,18 @@ const Auth = () => {
 
       if (error) throw error;
 
-      // Process referral code if provided
-      if (referralCode && referralCode.length > 0) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: refResult, error: refError } = await supabase.rpc('process_referral_signup', {
-              referred_user_id: user.id,
-              referral_code_input: referralCode
-            });
-
-            if (refError) {
-              console.error("Erreur lors du traitement du parrainage:", refError);
-            } else if (refResult) {
-              toast({
-                title: "Bonus de parrainage ! 🎁",
-                description: "Vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) !",
-              });
-            }
-          }
-        } catch (refError) {
-          console.error("Erreur référence:", refError);
-        }
-      }
-
-      // Rediriger vers la page de vérification avec l'email
-      navigate(`/verify-email?email=${encodeURIComponent(signUpEmail)}`);
-
       toast({
-        title: "Vérifiez votre email ! 📧",
-        description: "Nous vous avons envoyé un code de vérification à 6 chiffres. Veuillez le saisir pour activer votre compte.",
+        title: "Compte créé avec succès ! 🎉",
+        description: "Un email de confirmation contenant un lien d'activation vous a été envoyé. Veuillez cliquer dessus pour activer votre compte.",
       });
+
+      // Clear form fields
+      setSignUpEmail("");
+      setSignUpPassword("");
+      setSignUpFullName("");
+      setSignUpPhone("");
+      setSignUpCountry("");
+      setReferralCode("");
     } catch (error) {
       console.error("Erreur lors de l'inscription:", error);
       toast({
@@ -206,8 +262,8 @@ const Auth = () => {
       if (error) throw error;
 
       toast({
-        title: "Email envoyé",
-        description: "Un lien de réinitialisation a été envoyé à votre email. Veuillez vérifier votre boîte de réception.",
+        title: "Email envoyé ! 📧",
+        description: "Un email contenant un lien de réinitialisation vous a été envoyé. Cliquez sur ce lien pour créer un nouveau mot de passe.",
       });
     } catch (error) {
       console.error("Erreur réinitialisation:", error);
