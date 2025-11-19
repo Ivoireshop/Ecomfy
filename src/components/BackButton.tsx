@@ -6,8 +6,8 @@ export function BackButton() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Don't show on homepage
-  if (location.pathname === "/") {
+  // Don't show on homepage or showcase pages
+  if (location.pathname === "/" || location.pathname.startsWith("/showcase/")) {
     return null;
   }
 

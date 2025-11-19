@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Star } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
@@ -202,8 +202,7 @@ const Index = () => {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl md:text-3xl font-bold text-primary mb-1">4.8/5</div>
-                    <div className="text-xs md:text-sm text-muted-foreground flex items-center justify-center gap-1">
-                      <Star className="w-3 h-3 fill-primary text-primary" />
+                    <div className="text-xs md:text-sm text-muted-foreground">
                       Satisfaction
                     </div>
                   </div>

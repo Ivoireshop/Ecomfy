@@ -698,6 +698,8 @@ export type Database = {
           hero_image_url: string | null
           hero_subtitle: string | null
           hero_title: string | null
+          hero_title_color: string | null
+          hero_title_size: number | null
           hero_video_url: string | null
           id: string
           is_published: boolean
@@ -745,6 +747,8 @@ export type Database = {
           hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
+          hero_title_color?: string | null
+          hero_title_size?: number | null
           hero_video_url?: string | null
           id?: string
           is_published?: boolean
@@ -792,6 +796,8 @@ export type Database = {
           hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
+          hero_title_color?: string | null
+          hero_title_size?: number | null
           hero_video_url?: string | null
           id?: string
           is_published?: boolean

@@ -167,9 +167,10 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
             )}
             
             <h1 
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 animate-fade-in leading-tight px-2"
+              className="font-bold mb-4 sm:mb-6 animate-fade-in leading-tight px-2"
               style={{ 
-                color: site.text_color || '#000000',
+                fontSize: `${site.hero_title_size || 48}px`,
+                color: site.hero_title_color || site.text_color || '#000000',
                 animationDelay: '0.2s',
                 animationFillMode: 'backwards'
               }}
