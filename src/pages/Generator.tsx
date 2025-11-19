@@ -23,6 +23,8 @@ import { SimpleWorkflow } from "@/components/SimpleWorkflow";
 import { BrandExtractor } from "@/components/BrandExtractor";
 import { MultiImageUploader } from "@/components/MultiImageUploader";
 import { VariationGenerator } from "@/components/VariationGenerator";
+import { TextCorrector } from "@/components/TextCorrector";
+import { Switch } from "@/components/ui/switch";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -75,6 +77,9 @@ const Generator = () => {
     benefits: "",
     callToAction: "Commandez maintenant!",
   });
+
+  // Price display option
+  const [showPrice, setShowPrice] = useState(true);
 
   // Voix africaines (ElevenLabs)
   const voices = [
@@ -301,10 +306,18 @@ const Generator = () => {
       return;
     }
 
-    if (!productName || !niche || !description || !platform || !price) {
+    // Validate required fields - price is optional if showPrice is false
+    const missingFields = [];
+    if (!productName) missingFields.push("nom");
+    if (!niche) missingFields.push("niche");
+    if (!description) missingFields.push("description");
+    if (!platform) missingFields.push("plateforme");
+    if (showPrice && !price) missingFields.push("prix");
+
+    if (missingFields.length > 0) {
       toast({
         title: "Champs manquants",
-        description: "Veuillez remplir tous les champs obligatoires (nom, niche, description, plateforme, prix)",
+        description: `Veuillez remplir les champs obligatoires : ${missingFields.join(", ")}`,
         variant: "destructive",
       });
       return;
@@ -318,8 +331,8 @@ const Generator = () => {
     setPreviewTexts({
       productName: productName,
       tagline: tagline,
-      price: price,
-      promotionalPrice: promotionalPrice || "",
+      price: showPrice ? price : "",
+      promotionalPrice: showPrice ? (promotionalPrice || "") : "",
       benefits: benefits || "",
       callToAction: "Commandez maintenant!",
     });
@@ -839,6 +852,10 @@ const Generator = () => {
             </TabsList>
           </Tabs>
 
+          {/* Text Corrector Tool */}
+          <div className="container mx-auto px-4 max-w-4xl mb-8">
+            <TextCorrector />
+          </div>
 
           {/* Mode Pro - Workflow Omneky-style */}
           {generationType === "pro" && (
@@ -991,29 +1008,50 @@ const Generator = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="price">Prix du produit *</Label>
-                <Input
-                  id="price"
-                  placeholder="Ex: 10 000 FCFA"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  required
+              {/* Price Display Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+                <div className="space-y-1">
+                  <Label htmlFor="show-price" className="text-base font-semibold">
+                    Afficher le prix sur le visuel
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Désactivez cette option si vous ne souhaitez pas afficher de prix
+                  </p>
+                </div>
+                <Switch
+                  id="show-price"
+                  checked={showPrice}
+                  onCheckedChange={setShowPrice}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="promotionalPrice">Prix promotionnel (optionnel)</Label>
-                <Input
-                  id="promotionalPrice"
-                  placeholder="Ex: 15 000 FCFA (sera barré)"
-                  value={promotionalPrice}
-                  onChange={(e) => setPromotionalPrice(e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Si renseigné, ce prix sera affiché barré pour montrer la réduction
-                </p>
-              </div>
+              {showPrice && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Prix du produit *</Label>
+                    <Input
+                      id="price"
+                      placeholder="Ex: 10 000 FCFA"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="promotionalPrice">Prix promotionnel (optionnel)</Label>
+                    <Input
+                      id="promotionalPrice"
+                      placeholder="Ex: 15 000 FCFA (sera barré)"
+                      value={promotionalPrice}
+                      onChange={(e) => setPromotionalPrice(e.target.value)}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Si renseigné, ce prix sera affiché barré pour montrer la réduction
+                    </p>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="posology">Posologie / Mode d'emploi</Label>
