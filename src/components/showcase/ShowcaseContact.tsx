@@ -2,19 +2,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Phone, MessageCircle, Mail, MapPin } from "lucide-react";
 import { ContactForm } from "@/components/ContactForm";
-import { useState, useEffect } from "react";
 
 interface ShowcaseContactProps {
   site: any;
 }
 
 export const ShowcaseContact = ({ site }: ShowcaseContactProps) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
   const handleWhatsApp = () => {
     const message = encodeURIComponent(`Bonjour ${site.business_name}, je souhaite obtenir plus d'informations.`);
     window.open(`https://wa.me/${site.whatsapp_number.replace(/\D/g, '')}?text=${message}`, '_blank');
@@ -25,7 +18,7 @@ export const ShowcaseContact = ({ site }: ShowcaseContactProps) => {
   };
 
   return (
-    <div className={`min-h-screen py-20 px-4 transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className="min-h-screen py-20 px-4 animate-fade-in">
       <div className="container mx-auto max-w-6xl">
         {/* Header */}
         <div className="text-center mb-16 animate-fade-in">

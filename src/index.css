@@ -82,7 +82,7 @@
   }
 }
 
-/* Animations pour le site vitrine */
+/* Animations pour le site vitrine - Affichage permanent */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -107,10 +107,16 @@
 
 .animate-fade-in {
   animation: fade-in 0.8s ease-out forwards;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .scroll-fade-in {
-  opacity: 0;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-fade-in.in-view {
   animation: scroll-fade-in 0.8s ease-out forwards;
 }
 
@@ -121,18 +127,6 @@
 .hover-scale:hover {
   transform: scale(1.05);
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.2);
-}
-
-/* Animation des cartes au scroll */
-@media (prefers-reduced-motion: no-preference) {
-  .scroll-fade-in {
-    animation-play-state: paused;
-    animation-delay: calc(var(--scroll) * -1s);
-  }
-  
-  .scroll-fade-in.in-view {
-    animation-play-state: running;
-  }
 }
 
 /* Smooth scroll */

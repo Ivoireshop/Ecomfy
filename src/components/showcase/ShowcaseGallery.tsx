@@ -16,13 +16,8 @@ interface ShowcaseGalleryProps {
 }
 
 export const ShowcaseGallery = ({ galleries, galleryVideos, site }: ShowcaseGalleryProps) => {
-  const [isVisible, setIsVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<{ type: 'image' | 'video'; url: string; caption?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'images' | 'videos'>('images');
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
 
   const allImages = Object.values(galleries).flat();
   const hasImages = allImages.length > 0;
@@ -41,7 +36,7 @@ export const ShowcaseGallery = ({ galleries, galleryVideos, site }: ShowcaseGall
   }
 
   return (
-    <div className={`min-h-screen py-20 px-4 transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className="min-h-screen py-20 px-4 animate-fade-in">
       <div className="container mx-auto">
         {/* Header */}
         <div className="text-center mb-12 animate-fade-in">

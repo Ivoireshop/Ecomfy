@@ -2,7 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, Clock, Users, CheckCircle, MessageCircle } from "lucide-react";
-import { useState, useEffect } from "react";
 
 interface ShowcaseFormationsProps {
   site: any;
@@ -10,12 +9,7 @@ interface ShowcaseFormationsProps {
 }
 
 export const ShowcaseFormations = ({ site, onContactClick }: ShowcaseFormationsProps) => {
-  const [isVisible, setIsVisible] = useState(false);
   const formations = site.formations || [];
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
 
   if (!formations || formations.length === 0) {
     return (
@@ -34,7 +28,7 @@ export const ShowcaseFormations = ({ site, onContactClick }: ShowcaseFormationsP
   }
 
   return (
-    <div className={`min-h-screen py-20 px-4 transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className="min-h-screen py-20 px-4 animate-fade-in">
       <div className="container mx-auto">
         {/* Header */}
         <div className="text-center mb-16 animate-fade-in">

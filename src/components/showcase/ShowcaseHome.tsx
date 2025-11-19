@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, ArrowRight, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -10,12 +9,6 @@ interface ShowcaseHomeProps {
 }
 
 export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeProps) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
   const heroStyles = {
     background: site.theme_mode === 'dark' 
       ? `linear-gradient(135deg, ${site.primary_color}20, ${site.secondary_color}20)`
@@ -29,7 +22,7 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
     <div className="min-h-screen">
       {/* Hero Section avec animation */}
       <section 
-        className={`relative min-h-[90vh] flex items-center justify-center overflow-hidden transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+        className="relative min-h-[90vh] flex items-center justify-center overflow-hidden animate-fade-in"
         style={heroStyles}
       >
         <div className="absolute inset-0 overflow-hidden">
