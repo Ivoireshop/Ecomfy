@@ -31,6 +31,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import StudentCourse from "./pages/StudentCourse";
 import StudentCertificates from "./pages/StudentCertificates";
 import EnrollmentCheckout from "./pages/EnrollmentCheckout";
+import VerifyCertificate from "./pages/VerifyCertificate";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiesPolicy from "./pages/CookiesPolicy";
@@ -192,6 +193,7 @@ const AppContent = () => {
             </ProtectedRoute>
           } 
         />
+        <Route path="/verify-certificate/:certificateNumber?" element={<VerifyCertificate />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/cookies-policy" element={<CookiesPolicy />} />
