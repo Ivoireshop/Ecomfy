@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Clock, Users, ArrowLeft, CreditCard, MessageCircle, ExternalLink, ShoppingCart } from "lucide-react";
+import { Loader2, Clock, Users, ArrowLeft, CreditCard, MessageCircle, ExternalLink, ShoppingCart, Play } from "lucide-react";
+import { CoursePreviewViewer } from "@/components/CoursePreviewViewer";
 
 interface Course {
   id: string;
@@ -44,6 +45,7 @@ interface CourseModule {
   description: string | null;
   duration_minutes: number | null;
   module_order: number;
+  is_preview: boolean;
   module_contents: ModuleContent[];
 }
 
@@ -69,6 +71,8 @@ export function ShowcaseCourseDetail({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const hasPreview = modules.some(m => m.is_preview);
 
   const [inquiryForm, setInquiryForm] = useState({
     name: "",
@@ -110,6 +114,7 @@ export function ShowcaseCourseDetail({
           description,
           duration_minutes,
           module_order,
+          is_preview,
           module_contents (
             id,
             title,
@@ -261,8 +266,19 @@ export function ShowcaseCourseDetail({
         <div className="space-y-4">
           {modules.length > 0 && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Programme de la formation</CardTitle>
+                {hasPreview && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewOpen(true)}
+                    className="gap-2"
+                  >
+                    <Play className="h-4 w-4" />
+                    Voir l'aperçu gratuit
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 {modules.map((module, index) => (
@@ -275,7 +291,14 @@ export function ShowcaseCourseDetail({
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-lg mb-1">{module.title}</h4>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-lg">{module.title}</h4>
+                          {module.is_preview && (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                              Aperçu gratuit
+                            </Badge>
+                          )}
+                        </div>
                         {module.description && (
                           <p className="text-sm text-muted-foreground mb-2">
                             {module.description}
@@ -286,6 +309,11 @@ export function ShowcaseCourseDetail({
                             <Clock className="h-4 w-4" />
                             <span>{module.duration_minutes} minutes</span>
                           </div>
+                        )}
+                        {module.is_preview && (
+                          <p className="text-sm text-green-600 font-medium mb-2">
+                            🎁 Accès gratuit sans inscription
+                          </p>
                         )}
                         {module.module_contents && module.module_contents.length > 0 && (
                           <ul className="space-y-1 mt-2">
@@ -438,6 +466,17 @@ export function ShowcaseCourseDetail({
           </Card>
         </div>
       </div>
+
+      <CoursePreviewViewer
+        courseId={courseId}
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        onEnroll={() => {
+          setPreviewOpen(false);
+          navigate(`/enroll/${courseId}`);
+        }}
+        primaryColor={primaryColor}
+      />
     </div>
   );
 }

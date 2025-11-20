@@ -279,6 +279,7 @@ export type Database = {
           description: string | null
           duration_minutes: number | null
           id: string
+          is_preview: boolean | null
           is_published: boolean | null
           module_order: number
           title: string
@@ -290,6 +291,7 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
+          is_preview?: boolean | null
           is_published?: boolean | null
           module_order?: number
           title: string
@@ -301,6 +303,7 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
+          is_preview?: boolean | null
           is_published?: boolean | null
           module_order?: number
           title?: string
@@ -707,6 +710,7 @@ export type Database = {
           duration_minutes: number | null
           id: string
           is_mandatory: boolean | null
+          is_preview: boolean | null
           module_id: string
           title: string
           updated_at: string | null
@@ -720,6 +724,7 @@ export type Database = {
           duration_minutes?: number | null
           id?: string
           is_mandatory?: boolean | null
+          is_preview?: boolean | null
           module_id: string
           title: string
           updated_at?: string | null
@@ -733,6 +738,7 @@ export type Database = {
           duration_minutes?: number | null
           id?: string
           is_mandatory?: boolean | null
+          is_preview?: boolean | null
           module_id?: string
           title?: string
           updated_at?: string | null
