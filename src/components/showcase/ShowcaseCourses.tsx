@@ -22,6 +22,7 @@ interface ShowcaseCoursesProps {
   onCourseClick: (courseId: string) => void;
   primaryColor?: string;
   textColor?: string;
+  legacyFormations?: any[];
 }
 
 export function ShowcaseCourses({
@@ -29,10 +30,24 @@ export function ShowcaseCourses({
   onCourseClick,
   primaryColor = "#2563eb",
   textColor = "#000000",
+  legacyFormations = [],
 }: ShowcaseCoursesProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
+  
+  // Convertir les formations legacy en format Course
+  const legacyCourses: Course[] = legacyFormations.map((formation, index) => ({
+    id: `legacy-${index}`,
+    title: formation.title || '',
+    short_description: formation.description || null,
+    price: parseFloat(formation.price?.replace(/[^0-9.]/g, '') || '0'),
+    currency: 'XOF',
+    image_url: formation.image_url || null,
+    category: 'formation',
+    duration: formation.duration || null,
+    level: null,
+  }));
 
   useEffect(() => {
     loadCourses();
@@ -48,9 +63,12 @@ export function ShowcaseCourses({
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setCourses(data || []);
+      // Combiner les cours de la table avec les formations legacy
+      setCourses([...legacyCourses, ...(data || [])]);
     } catch (error) {
       console.error("Error loading courses:", error);
+      // En cas d'erreur, au moins afficher les formations legacy
+      setCourses(legacyCourses);
     } finally {
       setLoading(false);
     }

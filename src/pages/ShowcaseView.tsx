@@ -433,6 +433,7 @@ export default function ShowcaseView() {
                   showcaseSiteId={site.id}
                   primaryColor={site.primary_color || '#2563eb'}
                   textColor={site.text_color || '#000000'}
+                  legacyFormations={site.formations || []}
                 />
               </div>
             </section>
