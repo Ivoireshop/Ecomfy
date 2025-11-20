@@ -95,15 +95,12 @@ export default function ShowcaseEditor() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
-  const [aboutImageFile, setAboutImageFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
   const [aboutImagePreview, setAboutImagePreview] = useState<string | null>(null);
-  const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
-  const [existingHeroUrl, setExistingHeroUrl] = useState<string | null>(null);
-  const [existingAboutUrl, setExistingAboutUrl] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const [isUploadingAbout, setIsUploadingAbout] = useState(false);
   const [businessName, setBusinessName] = useState<string>("");
   const [features, setFeatures] = useState<Array<{ title: string; description: string; image_url?: string }>>([]);
   const [formations, setFormations] = useState<Array<{ title: string; description: string; price: string; image_url?: string }>>([]);
@@ -245,9 +242,6 @@ export default function ShowcaseEditor() {
       });
 
       // Set existing images
-      setExistingLogoUrl(data.logo_url);
-      setExistingHeroUrl(data.hero_image_url);
-      setExistingAboutUrl(data.about_image_url);
       setLogoPreview(data.logo_url);
       setHeroImagePreview(data.hero_image_url);
       setAboutImagePreview(data.about_image_url);
@@ -333,6 +327,111 @@ export default function ShowcaseEditor() {
     }
   };
 
+  const handleLogoChange = async (file: File | null) => {
+    if (!file) return;
+    
+    setIsUploadingLogo(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Vous devez être connecté");
+        return;
+      }
+
+      toast.info("Upload du logo en cours...");
+      const newLogoUrl = await uploadImage(file, user.id, 'logo');
+      
+      if (newLogoUrl) {
+        setLogoPreview(newLogoUrl);
+        
+        // Save immediately to database
+        await supabase
+          .from("showcase_sites")
+          .update({ logo_url: newLogoUrl })
+          .eq("id", id);
+          
+        toast.success("Logo sauvegardé avec succès!");
+      } else {
+        toast.error("Erreur lors de l'upload du logo");
+      }
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast.error("Erreur lors de l'upload du logo");
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleHeroImageChange = async (file: File | null) => {
+    if (!file) return;
+    
+    setIsUploadingHero(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Vous devez être connecté");
+        return;
+      }
+
+      toast.info("Upload de l'image hero en cours...");
+      const newHeroUrl = await uploadImage(file, user.id, 'hero');
+      
+      if (newHeroUrl) {
+        setHeroImagePreview(newHeroUrl);
+        
+        // Save immediately to database
+        await supabase
+          .from("showcase_sites")
+          .update({ hero_image_url: newHeroUrl })
+          .eq("id", id);
+          
+        toast.success("Image hero sauvegardée avec succès!");
+      } else {
+        toast.error("Erreur lors de l'upload de l'image");
+      }
+    } catch (error) {
+      console.error("Error uploading hero image:", error);
+      toast.error("Erreur lors de l'upload de l'image");
+    } finally {
+      setIsUploadingHero(false);
+    }
+  };
+
+  const handleAboutImageChange = async (file: File | null) => {
+    if (!file) return;
+    
+    setIsUploadingAbout(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Vous devez être connecté");
+        return;
+      }
+
+      toast.info("Upload de l'image à propos en cours...");
+      const newAboutUrl = await uploadImage(file, user.id, 'about');
+      
+      if (newAboutUrl) {
+        setAboutImagePreview(newAboutUrl);
+        
+        // Save immediately to database
+        await supabase
+          .from("showcase_sites")
+          .update({ about_image_url: newAboutUrl })
+          .eq("id", id);
+          
+        toast.success("Image à propos sauvegardée avec succès!");
+      } else {
+        toast.error("Erreur lors de l'upload de l'image");
+      }
+    } catch (error) {
+      console.error("Error uploading about image:", error);
+      toast.error("Erreur lors de l'upload de l'image");
+    } finally {
+      setIsUploadingAbout(false);
+    }
+  };
+
   const handleBiographyImageUpload = async (file: File) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -390,39 +489,7 @@ export default function ShowcaseEditor() {
       // Determine theme colors
       const themeColors = themes.find(t => t.value === currentValues.theme)?.colors;
 
-      // Upload new images if provided (but don't block auto-save for this)
-      let logoUrl = existingLogoUrl;
-      let heroImageUrl = existingHeroUrl;
-      let aboutImageUrl = existingAboutUrl;
-
-      if (logoFile) {
-        const newLogoUrl = await uploadImage(logoFile, user.id, 'logo');
-        if (newLogoUrl) {
-          logoUrl = newLogoUrl;
-          setExistingLogoUrl(newLogoUrl);
-          setLogoPreview(newLogoUrl);
-          setLogoFile(null); // Clear file after upload
-        }
-      }
-      if (heroImageFile) {
-        const newHeroUrl = await uploadImage(heroImageFile, user.id, 'hero');
-        if (newHeroUrl) {
-          heroImageUrl = newHeroUrl;
-          setExistingHeroUrl(newHeroUrl);
-          setHeroImagePreview(newHeroUrl);
-          setHeroImageFile(null);
-        }
-      }
-      if (aboutImageFile) {
-        const newAboutUrl = await uploadImage(aboutImageFile, user.id, 'about');
-        if (newAboutUrl) {
-          aboutImageUrl = newAboutUrl;
-          setExistingAboutUrl(newAboutUrl);
-          setAboutImagePreview(newAboutUrl);
-          setAboutImageFile(null);
-        }
-      }
-
+      // Images are now uploaded immediately when selected, so we just use the current preview URLs
       // Update the showcase site (silently)
       const updateData: any = {
         business_description: currentValues.businessDescription,
@@ -448,9 +515,9 @@ export default function ShowcaseEditor() {
         gallery_text_position: currentValues.galleryTextPosition,
         font_family: currentValues.fontFamily,
         theme_mode: currentValues.themeMode,
-        logo_url: logoUrl,
-        hero_image_url: heroImageUrl,
-        about_image_url: aboutImageUrl,
+        logo_url: logoPreview,
+        hero_image_url: heroImagePreview,
+        about_image_url: aboutImagePreview,
         features: features,
         formations: formations,
         formations_text_align: formationsTextAlign,
@@ -599,39 +666,7 @@ export default function ShowcaseEditor() {
       // Create a version snapshot before making changes
       await createVersion(user.id);
 
-      // Upload new images if provided
-      let logoUrl = existingLogoUrl;
-      let heroImageUrl = existingHeroUrl;
-      let aboutImageUrl = existingAboutUrl;
-
-      if (logoFile) {
-        const newLogoUrl = await uploadImage(logoFile, user.id, 'logo');
-        if (newLogoUrl) {
-          logoUrl = newLogoUrl;
-          setExistingLogoUrl(newLogoUrl);
-          setLogoPreview(newLogoUrl);
-          setLogoFile(null);
-        }
-      }
-      if (heroImageFile) {
-        const newHeroUrl = await uploadImage(heroImageFile, user.id, 'hero');
-        if (newHeroUrl) {
-          heroImageUrl = newHeroUrl;
-          setExistingHeroUrl(newHeroUrl);
-          setHeroImagePreview(newHeroUrl);
-          setHeroImageFile(null);
-        }
-      }
-      if (aboutImageFile) {
-        const newAboutUrl = await uploadImage(aboutImageFile, user.id, 'about');
-        if (newAboutUrl) {
-          aboutImageUrl = newAboutUrl;
-          setExistingAboutUrl(newAboutUrl);
-          setAboutImagePreview(newAboutUrl);
-          setAboutImageFile(null);
-        }
-      }
-
+      // Images are now uploaded immediately when selected, so we just use the current preview URLs
       // Determine theme colors
       const themeColors = themes.find(t => t.value === data.theme)?.colors;
 
@@ -659,9 +694,9 @@ export default function ShowcaseEditor() {
         gallery_text_position: data.galleryTextPosition,
         font_family: data.fontFamily,
         theme_mode: data.themeMode,
-        logo_url: logoUrl,
-        hero_image_url: heroImageUrl,
-        about_image_url: aboutImageUrl,
+        logo_url: logoPreview,
+        hero_image_url: heroImagePreview,
+        about_image_url: aboutImagePreview,
         features: features,
         formations: formations,
         formations_text_align: formationsTextAlign,
@@ -1151,9 +1186,13 @@ export default function ShowcaseEditor() {
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => {
-                          setLogoFile(null);
-                          setLogoPreview(existingLogoUrl);
+                        onClick={async () => {
+                          setLogoPreview(null);
+                          await supabase
+                            .from("showcase_sites")
+                            .update({ logo_url: null })
+                            .eq("id", id);
+                          toast.success("Logo supprimé");
                         }}
                       >
                         <X className="h-4 w-4" />
@@ -1161,12 +1200,20 @@ export default function ShowcaseEditor() {
                     </div>
                   )}
                   <div className="flex-1">
+                    {isUploadingLogo && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Upload en cours...</span>
+                      </div>
+                    )}
                     <Input
                       type="file"
                       accept="image/*"
+                      disabled={isUploadingLogo}
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
-                        handleImageChange(file, setLogoFile, setLogoPreview);
+                        if (file) handleLogoChange(file);
+                        e.target.value = '';
                       }}
                     />
                   </div>
@@ -1185,9 +1232,13 @@ export default function ShowcaseEditor() {
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => {
-                          setHeroImageFile(null);
-                          setHeroImagePreview(existingHeroUrl);
+                        onClick={async () => {
+                          setHeroImagePreview(null);
+                          await supabase
+                            .from("showcase_sites")
+                            .update({ hero_image_url: null })
+                            .eq("id", id);
+                          toast.success("Image hero supprimée");
                         }}
                       >
                         <X className="h-4 w-4" />
@@ -1195,12 +1246,20 @@ export default function ShowcaseEditor() {
                     </div>
                   )}
                   <div className="flex-1">
+                    {isUploadingHero && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Upload en cours...</span>
+                      </div>
+                    )}
                     <Input
                       type="file"
                       accept="image/*"
+                      disabled={isUploadingHero}
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
-                        handleImageChange(file, setHeroImageFile, setHeroImagePreview);
+                        if (file) handleHeroImageChange(file);
+                        e.target.value = '';
                       }}
                     />
                   </div>
@@ -1219,9 +1278,13 @@ export default function ShowcaseEditor() {
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => {
-                          setAboutImageFile(null);
-                          setAboutImagePreview(existingAboutUrl);
+                        onClick={async () => {
+                          setAboutImagePreview(null);
+                          await supabase
+                            .from("showcase_sites")
+                            .update({ about_image_url: null })
+                            .eq("id", id);
+                          toast.success("Image à propos supprimée");
                         }}
                       >
                         <X className="h-4 w-4" />
@@ -1229,12 +1292,20 @@ export default function ShowcaseEditor() {
                     </div>
                   )}
                   <div className="flex-1">
+                    {isUploadingAbout && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Upload en cours...</span>
+                      </div>
+                    )}
                     <Input
                       type="file"
                       accept="image/*"
+                      disabled={isUploadingAbout}
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
-                        handleImageChange(file, setAboutImageFile, setAboutImagePreview);
+                        if (file) handleAboutImageChange(file);
+                        e.target.value = '';
                       }}
                     />
                   </div>
@@ -1795,16 +1866,25 @@ export default function ShowcaseEditor() {
           <TabsContent value="advanced">
             <div className="max-w-3xl mx-auto space-y-6">
               <AIImageGenerator 
-                onImageGenerated={(imageUrl, imageType) => {
+                onImageGenerated={async (imageUrl, imageType) => {
                   if (imageType === "logo") {
                     setLogoPreview(imageUrl);
-                    setExistingLogoUrl(imageUrl);
+                    await supabase
+                      .from("showcase_sites")
+                      .update({ logo_url: imageUrl })
+                      .eq("id", id);
                   } else if (imageType === "hero") {
                     setHeroImagePreview(imageUrl);
-                    setExistingHeroUrl(imageUrl);
+                    await supabase
+                      .from("showcase_sites")
+                      .update({ hero_image_url: imageUrl })
+                      .eq("id", id);
                   } else if (imageType === "about") {
                     setAboutImagePreview(imageUrl);
-                    setExistingAboutUrl(imageUrl);
+                    await supabase
+                      .from("showcase_sites")
+                      .update({ about_image_url: imageUrl })
+                      .eq("id", id);
                   }
                 }}
               />
