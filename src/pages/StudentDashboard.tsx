@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, BookOpen, Clock, CheckCircle2, Play, LogOut } from "lucide-react";
+import { Loader2, BookOpen, Clock, CheckCircle2, Play, LogOut, Award } from "lucide-react";
 
 interface CourseAccess {
   id: string;

@@ -29,6 +29,7 @@ import Tutorial from "./pages/Tutorial";
 import Demo from "./pages/Demo";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentCourse from "./pages/StudentCourse";
+import StudentCertificates from "./pages/StudentCertificates";
 import EnrollmentCheckout from "./pages/EnrollmentCheckout";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -180,6 +181,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <StudentCourse />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/student/certificates" 
+          element={
+            <ProtectedRoute>
+              <StudentCertificates />
             </ProtectedRoute>
           } 
         />
