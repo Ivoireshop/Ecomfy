@@ -120,6 +120,7 @@ export default function ShowcaseEditor() {
   const [heroTitleColor, setHeroTitleColor] = useState<string>("#000000");
   const [biographyTitle, setBiographyTitle] = useState<string>("Biographie");
   const [biographyContent, setBiographyContent] = useState<string>("");
+  const [biographyImageUrl, setBiographyImageUrl] = useState<string>("");
   const [professionalExperience, setProfessionalExperience] = useState<any[]>([]);
   
   // SEO states
@@ -269,6 +270,7 @@ export default function ShowcaseEditor() {
       setHeroTitleColor((data as any).hero_title_color || "#000000");
       setBiographyTitle(data.biography_title || "Biographie");
       setBiographyContent(data.biography_content || "");
+      setBiographyImageUrl((data as any).biography_image_url || "");
       setProfessionalExperience((data.professional_experience as any[]) || []);
 
       // Load testimonials
@@ -323,6 +325,26 @@ export default function ShowcaseEditor() {
     } catch (error) {
       console.error('Error uploading image:', error);
       return null;
+    }
+  };
+
+  const handleBiographyImageUpload = async (file: File) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      toast.info("Upload de l'image en cours...");
+      const imageUrl = await uploadImage(file, user.id, "biography");
+      
+      if (imageUrl) {
+        setBiographyImageUrl(imageUrl);
+        toast.success("Image de biographie uploadée avec succès!");
+      } else {
+        toast.error("Erreur lors de l'upload de l'image");
+      }
+    } catch (error) {
+      console.error("Error uploading biography image:", error);
+      toast.error("Erreur lors de l'upload de l'image");
     }
   };
 
@@ -432,6 +454,7 @@ export default function ShowcaseEditor() {
         hero_title_color: heroTitleColor,
         biography_title: biographyTitle,
         biography_content: biographyContent,
+        biography_image_url: biographyImageUrl,
         professional_experience: professionalExperience,
       };
 
@@ -626,6 +649,7 @@ export default function ShowcaseEditor() {
         hero_title_color: heroTitleColor,
         biography_title: biographyTitle,
         biography_content: biographyContent,
+        biography_image_url: biographyImageUrl,
         professional_experience: professionalExperience,
       };
 
@@ -1713,9 +1737,11 @@ export default function ShowcaseEditor() {
               <BiographyEditor
                 biographyTitle={biographyTitle}
                 biographyContent={biographyContent}
+                biographyImageUrl={biographyImageUrl}
                 professionalExperience={professionalExperience}
                 onBiographyTitleChange={setBiographyTitle}
                 onBiographyContentChange={setBiographyContent}
+                onBiographyImageUpload={handleBiographyImageUpload}
                 onExperienceChange={setProfessionalExperience}
               />
             </div>
