@@ -739,6 +739,7 @@ export type Database = {
           about_layout: string | null
           about_title: string | null
           about_video_url: string | null
+          background_color: string | null
           biography_content: string | null
           biography_image_url: string | null
           biography_title: string | null
@@ -792,6 +793,7 @@ export type Database = {
           about_layout?: string | null
           about_title?: string | null
           about_video_url?: string | null
+          background_color?: string | null
           biography_content?: string | null
           biography_image_url?: string | null
           biography_title?: string | null
@@ -845,6 +847,7 @@ export type Database = {
           about_layout?: string | null
           about_title?: string | null
           about_video_url?: string | null
+          background_color?: string | null
           biography_content?: string | null
           biography_image_url?: string | null
           biography_title?: string | null

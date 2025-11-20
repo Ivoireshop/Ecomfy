@@ -12,14 +12,18 @@ interface ShowcaseHomeProps {
 
 export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeProps) => {
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : (site.text_color || 'hsl(var(--foreground))');
+  const backgroundColor = site.background_color || (site.theme_mode === 'dark' ? '#0f172a' : '#ffffff');
   const features = site.features || [];
   const formations = site.formations || [];
   
   const servicesSection = useScrollAnimation({ threshold: 0.2 });
+  const aboutSection = useScrollAnimation({ threshold: 0.2 });
+  const statsSection = useScrollAnimation({ threshold: 0.2 });
+  const formationsSection = useScrollAnimation({ threshold: 0.2 });
   const ctaSection = useScrollAnimation({ threshold: 0.3 });
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ backgroundColor }}>
       {/* Hero Section */}
       <section 
         className="relative min-h-[90vh] flex items-center overflow-hidden"
@@ -58,13 +62,14 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
       </section>
 
-      {/* Services */}
+      {/* Services Preview */}
       {features.length > 0 && (
         <section ref={servicesSection.ref} className="section-spacing px-4">
           <div className="container mx-auto max-w-7xl">
             <div className={`text-center mb-16 scroll-fade-up ${servicesSection.isVisible ? 'visible' : ''}`}>
               <Badge className="mb-6" variant="outline">NOS SERVICES</Badge>
               <h2 className="heading-lg mb-6" style={{ color: textColor }}>Ce que nous offrons</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Des solutions professionnelles pour répondre à vos besoins</p>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
               {features.slice(0, 3).map((feature: any, idx: number) => (
@@ -73,9 +78,22 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                   className={`card-modern p-8 group cursor-pointer scroll-scale ${servicesSection.isVisible ? 'visible' : ''} delay-${(idx + 1) * 100}`}
                   onClick={() => onNavigate('services')}
                 >
-                  <Sparkles className="h-12 w-12 mb-6 text-primary group-hover:scale-110 transition-transform" />
+                  {feature.image_url ? (
+                    <div className="mb-6 rounded-lg overflow-hidden">
+                      <img 
+                        src={feature.image_url} 
+                        alt={feature.title}
+                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                  ) : (
+                    <Sparkles className="h-12 w-12 mb-6 text-primary group-hover:scale-110 transition-transform" />
+                  )}
                   <h3 className="heading-md mb-4" style={{ color: textColor }}>{feature.title}</h3>
                   <p className="text-muted-foreground mb-6">{feature.description}</p>
+                  <Button variant="ghost" className="group-hover:translate-x-2 transition-transform">
+                    En savoir plus <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </Card>
               ))}
             </div>
@@ -83,7 +101,109 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
         </section>
       )}
 
-      {/* CTA */}
+      {/* About/Biography Preview */}
+      {(site.biography_content || site.about_description) && (
+        <section ref={aboutSection.ref} className="section-spacing px-4 bg-muted/30">
+          <div className="container mx-auto max-w-7xl">
+            <div className={`grid md:grid-cols-2 gap-12 items-center scroll-fade-up ${aboutSection.isVisible ? 'visible' : ''}`}>
+              {site.biography_image_url && (
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+                  <img 
+                    src={site.biography_image_url}
+                    alt={site.owner_name}
+                    className="w-full h-auto object-cover"
+                  />
+                </div>
+              )}
+              <div>
+                <Badge className="mb-6" variant="outline">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  {site.biography_title || "À Propos"}
+                </Badge>
+                <h2 className="heading-lg mb-6" style={{ color: textColor }}>
+                  {site.owner_name}
+                </h2>
+                <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
+                  {(site.biography_content || site.about_description)?.split('\n')[0]}
+                </p>
+                <Button onClick={() => onNavigate('biography')} size="lg">
+                  Découvrir mon parcours <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Stats Section */}
+      <section ref={statsSection.ref} className="section-spacing px-4">
+        <div className="container mx-auto max-w-7xl">
+          <div className={`grid md:grid-cols-4 gap-8 scroll-fade-up ${statsSection.isVisible ? 'visible' : ''}`}>
+            <Card className="text-center p-8 card-modern">
+              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>100+</div>
+              <p className="text-muted-foreground">Clients Satisfaits</p>
+            </Card>
+            <Card className="text-center p-8 card-modern">
+              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>5+</div>
+              <p className="text-muted-foreground">Années d'Expérience</p>
+            </Card>
+            <Card className="text-center p-8 card-modern">
+              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>200+</div>
+              <p className="text-muted-foreground">Projets Réalisés</p>
+            </Card>
+            <Card className="text-center p-8 card-modern">
+              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>98%</div>
+              <p className="text-muted-foreground">Taux de Satisfaction</p>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Formations Preview */}
+      {formations.length > 0 && (
+        <section ref={formationsSection.ref} className="section-spacing px-4 bg-muted/30">
+          <div className="container mx-auto max-w-7xl">
+            <div className={`text-center mb-16 scroll-fade-up ${formationsSection.isVisible ? 'visible' : ''}`}>
+              <Badge className="mb-6" variant="outline">NOS FORMATIONS</Badge>
+              <h2 className="heading-lg mb-6" style={{ color: textColor }}>Développez vos compétences</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Des formations complètes pour atteindre vos objectifs</p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              {formations.slice(0, 3).map((formation: any, idx: number) => (
+                <Card 
+                  key={idx} 
+                  className={`card-modern group cursor-pointer overflow-hidden scroll-scale ${formationsSection.isVisible ? 'visible' : ''} delay-${(idx + 1) * 100}`}
+                  onClick={() => onNavigate('formations')}
+                >
+                  {formation.image_url && (
+                    <div className="relative h-48 overflow-hidden">
+                      <img 
+                        src={formation.image_url}
+                        alt={formation.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+                  <div className="p-6">
+                    <h3 className="heading-md mb-3" style={{ color: textColor }}>{formation.title}</h3>
+                    <p className="text-muted-foreground mb-4 line-clamp-2">{formation.description}</p>
+                    {formation.price && (
+                      <div className="text-2xl font-bold mb-4" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>
+                        {formation.price}
+                      </div>
+                    )}
+                    <Button variant="outline" className="w-full">
+                      Voir les détails <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* CTA Final */}
       {site.cta_title && (
         <section ref={ctaSection.ref} className="section-spacing px-4">
           <div 
