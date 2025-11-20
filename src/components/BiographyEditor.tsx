@@ -15,18 +15,22 @@ interface Experience {
 interface BiographyEditorProps {
   biographyTitle: string;
   biographyContent: string;
+  biographyImageUrl?: string;
   professionalExperience: Experience[];
   onBiographyTitleChange: (value: string) => void;
   onBiographyContentChange: (value: string) => void;
+  onBiographyImageUpload: (file: File) => Promise<void>;
   onExperienceChange: (experiences: Experience[]) => void;
 }
 
 export const BiographyEditor = ({
   biographyTitle,
   biographyContent,
+  biographyImageUrl,
   professionalExperience = [],
   onBiographyTitleChange,
   onBiographyContentChange,
+  onBiographyImageUpload,
   onExperienceChange,
 }: BiographyEditorProps) => {
   const addExperience = () => {
@@ -72,6 +76,34 @@ export const BiographyEditor = ({
               placeholder="Racontez votre parcours, votre histoire, vos motivations..."
               className="min-h-[200px]"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="biographyImage">Photo de biographie</Label>
+            <div className="mt-2">
+              {biographyImageUrl && (
+                <div className="mb-4 relative inline-block">
+                  <img
+                    src={biographyImageUrl}
+                    alt="Biography"
+                    className="w-32 h-32 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+              <Input
+                id="biographyImage"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) onBiographyImageUpload(file);
+                }}
+                className="cursor-pointer"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Photo qui apparaîtra à côté du contenu de la biographie
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

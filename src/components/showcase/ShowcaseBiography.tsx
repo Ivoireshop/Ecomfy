@@ -34,28 +34,33 @@ export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
           </h1>
         </div>
 
-        {/* Biography Image */}
-        {site.biography_image_url && (
-          <div className="mb-12 scroll-fade-in">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl hover-scale max-w-2xl mx-auto">
-              <img 
-                src={site.biography_image_url}
-                alt={site.owner_name}
-                className="w-full h-auto object-cover"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Biography Content */}
+        {/* Biography Content with Image Side by Side */}
         {site.biography_content && (
-          <div 
-            className="prose max-w-none mb-16 text-lg leading-relaxed scroll-fade-in"
-            style={{ color: textColor }}
-          >
-            {site.biography_content.split('\n').map((paragraph: string, index: number) => (
-              <p key={index} className="mb-4">{paragraph}</p>
-            ))}
+          <div className="mb-16 scroll-fade-in">
+            <div className={`grid ${site.biography_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-8 items-start`}>
+              {/* Biography Image */}
+              {site.biography_image_url && (
+                <div className="scroll-fade-in">
+                  <div className="relative rounded-2xl overflow-hidden shadow-2xl hover-scale sticky top-8">
+                    <img 
+                      src={site.biography_image_url}
+                      alt={site.owner_name}
+                      className="w-full h-auto object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* Biography Text */}
+              <div 
+                className="prose max-w-none text-lg leading-relaxed"
+                style={{ color: textColor }}
+              >
+                {site.biography_content.split('\n').map((paragraph: string, index: number) => (
+                  <p key={index} className="mb-4">{paragraph}</p>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
