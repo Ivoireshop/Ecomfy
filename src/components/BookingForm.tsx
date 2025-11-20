@@ -86,6 +86,25 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
 
       if (error) throw error;
 
+      // Créer automatiquement une notification dans les messages
+      const serviceTypeLabel = values.service_type === "formation" ? "Formation" : "Service";
+      const notificationMessage = `📋 NOUVELLE RÉSERVATION\n\n` +
+        `Type: ${serviceTypeLabel}\n` +
+        `${serviceTypeLabel}: ${values.service_name}\n` +
+        `Date: ${format(values.booking_date, "dd MMMM yyyy", { locale: fr })}\n` +
+        `Heure: ${values.booking_time}\n` +
+        `Nombre de participants: ${values.number_of_participants}\n` +
+        (values.message ? `\nMessage:\n${values.message}` : "");
+
+      await supabase.from("contact_submissions").insert({
+        showcase_site_id: showcaseSiteId,
+        full_name: values.full_name,
+        email: values.email,
+        phone: values.phone,
+        message: notificationMessage,
+        status: "new",
+      });
+
       toast({
         title: "Réservation envoyée !",
         description: "Vous recevrez une confirmation par email sous peu.",
