@@ -31,6 +31,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import StudentCourse from "./pages/StudentCourse";
 import StudentCertificates from "./pages/StudentCertificates";
 import EnrollmentCheckout from "./pages/EnrollmentCheckout";
+import PaymentSuccess from "./pages/PaymentSuccess";
 import VerifyCertificate from "./pages/VerifyCertificate";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -169,6 +170,7 @@ const AppContent = () => {
         />
         <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
         <Route path="/enroll/:courseId" element={<EnrollmentCheckout />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route 
           path="/student" 
           element={

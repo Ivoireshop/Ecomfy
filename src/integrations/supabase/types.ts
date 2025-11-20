@@ -395,6 +395,7 @@ export type Database = {
           showcase_site_id: string
           title: string
           updated_at: string | null
+          whatsapp_group_link: string | null
         }
         Insert: {
           category?: string
@@ -412,6 +413,7 @@ export type Database = {
           showcase_site_id: string
           title: string
           updated_at?: string | null
+          whatsapp_group_link?: string | null
         }
         Update: {
           category?: string
@@ -429,6 +431,7 @@ export type Database = {
           showcase_site_id?: string
           title?: string
           updated_at?: string | null
+          whatsapp_group_link?: string | null
         }
         Relationships: [
           {
