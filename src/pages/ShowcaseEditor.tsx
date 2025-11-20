@@ -2082,24 +2082,70 @@ export default function ShowcaseEditor() {
             <div className="max-w-3xl mx-auto space-y-6">
               <AIImageGenerator 
                 onImageGenerated={async (imageUrl, imageType) => {
-                  if (imageType === "logo") {
-                    setLogoPreview(imageUrl);
-                    await supabase
-                      .from("showcase_sites")
-                      .update({ logo_url: imageUrl })
-                      .eq("id", id);
-                  } else if (imageType === "hero") {
-                    setHeroImagePreview(imageUrl);
-                    await supabase
-                      .from("showcase_sites")
-                      .update({ hero_image_url: imageUrl })
-                      .eq("id", id);
-                  } else if (imageType === "about") {
-                    setAboutImagePreview(imageUrl);
-                    await supabase
-                      .from("showcase_sites")
-                      .update({ about_image_url: imageUrl })
-                      .eq("id", id);
+                  try {
+                    // Fetch the image and re-upload it with unique name and cache-busting
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    const file = new File([blob], `${imageType}-${Date.now()}.png`, { type: 'image/png' });
+                    
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) {
+                      toast.error("Non authentifié");
+                      return;
+                    }
+
+                    // Delete old image before uploading new one
+                    if (imageType === "logo" && logoPreview) {
+                      await deleteOldImage(logoPreview);
+                    } else if (imageType === "hero" && heroImagePreview) {
+                      await deleteOldImage(heroImagePreview);
+                    } else if (imageType === "about" && aboutImagePreview) {
+                      await deleteOldImage(aboutImagePreview);
+                    }
+
+                    // Upload new image with unique name
+                    const fileName = `${user.id}/${imageType}-${Date.now()}.png`;
+                    const { error: uploadError } = await supabase.storage
+                      .from('showcase-images')
+                      .upload(fileName, file, {
+                        cacheControl: '0',
+                        upsert: false
+                      });
+
+                    if (uploadError) throw uploadError;
+
+                    const { data } = supabase.storage
+                      .from('showcase-images')
+                      .getPublicUrl(fileName);
+
+                    // Add cache-busting parameter
+                    const finalUrl = `${data.publicUrl}?v=${Date.now()}`;
+
+                    // Update state and database immediately
+                    if (imageType === "logo") {
+                      setLogoPreview(finalUrl);
+                      await supabase
+                        .from("showcase_sites")
+                        .update({ logo_url: finalUrl })
+                        .eq("id", id);
+                    } else if (imageType === "hero") {
+                      setHeroImagePreview(finalUrl);
+                      await supabase
+                        .from("showcase_sites")
+                        .update({ hero_image_url: finalUrl })
+                        .eq("id", id);
+                    } else if (imageType === "about") {
+                      setAboutImagePreview(finalUrl);
+                      await supabase
+                        .from("showcase_sites")
+                        .update({ about_image_url: finalUrl })
+                        .eq("id", id);
+                    }
+                    
+                    toast.success(`Image ${imageType} sauvegardée avec succès !`);
+                  } catch (error) {
+                    console.error("Error applying AI image:", error);
+                    toast.error("Erreur lors de l'application de l'image");
                   }
                 }}
               />
