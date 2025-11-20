@@ -70,7 +70,7 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
   const onSubmit = async (values: BookingFormValues) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("bookings").insert({
+      const bookingData = {
         showcase_site_id: showcaseSiteId,
         full_name: values.full_name,
         email: values.email,
@@ -82,7 +82,9 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
         number_of_participants: values.number_of_participants,
         message: values.message,
         status: "pending",
-      });
+      };
+
+      const { error } = await supabase.from("bookings").insert(bookingData);
 
       if (error) throw error;
 
@@ -104,6 +106,30 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
         message: notificationMessage,
         status: "new",
       });
+
+      // Envoyer la notification email au propriétaire
+      try {
+        await supabase.functions.invoke('send-booking-notification', {
+          body: {
+            showcaseSiteId,
+            bookingDetails: {
+              full_name: values.full_name,
+              email: values.email,
+              phone: values.phone,
+              booking_date: format(values.booking_date, "yyyy-MM-dd"),
+              booking_time: values.booking_time,
+              service_type: values.service_type,
+              service_name: values.service_name,
+              number_of_participants: values.number_of_participants,
+              message: values.message,
+            },
+          },
+        });
+        console.log("Email notification sent successfully");
+      } catch (emailError) {
+        console.error("Error sending email notification:", emailError);
+        // On ne bloque pas le processus si l'email échoue
+      }
 
       toast({
         title: "Réservation envoyée !",
