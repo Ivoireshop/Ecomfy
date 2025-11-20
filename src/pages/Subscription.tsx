@@ -38,6 +38,7 @@ const Subscription = () => {
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [purchasedCredits, setPurchasedCredits] = useState(0);
   const [selectedPack, setSelectedPack] = useState<{size: number, price: number} | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'startup'>('pro');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -201,7 +202,8 @@ const Subscription = () => {
   ) => {
     setIsProcessing(true);
     try {
-      const amount = selectedPack ? selectedPack.price : 10000;
+      const planAmount = selectedPlan === 'startup' ? 50000 : 10000;
+      const amount = selectedPack ? selectedPack.price : planAmount;
       const paymentType = selectedPack ? 'credits' : 'subscription';
       
       const { data, error } = await supabase.functions.invoke("process-payment", {
@@ -267,14 +269,15 @@ const Subscription = () => {
   ];
 
   const comparisonFeatures = [
-    { name: "Générations d'images", free: "3 / mois", pro: "Illimitées" },
-    { name: "Générations de vidéos", free: "1 / mois", pro: "5 / mois" },
-    { name: "Sites vitrine", free: "❌", pro: "Illimités" },
-    { name: "Édition d'images IA", free: "❌", pro: "✅" },
-    { name: "Tous les styles", free: "Limité", pro: "✅" },
-    { name: "Formats multiples", free: "❌", pro: "✅" },
-    { name: "Génération prioritaire", free: "❌", pro: "✅" },
-    { name: "Support prioritaire", free: "❌", pro: "✅" },
+    { name: "Générations d'images", free: "3 / mois", pro: "Illimitées", startup: "Illimitées" },
+    { name: "Générations de vidéos", free: "1 / mois", pro: "5 / mois", startup: "Illimitées" },
+    { name: "Sites vitrine", free: "❌", pro: "Illimités", startup: "Illimités" },
+    { name: "Clés API", free: "❌", pro: "❌", startup: "✅" },
+    { name: "Édition d'images IA", free: "❌", pro: "✅", startup: "✅" },
+    { name: "Tous les styles", free: "Limité", pro: "✅", startup: "✅" },
+    { name: "Formats multiples", free: "❌", pro: "✅", startup: "✅" },
+    { name: "Génération prioritaire", free: "❌", pro: "✅", startup: "✅" },
+    { name: "Support prioritaire", free: "❌", pro: "✅", startup: "Dédié 24/7" },
   ];
 
   return (
@@ -583,7 +586,7 @@ const Subscription = () => {
                     <CardTitle className="text-2xl text-primary">Pro</CardTitle>
                     <CardDescription>Pour les entrepreneurs sérieux</CardDescription>
                     <div className="mt-4">
-                      {promoDiscount > 0 ? (
+                      {promoDiscount > 0 && selectedPlan === 'pro' ? (
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-2xl font-bold line-through text-muted-foreground">10 000</span>
@@ -612,12 +615,62 @@ const Subscription = () => {
                       ))}
                     </ul>
                     <Button className="w-full mt-6" size="lg" onClick={() => {
-                      setSelectedPack(null); // Clear selected pack for subscription
+                      setSelectedPack(null);
+                      setSelectedPlan('pro');
                       const pricingSection = document.getElementById('pricing-section');
                       pricingSection?.scrollIntoView({ behavior: 'smooth' });
                     }}>
                       <Sparkles className="mr-2 h-4 w-4" />
                       Passer à Pro maintenant
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Startup Plan */}
+                <Card className="relative overflow-hidden border-secondary shadow-xl">
+                  <div className="absolute top-0 right-0 bg-gradient-to-l from-secondary to-purple-600 text-white px-4 py-1 text-sm font-semibold">
+                    Pour entreprises 🚀
+                  </div>
+                  <CardHeader className="bg-gradient-to-br from-secondary/5 to-purple-600/5">
+                    <CardTitle className="text-2xl text-secondary">Startup</CardTitle>
+                    <CardDescription>Pour les entreprises en croissance</CardDescription>
+                    <div className="mt-4">
+                      {promoDiscount > 0 && selectedPlan === 'startup' ? (
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold line-through text-muted-foreground">50 000</span>
+                            <Badge variant="default">-{promoDiscount}%</Badge>
+                          </div>
+                          <span className="text-4xl font-bold text-secondary">
+                            {Math.round(50000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-4xl font-bold">50 000 FCFA</span>
+                      )}
+                      <span className="text-muted-foreground ml-2">/ mois</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {comparisonFeatures.map((feature, idx) => (
+                        <li key={idx} className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-secondary/10 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-secondary" />
+                          </div>
+                          <span className="text-sm flex-1">{feature.name}</span>
+                          <span className="text-sm font-bold text-secondary">{feature.startup}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button className="w-full mt-6 bg-secondary hover:bg-secondary/90" size="lg" onClick={() => {
+                      setSelectedPack(null);
+                      setSelectedPlan('startup');
+                      const pricingSection = document.getElementById('pricing-section');
+                      pricingSection?.scrollIntoView({ behavior: 'smooth' });
+                    }}>
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      Passer à Startup maintenant
                     </Button>
                   </CardContent>
                 </Card>
@@ -675,11 +728,15 @@ const Subscription = () => {
               </div>
             )}
 
-            {/* Pricing Section */}
+              {/* Pricing Section */}
             <div id="pricing-section" className="max-w-4xl mx-auto">
               <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold mb-2">Paiement de l'Abonnement Mensuel</h3>
-                <p className="text-muted-foreground">Activez votre abonnement illimité maintenant</p>
+                <p className="text-muted-foreground">
+                  Plan sélectionné : <span className="font-bold text-primary">
+                    {selectedPlan === 'pro' ? 'Pro' : 'Startup'}
+                  </span> - {selectedPlan === 'pro' ? '10 000' : '50 000'} FCFA/mois
+                </p>
               </div>
               {/* Promo Code */}
               <Card className="mb-8">
@@ -723,7 +780,7 @@ const Subscription = () => {
                     <div className="flex items-center gap-2 mt-2 p-3 bg-primary/10 rounded-lg">
                       <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
                       <p className="text-sm text-primary font-medium">
-                        Excellent ! Réduction de {promoDiscount}% appliquée - Économisez {Math.round(10000 * promoDiscount / 100).toLocaleString()} FCFA
+                        Excellent ! Réduction de {promoDiscount}% appliquée - Économisez {Math.round((selectedPlan === 'startup' ? 50000 : 10000) * promoDiscount / 100).toLocaleString()} FCFA
                       </p>
                     </div>
                   )}
@@ -841,8 +898,8 @@ const Subscription = () => {
               />
               <p className="text-xs text-muted-foreground">
                 Le montant {promoDiscount > 0 
-                  ? `de ${Math.round(10000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA` 
-                  : "de 10 000 FCFA"} sera débité après validation sur votre téléphone.
+                  ? `de ${Math.round((selectedPlan === 'startup' ? 50000 : 10000) * (1 - promoDiscount / 100)).toLocaleString()} FCFA` 
+                  : `de ${(selectedPlan === 'startup' ? '50 000' : '10 000')} FCFA`} sera débité après validation sur votre téléphone.
               </p>
             </div>
 
