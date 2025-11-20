@@ -29,6 +29,7 @@ import Tutorial from "./pages/Tutorial";
 import Demo from "./pages/Demo";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentCourse from "./pages/StudentCourse";
+import EnrollmentCheckout from "./pages/EnrollmentCheckout";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiesPolicy from "./pages/CookiesPolicy";
@@ -165,6 +166,7 @@ const AppContent = () => {
           } 
         />
         <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
+        <Route path="/enroll/:courseId" element={<EnrollmentCheckout />} />
         <Route 
           path="/student" 
           element={

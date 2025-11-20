@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Clock, Users, ArrowLeft, CreditCard, MessageCircle, ExternalLink } from "lucide-react";
+import { Loader2, Clock, Users, ArrowLeft, CreditCard, MessageCircle, ExternalLink, ShoppingCart } from "lucide-react";
 
 interface Course {
   id: string;
@@ -45,6 +46,7 @@ export function ShowcaseCourseDetail({
   primaryColor = "#2563eb",
   textColor = "#000000",
 }: ShowcaseCourseDetailProps) {
+  const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
   const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([]);
   const [loading, setLoading] = useState(true);
@@ -298,6 +300,16 @@ export function ShowcaseCourseDetail({
                 </DialogContent>
               </Dialog>
 
+              <Button
+                className="w-full"
+                size="lg"
+                style={{ backgroundColor: primaryColor }}
+                onClick={() => navigate(`/enroll/${courseId}`)}
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                S'inscrire à cette formation
+              </Button>
+
               {paymentLinks.length > 0 && (
                 <>
                   <div className="relative">
@@ -305,19 +317,16 @@ export function ShowcaseCourseDetail({
                       <div className="w-full border-t" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">ou</span>
+                      <span className="bg-background px-2 text-muted-foreground">ou paiement direct</span>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-sm font-medium text-center mb-2">
-                      Payer maintenant
-                    </div>
                     {paymentLinks.map((link) => (
                       <Button
                         key={link.id}
                         className="w-full"
-                        style={{ backgroundColor: primaryColor }}
+                        variant="outline"
                         asChild
                       >
                         <a
