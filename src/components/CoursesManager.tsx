@@ -23,6 +23,7 @@ interface Course {
   level: string | null;
   is_published: boolean;
   max_participants: number | null;
+  whatsapp_group_link: string | null;
 }
 
 interface CoursesManagerProps {
@@ -47,6 +48,7 @@ export function CoursesManager({ showcaseSiteId }: CoursesManagerProps) {
     level: "Débutant",
     max_participants: null as number | null,
     is_published: false,
+    whatsapp_group_link: "",
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -170,6 +172,7 @@ export function CoursesManager({ showcaseSiteId }: CoursesManagerProps) {
       level: course.level || "Débutant",
       max_participants: course.max_participants,
       is_published: course.is_published,
+      whatsapp_group_link: course.whatsapp_group_link || "",
     });
     setImagePreview(course.image_url);
     setIsCreating(true);
@@ -203,6 +206,7 @@ export function CoursesManager({ showcaseSiteId }: CoursesManagerProps) {
       level: "Débutant",
       max_participants: null,
       is_published: false,
+      whatsapp_group_link: "",
     });
     setImageFile(null);
     setImagePreview(null);
@@ -370,6 +374,20 @@ export function CoursesManager({ showcaseSiteId }: CoursesManagerProps) {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp_group_link">Lien WhatsApp du groupe d'accompagnement</Label>
+                <Input
+                  id="whatsapp_group_link"
+                  type="url"
+                  placeholder="https://chat.whatsapp.com/..."
+                  value={formData.whatsapp_group_link}
+                  onChange={(e) => setFormData({ ...formData, whatsapp_group_link: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Ce lien sera affiché automatiquement après validation du paiement
+                </p>
               </div>
 
               <div className="space-y-2">

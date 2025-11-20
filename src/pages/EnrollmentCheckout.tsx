@@ -126,20 +126,24 @@ export default function EnrollmentCheckout() {
         }
       }
 
-      const { error } = await supabase.from("enrollments").insert([
-        {
-          course_id: course.id,
-          showcase_site_id: course.showcase_site_id,
-          student_name: enrollmentForm.student_name,
-          student_email: enrollmentForm.student_email,
-          student_phone: enrollmentForm.student_phone,
-          payment_method: enrollmentForm.payment_method,
-          transaction_reference: enrollmentForm.transaction_reference,
-          amount_paid: course.price,
-          payment_proof_url: proofUrl,
-          payment_status: "pending",
-        },
-      ]);
+      const { data: insertedEnrollment, error } = await supabase
+        .from("enrollments")
+        .insert([
+          {
+            course_id: course.id,
+            showcase_site_id: course.showcase_site_id,
+            student_name: enrollmentForm.student_name,
+            student_email: enrollmentForm.student_email,
+            student_phone: enrollmentForm.student_phone,
+            payment_method: enrollmentForm.payment_method,
+            transaction_reference: enrollmentForm.transaction_reference,
+            amount_paid: course.price,
+            payment_proof_url: proofUrl,
+            payment_status: "pending",
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -148,7 +152,11 @@ export default function EnrollmentCheckout() {
       );
       
       setTimeout(() => {
-        navigate("/auth?mode=login");
+        if (insertedEnrollment) {
+          navigate(`/payment-success?enrollment_id=${insertedEnrollment.id}`);
+        } else {
+          navigate("/auth?mode=login");
+        }
       }, 2000);
     } catch (error) {
       console.error("Error submitting enrollment:", error);
