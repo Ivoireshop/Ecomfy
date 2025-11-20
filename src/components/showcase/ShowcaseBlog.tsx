@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, User, ArrowRight, BookOpen } from "lucide-react";
+import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 interface ShowcaseBlogProps {
   site: any;
@@ -9,6 +10,10 @@ interface ShowcaseBlogProps {
 
 export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : 'hsl(var(--foreground))';
+  
+  const heroSection = useScrollAnimation({ threshold: 0.1 });
+  const articlesGrid = useScrollAnimation({ threshold: 0.2 });
+  const newsletterSection = useScrollAnimation({ threshold: 0.3 });
 
   // Articles d'exemple - à remplacer par de vraies données
   const articles = [
@@ -47,8 +52,8 @@ export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="section-spacing px-4 bg-muted/30">
-        <div className="container mx-auto max-w-4xl text-center animate-fade-in">
+      <section ref={heroSection.ref} className="section-spacing px-4 bg-muted/30">
+        <div className={`container mx-auto max-w-4xl text-center scroll-fade-up ${heroSection.isVisible ? 'visible' : ''}`}>
           <Badge className="mb-6" variant="outline">
             <BookOpen className="h-4 w-4 mr-2" />
             Notre Blog
@@ -63,13 +68,13 @@ export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
       </section>
 
       {/* Articles Grid */}
-      <section className="section-spacing px-4">
+      <section ref={articlesGrid.ref} className="section-spacing px-4">
         <div className="container mx-auto max-w-7xl">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {articles.map((article) => (
+            {articles.map((article, index) => (
               <Card 
                 key={article.id}
-                className="card-modern group overflow-hidden"
+                className={`card-modern group overflow-hidden scroll-scale ${articlesGrid.isVisible ? 'visible' : ''} delay-${Math.min((index % 3 + 1) * 100, 400)}`}
               >
                 {/* Image */}
                 <div className="relative h-56 overflow-hidden">
@@ -143,9 +148,9 @@ export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
       </section>
 
       {/* Newsletter CTA */}
-      <section className="pb-24 px-4">
+      <section ref={newsletterSection.ref} className="pb-24 px-4">
         <div 
-          className="container mx-auto max-w-4xl rounded-3xl p-12 md:p-16 text-center"
+          className={`container mx-auto max-w-4xl rounded-3xl p-12 md:p-16 text-center scroll-scale ${newsletterSection.isVisible ? 'visible' : ''}`}
           style={{ 
             background: `linear-gradient(135deg, ${site.primary_color || 'hsl(var(--primary))'}, ${site.secondary_color || 'hsl(var(--secondary))'})` 
           }}
