@@ -3,6 +3,10 @@ import { MessageCircle, ArrowRight, Sparkles, BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+import Particles from "@tsparticles/react";
+import { useMemo, useEffect } from "react";
+import type { Container } from "@tsparticles/engine";
+import { loadSlim } from "@tsparticles/slim";
 
 interface ShowcaseHomeProps {
   site: any;
@@ -22,6 +26,58 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
   const formationsSection = useScrollAnimation({ threshold: 0.2 });
   const ctaSection = useScrollAnimation({ threshold: 0.3 });
 
+  useEffect(() => {
+    loadSlim(window.tsParticles);
+  }, []);
+
+  const particlesOptions = useMemo(() => ({
+    background: {
+      color: {
+        value: "transparent",
+      },
+    },
+    fpsLimit: 120,
+    particles: {
+      color: {
+        value: "#ffffff",
+      },
+      links: {
+        color: "#ffffff",
+        distance: 150,
+        enable: true,
+        opacity: 0.3,
+        width: 1,
+      },
+      move: {
+        direction: "none" as const,
+        enable: true,
+        outModes: {
+          default: "bounce" as const,
+        },
+        random: false,
+        speed: 1,
+        straight: false,
+      },
+      number: {
+        density: {
+          enable: true,
+          area: 800,
+        },
+        value: 80,
+      },
+      opacity: {
+        value: 0.5,
+      },
+      shape: {
+        type: "circle",
+      },
+      size: {
+        value: { min: 1, max: 3 },
+      },
+    },
+    detectRetina: true,
+  }), []);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor }}>
       {/* Hero Section */}
@@ -31,6 +87,11 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
           background: `linear-gradient(135deg, ${site.primary_color || 'hsl(var(--primary))'}, ${site.secondary_color || 'hsl(var(--secondary))'})`,
         }}
       >
+        <Particles
+          id="tsparticles"
+          options={particlesOptions}
+          className="absolute inset-0"
+        />
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="animate-fade-in text-white z-10">
