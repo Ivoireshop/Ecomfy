@@ -14,8 +14,8 @@ import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
 import featureIA from "@/assets/feature-ia.jpg";
-import founderImage from "@/assets/founder-ulrich-djate.jpg";
-import cofounderImage from "@/assets/cofounder-agnissan-regnis.jpg";
+import founderImage from "@/assets/founder-loic-diate.jpg";
+import cofounderImage from "@/assets/cofounder-renis-annisson.jpg";
 import exampleHandbag from "@/assets/example-handbag-ad.jpg";
 import examplePhone from "@/assets/example-phone-ad.jpg";
 import exampleFood from "@/assets/example-food-ad.jpg";
@@ -604,27 +604,33 @@ const Index = () => {
             <Card className="p-8 text-center hover:shadow-xl transition-all">
               <img
                 src={founderImage}
-                alt="Ulrich DJATE"
+                alt="Loïc DIATÉ"
                 className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
               />
-              <h3 className="text-2xl font-bold mb-2">Ulrich DJATE</h3>
-              <p className="text-primary font-semibold mb-4">Fondateur & CEO</p>
-              <p className="text-muted-foreground">
-                Entrepreneur passionné par l'innovation technologique en Afrique
+              <h3 className="text-2xl font-bold mb-2">Loïc DIATÉ</h3>
+              <p className="text-primary font-semibold mb-4">Fondateur, CEO & Architecte</p>
+              <p className="text-muted-foreground mb-4">
+                Expert en intelligence artificielle, développement, vibe coding et entrepreneur à succès
               </p>
+              <blockquote className="italic text-sm text-primary border-l-4 border-primary pl-4 py-2">
+                "L'innovation en Afrique commence par croire en nos propres capacités. Avec VisualPro, nous donnons aux entrepreneurs africains les outils pour transformer leurs visions en réalité."
+              </blockquote>
             </Card>
 
             <Card className="p-8 text-center hover:shadow-xl transition-all">
               <img
                 src={cofounderImage}
-                alt="Agnissan REGNIS"
+                alt="Renis ANNISSON"
                 className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
               />
-              <h3 className="text-2xl font-bold mb-2">Agnissan REGNIS</h3>
-              <p className="text-secondary font-semibold mb-4">Co-fondateur & CTO</p>
-              <p className="text-muted-foreground">
-                Expert en IA et développement, architecte de la plateforme
+              <h3 className="text-2xl font-bold mb-2">Renis ANNISSON</h3>
+              <p className="text-secondary font-semibold mb-4">Co-fondateur</p>
+              <p className="text-muted-foreground mb-4">
+                Entrepreneur ivoirien, entrepreneur digital et expert en e-commerce
               </p>
+              <blockquote className="italic text-sm text-secondary border-l-4 border-secondary pl-4 py-2">
+                "Le succès digital ne se mesure pas seulement en chiffres, mais par l'impact qu'on crée. Ensemble, bâtissons l'avenir du commerce en ligne en Afrique."
+              </blockquote>
             </Card>
           </div>
         </div>
