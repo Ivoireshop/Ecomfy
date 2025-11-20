@@ -319,8 +319,9 @@ export default function EnrollmentCheckout() {
               </Button>
 
               <p className="text-sm text-muted-foreground text-center">
-                Votre inscription sera validée dans les 24h. Vous recevrez un email de
-                confirmation avec vos identifiants d'accès.
+                Après validation de votre paiement (sous 24h), un compte utilisateur sera
+                automatiquement créé avec cet email. Vous recevrez vos identifiants par email
+                pour accéder à votre espace étudiant et suivre la formation.
               </p>
             </form>
           </CardContent>

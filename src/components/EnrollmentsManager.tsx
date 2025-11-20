@@ -78,7 +78,14 @@ export function EnrollmentsManager({ showcaseSiteId }: EnrollmentsManagerProps) 
 
   const handleValidatePayment = async (id: string) => {
     try {
-      const { error } = await supabase
+      const enrollment = enrollments.find((e) => e.id === id);
+      if (!enrollment) {
+        toast.error("Inscription introuvable");
+        return;
+      }
+
+      // Update enrollment status
+      const { error: updateError } = await supabase
         .from("enrollments")
         .update({
           payment_status: "paid",
@@ -86,8 +93,28 @@ export function EnrollmentsManager({ showcaseSiteId }: EnrollmentsManagerProps) 
         })
         .eq("id", id);
 
-      if (error) throw error;
-      toast.success("Paiement validé avec succès");
+      if (updateError) throw updateError;
+
+      // Create student account and access
+      const { data, error: createError } = await supabase.functions.invoke(
+        "create-student-account",
+        {
+          body: {
+            enrollmentId: id,
+            courseId: enrollment.course_id,
+            studentEmail: enrollment.student_email,
+            studentName: enrollment.student_name,
+          },
+        }
+      );
+
+      if (createError) {
+        console.error("Error creating student account:", createError);
+        toast.error("Paiement validé mais erreur lors de la création du compte");
+      } else {
+        toast.success("Paiement validé et compte étudiant créé avec succès");
+      }
+
       loadData();
     } catch (error: any) {
       toast.error("Erreur lors de la validation");
