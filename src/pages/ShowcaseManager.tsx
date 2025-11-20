@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ShowcaseDashboardCard } from "@/components/ShowcaseDashboardCard";
 
 interface ShowcaseSite {
   id: string;
@@ -161,7 +162,20 @@ export default function ShowcaseManager() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <>
+            {/* Tableaux de bord pour chaque site */}
+            <div className="space-y-6 mb-8">
+              {sites.map((site) => (
+                <ShowcaseDashboardCard
+                  key={`dashboard-${site.id}`}
+                  siteId={site.id}
+                  businessName={site.business_name}
+                />
+              ))}
+            </div>
+
+            {/* Grille des sites */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {sites.map((site) => (
               <Card key={site.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
@@ -269,6 +283,7 @@ export default function ShowcaseManager() {
               </Card>
             ))}
           </div>
+          </>
         )}
       </div>
 
