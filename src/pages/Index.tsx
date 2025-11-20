@@ -604,10 +604,10 @@ const Index = () => {
             <Card className="p-8 text-center hover:shadow-xl transition-all">
               <img
                 src={founderImage}
-                alt="Loïc DIATÉ"
+                alt="Ulrich DJATÉ"
                 className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
               />
-              <h3 className="text-2xl font-bold mb-2">Loïc DIATÉ</h3>
+              <h3 className="text-2xl font-bold mb-2">Ulrich DJATÉ</h3>
               <p className="text-primary font-semibold mb-4">Fondateur, CEO & Architecte</p>
               <p className="text-muted-foreground mb-4">
                 Expert en intelligence artificielle, développement, vibe coding et entrepreneur à succès
@@ -620,10 +620,10 @@ const Index = () => {
             <Card className="p-8 text-center hover:shadow-xl transition-all">
               <img
                 src={cofounderImage}
-                alt="Renis ANNISSON"
+                alt="Regnis AGNISSAN"
                 className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
               />
-              <h3 className="text-2xl font-bold mb-2">Renis ANNISSON</h3>
+              <h3 className="text-2xl font-bold mb-2">Regnis AGNISSAN</h3>
               <p className="text-secondary font-semibold mb-4">Co-fondateur</p>
               <p className="text-muted-foreground mb-4">
                 Entrepreneur ivoirien, entrepreneur digital et expert en e-commerce
