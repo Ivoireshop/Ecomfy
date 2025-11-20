@@ -19,9 +19,10 @@ interface FeaturesEditorWithImagesProps {
   features: Feature[];
   showcaseId: string;
   onChange: (features: Feature[]) => void;
+  onSaveToDatabase?: () => Promise<void>;
 }
 
-export function FeaturesEditorWithImages({ features, showcaseId, onChange }: FeaturesEditorWithImagesProps) {
+export function FeaturesEditorWithImages({ features, showcaseId, onChange, onSaveToDatabase }: FeaturesEditorWithImagesProps) {
   const [generatingIndex, setGeneratingIndex] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
@@ -135,8 +136,15 @@ export function FeaturesEditorWithImages({ features, showcaseId, onChange }: Fea
         .getPublicUrl(fileName);
 
       // Add cache-busting parameter
-      updateFeature(index, 'image_url', `${data.publicUrl}?v=${Date.now()}`);
-      toast.success("Image téléchargée avec succès !");
+      const newImageUrl = `${data.publicUrl}?v=${Date.now()}`;
+      updateFeature(index, 'image_url', newImageUrl);
+      
+      // Save immediately to database
+      if (onSaveToDatabase) {
+        await onSaveToDatabase();
+      }
+      
+      toast.success("Image téléchargée et sauvegardée avec succès !");
     } catch (error: any) {
       console.error('Error uploading image:', error);
       toast.error("Erreur lors du téléchargement");
