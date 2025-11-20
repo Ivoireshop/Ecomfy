@@ -8,11 +8,14 @@ import { Helmet } from "react-helmet";
 import { ShowcaseAIChat } from "@/components/ShowcaseAIChat";
 import { BookingForm } from "@/components/BookingForm";
 import { ShowcaseHome } from "@/components/showcase/ShowcaseHome";
+import { ShowcaseServices } from "@/components/showcase/ShowcaseServices";
 import { ShowcaseFormations } from "@/components/showcase/ShowcaseFormations";
 import { ShowcaseAbout } from "@/components/showcase/ShowcaseAbout";
 import { ShowcaseBiography } from "@/components/showcase/ShowcaseBiography";
 import { ShowcaseGallery } from "@/components/showcase/ShowcaseGallery";
 import { ShowcaseContact } from "@/components/showcase/ShowcaseContact";
+import { ShowcaseBlog } from "@/components/showcase/ShowcaseBlog";
+import { ShowcaseFooter } from "@/components/showcase/ShowcaseFooter";
 import {
   Sheet,
   SheetContent,
@@ -107,7 +110,7 @@ interface GalleryVideo {
   section_title: string | null;
 }
 
-type PageType = 'home' | 'formations' | 'about' | 'biography' | 'gallery' | 'contact' | 'booking';
+type PageType = 'home' | 'services' | 'formations' | 'about' | 'biography' | 'gallery' | 'contact' | 'booking' | 'blog';
 
 export default function ShowcaseView() {
   const { subdomain } = useParams<{ subdomain: string }>();
@@ -304,11 +307,10 @@ export default function ShowcaseView() {
 
   const navigationItems = [
     { label: "Accueil", page: 'home' as PageType },
-    ...(site.formations && site.formations.length > 0 ? [{ label: "Formations", page: 'formations' as PageType }] : []),
     ...(site.about_description ? [{ label: "À propos", page: 'about' as PageType }] : []),
-    ...((site.biography_content || (site.professional_experience && site.professional_experience.length > 0)) ? [{ label: "Biographie", page: 'biography' as PageType }] : []),
-    ...(Object.keys(galleries).length > 0 || galleryVideos.length > 0 ? [{ label: "Galerie", page: 'gallery' as PageType }] : []),
-    { label: "Réserver", page: 'booking' as PageType },
+    ...(site.features && site.features.length > 0 ? [{ label: "Services", page: 'services' as PageType }] : []),
+    ...(site.formations && site.formations.length > 0 ? [{ label: "Formations", page: 'formations' as PageType }] : []),
+    { label: "Blog", page: 'blog' as PageType },
     { label: "Contact", page: 'contact' as PageType },
   ];
 
@@ -418,76 +420,24 @@ export default function ShowcaseView() {
         </nav>
 
         <div className="pt-20">
-          {currentPage === 'home' && (
-            <ShowcaseHome 
-              site={site} 
-              onContactClick={handleContactClick}
-              onNavigate={navigateToPage}
-            />
-          )}
-          
-          {currentPage === 'formations' && (
-            <ShowcaseFormations 
-              site={site} 
-              onContactClick={handleContactClick}
-            />
-          )}
-          
-          {currentPage === 'about' && (
-            <ShowcaseAbout 
-              site={site} 
-              testimonials={testimonials}
-              onContactClick={handleContactClick}
-            />
-          )}
-          
-          {currentPage === 'biography' && (
-            <ShowcaseBiography 
-              site={site}
-            />
-          )}
-          
-          {currentPage === 'gallery' && (
-            <ShowcaseGallery 
-              galleries={galleries}
-              galleryVideos={galleryVideos}
-              site={site}
-            />
-          )}
-
+          {currentPage === 'home' && <ShowcaseHome site={site} onContactClick={handleContactClick} onNavigate={navigateToPage} />}
+          {currentPage === 'services' && <ShowcaseServices site={site} onContactClick={handleContactClick} />}
+          {currentPage === 'formations' && <ShowcaseFormations site={site} onContactClick={handleContactClick} />}
+          {currentPage === 'about' && <ShowcaseAbout site={site} testimonials={testimonials} onContactClick={handleContactClick} />}
+          {currentPage === 'biography' && <ShowcaseBiography site={site} />}
+          {currentPage === 'gallery' && <ShowcaseGallery galleries={galleries} galleryVideos={galleryVideos} site={site} />}
+          {currentPage === 'blog' && <ShowcaseBlog site={site} />}
           {currentPage === 'booking' && (
             <section className="py-20 px-4">
               <div className="max-w-2xl mx-auto">
-                <BookingForm 
-                  showcaseSiteId={site.id} 
-                  site={site}
-                  onSuccess={() => navigateToPage('home')}
-                />
+                <BookingForm showcaseSiteId={site.id} site={site} onSuccess={() => navigateToPage('home')} />
               </div>
             </section>
           )}
-          
-          {currentPage === 'contact' && (
-            <ShowcaseContact site={site} />
-          )}
+          {currentPage === 'contact' && <ShowcaseContact site={site} />}
         </div>
 
-        <footer 
-          className="py-12 px-4 border-t"
-          style={{ 
-            borderColor: `${site.primary_color}30`,
-            backgroundColor: themeMode === 'dark' ? '#0f172a' : '#f8f9fa'
-          }}
-        >
-          <div className="container mx-auto text-center">
-            <p className="mb-4" style={{ color: site.text_color }}>
-              © 2024 {site.business_name}. Tous droits réservés.
-            </p>
-            <p className="text-sm opacity-70">
-              Propulsé par VisualPro
-            </p>
-          </div>
-        </footer>
+        <ShowcaseFooter site={site} onNavigate={navigateToPage} />
 
         <ShowcaseAIChat 
           siteContext={{
