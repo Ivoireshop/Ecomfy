@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, ArrowRight, Sparkles, BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 interface ShowcaseHomeProps {
   site: any;
@@ -13,6 +14,9 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : (site.text_color || 'hsl(var(--foreground))');
   const features = site.features || [];
   const formations = site.formations || [];
+  
+  const servicesSection = useScrollAnimation({ threshold: 0.2 });
+  const ctaSection = useScrollAnimation({ threshold: 0.3 });
 
   return (
     <div className="min-h-screen">
@@ -56,14 +60,19 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
 
       {/* Services */}
       {features.length > 0 && (
-        <section className="section-spacing px-4">
+        <section ref={servicesSection.ref} className="section-spacing px-4">
           <div className="container mx-auto max-w-7xl">
-            <div className="text-center mb-16"><Badge className="mb-6" variant="outline">NOS SERVICES</Badge>
+            <div className={`text-center mb-16 scroll-fade-up ${servicesSection.isVisible ? 'visible' : ''}`}>
+              <Badge className="mb-6" variant="outline">NOS SERVICES</Badge>
               <h2 className="heading-lg mb-6" style={{ color: textColor }}>Ce que nous offrons</h2>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
               {features.slice(0, 3).map((feature: any, idx: number) => (
-                <Card key={idx} className="card-modern p-8 group cursor-pointer" onClick={() => onNavigate('services')}>
+                <Card 
+                  key={idx} 
+                  className={`card-modern p-8 group cursor-pointer scroll-scale ${servicesSection.isVisible ? 'visible' : ''} delay-${(idx + 1) * 100}`}
+                  onClick={() => onNavigate('services')}
+                >
                   <Sparkles className="h-12 w-12 mb-6 text-primary group-hover:scale-110 transition-transform" />
                   <h3 className="heading-md mb-4" style={{ color: textColor }}>{feature.title}</h3>
                   <p className="text-muted-foreground mb-6">{feature.description}</p>
@@ -76,8 +85,13 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
 
       {/* CTA */}
       {site.cta_title && (
-        <section className="section-spacing px-4">
-          <div className="container mx-auto max-w-5xl rounded-3xl p-12 md:p-20 text-center" style={{ background: `linear-gradient(135deg, ${site.primary_color || 'hsl(var(--primary))'}, ${site.secondary_color || 'hsl(var(--secondary))'})` }}>
+        <section ref={ctaSection.ref} className="section-spacing px-4">
+          <div 
+            className={`container mx-auto max-w-5xl rounded-3xl p-12 md:p-20 text-center scroll-scale ${ctaSection.isVisible ? 'visible' : ''}`}
+            style={{ 
+              background: `linear-gradient(135deg, ${site.primary_color || 'hsl(var(--primary))'}, ${site.secondary_color || 'hsl(var(--secondary))'})` 
+            }}
+          >
             <h2 className="heading-lg text-white mb-6">{site.cta_title}</h2>
             <Button size="lg" onClick={onContactClick} className="bg-white text-primary hover:bg-white/90 font-semibold px-10 py-7 text-lg rounded-full">
               Contactez-nous<ArrowRight className="ml-2 h-6 w-6" />
