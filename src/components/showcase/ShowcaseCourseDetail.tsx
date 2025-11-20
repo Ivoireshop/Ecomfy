@@ -31,6 +31,22 @@ interface PaymentLink {
   payment_url: string;
 }
 
+interface ModuleContent {
+  id: string;
+  title: string;
+  content_type: string;
+  duration_minutes: number | null;
+}
+
+interface CourseModule {
+  id: string;
+  title: string;
+  description: string | null;
+  duration_minutes: number | null;
+  module_order: number;
+  module_contents: ModuleContent[];
+}
+
 interface ShowcaseCourseDetailProps {
   courseId: string;
   showcaseSiteId: string;
@@ -49,6 +65,7 @@ export function ShowcaseCourseDetail({
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
   const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([]);
+  const [modules, setModules] = useState<CourseModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -83,6 +100,29 @@ export function ShowcaseCourseDetail({
 
       if (linksError) throw linksError;
       setPaymentLinks(linksData || []);
+
+      // Load course modules with their contents
+      const { data: modulesData, error: modulesError } = await supabase
+        .from("course_modules")
+        .select(`
+          id,
+          title,
+          description,
+          duration_minutes,
+          module_order,
+          module_contents (
+            id,
+            title,
+            content_type,
+            duration_minutes
+          )
+        `)
+        .eq("course_id", courseId)
+        .eq("is_published", true)
+        .order("module_order", { ascending: true });
+
+      if (modulesError) throw modulesError;
+      setModules(modulesData || []);
     } catch (error) {
       console.error("Error loading course:", error);
     } finally {
@@ -219,6 +259,57 @@ export function ShowcaseCourseDetail({
         </div>
 
         <div className="space-y-4">
+          {modules.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Programme de la formation</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {modules.map((module, index) => (
+                  <div key={module.id} className="border-b last:border-0 pb-4 last:pb-0">
+                    <div className="flex items-start gap-3">
+                      <div 
+                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-lg mb-1">{module.title}</h4>
+                        {module.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {module.description}
+                          </p>
+                        )}
+                        {module.duration_minutes && (
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                            <Clock className="h-4 w-4" />
+                            <span>{module.duration_minutes} minutes</span>
+                          </div>
+                        )}
+                        {module.module_contents && module.module_contents.length > 0 && (
+                          <ul className="space-y-1 mt-2">
+                            {module.module_contents.map((content: ModuleContent) => (
+                              <li key={content.id} className="text-sm flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                <span>{content.title}</span>
+                                {content.duration_minutes && (
+                                  <span className="text-muted-foreground">
+                                    ({content.duration_minutes} min)
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          
           <Card className="sticky top-4">
             <CardHeader>
               <CardTitle>S'inscrire</CardTitle>
