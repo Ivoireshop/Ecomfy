@@ -8,6 +8,7 @@ interface ShowcaseFooterProps {
 }
 
 export const ShowcaseFooter = ({ site, onNavigate }: ShowcaseFooterProps) => {
+  const footerBgColor = (site as any).footer_color || '#1a1a1a';
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : 'hsl(var(--foreground))';
   const mutedColor = site.theme_mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'hsl(var(--muted-foreground))';
 
@@ -26,7 +27,7 @@ export const ShowcaseFooter = ({ site, onNavigate }: ShowcaseFooterProps) => {
   ];
 
   return (
-    <footer className="bg-card border-t mt-24">
+    <footer className="border-t mt-24" style={{ backgroundColor: footerBgColor }}>
       <div className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-4 gap-12 mb-12">
           {/* Logo & Description */}

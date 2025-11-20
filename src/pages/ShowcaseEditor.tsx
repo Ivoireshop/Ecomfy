@@ -80,6 +80,7 @@ const showcaseSchema = z.object({
   themeMode: z.string().optional(),
   heroVideoUrl: z.string().optional(),
   aboutVideoUrl: z.string().optional(),
+  footerColor: z.string().optional(),
 });
 
 type ShowcaseFormData = z.infer<typeof showcaseSchema>;
@@ -235,6 +236,7 @@ export default function ShowcaseEditor() {
         themeMode: data.theme_mode || "light",
         heroVideoUrl: (data as any).hero_video_url || "",
         aboutVideoUrl: (data as any).about_video_url || "",
+        footerColor: (data as any).footer_color || "#1a1a1a",
       });
 
       // Set existing images
@@ -411,6 +413,7 @@ export default function ShowcaseEditor() {
         secondary_color: secondaryColor,
         background_color: backgroundColor,
         text_color: currentValues.textColor,
+        footer_color: currentValues.footerColor,
         about_layout: currentValues.aboutLayout,
         gallery_text_position: currentValues.galleryTextPosition,
         font_family: currentValues.fontFamily,
@@ -1325,6 +1328,27 @@ export default function ShowcaseEditor() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Couleur d'arrière-plan principale du site vitrine
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="footerColor">Couleur du pied de page</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <Input
+                      id="footerColor"
+                      type="color"
+                      {...register("footerColor")}
+                      className="w-20 h-10"
+                    />
+                    <Input
+                      type="text"
+                      {...register("footerColor")}
+                      placeholder="#1a1a1a"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Couleur d'arrière-plan du pied de page
                   </p>
                 </div>
               </div>

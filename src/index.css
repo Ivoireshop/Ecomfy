@@ -250,3 +250,14 @@ html {
 .card-modern {
   @apply bg-card rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden;
 }
+
+/* Text formatting - aligned left with proper line breaks */
+p, li, span, div, a, button, label, input, textarea {
+  text-align: left;
+}
+
+/* Ensure proper line breaks in text content */
+p, .text-content {
+  white-space: pre-line;
+  line-height: 1.6;
+}

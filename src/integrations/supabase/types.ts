@@ -751,6 +751,7 @@ export type Database = {
           custom_domain: string | null
           features: Json | null
           font_family: string | null
+          footer_color: string | null
           formation_description: string | null
           formation_image_url: string | null
           formation_price: string | null
@@ -805,6 +806,7 @@ export type Database = {
           custom_domain?: string | null
           features?: Json | null
           font_family?: string | null
+          footer_color?: string | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
@@ -859,6 +861,7 @@ export type Database = {
           custom_domain?: string | null
           features?: Json | null
           font_family?: string | null
+          footer_color?: string | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
