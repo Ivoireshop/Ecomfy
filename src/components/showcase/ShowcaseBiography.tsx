@@ -38,8 +38,8 @@ export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
         {site.biography_content && (
           <div className="mb-16 scroll-fade-in">
             <div className={`grid ${site.biography_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-8 items-start`}>
-              {/* Biography Image */}
-              {site.biography_image_url && (
+              {/* Order based on position */}
+              {site.biography_image_url && (site as any).biography_image_position === 'left' && (
                 <div className="scroll-fade-in">
                   <div className="relative rounded-2xl overflow-hidden shadow-2xl hover-scale sticky top-8">
                     <img 
@@ -60,6 +60,19 @@ export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
                   <p key={index} className="mb-4">{paragraph}</p>
                 ))}
               </div>
+
+              {/* Image on right */}
+              {site.biography_image_url && (site as any).biography_image_position === 'right' && (
+                <div className="scroll-fade-in">
+                  <div className="relative rounded-2xl overflow-hidden shadow-2xl hover-scale sticky top-8">
+                    <img 
+                      src={site.biography_image_url}
+                      alt={site.owner_name}
+                      className="w-full h-auto object-cover"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

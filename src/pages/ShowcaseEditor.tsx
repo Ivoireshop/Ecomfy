@@ -121,6 +121,7 @@ export default function ShowcaseEditor() {
   const [biographyTitle, setBiographyTitle] = useState<string>("Biographie");
   const [biographyContent, setBiographyContent] = useState<string>("");
   const [biographyImageUrl, setBiographyImageUrl] = useState<string>("");
+  const [biographyImagePosition, setBiographyImagePosition] = useState<string>("left");
   const [professionalExperience, setProfessionalExperience] = useState<any[]>([]);
   
   // SEO states
@@ -271,6 +272,7 @@ export default function ShowcaseEditor() {
       setBiographyTitle(data.biography_title || "Biographie");
       setBiographyContent(data.biography_content || "");
       setBiographyImageUrl((data as any).biography_image_url || "");
+      setBiographyImagePosition((data as any).biography_image_position || "left");
       setProfessionalExperience((data.professional_experience as any[]) || []);
 
       // Load testimonials
@@ -455,6 +457,7 @@ export default function ShowcaseEditor() {
         biography_title: biographyTitle,
         biography_content: biographyContent,
         biography_image_url: biographyImageUrl,
+        biography_image_position: biographyImagePosition,
         professional_experience: professionalExperience,
       };
 
@@ -650,6 +653,7 @@ export default function ShowcaseEditor() {
         biography_title: biographyTitle,
         biography_content: biographyContent,
         biography_image_url: biographyImageUrl,
+        biography_image_position: biographyImagePosition,
         professional_experience: professionalExperience,
       };
 
@@ -1738,10 +1742,12 @@ export default function ShowcaseEditor() {
                 biographyTitle={biographyTitle}
                 biographyContent={biographyContent}
                 biographyImageUrl={biographyImageUrl}
+                biographyImagePosition={biographyImagePosition}
                 professionalExperience={professionalExperience}
                 onBiographyTitleChange={setBiographyTitle}
                 onBiographyContentChange={setBiographyContent}
                 onBiographyImageUpload={handleBiographyImageUpload}
+                onBiographyImagePositionChange={setBiographyImagePosition}
                 onExperienceChange={setProfessionalExperience}
               />
             </div>
