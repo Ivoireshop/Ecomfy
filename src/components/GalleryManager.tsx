@@ -210,8 +210,36 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
     }
   };
 
-  const handleDeleteImage = async (id: string) => {
+  const deleteImageFromStorage = async (imageUrl: string) => {
     try {
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/showcase-images/');
+      if (pathParts.length > 1) {
+        const filePath = pathParts[1].split('?')[0]; // Remove query params
+        await supabase.storage
+          .from('showcase-images')
+          .remove([filePath]);
+      }
+    } catch (error) {
+      console.error('Error deleting image from storage:', error);
+    }
+  };
+
+  const handleDeleteImage = async (id: string) => {
+    // Confirmation dialog
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette image ? Cette action est irréversible.")) {
+      return;
+    }
+
+    try {
+      const image = images.find((img) => img.id === id);
+      
+      // Delete from storage first
+      if (image?.image_url) {
+        await deleteImageFromStorage(image.image_url);
+      }
+
+      // Delete from database
       const { error } = await supabase
         .from("showcase_galleries")
         .delete()
@@ -219,8 +247,9 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
 
       if (error) throw error;
 
+      // Remove from state immediately
       setImages(images.filter((img) => img.id !== id));
-      toast.success("Image supprimée");
+      toast.success("Image supprimée définitivement");
     } catch (error) {
       console.error("Error deleting image:", error);
       toast.error("Erreur lors de la suppression");
