@@ -308,14 +308,38 @@ export default function ShowcaseEditor() {
     }
   };
 
-  const uploadImage = async (file: File, userId: string, type: string): Promise<string | null> => {
+  const deleteOldImage = async (oldUrl: string | null) => {
+    if (!oldUrl) return;
+    
     try {
+      // Extract file path from URL
+      const url = new URL(oldUrl);
+      const pathParts = url.pathname.split('/showcase-images/');
+      if (pathParts.length > 1) {
+        const filePath = pathParts[1];
+        await supabase.storage
+          .from('showcase-images')
+          .remove([filePath]);
+      }
+    } catch (error) {
+      console.error('Error deleting old image:', error);
+    }
+  };
+
+  const uploadImage = async (file: File, userId: string, type: string, oldUrl: string | null = null): Promise<string | null> => {
+    try {
+      // Delete old image first
+      await deleteOldImage(oldUrl);
+      
       const fileExt = file.name.split('.').pop();
       const fileName = `${userId}/${type}-${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('showcase-images')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '0',
+          upsert: false
+        });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
@@ -326,7 +350,8 @@ export default function ShowcaseEditor() {
         .from('showcase-images')
         .getPublicUrl(fileName);
 
-      return data.publicUrl;
+      // Add cache-busting parameter
+      return `${data.publicUrl}?v=${Date.now()}`;
     } catch (error) {
       console.error('Error uploading image:', error);
       return null;
@@ -345,7 +370,7 @@ export default function ShowcaseEditor() {
       }
 
       toast.info("Upload du logo en cours...");
-      const newLogoUrl = await uploadImage(file, user.id, 'logo');
+      const newLogoUrl = await uploadImage(file, user.id, 'logo', logoPreview);
       
       if (newLogoUrl) {
         setLogoPreview(newLogoUrl);
@@ -380,7 +405,7 @@ export default function ShowcaseEditor() {
       }
 
       toast.info("Upload de l'image hero en cours...");
-      const newHeroUrl = await uploadImage(file, user.id, 'hero');
+      const newHeroUrl = await uploadImage(file, user.id, 'hero', heroImagePreview);
       
       if (newHeroUrl) {
         setHeroImagePreview(newHeroUrl);
@@ -415,7 +440,7 @@ export default function ShowcaseEditor() {
       }
 
       toast.info("Upload de l'image à propos en cours...");
-      const newAboutUrl = await uploadImage(file, user.id, 'about');
+      const newAboutUrl = await uploadImage(file, user.id, 'about', aboutImagePreview);
       
       if (newAboutUrl) {
         setAboutImagePreview(newAboutUrl);
@@ -444,7 +469,7 @@ export default function ShowcaseEditor() {
       if (!user) return;
 
       toast.info("Upload de l'image en cours...");
-      const imageUrl = await uploadImage(file, user.id, "biography");
+      const imageUrl = await uploadImage(file, user.id, "biography", biographyImageUrl);
       
       if (imageUrl) {
         setBiographyImageUrl(imageUrl);
