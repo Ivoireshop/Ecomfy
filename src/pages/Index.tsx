@@ -679,7 +679,7 @@ const Index = () => {
               <ul className="space-y-2 text-muted-foreground">
                 <li><a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a></li>
                 <li><a href="#pricing" className="hover:text-primary transition-colors">Tarifs</a></li>
-                <li><a href="#api" className="hover:text-primary transition-colors">API</a></li>
+                <li><a href="/api-documentation" className="hover:text-primary transition-colors">Documentation API</a></li>
                 <li><button onClick={() => navigate(session ? "/generator" : "/auth")} className="hover:text-primary transition-colors">Essai gratuit</button></li>
               </ul>
             </div>
@@ -691,8 +691,7 @@ const Index = () => {
               </h4>
               <ul className="space-y-2 text-muted-foreground">
                 <li><button onClick={() => navigate("/tutorial")} className="hover:text-primary transition-colors">Tutoriel</button></li>
-                <li><a href="https://docs.visualpro.africa" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Documentation</a></li>
-                <li><a href="https://blog.visualpro.africa" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Blog</a></li>
+                <li><a href="/blog" className="hover:text-primary transition-colors">Blog & Actualités</a></li>
                 <li><a href="https://support.visualpro.africa" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Support</a></li>
               </ul>
             </div>
@@ -703,6 +702,7 @@ const Index = () => {
                 Légal
               </h4>
               <ul className="space-y-2 text-muted-foreground">
+                <li><a href="/legal-notice" className="hover:text-primary transition-colors">Mentions légales</a></li>
                 <li><a href="/privacy-policy" className="hover:text-primary transition-colors flex items-center gap-1">
                   <Lock className="w-3 h-3" />
                   Politique de confidentialité
