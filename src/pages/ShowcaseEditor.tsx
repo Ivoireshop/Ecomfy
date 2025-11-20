@@ -31,10 +31,12 @@ import { VideoUploader } from "@/components/VideoUploader";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 import { BiographyEditor } from "@/components/BiographyEditor";
 import { BookingCalendar } from "@/components/BookingCalendar";
-import { CalendarIcon, GraduationCap, CreditCard, Users } from "lucide-react";
+import { CalendarIcon, GraduationCap, CreditCard, Users, BookOpen } from "lucide-react";
 import { CoursesManager } from "@/components/CoursesManager";
 import { PaymentLinksManager } from "@/components/PaymentLinksManager";
 import { EnrollmentsManager } from "@/components/EnrollmentsManager";
+import { CourseModulesManager } from "@/components/CourseModulesManager";
+import { ModulesTabContent } from "@/components/ModulesTabContent";
 import {
   Dialog,
   DialogContent,
@@ -953,6 +955,10 @@ export default function ShowcaseEditor() {
                 <Users className="h-4 w-4" />
                 Inscriptions
               </TabsTrigger>
+              <TabsTrigger value="modules" className="gap-2">
+                <BookOpen className="h-4 w-4" />
+                Modules
+              </TabsTrigger>
               <TabsTrigger value="galleries" className="gap-2">
                 <Upload className="h-4 w-4" />
                 Galeries
@@ -1848,6 +1854,20 @@ export default function ShowcaseEditor() {
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">
                     Sauvegardez votre site vitrine d'abord pour voir les inscriptions
+                  </p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="modules">
+            <div className="max-w-6xl mx-auto">
+              {id ? (
+                <ModulesTabContent showcaseSiteId={id} />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">
+                    Sauvegardez votre site vitrine d'abord
                   </p>
                 </div>
               )}

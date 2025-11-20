@@ -110,7 +110,7 @@ interface GalleryVideo {
   section_title: string | null;
 }
 
-type PageType = 'home' | 'services' | 'formations' | 'about' | 'biography' | 'gallery' | 'contact' | 'booking' | 'blog';
+type PageType = 'home' | 'services' | 'formations' | 'courses' | 'about' | 'biography' | 'gallery' | 'contact' | 'booking' | 'blog';
 
 export default function ShowcaseView() {
   const { subdomain } = useParams<{ subdomain: string }>();
@@ -309,6 +309,7 @@ export default function ShowcaseView() {
     { label: "Accueil", page: 'home' as PageType },
     ...(site.biography_content ? [{ label: "Biographie", page: 'biography' as PageType }] : []),
     ...(site.features && site.features.length > 0 ? [{ label: "Services", page: 'services' as PageType }] : []),
+    { label: "Catalogue Formations", page: 'courses' as PageType },
     ...(site.formations && site.formations.length > 0 ? [{ label: "Formations", page: 'formations' as PageType }] : []),
     ...(Object.keys(galleries).length > 0 || Object.keys(galleryVideos).length > 0 ? [{ label: "Galerie", page: 'gallery' as PageType }] : []),
     ...(site.features && site.features.length > 0 ? [{ label: "Réserver", page: 'booking' as PageType }] : []),
@@ -424,6 +425,15 @@ export default function ShowcaseView() {
         <div className="pt-20">
           {currentPage === 'home' && <ShowcaseHome site={site} onContactClick={handleContactClick} onNavigate={navigateToPage} />}
           {currentPage === 'services' && <ShowcaseServices site={site} onContactClick={handleContactClick} />}
+          {currentPage === 'courses' && (
+            <section className="py-12 px-4">
+              <ShowcaseCoursesPage 
+                showcaseSiteId={site.id}
+                primaryColor={site.primary_color}
+                textColor={site.text_color}
+              />
+            </section>
+          )}
           {currentPage === 'formations' && <ShowcaseFormations site={site} onContactClick={handleContactClick} />}
           {currentPage === 'about' && <ShowcaseAbout site={site} testimonials={testimonials} onContactClick={handleContactClick} />}
           {currentPage === 'biography' && <ShowcaseBiography site={site} />}
