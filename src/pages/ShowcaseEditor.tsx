@@ -613,6 +613,11 @@ export default function ShowcaseEditor() {
         seo_description: seoDescription,
         seo_keywords: seoKeywords,
         og_image_url: ogImageUrl,
+        hero_title_size: heroTitleSize,
+        hero_title_color: heroTitleColor,
+        biography_title: biographyTitle,
+        biography_content: biographyContent,
+        professional_experience: professionalExperience,
       };
 
       // Add is_published if we're publishing
@@ -834,7 +839,7 @@ export default function ShowcaseEditor() {
         />
 
         <Tabs defaultValue="edit" className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-8 mb-6">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-9 mb-6">
             <TabsTrigger value="edit" className="gap-2">
               <Edit className="h-4 w-4" />
               Édition
@@ -846,6 +851,10 @@ export default function ShowcaseEditor() {
             <TabsTrigger value="testimonials" className="gap-2">
               <CheckCircle2 className="h-4 w-4" />
               Témoignages
+            </TabsTrigger>
+            <TabsTrigger value="biography" className="gap-2">
+              <Edit className="h-4 w-4" />
+              Biographie
             </TabsTrigger>
             <TabsTrigger value="advanced" className="gap-2">
               <Sparkles className="h-4 w-4" />
@@ -1643,6 +1652,19 @@ export default function ShowcaseEditor() {
                   onTestimonialsChange={setTestimonials}
                 />
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="biography">
+            <div className="max-w-4xl mx-auto">
+              <BiographyEditor
+                biographyTitle={biographyTitle}
+                biographyContent={biographyContent}
+                professionalExperience={professionalExperience}
+                onBiographyTitleChange={setBiographyTitle}
+                onBiographyContentChange={setBiographyContent}
+                onExperienceChange={setProfessionalExperience}
+              />
             </div>
           </TabsContent>
 
