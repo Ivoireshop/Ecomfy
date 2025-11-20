@@ -18,6 +18,7 @@ interface Module {
   module_order: number;
   duration_minutes: number | null;
   is_published: boolean;
+  is_preview: boolean;
 }
 
 interface Content {
@@ -49,6 +50,7 @@ export function CourseModulesManager({ courseId }: CourseModulesManagerProps) {
     description: "",
     duration_minutes: null as number | null,
     is_published: false,
+    is_preview: false,
   });
 
   const [contentForm, setContentForm] = useState({
@@ -129,7 +131,7 @@ export function CourseModulesManager({ courseId }: CourseModulesManagerProps) {
         toast.success("Module créé");
       }
 
-      setModuleForm({ title: "", description: "", duration_minutes: null, is_published: false });
+      setModuleForm({ title: "", description: "", duration_minutes: null, is_published: false, is_preview: false });
       setEditingModule(null);
       loadModules();
     } catch (error: any) {
@@ -284,6 +286,16 @@ export function CourseModulesManager({ courseId }: CourseModulesManagerProps) {
                 <Label>Publié</Label>
               </div>
 
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={moduleForm.is_preview}
+                  onCheckedChange={(checked) =>
+                    setModuleForm({ ...moduleForm, is_preview: checked })
+                  }
+                />
+                <Label>Aperçu gratuit (visible sans inscription)</Label>
+              </div>
+
               <div className="flex gap-2">
                 <Button type="submit">{editingModule ? "Mettre à jour" : "Créer"}</Button>
                 {editingModule && (
@@ -297,6 +309,7 @@ export function CourseModulesManager({ courseId }: CourseModulesManagerProps) {
                         description: "",
                         duration_minutes: null,
                         is_published: false,
+                        is_preview: false,
                       });
                     }}
                   >
@@ -480,6 +493,7 @@ export function CourseModulesManager({ courseId }: CourseModulesManagerProps) {
                             description: module.description || "",
                             duration_minutes: module.duration_minutes,
                             is_published: module.is_published,
+                            is_preview: module.is_preview,
                           });
                         }}
                       >
