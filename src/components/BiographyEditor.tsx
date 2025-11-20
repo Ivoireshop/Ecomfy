@@ -3,6 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, Upload } from "lucide-react";
 
 interface Experience {
@@ -16,10 +17,12 @@ interface BiographyEditorProps {
   biographyTitle: string;
   biographyContent: string;
   biographyImageUrl?: string;
+  biographyImagePosition?: string;
   professionalExperience: Experience[];
   onBiographyTitleChange: (value: string) => void;
   onBiographyContentChange: (value: string) => void;
   onBiographyImageUpload: (file: File) => Promise<void>;
+  onBiographyImagePositionChange: (position: string) => void;
   onExperienceChange: (experiences: Experience[]) => void;
 }
 
@@ -27,10 +30,12 @@ export const BiographyEditor = ({
   biographyTitle,
   biographyContent,
   biographyImageUrl,
+  biographyImagePosition = "left",
   professionalExperience = [],
   onBiographyTitleChange,
   onBiographyContentChange,
   onBiographyImageUpload,
+  onBiographyImagePositionChange,
   onExperienceChange,
 }: BiographyEditorProps) => {
   const addExperience = () => {
@@ -105,6 +110,31 @@ export const BiographyEditor = ({
               </p>
             </div>
           </div>
+
+          {biographyImageUrl && (
+            <div>
+              <Label htmlFor="biographyImagePosition">Position de l'image</Label>
+              <RadioGroup
+                id="biographyImagePosition"
+                value={biographyImagePosition}
+                onValueChange={onBiographyImagePositionChange}
+                className="flex gap-4 mt-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="left" id="position-left" />
+                  <Label htmlFor="position-left" className="cursor-pointer">
+                    Gauche
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="right" id="position-right" />
+                  <Label htmlFor="position-right" className="cursor-pointer">
+                    Droite
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
         </CardContent>
       </Card>
 
