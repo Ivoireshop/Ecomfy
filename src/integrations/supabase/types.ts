@@ -1370,6 +1370,50 @@ export type Database = {
           },
         ]
       }
+      showcase_trash: {
+        Row: {
+          created_at: string
+          deleted_at: string
+          expires_at: string
+          id: string
+          item_data: Json
+          item_type: string
+          showcase_site_id: string
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string
+          expires_at?: string
+          id?: string
+          item_data: Json
+          item_type: string
+          showcase_site_id: string
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string
+          expires_at?: string
+          id?: string
+          item_data?: Json
+          item_type?: string
+          showcase_site_id?: string
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_trash_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       showcase_versions: {
         Row: {
           about_description: string | null
@@ -1688,6 +1732,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_trash: { Args: never; Returns: undefined }
       count_processing_generations: { Args: never; Returns: number }
       generate_certificate_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
