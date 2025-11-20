@@ -27,6 +27,8 @@ import FounderDashboard from "./pages/FounderDashboard";
 import Referral from "./pages/Referral";
 import Tutorial from "./pages/Tutorial";
 import Demo from "./pages/Demo";
+import StudentDashboard from "./pages/StudentDashboard";
+import StudentCourse from "./pages/StudentCourse";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiesPolicy from "./pages/CookiesPolicy";
@@ -163,6 +165,22 @@ const AppContent = () => {
           } 
         />
         <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
+        <Route 
+          path="/student" 
+          element={
+            <ProtectedRoute>
+              <StudentDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/student/course/:courseId" 
+          element={
+            <ProtectedRoute>
+              <StudentCourse />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/cookies-policy" element={<CookiesPolicy />} />
