@@ -30,25 +30,22 @@ export const ShowcaseFooter = ({ site, onNavigate }: ShowcaseFooterProps) => {
     <footer className="border-t mt-24" style={{ backgroundColor: footerBgColor }}>
       <div className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-4 gap-12 mb-12">
-          {/* Logo & Description */}
+          {/* Logo */}
           <div className="md:col-span-1">
             {site.logo_url ? (
               <img 
                 src={site.logo_url} 
                 alt={site.business_name}
-                className="h-12 w-auto mb-6"
+                className="h-12 w-auto"
               />
             ) : (
               <h3 
-                className="text-2xl font-bold mb-6"
+                className="text-2xl font-bold"
                 style={{ color: textColor }}
               >
                 {site.business_name}
               </h3>
             )}
-            <p className="text-sm leading-relaxed" style={{ color: mutedColor }}>
-              {site.business_description || 'Excellence et professionnalisme au service de vos projets'}
-            </p>
           </div>
 
           {/* Navigation */}
