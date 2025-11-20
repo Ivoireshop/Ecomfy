@@ -37,10 +37,12 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
     background: site.theme_mode === 'dark' 
       ? `linear-gradient(135deg, ${site.primary_color}20, ${site.secondary_color}20)`
       : `linear-gradient(135deg, ${site.primary_color}10, ${site.secondary_color}10)`,
-    color: site.text_color || '#000000',
   };
 
+  const textColor = site.theme_mode === 'dark' ? '#ffffff' : (site.text_color || '#000000');
   const features = site.features || [];
+  const formations = site.formations || [];
+  const hasExperience = site.professional_experience && site.professional_experience.length > 0;
 
   return (
     <div className="min-h-screen">
@@ -181,7 +183,7 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
             <p 
               className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 opacity-90 animate-fade-in leading-relaxed px-4"
               style={{ 
-                color: site.text_color || '#000000',
+                color: textColor,
                 animationDelay: '0.4s',
                 animationFillMode: 'backwards'
               }}
@@ -211,7 +213,7 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                   className="hover-scale text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 w-full sm:w-auto"
                   style={{ 
                     borderColor: site.primary_color || '#D4AF37',
-                    color: site.text_color || '#000000'
+                    color: textColor
                   }}
                 >
                   En savoir plus
@@ -223,58 +225,190 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
         </div>
       </section>
 
-      {/* Features Section avec scroll animations */}
-      {features.length > 0 && (
-        <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6">
-          <div className="container mx-auto">
-            <h2 
-              className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-8 sm:mb-12 scroll-fade-in px-2"
-              style={{ color: site.text_color || '#000000' }}
-            >
-              Nos Services
-            </h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
-              {features.map((feature: any, index: number) => (
-                <Card 
-                  key={index}
-                  className="scroll-fade-in hover-scale overflow-hidden group cursor-pointer shadow-lg"
-                  style={{ 
-                    animationDelay: `${index * 0.1}s`,
-                    animationFillMode: 'backwards'
-                  }}
-                >
-                  {feature.image_url && (
-                    <div className="relative overflow-hidden h-40 sm:h-48">
-                      <img 
-                        src={feature.image_url}
-                        alt={feature.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                      <div 
-                        className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300"
-                        style={{ backgroundColor: site.primary_color || '#D4AF37' }}
-                      />
-                    </div>
-                  )}
-                  <div className="p-4 sm:p-6">
-                    <h3 
-                      className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3 flex items-center gap-2 leading-tight"
-                      style={{ color: site.primary_color || '#D4AF37' }}
-                    >
-                      <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                      <span>{feature.title}</span>
-                    </h3>
-                    <p className="text-sm sm:text-base leading-relaxed" style={{ color: site.text_color || '#000000' }}>
-                      {feature.description}
-                    </p>
-                  </div>
-                </Card>
-              ))}
-            </div>
+      {/* 5 Sections Overview with Quick Links */}
+      <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6">
+        <div className="container mx-auto">
+          <div 
+            className="text-center mb-12 sm:mb-16"
+            style={{ color: textColor }}
+          >
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">Découvrez Nos Services</h2>
+            <p className="text-base sm:text-lg opacity-80">Explorez tout ce que nous avons à vous offrir</p>
           </div>
-        </section>
-      )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
+            {/* Section 1: Services/Features */}
+            {features.length > 0 && (
+              <Card 
+                className="p-4 sm:p-6 hover-scale cursor-pointer transition-all duration-300 group"
+                onClick={() => onNavigate('home')}
+                style={{
+                  background: site.theme_mode === 'dark' 
+                    ? `linear-gradient(135deg, ${site.primary_color}15, ${site.secondary_color}15)` 
+                    : `linear-gradient(135deg, ${site.primary_color}08, ${site.secondary_color}08)`,
+                }}
+              >
+                <div className="text-center">
+                  <Sparkles 
+                    className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 group-hover:scale-110 transition-transform" 
+                    style={{ color: site.primary_color || '#D4AF37' }} 
+                  />
+                  <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3" style={{ color: textColor }}>
+                    Nos Services
+                  </h3>
+                  <p className="text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-3" style={{ color: textColor, opacity: 0.8 }}>
+                    {features[0]?.description || "Découvrez nos services innovants"}
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                    style={{ color: site.primary_color || '#D4AF37' }}
+                  >
+                    En savoir plus <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* Section 2: Formations */}
+            {formations.length > 0 && (
+              <Card 
+                className="p-4 sm:p-6 hover-scale cursor-pointer transition-all duration-300 group"
+                onClick={() => onNavigate('formations')}
+                style={{
+                  background: site.theme_mode === 'dark' 
+                    ? `linear-gradient(135deg, ${site.primary_color}15, ${site.secondary_color}15)` 
+                    : `linear-gradient(135deg, ${site.primary_color}08, ${site.secondary_color}08)`,
+                }}
+              >
+                <div className="text-center">
+                  <Sparkles 
+                    className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 group-hover:scale-110 transition-transform" 
+                    style={{ color: site.secondary_color || '#10B981' }} 
+                  />
+                  <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3" style={{ color: textColor }}>
+                    Formations
+                  </h3>
+                  <p className="text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-3" style={{ color: textColor, opacity: 0.8 }}>
+                    {formations[0]?.description || site.formation_description || "Formations professionnelles de qualité"}
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                    style={{ color: site.secondary_color || '#10B981' }}
+                  >
+                    Voir formations <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* Section 3: À Propos */}
+            {site.about_description && (
+              <Card 
+                className="p-4 sm:p-6 hover-scale cursor-pointer transition-all duration-300 group"
+                onClick={() => onNavigate('about')}
+                style={{
+                  background: site.theme_mode === 'dark' 
+                    ? `linear-gradient(135deg, ${site.primary_color}15, ${site.secondary_color}15)` 
+                    : `linear-gradient(135deg, ${site.primary_color}08, ${site.secondary_color}08)`,
+                }}
+              >
+                <div className="text-center">
+                  <Sparkles 
+                    className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 group-hover:scale-110 transition-transform" 
+                    style={{ color: site.primary_color || '#D4AF37' }} 
+                  />
+                  <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3" style={{ color: textColor }}>
+                    À Propos
+                  </h3>
+                  <p className="text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-3" style={{ color: textColor, opacity: 0.8 }}>
+                    {site.about_description.substring(0, 100)}...
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                    style={{ color: site.primary_color || '#D4AF37' }}
+                  >
+                    En savoir plus <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* Section 4: Biographie */}
+            {(site.biography_content || hasExperience) && (
+              <Card 
+                className="p-4 sm:p-6 hover-scale cursor-pointer transition-all duration-300 group"
+                onClick={() => onNavigate('biography')}
+                style={{
+                  background: site.theme_mode === 'dark' 
+                    ? `linear-gradient(135deg, ${site.primary_color}15, ${site.secondary_color}15)` 
+                    : `linear-gradient(135deg, ${site.primary_color}08, ${site.secondary_color}08)`,
+                }}
+              >
+                <div className="text-center">
+                  <Sparkles 
+                    className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 group-hover:scale-110 transition-transform" 
+                    style={{ color: site.secondary_color || '#10B981' }} 
+                  />
+                  <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3" style={{ color: textColor }}>
+                    {site.biography_title || "Biographie"}
+                  </h3>
+                  <p className="text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-3" style={{ color: textColor, opacity: 0.8 }}>
+                    {site.biography_content 
+                      ? site.biography_content.substring(0, 100) + "..." 
+                      : "Découvrez mon parcours professionnel"}
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                    style={{ color: site.secondary_color || '#10B981' }}
+                  >
+                    Lire la suite <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* Section 5: Contact */}
+            <Card 
+              className="p-4 sm:p-6 hover-scale cursor-pointer transition-all duration-300 group"
+              onClick={onContactClick}
+              style={{
+                background: site.theme_mode === 'dark' 
+                  ? `linear-gradient(135deg, ${site.primary_color}15, ${site.secondary_color}15)` 
+                  : `linear-gradient(135deg, ${site.primary_color}08, ${site.secondary_color}08)`,
+              }}
+            >
+              <div className="text-center">
+                <MessageCircle 
+                  className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 group-hover:scale-110 transition-transform" 
+                  style={{ color: site.primary_color || '#D4AF37' }} 
+                />
+                <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3" style={{ color: textColor }}>
+                  Contact
+                </h3>
+                <p className="text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-3" style={{ color: textColor, opacity: 0.8 }}>
+                  Besoin d'informations ? Contactez-nous dès maintenant
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-xs sm:text-sm"
+                  style={{ color: site.primary_color || '#D4AF37' }}
+                >
+                  Nous contacter <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section */}
       {site.cta_title && (
@@ -287,13 +421,13 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
           <div className="container mx-auto text-center">
             <h2 
               className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 leading-tight px-2"
-              style={{ color: site.text_color || '#000000' }}
+              style={{ color: textColor }}
             >
               {site.cta_title}
             </h2>
             <p 
               className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-4"
-              style={{ color: site.text_color || '#000000' }}
+              style={{ color: textColor }}
             >
               {site.cta_description}
             </p>

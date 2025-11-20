@@ -9,6 +9,7 @@ import { ShowcaseAIChat } from "@/components/ShowcaseAIChat";
 import { ShowcaseHome } from "@/components/showcase/ShowcaseHome";
 import { ShowcaseFormations } from "@/components/showcase/ShowcaseFormations";
 import { ShowcaseAbout } from "@/components/showcase/ShowcaseAbout";
+import { ShowcaseBiography } from "@/components/showcase/ShowcaseBiography";
 import { ShowcaseGallery } from "@/components/showcase/ShowcaseGallery";
 import { ShowcaseContact } from "@/components/showcase/ShowcaseContact";
 import {
@@ -55,6 +56,10 @@ interface ShowcaseSite {
   hero_subtitle: string | null;
   about_title: string | null;
   about_description: string | null;
+  biography_title: string | null;
+  biography_content: string | null;
+  biography_image_url: string | null;
+  professional_experience: any[] | null;
   features: Feature[] | null;
   formations: Formation[] | null;
   formations_text_align: string | null;
@@ -101,7 +106,7 @@ interface GalleryVideo {
   section_title: string | null;
 }
 
-type PageType = 'home' | 'formations' | 'about' | 'gallery' | 'contact';
+type PageType = 'home' | 'formations' | 'about' | 'biography' | 'gallery' | 'contact';
 
 export default function ShowcaseView() {
   const { subdomain } = useParams<{ subdomain: string }>();
@@ -300,6 +305,7 @@ export default function ShowcaseView() {
     { label: "Accueil", page: 'home' as PageType },
     ...(site.formations && site.formations.length > 0 ? [{ label: "Formations", page: 'formations' as PageType }] : []),
     ...(site.about_description ? [{ label: "À propos", page: 'about' as PageType }] : []),
+    ...((site.biography_content || (site.professional_experience && site.professional_experience.length > 0)) ? [{ label: "Biographie", page: 'biography' as PageType }] : []),
     ...(Object.keys(galleries).length > 0 || galleryVideos.length > 0 ? [{ label: "Galerie", page: 'gallery' as PageType }] : []),
     { label: "Contact", page: 'contact' as PageType },
   ];
@@ -430,6 +436,12 @@ export default function ShowcaseView() {
               site={site} 
               testimonials={testimonials}
               onContactClick={handleContactClick}
+            />
+          )}
+          
+          {currentPage === 'biography' && (
+            <ShowcaseBiography 
+              site={site}
             />
           )}
           
