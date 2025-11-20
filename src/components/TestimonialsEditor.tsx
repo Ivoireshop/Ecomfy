@@ -40,9 +40,38 @@ export function TestimonialsEditor({
     onTestimonialsChange([...testimonials, newTestimonial]);
   };
 
-  const removeTestimonial = (index: number) => {
+  const deleteImageFromStorage = async (imageUrl: string) => {
+    try {
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/showcase-images/');
+      if (pathParts.length > 1) {
+        const filePath = pathParts[1].split('?')[0]; // Remove query params
+        await supabase.storage
+          .from('showcase-images')
+          .remove([filePath]);
+      }
+    } catch (error) {
+      console.error('Error deleting image from storage:', error);
+    }
+  };
+
+  const removeTestimonial = async (index: number) => {
+    const testimonial = testimonials[index];
+    
+    // Confirmation dialog
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce témoignage ? Cette action est irréversible.")) {
+      return;
+    }
+
+    // Delete image from storage if exists
+    if (testimonial.result_image_url) {
+      toast.info("Suppression de l'image en cours...");
+      await deleteImageFromStorage(testimonial.result_image_url);
+    }
+
     const updated = testimonials.filter((_, i) => i !== index);
     onTestimonialsChange(updated);
+    toast.success("Témoignage supprimé définitivement");
   };
 
   const updateTestimonial = (index: number, field: keyof Testimonial, value: string) => {
@@ -54,12 +83,21 @@ export function TestimonialsEditor({
   const handleImageUpload = async (index: number, file: File) => {
     setIsUploading(index);
     try {
+      // Delete old image first
+      const oldImageUrl = testimonials[index].result_image_url;
+      if (oldImageUrl) {
+        await deleteImageFromStorage(oldImageUrl);
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${showcaseSiteId}/testimonials/${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('showcase-images')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '0',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
@@ -67,7 +105,8 @@ export function TestimonialsEditor({
         .from('showcase-images')
         .getPublicUrl(fileName);
 
-      updateTestimonial(index, 'result_image_url', publicUrl);
+      // Add cache-busting parameter
+      updateTestimonial(index, 'result_image_url', `${publicUrl}?v=${Date.now()}`);
       toast.success("Image téléchargée avec succès");
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -181,7 +220,13 @@ export function TestimonialsEditor({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateTestimonial(index, 'result_image_url', '')}
+                            onClick={async () => {
+                              if (confirm("Supprimer cette image ? Cette action est irréversible.")) {
+                                await deleteImageFromStorage(testimonial.result_image_url!);
+                                updateTestimonial(index, 'result_image_url', '');
+                                toast.success("Image supprimée");
+                              }
+                            }}
                           >
                             Supprimer l'image
                           </Button>

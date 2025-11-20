@@ -184,7 +184,7 @@ export default function ShowcaseEditor() {
     loadSite();
   }, [id]);
 
-  // Auto-save every 30 seconds
+  // Auto-save every 30 seconds (but not after manual deletions)
   useEffect(() => {
     if (!id || isLoading) return;
 
@@ -358,6 +358,29 @@ export default function ShowcaseEditor() {
     }
   };
 
+  const removeLogo = async () => {
+    if (!confirm("Supprimer le logo ? Cette action est irréversible.")) {
+      return;
+    }
+
+    try {
+      if (logoPreview) {
+        await deleteOldImage(logoPreview);
+      }
+      
+      setLogoPreview(null);
+      await supabase
+        .from("showcase_sites")
+        .update({ logo_url: null })
+        .eq("id", id);
+      
+      toast.success("Logo supprimé définitivement");
+    } catch (error) {
+      console.error("Error removing logo:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
   const handleLogoChange = async (file: File | null) => {
     if (!file) return;
     
@@ -390,6 +413,29 @@ export default function ShowcaseEditor() {
       toast.error("Erreur lors de l'upload du logo");
     } finally {
       setIsUploadingLogo(false);
+    }
+  };
+
+  const removeHeroImage = async () => {
+    if (!confirm("Supprimer l'image hero ? Cette action est irréversible.")) {
+      return;
+    }
+
+    try {
+      if (heroImagePreview) {
+        await deleteOldImage(heroImagePreview);
+      }
+      
+      setHeroImagePreview(null);
+      await supabase
+        .from("showcase_sites")
+        .update({ hero_image_url: null })
+        .eq("id", id);
+      
+      toast.success("Image hero supprimée définitivement");
+    } catch (error) {
+      console.error("Error removing hero image:", error);
+      toast.error("Erreur lors de la suppression");
     }
   };
 
@@ -428,6 +474,29 @@ export default function ShowcaseEditor() {
     }
   };
 
+  const removeAboutImage = async () => {
+    if (!confirm("Supprimer l'image à propos ? Cette action est irréversible.")) {
+      return;
+    }
+
+    try {
+      if (aboutImagePreview) {
+        await deleteOldImage(aboutImagePreview);
+      }
+      
+      setAboutImagePreview(null);
+      await supabase
+        .from("showcase_sites")
+        .update({ about_image_url: null })
+        .eq("id", id);
+      
+      toast.success("Image à propos supprimée définitivement");
+    } catch (error) {
+      console.error("Error removing about image:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
   const handleAboutImageChange = async (file: File | null) => {
     if (!file) return;
     
@@ -463,6 +532,29 @@ export default function ShowcaseEditor() {
     }
   };
 
+  const removeBiographyImage = async () => {
+    if (!confirm("Supprimer l'image de biographie ? Cette action est irréversible.")) {
+      return;
+    }
+
+    try {
+      if (biographyImageUrl) {
+        await deleteOldImage(biographyImageUrl);
+      }
+      
+      setBiographyImageUrl("");
+      await supabase
+        .from("showcase_sites")
+        .update({ biography_image_url: null })
+        .eq("id", id);
+      
+      toast.success("Image de biographie supprimée définitivement");
+    } catch (error) {
+      console.error("Error removing biography image:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
   const handleBiographyImageUpload = async (file: File) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -473,7 +565,14 @@ export default function ShowcaseEditor() {
       
       if (imageUrl) {
         setBiographyImageUrl(imageUrl);
-        toast.success("Image de biographie uploadée avec succès!");
+        
+        // Save immediately to database
+        await supabase
+          .from("showcase_sites")
+          .update({ biography_image_url: imageUrl })
+          .eq("id", id);
+          
+        toast.success("Image de biographie sauvegardée avec succès!");
       } else {
         toast.error("Erreur lors de l'upload de l'image");
       }
@@ -1239,14 +1338,7 @@ export default function ShowcaseEditor() {
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={async () => {
-                          setLogoPreview(null);
-                          await supabase
-                            .from("showcase_sites")
-                            .update({ logo_url: null })
-                            .eq("id", id);
-                          toast.success("Logo supprimé");
-                        }}
+                        onClick={removeLogo}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -1285,14 +1377,7 @@ export default function ShowcaseEditor() {
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={async () => {
-                          setHeroImagePreview(null);
-                          await supabase
-                            .from("showcase_sites")
-                            .update({ hero_image_url: null })
-                            .eq("id", id);
-                          toast.success("Image hero supprimée");
-                        }}
+                        onClick={removeHeroImage}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -1331,14 +1416,7 @@ export default function ShowcaseEditor() {
                         variant="destructive"
                         size="icon"
                         className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={async () => {
-                          setAboutImagePreview(null);
-                          await supabase
-                            .from("showcase_sites")
-                            .update({ about_image_url: null })
-                            .eq("id", id);
-                          toast.success("Image à propos supprimée");
-                        }}
+                        onClick={removeAboutImage}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -1952,6 +2030,7 @@ export default function ShowcaseEditor() {
                 onBiographyTitleChange={setBiographyTitle}
                 onBiographyContentChange={setBiographyContent}
                 onBiographyImageUpload={handleBiographyImageUpload}
+                onBiographyImageRemove={removeBiographyImage}
                 onBiographyImagePositionChange={setBiographyImagePosition}
                 onExperienceChange={setProfessionalExperience}
               />

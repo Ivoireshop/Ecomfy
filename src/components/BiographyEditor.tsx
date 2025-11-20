@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Trash2, Upload, X } from "lucide-react";
 
 interface Experience {
   title: string;
@@ -22,6 +22,7 @@ interface BiographyEditorProps {
   onBiographyTitleChange: (value: string) => void;
   onBiographyContentChange: (value: string) => void;
   onBiographyImageUpload: (file: File) => Promise<void>;
+  onBiographyImageRemove?: () => Promise<void>;
   onBiographyImagePositionChange: (position: string) => void;
   onExperienceChange: (experiences: Experience[]) => void;
 }
@@ -35,6 +36,7 @@ export const BiographyEditor = ({
   onBiographyTitleChange,
   onBiographyContentChange,
   onBiographyImageUpload,
+  onBiographyImageRemove,
   onBiographyImagePositionChange,
   onExperienceChange,
 }: BiographyEditorProps) => {
@@ -52,6 +54,9 @@ export const BiographyEditor = ({
   };
 
   const removeExperience = (index: number) => {
+    if (!confirm("Supprimer cette expérience ? Cette action est irréversible.")) {
+      return;
+    }
     onExperienceChange(professionalExperience.filter((_, i) => i !== index));
   };
 
@@ -93,6 +98,17 @@ export const BiographyEditor = ({
                     alt="Biography"
                     className="w-32 h-32 object-cover rounded-lg"
                   />
+                  {onBiographyImageRemove && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={onBiographyImageRemove}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               )}
               <Input

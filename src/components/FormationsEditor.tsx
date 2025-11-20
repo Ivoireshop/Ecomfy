@@ -31,8 +31,37 @@ export function FormationsEditor({ formations, textAlign, onChange, onTextAlignC
     onChange([...formations, { title: "", description: "", price: "", image_url: "" }]);
   };
 
-  const removeFormation = (index: number) => {
+  const deleteImageFromStorage = async (imageUrl: string) => {
+    try {
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/showcase-images/');
+      if (pathParts.length > 1) {
+        const filePath = pathParts[1].split('?')[0]; // Remove query params
+        await supabase.storage
+          .from('showcase-images')
+          .remove([filePath]);
+      }
+    } catch (error) {
+      console.error('Error deleting image from storage:', error);
+    }
+  };
+
+  const removeFormation = async (index: number) => {
+    const formation = formations[index];
+    
+    // Confirmation dialog
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette formation ? Cette action est irréversible.")) {
+      return;
+    }
+
+    // Delete image from storage if exists
+    if (formation.image_url) {
+      toast.info("Suppression de l'image en cours...");
+      await deleteImageFromStorage(formation.image_url);
+    }
+
     onChange(formations.filter((_, i) => i !== index));
+    toast.success("Formation supprimée définitivement");
   };
 
   const updateFormation = (index: number, field: keyof Formation, value: string) => {
@@ -79,12 +108,21 @@ export function FormationsEditor({ formations, textAlign, onChange, onTextAlignC
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
+      // Delete old image first
+      const oldImageUrl = formations[index].image_url;
+      if (oldImageUrl) {
+        await deleteImageFromStorage(oldImageUrl);
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/formation-${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('showcase-images')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '0',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
@@ -92,7 +130,8 @@ export function FormationsEditor({ formations, textAlign, onChange, onTextAlignC
         .from('showcase-images')
         .getPublicUrl(fileName);
 
-      updateFormation(index, 'image_url', data.publicUrl);
+      // Add cache-busting parameter
+      updateFormation(index, 'image_url', `${data.publicUrl}?v=${Date.now()}`);
       toast.success("Image téléchargée avec succès !");
     } catch (error: any) {
       console.error('Error uploading image:', error);
@@ -211,7 +250,13 @@ export function FormationsEditor({ formations, textAlign, onChange, onTextAlignC
                               type="button"
                               size="sm"
                               variant="secondary"
-                              onClick={() => updateFormation(index, 'image_url', '')}
+                              onClick={async () => {
+                                if (confirm("Supprimer cette image ? Cette action est irréversible.")) {
+                                  await deleteImageFromStorage(formation.image_url!);
+                                  updateFormation(index, 'image_url', '');
+                                  toast.success("Image supprimée");
+                                }
+                              }}
                             >
                               <X className="h-4 w-4 mr-1" />
                               Supprimer
