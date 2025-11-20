@@ -44,10 +44,63 @@ export default function StudentCourse() {
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
+  const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
+  const [generatingCertificate, setGeneratingCertificate] = useState(false);
 
   useEffect(() => {
     loadCourse();
   }, [courseId]);
+
+  useEffect(() => {
+    if (course && calculateOverallProgress() === 100 && !certificateUrl) {
+      checkCertificate();
+    }
+  }, [progress, course]);
+
+  const checkCertificate = async () => {
+    if (!courseId) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: certData } = await supabase
+        .from("course_certificates")
+        .select("certificate_url")
+        .eq("course_id", courseId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (certData) {
+        setCertificateUrl(certData.certificate_url);
+      }
+    } catch (error) {
+      console.error("Error checking certificate:", error);
+    }
+  };
+
+  const generateCertificate = async () => {
+    if (!courseId || generatingCertificate) return;
+
+    setGeneratingCertificate(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-certificate", {
+        body: { courseId },
+      });
+
+      if (error) throw error;
+
+      if (data.certificateUrl) {
+        setCertificateUrl(data.certificateUrl);
+        toast.success("Certificat généré avec succès !");
+      }
+    } catch (error: any) {
+      console.error("Error generating certificate:", error);
+      toast.error(error.message || "Erreur lors de la génération du certificat");
+    } finally {
+      setGeneratingCertificate(false);
+    }
+  };
 
   const loadCourse = async () => {
     if (!courseId) return;
@@ -256,6 +309,46 @@ export default function StudentCourse() {
                     <span className="font-medium">{calculateOverallProgress()}%</span>
                   </div>
                   <Progress value={calculateOverallProgress()} />
+                  
+                  {calculateOverallProgress() === 100 && (
+                    <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-green-800 dark:text-green-200 flex items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5" />
+                            Formation complétée !
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                            Félicitations ! Vous avez terminé cette formation.
+                          </p>
+                        </div>
+                        {certificateUrl ? (
+                          <Button
+                            variant="outline"
+                            onClick={() => window.open(certificateUrl, "_blank")}
+                            className="border-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                          >
+                            Voir mon certificat
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={generateCertificate}
+                            disabled={generatingCertificate}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            {generatingCertificate ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Génération...
+                              </>
+                            ) : (
+                              "Obtenir mon certificat"
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
             </Card>

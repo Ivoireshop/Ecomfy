@@ -174,6 +174,50 @@ export type Database = {
           },
         ]
       }
+      course_certificates: {
+        Row: {
+          certificate_number: string
+          certificate_url: string
+          completion_date: string
+          course_id: string
+          course_title: string
+          created_at: string
+          id: string
+          student_name: string
+          user_id: string
+        }
+        Insert: {
+          certificate_number: string
+          certificate_url: string
+          completion_date?: string
+          course_id: string
+          course_title: string
+          created_at?: string
+          id?: string
+          student_name: string
+          user_id: string
+        }
+        Update: {
+          certificate_number?: string
+          certificate_url?: string
+          completion_date?: string
+          course_id?: string
+          course_title?: string
+          created_at?: string
+          id?: string
+          student_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_certificates_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_inquiries: {
         Row: {
           course_id: string
@@ -1580,6 +1624,7 @@ export type Database = {
     }
     Functions: {
       count_processing_generations: { Args: never; Returns: number }
+      generate_certificate_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
       get_next_queue_item: { Args: never; Returns: string }
       has_role: {
