@@ -16,6 +16,7 @@ import { ShowcaseGallery } from "@/components/showcase/ShowcaseGallery";
 import { ShowcaseContact } from "@/components/showcase/ShowcaseContact";
 import { ShowcaseBlog } from "@/components/showcase/ShowcaseBlog";
 import { ShowcaseFooter } from "@/components/showcase/ShowcaseFooter";
+import { ShowcaseCoursesPage } from "@/components/showcase/ShowcaseCoursesPage";
 import {
   Sheet,
   SheetContent,
