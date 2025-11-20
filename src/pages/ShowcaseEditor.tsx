@@ -29,6 +29,8 @@ import { ShowcaseVersionHistory } from "@/components/ShowcaseVersionHistory";
 import { VideoUploader } from "@/components/VideoUploader";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 import { BiographyEditor } from "@/components/BiographyEditor";
+import { BookingCalendar } from "@/components/BookingCalendar";
+import { CalendarIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -1665,6 +1667,20 @@ export default function ShowcaseEditor() {
                 onBiographyContentChange={setBiographyContent}
                 onExperienceChange={setProfessionalExperience}
               />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="bookings">
+            <div className="max-w-6xl mx-auto">
+              {id ? (
+                <BookingCalendar showcaseSiteId={id} />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">
+                    Veuillez d'abord sauvegarder votre site vitrine pour accéder aux réservations
+                  </p>
+                </div>
+              )}
             </div>
           </TabsContent>
 

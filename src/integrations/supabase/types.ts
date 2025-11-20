@@ -71,6 +71,65 @@ export type Database = {
         }
         Relationships: []
       }
+      bookings: {
+        Row: {
+          booking_date: string
+          booking_time: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          message: string | null
+          number_of_participants: number | null
+          phone: string | null
+          service_name: string
+          service_type: string
+          showcase_site_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          booking_date: string
+          booking_time: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          message?: string | null
+          number_of_participants?: number | null
+          phone?: string | null
+          service_name: string
+          service_type: string
+          showcase_site_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          booking_date?: string
+          booking_time?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          message?: string | null
+          number_of_participants?: number | null
+          phone?: string | null
+          service_name?: string
+          service_type?: string
+          showcase_site_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_submissions: {
         Row: {
           created_at: string

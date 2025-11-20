@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MessageCircle, Loader2, ArrowLeft, Menu } from "lucide-react";
 import { Helmet } from "react-helmet";
 import { ShowcaseAIChat } from "@/components/ShowcaseAIChat";
+import { BookingForm } from "@/components/BookingForm";
 import { ShowcaseHome } from "@/components/showcase/ShowcaseHome";
 import { ShowcaseFormations } from "@/components/showcase/ShowcaseFormations";
 import { ShowcaseAbout } from "@/components/showcase/ShowcaseAbout";
@@ -106,7 +107,7 @@ interface GalleryVideo {
   section_title: string | null;
 }
 
-type PageType = 'home' | 'formations' | 'about' | 'biography' | 'gallery' | 'contact';
+type PageType = 'home' | 'formations' | 'about' | 'biography' | 'gallery' | 'contact' | 'booking';
 
 export default function ShowcaseView() {
   const { subdomain } = useParams<{ subdomain: string }>();
@@ -307,6 +308,7 @@ export default function ShowcaseView() {
     ...(site.about_description ? [{ label: "À propos", page: 'about' as PageType }] : []),
     ...((site.biography_content || (site.professional_experience && site.professional_experience.length > 0)) ? [{ label: "Biographie", page: 'biography' as PageType }] : []),
     ...(Object.keys(galleries).length > 0 || galleryVideos.length > 0 ? [{ label: "Galerie", page: 'gallery' as PageType }] : []),
+    { label: "Réserver", page: 'booking' as PageType },
     { label: "Contact", page: 'contact' as PageType },
   ];
 
@@ -451,6 +453,18 @@ export default function ShowcaseView() {
               galleryVideos={galleryVideos}
               site={site}
             />
+          )}
+
+          {currentPage === 'booking' && (
+            <section className="py-20 px-4">
+              <div className="max-w-2xl mx-auto">
+                <BookingForm 
+                  showcaseSiteId={site.id} 
+                  site={site}
+                  onSuccess={() => navigateToPage('home')}
+                />
+              </div>
+            </section>
           )}
           
           {currentPage === 'contact' && (
