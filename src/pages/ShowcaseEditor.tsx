@@ -37,6 +37,7 @@ import { PaymentLinksManager } from "@/components/PaymentLinksManager";
 import { EnrollmentsManager } from "@/components/EnrollmentsManager";
 import { CourseModulesManager } from "@/components/CourseModulesManager";
 import { ModulesTabContent } from "@/components/ModulesTabContent";
+import { BlogManager } from "@/components/BlogManager";
 import {
   Dialog,
   DialogContent,
@@ -986,6 +987,10 @@ export default function ShowcaseEditor() {
               <TabsTrigger value="bookings" className="gap-2">
                 <CalendarIcon className="h-4 w-4" />
                 Réservations
+              </TabsTrigger>
+              <TabsTrigger value="blog" className="gap-2">
+                <BookOpen className="h-4 w-4" />
+                Blog
               </TabsTrigger>
               <TabsTrigger value="analytics" className="gap-2">
                 <Eye className="h-4 w-4" />
@@ -2006,6 +2011,17 @@ export default function ShowcaseEditor() {
           <TabsContent value="bookings">
             <div className="max-w-6xl mx-auto">
               {id && <BookingsViewer showcaseId={id} />}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="blog">
+            <div className="max-w-6xl mx-auto">
+              {id && (
+                <BlogManager 
+                  showcaseSiteId={id} 
+                  ownerName={formValues.ownerName || ""} 
+                />
+              )}
             </div>
           </TabsContent>
 

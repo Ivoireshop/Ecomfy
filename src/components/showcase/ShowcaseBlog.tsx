@@ -1,53 +1,70 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, User, ArrowRight, BookOpen } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface ShowcaseBlogProps {
   site: any;
 }
 
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string;
+  image_url: string | null;
+  author_name: string;
+  category: string;
+  read_time_minutes: number;
+  published_at: string | null;
+}
+
 export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
+  const navigate = useNavigate();
+  const [articles, setArticles] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : 'hsl(var(--foreground))';
   
   const heroSection = useScrollAnimation({ threshold: 0.1 });
   const articlesGrid = useScrollAnimation({ threshold: 0.2 });
   const newsletterSection = useScrollAnimation({ threshold: 0.3 });
 
-  // Articles d'exemple - à remplacer par de vraies données
-  const articles = [
-    {
-      id: 1,
-      title: "Comment réussir votre transformation digitale",
-      excerpt: "Découvrez les clés pour mener à bien votre projet de transformation digitale et propulser votre entreprise vers le succès.",
-      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800",
-      author: site.owner_name,
-      date: "15 Mars 2024",
-      category: "Digital",
-      readTime: "5 min"
-    },
-    {
-      id: 2,
-      title: "Les tendances du marketing digital en 2024",
-      excerpt: "Explorez les dernières tendances qui façonnent le paysage du marketing digital cette année.",
-      image: "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=800",
-      author: site.owner_name,
-      date: "10 Mars 2024",
-      category: "Marketing",
-      readTime: "7 min"
-    },
-    {
-      id: 3,
-      title: "L'importance de la formation continue",
-      excerpt: "Pourquoi investir dans la formation continue est essentiel pour rester compétitif sur le marché.",
-      image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800",
-      author: site.owner_name,
-      date: "5 Mars 2024",
-      category: "Formation",
-      readTime: "6 min"
+  useEffect(() => {
+    loadArticles();
+  }, [site.id]);
+
+  const loadArticles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("*")
+        .eq("showcase_site_id", site.id)
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(6);
+
+      if (error) throw error;
+      setArticles(data || []);
+    } catch (error) {
+      console.error("Error loading blog posts:", error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,80 +87,98 @@ export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
       {/* Articles Grid */}
       <section ref={articlesGrid.ref} className="section-spacing px-4">
         <div className="container mx-auto max-w-7xl">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {articles.map((article, index) => (
-              <Card 
-                key={article.id}
-                className={`card-modern group overflow-hidden scroll-scale ${articlesGrid.isVisible ? 'visible' : ''} delay-${Math.min((index % 3 + 1) * 100, 400)}`}
-              >
-                {/* Image */}
-                <div className="relative h-56 overflow-hidden">
-                  <img 
-                    src={article.image}
-                    alt={article.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute top-4 left-4">
-                    <Badge 
-                      className="bg-primary text-primary-foreground"
-                    >
-                      {article.category}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  {/* Meta */}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{article.date}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <User className="h-4 w-4" />
-                      <span>{article.author}</span>
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 
-                    className="text-xl font-bold mb-3 group-hover:text-primary transition-colors"
-                    style={{ color: textColor }}
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Chargement des articles...</p>
+            </div>
+          ) : articles.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Aucun article publié pour le moment</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {articles.map((article, index) => (
+                  <Card 
+                    key={article.id}
+                    className={`card-modern group overflow-hidden scroll-scale cursor-pointer ${articlesGrid.isVisible ? 'visible' : ''} delay-${Math.min((index % 3 + 1) * 100, 400)}`}
+                    onClick={() => navigate(`/blog/${article.slug}`)}
                   >
-                    {article.title}
-                  </h3>
+                    {/* Image */}
+                    {article.image_url && (
+                      <div className="relative h-56 overflow-hidden">
+                        <img 
+                          src={article.image_url}
+                          alt={article.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute top-4 left-4">
+                          <Badge 
+                            className="bg-primary text-primary-foreground"
+                          >
+                            {article.category}
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
 
-                  {/* Excerpt */}
-                  <p className="text-muted-foreground mb-4 line-clamp-3">
-                    {article.excerpt}
-                  </p>
+                    {/* Content */}
+                    <div className="p-6">
+                      {/* Meta */}
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>{formatDate(article.published_at)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <User className="h-4 w-4" />
+                          <span>{article.author_name}</span>
+                        </div>
+                      </div>
 
-                  {/* Read More */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {article.readTime} de lecture
-                    </span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="group/btn"
-                    >
-                      Lire la suite
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                    </Button>
-                  </div>
+                      {/* Title */}
+                      <h3 
+                        className="text-xl font-bold mb-3 group-hover:text-primary transition-colors"
+                        style={{ color: textColor }}
+                      >
+                        {article.title}
+                      </h3>
+
+                      {/* Excerpt */}
+                      {article.excerpt && (
+                        <p className="text-muted-foreground mb-4 line-clamp-3">
+                          {article.excerpt}
+                        </p>
+                      )}
+
+                      {/* Read More */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          {article.read_time_minutes} min de lecture
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="group/btn"
+                        >
+                          Lire la suite
+                          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {articles.length >= 6 && (
+                <div className="text-center mt-12">
+                  <Button size="lg" variant="outline">
+                    Voir plus d'articles
+                  </Button>
                 </div>
-              </Card>
-            ))}
-          </div>
-
-          {/* Load More */}
-          <div className="text-center mt-12">
-            <Button size="lg" variant="outline">
-              Voir plus d'articles
-            </Button>
-          </div>
+              )}
+            </>
+          )}
         </div>
       </section>
 
