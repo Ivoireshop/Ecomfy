@@ -1,7 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { 
+  Sparkles, Video, Image as ImageIcon, Globe, Zap, 
+  Shield, Users, Code, BookOpen, FileText, Lock,
+  CheckCircle2, ArrowRight, Star, TrendingUp
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
@@ -97,7 +102,6 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       <Header />
       
-      {/* Onboarding Tutorial */}
       {showOnboarding && session?.user && (
         <OnboardingTutorial 
           userId={session.user.id} 
@@ -106,515 +110,608 @@ const Index = () => {
       )}
       
       {/* Hero Section */}
-      <section id="home" className="container mx-auto px-4 py-16 md:py-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4" variant="secondary">
-              <Sparkles className="w-3 h-3 mr-1" />
-              Plateforme de création visuelle pour l'Afrique
-            </Badge>
-            
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-600 to-secondary bg-clip-text text-transparent leading-tight">
-              {session && profile 
-                ? `Bienvenue ${profile.full_name?.split(' ')[0]}`
-                : "Créez des Visuels Pros en Quelques Secondes"
-              }
-            </h1>
-            
-            {session && profile ? (
-              <>
-                <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                  Vous pouvez maintenant créer des visuels professionnels en un clic !
-                </p>
-                
-                {/* CTA Buttons selon statut abonnement */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                  {subscription || profile.purchased_credits > 0 ? (
-                    <>
-                      <Button 
-                        size="lg" 
-                        className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                        onClick={() => navigate("/generator")}
-                      >
-                        <Sparkles className="mr-2 h-5 w-5" />
-                        Création de visual
-                      </Button>
-                      <Button 
-                        size="lg" 
-                        variant="secondary"
-                        className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                        onClick={() => navigate("/generator")}
-                      >
-                        Publicité
-                      </Button>
-                      <Button 
-                        size="lg" 
-                        variant="outline"
-                        className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                        onClick={() => navigate("/generator")}
-                      >
-                        Vidéo
-                      </Button>
-                    </>
-                  ) : (
-                    <Button 
-                      size="lg" 
-                      className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                      onClick={() => navigate("/generator")}
-                    >
-                      <Sparkles className="mr-2 h-5 w-5" />
-                      Création de visual
-                    </Button>
-                  )}
-                </div>
-
-                {/* Social Proof Stats */}
-                <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-2xl mx-auto mb-8">
-                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">500+</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">Utilisateurs actifs</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">10k+</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">Visuels créés</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">4.8/5</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">Satisfaction</div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                  Transformez vos idées en publicités professionnelles avec l'IA. Rejoignez des centaines d'entrepreneurs africains qui créent déjà.
-                </p>
-
-                {/* Social Proof Stats */}
-                <div className="grid grid-cols-3 gap-4 md:gap-8 mb-8 max-w-2xl mx-auto">
-                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">500+</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">Utilisateurs actifs</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">10k+</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">Visuels créés</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-primary mb-1">4.8/5</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">
-                      Satisfaction
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+      <section className="container mx-auto px-4 py-20 md:py-32">
+        <div className="max-w-5xl mx-auto text-center">
+          <Badge className="mb-6 animate-fade-in" variant="secondary">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Plateforme de création visuelle pour l'Afrique
+          </Badge>
+          
+          <h1 className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-primary via-purple-600 to-secondary bg-clip-text text-transparent leading-tight animate-fade-in">
+            {session && profile 
+              ? `Bienvenue ${profile.full_name?.split(' ')[0]}`
+              : "Créez des Visuels Pros en Quelques Secondes"
+            }
+          </h1>
+          
+          <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto animate-fade-in">
+            La première plateforme africaine de création visuelle propulsée par l'IA. 
+            Créez des publicités, vidéos et sites vitrine professionnels instantanément.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-in">
+            <Button 
+              size="lg" 
+              className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+              onClick={() => navigate(session ? "/generator" : "/auth")}
+            >
+              <Sparkles className="mr-2 h-5 w-5" />
+              {session ? "Créer maintenant" : "Commencer gratuitement"}
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              Découvrir les fonctionnalités
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
           </div>
 
-          {!session && (
-            <div className="flex flex-col items-center gap-4 mb-8">
-              <div className="inline-block bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 animate-pulse-glow">
-                <p className="text-base font-medium text-foreground animate-wiggle">
-                  🎁 Connectez-vous pour profiter de <span className="text-primary font-bold">3 essais gratuits</span>
-                </p>
-              </div>
-              <Button 
-                size="lg" 
-                className="text-lg px-8 py-4 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                onClick={() => navigate("/auth")}
-              >
-                <Sparkles className="mr-2 h-5 w-5" />
-                Inscrivez-vous maintenant
-              </Button>
-            </div>
-          )}
-
-          {/* Image Carousel - Dynamic showcase */}
-          <div className="relative mb-12 max-w-4xl mx-auto">
-            <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
-              {carouselImages.map((image, index) => (
-                <div
-                  key={index}
-                  className={`absolute inset-0 transition-opacity duration-1000 ${
-                    index === currentImageIndex ? "opacity-100" : "opacity-0"
-                  }`}
-                >
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  <div className="absolute bottom-8 left-8 right-8">
-                    <p className="text-white text-xl font-semibold drop-shadow-lg">
-                      {image.alt}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Carousel indicators */}
-            <div className="flex justify-center gap-2 mt-6">
-              {carouselImages.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    index === currentImageIndex
-                      ? "w-8 bg-primary"
-                      : "w-2 bg-primary/30 hover:bg-primary/50"
-                  }`}
-                  aria-label={`Aller à l'image ${index + 1}`}
-                />
-              ))}
-            </div>
+          {/* Carousel d'exemples */}
+          <div className="relative h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl mb-8 animate-fade-in">
+            {carouselImages.map((image, index) => (
+              <img
+                key={index}
+                src={image.src}
+                alt={image.alt}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+                  index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            ))}
           </div>
 
-          {!session && (
-            <div className="text-center">
-              <Button 
-                size="lg" 
-                className="text-xl px-12 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                onClick={() => navigate("/auth")}
-              >
-                <Sparkles className="mr-2 h-6 w-6" />
-                Commencer maintenant
-              </Button>
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto animate-fade-in">
+            <div>
+              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">500+</div>
+              <div className="text-muted-foreground">Utilisateurs actifs</div>
             </div>
-          )}
+            <div>
+              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">10k+</div>
+              <div className="text-muted-foreground">Visuels créés</div>
+            </div>
+            <div>
+              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">98%</div>
+              <div className="text-muted-foreground">Satisfaction</div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-16 bg-muted/30">
+      {/* Section Fonctionnalités Principales */}
+      <section id="features" className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="text-center p-6">
-              <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
-                <img 
-                  src={featureRapide} 
-                  alt="Rapidité et simplicité" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Rapide et Simple</h3>
-              <p className="text-muted-foreground">
-                Créez vos visuels professionnels en moins d'une minute
-              </p>
-            </div>
-
-            <div className="text-center p-6">
-              <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
-                <img 
-                  src={featureAfrique} 
-                  alt="Adapté au marché africain" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Adapté à l'Afrique</h3>
-              <p className="text-muted-foreground">
-                Visuels qui reflètent la diversité du marché africain
-              </p>
-            </div>
-
-            <div className="text-center p-6">
-              <div className="w-48 h-48 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
-                <img 
-                  src={featureIA} 
-                  alt="Intelligence artificielle" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">IA Intelligente</h3>
-              <p className="text-muted-foreground">
-                L'IA génère automatiquement visuels et textes publicitaires
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Examples Section */}
-      <section id="examples" className="container mx-auto px-4 py-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-          Exemples de Visuels
-        </h2>
-        <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Découvrez la qualité des visuels générés par notre IA
-        </p>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
-            <img 
-              src={exampleHandbag} 
-              alt="Exemple publicité sac à main - VisualPro" 
-              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-4 left-4 text-white">
-                <p className="font-semibold">Mode & Accessoires</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
-            <img 
-              src={examplePhone} 
-              alt="Exemple publicité smartphone - VisualPro" 
-              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-4 left-4 text-white">
-                <p className="font-semibold">Technologie</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
-            <img 
-              src={exampleFood} 
-              alt="Exemple publicité restaurant - VisualPro" 
-              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-4 left-4 text-white">
-                <p className="font-semibold">Restauration</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
-            <img 
-              src={exampleBeauty} 
-              alt="Exemple publicité produits beauté - VisualPro" 
-              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-4 left-4 text-white">
-                <p className="font-semibold">Beauté & Cosmétiques</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
-            <img 
-              src={exampleFitness} 
-              alt="Exemple publicité fitness - VisualPro" 
-              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-4 left-4 text-white">
-                <p className="font-semibold">Sport & Fitness</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all">
-            <img 
-              src={exampleRealestate} 
-              alt="Exemple publicité immobilier - VisualPro" 
-              className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-4 left-4 text-white">
-                <p className="font-semibold">Immobilier</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Founder Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-card to-accent/5 rounded-2xl shadow-xl overflow-hidden border">
-            <div className="grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
-              <div className="order-2 md:order-1 text-center md:text-left">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                  Notre Fondateur
-                </h2>
-                <h3 className="text-2xl font-semibold text-primary mb-4">
-                  Ulrich Djaté
-                </h3>
-                <p className="text-base text-muted-foreground mb-6">
-                  Ex prof de collège | Entrepreneur Ivoirien | Développeur No-Code | Expert en Intelligence Artificielle
-                </p>
-                <p className="text-lg text-muted-foreground leading-relaxed mb-6 italic">
-                  "La détermination forge le succès. Ne jamais abandonner, c'est la clé pour transformer chaque obstacle en opportunité. Poursuivez vos rêves avec passion et courage, car chaque grand projet commence par un premier pas audacieux."
-                </p>
-                <div className="inline-block bg-primary/10 text-primary px-6 py-3 rounded-lg font-medium">
-                  Fondateur & CEO - VisualPro
-                </div>
-              </div>
-              <div className="order-1 md:order-2">
-                <div className="relative w-64 h-64 md:w-80 md:h-80 mx-auto">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl blur-2xl"></div>
-                  <img 
-                    src={founderImage} 
-                    alt="Ulrich Djaté - Fondateur de VisualPro" 
-                    className="relative w-full h-full object-cover object-[center_30%] rounded-2xl shadow-2xl border-4 border-background"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Co-Founder Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-card to-accent/5 rounded-2xl shadow-xl overflow-hidden border">
-            <div className="grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
-              <div className="order-1 md:order-1">
-                <div className="relative w-64 h-64 md:w-80 md:h-80 mx-auto">
-                  <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 to-primary/20 rounded-2xl blur-2xl"></div>
-                  <img 
-                    src={cofounderImage} 
-                    alt="Agnissan se Regnis - Cofondateur de VisualPro" 
-                    className="relative w-full h-full object-cover object-[center_20%] rounded-2xl shadow-2xl border-4 border-background"
-                  />
-                </div>
-              </div>
-              <div className="order-2 md:order-2 text-center md:text-left">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                  Notre Cofondateur
-                </h2>
-                <h3 className="text-2xl font-semibold text-primary mb-4">
-                  Agnissan se Regnis
-                </h3>
-                <p className="text-lg text-muted-foreground leading-relaxed mb-6 italic">
-                  "L'innovation naît de la collaboration. Ensemble, nous transformons les idées audacieuses en réalités extraordinaires. Chaque défi est une invitation à repousser nos limites et à créer l'avenir que nous imaginons."
-                </p>
-                <div className="inline-block bg-secondary/10 text-secondary px-6 py-3 rounded-lg font-medium">
-                  Cofondateur - VisualPro
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      {publishedFeedback.length > 0 && (
-        <section className="py-16 bg-muted/30">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-              Ce que disent nos utilisateurs
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Toutes les fonctionnalités dont vous avez besoin
             </h2>
-            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {publishedFeedback.slice(0, 3).map((feedback) => (
-                <div
-                  key={feedback.id}
-                  className="bg-card border rounded-xl p-6 shadow-lg hover:shadow-xl transition-all"
-                >
-                  <div className="flex items-start gap-4 mb-4">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Visual Pro combine intelligence artificielle et simplicité pour vous offrir 
+              une suite complète d'outils de création professionnels.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            <Card className="p-8 hover:shadow-xl transition-all hover:scale-105 cursor-pointer" onClick={() => navigate(session ? "/generator" : "/auth")}>
+              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
+                <ImageIcon className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Génération d'Images IA</h3>
+              <p className="text-muted-foreground mb-6">
+                Créez des visuels publicitaires professionnels en quelques secondes. 
+                Parfait pour réseaux sociaux, sites web et campagnes marketing.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Templates optimisés pour chaque secteur</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Adaptation automatique aux formats sociaux</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Génération en moins de 30 secondes</span>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="p-8 hover:shadow-xl transition-all hover:scale-105 cursor-pointer" onClick={() => navigate(session ? "/generator" : "/auth")}>
+              <div className="w-16 h-16 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6">
+                <Video className="w-8 h-8 text-secondary" />
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Création de Vidéos</h3>
+              <p className="text-muted-foreground mb-6">
+                Transformez vos visuels en vidéos animées captivantes avec effets 
+                et transitions professionnels automatiques.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Animations fluides et professionnelles</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Musique d'ambiance personnalisable</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Export HD pour toutes plateformes</span>
+                </li>
+              </ul>
+            </Card>
+
+            <Card className="p-8 hover:shadow-xl transition-all hover:scale-105 cursor-pointer" onClick={() => navigate(session ? "/showcase-manager" : "/auth")}>
+              <div className="w-16 h-16 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6">
+                <Globe className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Sites Vitrine IA</h3>
+              <p className="text-muted-foreground mb-6">
+                Créez votre site web professionnel en quelques minutes. 
+                Idéal pour présenter vos services et attirer de nouveaux clients.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Design responsive automatique</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Formulaire de contact intégré</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                  <span>Domaine personnalisé disponible</span>
+                </li>
+              </ul>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Comment ça marche */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Simple, Rapide, Efficace
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Créez du contenu professionnel en 3 étapes simples
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold text-primary-foreground">
+                1
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Décrivez votre projet</h3>
+              <p className="text-muted-foreground">
+                Entrez une description simple de ce que vous voulez créer. 
+                L'IA comprend vos besoins et génère les bonnes suggestions.
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold text-secondary-foreground">
+                2
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Personnalisez</h3>
+              <p className="text-muted-foreground">
+                Ajustez les couleurs, textes, images selon votre marque. 
+                Notre éditeur intuitif vous donne un contrôle total.
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold text-white">
+                3
+              </div>
+              <h3 className="text-2xl font-bold mb-4">Téléchargez & Partagez</h3>
+              <p className="text-muted-foreground">
+                Exportez en haute qualité et partagez directement sur vos 
+                réseaux sociaux ou téléchargez pour usage offline.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Exemples/Templates */}
+      <section className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Des résultats professionnels garantis
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Découvrez quelques exemples de visuels créés avec Visual Pro
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {[
+              { img: exampleHandbag, title: "Mode & Accessoires", color: "bg-pink-500" },
+              { img: examplePhone, title: "Technologie", color: "bg-blue-500" },
+              { img: exampleFood, title: "Restauration", color: "bg-orange-500" },
+              { img: exampleBeauty, title: "Beauté & Cosmétiques", color: "bg-purple-500" },
+              { img: exampleFitness, title: "Sport & Fitness", color: "bg-green-500" },
+              { img: exampleRealestate, title: "Immobilier", color: "bg-indigo-500" },
+            ].map((example, idx) => (
+              <Card key={idx} className="overflow-hidden hover:shadow-xl transition-all hover:scale-105 cursor-pointer group">
+                <div className="relative h-64 overflow-hidden">
+                  <img src={example.img} alt={example.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <div className={`absolute inset-0 ${example.color} opacity-0 group-hover:opacity-20 transition-opacity`}></div>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold text-lg">{example.title}</h3>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section Tarification */}
+      <section id="pricing" className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Des tarifs adaptés à vos besoins
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Commencez gratuitement, puis choisissez le plan qui vous convient
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <Card className="p-8 hover:shadow-xl transition-all">
+              <Badge className="mb-4" variant="secondary">Gratuit</Badge>
+              <h3 className="text-3xl font-bold mb-4">Découverte</h3>
+              <div className="mb-6">
+                <span className="text-5xl font-bold">0€</span>
+                <span className="text-muted-foreground">/mois</span>
+              </div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>3 générations d'images gratuites</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>1 vidéo gratuite</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>Tous les templates</span>
+                </li>
+              </ul>
+              <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
+                Commencer gratuitement
+              </Button>
+            </Card>
+
+            <Card className="p-8 border-2 border-primary hover:shadow-xl transition-all relative">
+              <Badge className="mb-4 bg-primary">Populaire</Badge>
+              <h3 className="text-3xl font-bold mb-4">Pro</h3>
+              <div className="mb-6">
+                <span className="text-5xl font-bold">29€</span>
+                <span className="text-muted-foreground">/mois</span>
+              </div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>100 générations d'images/mois</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>20 vidéos/mois</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>3 sites vitrine</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>Support prioritaire</span>
+                </li>
+              </ul>
+              <Button className="w-full" onClick={() => navigate(session ? "/subscription" : "/auth")}>
+                Choisir Pro
+              </Button>
+            </Card>
+
+            <Card className="p-8 hover:shadow-xl transition-all">
+              <Badge className="mb-4" variant="secondary">Entreprise</Badge>
+              <h3 className="text-3xl font-bold mb-4">Business</h3>
+              <div className="mb-6">
+                <span className="text-5xl font-bold">99€</span>
+                <span className="text-muted-foreground">/mois</span>
+              </div>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>Générations illimitées</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>Vidéos illimitées</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>Sites vitrine illimités</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
+                  <span>Accès API</span>
+                </li>
+              </ul>
+              <Button className="w-full" variant="outline" onClick={() => navigate(session ? "/subscription" : "/auth")}>
+                Choisir Business
+              </Button>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Section API & Intégrations */}
+      <section id="api" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                API & Intégrations
+              </h2>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                Connectez Visual Pro à vos outils préférés et automatisez votre workflow
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              <Card className="p-8">
+                <Code className="w-12 h-12 text-primary mb-4" />
+                <h3 className="text-2xl font-bold mb-4">API REST Complète</h3>
+                <p className="text-muted-foreground mb-6">
+                  Intégrez Visual Pro directement dans vos applications avec notre API REST. 
+                  Créez, modifiez et gérez vos contenus par programmation.
+                </p>
+                <ul className="space-y-2 mb-6">
+                  <li className="flex items-center">
+                    <CheckCircle2 className="w-5 h-5 text-primary mr-2" />
+                    <span>Documentation complète</span>
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle2 className="w-5 h-5 text-primary mr-2" />
+                    <span>SDKs JavaScript, Python, PHP</span>
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle2 className="w-5 h-5 text-primary mr-2" />
+                    <span>Webhooks en temps réel</span>
+                  </li>
+                </ul>
+                <Button variant="outline" onClick={() => window.open('https://docs.visualpro.africa', '_blank')}>
+                  Voir la documentation API
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Card>
+
+              <Card className="p-8">
+                <Zap className="w-12 h-12 text-secondary mb-4" />
+                <h3 className="text-2xl font-bold mb-4">Intégrations Natives</h3>
+                <p className="text-muted-foreground mb-6">
+                  Connectez-vous facilement à vos outils marketing préférés et 
+                  automatisez la création de contenu.
+                </p>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                    <div className="font-semibold">Zapier</div>
+                    <div className="text-xs text-muted-foreground">Automatisation</div>
+                  </div>
+                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                    <div className="font-semibold">Make</div>
+                    <div className="text-xs text-muted-foreground">Workflows</div>
+                  </div>
+                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                    <div className="font-semibold">WordPress</div>
+                    <div className="text-xs text-muted-foreground">Plugin</div>
+                  </div>
+                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                    <div className="font-semibold">Shopify</div>
+                    <div className="text-xs text-muted-foreground">E-commerce</div>
+                  </div>
+                </div>
+                <Button variant="outline" onClick={() => navigate(session ? "/subscription" : "/auth")}>
+                  Voir toutes les intégrations
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Témoignages */}
+      {publishedFeedback.length > 0 && (
+        <section className="py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                Ils nous font confiance
+              </h2>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                Découvrez ce que nos utilisateurs disent de Visual Pro
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {publishedFeedback.slice(0, 6).map((feedback) => (
+                <Card key={feedback.id} className="p-6 hover:shadow-xl transition-all">
+                  <div className="flex items-center mb-4">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 ${
+                          i < feedback.rating
+                            ? 'text-yellow-500 fill-yellow-500'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-muted-foreground mb-4 italic">
+                    "{feedback.comment}"
+                  </p>
+                  <div className="flex items-center gap-3">
                     {feedback.photo_url && (
                       <img
                         src={feedback.photo_url}
-                        alt={feedback.full_name || "Utilisateur"}
-                        className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
+                        alt={feedback.full_name}
+                        className="w-10 h-10 rounded-full object-cover"
                       />
                     )}
-                    <div className="flex-1">
-                      <h4 className="font-bold mb-1">
-                        {feedback.full_name || "Utilisateur anonyme"}
-                      </h4>
-                      <div className="flex text-yellow-400 mb-1">
-                        {Array.from({ length: feedback.rating }).map((_, i) => (
-                          <span key={i}>⭐</span>
-                        ))}
-                      </div>
+                    <div>
+                      <div className="font-semibold">{feedback.full_name}</div>
                       {feedback.country && (
-                        <p className="text-xs text-muted-foreground">
-                          {feedback.country}
-                        </p>
+                        <div className="text-sm text-muted-foreground">{feedback.country}</div>
                       )}
                     </div>
                   </div>
-                  {feedback.comment && (
-                    <p className="text-sm text-muted-foreground leading-relaxed italic">
-                      "{feedback.comment}"
-                    </p>
-                  )}
-                </div>
+                </Card>
               ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* CTA Section */}
-      {!session && (
-        <section className="container mx-auto px-4 py-16">
-          <div className="max-w-3xl mx-auto text-center bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-12 border">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Prêt à créer vos visuels ?
+      {/* Section Équipe */}
+      <section className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Notre équipe
             </h2>
-            <p className="text-lg text-muted-foreground mb-6">
-              Rejoignez des centaines d'entrepreneurs africains
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Des passionnés dévoués à démocratiser la création visuelle en Afrique
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="p-8 text-center hover:shadow-xl transition-all">
+              <img
+                src={founderImage}
+                alt="Ulrich DJATE"
+                className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
+              />
+              <h3 className="text-2xl font-bold mb-2">Ulrich DJATE</h3>
+              <p className="text-primary font-semibold mb-4">Fondateur & CEO</p>
+              <p className="text-muted-foreground">
+                Entrepreneur passionné par l'innovation technologique en Afrique
+              </p>
+            </Card>
+
+            <Card className="p-8 text-center hover:shadow-xl transition-all">
+              <img
+                src={cofounderImage}
+                alt="Agnissan REGNIS"
+                className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
+              />
+              <h3 className="text-2xl font-bold mb-2">Agnissan REGNIS</h3>
+              <p className="text-secondary font-semibold mb-4">Co-fondateur & CTO</p>
+              <p className="text-muted-foreground">
+                Expert en IA et développement, architecte de la plateforme
+              </p>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Section CTA Final */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <Card className="bg-gradient-to-r from-primary/10 via-purple-500/10 to-secondary/10 p-12 text-center max-w-4xl mx-auto">
+            <TrendingUp className="w-16 h-16 mx-auto mb-6 text-primary" />
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Prêt à transformer votre communication visuelle ?
+            </h2>
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Rejoignez les centaines d'entrepreneurs africains qui utilisent Visual Pro 
+              pour créer du contenu professionnel en quelques clics.
             </p>
             <Button 
               size="lg" 
-              className="text-lg px-8 py-6"
-              onClick={() => navigate("/auth")}
+              className="text-lg px-10 py-7 shadow-lg hover:shadow-xl"
+              onClick={() => navigate(session ? "/generator" : "/auth")}
             >
-              Commencer maintenant
+              <Sparkles className="mr-2 h-5 w-5" />
+              {session ? "Créer maintenant" : "Commencer gratuitement"}
             </Button>
-          </div>
-        </section>
-      )}
+          </Card>
+        </div>
+      </section>
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-br from-[hsl(150,60%,15%)] to-[hsl(0,0%,10%)] text-white py-12 mt-16">
+      {/* Footer avec Documentation */}
+      <footer className="bg-muted/50 py-16 border-t">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
+          <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div>
-              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                VisualPro
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Visual Pro
               </h3>
-              <p className="text-gray-300">
-                L'outil de création de visuels publicitaires adapté au marché africain
+              <p className="text-muted-foreground mb-4">
+                La plateforme africaine de création visuelle propulsée par l'IA
               </p>
             </div>
-            
+
             <div>
-              <h4 className="text-lg font-semibold mb-4">Liens Utiles</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="/auth" className="text-gray-300 hover:text-white transition-colors">
-                    Créer un compte
-                  </a>
-                </li>
-                <li>
-                  <a href="/auth" className="text-gray-300 hover:text-white transition-colors">
-                    Se connecter
-                  </a>
-                </li>
+              <h4 className="font-bold mb-4">Produit</h4>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a></li>
+                <li><a href="#pricing" className="hover:text-primary transition-colors">Tarifs</a></li>
+                <li><a href="#api" className="hover:text-primary transition-colors">API</a></li>
+                <li><button onClick={() => navigate(session ? "/generator" : "/auth")} className="hover:text-primary transition-colors">Essai gratuit</button></li>
               </ul>
             </div>
-            
+
             <div>
-              <h4 className="text-lg font-semibold mb-4">Légal</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">
-                    Politique de confidentialité
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">
-                    Conditions d'utilisation
-                  </a>
-                </li>
+              <h4 className="font-bold mb-4 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Ressources
+              </h4>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><button onClick={() => navigate("/tutorial")} className="hover:text-primary transition-colors">Tutoriel</button></li>
+                <li><a href="https://docs.visualpro.africa" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Documentation</a></li>
+                <li><a href="https://blog.visualpro.africa" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Blog</a></li>
+                <li><a href="https://support.visualpro.africa" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Support</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-4 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Légal
+              </h4>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><a href="/privacy-policy" className="hover:text-primary transition-colors flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  Politique de confidentialité
+                </a></li>
+                <li><a href="/terms-of-service" className="hover:text-primary transition-colors flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  Conditions d'utilisation
+                </a></li>
+                <li><a href="/cookies-policy" className="hover:text-primary transition-colors">Politique des cookies</a></li>
               </ul>
             </div>
           </div>
-          
-          <div className="border-t border-white/20 pt-8 text-center">
-            <p className="text-gray-300">
-              © {new Date().getFullYear()} VisualPro. Tous droits réservés.
-            </p>
+
+          <div className="border-t pt-8 text-center text-muted-foreground">
+            <p>© 2024 Visual Pro. Tous droits réservés. Fait avec ❤️ en Afrique</p>
           </div>
         </div>
       </footer>
