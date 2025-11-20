@@ -427,12 +427,14 @@ export default function ShowcaseView() {
           {currentPage === 'home' && <ShowcaseHome site={site} onContactClick={handleContactClick} onNavigate={navigateToPage} />}
           {currentPage === 'services' && <ShowcaseServices site={site} onContactClick={handleContactClick} />}
           {currentPage === 'courses' && (
-            <section className="py-12 px-4">
-              <ShowcaseCoursesPage 
-                showcaseSiteId={site.id}
-                primaryColor={site.primary_color}
-                textColor={site.text_color}
-              />
+            <section className="py-20 px-4">
+              <div className="container mx-auto max-w-7xl">
+                <ShowcaseCoursesPage 
+                  showcaseSiteId={site.id}
+                  primaryColor={site.primary_color || '#2563eb'}
+                  textColor={site.text_color || '#000000'}
+                />
+              </div>
             </section>
           )}
           {currentPage === 'formations' && <ShowcaseFormations site={site} onContactClick={handleContactClick} />}
