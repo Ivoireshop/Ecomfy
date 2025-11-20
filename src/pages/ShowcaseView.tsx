@@ -307,9 +307,11 @@ export default function ShowcaseView() {
 
   const navigationItems = [
     { label: "Accueil", page: 'home' as PageType },
-    ...(site.about_description ? [{ label: "À propos", page: 'about' as PageType }] : []),
+    ...(site.biography_content ? [{ label: "Biographie", page: 'biography' as PageType }] : []),
     ...(site.features && site.features.length > 0 ? [{ label: "Services", page: 'services' as PageType }] : []),
     ...(site.formations && site.formations.length > 0 ? [{ label: "Formations", page: 'formations' as PageType }] : []),
+    ...(Object.keys(galleries).length > 0 || Object.keys(galleryVideos).length > 0 ? [{ label: "Galerie", page: 'gallery' as PageType }] : []),
+    ...(site.features && site.features.length > 0 ? [{ label: "Réserver", page: 'booking' as PageType }] : []),
     { label: "Blog", page: 'blog' as PageType },
     { label: "Contact", page: 'contact' as PageType },
   ];

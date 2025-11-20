@@ -113,6 +113,7 @@ export default function ShowcaseEditor() {
   const [previewTemplate, setPreviewTemplate] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState<string>("#2563eb");
   const [secondaryColor, setSecondaryColor] = useState<string>("#7c3aed");
+  const [backgroundColor, setBackgroundColor] = useState<string>("#ffffff");
   const [baseFontSize, setBaseFontSize] = useState<number>(16);
   const [heroTitleSize, setHeroTitleSize] = useState<number>(48);
   const [heroTitleColor, setHeroTitleColor] = useState<string>("#000000");
@@ -261,6 +262,7 @@ export default function ShowcaseEditor() {
       // Set custom colors and sizes
       setPrimaryColor(data.primary_color || "#2563eb");
       setSecondaryColor(data.secondary_color || "#7c3aed");
+      setBackgroundColor((data as any).background_color || "#ffffff");
       setHeroTitleSize((data as any).hero_title_size || 48);
       setHeroTitleColor((data as any).hero_title_color || "#000000");
       setBiographyTitle(data.biography_title || "Biographie");
@@ -407,6 +409,7 @@ export default function ShowcaseEditor() {
         theme: currentValues.theme,
         primary_color: primaryColor,
         secondary_color: secondaryColor,
+        background_color: backgroundColor,
         text_color: currentValues.textColor,
         about_layout: currentValues.aboutLayout,
         gallery_text_position: currentValues.galleryTextPosition,
@@ -598,8 +601,9 @@ export default function ShowcaseEditor() {
         formation_description: data.formationDescription,
         formation_price: data.formationPrice,
         theme: data.theme,
-        primary_color: themeColors?.primary,
-        secondary_color: themeColors?.secondary,
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        background_color: backgroundColor,
         text_color: data.textColor,
         about_layout: data.aboutLayout,
         gallery_text_position: data.galleryTextPosition,
@@ -1298,6 +1302,29 @@ export default function ShowcaseEditor() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Couleur complémentaire pour les dégradés et variations
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="backgroundColor">Couleur de fond du site</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <Input
+                      id="backgroundColor"
+                      type="color"
+                      value={backgroundColor}
+                      onChange={(e) => setBackgroundColor(e.target.value)}
+                      className="w-20 h-10"
+                    />
+                    <Input
+                      type="text"
+                      value={backgroundColor}
+                      onChange={(e) => setBackgroundColor(e.target.value)}
+                      placeholder="#ffffff"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Couleur d'arrière-plan principale du site vitrine
                   </p>
                 </div>
               </div>
