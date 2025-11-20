@@ -10,8 +10,14 @@ function generateCertificateHTML(
   studentName: string,
   courseTitle: string,
   completionDate: string,
-  certificateNumber: string
+  certificateNumber: string,
+  logoUrl: string | null,
+  businessName: string,
+  ownerName: string,
+  verificationUrl: string
 ): string {
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verificationUrl)}`;
+  
   return `
 <!DOCTYPE html>
 <html>
@@ -33,33 +39,61 @@ function generateCertificateHTML(
     .certificate {
       width: 280mm;
       height: 195mm;
-      border: 6px double #2563eb;
+      border: 8px double #2563eb;
       padding: 20mm;
       position: relative;
       box-sizing: border-box;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     }
     .inner-border {
-      border: 2px solid #2563eb;
+      border: 3px solid #2563eb;
       padding: 15mm;
       height: 100%;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      position: relative;
     }
-    .header { text-align: center; margin-bottom: 15mm; }
+    .logo {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      max-width: 120px;
+      max-height: 80px;
+      object-fit: contain;
+    }
+    .qr-code {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 100px;
+      height: 100px;
+      border: 2px solid #2563eb;
+      padding: 5px;
+      background: white;
+    }
+    .header { text-align: center; margin-bottom: 10mm; margin-top: 30px; }
     .title {
-      font-size: 48px;
+      font-size: 52px;
       color: #2563eb;
       font-weight: bold;
       margin: 0;
-      letter-spacing: 4px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      text-shadow: 2px 2px 4px rgba(37, 99, 235, 0.1);
+    }
+    .subtitle {
+      font-size: 18px;
+      color: #7c3aed;
+      margin-top: 10px;
+      font-style: italic;
     }
     .divider {
-      width: 200px;
-      height: 3px;
-      background: linear-gradient(to right, transparent, #888, transparent);
-      margin: 10px auto;
+      width: 250px;
+      height: 4px;
+      background: linear-gradient(to right, transparent, #2563eb, #7c3aed, #2563eb, transparent);
+      margin: 15px auto;
     }
     .content {
       text-align: center;
@@ -67,64 +101,131 @@ function generateCertificateHTML(
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 15px;
+      gap: 20px;
     }
-    .certifies { font-size: 20px; color: #555; }
+    .certifies { font-size: 22px; color: #555; font-weight: 500; }
     .student-name {
-      font-size: 36px;
+      font-size: 42px;
       font-weight: bold;
-      color: #000;
-      border-bottom: 2px solid #888;
+      color: #1e293b;
+      border-bottom: 3px solid #2563eb;
       display: inline-block;
-      padding: 5px 50px;
-      margin: 10px 0;
+      padding: 10px 60px;
+      margin: 15px 0;
+      text-transform: capitalize;
     }
-    .completion-text { font-size: 20px; color: #555; }
+    .completion-text { font-size: 22px; color: #555; font-weight: 500; }
     .course-title {
-      font-size: 28px;
+      font-size: 32px;
       color: #2563eb;
       font-weight: bold;
-      margin: 15px 0;
+      margin: 20px 0;
       font-style: italic;
+      line-height: 1.4;
     }
     .footer {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      margin-top: 20mm;
+      margin-top: 15mm;
+      padding-top: 10px;
+      border-top: 2px solid #e2e8f0;
     }
-    .date { font-size: 16px; color: #666; }
-    .certificate-number { font-size: 12px; color: #888; }
-    .signature-line { text-align: right; }
-    .signature-text { font-size: 14px; color: #666; margin-bottom: 5px; }
-    .line {
-      width: 150px;
-      border-top: 1px solid #888;
-      display: inline-block;
+    .left-footer {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .date { font-size: 16px; color: #666; margin: 5px 0; }
+    .certificate-number { 
+      font-size: 14px; 
+      color: #2563eb; 
+      font-weight: bold;
+      margin: 5px 0;
+    }
+    .business-name {
+      font-size: 14px;
+      color: #888;
+      margin: 5px 0;
+    }
+    .signature-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .signature-box {
+      width: 180px;
+      height: 60px;
+      border: 2px solid #2563eb;
+      background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .signature-text {
+      font-family: 'Brush Script MT', cursive;
+      font-size: 28px;
+      color: #2563eb;
+      font-weight: bold;
+    }
+    .signature-label {
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+    .signature-name {
+      font-size: 14px;
+      color: #1e293b;
+      font-weight: bold;
+      text-align: center;
+    }
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 120px;
+      color: rgba(37, 99, 235, 0.03);
+      font-weight: bold;
+      pointer-events: none;
+      z-index: 0;
     }
   </style>
 </head>
 <body>
   <div class="certificate">
     <div class="inner-border">
+      <div class="watermark">CERTIFIÉ</div>
+      ${logoUrl ? `<img src="${logoUrl}" alt="Logo" class="logo" />` : ''}
+      <img src="${qrCodeUrl}" alt="QR Code" class="qr-code" />
+      
       <div class="header">
-        <h1 class="title">CERTIFICAT DE FORMATION</h1>
+        <h1 class="title">Certificat de Formation</h1>
+        <p class="subtitle">Attestation Officielle de Complétion</p>
         <div class="divider"></div>
       </div>
+      
       <div class="content">
-        <p class="certifies">Ce certificat atteste que</p>
+        <p class="certifies">Ce certificat atteste officiellement que</p>
         <div class="student-name">${studentName}</div>
         <p class="completion-text">a complété avec succès la formation</p>
         <div class="course-title">"${courseTitle}"</div>
       </div>
+      
       <div class="footer">
-        <div>
-          <p class="certificate-number">N° ${certificateNumber}</p>
+        <div class="left-footer">
+          <p class="certificate-number">Certificat N° ${certificateNumber}</p>
           <p class="date">Délivré le ${completionDate}</p>
+          <p class="business-name">${businessName}</p>
         </div>
-        <div class="signature-line">
-          <p class="signature-text">Signature autorisée</p>
-          <div class="line"></div>
+        <div class="signature-section">
+          <div class="signature-box">
+            <span class="signature-text">${ownerName}</span>
+          </div>
+          <p class="signature-label">Signature autorisée</p>
+          <p class="signature-name">${ownerName}</p>
         </div>
       </div>
     </div>
@@ -188,10 +289,10 @@ serve(async (req) => {
       );
     }
 
-    // Récupérer détails
+    // Récupérer détails du cours et du site
     const { data: course } = await supabaseClient
       .from("courses")
-      .select("title")
+      .select("title, showcase_site_id")
       .eq("id", courseId)
       .single();
 
@@ -201,7 +302,15 @@ serve(async (req) => {
       .eq("id", user.id)
       .single();
 
+    const { data: showcaseSite } = await supabaseClient
+      .from("showcase_sites")
+      .select("logo_url, business_name, owner_name")
+      .eq("id", course?.showcase_site_id)
+      .single();
+
     const studentName = profile?.full_name || profile?.email || "Étudiant";
+    const businessName = showcaseSite?.business_name || "Formation";
+    const ownerName = showcaseSite?.owner_name || "Formateur";
 
     // Vérifier si existe
     const { data: existingCert } = await supabaseClient
@@ -231,12 +340,19 @@ serve(async (req) => {
       year: "numeric",
     });
 
+    // URL de vérification du certificat
+    const verificationUrl = `${Deno.env.get("SUPABASE_URL")}/verify-certificate/${certNumber}`;
+
     // Générer HTML
     const certificateHTML = generateCertificateHTML(
       studentName,
       course?.title || "Formation",
       completionDate,
-      certNumber
+      certNumber,
+      showcaseSite?.logo_url || null,
+      businessName,
+      ownerName,
+      verificationUrl
     );
 
     const fileName = `certificate-${user.id}-${courseId}-${Date.now()}.html`;
