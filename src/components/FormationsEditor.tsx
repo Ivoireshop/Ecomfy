@@ -23,9 +23,10 @@ interface FormationsEditorProps {
   showcaseId: string;
   onChange: (formations: Formation[]) => void;
   onTextAlignChange: (align: string) => void;
+  onSaveToDatabase?: () => Promise<void>;
 }
 
-export function FormationsEditor({ formations, textAlign, showcaseId, onChange, onTextAlignChange }: FormationsEditorProps) {
+export function FormationsEditor({ formations, textAlign, showcaseId, onChange, onTextAlignChange, onSaveToDatabase }: FormationsEditorProps) {
   const [generatingIndex, setGeneratingIndex] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
@@ -138,8 +139,15 @@ export function FormationsEditor({ formations, textAlign, showcaseId, onChange, 
         .getPublicUrl(fileName);
 
       // Add cache-busting parameter
-      updateFormation(index, 'image_url', `${data.publicUrl}?v=${Date.now()}`);
-      toast.success("Image téléchargée avec succès !");
+      const newImageUrl = `${data.publicUrl}?v=${Date.now()}`;
+      updateFormation(index, 'image_url', newImageUrl);
+      
+      // Save immediately to database
+      if (onSaveToDatabase) {
+        await onSaveToDatabase();
+      }
+      
+      toast.success("Image téléchargée et sauvegardée avec succès !");
     } catch (error: any) {
       console.error('Error uploading image:', error);
       toast.error("Erreur lors du téléchargement");

@@ -605,6 +605,24 @@ export default function ShowcaseEditor() {
     await saveShowcase(data, true);
   };
 
+  const saveFeaturesAndFormationsToDatabase = async () => {
+    if (!id) return;
+    
+    try {
+      await supabase
+        .from("showcase_sites")
+        .update({
+          features: features,
+          formations: formations,
+          formations_text_align: formationsTextAlign,
+        })
+        .eq("id", id);
+    } catch (error) {
+      console.error("Error saving features/formations:", error);
+      toast.error("Erreur lors de la sauvegarde");
+    }
+  };
+
   const autoSave = async () => {
     if (isAutoSaving || isSaving) return;
     
@@ -1253,6 +1271,7 @@ export default function ShowcaseEditor() {
             features={features}
             showcaseId={id || ""}
             onChange={setFeatures}
+            onSaveToDatabase={saveFeaturesAndFormationsToDatabase}
           />
 
           {/* Formations Editor */}
@@ -1262,6 +1281,7 @@ export default function ShowcaseEditor() {
             showcaseId={id || ""}
             onChange={setFormations}
             onTextAlignChange={setFormationsTextAlign}
+            onSaveToDatabase={saveFeaturesAndFormationsToDatabase}
           />
 
           {/* Owner Information */}
