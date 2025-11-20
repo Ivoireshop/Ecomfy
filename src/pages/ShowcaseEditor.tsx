@@ -28,6 +28,7 @@ import { ContactSubmissionsViewer } from "@/components/ContactSubmissionsViewer"
 import { ShowcaseVersionHistory } from "@/components/ShowcaseVersionHistory";
 import { VideoUploader } from "@/components/VideoUploader";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
+import { BiographyEditor } from "@/components/BiographyEditor";
 import {
   Dialog,
   DialogContent,
@@ -113,6 +114,9 @@ export default function ShowcaseEditor() {
   const [baseFontSize, setBaseFontSize] = useState<number>(16);
   const [heroTitleSize, setHeroTitleSize] = useState<number>(48);
   const [heroTitleColor, setHeroTitleColor] = useState<string>("#000000");
+  const [biographyTitle, setBiographyTitle] = useState<string>("Biographie");
+  const [biographyContent, setBiographyContent] = useState<string>("");
+  const [professionalExperience, setProfessionalExperience] = useState<any[]>([]);
   
   // SEO states
   const [seoTitle, setSeoTitle] = useState("");
@@ -257,6 +261,9 @@ export default function ShowcaseEditor() {
       setSecondaryColor(data.secondary_color || "#7c3aed");
       setHeroTitleSize((data as any).hero_title_size || 48);
       setHeroTitleColor((data as any).hero_title_color || "#000000");
+      setBiographyTitle(data.biography_title || "Biographie");
+      setBiographyContent(data.biography_content || "");
+      setProfessionalExperience((data.professional_experience as any[]) || []);
 
       // Load testimonials
       const { data: testimonialsData } = await supabase
@@ -415,6 +422,9 @@ export default function ShowcaseEditor() {
         og_image_url: ogImageUrl,
         hero_title_size: heroTitleSize,
         hero_title_color: heroTitleColor,
+        biography_title: biographyTitle,
+        biography_content: biographyContent,
+        professional_experience: professionalExperience,
       };
 
       const { error: updateError } = await supabase

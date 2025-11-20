@@ -680,6 +680,9 @@ export type Database = {
           about_layout: string | null
           about_title: string | null
           about_video_url: string | null
+          biography_content: string | null
+          biography_image_url: string | null
+          biography_title: string | null
           business_description: string | null
           business_name: string
           created_at: string
@@ -710,6 +713,7 @@ export type Database = {
           owner_photo_url: string | null
           phone_number: string
           primary_color: string | null
+          professional_experience: Json | null
           secondary_color: string | null
           seo_description: string | null
           seo_keywords: string[] | null
@@ -729,6 +733,9 @@ export type Database = {
           about_layout?: string | null
           about_title?: string | null
           about_video_url?: string | null
+          biography_content?: string | null
+          biography_image_url?: string | null
+          biography_title?: string | null
           business_description?: string | null
           business_name: string
           created_at?: string
@@ -759,6 +766,7 @@ export type Database = {
           owner_photo_url?: string | null
           phone_number: string
           primary_color?: string | null
+          professional_experience?: Json | null
           secondary_color?: string | null
           seo_description?: string | null
           seo_keywords?: string[] | null
@@ -778,6 +786,9 @@ export type Database = {
           about_layout?: string | null
           about_title?: string | null
           about_video_url?: string | null
+          biography_content?: string | null
+          biography_image_url?: string | null
+          biography_title?: string | null
           business_description?: string | null
           business_name?: string
           created_at?: string
@@ -808,6 +819,7 @@ export type Database = {
           owner_photo_url?: string | null
           phone_number?: string
           primary_color?: string | null
+          professional_experience?: Json | null
           secondary_color?: string | null
           seo_description?: string | null
           seo_keywords?: string[] | null

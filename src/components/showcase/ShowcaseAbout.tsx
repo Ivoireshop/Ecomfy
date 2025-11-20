@@ -10,6 +10,8 @@ interface ShowcaseAboutProps {
 }
 
 export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAboutProps) => {
+  const textColor = site.theme_mode === 'dark' ? '#ffffff' : (site.text_color || '#000000');
+  
   return (
     <div className="min-h-screen py-20 px-4 animate-fade-in">
       <div className="container mx-auto">
@@ -21,7 +23,7 @@ export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAb
           </Badge>
           <h1 
             className="text-4xl md:text-5xl font-bold mb-6"
-            style={{ color: site.text_color || '#000000' }}
+            style={{ color: textColor }}
           >
             {site.about_title || "À Propos de Nous"}
           </h1>
@@ -56,7 +58,7 @@ export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAb
             {site.about_description && (
               <div 
                 className="prose max-w-none mb-8 text-lg leading-relaxed"
-                style={{ color: site.text_color || '#000000' }}
+                style={{ color: textColor }}
               >
                 {site.about_description.split('\n').map((paragraph: string, index: number) => (
                   <p key={index} className="mb-4">{paragraph}</p>
@@ -67,14 +69,14 @@ export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAb
             <div className="flex flex-wrap gap-4">
               <Card className="flex-1 p-6 hover-scale">
                 <Target className="h-10 w-10 mb-4" style={{ color: site.primary_color || '#D4AF37' }} />
-                <h3 className="text-lg font-semibold mb-2">Notre Mission</h3>
-                <p className="text-sm opacity-80">Offrir des services de qualité exceptionnelle</p>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: textColor }}>Notre Mission</h3>
+                <p className="text-sm opacity-80" style={{ color: textColor }}>Offrir des services de qualité exceptionnelle</p>
               </Card>
               
               <Card className="flex-1 p-6 hover-scale">
                 <Award className="h-10 w-10 mb-4" style={{ color: site.secondary_color || '#10B981' }} />
-                <h3 className="text-lg font-semibold mb-2">Notre Excellence</h3>
-                <p className="text-sm opacity-80">Des résultats qui dépassent les attentes</p>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: textColor }}>Notre Excellence</h3>
+                <p className="text-sm opacity-80" style={{ color: textColor }}>Des résultats qui dépassent les attentes</p>
               </Card>
             </div>
           </div>
@@ -97,9 +99,9 @@ export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAb
                   style={{ borderColor: site.primary_color || '#D4AF37' }}
                 />
               )}
-              <h3 
+               <h3 
                 className="text-3xl font-bold mb-4"
-                style={{ color: site.text_color || '#000000' }}
+                style={{ color: textColor }}
               >
                 {site.owner_name}
               </h3>
@@ -118,7 +120,7 @@ export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAb
           <div className="mb-20">
             <h2 
               className="text-3xl font-bold text-center mb-12 scroll-fade-in"
-              style={{ color: site.text_color || '#000000' }}
+              style={{ color: textColor }}
             >
               <Heart className="inline-block mr-3 mb-1" style={{ color: site.secondary_color || '#10B981' }} />
               Ce que disent nos clients
@@ -146,7 +148,7 @@ export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAb
                   
                   <p 
                     className="mb-4 italic leading-relaxed"
-                    style={{ color: site.text_color || '#000000' }}
+                    style={{ color: textColor }}
                   >
                     "{testimonial.testimonial_text}"
                   </p>
@@ -173,7 +175,7 @@ export const ShowcaseAbout = ({ site, testimonials, onContactClick }: ShowcaseAb
         <div className="text-center scroll-fade-in">
           <h3 
             className="text-3xl font-bold mb-6"
-            style={{ color: site.text_color || '#000000' }}
+            style={{ color: textColor }}
           >
             Prêt à commencer votre transformation ?
           </h3>
