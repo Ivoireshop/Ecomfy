@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Trash2, Upload, Image as ImageIcon, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { moveToTrash, extractStoragePath } from "@/lib/trashHelper";
 
 interface Testimonial {
   id?: string;
@@ -42,13 +43,11 @@ export function TestimonialsEditor({
 
   const deleteImageFromStorage = async (imageUrl: string) => {
     try {
-      const url = new URL(imageUrl);
-      const pathParts = url.pathname.split('/showcase-images/');
-      if (pathParts.length > 1) {
-        const filePath = pathParts[1].split('?')[0]; // Remove query params
+      const storagePath = extractStoragePath(imageUrl);
+      if (storagePath) {
         await supabase.storage
           .from('showcase-images')
-          .remove([filePath]);
+          .remove([storagePath]);
       }
     } catch (error) {
       console.error('Error deleting image from storage:', error);
@@ -59,19 +58,26 @@ export function TestimonialsEditor({
     const testimonial = testimonials[index];
     
     // Confirmation dialog
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce témoignage ? Cette action est irréversible.")) {
+    if (!confirm("Déplacer ce témoignage vers la corbeille ? Vous pourrez le restaurer pendant 30 jours.")) {
       return;
     }
 
-    // Delete image from storage if exists
-    if (testimonial.result_image_url) {
-      toast.info("Suppression de l'image en cours...");
-      await deleteImageFromStorage(testimonial.result_image_url);
-    }
+    // Move to trash instead of deleting
+    const storagePath = testimonial.result_image_url ? extractStoragePath(testimonial.result_image_url) : undefined;
+    const moved = await moveToTrash({
+      showcaseId: showcaseSiteId,
+      itemType: 'testimonial',
+      itemData: testimonial,
+      storagePath
+    });
 
-    const updated = testimonials.filter((_, i) => i !== index);
-    onTestimonialsChange(updated);
-    toast.success("Témoignage supprimé définitivement");
+    if (moved) {
+      const updated = testimonials.filter((_, i) => i !== index);
+      onTestimonialsChange(updated);
+      toast.success("Témoignage déplacé vers la corbeille");
+    } else {
+      toast.error("Erreur lors du déplacement vers la corbeille");
+    }
   };
 
   const updateTestimonial = (index: number, field: keyof Testimonial, value: string) => {
@@ -221,8 +227,7 @@ export function TestimonialsEditor({
                             variant="outline"
                             size="sm"
                             onClick={async () => {
-                              if (confirm("Supprimer cette image ? Cette action est irréversible.")) {
-                                await deleteImageFromStorage(testimonial.result_image_url!);
+                              if (confirm("Supprimer cette image ? L'image restera sauvegardée avec le témoignage dans la corbeille.")) {
                                 updateTestimonial(index, 'result_image_url', '');
                                 toast.success("Image supprimée");
                               }

@@ -7,6 +7,7 @@ import { Plus, X, Upload, Sparkles, Loader2, Image as ImageIcon } from "lucide-r
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
+import { moveToTrash, extractStoragePath } from "@/lib/trashHelper";
 
 interface Feature {
   title: string;
@@ -16,10 +17,11 @@ interface Feature {
 
 interface FeaturesEditorWithImagesProps {
   features: Feature[];
+  showcaseId: string;
   onChange: (features: Feature[]) => void;
 }
 
-export function FeaturesEditorWithImages({ features, onChange }: FeaturesEditorWithImagesProps) {
+export function FeaturesEditorWithImages({ features, showcaseId, onChange }: FeaturesEditorWithImagesProps) {
   const [generatingIndex, setGeneratingIndex] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
@@ -29,13 +31,11 @@ export function FeaturesEditorWithImages({ features, onChange }: FeaturesEditorW
 
   const deleteImageFromStorage = async (imageUrl: string) => {
     try {
-      const url = new URL(imageUrl);
-      const pathParts = url.pathname.split('/showcase-images/');
-      if (pathParts.length > 1) {
-        const filePath = pathParts[1].split('?')[0]; // Remove query params
+      const storagePath = extractStoragePath(imageUrl);
+      if (storagePath) {
         await supabase.storage
           .from('showcase-images')
-          .remove([filePath]);
+          .remove([storagePath]);
       }
     } catch (error) {
       console.error('Error deleting image from storage:', error);
@@ -46,19 +46,26 @@ export function FeaturesEditorWithImages({ features, onChange }: FeaturesEditorW
     const feature = features[index];
     
     // Confirmation dialog
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible.")) {
+    if (!confirm("Déplacer ce service vers la corbeille ? Vous pourrez le restaurer pendant 30 jours.")) {
       return;
     }
 
-    // Delete image from storage if exists
-    if (feature.image_url) {
-      toast.info("Suppression de l'image en cours...");
-      await deleteImageFromStorage(feature.image_url);
-    }
+    // Move to trash instead of deleting
+    const storagePath = feature.image_url ? extractStoragePath(feature.image_url) : undefined;
+    const moved = await moveToTrash({
+      showcaseId,
+      itemType: 'feature',
+      itemData: feature,
+      storagePath
+    });
 
-    // Remove from state
-    onChange(features.filter((_, i) => i !== index));
-    toast.success("Service supprimé définitivement");
+    if (moved) {
+      // Remove from state
+      onChange(features.filter((_, i) => i !== index));
+      toast.success("Service déplacé vers la corbeille");
+    } else {
+      toast.error("Erreur lors du déplacement vers la corbeille");
+    }
   };
 
   const updateFeature = (index: number, field: keyof Feature, value: string) => {
@@ -203,8 +210,7 @@ export function FeaturesEditorWithImages({ features, onChange }: FeaturesEditorW
                             size="sm"
                             variant="secondary"
                             onClick={async () => {
-                              if (confirm("Supprimer cette image ? Cette action est irréversible.")) {
-                                await deleteImageFromStorage(feature.image_url!);
+                              if (confirm("Supprimer cette image ? L'image restera sauvegardée avec le service dans la corbeille.")) {
                                 updateFeature(index, 'image_url', '');
                                 toast.success("Image supprimée");
                               }

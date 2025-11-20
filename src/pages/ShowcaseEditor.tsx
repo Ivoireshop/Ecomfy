@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock, History } from "lucide-react";
+import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock, History, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,6 +38,7 @@ import { EnrollmentsManager } from "@/components/EnrollmentsManager";
 import { CourseModulesManager } from "@/components/CourseModulesManager";
 import { ModulesTabContent } from "@/components/ModulesTabContent";
 import { BlogManager } from "@/components/BlogManager";
+import { TrashManager } from "@/components/TrashManager";
 import {
   Dialog,
   DialogContent,
@@ -1116,6 +1117,10 @@ export default function ShowcaseEditor() {
                 <BookOpen className="h-4 w-4" />
                 Blog
               </TabsTrigger>
+              <TabsTrigger value="trash" className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                Corbeille
+              </TabsTrigger>
               <TabsTrigger value="analytics" className="gap-2">
                 <Eye className="h-4 w-4" />
                 Analytics
@@ -1246,6 +1251,7 @@ export default function ShowcaseEditor() {
           {/* Features Editor with Images */}
           <FeaturesEditorWithImages 
             features={features}
+            showcaseId={id || ""}
             onChange={setFeatures}
           />
 
@@ -1253,6 +1259,7 @@ export default function ShowcaseEditor() {
           <FormationsEditor
             formations={formations}
             textAlign={formationsTextAlign}
+            showcaseId={id || ""}
             onChange={setFormations}
             onTextAlignChange={setFormationsTextAlign}
           />
@@ -2126,6 +2133,12 @@ export default function ShowcaseEditor() {
                   ownerName={formValues.ownerName || ""} 
                 />
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="trash">
+            <div className="max-w-6xl mx-auto">
+              {id && <TrashManager showcaseId={id} onRestore={loadSite} />}
             </div>
           </TabsContent>
 
