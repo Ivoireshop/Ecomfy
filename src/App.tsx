@@ -27,6 +27,9 @@ import FounderDashboard from "./pages/FounderDashboard";
 import Referral from "./pages/Referral";
 import Tutorial from "./pages/Tutorial";
 import Demo from "./pages/Demo";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiesPolicy from "./pages/CookiesPolicy";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -35,8 +38,8 @@ const queryClient = new QueryClient();
 const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const showSidebar = !["/", "/auth", "/reset-password"].includes(location.pathname) && !isShowcaseView;
-  const showSupport = !["/", "/auth", "/reset-password"].includes(location.pathname) && !isShowcaseView;
+  const showSidebar = !["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy"].includes(location.pathname) && !isShowcaseView;
+  const showSupport = !["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy"].includes(location.pathname) && !isShowcaseView;
 
   return (
     <>
@@ -156,6 +159,9 @@ const AppContent = () => {
           } 
         />
         <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/cookies-policy" element={<CookiesPolicy />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
