@@ -400,6 +400,7 @@ export default function ShowcaseEditor() {
         if (newLogoUrl) {
           logoUrl = newLogoUrl;
           setExistingLogoUrl(newLogoUrl);
+          setLogoPreview(newLogoUrl);
           setLogoFile(null); // Clear file after upload
         }
       }
@@ -408,6 +409,7 @@ export default function ShowcaseEditor() {
         if (newHeroUrl) {
           heroImageUrl = newHeroUrl;
           setExistingHeroUrl(newHeroUrl);
+          setHeroImagePreview(newHeroUrl);
           setHeroImageFile(null);
         }
       }
@@ -416,6 +418,7 @@ export default function ShowcaseEditor() {
         if (newAboutUrl) {
           aboutImageUrl = newAboutUrl;
           setExistingAboutUrl(newAboutUrl);
+          setAboutImagePreview(newAboutUrl);
           setAboutImageFile(null);
         }
       }
@@ -603,15 +606,30 @@ export default function ShowcaseEditor() {
 
       if (logoFile) {
         const newLogoUrl = await uploadImage(logoFile, user.id, 'logo');
-        if (newLogoUrl) logoUrl = newLogoUrl;
+        if (newLogoUrl) {
+          logoUrl = newLogoUrl;
+          setExistingLogoUrl(newLogoUrl);
+          setLogoPreview(newLogoUrl);
+          setLogoFile(null);
+        }
       }
       if (heroImageFile) {
         const newHeroUrl = await uploadImage(heroImageFile, user.id, 'hero');
-        if (newHeroUrl) heroImageUrl = newHeroUrl;
+        if (newHeroUrl) {
+          heroImageUrl = newHeroUrl;
+          setExistingHeroUrl(newHeroUrl);
+          setHeroImagePreview(newHeroUrl);
+          setHeroImageFile(null);
+        }
       }
       if (aboutImageFile) {
         const newAboutUrl = await uploadImage(aboutImageFile, user.id, 'about');
-        if (newAboutUrl) aboutImageUrl = newAboutUrl;
+        if (newAboutUrl) {
+          aboutImageUrl = newAboutUrl;
+          setExistingAboutUrl(newAboutUrl);
+          setAboutImagePreview(newAboutUrl);
+          setAboutImageFile(null);
+        }
       }
 
       // Determine theme colors
