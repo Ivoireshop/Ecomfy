@@ -25,6 +25,7 @@ import { AnalyticsViewer } from "@/components/AnalyticsViewer";
 import { GalleryManager } from "@/components/GalleryManager";
 import { VideoGalleryManager } from "@/components/VideoGalleryManager";
 import { ContactSubmissionsViewer } from "@/components/ContactSubmissionsViewer";
+import { BookingsViewer } from "@/components/BookingsViewer";
 import { ShowcaseVersionHistory } from "@/components/ShowcaseVersionHistory";
 import { VideoUploader } from "@/components/VideoUploader";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
@@ -904,6 +905,10 @@ export default function ShowcaseEditor() {
             <TabsTrigger value="contacts" className="gap-2">
               <MessageCircle className="h-4 w-4" />
               Messages
+            </TabsTrigger>
+            <TabsTrigger value="bookings" className="gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              Réservations
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <Eye className="h-4 w-4" />
@@ -1816,6 +1821,12 @@ export default function ShowcaseEditor() {
           <TabsContent value="contacts">
             <div className="max-w-6xl mx-auto">
               {id && <ContactSubmissionsViewer showcaseId={id} />}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="bookings">
+            <div className="max-w-6xl mx-auto">
+              {id && <BookingsViewer showcaseId={id} />}
             </div>
           </TabsContent>
 
