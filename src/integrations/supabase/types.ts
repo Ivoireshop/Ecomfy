@@ -174,6 +174,122 @@ export type Database = {
           },
         ]
       }
+      course_inquiries: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          email: string
+          id: string
+          message: string | null
+          name: string
+          phone: string | null
+          showcase_site_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          email: string
+          id?: string
+          message?: string | null
+          name: string
+          phone?: string | null
+          showcase_site_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          message?: string | null
+          name?: string
+          phone?: string | null
+          showcase_site_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_inquiries_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_inquiries_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          category: string
+          created_at: string | null
+          currency: string
+          description: string | null
+          duration: string | null
+          id: string
+          image_url: string | null
+          is_published: boolean | null
+          level: string | null
+          max_participants: number | null
+          price: number
+          short_description: string | null
+          showcase_site_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          currency?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean | null
+          level?: string | null
+          max_participants?: number | null
+          price?: number
+          short_description?: string | null
+          showcase_site_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          currency?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean | null
+          level?: string | null
+          max_participants?: number | null
+          price?: number
+          short_description?: string | null
+          showcase_site_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_purchases: {
         Row: {
           created_at: string
@@ -235,6 +351,75 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      enrollments: {
+        Row: {
+          amount_paid: number | null
+          course_id: string
+          created_at: string | null
+          id: string
+          payment_method: string | null
+          payment_proof_url: string | null
+          payment_status: string
+          showcase_site_id: string
+          student_email: string
+          student_name: string
+          student_phone: string | null
+          transaction_reference: string | null
+          updated_at: string | null
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          course_id: string
+          created_at?: string | null
+          id?: string
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          payment_status?: string
+          showcase_site_id: string
+          student_email: string
+          student_name: string
+          student_phone?: string | null
+          transaction_reference?: string | null
+          updated_at?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          course_id?: string
+          created_at?: string | null
+          id?: string
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          payment_status?: string
+          showcase_site_id?: string
+          student_email?: string
+          student_name?: string
+          student_phone?: string | null
+          transaction_reference?: string | null
+          updated_at?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_showcase_site_id_fkey"
+            columns: ["showcase_site_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feedback: {
         Row: {
@@ -420,6 +605,44 @@ export type Database = {
             columns: ["image_id"]
             isOneToOne: false
             referencedRelation: "generated_images"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_links: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          payment_url: string
+          provider: string
+          updated_at: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          payment_url: string
+          provider: string
+          updated_at?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          payment_url?: string
+          provider?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_links_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
         ]

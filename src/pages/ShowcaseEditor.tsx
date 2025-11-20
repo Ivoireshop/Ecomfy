@@ -31,7 +31,10 @@ import { VideoUploader } from "@/components/VideoUploader";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 import { BiographyEditor } from "@/components/BiographyEditor";
 import { BookingCalendar } from "@/components/BookingCalendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, GraduationCap, CreditCard, Users } from "lucide-react";
+import { CoursesManager } from "@/components/CoursesManager";
+import { PaymentLinksManager } from "@/components/PaymentLinksManager";
+import { EnrollmentsManager } from "@/components/EnrollmentsManager";
 import {
   Dialog,
   DialogContent,
@@ -932,48 +935,62 @@ export default function ShowcaseEditor() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-9 mb-6">
-            <TabsTrigger value="edit" className="gap-2">
-              <Edit className="h-4 w-4" />
-              Édition
-            </TabsTrigger>
-            <TabsTrigger value="galleries" className="gap-2">
-              <Upload className="h-4 w-4" />
-              Galeries
-            </TabsTrigger>
-            <TabsTrigger value="testimonials" className="gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Témoignages
-            </TabsTrigger>
-            <TabsTrigger value="biography" className="gap-2">
-              <Edit className="h-4 w-4" />
-              Biographie
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Avancé
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2">
-              <History className="h-4 w-4" />
-              Historique
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="gap-2">
-              <MessageCircle className="h-4 w-4" />
-              Messages
-            </TabsTrigger>
-            <TabsTrigger value="bookings" className="gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              Réservations
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2">
-              <Eye className="h-4 w-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="gap-2">
-              <Eye className="h-4 w-4" />
-              Prévisualisation
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto mb-6">
+            <TabsList className="inline-flex w-auto min-w-full">
+              <TabsTrigger value="edit" className="gap-2">
+                <Edit className="h-4 w-4" />
+                Édition
+              </TabsTrigger>
+              <TabsTrigger value="courses" className="gap-2">
+                <GraduationCap className="h-4 w-4" />
+                Formations
+              </TabsTrigger>
+              <TabsTrigger value="payment-links" className="gap-2">
+                <CreditCard className="h-4 w-4" />
+                Paiements
+              </TabsTrigger>
+              <TabsTrigger value="enrollments" className="gap-2">
+                <Users className="h-4 w-4" />
+                Inscriptions
+              </TabsTrigger>
+              <TabsTrigger value="galleries" className="gap-2">
+                <Upload className="h-4 w-4" />
+                Galeries
+              </TabsTrigger>
+              <TabsTrigger value="testimonials" className="gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Témoignages
+              </TabsTrigger>
+              <TabsTrigger value="biography" className="gap-2">
+                <Edit className="h-4 w-4" />
+                Biographie
+              </TabsTrigger>
+              <TabsTrigger value="advanced" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Avancé
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-2">
+                <History className="h-4 w-4" />
+                Historique
+              </TabsTrigger>
+              <TabsTrigger value="contacts" className="gap-2">
+                <MessageCircle className="h-4 w-4" />
+                Messages
+              </TabsTrigger>
+              <TabsTrigger value="bookings" className="gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Réservations
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="gap-2">
+                <Eye className="h-4 w-4" />
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="gap-2">
+                <Eye className="h-4 w-4" />
+                Prévisualisation
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="edit">
             <div className="max-w-3xl mx-auto">
@@ -1792,6 +1809,48 @@ export default function ShowcaseEditor() {
                   )}
                 </div>
               </form>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="courses">
+            <div className="max-w-6xl mx-auto">
+              {id ? (
+                <CoursesManager showcaseSiteId={id} />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">
+                    Sauvegardez votre site vitrine d'abord pour ajouter des formations
+                  </p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="payment-links">
+            <div className="max-w-4xl mx-auto">
+              {id ? (
+                <PaymentLinksManager showcaseSiteId={id} />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">
+                    Sauvegardez votre site vitrine d'abord pour configurer les paiements
+                  </p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="enrollments">
+            <div className="max-w-6xl mx-auto">
+              {id ? (
+                <EnrollmentsManager showcaseSiteId={id} />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">
+                    Sauvegardez votre site vitrine d'abord pour voir les inscriptions
+                  </p>
+                </div>
+              )}
             </div>
           </TabsContent>
 
