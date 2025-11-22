@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import exampleHandbag from "@/assets/example-handbag-ad.jpg";
@@ -139,6 +140,8 @@ const Galerie = () => {
           </Card>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };

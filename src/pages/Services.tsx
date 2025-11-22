@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { Image as ImageIcon, Video, Globe, Palette, Megaphone, Target, CheckCircle2 } from "lucide-react";
 
@@ -155,6 +156,8 @@ const Services = () => {
           </Card>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };
