@@ -169,6 +169,7 @@ const AppContent = () => {
           } 
         />
         <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
+        <Route path="/showcase/:subdomain/:page" element={<ShowcaseView />} />
         <Route path="/enroll/:courseId" element={<EnrollmentCheckout />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route 

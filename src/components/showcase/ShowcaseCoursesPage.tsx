@@ -6,10 +6,19 @@ interface ShowcaseCoursesPageProps {
   showcaseSiteId: string;
   primaryColor?: string;
   textColor?: string;
+  priceTextColor?: string;
+  priceBgColor?: string;
   legacyFormations?: any[];
 }
 
-export function ShowcaseCoursesPage({ showcaseSiteId, primaryColor, textColor, legacyFormations }: ShowcaseCoursesPageProps) {
+export function ShowcaseCoursesPage({ 
+  showcaseSiteId, 
+  primaryColor, 
+  textColor, 
+  priceTextColor,
+  priceBgColor,
+  legacyFormations 
+}: ShowcaseCoursesPageProps) {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   // Ne pas permettre de voir les détails des formations legacy
@@ -37,6 +46,8 @@ export function ShowcaseCoursesPage({ showcaseSiteId, primaryColor, textColor, l
       onCourseClick={handleCourseClick}
       primaryColor={primaryColor}
       textColor={textColor}
+      priceTextColor={priceTextColor}
+      priceBgColor={priceBgColor}
       legacyFormations={legacyFormations}
     />
   );

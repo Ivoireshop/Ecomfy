@@ -1198,17 +1198,27 @@ export type Database = {
           id: string
           is_published: boolean
           logo_url: string | null
+          navigation_bg_color: string | null
+          navigation_text_color: string | null
           og_image_url: string | null
           og_type: string | null
           owner_name: string
           owner_photo_url: string | null
           phone_number: string
+          price_bg_color: string | null
+          price_text_color: string | null
           primary_color: string | null
           professional_experience: Json | null
           secondary_color: string | null
           seo_description: string | null
           seo_keywords: string[] | null
           seo_title: string | null
+          stats_bg_color: string | null
+          stats_projects_completed: number | null
+          stats_satisfied_clients: number | null
+          stats_show_section: boolean | null
+          stats_text_color: string | null
+          stats_years_experience: number | null
           subdomain: string
           text_color: string | null
           theme: string | null
@@ -1254,17 +1264,27 @@ export type Database = {
           id?: string
           is_published?: boolean
           logo_url?: string | null
+          navigation_bg_color?: string | null
+          navigation_text_color?: string | null
           og_image_url?: string | null
           og_type?: string | null
           owner_name: string
           owner_photo_url?: string | null
           phone_number: string
+          price_bg_color?: string | null
+          price_text_color?: string | null
           primary_color?: string | null
           professional_experience?: Json | null
           secondary_color?: string | null
           seo_description?: string | null
           seo_keywords?: string[] | null
           seo_title?: string | null
+          stats_bg_color?: string | null
+          stats_projects_completed?: number | null
+          stats_satisfied_clients?: number | null
+          stats_show_section?: boolean | null
+          stats_text_color?: string | null
+          stats_years_experience?: number | null
           subdomain: string
           text_color?: string | null
           theme?: string | null
@@ -1310,17 +1330,27 @@ export type Database = {
           id?: string
           is_published?: boolean
           logo_url?: string | null
+          navigation_bg_color?: string | null
+          navigation_text_color?: string | null
           og_image_url?: string | null
           og_type?: string | null
           owner_name?: string
           owner_photo_url?: string | null
           phone_number?: string
+          price_bg_color?: string | null
+          price_text_color?: string | null
           primary_color?: string | null
           professional_experience?: Json | null
           secondary_color?: string | null
           seo_description?: string | null
           seo_keywords?: string[] | null
           seo_title?: string | null
+          stats_bg_color?: string | null
+          stats_projects_completed?: number | null
+          stats_satisfied_clients?: number | null
+          stats_show_section?: boolean | null
+          stats_text_color?: string | null
+          stats_years_experience?: number | null
           subdomain?: string
           text_color?: string | null
           theme?: string | null

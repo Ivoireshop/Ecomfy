@@ -131,6 +131,20 @@ export default function ShowcaseEditor() {
   const [biographyImagePosition, setBiographyImagePosition] = useState<string>("left");
   const [professionalExperience, setProfessionalExperience] = useState<any[]>([]);
   
+  // Stats customization
+  const [statsYearsExperience, setStatsYearsExperience] = useState<number>(5);
+  const [statsSatisfiedClients, setStatsSatisfiedClients] = useState<number>(100);
+  const [statsProjectsCompleted, setStatsProjectsCompleted] = useState<number>(50);
+  const [statsShowSection, setStatsShowSection] = useState<boolean>(true);
+  
+  // Color customization
+  const [navigationTextColor, setNavigationTextColor] = useState<string>("#ffffff");
+  const [navigationBgColor, setNavigationBgColor] = useState<string>("rgba(0,0,0,0.8)");
+  const [priceTextColor, setPriceTextColor] = useState<string>("#ffffff");
+  const [priceBgColor, setPriceBgColor] = useState<string>("#2563eb");
+  const [statsTextColor, setStatsTextColor] = useState<string>("#ffffff");
+  const [statsBgColor, setStatsBgColor] = useState<string>("rgba(0,0,0,0.7)");
+  
   // SEO states
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
@@ -278,6 +292,18 @@ export default function ShowcaseEditor() {
       setBiographyImageUrl((data as any).biography_image_url || "");
       setBiographyImagePosition((data as any).biography_image_position || "left");
       setProfessionalExperience((data.professional_experience as any[]) || []);
+      
+      // Set stats and color customization
+      setStatsYearsExperience((data as any).stats_years_experience || 5);
+      setStatsSatisfiedClients((data as any).stats_satisfied_clients || 100);
+      setStatsProjectsCompleted((data as any).stats_projects_completed || 50);
+      setStatsShowSection((data as any).stats_show_section !== false);
+      setNavigationTextColor((data as any).navigation_text_color || "#ffffff");
+      setNavigationBgColor((data as any).navigation_bg_color || "rgba(0,0,0,0.8)");
+      setPriceTextColor((data as any).price_text_color || "#ffffff");
+      setPriceBgColor((data as any).price_bg_color || "#2563eb");
+      setStatsTextColor((data as any).stats_text_color || "#ffffff");
+      setStatsBgColor((data as any).stats_bg_color || "rgba(0,0,0,0.7)");
 
       // Load testimonials
       const { data: testimonialsData } = await supabase
@@ -860,6 +886,16 @@ export default function ShowcaseEditor() {
         biography_image_url: biographyImageUrl,
         biography_image_position: biographyImagePosition,
         professional_experience: professionalExperience,
+        stats_years_experience: statsYearsExperience,
+        stats_satisfied_clients: statsSatisfiedClients,
+        stats_projects_completed: statsProjectsCompleted,
+        stats_show_section: statsShowSection,
+        navigation_text_color: navigationTextColor,
+        navigation_bg_color: navigationBgColor,
+        price_text_color: priceTextColor,
+        price_bg_color: priceBgColor,
+        stats_text_color: statsTextColor,
+        stats_bg_color: statsBgColor,
       };
 
       // Add is_published if we're publishing
@@ -1851,6 +1887,182 @@ export default function ShowcaseEditor() {
                   </Label>
                 </div>
               </RadioGroup>
+            </CardContent>
+          </Card>
+
+          {/* Stats and Colors Customization */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Statistiques et Couleurs</CardTitle>
+              <CardDescription>
+                Personnalisez les statistiques et les couleurs pour une meilleure visibilité
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Stats Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Afficher la section statistiques</Label>
+                  <input
+                    type="checkbox"
+                    checked={statsShowSection}
+                    onChange={(e) => setStatsShowSection(e.target.checked)}
+                    className="h-5 w-5 rounded border-gray-300"
+                  />
+                </div>
+                
+                {statsShowSection && (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="statsYearsExperience">Années d'expérience</Label>
+                        <Input
+                          id="statsYearsExperience"
+                          type="number"
+                          value={statsYearsExperience}
+                          onChange={(e) => setStatsYearsExperience(Number(e.target.value))}
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="statsSatisfiedClients">Clients satisfaits</Label>
+                        <Input
+                          id="statsSatisfiedClients"
+                          type="number"
+                          value={statsSatisfiedClients}
+                          onChange={(e) => setStatsSatisfiedClients(Number(e.target.value))}
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="statsProjectsCompleted">Projets réalisés</Label>
+                        <Input
+                          id="statsProjectsCompleted"
+                          type="number"
+                          value={statsProjectsCompleted}
+                          onChange={(e) => setStatsProjectsCompleted(Number(e.target.value))}
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                      <div>
+                        <Label htmlFor="statsTextColor">Couleur du texte (Stats)</Label>
+                        <div className="flex gap-2 items-center mt-2">
+                          <Input
+                            id="statsTextColor"
+                            type="color"
+                            value={statsTextColor}
+                            onChange={(e) => setStatsTextColor(e.target.value)}
+                            className="w-16 h-10"
+                          />
+                          <Input
+                            type="text"
+                            value={statsTextColor}
+                            onChange={(e) => setStatsTextColor(e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="statsBgColor">Couleur de fond (Stats)</Label>
+                        <Input
+                          id="statsBgColor"
+                          type="text"
+                          value={statsBgColor}
+                          onChange={(e) => setStatsBgColor(e.target.value)}
+                          placeholder="rgba(0,0,0,0.7)"
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Navigation Colors */}
+              <div className="space-y-4">
+                <Label className="text-base font-semibold">Couleurs de navigation</Label>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label htmlFor="navigationTextColor">Texte navigation</Label>
+                    <div className="flex gap-2 items-center mt-2">
+                      <Input
+                        id="navigationTextColor"
+                        type="color"
+                        value={navigationTextColor}
+                        onChange={(e) => setNavigationTextColor(e.target.value)}
+                        className="w-16 h-10"
+                      />
+                      <Input
+                        type="text"
+                        value={navigationTextColor}
+                        onChange={(e) => setNavigationTextColor(e.target.value)}
+                        placeholder="#ffffff"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="navigationBgColor">Fond navigation</Label>
+                    <Input
+                      id="navigationBgColor"
+                      type="text"
+                      value={navigationBgColor}
+                      onChange={(e) => setNavigationBgColor(e.target.value)}
+                      placeholder="rgba(0,0,0,0.8)"
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Colors */}
+              <div className="space-y-4">
+                <Label className="text-base font-semibold">Couleurs des prix</Label>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label htmlFor="priceTextColor">Texte prix</Label>
+                    <div className="flex gap-2 items-center mt-2">
+                      <Input
+                        id="priceTextColor"
+                        type="color"
+                        value={priceTextColor}
+                        onChange={(e) => setPriceTextColor(e.target.value)}
+                        className="w-16 h-10"
+                      />
+                      <Input
+                        type="text"
+                        value={priceTextColor}
+                        onChange={(e) => setPriceTextColor(e.target.value)}
+                        placeholder="#ffffff"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="priceBgColor">Fond prix</Label>
+                    <div className="flex gap-2 items-center mt-2">
+                      <Input
+                        id="priceBgColor"
+                        type="color"
+                        value={priceBgColor}
+                        onChange={(e) => setPriceBgColor(e.target.value)}
+                        className="w-16 h-10"
+                      />
+                      <Input
+                        type="text"
+                        value={priceBgColor}
+                        onChange={(e) => setPriceBgColor(e.target.value)}
+                        placeholder="#2563eb"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

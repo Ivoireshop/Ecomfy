@@ -93,6 +93,16 @@ interface ShowcaseSite {
   og_image_url: string | null;
   hero_title_size: number | null;
   hero_title_color: string | null;
+  stats_years_experience: number | null;
+  stats_satisfied_clients: number | null;
+  stats_projects_completed: number | null;
+  stats_show_section: boolean | null;
+  navigation_text_color: string | null;
+  navigation_bg_color: string | null;
+  price_text_color: string | null;
+  price_bg_color: string | null;
+  stats_text_color: string | null;
+  stats_bg_color: string | null;
 }
 
 interface GalleryImage {
@@ -114,7 +124,7 @@ interface GalleryVideo {
 type PageType = 'home' | 'services' | 'formations' | 'courses' | 'about' | 'biography' | 'gallery' | 'contact' | 'booking' | 'blog';
 
 export default function ShowcaseView() {
-  const { subdomain } = useParams<{ subdomain: string }>();
+  const { subdomain, page } = useParams<{ subdomain: string; page?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const [site, setSite] = useState<ShowcaseSite | null>(null);
@@ -124,7 +134,8 @@ export default function ShowcaseView() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState<PageType>('home');
+  
+  const currentPage: PageType = (page as PageType) || 'home';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -270,8 +281,9 @@ export default function ShowcaseView() {
   };
 
   const navigateToPage = (page: PageType) => {
-    setCurrentPage(page);
     setMobileMenuOpen(false);
+    const url = page === 'home' ? `/showcase/${subdomain}` : `/showcase/${subdomain}/${page}`;
+    navigate(url);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -367,7 +379,12 @@ export default function ShowcaseView() {
                 )}
               </button>
 
-              <div className="hidden md:flex items-center gap-8">
+              <div 
+                className="hidden md:flex items-center gap-8 px-6 py-3 rounded-full"
+                style={{ 
+                  backgroundColor: site.navigation_bg_color || 'rgba(0,0,0,0.8)',
+                }}
+              >
                 {navigationItems.map((item) => (
                   <button
                     key={item.page}
@@ -376,7 +393,7 @@ export default function ShowcaseView() {
                       currentPage === item.page ? 'font-bold' : ''
                     }`}
                     style={{ 
-                      color: currentPage === item.page ? site.primary_color : site.text_color 
+                      color: site.navigation_text_color || '#ffffff'
                     }}
                   >
                     {item.label}
@@ -433,6 +450,8 @@ export default function ShowcaseView() {
                   showcaseSiteId={site.id}
                   primaryColor={site.primary_color || '#2563eb'}
                   textColor={site.text_color || '#000000'}
+                  priceTextColor={site.price_text_color || '#ffffff'}
+                  priceBgColor={site.price_bg_color || '#2563eb'}
                   legacyFormations={site.formations || []}
                 />
               </div>
