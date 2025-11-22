@@ -409,7 +409,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
       // 5. Régénérer l'image avec les textes corrigés
       setIsLoading(true);
-      setGeneratedImage(null);
 
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("timeout")), 90000)
@@ -438,6 +437,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
       if (response.error) throw response.error;
       if (response.data?.error) throw new Error(response.data.error);
 
+      // Remplacer automatiquement l'image générée
       setGeneratedImage(response.data.imageUrl);
       
       // Mettre à jour les générations restantes
@@ -451,13 +451,16 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         setPurchasedCredits(updatedProfile.purchased_credits || 0);
       }
 
-      toast({
-        title: "Image corrigée et régénérée !",
-        description: "Votre nouveau visuel a été généré avec les corrections",
-      });
-
       // Réinitialiser le champ de correction
       setCorrectionText("");
+
+      // Scroll automatique vers l'image pour que l'utilisateur voie le changement
+      setTimeout(() => {
+        const imageElement = document.querySelector('img[alt="Visuel publicitaire généré"]');
+        if (imageElement) {
+          imageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
 
     } catch (error: any) {
       console.error("Erreur correction et régénération:", error);
