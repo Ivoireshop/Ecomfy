@@ -39,11 +39,6 @@ import CookiesPolicy from "./pages/CookiesPolicy";
 import ApiDocumentation from "./pages/ApiDocumentation";
 import Blog from "./pages/Blog";
 import LegalNotice from "./pages/LegalNotice";
-import Catalogue from "./pages/Catalogue";
-import Formations from "./pages/Formations";
-import Services from "./pages/Services";
-import Galerie from "./pages/Galerie";
-import Contact from "./pages/Contact";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -52,7 +47,7 @@ const queryClient = new QueryClient();
 const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const publicPages = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/catalogue", "/formations", "/services", "/galerie", "/contact"];
+  const publicPages = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice"];
   const showSidebar = !publicPages.includes(location.pathname) && !isShowcaseView;
   const showSupport = !publicPages.includes(location.pathname) && !isShowcaseView;
 
@@ -207,11 +202,6 @@ const AppContent = () => {
         <Route path="/api-documentation" element={<ApiDocumentation />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/legal-notice" element={<LegalNotice />} />
-        <Route path="/catalogue" element={<Catalogue />} />
-        <Route path="/formations" element={<Formations />} />
-        <Route path="/services" element={<Services />} />
-        <Route path="/galerie" element={<Galerie />} />
-        <Route path="/contact" element={<Contact />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
