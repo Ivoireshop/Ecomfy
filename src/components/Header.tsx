@@ -15,11 +15,12 @@ export function Header() {
   };
 
   const menuItems = [
-    { label: "Accueil", href: "#home" },
-    { label: "Fonctionnalités", href: "#features" },
-    { label: "Tarif", href: "/subscription", onClick: handleTarifClick },
-    { label: "Tutoriel", href: "/tutorial", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/tutorial"); } },
-    { label: "Démo", href: "/demo", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/demo"); } },
+    { label: "Accueil", href: "/", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/"); } },
+    { label: "Catalogue", href: "/catalogue", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/catalogue"); } },
+    { label: "Formations", href: "/formations", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/formations"); } },
+    { label: "Services", href: "/services", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/services"); } },
+    { label: "Galerie", href: "/galerie", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/galerie"); } },
+    { label: "Contact", href: "/contact", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/contact"); } },
   ];
 
   return (
