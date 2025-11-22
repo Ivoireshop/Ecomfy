@@ -91,7 +91,7 @@ export default function ShowcaseManager() {
   };
 
   const getPublicUrl = (subdomain: string) => {
-    return `${window.location.origin}/showcase/${subdomain}`;
+    return `https://${subdomain}.visualpro.cloud`;
   };
 
   const copyPublicUrl = (subdomain: string, siteId: string) => {
@@ -188,7 +188,7 @@ export default function ShowcaseManager() {
                     )}
                   </div>
                   <CardDescription className="font-mono text-xs">
-                    {site.subdomain}.visualpro.app
+                    {site.subdomain}.visualpro.cloud
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
