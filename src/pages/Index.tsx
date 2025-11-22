@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
@@ -660,69 +661,10 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer avec Documentation */}
-      <footer className="bg-muted/50 py-16 border-t">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
-            <div>
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                Visual Pro
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                La plateforme africaine de création visuelle propulsée par l'IA
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4">Produit</h4>
-              <ul className="space-y-2 text-muted-foreground">
-                <li><a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a></li>
-                <li><a href="#pricing" className="hover:text-primary transition-colors">Tarifs</a></li>
-                <li><a href="/api-documentation" className="hover:text-primary transition-colors">Documentation API</a></li>
-                <li><button onClick={() => navigate(session ? "/generator" : "/auth")} className="hover:text-primary transition-colors">Essai gratuit</button></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4 flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                Ressources
-              </h4>
-              <ul className="space-y-2 text-muted-foreground">
-                <li><button onClick={() => navigate("/tutorial")} className="hover:text-primary transition-colors">Tutoriel</button></li>
-                <li><a href="/blog" className="hover:text-primary transition-colors">Blog & Actualités</a></li>
-                <li><a href="https://support.visualpro.africa" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Support</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4 flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Légal
-              </h4>
-              <ul className="space-y-2 text-muted-foreground">
-                <li><a href="/legal-notice" className="hover:text-primary transition-colors">Mentions légales</a></li>
-                <li><a href="/privacy-policy" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  Politique de confidentialité
-                </a></li>
-                <li><a href="/terms-of-service" className="hover:text-primary transition-colors flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  Conditions d'utilisation
-                </a></li>
-                <li><a href="/cookies-policy" className="hover:text-primary transition-colors">Politique des cookies</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t pt-8 text-center text-muted-foreground">
-            <p>© 2024 Visual Pro. Tous droits réservés. Fait avec ❤️ en Afrique</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
+
 
 export default Index;
