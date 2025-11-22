@@ -15,6 +15,7 @@ export function Header() {
   };
 
   const menuItems = [
+    { label: "Accueil", href: "/" },
     { label: "Fonctionnalités", href: "/#features" },
     { label: "Tarifs", href: "/subscription" },
     { label: "Tutoriel", href: "/tutorial" },
@@ -62,6 +63,9 @@ export function Header() {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
+            <Button variant="ghost" onClick={() => navigate("/auth")}>
+              Connexion
+            </Button>
             <Button onClick={() => navigate("/auth")}>
               <Sparkles className="mr-2 h-4 w-4" />
               Commencer
@@ -120,7 +124,7 @@ export function Header() {
                       setIsOpen(false);
                     }}
                   >
-                    Se connecter
+                    Connexion
                   </Button>
                   <Button
                     className="w-full"
