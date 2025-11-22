@@ -197,28 +197,60 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
       )}
 
       {/* Stats Section */}
-      <section ref={statsSection.ref} className="section-spacing px-4">
-        <div className="container mx-auto max-w-7xl">
-          <div className={`grid md:grid-cols-4 gap-8 scroll-fade-up ${statsSection.isVisible ? 'visible' : ''}`}>
-            <Card className="text-center p-8 card-modern">
-              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>100+</div>
-              <p className="text-muted-foreground">Clients Satisfaits</p>
-            </Card>
-            <Card className="text-center p-8 card-modern">
-              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>5+</div>
-              <p className="text-muted-foreground">Années d'Expérience</p>
-            </Card>
-            <Card className="text-center p-8 card-modern">
-              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>200+</div>
-              <p className="text-muted-foreground">Projets Réalisés</p>
-            </Card>
-            <Card className="text-center p-8 card-modern">
-              <div className="text-4xl font-bold mb-2" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>98%</div>
-              <p className="text-muted-foreground">Taux de Satisfaction</p>
-            </Card>
+      {site.stats_show_section !== false && (
+        <section ref={statsSection.ref} className="section-spacing px-4">
+          <div className="container mx-auto max-w-7xl">
+            <div className={`grid md:grid-cols-4 gap-8 scroll-fade-up ${statsSection.isVisible ? 'visible' : ''}`}>
+              <Card 
+                className="text-center p-8 card-modern"
+                style={{ 
+                  backgroundColor: site.stats_bg_color || 'rgba(0,0,0,0.7)',
+                  color: site.stats_text_color || '#ffffff'
+                }}
+              >
+                <div className="text-4xl font-bold mb-2" style={{ color: site.stats_text_color || '#ffffff' }}>
+                  {site.stats_satisfied_clients || 100}+
+                </div>
+                <p className="opacity-80">Clients Satisfaits</p>
+              </Card>
+              <Card 
+                className="text-center p-8 card-modern"
+                style={{ 
+                  backgroundColor: site.stats_bg_color || 'rgba(0,0,0,0.7)',
+                  color: site.stats_text_color || '#ffffff'
+                }}
+              >
+                <div className="text-4xl font-bold mb-2" style={{ color: site.stats_text_color || '#ffffff' }}>
+                  {site.stats_years_experience || 5}+
+                </div>
+                <p className="opacity-80">Années d'Expérience</p>
+              </Card>
+              <Card 
+                className="text-center p-8 card-modern"
+                style={{ 
+                  backgroundColor: site.stats_bg_color || 'rgba(0,0,0,0.7)',
+                  color: site.stats_text_color || '#ffffff'
+                }}
+              >
+                <div className="text-4xl font-bold mb-2" style={{ color: site.stats_text_color || '#ffffff' }}>
+                  {site.stats_projects_completed || 50}+
+                </div>
+                <p className="opacity-80">Projets Réalisés</p>
+              </Card>
+              <Card 
+                className="text-center p-8 card-modern"
+                style={{ 
+                  backgroundColor: site.stats_bg_color || 'rgba(0,0,0,0.7)',
+                  color: site.stats_text_color || '#ffffff'
+                }}
+              >
+                <div className="text-4xl font-bold mb-2" style={{ color: site.stats_text_color || '#ffffff' }}>98%</div>
+                <p className="opacity-80">Taux de Satisfaction</p>
+              </Card>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Formations Preview */}
       {formations.length > 0 && (
@@ -249,7 +281,13 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                     <h3 className="heading-md mb-3" style={{ color: textColor }}>{formation.title}</h3>
                     <p className="text-muted-foreground mb-4 line-clamp-2">{formation.description}</p>
                     {formation.price && (
-                      <div className="text-2xl font-bold mb-4" style={{ color: site.primary_color || 'hsl(var(--primary))' }}>
+                      <div 
+                        className="text-2xl font-bold mb-4 px-4 py-2 rounded-lg inline-block" 
+                        style={{ 
+                          color: site.price_text_color || '#ffffff',
+                          backgroundColor: site.price_bg_color || '#2563eb'
+                        }}
+                      >
                         {formation.price}
                       </div>
                     )}

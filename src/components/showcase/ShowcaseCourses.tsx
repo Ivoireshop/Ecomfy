@@ -22,6 +22,8 @@ interface ShowcaseCoursesProps {
   onCourseClick: (courseId: string) => void;
   primaryColor?: string;
   textColor?: string;
+  priceTextColor?: string;
+  priceBgColor?: string;
   legacyFormations?: any[];
 }
 
@@ -30,6 +32,8 @@ export function ShowcaseCourses({
   onCourseClick,
   primaryColor = "#2563eb",
   textColor = "#000000",
+  priceTextColor = "#ffffff",
+  priceBgColor = "#2563eb",
   legacyFormations = [],
 }: ShowcaseCoursesProps) {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -190,10 +194,14 @@ export function ShowcaseCourses({
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t">
-                <div>
-                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>
-                    {course.price.toLocaleString()} {course.currency}
-                  </div>
+                <div 
+                  className="text-2xl font-bold px-4 py-2 rounded-lg"
+                  style={{ 
+                    color: priceTextColor,
+                    backgroundColor: priceBgColor
+                  }}
+                >
+                  {course.price.toLocaleString()} {course.currency}
                 </div>
                 <Button size="sm" style={{ backgroundColor: primaryColor }}>
                   Voir détails

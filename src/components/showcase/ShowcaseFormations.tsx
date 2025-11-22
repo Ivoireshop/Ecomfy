@@ -102,8 +102,11 @@ export const ShowcaseFormations = ({ site, onContactClick }: ShowcaseFormationsP
 
                 {formation.price && (
                   <div 
-                    className="text-3xl font-bold mb-4"
-                    style={{ color: site.secondary_color || '#10B981' }}
+                    className="text-3xl font-bold mb-4 px-4 py-2 rounded-lg inline-block"
+                    style={{ 
+                      color: site.price_text_color || '#ffffff',
+                      backgroundColor: site.price_bg_color || '#2563eb'
+                    }}
                   >
                     {formation.price}
                   </div>
