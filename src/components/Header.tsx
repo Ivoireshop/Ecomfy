@@ -15,12 +15,10 @@ export function Header() {
   };
 
   const menuItems = [
-    { label: "Accueil", href: "/", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/"); } },
-    { label: "Catalogue", href: "/catalogue", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/catalogue"); } },
-    { label: "Formations", href: "/formations", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/formations"); } },
-    { label: "Services", href: "/services", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/services"); } },
-    { label: "Galerie", href: "/galerie", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/galerie"); } },
-    { label: "Contact", href: "/contact", onClick: (e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); navigate("/contact"); } },
+    { label: "Fonctionnalités", href: "/#features" },
+    { label: "Tarifs", href: "/subscription" },
+    { label: "Tutoriel", href: "/tutorial" },
+    { label: "Démo", href: "/demo" },
   ];
 
   return (
@@ -44,15 +42,21 @@ export function Header() {
               <a
                 key={item.href}
                 href={item.href}
-                onClick={item.onClick}
+                onClick={(e) => {
+                  if (item.href.startsWith("/#")) {
+                    e.preventDefault();
+                    const element = document.querySelector(item.href.substring(1));
+                    element?.scrollIntoView({ behavior: "smooth" });
+                  } else {
+                    e.preventDefault();
+                    navigate(item.href);
+                  }
+                }}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}
               </a>
             ))}
-            <Button variant="ghost" onClick={() => navigate("/auth")}>
-              Se connecter
-            </Button>
           </nav>
 
           {/* Desktop Actions */}
@@ -88,8 +92,12 @@ export function Header() {
                       href={item.href}
                       className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors"
                       onClick={(e) => {
-                        if (item.onClick) {
-                          item.onClick(e);
+                        e.preventDefault();
+                        if (item.href.startsWith("/#")) {
+                          const element = document.querySelector(item.href.substring(1));
+                          element?.scrollIntoView({ behavior: "smooth" });
+                        } else {
+                          navigate(item.href);
                         }
                         setIsOpen(false);
                       }}
