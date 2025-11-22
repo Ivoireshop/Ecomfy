@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Loader2, Save, Phone, MessageCircle, Palette, Upload, X, Eye, Edit, Sparkles, Copy, CheckCircle2, ExternalLink, Globe, Clock, History, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShowcasePreview } from "@/components/ShowcasePreview";
+import { DevicePreview } from "@/components/DevicePreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showcaseTemplates, templateCategories } from "@/lib/showcaseTemplates";
 import { FeaturesEditorWithImages } from "@/components/FeaturesEditorWithImages";
@@ -2427,28 +2428,21 @@ export default function ShowcaseEditor() {
           </TabsContent>
 
           <TabsContent value="preview">
-            <ShowcasePreview
-              data={{
-                heroTitle: formValues.heroTitle,
-                heroSubtitle: formValues.heroSubtitle,
-                aboutTitle: formValues.aboutTitle,
-                aboutDescription: formValues.aboutDescription,
-                ctaTitle: formValues.ctaTitle,
-                ctaDescription: formValues.ctaDescription,
-                formationTitle: formValues.formationTitle,
-                formationDescription: formValues.formationDescription,
-                formationPrice: formValues.formationPrice,
-                businessName: businessName,
-                ownerName: formValues.ownerName,
-                theme: selectedTheme,
-                primaryColor: themeColors?.primary,
-                secondaryColor: themeColors?.secondary,
-                logoPreview: logoPreview,
-                heroImagePreview: heroImagePreview,
-                aboutImagePreview: aboutImagePreview,
-                features: features,
-              }}
-            />
+            <div className="space-y-6">
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl font-bold">Prévisualisation Multi-Appareils</h3>
+                <p className="text-muted-foreground">
+                  Visualisez votre site sur différents appareils avant publication
+                </p>
+              </div>
+              <DevicePreview 
+                url={`/showcase/${subdomain}`}
+                className="w-full"
+              />
+              <div className="text-center text-sm text-muted-foreground">
+                <p>💡 Astuce : Testez votre site sur différents appareils pour garantir une expérience optimale</p>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
