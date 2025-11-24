@@ -379,6 +379,7 @@ export default function ShowcaseView() {
                 )}
               </button>
 
+              {/* Navigation Desktop */}
               <div 
                 className="hidden md:flex items-center gap-8 px-6 py-3 rounded-full"
                 style={{ 
@@ -389,7 +390,7 @@ export default function ShowcaseView() {
                   <button
                     key={item.page}
                     onClick={() => navigateToPage(item.page)}
-                    className={`text-sm font-medium transition-colors hover:opacity-80 ${
+                    className={`text-sm font-medium transition-colors hover:opacity-80 whitespace-nowrap ${
                       currentPage === item.page ? 'font-bold' : ''
                     }`}
                     style={{ 
@@ -401,41 +402,30 @@ export default function ShowcaseView() {
                 ))}
               </div>
 
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild className="md:hidden">
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-6 w-6" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-[300px] bg-background">
-                  <SheetHeader className="text-left mb-8">
-                    <SheetTitle className="flex items-center gap-3">
-                      {site.logo_url ? (
-                        <img 
-                          src={site.logo_url} 
-                          alt={site.business_name}
-                          className="h-8 object-contain"
-                        />
-                      ) : (
-                        <span className="text-lg font-bold">{site.business_name}</span>
-                      )}
-                    </SheetTitle>
-                  </SheetHeader>
-                  <div className="flex flex-col gap-4">
-                    {navigationItems.map((item) => (
-                      <button
-                        key={item.page}
-                        onClick={() => navigateToPage(item.page)}
-                        className={`text-left py-3 px-4 rounded-lg hover:bg-muted transition-colors font-medium ${
-                          currentPage === item.page ? 'bg-muted' : ''
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </SheetContent>
-              </Sheet>
+              {/* Navigation Mobile - Visible et scrollable horizontalement */}
+              <div className="md:hidden flex-1 overflow-x-auto mx-4">
+                <div 
+                  className="flex items-center gap-4 px-4 py-2 rounded-full w-max"
+                  style={{ 
+                    backgroundColor: site.navigation_bg_color || 'rgba(0,0,0,0.8)',
+                  }}
+                >
+                  {navigationItems.map((item) => (
+                    <button
+                      key={item.page}
+                      onClick={() => navigateToPage(item.page)}
+                      className={`text-xs font-medium transition-colors hover:opacity-80 whitespace-nowrap ${
+                        currentPage === item.page ? 'font-bold' : ''
+                      }`}
+                      style={{ 
+                        color: site.navigation_text_color || '#ffffff'
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </nav>

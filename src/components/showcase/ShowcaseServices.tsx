@@ -17,11 +17,16 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
   const servicesGrid = useScrollAnimation({ threshold: 0.2 });
   const ctaSection = useScrollAnimation({ threshold: 0.3 });
 
-  if (features.length === 0) {
+  console.log('ShowcaseServices - Features:', features);
+  console.log('ShowcaseServices - Site:', site);
+
+  if (!features || features.length === 0) {
     return (
       <div className="min-h-screen py-20 px-4">
-        <div className="container mx-auto text-center">
+        <div className="container mx-auto text-center space-y-4">
+          <h2 className="text-2xl font-bold" style={{ color: textColor }}>Nos Services</h2>
           <p className="text-muted-foreground">Aucun service disponible pour le moment.</p>
+          <p className="text-sm text-muted-foreground">Veuillez configurer vos services dans l'éditeur.</p>
         </div>
       </div>
     );
