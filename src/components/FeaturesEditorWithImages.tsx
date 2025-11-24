@@ -13,6 +13,7 @@ interface Feature {
   title: string;
   description: string;
   image_url?: string;
+  benefits?: string[];
 }
 
 interface FeaturesEditorWithImagesProps {
@@ -27,7 +28,30 @@ export function FeaturesEditorWithImages({ features, showcaseId, onChange, onSav
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const addFeature = () => {
-    onChange([...features, { title: "", description: "", image_url: "" }]);
+    onChange([...features, { title: "", description: "", image_url: "", benefits: [] }]);
+  };
+
+  const addBenefit = (featureIndex: number) => {
+    const updated = [...features];
+    if (!updated[featureIndex].benefits) {
+      updated[featureIndex].benefits = [];
+    }
+    updated[featureIndex].benefits!.push("");
+    onChange(updated);
+  };
+
+  const removeBenefit = (featureIndex: number, benefitIndex: number) => {
+    const updated = [...features];
+    updated[featureIndex].benefits = updated[featureIndex].benefits?.filter((_, i) => i !== benefitIndex) || [];
+    onChange(updated);
+  };
+
+  const updateBenefit = (featureIndex: number, benefitIndex: number, value: string) => {
+    const updated = [...features];
+    if (updated[featureIndex].benefits) {
+      updated[featureIndex].benefits[benefitIndex] = value;
+      onChange(updated);
+    }
   };
 
   const deleteImageFromStorage = async (imageUrl: string) => {
@@ -199,6 +223,40 @@ export function FeaturesEditorWithImages({ features, showcaseId, onChange, onSav
                         placeholder="Décrivez ce service..."
                         rows={4}
                       />
+                    </div>
+
+                    <div>
+                      <Label>Bénéfices / Avantages</Label>
+                      <div className="space-y-2">
+                        {feature.benefits?.map((benefit, benefitIndex) => (
+                          <div key={benefitIndex} className="flex items-center gap-2">
+                            <Input
+                              value={benefit}
+                              onChange={(e) => updateBenefit(index, benefitIndex, e.target.value)}
+                              placeholder="Ex: Résultats garantis sous 30 jours"
+                              className="flex-1"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeBenefit(index, benefitIndex)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addBenefit(index)}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Ajouter un bénéfice
+                        </Button>
+                      </div>
                     </div>
                   </div>
 

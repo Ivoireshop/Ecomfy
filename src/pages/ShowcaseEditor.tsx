@@ -110,7 +110,7 @@ export default function ShowcaseEditor() {
   const [isUploadingHero, setIsUploadingHero] = useState(false);
   const [isUploadingAbout, setIsUploadingAbout] = useState(false);
   const [businessName, setBusinessName] = useState<string>("");
-  const [features, setFeatures] = useState<Array<{ title: string; description: string; image_url?: string }>>([]);
+  const [features, setFeatures] = useState<Array<{ title: string; description: string; image_url?: string; benefits?: string[] }>>([]);
   const [formations, setFormations] = useState<Array<{ title: string; description: string; price: string; image_url?: string }>>([]);
   const [formationsTextAlign, setFormationsTextAlign] = useState<string>("center");
   const [testimonials, setTestimonials] = useState<Array<{ id?: string; full_name: string; testimonial_text: string; result_image_url?: string; display_order: number }>>([]);

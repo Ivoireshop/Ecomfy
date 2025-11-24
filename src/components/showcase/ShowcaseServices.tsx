@@ -17,9 +17,6 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
   const servicesGrid = useScrollAnimation({ threshold: 0.2 });
   const ctaSection = useScrollAnimation({ threshold: 0.3 });
 
-  console.log('ShowcaseServices - Features:', features);
-  console.log('ShowcaseServices - Site:', site);
-
   if (!features || features.length === 0) {
     return (
       <div className="min-h-screen py-20 px-4">
