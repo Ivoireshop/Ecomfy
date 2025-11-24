@@ -29,6 +29,7 @@ interface Feature {
   title: string;
   description: string;
   image_url?: string;
+  benefits?: string[];
 }
 
 interface Formation {
