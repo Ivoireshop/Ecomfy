@@ -34,13 +34,13 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
       {/* Hero Section */}
       <section ref={heroSection.ref} className="section-spacing px-4">
         <div className={`container mx-auto max-w-4xl text-center scroll-fade-up ${heroSection.isVisible ? 'visible' : ''}`}>
-          <Badge className="mb-6" variant="outline">
+          <Badge className="mb-4 lg:mb-6" variant="outline">
             Nos Services
           </Badge>
-          <h1 className="heading-xl mb-6 text-balance" style={{ color: textColor }}>
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 lg:mb-6" style={{ color: textColor }}>
             Des solutions professionnelles adaptées à vos besoins
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto">
             Découvrez nos services conçus pour vous accompagner vers l'excellence
           </p>
         </div>
@@ -49,7 +49,7 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
       {/* Services Grid */}
       <section ref={servicesGrid.ref} className="pb-24 px-4">
         <div className="container mx-auto max-w-7xl">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
             {features.map((feature: any, index: number) => (
               <Card 
                 key={index}
