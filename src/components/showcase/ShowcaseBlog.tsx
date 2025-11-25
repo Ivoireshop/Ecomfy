@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, User, ArrowRight, BookOpen } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar, User, ArrowRight, BookOpen, X } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 interface ShowcaseBlogProps {
   site: any;
@@ -25,9 +26,9 @@ interface BlogPost {
 }
 
 export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
-  const navigate = useNavigate();
   const [articles, setArticles] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedArticle, setSelectedArticle] = useState<BlogPost | null>(null);
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : 'hsl(var(--foreground))';
   
   const heroSection = useScrollAnimation({ threshold: 0.1 });
@@ -102,7 +103,7 @@ export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
                   <Card 
                     key={article.id}
                     className={`card-modern group overflow-hidden scroll-scale cursor-pointer ${articlesGrid.isVisible ? 'visible' : ''} delay-${Math.min((index % 3 + 1) * 100, 400)}`}
-                    onClick={() => navigate(`/blog/${article.slug}`)}
+                    onClick={() => setSelectedArticle(article)}
                   >
                     {/* Image */}
                     {article.image_url && (
@@ -211,6 +212,65 @@ export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
           </div>
         </div>
       </section>
+
+      {/* Article Dialog */}
+      <Dialog open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedArticle(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          {selectedArticle && (
+            <>
+              {/* Header with image */}
+              {selectedArticle.image_url && (
+                <div className="relative h-64 w-full overflow-hidden rounded-t-lg">
+                  <img 
+                    src={selectedArticle.image_url}
+                    alt={selectedArticle.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-4 right-4 bg-white/90 hover:bg-white"
+                    onClick={() => setSelectedArticle(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              
+              <ScrollArea className="max-h-[calc(90vh-16rem)] p-8">
+                {/* Article header */}
+                <div className="space-y-4 mb-8">
+                  <Badge className="bg-primary text-primary-foreground">
+                    {selectedArticle.category}
+                  </Badge>
+                  
+                  <h1 className="text-4xl font-bold" style={{ color: textColor }}>
+                    {selectedArticle.title}
+                  </h1>
+                  
+                  <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span>{selectedArticle.author_name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>{formatDate(selectedArticle.published_at)}</span>
+                    </div>
+                    <span>{selectedArticle.read_time_minutes} min de lecture</span>
+                  </div>
+                </div>
+
+                {/* Article content */}
+                <div 
+                  className="prose prose-lg max-w-none"
+                  dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
+                />
+              </ScrollArea>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

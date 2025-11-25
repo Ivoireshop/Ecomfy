@@ -93,28 +93,51 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
           className="absolute inset-0"
         />
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="animate-fade-in text-white z-10">
-              {site.logo_url && <img src={site.logo_url} alt={site.business_name} className="h-16 w-auto mb-8" />}
-              <h1 className="heading-xl mb-6 text-white" style={{ fontSize: site.hero_title_size ? `${site.hero_title_size}px` : undefined }}>
+              {site.logo_url && <img src={site.logo_url} alt={site.business_name} className="h-12 lg:h-16 w-auto mb-4 lg:mb-8" />}
+              <h1 
+                className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 lg:mb-6 text-white leading-tight" 
+                style={{ fontSize: site.hero_title_size ? `${Math.max(site.hero_title_size * 0.7, 24)}px` : undefined }}
+              >
                 {site.hero_title || site.business_name}
               </h1>
-              {site.hero_subtitle && <p className="text-xl md:text-2xl text-white/90 mb-8 leading-relaxed max-w-2xl">{site.hero_subtitle}</p>}
-              <div className="flex flex-wrap gap-4">
-                <Button size="lg" onClick={onContactClick} className="btn-cta bg-secondary hover:bg-secondary/90 text-secondary-foreground">
-                  <MessageCircle className="mr-2 h-5 w-5" />Contactez-nous
+              {site.hero_subtitle && (
+                <p className="text-base md:text-lg lg:text-xl text-white/90 mb-6 lg:mb-8 leading-relaxed">
+                  {site.hero_subtitle}
+                </p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
+                <Button 
+                  size="lg" 
+                  onClick={onContactClick} 
+                  className="btn-cta bg-secondary hover:bg-secondary/90 text-secondary-foreground w-full sm:w-auto"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4 lg:h-5 lg:w-5" />
+                  Contactez-nous
                 </Button>
                 {features.length > 0 && (
-                  <Button size="lg" variant="outline" onClick={() => onNavigate('services')} className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-primary backdrop-blur-sm font-semibold px-8 py-6 text-lg transition-all">
-                    En savoir plus<ArrowRight className="ml-2 h-5 w-5" />
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    onClick={() => onNavigate('services')} 
+                    className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-primary backdrop-blur-sm font-semibold w-full sm:w-auto"
+                  >
+                    En savoir plus
+                    <ArrowRight className="ml-2 h-4 w-4 lg:h-5 lg:w-5" />
                   </Button>
                 )}
               </div>
             </div>
-            <div className="relative animate-fade-in lg:block hidden z-10">
+            <div className="relative animate-fade-in z-10 mt-8 lg:mt-0">
               {site.hero_image_url && (
-                <div className="relative"><div className="absolute -inset-4 bg-white/20 rounded-3xl blur-2xl" />
-                  <img src={site.hero_image_url} alt="Hero" className="relative w-full h-auto rounded-3xl shadow-2xl" />
+                <div className="relative">
+                  <div className="absolute -inset-4 bg-white/20 rounded-3xl blur-2xl" />
+                  <img 
+                    src={site.hero_image_url} 
+                    alt="Hero" 
+                    className="relative w-full h-auto rounded-3xl shadow-2xl max-h-[300px] lg:max-h-none object-cover" 
+                  />
                 </div>
               )}
             </div>
@@ -127,37 +150,53 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
       {features.length > 0 && (
         <section ref={servicesSection.ref} className="section-spacing px-4">
           <div className="container mx-auto max-w-7xl">
-            <div className={`text-center mb-16 scroll-fade-up ${servicesSection.isVisible ? 'visible' : ''}`}>
-              <Badge className="mb-6" variant="outline">NOS SERVICES</Badge>
-              <h2 className="heading-lg mb-6" style={{ color: textColor }}>Ce que nous offrons</h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Des solutions professionnelles pour répondre à vos besoins</p>
+            <div className={`text-center mb-8 lg:mb-16 scroll-fade-up ${servicesSection.isVisible ? 'visible' : ''}`}>
+              <Badge className="mb-4 lg:mb-6" variant="outline">NOS SERVICES</Badge>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 lg:mb-6" style={{ color: textColor }}>
+                Ce que nous offrons
+              </h2>
+              <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto">
+                Des solutions professionnelles pour répondre à vos besoins
+              </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
               {features.slice(0, 3).map((feature: any, idx: number) => (
                 <Card 
                   key={idx} 
-                  className={`card-modern p-8 group cursor-pointer scroll-scale ${servicesSection.isVisible ? 'visible' : ''} delay-${(idx + 1) * 100}`}
+                  className={`card-modern p-4 lg:p-8 group cursor-pointer scroll-scale ${servicesSection.isVisible ? 'visible' : ''} delay-${(idx + 1) * 100}`}
                   onClick={() => onNavigate('services')}
                 >
                   {feature.image_url ? (
-                    <div className="mb-6 rounded-lg overflow-hidden">
+                    <div className="mb-4 lg:mb-6 rounded-lg overflow-hidden">
                       <img 
                         src={feature.image_url} 
                         alt={feature.title}
-                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="w-full h-40 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                     </div>
                   ) : (
-                    <Sparkles className="h-12 w-12 mb-6 text-primary group-hover:scale-110 transition-transform" />
+                    <Sparkles className="h-10 w-10 lg:h-12 lg:w-12 mb-4 lg:mb-6 text-primary group-hover:scale-110 transition-transform" />
                   )}
-                  <h3 className="heading-md mb-4" style={{ color: textColor }}>{feature.title}</h3>
-                  <p className="text-muted-foreground mb-6">{feature.description}</p>
-                  <Button variant="ghost" className="group-hover:translate-x-2 transition-transform">
-                    En savoir plus <ArrowRight className="ml-2 h-4 w-4" />
+                  <h3 className="text-lg lg:text-xl font-semibold mb-2 lg:mb-4" style={{ color: textColor }}>
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm lg:text-base text-muted-foreground mb-4 lg:mb-6 line-clamp-2">
+                    {feature.description}
+                  </p>
+                  <Button variant="ghost" size="sm" className="group-hover:translate-x-2 transition-transform">
+                    En savoir plus <ArrowRight className="ml-2 h-3 w-3 lg:h-4 lg:w-4" />
                   </Button>
                 </Card>
               ))}
             </div>
+            {features.length > 3 && (
+              <div className="text-center mt-8">
+                <Button onClick={() => onNavigate('services')} size="lg" variant="outline">
+                  Voir tous nos services ({features.length})
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -256,12 +295,16 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
       {formations.length > 0 && (
         <section ref={formationsSection.ref} className="section-spacing px-4 bg-muted/30">
           <div className="container mx-auto max-w-7xl">
-            <div className={`text-center mb-16 scroll-fade-up ${formationsSection.isVisible ? 'visible' : ''}`}>
-              <Badge className="mb-6" variant="outline">NOS FORMATIONS</Badge>
-              <h2 className="heading-lg mb-6" style={{ color: textColor }}>Développez vos compétences</h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Des formations complètes pour atteindre vos objectifs</p>
+            <div className={`text-center mb-8 lg:mb-16 scroll-fade-up ${formationsSection.isVisible ? 'visible' : ''}`}>
+              <Badge className="mb-4 lg:mb-6" variant="outline">NOS FORMATIONS</Badge>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 lg:mb-6" style={{ color: textColor }}>
+                Développez vos compétences
+              </h2>
+              <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto">
+                Des formations complètes pour atteindre vos objectifs
+              </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
               {formations.slice(0, 3).map((formation: any, idx: number) => (
                 <Card 
                   key={idx} 
@@ -269,7 +312,7 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                   onClick={() => onNavigate('formations')}
                 >
                   {formation.image_url && (
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative h-40 lg:h-48 overflow-hidden">
                       <img 
                         src={formation.image_url}
                         alt={formation.title}
@@ -277,12 +320,16 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                       />
                     </div>
                   )}
-                  <div className="p-6">
-                    <h3 className="heading-md mb-3" style={{ color: textColor }}>{formation.title}</h3>
-                    <p className="text-muted-foreground mb-4 line-clamp-2">{formation.description}</p>
+                  <div className="p-4 lg:p-6">
+                    <h3 className="text-lg lg:text-xl font-semibold mb-2 lg:mb-3" style={{ color: textColor }}>
+                      {formation.title}
+                    </h3>
+                    <p className="text-sm lg:text-base text-muted-foreground mb-3 lg:mb-4 line-clamp-2">
+                      {formation.description}
+                    </p>
                     {formation.price && (
                       <div 
-                        className="text-2xl font-bold mb-4 px-4 py-2 rounded-lg inline-block" 
+                        className="text-lg lg:text-2xl font-bold mb-3 lg:mb-4 px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg inline-block" 
                         style={{ 
                           color: site.price_text_color || '#ffffff',
                           backgroundColor: site.price_bg_color || '#2563eb'
@@ -291,13 +338,21 @@ export const ShowcaseHome = ({ site, onContactClick, onNavigate }: ShowcaseHomeP
                         {formation.price}
                       </div>
                     )}
-                    <Button variant="outline" className="w-full">
-                      Voir les détails <ArrowRight className="ml-2 h-4 w-4" />
+                    <Button variant="outline" size="sm" className="w-full">
+                      Voir les détails <ArrowRight className="ml-2 h-3 w-3 lg:h-4 lg:w-4" />
                     </Button>
                   </div>
                 </Card>
               ))}
             </div>
+            {formations.length > 3 && (
+              <div className="text-center mt-8">
+                <Button onClick={() => onNavigate('formations')} size="lg" variant="outline">
+                  Voir toutes nos formations ({formations.length})
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </section>
       )}
