@@ -399,31 +399,32 @@ const Index = () => {
 
             <Card className="p-8 border-2 border-primary hover:shadow-xl transition-all relative">
               <Badge className="mb-4 bg-primary">Populaire</Badge>
-              <h3 className="text-3xl font-bold mb-4">Pro</h3>
+              <h3 className="text-3xl font-bold mb-4">Packs à la Carte</h3>
               <div className="mb-6">
-                <span className="text-5xl font-bold">29€</span>
-                <span className="text-muted-foreground">/mois</span>
+                <span className="text-2xl font-bold text-muted-foreground">À partir de</span>
+                <br />
+                <span className="text-4xl font-bold">1000 FCFA</span>
               </div>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>100 générations d'images/mois</span>
+                  <span>10 images - 1000 FCFA</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>20 vidéos/mois</span>
+                  <span>20 images - 2000 FCFA</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>3 sites vitrine</span>
+                  <span>30 images - 3000 FCFA</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Support prioritaire</span>
+                  <span>50 images + Site vitrine - 5000 FCFA</span>
                 </li>
               </ul>
               <Button className="w-full" onClick={() => navigate(session ? "/subscription" : "/auth")}>
-                Choisir Pro
+                Voir tous les packs
               </Button>
             </Card>
 
@@ -431,17 +432,17 @@ const Index = () => {
               <Badge className="mb-4" variant="secondary">Entreprise</Badge>
               <h3 className="text-3xl font-bold mb-4">Business</h3>
               <div className="mb-6">
-                <span className="text-5xl font-bold">99€</span>
+                <span className="text-4xl font-bold">65 000 FCFA</span>
                 <span className="text-muted-foreground">/mois</span>
               </div>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Générations illimitées</span>
+                  <span>Générations illimitées d'images</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Vidéos illimitées</span>
+                  <span>Générations illimitées de vidéos</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
