@@ -13,6 +13,11 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
   const features = site.features || [];
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : (site.text_color || 'hsl(var(--foreground))');
   
+  console.log('ShowcaseServices - site:', site);
+  console.log('ShowcaseServices - features:', features);
+  console.log('ShowcaseServices - features type:', typeof features);
+  console.log('ShowcaseServices - features length:', features?.length);
+  
   const heroSection = useScrollAnimation({ threshold: 0.1 });
   const servicesGrid = useScrollAnimation({ threshold: 0.2 });
   const ctaSection = useScrollAnimation({ threshold: 0.3 });
