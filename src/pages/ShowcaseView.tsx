@@ -219,13 +219,39 @@ export default function ShowcaseView() {
       if (error) {
         console.error("Error loading site:", error);
       } else {
+        // Ensure features is always an array
+        let featuresArray: Feature[] | null = null;
+        if (data.features) {
+          if (Array.isArray(data.features)) {
+            featuresArray = data.features as unknown as Feature[];
+          } else {
+            console.warn('Features is not an array, converting:', data.features);
+            featuresArray = [];
+          }
+        }
+        
+        // Ensure formations is always an array
+        let formationsArray: Formation[] | null = null;
+        if (data.formations) {
+          if (Array.isArray(data.formations)) {
+            formationsArray = data.formations as unknown as Formation[];
+          } else {
+            console.warn('Formations is not an array, converting:', data.formations);
+            formationsArray = [];
+          }
+        }
+        
         const siteData = {
           ...data,
-          features: data.features ? (data.features as unknown as Feature[]) : null,
-          formations: data.formations ? (data.formations as unknown as Formation[]) : null,
+          features: featuresArray,
+          formations: formationsArray,
           hero_video_url: (data as any).hero_video_url ?? null,
           about_video_url: (data as any).about_video_url ?? null,
         };
+        
+        console.log('Loaded site data:', siteData);
+        console.log('Features array:', featuresArray);
+        
         setSite(siteData as ShowcaseSite);
         
         const { data: galleryData } = await supabase
