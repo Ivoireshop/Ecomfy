@@ -14,6 +14,9 @@ interface Feature {
   description: string;
   image_url?: string;
   benefits?: string[];
+  category?: string;
+  price?: number;
+  popularity?: number;
 }
 
 interface FeaturesEditorWithImagesProps {
@@ -28,7 +31,15 @@ export function FeaturesEditorWithImages({ features, showcaseId, onChange, onSav
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const addFeature = () => {
-    onChange([...features, { title: "", description: "", image_url: "", benefits: [] }]);
+    onChange([...features, { 
+      title: "", 
+      description: "", 
+      image_url: "", 
+      benefits: [],
+      category: "",
+      price: undefined,
+      popularity: undefined
+    }]);
   };
 
   const addBenefit = (featureIndex: number) => {
@@ -95,7 +106,13 @@ export function FeaturesEditorWithImages({ features, showcaseId, onChange, onSav
 
   const updateFeature = (index: number, field: keyof Feature, value: string) => {
     const updated = [...features];
-    updated[index] = { ...updated[index], [field]: value };
+    // Handle numeric fields
+    if (field === 'price' || field === 'popularity') {
+      const numValue = value === '' ? undefined : Number(value);
+      updated[index] = { ...updated[index], [field]: numValue };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
     onChange(updated);
   };
 
@@ -223,6 +240,42 @@ export function FeaturesEditorWithImages({ features, showcaseId, onChange, onSav
                         placeholder="Décrivez ce service..."
                         rows={4}
                       />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Catégorie</Label>
+                        <Input
+                          value={feature.category || ""}
+                          onChange={(e) => updateFeature(index, "category", e.target.value)}
+                          placeholder="Ex: Consulting"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label>Prix (FCFA)</Label>
+                        <Input
+                          type="number"
+                          value={feature.price || ""}
+                          onChange={(e) => updateFeature(index, "price", e.target.value)}
+                          placeholder="Ex: 50000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Popularité (0-100)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={feature.popularity || ""}
+                        onChange={(e) => updateFeature(index, "popularity", e.target.value)}
+                        placeholder="Ex: 85"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Plus la valeur est élevée, plus le service sera mis en avant dans le tri par popularité
+                      </p>
                     </div>
 
                     <div>
