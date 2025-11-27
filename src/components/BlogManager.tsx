@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Edit, Trash2, Eye, Calendar, Upload, X } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Eye, Calendar, Upload, X, ImagePlus } from "lucide-react";
 
 interface BlogPost {
   id: string;
@@ -38,6 +38,7 @@ export function BlogManager({ showcaseSiteId, ownerName }: BlogManagerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -167,6 +168,36 @@ export function BlogManager({ showcaseSiteId, ownerName }: BlogManagerProps) {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `blog-${showcaseSiteId}-${Date.now()}.${fileExt}`;
+      const filePath = `${showcaseSiteId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('showcase-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('showcase-images')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, image_url: publicUrl });
+      toast.success("Image uploadée avec succès");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Erreur lors de l'upload de l'image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingPost(null);
     setFormData({
@@ -289,17 +320,52 @@ export function BlogManager({ showcaseSiteId, ownerName }: BlogManagerProps) {
                       </Button>
                     </div>
                   )}
-                  <div className="flex items-center gap-2">
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <label htmlFor="image-upload" className="flex-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          disabled={uploading}
+                          onClick={() => document.getElementById('image-upload')?.click()}
+                        >
+                          {uploading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Upload en cours...
+                            </>
+                          ) : (
+                            <>
+                              <ImagePlus className="h-4 w-4 mr-2" />
+                              Uploader une image
+                            </>
+                          )}
+                        </Button>
+                        <input
+                          id="image-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">ou</span>
+                      </div>
+                    </div>
                     <Input
                       type="url"
-                      placeholder="URL de l'image"
+                      placeholder="Entrez l'URL d'une image"
                       value={formData.image_url}
                       onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Entrez l'URL d'une image ou uploadez-la via votre gestionnaire de fichiers
-                  </p>
                 </div>
               </div>
 
@@ -322,8 +388,12 @@ export function BlogManager({ showcaseSiteId, ownerName }: BlogManagerProps) {
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                   required
-                  placeholder="Écrivez le contenu de votre article ici..."
+                  placeholder="Écrivez le contenu de votre article ici...&#10;&#10;Les retours à la ligne seront préservés lors de l'affichage."
+                  className="font-sans"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Les sauts de ligne et espacements seront préservés lors de la publication
+                </p>
               </div>
 
               <div className="flex items-center space-x-2">

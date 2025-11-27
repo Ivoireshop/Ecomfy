@@ -262,10 +262,9 @@ export const ShowcaseBlog = ({ site }: ShowcaseBlogProps) => {
                 </div>
 
                 {/* Article content */}
-                <div 
-                  className="prose prose-lg max-w-none"
-                  dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
-                />
+                <div className="prose prose-lg max-w-none whitespace-pre-wrap leading-relaxed">
+                  {selectedArticle.content}
+                </div>
               </ScrollArea>
             </>
           )}
