@@ -82,6 +82,8 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
         break;
     }
     
+    console.log('Filtered and sorted services:', services);
+    console.log('Services count:', services.length);
     return services;
   }, [features, selectedCategory, sortBy]);
 
@@ -243,7 +245,7 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
               {filteredAndSortedServices.map((feature: any, index: number) => (
               <Card 
                 key={index}
-                className={`card-modern group hover-scale scroll-scale ${servicesGrid.isVisible ? 'visible' : ''} delay-${Math.min((index % 3 + 1) * 100, 400)}`}
+                className="card-modern group hover-scale"
               >
                 {feature.image_url && (
                   <div className="relative h-64 overflow-hidden">
