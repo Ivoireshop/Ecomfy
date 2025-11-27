@@ -26,8 +26,14 @@ interface ShowcaseServicesProps {
 }
 
 export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps) => {
-  const features = site.features || [];
-  const textColor = site.theme_mode === 'dark' ? '#ffffff' : (site.text_color || 'hsl(var(--foreground))');
+  console.log('ShowcaseServices - site:', site);
+  console.log('ShowcaseServices - site.features:', site?.features);
+  
+  const features = site?.features || [];
+  console.log('ShowcaseServices - features:', features);
+  console.log('ShowcaseServices - features.length:', features.length);
+  
+  const textColor = site?.theme_mode === 'dark' ? '#ffffff' : (site?.text_color || 'hsl(var(--foreground))');
   
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("default");
@@ -80,8 +86,9 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
   }, [features, selectedCategory, sortBy]);
 
   if (!features || features.length === 0) {
+    console.log('ShowcaseServices - No features, showing empty state');
     return (
-      <div className="min-h-screen py-20 px-4">
+      <div className="min-h-screen py-20 px-4" style={{ backgroundColor: site?.background_color || 'transparent' }}>
         <div className="container mx-auto text-center space-y-4">
           <h2 className="text-2xl font-bold" style={{ color: textColor }}>Nos Services</h2>
           <p className="text-muted-foreground">Aucun service disponible pour le moment.</p>
@@ -90,9 +97,11 @@ export const ShowcaseServices = ({ site, onContactClick }: ShowcaseServicesProps
       </div>
     );
   }
+  
+  console.log('ShowcaseServices - Rendering with features:', features.length);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen" style={{ backgroundColor: site?.background_color || 'hsl(var(--background))' }}>
       {/* Hero Section */}
       <section ref={heroSection.ref} className="section-spacing px-4">
         <div className={`container mx-auto max-w-4xl text-center scroll-fade-up ${heroSection.isVisible ? 'visible' : ''}`}>

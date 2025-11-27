@@ -222,25 +222,42 @@ export default function ShowcaseView() {
       if (error) {
         console.error("Error loading site:", error);
       } else {
+        console.log('Raw data from Supabase:', data);
+        console.log('Raw features:', data.features);
+        console.log('Features type:', typeof data.features);
+        console.log('Is features array?', Array.isArray(data.features));
+        
         // Ensure features is always an array
-        let featuresArray: Feature[] | null = null;
+        let featuresArray: Feature[] = [];
         if (data.features) {
           if (Array.isArray(data.features)) {
             featuresArray = data.features as unknown as Feature[];
+            console.log('Features is array, length:', featuresArray.length);
+          } else if (typeof data.features === 'object') {
+            console.warn('Features is object, not array. Attempting to extract values:', data.features);
+            // Try to convert object to array if it's an object
+            const values = Object.values(data.features);
+            if (values.length > 0 && typeof values[0] === 'object') {
+              featuresArray = values as unknown as Feature[];
+              console.log('Converted features object to array, length:', featuresArray.length);
+            }
           } else {
-            console.warn('Features is not an array, converting:', data.features);
-            featuresArray = [];
+            console.warn('Features is neither array nor object:', data.features);
           }
+        } else {
+          console.log('No features in data');
         }
         
         // Ensure formations is always an array
-        let formationsArray: Formation[] | null = null;
+        let formationsArray: Formation[] = [];
         if (data.formations) {
           if (Array.isArray(data.formations)) {
             formationsArray = data.formations as unknown as Formation[];
-          } else {
-            console.warn('Formations is not an array, converting:', data.formations);
-            formationsArray = [];
+          } else if (typeof data.formations === 'object') {
+            const values = Object.values(data.formations);
+            if (values.length > 0 && typeof values[0] === 'object') {
+              formationsArray = values as unknown as Formation[];
+            }
           }
         }
         
@@ -252,8 +269,9 @@ export default function ShowcaseView() {
           about_video_url: (data as any).about_video_url ?? null,
         };
         
-        console.log('Loaded site data:', siteData);
-        console.log('Features array:', featuresArray);
+        console.log('Final site data:', siteData);
+        console.log('Final features array:', featuresArray);
+        console.log('Final features count:', featuresArray.length);
         
         setSite(siteData as ShowcaseSite);
         
