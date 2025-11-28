@@ -16,9 +16,14 @@ interface ShowcaseBiographyProps {
 export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
   const experiences: Experience[] = site.professional_experience || [];
   const textColor = site.theme_mode === 'dark' ? '#ffffff' : (site.text_color || '#000000');
+  
+  console.log('ShowcaseBiography - site data:', site);
+  console.log('ShowcaseBiography - biography_content:', site.biography_content);
+  console.log('ShowcaseBiography - biography_image_url:', site.biography_image_url);
+  console.log('ShowcaseBiography - professional_experience:', experiences);
 
   return (
-    <div className="min-h-screen py-20 px-4 animate-fade-in">
+    <div className="min-h-screen py-20 px-4">
       <div className="container mx-auto max-w-5xl">
         {/* Header */}
         <div className="text-center mb-16 animate-fade-in">
@@ -36,12 +41,12 @@ export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
 
         {/* Biography Content with Image Side by Side */}
         {site.biography_content && (
-          <div className="mb-16 scroll-fade-in">
+          <div className="mb-16">
             <div className={`grid ${site.biography_image_url ? 'md:grid-cols-2' : 'grid-cols-1'} gap-8 items-start`}>
               {/* Order based on position */}
               {site.biography_image_url && (site as any).biography_image_position === 'left' && (
-                <div className="scroll-fade-in">
-                  <div className="relative rounded-2xl overflow-hidden shadow-2xl hover-scale sticky top-8">
+                <div>
+                  <div className="relative rounded-2xl overflow-hidden shadow-2xl sticky top-8">
                     <img 
                       src={site.biography_image_url}
                       alt={site.owner_name}
@@ -63,8 +68,8 @@ export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
 
               {/* Image on right */}
               {site.biography_image_url && (site as any).biography_image_position === 'right' && (
-                <div className="scroll-fade-in">
-                  <div className="relative rounded-2xl overflow-hidden shadow-2xl hover-scale sticky top-8">
+                <div>
+                  <div className="relative rounded-2xl overflow-hidden shadow-2xl sticky top-8">
                     <img 
                       src={site.biography_image_url}
                       alt={site.owner_name}
@@ -79,7 +84,7 @@ export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
 
         {/* Professional Experience */}
         {experiences.length > 0 && (
-          <div className="scroll-fade-in">
+          <div>
             <h2 
               className="text-3xl font-bold mb-8 text-center"
               style={{ color: textColor }}
@@ -90,7 +95,7 @@ export const ShowcaseBiography = ({ site }: ShowcaseBiographyProps) => {
               {experiences.map((exp, index) => (
                 <Card 
                   key={index} 
-                  className="p-6 hover-scale transition-all duration-300"
+                  className="p-6 transition-all duration-300"
                   style={{
                     borderLeft: `4px solid ${site.primary_color || '#D4AF37'}`,
                     background: site.theme_mode === 'dark' 
