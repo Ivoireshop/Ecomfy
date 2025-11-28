@@ -2375,6 +2375,137 @@ export default function ShowcaseEditor() {
                   else if (field === "ogImageUrl") setOgImageUrl(value);
                 }}
               />
+              
+              {/* Domain Management */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Gestion du Nom de Domaine
+                  </CardTitle>
+                  <CardDescription>
+                    Configurez votre sous-domaine ou connectez votre nom de domaine personnalisé
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Subdomain Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold">Sous-domaine Lovable</Label>
+                      <Badge variant="outline" className="gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Actif
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={subdomain}
+                        readOnly
+                        className="font-mono text-sm bg-muted"
+                      />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        .lovable.app
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Votre site est accessible via: <a href={`https://${subdomain}.lovable.app`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{subdomain}.lovable.app</a>
+                    </p>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-base font-semibold">Nom de Domaine Personnalisé</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Connectez votre propre nom de domaine (ex: monsite.com)
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label htmlFor="custom_domain">Votre Nom de Domaine</Label>
+                        <Input
+                          id="custom_domain"
+                          placeholder="monsite.com"
+                          className="font-mono"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Entrez votre nom de domaine sans "http://" ni "www"
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                        <div className="flex items-start gap-2">
+                          <Badge variant="secondary" className="mt-0.5">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Instructions
+                          </Badge>
+                        </div>
+                        <div className="space-y-3 text-sm">
+                          <p className="font-medium">Pour connecter votre domaine, ajoutez ces enregistrements DNS chez votre registraire:</p>
+                          
+                          <div className="space-y-2">
+                            <div className="bg-background rounded p-3 border">
+                              <div className="font-semibold mb-1">Enregistrement A (Domaine racine)</div>
+                              <div className="font-mono text-xs space-y-1">
+                                <div><span className="text-muted-foreground">Type:</span> A</div>
+                                <div><span className="text-muted-foreground">Nom:</span> @</div>
+                                <div><span className="text-muted-foreground">Valeur:</span> 185.158.133.1</div>
+                              </div>
+                            </div>
+
+                            <div className="bg-background rounded p-3 border">
+                              <div className="font-semibold mb-1">Enregistrement A (Sous-domaine www)</div>
+                              <div className="font-mono text-xs space-y-1">
+                                <div><span className="text-muted-foreground">Type:</span> A</div>
+                                <div><span className="text-muted-foreground">Nom:</span> www</div>
+                                <div><span className="text-muted-foreground">Valeur:</span> 185.158.133.1</div>
+                              </div>
+                            </div>
+
+                            <div className="bg-background rounded p-3 border">
+                              <div className="font-semibold mb-1">Enregistrement TXT (Vérification)</div>
+                              <div className="font-mono text-xs space-y-1">
+                                <div><span className="text-muted-foreground">Type:</span> TXT</div>
+                                <div><span className="text-muted-foreground">Nom:</span> _lovable</div>
+                                <div><span className="text-muted-foreground">Valeur:</span> lovable_verify={id || 'votre-site-id'}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 space-y-2">
+                            <p className="text-xs text-muted-foreground">
+                              ⏱️ La propagation DNS peut prendre jusqu'à 72 heures
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              🔒 Le certificat SSL sera automatiquement provisionné après la vérification
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              📚 <a 
+                                href="https://docs.lovable.dev/features/custom-domain" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                Consultez la documentation complète
+                              </a>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        className="w-full"
+                        disabled
+                      >
+                        <Globe className="h-4 w-4 mr-2" />
+                        Vérifier le Domaine (Bientôt disponible)
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
