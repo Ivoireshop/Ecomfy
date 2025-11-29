@@ -1,138 +1,111 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Clock, RefreshCw, Globe, Copy, ExternalLink, Save } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ExternalLink, Copy, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+
+// Fixed DNS configuration for VisualPro
+const VISUALPRO_CONFIG = {
+  CNAME_TARGET: 'sites.visualpro.cloud',
+  A_RECORD_IP: '185.178.193.121',
+  CLOUDFLARE_VERIFY: 'verify.visualpro.cloud',
+};
 
 interface DnsRecord {
   type: string;
   name: string;
   value: string;
-  status: "checking" | "success" | "error" | "pending";
+  status: 'checking' | 'success' | 'error' | 'pending';
   message?: string;
 }
 
 interface DnsConfigurationAssistantProps {
   showcaseId: string;
   subdomain: string;
-  currentDomain?: string | null;
+  currentDomain?: string;
+  verificationCode?: string;
+  domainStatus?: string;
+  propagationPercentage?: number;
+  sslStatus?: string;
   onDomainSave: (domain: string) => Promise<void>;
 }
 
-export function DnsConfigurationAssistant({ 
-  showcaseId, 
-  subdomain, 
-  currentDomain,
-  onDomainSave 
-}: DnsConfigurationAssistantProps) {
-  const [customDomain, setCustomDomain] = useState(currentDomain || "");
+export const DnsConfigurationAssistant = ({
+  showcaseId,
+  subdomain,
+  currentDomain = "",
+  verificationCode = "",
+  domainStatus = "not_configured",
+  propagationPercentage = 0,
+  sslStatus = "pending",
+  onDomainSave,
+}: DnsConfigurationAssistantProps) => {
+  const [customDomain, setCustomDomain] = useState(currentDomain);
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
-  const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([
-    {
-      type: "A",
-      name: "@",
-      value: "185.158.133.1",
-      status: "pending",
-    },
-    {
-      type: "A",
-      name: "www",
-      value: "185.158.133.1",
-      status: "pending",
-    },
-    {
-      type: "TXT",
-      name: "_lovable",
-      value: `lovable_verify=${showcaseId}`,
-      status: "pending",
-    },
-  ]);
+  const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
+  const [localPropagation, setLocalPropagation] = useState(propagationPercentage);
+  const [localStatus, setLocalStatus] = useState(domainStatus);
+  const [localSslStatus, setLocalSslStatus] = useState(sslStatus);
 
   const lovableSubdomain = `${subdomain}.lovable.app`;
 
-  const checkDnsRecords = async () => {
-    if (!customDomain) {
-      toast.error("Veuillez entrer un nom de domaine");
-      return;
-    }
+  // Auto-check DNS every 30 seconds when domain is configured
+  useEffect(() => {
+    if (customDomain && verificationCode && localStatus !== 'verified') {
+      checkDnsRecords();
+      const interval = setInterval(() => {
+        checkDnsRecords();
+      }, 30000); // Check every 30 seconds
 
+      return () => clearInterval(interval);
+    }
+  }, [customDomain, verificationCode, localStatus]);
+
+  // Update local state when props change
+  useEffect(() => {
+    setLocalPropagation(propagationPercentage);
+    setLocalStatus(domainStatus);
+    setLocalSslStatus(sslStatus);
+  }, [propagationPercentage, domainStatus, sslStatus]);
+
+  const checkDnsRecords = async () => {
+    if (!customDomain || !verificationCode) return;
+    
     setIsChecking(true);
-    const updatedRecords = [...dnsRecords];
+    setLastCheck(new Date());
 
     try {
-      // Vérifier chaque enregistrement DNS via Google DNS over HTTPS
-      for (let i = 0; i < updatedRecords.length; i++) {
-        const record = updatedRecords[i];
-        updatedRecords[i] = { ...record, status: "checking" };
-        setDnsRecords([...updatedRecords]);
+      const { data, error } = await supabase.functions.invoke('verify-domain-dns', {
+        body: {
+          showcaseId,
+          domain: customDomain,
+          verificationCode,
+        },
+      });
 
-        const recordName = record.name === "@" 
-          ? customDomain 
-          : record.name === "www" 
-            ? `www.${customDomain}`
-            : `${record.name}.${customDomain}`;
+      if (error) throw error;
 
-        try {
-          const response = await fetch(
-            `https://dns.google/resolve?name=${recordName}&type=${record.type}`
-          );
-          const data = await response.json();
+      if (data.success) {
+        setDnsRecords(data.results);
+        setLocalPropagation(data.propagationPercentage);
+        setLocalStatus(data.status);
+        setLocalSslStatus(data.sslReady ? 'active' : 'pending');
 
-          if (data.Status === 0 && data.Answer && data.Answer.length > 0) {
-            // Vérifier si la valeur correspond
-            const found = data.Answer.some((answer: any) => {
-              if (record.type === "A") {
-                return answer.data === record.value;
-              } else if (record.type === "TXT") {
-                // Nettoyer les guillemets des enregistrements TXT
-                const txtValue = answer.data.replace(/"/g, "");
-                return txtValue.includes(record.value);
-              }
-              return false;
-            });
-
-            if (found) {
-              updatedRecords[i] = {
-                ...record,
-                status: "success",
-                message: "Enregistrement correctement configuré",
-              };
-            } else {
-              updatedRecords[i] = {
-                ...record,
-                status: "error",
-                message: `Valeur incorrecte. Trouvé: ${data.Answer[0].data}`,
-              };
-            }
-          } else {
-            updatedRecords[i] = {
-              ...record,
-              status: "error",
-              message: "Enregistrement non trouvé. La propagation peut prendre jusqu'à 72 heures.",
-            };
-          }
-        } catch (error) {
-          updatedRecords[i] = {
-            ...record,
-            status: "error",
-            message: "Erreur lors de la vérification",
-          };
+        if (data.propagationPercentage === 100) {
+          toast.success("Configuration DNS complète ! SSL en cours d'activation...");
+        } else if (data.propagationPercentage > 0) {
+          toast.info(`Propagation DNS : ${data.propagationPercentage}%`);
         }
-
-        setDnsRecords([...updatedRecords]);
-        // Petite pause entre les requêtes
-        await new Promise(resolve => setTimeout(resolve, 500));
       }
-
-      setLastCheck(new Date());
-      toast.success("Vérification DNS terminée");
     } catch (error) {
-      toast.error("Erreur lors de la vérification DNS");
+      console.error("Error checking DNS records:", error);
+      toast.error("Erreur lors de la vérification des DNS");
     } finally {
       setIsChecking(false);
     }
@@ -144,7 +117,6 @@ export function DnsConfigurationAssistant({
       return;
     }
 
-    // Valider le format du domaine
     const domainRegex = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i;
     if (!domainRegex.test(customDomain)) {
       toast.error("Format de domaine invalide");
@@ -164,50 +136,85 @@ export function DnsConfigurationAssistant({
     toast.success("Copié dans le presse-papiers");
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: DnsRecord['status']) => {
     switch (status) {
-      case "checking":
-        return <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />;
-      case "success":
+      case 'success':
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "error":
-        return <AlertCircle className="h-5 w-5 text-destructive" />;
+      case 'error':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'pending':
+        return <Clock className="h-5 w-5 text-yellow-500" />;
+      case 'checking':
+        return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
       default:
-        return <Clock className="h-5 w-5 text-muted-foreground" />;
+        return <AlertCircle className="h-5 w-5 text-gray-500" />;
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: DnsRecord['status']) => {
     switch (status) {
-      case "checking":
-        return <Badge variant="secondary">Vérification...</Badge>;
-      case "success":
-        return <Badge className="bg-green-500 hover:bg-green-600">Configuré</Badge>;
-      case "error":
-        return <Badge variant="destructive">Non configuré</Badge>;
+      case 'success':
+        return <Badge className="bg-green-500">Configuré</Badge>;
+      case 'error':
+        return <Badge variant="destructive">Erreur</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">En attente</Badge>;
+      case 'checking':
+        return <Badge variant="outline">Vérification...</Badge>;
       default:
-        return <Badge variant="outline">En attente</Badge>;
+        return <Badge variant="outline">Non vérifié</Badge>;
     }
   };
 
-  const allRecordsConfigured = dnsRecords.every(r => r.status === "success");
+  const getOverallStatusMessage = () => {
+    switch (localStatus) {
+      case 'verified':
+        return {
+          title: '✓ Configuration terminée',
+          description: 'Votre domaine est correctement configuré et le SSL est actif.',
+          variant: 'default' as const,
+        };
+      case 'partial_propagation':
+        return {
+          title: '⏳ Propagation DNS en cours',
+          description: `${localPropagation}% complété - La propagation peut prendre jusqu'à 72 heures.`,
+          variant: 'default' as const,
+        };
+      case 'pending_verification':
+        return {
+          title: '🔍 En attente de configuration',
+          description: 'Ajoutez les enregistrements DNS ci-dessous dans votre gestionnaire de domaine.',
+          variant: 'default' as const,
+        };
+      default:
+        return {
+          title: 'Configuration non démarrée',
+          description: 'Entrez votre domaine personnalisé pour commencer.',
+          variant: 'secondary' as const,
+        };
+    }
+  };
+
+  const allRecordsConfigured = localStatus === 'verified';
+  const statusMessage = getOverallStatusMessage();
 
   return (
     <div className="space-y-6">
-      {/* Domaine Lovable actuel */}
+      {/* Lovable Subdomain */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            Domaine Lovable
-          </CardTitle>
+          <CardTitle>Domaine VisualPro actuel</CardTitle>
           <CardDescription>
-            Votre site est actuellement accessible via ce sous-domaine
+            Votre site vitrine est actuellement accessible via ce sous-domaine
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2">
-            <Input value={lovableSubdomain} readOnly className="font-mono text-sm" />
+            <Input 
+              value={lovableSubdomain} 
+              readOnly 
+              className="font-mono text-sm bg-muted"
+            />
             <Button
               variant="outline"
               size="icon"
@@ -226,7 +233,7 @@ export function DnsConfigurationAssistant({
         </CardContent>
       </Card>
 
-      {/* Configuration du domaine personnalisé */}
+      {/* Custom Domain Input */}
       <Card>
         <CardHeader>
           <CardTitle>Domaine Personnalisé</CardTitle>
@@ -240,7 +247,7 @@ export function DnsConfigurationAssistant({
             <div className="flex gap-2">
               <Input
                 id="custom-domain"
-                placeholder="exemple.com"
+                placeholder="monsite.com"
                 value={customDomain}
                 onChange={(e) => setCustomDomain(e.target.value.toLowerCase())}
               />
@@ -250,136 +257,287 @@ export function DnsConfigurationAssistant({
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Entrez votre domaine sans "www" (exemple: monsite.com)
+              Entrez votre domaine sans "www" (exemple: maboutique.com)
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Assistant de configuration DNS */}
-      {customDomain && (
+      {customDomain && verificationCode && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Configuration DNS</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={checkDnsRecords}
-                disabled={isChecking}
-              >
-                {isChecking ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Vérification...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Vérifier
-                  </>
-                )}
-              </Button>
-            </CardTitle>
+            <CardTitle>Assistant de Configuration DNS</CardTitle>
             <CardDescription>
-              Configurez ces enregistrements DNS chez votre registrar de domaine
+              Vérification automatique toutes les 30 secondes • Configuration universelle compatible avec tous les registrars
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {lastCheck && (
-              <p className="text-sm text-muted-foreground">
-                Dernière vérification: {lastCheck.toLocaleTimeString()}
-              </p>
-            )}
-
-            {/* Statut global */}
-            {allRecordsConfigured && (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  Tous les enregistrements DNS sont correctement configurés ! Votre domaine sera actif sous peu.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Liste des enregistrements DNS */}
+          <CardContent className="space-y-6">
+            {/* Overall Status */}
             <div className="space-y-3">
-              {dnsRecords.map((record, index) => (
-                <Card key={index} className="border-2">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(record.status)}
-                          <Badge variant="outline">{record.type}</Badge>
-                          {getStatusBadge(record.status)}
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Nom:</span>
-                            <div className="font-mono font-semibold">{record.name}</div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Valeur:</span>
-                            <div className="font-mono font-semibold text-xs break-all">
-                              {record.value}
-                            </div>
-                          </div>
-                        </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">{statusMessage.title}</h3>
+                {localStatus === 'verified' && <CheckCircle2 className="h-6 w-6 text-green-500" />}
+              </div>
+              <p className="text-sm text-muted-foreground">{statusMessage.description}</p>
+              
+              {/* Propagation Progress */}
+              {localStatus !== 'not_configured' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progression de la propagation DNS</span>
+                    <span className="font-semibold">{localPropagation}%</span>
+                  </div>
+                  <Progress value={localPropagation} className="h-2" />
+                </div>
+              )}
 
-                        {record.message && (
-                          <p className={`text-sm ${
-                            record.status === "success" 
-                              ? "text-green-600" 
-                              : record.status === "error" 
-                                ? "text-destructive" 
-                                : "text-muted-foreground"
-                          }`}>
-                            {record.message}
-                          </p>
-                        )}
+              {/* SSL Status */}
+              {localPropagation > 0 && (
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <span className="text-sm font-medium">Statut SSL (HTTPS)</span>
+                  <Badge variant={localSslStatus === 'active' ? 'default' : 'secondary'}>
+                    {localSslStatus === 'active' ? '✓ Actif' : '⏳ En attente'}
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Configuration DNS Universelle</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={checkDnsRecords}
+                  disabled={isChecking}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isChecking ? 'animate-spin' : ''}`} />
+                  {isChecking ? 'Vérification...' : 'Vérifier maintenant'}
+                </Button>
+              </div>
+
+              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg space-y-2">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  📋 Instructions pour votre gestionnaire de domaine
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Compatible avec GoDaddy, OVH, Namecheap, Hostinger, Cloudflare, Google Domains, etc.
+                </p>
+              </div>
+
+              {/* DNS Records */}
+              <div className="space-y-4">
+                {/* CNAME Record for www */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {dnsRecords.find(r => r.type === 'CNAME') ? 
+                          getStatusIcon(dnsRecords.find(r => r.type === 'CNAME')!.status) : 
+                          <Clock className="h-5 w-5 text-gray-400" />
+                        }
+                        <div>
+                          <p className="font-semibold">1. Enregistrement CNAME (sous-domaine www)</p>
+                          {dnsRecords.find(r => r.type === 'CNAME') && getStatusBadge(dnsRecords.find(r => r.type === 'CNAME')!.status)}
+                        </div>
                       </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm bg-muted p-3 rounded-md">
+                      <div>
+                        <p className="text-muted-foreground mb-1">Type</p>
+                        <p className="font-mono">CNAME</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Nom / Host</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono">www</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => copyToClipboard('www')}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Valeur / Target</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono text-xs">{VISUALPRO_CONFIG.CNAME_TARGET}</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => copyToClipboard(VISUALPRO_CONFIG.CNAME_TARGET)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    {dnsRecords.find(r => r.type === 'CNAME')?.message && (
+                      <p className="text-sm text-muted-foreground mt-3">
+                        {dnsRecords.find(r => r.type === 'CNAME')!.message}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => copyToClipboard(record.value)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                {/* A Record for root domain */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {dnsRecords.find(r => r.type === 'A') ? 
+                          getStatusIcon(dnsRecords.find(r => r.type === 'A')!.status) : 
+                          <Clock className="h-5 w-5 text-gray-400" />
+                        }
+                        <div>
+                          <p className="font-semibold">2. Enregistrement A (domaine principal)</p>
+                          {dnsRecords.find(r => r.type === 'A') && getStatusBadge(dnsRecords.find(r => r.type === 'A')!.status)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm bg-muted p-3 rounded-md">
+                      <div>
+                        <p className="text-muted-foreground mb-1">Type</p>
+                        <p className="font-mono">A</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Nom / Host</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono">@</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => copyToClipboard('@')}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Valeur / IPv4</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono">{VISUALPRO_CONFIG.A_RECORD_IP}</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => copyToClipboard(VISUALPRO_CONFIG.A_RECORD_IP)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    {dnsRecords.find(r => r.type === 'A')?.message && (
+                      <p className="text-sm text-muted-foreground mt-3">
+                        {dnsRecords.find(r => r.type === 'A')!.message}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* TXT Record for verification */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {dnsRecords.find(r => r.type === 'TXT') ? 
+                          getStatusIcon(dnsRecords.find(r => r.type === 'TXT')!.status) : 
+                          <Clock className="h-5 w-5 text-gray-400" />
+                        }
+                        <div>
+                          <p className="font-semibold">3. Enregistrement TXT (vérification du domaine)</p>
+                          {dnsRecords.find(r => r.type === 'TXT') && getStatusBadge(dnsRecords.find(r => r.type === 'TXT')!.status)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm bg-muted p-3 rounded-md">
+                      <div>
+                        <p className="text-muted-foreground mb-1">Type</p>
+                        <p className="font-mono">TXT</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Nom / Host</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono">@</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => copyToClipboard('@')}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Valeur / Value</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono text-xs break-all">visualpro-site-verification={verificationCode}</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => copyToClipboard(`visualpro-site-verification=${verificationCode}`)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    {dnsRecords.find(r => r.type === 'TXT')?.message && (
+                      <p className="text-sm text-muted-foreground mt-3">
+                        {dnsRecords.find(r => r.type === 'TXT')!.message}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-3">
+                <Card className="bg-yellow-50 dark:bg-yellow-950 border-yellow-200">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-3">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-2 text-sm">
+                        <p className="font-semibold text-yellow-900 dark:text-yellow-100">
+                          ⚠️ Si vous utilisez Cloudflare
+                        </p>
+                        <p className="text-yellow-800 dark:text-yellow-200">
+                          Désactivez le mode "Proxied" (orange → gris) pour les enregistrements lors de la première configuration.
+                          Vous pourrez le réactiver une fois le SSL provisionné.
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
 
-            {/* Instructions */}
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <div className="space-y-2">
-                  <p className="font-semibold">Instructions:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-sm">
-                    <li>Connectez-vous à votre registrar de domaine (OVH, Namecheap, GoDaddy, etc.)</li>
-                    <li>Accédez à la zone DNS de votre domaine</li>
-                    <li>Ajoutez les enregistrements ci-dessus exactement comme indiqué</li>
-                    <li>Attendez 10-15 minutes puis cliquez sur "Vérifier"</li>
-                    <li>La propagation complète peut prendre jusqu'à 72 heures</li>
-                  </ol>
+                <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
+                  <p className="font-medium">💡 Informations importantes :</p>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+                    <li>La propagation DNS peut prendre de 5 minutes à 72 heures</li>
+                    <li>Le certificat SSL est généré automatiquement une fois les DNS validés</li>
+                    <li>Vérification automatique toutes les 30 secondes pendant la propagation</li>
+                    <li>Supprimez tout ancien enregistrement A ou CNAME existant pour ce domaine</li>
+                  </ul>
                 </div>
-              </AlertDescription>
-            </Alert>
 
-            <Alert>
-              <Clock className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                <strong>Propagation DNS:</strong> Les modifications DNS peuvent prendre de quelques minutes à 72 heures pour se propager complètement à travers le monde. Soyez patient !
-              </AlertDescription>
-            </Alert>
+                {lastCheck && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Dernière vérification: {lastCheck.toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
     </div>
   );
-}
+};
