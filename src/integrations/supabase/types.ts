@@ -1179,6 +1179,10 @@ export type Database = {
           cta_description: string | null
           cta_title: string | null
           custom_domain: string | null
+          dns_propagation_percentage: number | null
+          domain_last_check: string | null
+          domain_status: string | null
+          domain_verification_code: string | null
           features: Json | null
           font_family: string | null
           footer_color: string | null
@@ -1213,6 +1217,7 @@ export type Database = {
           seo_description: string | null
           seo_keywords: string[] | null
           seo_title: string | null
+          ssl_status: string | null
           stats_bg_color: string | null
           stats_projects_completed: number | null
           stats_satisfied_clients: number | null
@@ -1245,6 +1250,10 @@ export type Database = {
           cta_description?: string | null
           cta_title?: string | null
           custom_domain?: string | null
+          dns_propagation_percentage?: number | null
+          domain_last_check?: string | null
+          domain_status?: string | null
+          domain_verification_code?: string | null
           features?: Json | null
           font_family?: string | null
           footer_color?: string | null
@@ -1279,6 +1288,7 @@ export type Database = {
           seo_description?: string | null
           seo_keywords?: string[] | null
           seo_title?: string | null
+          ssl_status?: string | null
           stats_bg_color?: string | null
           stats_projects_completed?: number | null
           stats_satisfied_clients?: number | null
@@ -1311,6 +1321,10 @@ export type Database = {
           cta_description?: string | null
           cta_title?: string | null
           custom_domain?: string | null
+          dns_propagation_percentage?: number | null
+          domain_last_check?: string | null
+          domain_status?: string | null
+          domain_verification_code?: string | null
           features?: Json | null
           font_family?: string | null
           footer_color?: string | null
@@ -1345,6 +1359,7 @@ export type Database = {
           seo_description?: string | null
           seo_keywords?: string[] | null
           seo_title?: string | null
+          ssl_status?: string | null
           stats_bg_color?: string | null
           stats_projects_completed?: number | null
           stats_satisfied_clients?: number | null
@@ -1768,6 +1783,7 @@ export type Database = {
       cleanup_expired_trash: { Args: never; Returns: undefined }
       count_processing_generations: { Args: never; Returns: number }
       generate_certificate_number: { Args: never; Returns: string }
+      generate_domain_verification_code: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
       get_next_queue_item: { Args: never; Returns: string }
       has_role: {

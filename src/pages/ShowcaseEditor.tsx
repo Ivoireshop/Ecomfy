@@ -2384,6 +2384,10 @@ export default function ShowcaseEditor() {
                 showcaseId={id || ""}
                 subdomain={subdomain}
                 currentDomain={formValues.customDomain}
+                verificationCode={(formValues as any).domain_verification_code}
+                domainStatus={(formValues as any).domain_status}
+                propagationPercentage={(formValues as any).dns_propagation_percentage}
+                sslStatus={(formValues as any).ssl_status}
                 onDomainSave={async (domain) => {
                   if (!id) return;
                   const { error } = await supabase
@@ -2392,6 +2396,7 @@ export default function ShowcaseEditor() {
                     .eq("id", id);
                   
                   if (error) throw error;
+                  await loadSite(); // Reload to get verification code
                 }}
               />
             </div>
