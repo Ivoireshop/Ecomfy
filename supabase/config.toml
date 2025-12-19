@@ -59,3 +59,15 @@ verify_jwt = true
 
 [functions.generate-certificate]
 verify_jwt = true
+
+[functions.verify-domain-dns]
+verify_jwt = false
+
+[functions.send-domain-ready-notification]
+verify_jwt = false
+
+[functions.create-student-account]
+verify_jwt = true
+
+[functions.send-booking-notification]
+verify_jwt = false

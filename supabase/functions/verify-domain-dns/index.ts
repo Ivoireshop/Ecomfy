@@ -164,16 +164,29 @@ Deno.serve(async (req) => {
 
     console.log(`Verifying domain configuration for ${domain}...`);
 
+    // Get current domain status before verification
+    const { data: currentSite } = await supabaseClient
+      .from('showcase_sites')
+      .select('domain_status, ssl_status, business_name, owner_name, user_id')
+      .eq('id', showcaseId)
+      .single();
+
+    const previousStatus = currentSite?.domain_status;
+    const previousSslStatus = currentSite?.ssl_status;
+
     // Perform DNS verification
     const verification = await verifyDomainConfiguration(domain, verificationCode);
 
     // Update showcase_sites with verification results
+    const newStatus = verification.status === 'verified' ? 'active' : verification.status;
+    const newSslStatus = verification.sslReady ? 'active' : 'pending';
+
     const { error: updateError } = await supabaseClient
       .from('showcase_sites')
       .update({
-        domain_status: verification.status,
+        domain_status: newStatus,
         dns_propagation_percentage: verification.propagationPercentage,
-        ssl_status: verification.sslReady ? 'active' : 'pending',
+        ssl_status: newSslStatus,
         domain_last_check: new Date().toISOString(),
       })
       .eq('id', showcaseId);
@@ -183,13 +196,66 @@ Deno.serve(async (req) => {
       throw updateError;
     }
 
-    console.log(`Domain verification completed: ${verification.status} (${verification.propagationPercentage}%)`);
+    console.log(`Domain verification completed: ${newStatus} (${verification.propagationPercentage}%)`);
+
+    // Send notification email if domain just became active
+    const domainJustBecameActive = 
+      newStatus === 'active' && 
+      newSslStatus === 'active' &&
+      (previousStatus !== 'active' || previousSslStatus !== 'active');
+
+    if (domainJustBecameActive && currentSite?.user_id) {
+      console.log('Domain just became active, sending notification email...');
+      
+      // Get user email from profiles
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', currentSite.user_id)
+        .single();
+
+      if (profile?.email) {
+        try {
+          // Call the notification edge function
+          const notificationResponse = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-domain-ready-notification`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+              },
+              body: JSON.stringify({
+                showcaseId,
+                customDomain: domain,
+                businessName: currentSite.business_name,
+                ownerEmail: profile.email,
+                ownerName: profile.full_name || currentSite.owner_name,
+              }),
+            }
+          );
+
+          if (notificationResponse.ok) {
+            console.log('Notification email sent successfully');
+          } else {
+            const errorText = await notificationResponse.text();
+            console.error('Error sending notification:', errorText);
+          }
+        } catch (emailError) {
+          console.error('Error calling notification function:', emailError);
+          // Don't fail the main request if email fails
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         ...verification,
-        config: VISUALPRO_CONFIG
+        status: newStatus,
+        sslStatus: newSslStatus,
+        config: VISUALPRO_CONFIG,
+        notificationSent: domainJustBecameActive
       }),
       { 
         status: 200, 
