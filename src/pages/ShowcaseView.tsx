@@ -107,6 +107,10 @@ interface ShowcaseSite {
   price_bg_color: string | null;
   stats_text_color: string | null;
   stats_bg_color: string | null;
+  // Custom domain fields
+  custom_domain: string | null;
+  domain_status: string | null;
+  ssl_status: string | null;
 }
 
 interface GalleryImage {
@@ -268,6 +272,27 @@ export default function ShowcaseView() {
           hero_video_url: (data as any).hero_video_url ?? null,
           about_video_url: (data as any).about_video_url ?? null,
         };
+        
+        // Check if we should redirect to custom domain
+        const customDomain = data.custom_domain;
+        const domainStatus = data.domain_status;
+        const sslStatus = data.ssl_status;
+        const currentHost = window.location.host;
+        const isOnSubdomain = !currentHost.includes(customDomain || '');
+        
+        // Redirect to custom domain if:
+        // 1. Custom domain is configured
+        // 2. Domain status is "active"
+        // 3. SSL status is "active"
+        // 4. We're not already on the custom domain
+        if (customDomain && domainStatus === 'active' && sslStatus === 'active' && isOnSubdomain) {
+          const protocol = 'https://';
+          const currentPath = page ? `/${page}` : '';
+          const redirectUrl = `${protocol}${customDomain}${currentPath}`;
+          console.log('Redirecting to custom domain:', redirectUrl);
+          window.location.replace(redirectUrl);
+          return;
+        }
         
         console.log('Final site data:', siteData);
         console.log('Final features array:', featuresArray);
