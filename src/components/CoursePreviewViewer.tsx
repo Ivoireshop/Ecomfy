@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Lock, Play, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import DOMPurify from "dompurify";
 
 interface ModuleContent {
   id: string;
@@ -187,7 +188,12 @@ export function CoursePreviewViewer({
                       <div className="prose max-w-none">
                         <div
                           className="whitespace-pre-wrap"
-                          dangerouslySetInnerHTML={{ __html: selectedContent.content_text }}
+                          dangerouslySetInnerHTML={{ 
+                            __html: DOMPurify.sanitize(selectedContent.content_text, {
+                              ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'div', 'blockquote', 'pre', 'code'],
+                              ALLOWED_ATTR: ['class', 'href', 'target', 'rel']
+                            })
+                          }}
                         />
                       </div>
                     ) : selectedContent.content_url ? (
