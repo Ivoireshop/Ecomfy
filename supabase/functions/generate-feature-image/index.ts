@@ -223,151 +223,142 @@ TECHNICAL SPECIFICATIONS:
 Create a stunning Facebook advertising visual that looks like a professional marketing campaign. ZERO spelling errors in French text.`;
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not configured');
     }
+    
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY'); // For fallback
 
-    // Build message content with product image if provided (put image FIRST)
-    const messageContent = productImage 
-      ? [
-          {
-            type: "image_url",
-            image_url: { url: productImage },
-          },
-          {
-            type: "text",
-            text: finalPrompt,
-          },
-        ]
-      : finalPrompt;
+    console.log('Generating image with GPT-image-1 (latest OpenAI model)...');
 
-    const response = await fetchWithTimeout('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [
-          {
-            role: 'user',
-            content: messageContent
-          }
-        ],
-        modalities: ['image', 'text']
-      }),
-      timeoutMs: 45000,
-    });
+    // Use GPT-image-1 as primary model
+    let imageUrl: string | null = null;
+    let usedFallback = false;
+    
+    try {
+      const openaiResp = await fetchWithTimeout('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-image-1',
+          prompt: finalPrompt,
+          size: '1024x1024',
+          quality: 'high',
+          n: 1,
+        }),
+        timeoutMs: 90000, // GPT-image-1 can take longer for high quality
+      });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Limite de requêtes dépassée. Veuillez réessayer plus tard.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-        if (OPENAI_API_KEY) {
-          try {
-            const openaiResp = await fetch('https://api.openai.com/v1/images/generations', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'gpt-image-1',
-                prompt: finalPrompt,
-                size: '1024x1024',
-                n: 1,
-              }),
-            });
-
-            if (openaiResp.ok) {
-              const openaiData = await openaiResp.json();
-              const b64 = openaiData.data?.[0]?.b64_json;
-              if (b64) {
-                const imageUrl = `data:image/png;base64,${b64}`;
-                return new Response(
-                  JSON.stringify({ imageUrl }),
-                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                );
-              }
-            } else {
-              const t = await openaiResp.text();
-              console.error('OpenAI images API error:', openaiResp.status, t);
+      if (openaiResp.ok) {
+        const openaiData = await openaiResp.json();
+        const b64 = openaiData.data?.[0]?.b64_json;
+        if (b64) {
+          imageUrl = `data:image/png;base64,${b64}`;
+          console.log('GPT-image-1 generation successful');
+        } else {
+          // Fallback to URL if b64_json not present
+          const generatedUrl = openaiData.data?.[0]?.url;
+          if (generatedUrl) {
+            console.log("GPT-image-1 returned URL, converting to base64...");
+            const imgResp = await fetch(generatedUrl);
+            const imgBlob = await imgResp.blob();
+            const arrayBuffer = await imgBlob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+              binary += String.fromCharCode(bytes[i]);
             }
-          } catch (e) {
-            console.error('OpenAI fallback failed:', e);
+            imageUrl = `data:image/png;base64,${btoa(binary)}`;
           }
         }
-
-        return new Response(
-          JSON.stringify({ error: 'Crédits IA épuisés. Ajoutez des crédits ou configurez OPENAI_API_KEY pour le fallback.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      } else {
+        const errorText = await openaiResp.text();
+        console.error('GPT-image-1 error:', openaiResp.status, errorText);
+        
+        // Handle content policy violations
+        if (openaiResp.status === 400 && errorText.includes("content_policy")) {
+          return new Response(
+            JSON.stringify({ 
+              error: "L'IA a refusé de générer cette image. Veuillez modifier la description du produit pour respecter les politiques de contenu."
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        
+        // Try fallback to Lovable AI
+        if (LOVABLE_API_KEY) {
+          console.log('GPT-image-1 failed, falling back to Lovable AI...');
+          usedFallback = true;
+        }
       }
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      throw new Error(`AI Gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('AI response received');
-
-    // Check if AI refused to generate content (content policy violation)
-    const responseContent = data.choices?.[0]?.message?.content;
-    if (responseContent && typeof responseContent === 'string') {
-      const lowerContent = responseContent.toLowerCase();
-      if (lowerContent.includes('cannot') || lowerContent.includes('inappropriate') || 
-          lowerContent.includes('policy') || lowerContent.includes('unable to')) {
-        console.log('Content policy refusal detected:', responseContent);
-        return new Response(
-          JSON.stringify({ 
-            error: "L'IA a refusé de générer cette image. Veuillez modifier la description du produit ou l'image de référence pour respecter les politiques de contenu.",
-            details: responseContent
-          }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+    } catch (e) {
+      console.error('GPT-image-1 request failed:', e);
+      if (LOVABLE_API_KEY) {
+        console.log('Falling back to Lovable AI...');
+        usedFallback = true;
       }
     }
-
-    // Extract the generated image - try multiple possible paths
-    let imageUrl = null;
     
-    // Standard path
-    if (data.choices?.[0]?.message?.images?.[0]?.image_url?.url) {
-      imageUrl = data.choices[0].message.images[0].image_url.url;
-      console.log('Image found at standard path');
-    }
-    // Alternative path 1
-    else if (data.choices?.[0]?.message?.images?.[0]?.url) {
-      imageUrl = data.choices[0].message.images[0].url;
-      console.log('Image found at alternative path 1');
-    }
-    // Alternative path 2
-    else if (data.choices?.[0]?.message?.images?.[0]) {
-      const img = data.choices[0].message.images[0];
-      imageUrl = img.image_url?.url || img.url || img;
-      console.log('Image found at alternative path 2');
-    }
-    // Alternative path 3 - in content as data URL
-    else if (responseContent && typeof responseContent === 'string' && responseContent.startsWith('data:image')) {
-      imageUrl = responseContent;
-      console.log('Image found in content as data URL');
+    // Fallback to Lovable AI if GPT-image-1 failed
+    if (!imageUrl && usedFallback && LOVABLE_API_KEY) {
+      try {
+        const messageContent = productImage 
+          ? [
+              { type: "image_url", image_url: { url: productImage } },
+              { type: "text", text: finalPrompt },
+            ]
+          : finalPrompt;
+
+        const response = await fetchWithTimeout('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image-preview',
+            messages: [{ role: 'user', content: messageContent }],
+            modalities: ['image', 'text']
+          }),
+          timeoutMs: 45000,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
+                     data.choices?.[0]?.message?.images?.[0]?.url ||
+                     null;
+          if (imageUrl) {
+            console.log('Lovable AI fallback successful');
+          }
+        } else if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Limite de requêtes dépassée. Veuillez réessayer plus tard.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'Crédits IA épuisés. Veuillez réessayer plus tard.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (fallbackErr) {
+        console.error('Lovable AI fallback failed:', fallbackErr);
+      }
     }
     
     if (!imageUrl) {
-      console.error('Failed to extract image from response');
-      console.error('Response structure:', JSON.stringify(data, null, 2));
-      throw new Error('No image generated in response');
+      throw new Error('Échec de la génération d\'image. Veuillez réessayer.');
     }
+
+    console.log('Image generated successfully');
 
     console.log('Image URL extracted successfully');
 

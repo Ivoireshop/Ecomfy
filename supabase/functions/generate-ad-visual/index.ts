@@ -232,7 +232,7 @@ serve(async (req) => {
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY"); // For fallback and format generation
 
-    // Build an advanced prompt optimized for DALL-E 3 - use template if provided
+    // Build an advanced prompt optimized for GPT-image-1 (latest OpenAI model) - use template if provided
     let prompt: string;
     
     if (template && template.prompt_template) {
@@ -319,62 +319,75 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       imageSize = "1792x1024"; // Horizontal for Facebook feed
     }
 
-    // Retry logic with exponential backoff for DALL-E 3
+    // Retry logic with exponential backoff for GPT-image-1 (latest OpenAI model)
     let imageUrl: string | null = null;
     const maxRetries = 3;
     const retryDelayMs = 2000; // Start with 2 seconds
     
+    // Determine image size for GPT-image-1 (supports 1024x1024, 1536x1024, 1024x1536)
+    let gptImageSize: "1024x1024" | "1536x1024" | "1024x1536" = "1024x1024";
+    if (platform === "tiktok" || platform === "instagram_story") {
+      gptImageSize = "1024x1536"; // Vertical for stories/TikTok
+    } else if (platform === "facebook") {
+      gptImageSize = "1536x1024"; // Horizontal for Facebook feed
+    }
+    
     for (let attempt = 1; attempt <= maxRetries && !imageUrl; attempt++) {
       try {
-        console.log(`DALL-E 3 generation attempt ${attempt}/${maxRetries}`);
+        console.log(`GPT-image-1 generation attempt ${attempt}/${maxRetries}`);
         
-        const dalleResponse = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+        const gptImageResponse = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "dall-e-3",
+            model: "gpt-image-1",
             prompt: prompt,
-            size: imageSize,
-            quality: "hd", // High quality for professional ads
-            style: style === "traditionnel" || style === "humoristique" ? "vivid" : "natural",
+            size: gptImageSize,
+            quality: "high", // High quality for professional ads
             n: 1,
           }),
-          timeoutMs: 60000, // DALL-E 3 can take longer
+          timeoutMs: 90000, // GPT-image-1 can take longer for high quality
         });
 
-        if (dalleResponse.ok) {
-          const dalleData = await dalleResponse.json();
-          const generatedUrl = dalleData.data?.[0]?.url;
+        if (gptImageResponse.ok) {
+          const gptImageData = await gptImageResponse.json();
+          // GPT-image-1 returns base64 directly
+          const b64Image = gptImageData.data?.[0]?.b64_json;
           
-          if (generatedUrl) {
-            // Convert URL to base64 for consistent storage
-            console.log("DALL-E 3 image generated, converting to base64...");
-            const imageResponse = await fetch(generatedUrl);
-            const imageBlob = await imageResponse.blob();
-            const arrayBuffer = await imageBlob.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            
-            // Convert to base64 using Deno's standard encoding
-            const base64Chunks: string[] = [];
-            for (let i = 0; i < bytes.length; i += 3) {
-              const chunk = bytes.slice(i, i + 3);
-              base64Chunks.push(btoa(String.fromCharCode(...chunk)));
-            }
-            const base64 = base64Chunks.join('');
-            imageUrl = `data:image/png;base64,${base64}`;
-            console.log("DALL-E 3 generation successful on attempt", attempt);
+          if (b64Image) {
+            imageUrl = `data:image/png;base64,${b64Image}`;
+            console.log("GPT-image-1 generation successful on attempt", attempt);
           } else {
-            console.warn("DALL-E 3 response missing URL:", dalleData);
+            // Fallback to URL if b64_json not present
+            const generatedUrl = gptImageData.data?.[0]?.url;
+            if (generatedUrl) {
+              console.log("GPT-image-1 returned URL, converting to base64...");
+              const imageResponse = await fetch(generatedUrl);
+              const imageBlob = await imageResponse.blob();
+              const arrayBuffer = await imageBlob.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              
+              // Convert to base64
+              let binary = '';
+              for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              const base64 = btoa(binary);
+              imageUrl = `data:image/png;base64,${base64}`;
+              console.log("GPT-image-1 URL converted to base64 on attempt", attempt);
+            } else {
+              console.warn("GPT-image-1 response missing image data:", gptImageData);
+            }
           }
         } else {
-          const errorText = await dalleResponse.text();
-          console.error(`DALL-E 3 error (attempt ${attempt}):`, dalleResponse.status, errorText);
+          const errorText = await gptImageResponse.text();
+          console.error(`GPT-image-1 error (attempt ${attempt}):`, gptImageResponse.status, errorText);
           
           // Handle rate limits with exponential backoff
-          if (dalleResponse.status === 429 && attempt < maxRetries) {
+          if (gptImageResponse.status === 429 && attempt < maxRetries) {
             const delay = retryDelayMs * Math.pow(2, attempt - 1);
             console.log(`Rate limited, waiting ${delay}ms before retry...`);
             await new Promise(resolve => setTimeout(resolve, delay));
@@ -382,7 +395,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
           }
           
           // Handle content policy violations
-          if (dalleResponse.status === 400 && errorText.includes("content_policy")) {
+          if (gptImageResponse.status === 400 && errorText.includes("content_policy")) {
             return new Response(
               JSON.stringify({ 
                 error: "Le contenu demandé viole la politique d'utilisation. Veuillez modifier votre description." 
@@ -400,7 +413,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
           }
         }
       } catch (err) {
-        console.error(`DALL-E 3 attempt ${attempt} failed:`, err);
+        console.error(`GPT-image-1 attempt ${attempt} failed:`, err);
         if (attempt < maxRetries) {
           const delay = retryDelayMs * Math.pow(2, attempt - 1);
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -408,7 +421,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       }
     }
 
-    // Fallback to Lovable AI if DALL-E 3 failed after retries
+    // Fallback to Lovable AI if GPT-image-1 failed after retries
     if (!imageUrl) {
       console.log("DALL-E 3 failed after retries, falling back to Lovable AI...");
       
