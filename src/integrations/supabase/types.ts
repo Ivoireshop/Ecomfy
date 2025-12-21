@@ -724,6 +724,48 @@ export type Database = {
         }
         Relationships: []
       }
+      image_cache: {
+        Row: {
+          access_count: number
+          created_at: string
+          id: string
+          image_url: string
+          last_accessed_at: string
+          model: string
+          platform: string | null
+          prompt: string
+          prompt_hash: string
+          size: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_count?: number
+          created_at?: string
+          id?: string
+          image_url: string
+          last_accessed_at?: string
+          model?: string
+          platform?: string | null
+          prompt: string
+          prompt_hash: string
+          size?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_count?: number
+          created_at?: string
+          id?: string
+          image_url?: string
+          last_accessed_at?: string
+          model?: string
+          platform?: string | null
+          prompt?: string
+          prompt_hash?: string
+          size?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       image_formats: {
         Row: {
           created_at: string
@@ -1781,6 +1823,7 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_trash: { Args: never; Returns: undefined }
+      cleanup_old_image_cache: { Args: never; Returns: undefined }
       count_processing_generations: { Args: never; Returns: number }
       generate_certificate_number: { Args: never; Returns: string }
       generate_domain_verification_code: { Args: never; Returns: string }

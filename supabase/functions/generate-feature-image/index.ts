@@ -230,7 +230,61 @@ Create a stunning Facebook advertising visual that looks like a professional mar
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY'); // For fallback
 
-    console.log('Generating image with GPT-image-1 (latest OpenAI model)...');
+    // Helper function to generate a hash for cache lookup
+    const generatePromptHash = async (text: string): Promise<string> => {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    };
+
+    // === CACHE LOOKUP ===
+    const promptHash = await generatePromptHash(finalPrompt);
+    console.log("Looking up cache for hash:", promptHash.substring(0, 16) + "...");
+    
+    const { data: cachedImage, error: cacheError } = await supabaseClient
+      .from("image_cache")
+      .select("id, image_url, access_count")
+      .eq("prompt_hash", promptHash)
+      .single();
+
+    if (cachedImage && !cacheError) {
+      console.log("Cache HIT! Returning cached image");
+      
+      // Update cache stats
+      await supabaseClient
+        .from("image_cache")
+        .update({ 
+          last_accessed_at: new Date().toISOString(),
+          access_count: (cachedImage.access_count || 1) + 1
+        })
+        .eq("id", cachedImage.id);
+
+      // Save to user's library
+      await supabaseClient.from("generated_images").insert({
+        user_id: userId,
+        image_url: cachedImage.image_url,
+        prompt: finalPrompt.substring(0, 500),
+        product_details: { productName, niche, description, platform, style, price, promotionalPrice, benefits, cached: true },
+      });
+
+      // Decrement credits
+      if (!hasActiveSubscription && !isFounder) {
+        if (purchasedCredits > 0) {
+          await supabaseClient.from("profiles").update({ purchased_credits: purchasedCredits - 1 }).eq("id", userId);
+        } else if (freeGenerationsRemaining > 0) {
+          await supabaseClient.from("profiles").update({ free_generations_remaining: freeGenerationsRemaining - 1 }).eq("id", userId);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ imageUrl: cachedImage.image_url, cached: true, freeGenerationsRemaining: hasActiveSubscription ? null : Math.max(0, freeGenerationsRemaining - 1) }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log("Cache MISS. Generating with GPT-image-1 (latest OpenAI model)...");
 
     // Use GPT-image-1 as primary model
     let imageUrl: string | null = null;
@@ -359,6 +413,20 @@ Create a stunning Facebook advertising visual that looks like a professional mar
     }
 
     console.log('Image generated successfully');
+
+    // === SAVE TO CACHE ===
+    console.log("Saving image to cache with hash:", promptHash.substring(0, 16) + "...");
+    await supabaseClient
+      .from("image_cache")
+      .insert({
+        prompt_hash: promptHash,
+        prompt: finalPrompt.substring(0, 1000),
+        image_url: imageUrl,
+        model: "gpt-image-1",
+        platform: platform || "all",
+        size: "1024x1024",
+        user_id: userId,
+      });
 
     console.log('Image URL extracted successfully');
 
