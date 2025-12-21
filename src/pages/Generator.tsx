@@ -498,24 +498,57 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         setTimeout(() => reject(new Error("timeout")), 90000)
       );
 
+      // 0) Correction automatique des textes (anti-fautes)
+      let corrected = { ...previewTexts };
+      try {
+        const originalText = `Nom du produit: ${previewTexts.productName}\nSlogan: ${previewTexts.tagline}\n${showPrice && previewTexts.price ? `Prix: ${previewTexts.price}` : ""}\n${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewTexts.promotionalPrice}` : ""}\nBénéfices: ${previewTexts.benefits || benefits}\nCTA: ${previewTexts.callToAction}`.trim();
+
+        const { data: corrData, error: corrError } = await supabase.functions.invoke("correct-text", {
+          body: { text: originalText },
+        });
+
+        if (!corrError && corrData?.correctedText) {
+          const lines = String(corrData.correctedText).split("\n");
+          for (const line of lines) {
+            const l = line.trim();
+            if (l.toLowerCase().startsWith("nom du produit:")) {
+              corrected.productName = l.split(":").slice(1).join(":").trim();
+            } else if (l.toLowerCase().startsWith("slogan:")) {
+              corrected.tagline = l.split(":").slice(1).join(":").trim();
+            } else if (l.toLowerCase().startsWith("bénéfices:") || l.toLowerCase().startsWith("benefices:")) {
+              corrected.benefits = l.split(":").slice(1).join(":").trim();
+            } else if (l.toLowerCase().startsWith("cta:")) {
+              corrected.callToAction = l.split(":").slice(1).join(":").trim();
+            } else if (l.toLowerCase().startsWith("prix promotionnel:")) {
+              corrected.promotionalPrice = l.split(":").slice(1).join(":").trim();
+            } else if (l.toLowerCase().startsWith("prix:")) {
+              corrected.price = l.split(":").slice(1).join(":").trim();
+            }
+          }
+          setPreviewTexts(corrected);
+        }
+      } catch (e) {
+        console.warn("Auto-correction failed, continuing with original texts:", e);
+      }
+
       const invokePromise = supabase.functions.invoke("generate-ad-visual", {
         body: {
-          productName: previewTexts.productName,
+          productName: corrected.productName,
           niche,
           description,
-          benefits: previewTexts.benefits || benefits,
+          benefits: corrected.benefits || benefits,
           container,
           platform,
           style,
-          price: previewTexts.price,
-          promotionalPrice: previewTexts.promotionalPrice,
+          price: corrected.price,
+          promotionalPrice: corrected.promotionalPrice,
           posology,
           productImage,
           personDescription,
           fast: false, // Générer tous les formats pour la bibliothèque
           template: selectedTemplate, // Add template data
-          tagline: previewTexts.tagline,
-          callToAction: previewTexts.callToAction,
+          tagline: corrected.tagline,
+          callToAction: corrected.callToAction,
         },
       });
 
@@ -546,14 +579,18 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
       });
 
       try {
-        const finalImageDataUrl = await createTextOverlay(data.imageUrl, {
-          productName: previewTexts.productName,
-          tagline: previewTexts.tagline,
-          price: previewTexts.price,
-          promotionalPrice: previewTexts.promotionalPrice,
-          callToAction: previewTexts.callToAction,
-          benefits: previewTexts.benefits,
-        }, platform);
+        const finalImageDataUrl = await createTextOverlay(
+          data.imageUrl,
+          {
+            productName: corrected.productName,
+            tagline: corrected.tagline,
+            price: corrected.price,
+            promotionalPrice: corrected.promotionalPrice,
+            callToAction: corrected.callToAction,
+            benefits: corrected.benefits,
+          },
+          platform
+        );
 
         // Save final image with text overlay to library
         const finalBlob = dataURLtoBlob(finalImageDataUrl);
@@ -583,18 +620,18 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         await supabase.from("generated_images").insert({
           user_id: user.id,
           image_url: finalImageUrl,
-          prompt: `${previewTexts.productName} - ${niche}`,
+          prompt: `${corrected.productName} - ${niche}`,
           product_details: {
-            productName: previewTexts.productName,
+            productName: corrected.productName,
             niche,
             description,
             platform,
             style,
-            price: previewTexts.price,
-            promotionalPrice: previewTexts.promotionalPrice,
-            benefits: previewTexts.benefits,
-            tagline: previewTexts.tagline,
-            callToAction: previewTexts.callToAction,
+            price: corrected.price,
+            promotionalPrice: corrected.promotionalPrice,
+            benefits: corrected.benefits,
+            tagline: corrected.tagline,
+            callToAction: corrected.callToAction,
           },
         });
 
