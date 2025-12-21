@@ -232,6 +232,16 @@ serve(async (req) => {
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY"); // For fallback and format generation
 
+    // Helper function to generate a hash for cache lookup
+    const generatePromptHash = async (text: string, platform: string, size: string): Promise<string> => {
+      const input = `${text}|${platform}|${size}`;
+      const encoder = new TextEncoder();
+      const data = encoder.encode(input);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    };
+
     // Build an advanced prompt optimized for GPT-image-1 (latest OpenAI model) - use template if provided
     let prompt: string;
     
@@ -319,11 +329,6 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       imageSize = "1792x1024"; // Horizontal for Facebook feed
     }
 
-    // Retry logic with exponential backoff for GPT-image-1 (latest OpenAI model)
-    let imageUrl: string | null = null;
-    const maxRetries = 3;
-    const retryDelayMs = 2000; // Start with 2 seconds
-    
     // Determine image size for GPT-image-1 (supports 1024x1024, 1536x1024, 1024x1536)
     let gptImageSize: "1024x1024" | "1536x1024" | "1024x1536" = "1024x1024";
     if (platform === "tiktok" || platform === "instagram_story") {
@@ -331,6 +336,87 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
     } else if (platform === "facebook") {
       gptImageSize = "1536x1024"; // Horizontal for Facebook feed
     }
+
+    // === CACHE LOOKUP ===
+    const promptHash = await generatePromptHash(prompt, platform || "all", gptImageSize);
+    console.log("Looking up cache for hash:", promptHash.substring(0, 16) + "...");
+    
+    const { data: cachedImage, error: cacheError } = await supabaseClient
+      .from("image_cache")
+      .select("id, image_url")
+      .eq("prompt_hash", promptHash)
+      .single();
+
+    if (cachedImage && !cacheError) {
+      console.log("Cache HIT! Returning cached image");
+      
+      // Update cache stats (access count and last accessed)
+      await supabaseClient
+        .from("image_cache")
+        .update({ 
+          last_accessed_at: new Date().toISOString(),
+          access_count: cachedImage.access_count ? cachedImage.access_count + 1 : 2
+        })
+        .eq("id", cachedImage.id);
+
+      // Still save to generated_images for user's library
+      await supabaseClient
+        .from("generated_images")
+        .insert({
+          user_id: userId,
+          image_url: cachedImage.image_url,
+          prompt: prompt.substring(0, 500),
+          product_details: {
+            productName,
+            niche,
+            description,
+            platform,
+            style,
+            price,
+            promotionalPrice,
+            benefits,
+            cached: true
+          },
+        });
+
+      // Decrement credits even for cached images (fair usage)
+      if (!hasActiveSubscription && !isFounder) {
+        if (purchasedCredits > 0) {
+          await supabaseClient.from("profiles").update({ purchased_credits: purchasedCredits - 1 }).eq("id", userId);
+        } else if (freeGenerationsRemaining > 0) {
+          await supabaseClient.from("profiles").update({ free_generations_remaining: freeGenerationsRemaining - 1 }).eq("id", userId);
+        }
+      }
+
+      // Update queue item if exists
+      if (currentQueueItemId) {
+        await supabaseClient
+          .from("generation_queue")
+          .update({
+            status: "completed",
+            image_url: cachedImage.image_url,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", currentQueueItemId);
+      }
+
+      return new Response(
+        JSON.stringify({
+          imageUrl: cachedImage.image_url,
+          imageId: cachedImage.id,
+          cached: true,
+          freeGenerationsRemaining: hasActiveSubscription ? null : Math.max(0, freeGenerationsRemaining - 1),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    console.log("Cache MISS. Generating new image...");
+
+    // Retry logic with exponential backoff for GPT-image-1 (latest OpenAI model)
+    let imageUrl: string | null = null;
+    const maxRetries = 3;
+    const retryDelayMs = 2000; // Start with 2 seconds
     
     for (let attempt = 1; attempt <= maxRetries && !imageUrl; attempt++) {
       try {
@@ -468,6 +554,20 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
         }
       );
     }
+
+    // === SAVE TO CACHE ===
+    console.log("Saving image to cache with hash:", promptHash.substring(0, 16) + "...");
+    await supabaseClient
+      .from("image_cache")
+      .insert({
+        prompt_hash: promptHash,
+        prompt: prompt.substring(0, 1000),
+        image_url: imageUrl,
+        model: "gpt-image-1",
+        platform: platform || "all",
+        size: gptImageSize,
+        user_id: userId,
+      });
 
     // Save the generated image to the database
     const { data: savedImage, error: saveError } = await supabaseClient
