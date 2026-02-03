@@ -310,29 +310,94 @@ serve(async (req) => {
 
     console.log('Gateway payload (sanitized):', { ...payload, phone: phoneMasked });
 
-    const paymentResponse = await fetch("https://api.lygosapp.com/v1/gateway", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": LYGOS_API_KEY,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!paymentResponse.ok) {
-      let errDetail = '';
+    // Retry logic for API calls with timeout
+    const MAX_RETRIES = 3;
+    const TIMEOUT_MS = 15000; // 15 seconds timeout
+    
+    let paymentData: any = null;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const errJson = await paymentResponse.json();
-        errDetail = errJson?.message || errJson?.error || JSON.stringify(errJson);
-      } catch (_) {
-        errDetail = await paymentResponse.text();
-      }
-      console.error("Lygos API error:", paymentResponse.status, errDetail);
-      throw new Error(`Erreur Lygos: ${errDetail || paymentResponse.status}`);
-    }
+        console.log(`Lygos API attempt ${attempt}/${MAX_RETRIES}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        
+        const paymentResponse = await fetch("https://api.lygosapp.com/v1/gateway", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": LYGOS_API_KEY,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
 
-    const paymentData = await paymentResponse.json();
-    console.log("Lygos API response:", paymentData);
+        if (!paymentResponse.ok) {
+          let errDetail = '';
+          try {
+            const errJson = await paymentResponse.json();
+            errDetail = errJson?.message || errJson?.error || JSON.stringify(errJson);
+          } catch (_) {
+            errDetail = await paymentResponse.text();
+          }
+          console.error("Lygos API error:", paymentResponse.status, errDetail);
+          throw new Error(`Erreur Lygos: ${errDetail || paymentResponse.status}`);
+        }
+
+        paymentData = await paymentResponse.json();
+        console.log("Lygos API response:", paymentData);
+        break; // Success, exit retry loop
+        
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.error(`Attempt ${attempt} failed:`, lastError.message);
+        
+        // Check if it's a network/DNS error
+        if (lastError.message.includes('dns error') || 
+            lastError.message.includes('name resolution') ||
+            lastError.message.includes('AbortError') ||
+            lastError.message.includes('network')) {
+          console.log(`Network error detected, ${attempt < MAX_RETRIES ? 'retrying...' : 'no more retries'}`);
+          
+          if (attempt < MAX_RETRIES) {
+            // Wait before retry (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+        }
+        
+        // For non-network errors or last attempt, break
+        if (attempt === MAX_RETRIES) {
+          break;
+        }
+      }
+    }
+    
+    if (!paymentData) {
+      console.error("All payment attempts failed:", lastError?.message);
+      
+      // Provide user-friendly error message
+      const isNetworkError = lastError?.message?.includes('dns error') || 
+                             lastError?.message?.includes('name resolution') ||
+                             lastError?.message?.includes('network');
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: isNetworkError 
+            ? "Le service de paiement est temporairement indisponible. Veuillez réessayer dans quelques instants."
+            : (lastError?.message || "Une erreur est survenue lors du paiement")
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
     
     // Send notification email to founders if promo code was used
     if (promo_code && promoCodeId) {
