@@ -24,6 +24,7 @@ import { BrandExtractor } from "@/components/BrandExtractor";
 import { MultiImageUploader } from "@/components/MultiImageUploader";
 import { VariationGenerator } from "@/components/VariationGenerator";
 import { TextCorrector } from "@/components/TextCorrector";
+import { AdvancedImageGenerator } from "@/components/AdvancedImageGenerator";
 import { Switch } from "@/components/ui/switch";
 
 const Generator = () => {
@@ -48,7 +49,7 @@ const Generator = () => {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [videoGenerationsRemaining, setVideoGenerationsRemaining] = useState<number>(5);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
-  const [generationType, setGenerationType] = useState<"image" | "video" | "pro">("image");
+  const [generationType, setGenerationType] = useState<"image" | "video" | "pro" | "advanced">("image");
   const [isTouchUI, setIsTouchUI] = useState(false);
   const [isFounder, setIsFounder] = useState(false);
   const [videoDuration, setVideoDuration] = useState<10 | 15>(10);
@@ -1007,11 +1008,15 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
             )}
           </div>
 
-          <Tabs value={generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro")} className="mb-6">
-            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
+          <Tabs value={generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
+            <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4">
               <TabsTrigger value="image">
                 <Sparkles className="mr-2 h-4 w-4" />
                 Classique
+              </TabsTrigger>
+              <TabsTrigger value="advanced">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Avancé
               </TabsTrigger>
               <TabsTrigger value="pro">
                 <Sparkles className="mr-2 h-4 w-4" />
@@ -1095,6 +1100,21 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                   }}
                 />
               )}
+            </div>
+          )}
+
+          {/* Mode Avancé - Génération IA style ChatGPT */}
+          {generationType === "advanced" && (
+            <div className="container mx-auto px-4 max-w-4xl">
+              <AdvancedImageGenerator 
+                onImageGenerated={(imageUrl) => {
+                  setGeneratedImage(imageUrl);
+                  toast({
+                    title: "✨ Image générée !",
+                    description: "Votre image a été générée avec succès et sauvegardée dans la bibliothèque",
+                  });
+                }}
+              />
             </div>
           )}
 
