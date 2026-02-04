@@ -4,7 +4,10 @@ project_id = "dqlbmtkaamjohgbcjwtw"
 verify_jwt = true
 
 [functions.generate-video]
-verify_jwt = false
+verify_jwt = true
+
+[functions.generate-ai-image]
+verify_jwt = true
 
 [functions.generate-voiceover]
 verify_jwt = false

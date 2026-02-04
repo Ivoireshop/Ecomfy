@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Upload, Sparkles, Download, Image as ImageIcon, Wand2, RefreshCw, Youtube, Facebook, Instagram } from "lucide-react";
+import { Loader2, Upload, Sparkles, Download, Image as ImageIcon, Wand2, RefreshCw, Youtube, Facebook, Instagram, Link } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,6 +36,23 @@ const bannerPresets: BannerPreset[] = [
   { name: "Twitter/X Header", width: 1500, height: 500, platform: "twitter", icon: ImageIcon },
 ];
 
+// Function to extract YouTube video ID and get thumbnail
+const extractYouTubeThumbnail = (url: string): string | null => {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      // Return the maxresdefault thumbnail (highest quality)
+      return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`;
+    }
+  }
+  return null;
+};
+
 export function AdvancedImageGenerator({ onImageGenerated }: AdvancedImageGeneratorProps) {
   const [mode, setMode] = useState<GenerationMode>("text-to-image");
   const [prompt, setPrompt] = useState("");
@@ -46,6 +64,10 @@ export function AdvancedImageGenerator({ onImageGenerated }: AdvancedImageGenera
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [style, setStyle] = useState("professional");
+  
+  // YouTube link states
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [isLoadingThumbnail, setIsLoadingThumbnail] = useState(false);
 
   const styles = [
     { value: "professional", label: "Professionnel" },
@@ -77,11 +99,66 @@ export function AdvancedImageGenerator({ onImageGenerated }: AdvancedImageGenera
         setUploadedImage(dataUrl);
       } else if (target === "banner") {
         setBannerToReplace(dataUrl);
+        setYoutubeUrl(""); // Clear YouTube URL when uploading manually
       } else {
         setReplacementPhoto(dataUrl);
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleYouTubeImport = async () => {
+    if (!youtubeUrl.trim()) {
+      toast.error("Veuillez entrer un lien YouTube");
+      return;
+    }
+
+    setIsLoadingThumbnail(true);
+    
+    try {
+      const thumbnailUrl = extractYouTubeThumbnail(youtubeUrl);
+      
+      if (!thumbnailUrl) {
+        toast.error("Lien YouTube invalide. Utilisez un format comme youtube.com/watch?v=xxx ou youtu.be/xxx");
+        return;
+      }
+
+      // Fetch the thumbnail and convert to base64
+      const response = await fetch(thumbnailUrl);
+      if (!response.ok) {
+        // Try fallback to hqdefault if maxresdefault doesn't exist
+        const videoId = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/)?.[1];
+        if (videoId) {
+          const fallbackUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          const fallbackResponse = await fetch(fallbackUrl);
+          if (fallbackResponse.ok) {
+            const blob = await fallbackResponse.blob();
+            const reader = new FileReader();
+            reader.onload = () => {
+              setBannerToReplace(reader.result as string);
+              toast.success("Miniature YouTube importée avec succès !");
+            };
+            reader.readAsDataURL(blob);
+            return;
+          }
+        }
+        throw new Error("Impossible de récupérer la miniature");
+      }
+
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onload = () => {
+        setBannerToReplace(reader.result as string);
+        toast.success("Miniature YouTube importée avec succès !");
+      };
+      reader.readAsDataURL(blob);
+      
+    } catch (error) {
+      console.error("Error fetching YouTube thumbnail:", error);
+      toast.error("Erreur lors de l'import de la miniature. Vérifiez le lien.");
+    } finally {
+      setIsLoadingThumbnail(false);
+    }
   };
 
   const generateImage = async () => {
@@ -159,6 +236,7 @@ export function AdvancedImageGenerator({ onImageGenerated }: AdvancedImageGenera
     setReplacementPhoto(null);
     setNewText("");
     setGeneratedImage(null);
+    setYoutubeUrl("");
   };
 
   return (
@@ -381,8 +459,38 @@ export function AdvancedImageGenerator({ onImageGenerated }: AdvancedImageGenera
           {/* Banner Replace Mode */}
           <TabsContent value="banner-replace" className="space-y-4 mt-4">
             <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              💡 Importez une bannière existante (ex: YouTube) et remplacez la photo et le texte par les vôtres.
+              💡 Importez une bannière existante (ex: YouTube) ou collez un lien vidéo YouTube pour extraire sa miniature, puis remplacez la photo et le texte par les vôtres.
             </p>
+
+            {/* YouTube Link Import */}
+            <div className="space-y-2 p-4 border rounded-lg bg-card">
+              <Label className="flex items-center gap-2">
+                <Youtube className="h-4 w-4 text-red-500" />
+                Importer depuis YouTube (optionnel)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://youtube.com/watch?v=xxx ou https://youtu.be/xxx"
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleYouTubeImport}
+                  disabled={isLoadingThumbnail || !youtubeUrl.trim()}
+                  variant="secondary"
+                >
+                  {isLoadingThumbnail ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Collez le lien d'une vidéo YouTube pour récupérer automatiquement sa miniature
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -398,7 +506,7 @@ export function AdvancedImageGenerator({ onImageGenerated }: AdvancedImageGenera
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setBannerToReplace(null)}
+                        onClick={() => { setBannerToReplace(null); setYoutubeUrl(""); }}
                       >
                         Changer
                       </Button>

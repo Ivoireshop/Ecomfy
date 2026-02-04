@@ -17,13 +17,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdTemplateSelector } from "@/components/AdTemplateSelector";
 import { TemplatePreviewDialog } from "@/components/TemplatePreviewDialog";
 
-import { SpellCheckText } from "@/components/SpellCheckText";
+
 import { createTextOverlay, dataURLtoBlob } from "@/lib/textOverlay";
 import { SimpleWorkflow } from "@/components/SimpleWorkflow";
 import { BrandExtractor } from "@/components/BrandExtractor";
 import { MultiImageUploader } from "@/components/MultiImageUploader";
 import { VariationGenerator } from "@/components/VariationGenerator";
-import { TextCorrector } from "@/components/TextCorrector";
+
 import { AdvancedImageGenerator } from "@/components/AdvancedImageGenerator";
 import { Switch } from "@/components/ui/switch";
 
@@ -1029,10 +1029,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
             </TabsList>
           </Tabs>
 
-          {/* Text Corrector Tool */}
-          <div className="container mx-auto px-4 max-w-4xl mb-8">
-            <TextCorrector />
-          </div>
 
           {/* Mode Pro - Workflow Omneky-style */}
           {generationType === "pro" && (
@@ -1707,7 +1703,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
                     <Alert>
                       <AlertDescription>
-                        ⚠️ Vérifiez attentivement l'orthographe, la grammaire et le vocabulaire de chaque texte ci-dessous. Les mots soulignés en rouge peuvent contenir des fautes - survolez-les pour voir les suggestions.
+                        📝 Vérifiez et modifiez les textes ci-dessous avant de générer votre visuel.
                       </AlertDescription>
                     </Alert>
 
@@ -1720,19 +1716,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                           onChange={(e) => setPreviewTexts({...previewTexts, productName: e.target.value})}
                           className="text-lg font-semibold"
                         />
-                        {previewTexts.productName && (
-                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText 
-                              text={previewTexts.productName}
-                              onWordReplace={(oldWord, newWord) => {
-                                setPreviewTexts({
-                                  ...previewTexts,
-                                  productName: previewTexts.productName.replace(oldWord, newWord)
-                                });
-                              }}
-                            />
-                          </div>
-                        )}
                       </div>
 
                       <div>
@@ -1747,19 +1730,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         <p className="text-xs text-muted-foreground mt-1">
                           Ce texte apparaîtra en évidence sur votre visuel
                         </p>
-                        {previewTexts.tagline && (
-                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText 
-                              text={previewTexts.tagline}
-                              onWordReplace={(oldWord, newWord) => {
-                                setPreviewTexts({
-                                  ...previewTexts,
-                                  tagline: previewTexts.tagline.replace(oldWord, newWord)
-                                });
-                              }}
-                            />
-                          </div>
-                        )}
                       </div>
 
                       {previewTexts.promotionalPrice && (
@@ -1771,19 +1741,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                               value={previewTexts.promotionalPrice}
                               onChange={(e) => setPreviewTexts({...previewTexts, promotionalPrice: e.target.value})}
                             />
-                            {previewTexts.promotionalPrice && (
-                              <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                                <SpellCheckText 
-                                  text={previewTexts.promotionalPrice}
-                                  onWordReplace={(oldWord, newWord) => {
-                                    setPreviewTexts({
-                                      ...previewTexts,
-                                      promotionalPrice: previewTexts.promotionalPrice.replace(oldWord, newWord)
-                                    });
-                                  }}
-                                />
-                              </div>
-                            )}
                           </div>
                           <div>
                             <Label htmlFor="preview-price">Prix actuel</Label>
@@ -1793,19 +1750,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                               onChange={(e) => setPreviewTexts({...previewTexts, price: e.target.value})}
                               className="font-bold"
                             />
-                            {previewTexts.price && (
-                              <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                                <SpellCheckText 
-                                  text={previewTexts.price}
-                                  onWordReplace={(oldWord, newWord) => {
-                                    setPreviewTexts({
-                                      ...previewTexts,
-                                      price: previewTexts.price.replace(oldWord, newWord)
-                                    });
-                                  }}
-                                />
-                              </div>
-                            )}
                           </div>
                         </div>
                       )}
@@ -1819,19 +1763,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                             onChange={(e) => setPreviewTexts({...previewTexts, price: e.target.value})}
                             className="font-bold text-lg"
                           />
-                          {previewTexts.price && (
-                            <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                              <SpellCheckText 
-                                text={previewTexts.price}
-                                onWordReplace={(oldWord, newWord) => {
-                                  setPreviewTexts({
-                                    ...previewTexts,
-                                    price: previewTexts.price.replace(oldWord, newWord)
-                                  });
-                                }}
-                              />
-                            </div>
-                          )}
                         </div>
                       )}
 
@@ -1845,17 +1776,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                             rows={2}
                             className="resize-none"
                           />
-                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText 
-                              text={previewTexts.benefits}
-                              onWordReplace={(oldWord, newWord) => {
-                                setPreviewTexts({
-                                  ...previewTexts,
-                                  benefits: previewTexts.benefits.replace(oldWord, newWord)
-                                });
-                              }}
-                            />
-                          </div>
                         </div>
                       )}
 
@@ -1869,19 +1789,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         <p className="text-xs text-muted-foreground mt-1">
                           Exemple : "Commandez maintenant!", "Achetez aujourd'hui", "Contactez-nous"
                         </p>
-                        {previewTexts.callToAction && (
-                          <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                            <SpellCheckText 
-                              text={previewTexts.callToAction}
-                              onWordReplace={(oldWord, newWord) => {
-                                setPreviewTexts({
-                                  ...previewTexts,
-                                  callToAction: previewTexts.callToAction.replace(oldWord, newWord)
-                                });
-                              }}
-                            />
-                          </div>
-                        )}
                       </div>
                     </div>
 
