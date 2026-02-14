@@ -249,15 +249,14 @@ Le visuel doit être:
 
       let videoUrl: string | null = null;
 
-      // Try Replicate first (faster, more reliable)
+      // Try Replicate first (faster, more reliable) - using minimax/video-01-live
       if (replicateApiKey) {
         try {
-          console.log("Using Replicate for video generation...");
-          const replicateResp = await fetch("https://api.replicate.com/v1/predictions", {
+          console.log("Using Replicate minimax/video-01-live for fast video generation...");
+          const replicateResp = await fetch("https://api.replicate.com/v1/models/minimax/video-01-live/predictions", {
             method: "POST",
-            headers: { Authorization: `Bearer ${replicateApiKey}`, "Content-Type": "application/json", Prefer: "wait" },
+            headers: { Authorization: `Bearer ${replicateApiKey}`, "Content-Type": "application/json", Prefer: "wait=120" },
             body: JSON.stringify({
-              version: "d13fb244ad1d5024bc8413e1ede43c90e1b43faa5090a0cf044476480dbbf616",
               input: {
                 prompt: enhancedPrompt,
                 first_frame_image: imagePublicUrl,

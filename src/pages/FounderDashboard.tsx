@@ -317,27 +317,38 @@ const FounderDashboard = () => {
 
   const loadRevenueStats = async () => {
     try {
-      // Get payment statistics
-      const { data: payments, error } = await supabase
+      // Get revenue from active subscriptions (primary revenue source)
+      const { data: activeSubs, error: subsError } = await supabase
+        .from("subscriptions")
+        .select("amount, status, created_at")
+        .eq("status", "active");
+
+      if (subsError) throw subsError;
+
+      const subscriptionRevenue = activeSubs?.reduce((sum, sub) => sum + (sub.amount || 0), 0) || 0;
+      const activeSubCount = activeSubs?.length || 0;
+
+      // Also check payments table for any additional revenue
+      const { data: payments, error: paymentsError } = await supabase
         .from("payments")
         .select("amount, status");
 
-      if (error) throw error;
-
-      const totalRevenue = payments?.reduce((sum, payment) => {
+      const paymentRevenue = payments?.reduce((sum, payment) => {
         if (payment.status === "completed" || payment.status === "success") {
           return sum + payment.amount;
         }
         return sum;
       }, 0) || 0;
 
-      const completedPayments = payments?.filter(
+      const completedPayments = (payments?.filter(
         p => p.status === "completed" || p.status === "success"
-      ).length || 0;
+      ).length || 0) + activeSubCount;
 
       const pendingPayments = payments?.filter(
         p => p.status === "pending"
       ).length || 0;
+
+      const totalRevenue = subscriptionRevenue + paymentRevenue;
 
       setStats(prev => ({
         ...prev,
@@ -397,14 +408,22 @@ const FounderDashboard = () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysBack);
 
-      // Load revenue data over time
+      // Load revenue data from subscriptions (primary source) AND payments
+      const { data: activeSubsChart, error: subsChartError } = await supabase
+        .from("subscriptions")
+        .select("created_at, amount, status")
+        .eq("status", "active")
+        .gte("created_at", startDate.toISOString());
+
+      if (subsChartError) throw subsChartError;
+
       const { data: payments, error: paymentsError } = await supabase
         .from("payments")
         .select("created_at, amount, payment_method, status")
         .gte("created_at", startDate.toISOString())
         .in("status", ["completed", "success"]);
 
-      if (paymentsError) throw paymentsError;
+      if (paymentsError) console.warn("Payments query error (may be RLS):", paymentsError);
 
       // Load signups data over time
       const { data: profiles, error: profilesError } = await supabase
@@ -414,16 +433,23 @@ const FounderDashboard = () => {
 
       if (profilesError) throw profilesError;
 
-      // Process revenue data by day
+      // Process revenue data by day - combine subscriptions and payments
       const revenueByDay = new Map<string, number>();
       const paymentMethodCount = new Map<string, number>();
 
+      // Add subscription revenue
+      activeSubsChart?.forEach((sub) => {
+        const date = new Date(sub.created_at).toISOString().split("T")[0];
+        const currentRevenue = revenueByDay.get(date) || 0;
+        revenueByDay.set(date, currentRevenue + (sub.amount || 0));
+        paymentMethodCount.set("mobile_money", (paymentMethodCount.get("mobile_money") || 0) + 1);
+      });
+
+      // Add payment revenue
       payments?.forEach((payment) => {
         const date = new Date(payment.created_at).toISOString().split("T")[0];
         const currentRevenue = revenueByDay.get(date) || 0;
         revenueByDay.set(date, currentRevenue + payment.amount);
-
-        // Count payment methods
         const method = payment.payment_method || "mobile_money";
         paymentMethodCount.set(method, (paymentMethodCount.get(method) || 0) + 1);
       });
