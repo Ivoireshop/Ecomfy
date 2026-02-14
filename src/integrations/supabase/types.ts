@@ -71,6 +71,42 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          api_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          key_name: string
+          last_used_at: string | null
+          request_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_name?: string
+          last_used_at?: string | null
+          request_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_name?: string
+          last_used_at?: string | null
+          request_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       blog_posts: {
         Row: {
           author_name: string
@@ -1825,6 +1861,7 @@ export type Database = {
       cleanup_expired_trash: { Args: never; Returns: undefined }
       cleanup_old_image_cache: { Args: never; Returns: undefined }
       count_processing_generations: { Args: never; Returns: number }
+      generate_api_key: { Args: never; Returns: string }
       generate_certificate_number: { Args: never; Returns: string }
       generate_domain_verification_code: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
