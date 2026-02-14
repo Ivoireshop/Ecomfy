@@ -26,6 +26,7 @@ import { VariationGenerator } from "@/components/VariationGenerator";
 
 import { AdvancedImageGenerator } from "@/components/AdvancedImageGenerator";
 import { Switch } from "@/components/ui/switch";
+import { VideoGenerator } from "@/components/VideoGenerator";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -1114,8 +1115,18 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
             </div>
           )}
 
-          {/* Mode Classique & Vidéo - Formulaire */}
-          {(generationType === "image" || generationType === "video") && (
+          {/* Mode Vidéo - Interface dédiée */}
+          {generationType === "video" && (
+            <VideoGenerator
+              hasActiveSubscription={hasActiveSubscription}
+              isFounder={isFounder}
+              videoGenerationsRemaining={videoGenerationsRemaining}
+              onVideoGenerated={loadUserGenerationStatus}
+            />
+          )}
+
+          {/* Mode Classique - Formulaire */}
+          {generationType === "image" && (
           <div className="bg-card rounded-xl shadow-lg p-8 border">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
               <div className="space-y-2">
@@ -1360,95 +1371,55 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 />
               </div>
 
-              {generationType === "image" ? (
-                <>
-                  {!hasActiveSubscription && freeGenerationsRemaining === 0 && (
-                    <Alert className="border-red-500 bg-red-50 dark:bg-red-950">
-                      <AlertDescription className="text-center space-y-2">
-                        <p className="font-bold text-red-700 dark:text-red-400">
-                          ⚠️ Essai gratuit terminé
-                        </p>
-                        <p className="text-sm">
-                          Pour continuer à créer des visuels professionnels avec l'IA
-                        </p>
-                        <Button 
-                          size="sm" 
-                          className="bg-gradient-to-r from-primary to-secondary"
-                          onClick={() => navigate("/subscription")}
-                        >
-                          🚀 Souscrire maintenant
-                        </Button>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <Button
-                    type="button"
-                    onClick={openTextPreview}
-                    className="w-full text-lg py-6"
-                    size="lg"
-                    disabled={isLoading || (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0)}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Génération en cours...
-                      </>
-                    ) : (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0) ? (
-                      "Quota épuisé - Prenez un abonnement"
-                    ) : (
-                      <>
-                        <Wand2 className="mr-2 h-5 w-5" />
-                        Prévisualiser et générer
-                        {!hasActiveSubscription && freeGenerationsRemaining !== null && freeGenerationsRemaining > 0 && (
-                          <span className="ml-2 text-xs opacity-80">
-                            ({freeGenerationsRemaining} gratuit{freeGenerationsRemaining > 1 ? 's' : ''})
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={handleGenerateVideo}
-                  className="w-full text-lg py-6"
-                  size="lg"
-                  disabled={isGeneratingVideo || !hasActiveSubscription || videoGenerationsRemaining <= 0}
-                >
-                  {isGeneratingVideo ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Génération vidéo en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Video className="mr-2 h-5 w-5" />
-                      Générer ma vidéo (30s max)
-                    </>
-                  )}
-                </Button>
+              {!hasActiveSubscription && freeGenerationsRemaining === 0 && (
+                <Alert className="border-destructive bg-destructive/10">
+                  <AlertDescription className="text-center space-y-2">
+                    <p className="font-bold text-destructive">
+                      ⚠️ Essai gratuit terminé
+                    </p>
+                    <p className="text-sm">
+                      Pour continuer à créer des visuels professionnels avec l'IA
+                    </p>
+                    <Button 
+                      size="sm" 
+                      className="bg-gradient-to-r from-primary to-secondary"
+                      onClick={() => navigate("/subscription")}
+                    >
+                      🚀 Souscrire maintenant
+                    </Button>
+                  </AlertDescription>
+                </Alert>
               )}
+              <Button
+                type="button"
+                onClick={openTextPreview}
+                className="w-full text-lg py-6"
+                size="lg"
+                disabled={isLoading || (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0)}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Génération en cours...
+                  </>
+                ) : (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0) ? (
+                  "Quota épuisé - Prenez un abonnement"
+                ) : (
+                  <>
+                    <Wand2 className="mr-2 h-5 w-5" />
+                    Prévisualiser et générer
+                    {!hasActiveSubscription && freeGenerationsRemaining !== null && freeGenerationsRemaining > 0 && (
+                      <span className="ml-2 text-xs opacity-80">
+                        ({freeGenerationsRemaining} gratuit{freeGenerationsRemaining > 1 ? 's' : ''})
+                      </span>
+                    )}
+                  </>
+                )}
+              </Button>
             </form>
 
-            {videoProgress && (
-              <div className="mt-6 p-4 bg-muted rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Progression de la vidéo</span>
-                  <span className="text-sm text-muted-foreground">{videoProgress.percentage}%</span>
-                </div>
-                <Progress value={videoProgress.percentage} className="w-full" />
-                <p className="text-xs text-muted-foreground text-center">
-                  {videoProgress.step === 'initializing' && '⏳ Initialisation...'}
-                  {videoProgress.step === 'generating_image' && '🎨 Génération de l\'image...'}
-                  {videoProgress.step === 'image_generated' && '✅ Image générée!'}
-                  {videoProgress.step === 'animating_video' && '🎬 Animation en cours...'}
-                  {videoProgress.step === 'video_ready' && '🎉 Vidéo prête!'}
-                  {videoProgress.step === 'finalizing' && '📦 Finalisation...'}
-                  {videoProgress.step === 'completed' && '✨ Terminé!'}
-                </p>
-              </div>
-            )}
+
+
 
             {generatedImage && !isEditing && (
               <div className="mt-8">
