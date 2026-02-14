@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Menu, X, Sparkles } from "lucide-react";
+import { Menu, X, Wand2 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import logo from "@/assets/visualpro-logo.svg";
@@ -67,7 +67,7 @@ export function Header() {
               Connexion
             </Button>
             <Button onClick={() => navigate("/auth")}>
-              <Sparkles className="mr-2 h-4 w-4" />
+              <Wand2 className="mr-2 h-4 w-4" />
               Commencer
             </Button>
           </div>
@@ -133,7 +133,7 @@ export function Header() {
                       setIsOpen(false);
                     }}
                   >
-                    <Sparkles className="mr-2 h-4 w-4" />
+                    <Wand2 className="mr-2 h-4 w-4" />
                     Commencer
                   </Button>
                 </div>

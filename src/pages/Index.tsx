@@ -3,9 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { 
-  Sparkles, Video, Image as ImageIcon, Globe, Zap, 
+  Video, Image as ImageIcon, Globe, Zap, 
   Shield, Users, Code, BookOpen, FileText, Lock,
-  CheckCircle2, ArrowRight, Star, TrendingUp
+  CheckCircle2, ArrowRight, TrendingUp, Wand2
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,7 +114,7 @@ const Index = () => {
       <section className="container mx-auto px-4 py-20 md:py-32">
         <div className="max-w-5xl mx-auto text-center">
           <Badge className="mb-6 animate-fade-in" variant="secondary">
-            <Sparkles className="w-4 h-4 mr-2" />
+            <Wand2 className="w-4 h-4 mr-2" />
             Plateforme de création visuelle pour l'Afrique
           </Badge>
           
@@ -136,7 +136,7 @@ const Index = () => {
               className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
               onClick={() => navigate(session ? "/generator" : "/auth")}
             >
-              <Sparkles className="mr-2 h-5 w-5" />
+              <Wand2 className="mr-2 h-5 w-5" />
               {session ? "Créer maintenant" : "Commencer gratuitement"}
             </Button>
             <Button 
@@ -555,14 +555,20 @@ const Index = () => {
                 <Card key={feedback.id} className="p-6 hover:shadow-xl transition-all">
                   <div className="flex items-center mb-4">
                     {[...Array(5)].map((_, i) => (
-                      <Star
+                      <svg
                         key={i}
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
+                        stroke="currentColor"
                         className={`w-5 h-5 ${
                           i < feedback.rating
                             ? 'text-yellow-500 fill-yellow-500'
-                            : 'text-gray-300'
+                            : 'text-gray-300 fill-none'
                         }`}
-                      />
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                      </svg>
                     ))}
                   </div>
                   <p className="text-muted-foreground mb-4 italic">
@@ -655,7 +661,7 @@ const Index = () => {
               className="text-lg px-10 py-7 shadow-lg hover:shadow-xl"
               onClick={() => navigate(session ? "/generator" : "/auth")}
             >
-              <Sparkles className="mr-2 h-5 w-5" />
+              <Wand2 className="mr-2 h-5 w-5" />
               {session ? "Créer maintenant" : "Commencer gratuitement"}
             </Button>
           </Card>

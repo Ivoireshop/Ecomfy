@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, Video, Volume2, Play, Pause, Download } from "lucide-react";
+import { Loader2, Video, Volume2, Play, Pause, Download, Wand2, ImageIcon, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -1011,15 +1011,15 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           <Tabs value={generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
             <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4">
               <TabsTrigger value="image">
-                <Sparkles className="mr-2 h-4 w-4" />
+                <ImageIcon className="mr-2 h-4 w-4" />
                 Classique
               </TabsTrigger>
               <TabsTrigger value="advanced">
-                <Sparkles className="mr-2 h-4 w-4" />
+                <Wand2 className="mr-2 h-4 w-4" />
                 Avancé
               </TabsTrigger>
               <TabsTrigger value="pro">
-                <Sparkles className="mr-2 h-4 w-4" />
+                <Zap className="mr-2 h-4 w-4" />
                 Mode Pro
               </TabsTrigger>
               <TabsTrigger value="video" disabled={!hasActiveSubscription}>
@@ -1037,7 +1037,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 <Card className="border-primary/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
+                      <Zap className="h-5 w-5 text-primary" />
                       Mode Pro - Abonnement Requis
                     </CardTitle>
                     <CardDescription>
@@ -1114,8 +1114,8 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
             </div>
           )}
 
-          {/* Mode Classique - Formulaire existant */}
-          {generationType === "image" && (
+          {/* Mode Classique & Vidéo - Formulaire */}
+          {(generationType === "image" || generationType === "video") && (
           <div className="bg-card rounded-xl shadow-lg p-8 border">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
               <div className="space-y-2">
@@ -1397,7 +1397,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                       "Quota épuisé - Prenez un abonnement"
                     ) : (
                       <>
-                        <Sparkles className="mr-2 h-5 w-5" />
+                        <Wand2 className="mr-2 h-5 w-5" />
                         Prévisualiser et générer
                         {!hasActiveSubscription && freeGenerationsRemaining !== null && freeGenerationsRemaining > 0 && (
                           <span className="ml-2 text-xs opacity-80">
@@ -1493,7 +1493,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-2 h-4 w-4" />
+                          <Wand2 className="mr-2 h-4 w-4" />
                           Corriger et régénérer l'image
                         </>
                       )}
@@ -1812,7 +1812,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                           </>
                         ) : (
                           <>
-                            <Sparkles className="mr-2 h-4 w-4" />
+                            <Wand2 className="mr-2 h-4 w-4" />
                             Confirmer et générer
                           </>
                         )}

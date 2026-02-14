@@ -45,11 +45,8 @@ export function UserAvatar() {
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
-      navigate("/");
-      toast({
-        title: "Déconnecté",
-        description: "Vous avez été déconnecté avec succès.",
-      });
+      // Force clear all state and redirect to auth
+      window.location.href = "/auth";
     } catch (error) {
       toast({
         title: "Erreur",
