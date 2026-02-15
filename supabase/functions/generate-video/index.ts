@@ -28,20 +28,19 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Use getClaims for reliable JWT validation
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
-    console.log("Claims result:", { hasClaims: !!claimsData?.claims, error: claimsError?.message });
+    // Validate JWT using getUser
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    console.log("Auth result:", { hasUser: !!userData?.user, error: userError?.message });
 
-    if (claimsError || !claimsData?.claims) {
-      console.error("Auth error:", claimsError?.message);
+    if (userError || !userData?.user) {
+      console.error("Auth error:", userError?.message);
       return new Response(
-        JSON.stringify({ error: "Non authentifié - session invalide", details: claimsError?.message }),
+        JSON.stringify({ error: "Non authentifié - session invalide", details: userError?.message }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
+    const userId = userData.user.id;
     console.log("User authenticated:", userId);
 
     // Check founder/co-founder role

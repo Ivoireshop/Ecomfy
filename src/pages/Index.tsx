@@ -537,9 +537,9 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Section Témoignages */}
+      {/* Section Témoignages - Défilement automatique */}
       {publishedFeedback.length > 0 && (
-        <section className="py-20">
+        <section className="py-20 overflow-hidden">
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold mb-6">
@@ -549,10 +549,13 @@ const Index = () => {
                 Découvrez ce que nos utilisateurs disent de Visual Pro
               </p>
             </div>
+          </div>
 
-            <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {publishedFeedback.slice(0, 6).map((feedback) => (
-                <Card key={feedback.id} className="p-6 hover:shadow-xl transition-all">
+          {/* Marquee scrolling testimonials */}
+          <div className="relative">
+            <div className="flex animate-marquee gap-6" style={{ width: 'max-content' }}>
+              {[...publishedFeedback, ...publishedFeedback].map((feedback, idx) => (
+                <Card key={`${feedback.id}-${idx}`} className="p-6 min-w-[350px] max-w-[400px] shrink-0 hover:shadow-xl transition-all">
                   <div className="flex items-center mb-4">
                     {[...Array(5)].map((_, i) => (
                       <svg
@@ -571,7 +574,7 @@ const Index = () => {
                       </svg>
                     ))}
                   </div>
-                  <p className="text-muted-foreground mb-4 italic">
+                  <p className="text-muted-foreground mb-4 italic line-clamp-4">
                     "{feedback.comment}"
                   </p>
                   <div className="flex items-center gap-3">
