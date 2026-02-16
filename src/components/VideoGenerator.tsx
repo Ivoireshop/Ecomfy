@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Upload, X, ImageIcon, Loader2, Video, Film, Clapperboard } from "lucide-react";
+import { Upload, X, ImageIcon, Loader2, Video, Film, Clapperboard, Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,6 +16,12 @@ interface VideoGeneratorProps {
   isFounder: boolean;
   videoGenerationsRemaining: number;
   onVideoGenerated?: () => void;
+}
+
+interface GeneratedVideoResult {
+  videoUrl: string;
+  videoId: string;
+  message: string;
 }
 
 export function VideoGenerator({
@@ -32,6 +38,7 @@ export function VideoGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState<{ step: string; percentage: number } | null>(null);
+  const [generatedVideo, setGeneratedVideo] = useState<GeneratedVideoResult | null>(null);
 
   const MAX_IMAGES = 4;
 
@@ -152,16 +159,21 @@ export function VideoGenerator({
       if (error) throw error;
       if (data?.error) throw new Error(data.details || data.error);
 
-      // Success
+      // Success - show video on same page
       setProgress({ step: "completed", percentage: 100 });
-      toast.success("Vidéo générée avec succès !");
+      toast.success(data?.message || "Vidéo générée avec succès !");
+
+      setGeneratedVideo({
+        videoUrl: data.videoUrl,
+        videoId: data.videoId,
+        message: data.message || "Vidéo générée avec succès !",
+      });
 
       setTimeout(() => {
         setProgress(null);
         setIsGenerating(false);
         onVideoGenerated?.();
-        navigate("/library");
-      }, 1500);
+      }, 1000);
     } catch (err: any) {
       if (progressInterval) clearInterval(progressInterval);
       if (channel) supabase.removeChannel(channel);
@@ -389,6 +401,62 @@ export function VideoGenerator({
           </>
         )}
       </Button>
+      {/* Generated Video Result */}
+      {generatedVideo && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              🎉 Votre vidéo est prête !
+            </CardTitle>
+            <CardDescription>{generatedVideo.message}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg overflow-hidden bg-black">
+              {generatedVideo.videoUrl.endsWith('.mp4') ? (
+                <video
+                  src={generatedVideo.videoUrl}
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  loop
+                  className="w-full max-h-[500px] object-contain"
+                />
+              ) : (
+                <img
+                  src={generatedVideo.videoUrl}
+                  alt="Contenu généré"
+                  className="w-full max-h-[500px] object-contain"
+                />
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  const ext = generatedVideo.videoUrl.endsWith('.mp4') ? 'mp4' : 'png';
+                  const link = document.createElement('a');
+                  link.href = generatedVideo.videoUrl;
+                  link.download = `video-${generatedVideo.videoId}.${ext}`;
+                  link.target = '_blank';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Télécharger
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/library")}>
+                Voir la bibliothèque
+              </Button>
+              <Button variant="ghost" onClick={() => setGeneratedVideo(null)}>
+                Nouvelle vidéo
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
