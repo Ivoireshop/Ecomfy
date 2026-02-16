@@ -28,8 +28,9 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Validate JWT using getUser
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    // Validate JWT using getUser with explicit token
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     console.log("Auth result:", { hasUser: !!userData?.user, error: userError?.message });
 
     if (userError || !userData?.user) {
