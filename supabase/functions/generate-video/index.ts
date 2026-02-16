@@ -255,7 +255,7 @@ Le visuel doit être:
           console.log("Using Replicate minimax/video-01-live for fast video generation...");
           const replicateResp = await fetch("https://api.replicate.com/v1/models/minimax/video-01-live/predictions", {
             method: "POST",
-            headers: { Authorization: `Bearer ${replicateApiKey}`, "Content-Type": "application/json", Prefer: "wait=120" },
+            headers: { Authorization: `Bearer ${replicateApiKey}`, "Content-Type": "application/json", Prefer: "wait=60" },
             body: JSON.stringify({
               input: {
                 prompt: enhancedPrompt,
@@ -308,7 +308,7 @@ Le visuel doit être:
       if (!videoUrl && runwayApiKey) {
         try {
           console.log("Fallback to Runway Gen-3...");
-          const runwayResponse = await fetch("https://api.runwayml.com/v1/image_to_video", {
+          const runwayResponse = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${runwayApiKey}`,
@@ -335,7 +335,7 @@ Le visuel doit être:
 
             while (Date.now() - pollStart < maxPoll) {
               await new Promise((r) => setTimeout(r, 3000));
-              const statusResp = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
+              const statusResp = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
                 headers: { Authorization: `Bearer ${runwayApiKey}`, "X-Runway-Version": "2024-11-06" },
               });
 
