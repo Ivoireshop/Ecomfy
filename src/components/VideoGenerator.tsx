@@ -93,6 +93,9 @@ export function VideoGenerator({
     setIsGenerating(true);
     setProgress({ step: "uploading", percentage: 5 });
 
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let progressInterval: ReturnType<typeof setInterval> | null = null;
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -114,9 +117,20 @@ export function VideoGenerator({
         imageUrls.push(urlData.publicUrl);
       }
 
-      setProgress({ step: "generating", percentage: 15 });
+      setProgress({ step: "generating", percentage: 10 });
 
-      // Call edge function
+      // Start a smooth progress animation to avoid "stuck" feeling
+      let currentProgress = 10;
+      progressInterval = setInterval(() => {
+        // Slowly increment progress up to 85% max while waiting
+        if (currentProgress < 85) {
+          currentProgress += Math.random() * 2;
+          currentProgress = Math.min(currentProgress, 85);
+          setProgress(prev => prev ? { ...prev, percentage: Math.round(currentProgress) } : null);
+        }
+      }, 2000);
+
+      // Call edge function (this blocks until video is done)
       const { data, error } = await supabase.functions.invoke("generate-video", {
         body: {
           productName: "Produit vidéo",
@@ -132,48 +146,25 @@ export function VideoGenerator({
         },
       });
 
+      // Clear the animation interval
+      if (progressInterval) clearInterval(progressInterval);
+
       if (error) throw error;
       if (data?.error) throw new Error(data.details || data.error);
 
-      const videoId = data.videoId;
+      // Success
+      setProgress({ step: "completed", percentage: 100 });
+      toast.success("Vidéo générée avec succès !");
 
-      // Listen for realtime progress
-      const channel = supabase
-        .channel(`video-progress-${videoId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "generated_videos",
-            filter: `id=eq.${videoId}`,
-          },
-          (payload) => {
-            const { progress_step, progress_percentage, status } = payload.new;
-            setProgress({
-              step: progress_step || "processing",
-              percentage: progress_percentage || 0,
-            });
-
-            if (status === "completed") {
-              toast.success("Vidéo générée avec succès !");
-              setProgress(null);
-              setIsGenerating(false);
-              onVideoGenerated?.();
-              setTimeout(() => navigate("/library"), 2000);
-              supabase.removeChannel(channel);
-            } else if (status === "failed") {
-              toast.error("La génération a échoué, veuillez réessayer");
-              setProgress(null);
-              setIsGenerating(false);
-              supabase.removeChannel(channel);
-            }
-          }
-        )
-        .subscribe();
-
-      toast.success("Vidéo en cours de génération, suivez la progression...");
+      setTimeout(() => {
+        setProgress(null);
+        setIsGenerating(false);
+        onVideoGenerated?.();
+        navigate("/library");
+      }, 1500);
     } catch (err: any) {
+      if (progressInterval) clearInterval(progressInterval);
+      if (channel) supabase.removeChannel(channel);
       console.error("Video generation error:", err);
       toast.error(err?.message || "Erreur lors de la génération");
       setProgress(null);
@@ -183,7 +174,7 @@ export function VideoGenerator({
 
   const stepLabels: Record<string, string> = {
     uploading: "📤 Upload des images...",
-    generating: "🚀 Lancement de la génération...",
+    generating: "🎬 Génération en cours, cela peut prendre 1-2 minutes...",
     initializing: "⏳ Initialisation...",
     generating_image: "🎨 Création de l'image de base...",
     image_generated: "✅ Image créée !",
