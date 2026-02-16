@@ -59,25 +59,47 @@ const Library = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load images with formats
+      // Load images WITHOUT the heavy join to avoid timeout
       const { data: imagesData, error: imagesError } = await supabase
         .from("generated_images")
-        .select(`
-          *,
-          formats:image_formats(*)
-        `)
+        .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (imagesError) throw imagesError;
-      setImages(imagesData || []);
+
+      // Load formats separately for the loaded images
+      const imageIds = (imagesData || []).map(img => img.id);
+      let formatsMap: Record<string, ImageFormat[]> = {};
+      
+      if (imageIds.length > 0) {
+        const { data: formatsData } = await supabase
+          .from("image_formats")
+          .select("*")
+          .in("image_id", imageIds);
+        
+        if (formatsData) {
+          for (const fmt of formatsData) {
+            if (!formatsMap[fmt.image_id]) formatsMap[fmt.image_id] = [];
+            formatsMap[fmt.image_id].push(fmt);
+          }
+        }
+      }
+
+      const imagesWithFormats = (imagesData || []).map(img => ({
+        ...img,
+        formats: formatsMap[img.id] || [],
+      }));
+      setImages(imagesWithFormats);
 
       // Load videos
       const { data: videosData, error: videosError } = await supabase
         .from("generated_videos")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (videosError) throw videosError;
       setVideos(videosData || []);
@@ -334,7 +356,7 @@ const Library = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {videos.map((video) => (
                   <div key={video.id} className="bg-card rounded-lg overflow-hidden shadow-lg border">
-                    <div className="w-full h-48 bg-muted flex items-center justify-center">
+                    <div className="w-full aspect-video bg-muted flex items-center justify-center">
                       {video.status === "processing" ? (
                         <div className="text-center">
                           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
@@ -344,7 +366,7 @@ const Library = () => {
                         <div className="text-center">
                           <p className="text-sm text-destructive">Échec de la génération</p>
                         </div>
-                      ) : video.video_url.endsWith('.mp4') ? (
+                      ) : (
                         <video 
                           src={video.video_url} 
                           className="w-full h-full object-cover"
@@ -352,13 +374,17 @@ const Library = () => {
                           loop
                           muted
                           playsInline
-                        />
-                      ) : (
-                        <img 
-                          src={video.video_url} 
-                          alt={video.product_details?.productName || "Vidéo générée"}
-                          className="w-full h-full object-cover"
-                        />
+                          preload="metadata"
+                          poster={!video.video_url.endsWith('.mp4') ? video.video_url : undefined}
+                        >
+                          <source src={video.video_url} />
+                          {/* Fallback to image if not a video */}
+                          <img 
+                            src={video.video_url} 
+                            alt={video.product_details?.productName || "Contenu généré"}
+                            className="w-full h-full object-cover"
+                          />
+                        </video>
                       )}
                     </div>
                     <div className="p-4">
