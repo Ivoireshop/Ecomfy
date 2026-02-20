@@ -453,7 +453,7 @@ echo $result['imageUrl'];`}</code></pre>
           <div className="space-y-2">
             <p>📧 Email : api@visualpro.africa</p>
             <p>💬 WhatsApp : +225 07 00 00 00</p>
-            <p>📚 GitHub : <a href="https://github.com/visualpro-africa" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80">github.com/visualpro-africa</a></p>
+            <p>📚 Documentation : <a href="/api-documentation" className="text-primary underline hover:opacity-80">Accéder à la documentation complète</a></p>
           </div>
         </Card>
       </div>
