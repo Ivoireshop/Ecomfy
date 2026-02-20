@@ -22,6 +22,7 @@ interface GeneratedVideoResult {
   videoUrl: string;
   videoId: string;
   message: string;
+  isImage?: boolean;
 }
 
 export function VideoGenerator({
@@ -159,14 +160,17 @@ export function VideoGenerator({
       if (error) throw error;
       if (data?.error) throw new Error(data.details || data.error);
 
-      // Success - show video on same page
+      // Success - show result on same page
       setProgress({ step: "completed", percentage: 100 });
+
+      const isActualVideo = data.videoUrl?.endsWith('.mp4') || (!data.isImage && data.videoUrl);
       toast.success(data?.message || "Vidéo générée avec succès !");
 
       setGeneratedVideo({
         videoUrl: data.videoUrl,
         videoId: data.videoId,
         message: data.message || "Vidéo générée avec succès !",
+        isImage: !!data.isImage,
       });
 
       setTimeout(() => {
@@ -406,7 +410,7 @@ export function VideoGenerator({
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              🎉 Votre vidéo est prête !
+              {generatedVideo.isImage ? "🖼️ Image générée (vidéo indisponible)" : "🎉 Votre vidéo MP4 est prête !"}
             </CardTitle>
             <CardDescription>{generatedVideo.message}</CardDescription>
           </CardHeader>
