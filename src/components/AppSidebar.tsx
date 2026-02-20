@@ -1,4 +1,4 @@
-import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, Gift, HelpCircle, PlayCircle } from "lucide-react";
+import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, Gift, HelpCircle, PlayCircle, Code2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -34,6 +34,7 @@ const items = [
   { title: "Tutoriel", url: "/tutorial", icon: HelpCircle },
   { title: "Démo Vidéo", url: "/demo", icon: PlayCircle },
   { title: "Avis & Commentaires", url: "/feedback", icon: MessageSquare },
+  { title: "Espace Développeur", url: "/api-documentation", icon: Code2 },
 ];
 
 export function AppSidebar() {

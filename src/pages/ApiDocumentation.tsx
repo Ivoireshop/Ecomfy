@@ -452,8 +452,8 @@ echo $result['imageUrl'];`}</code></pre>
           <p className="text-muted-foreground mb-4">Notre équipe est disponible pour vous aider avec l'intégration de l'API.</p>
           <div className="space-y-2">
             <p>📧 Email : api@visualpro.africa</p>
-            <p>💬 WhatsApp : +225 07 00 00 00</p>
-            <p>📚 Documentation : <a href="/api-documentation" className="text-primary underline hover:opacity-80">Accéder à la documentation complète</a></p>
+            <p>💬 WhatsApp : <a href="https://wa.me/2250758152761" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80">+225 07 58 15 27 61</a></p>
+            <p>📚 Clés API : Rendez-vous dans <strong>Paramètres → Espace Développeur</strong> pour gérer vos clés API.</p>
           </div>
         </Card>
       </div>
