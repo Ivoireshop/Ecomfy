@@ -496,8 +496,8 @@ const Index = () => {
                     <span>Webhooks en temps réel</span>
                   </li>
                 </ul>
-                <Button variant="outline" onClick={() => window.open('https://docs.visualpro.africa', '_blank')}>
-                  Voir la documentation API
+                <Button variant="outline" onClick={() => window.open('https://github.com/visualpro-africa', '_blank')}>
+                  Voir la documentation API sur GitHub
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Card>
