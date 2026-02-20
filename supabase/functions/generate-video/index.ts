@@ -249,10 +249,10 @@ Le visuel doit être:
 
       let videoUrl: string | null = null;
 
-      // Try Replicate first (faster, more reliable) - using minimax/video-01-live
+      // Try Replicate first (minimax/video-01-live)
       if (replicateApiKey) {
         try {
-          console.log("Using Replicate minimax/video-01-live for fast video generation...");
+          console.log("Using Replicate minimax/video-01-live...");
           const replicateResp = await fetch("https://api.replicate.com/v1/models/minimax/video-01-live/predictions", {
             method: "POST",
             headers: { Authorization: `Bearer ${replicateApiKey}`, "Content-Type": "application/json", Prefer: "wait=60" },
@@ -267,27 +267,25 @@ Le visuel doit être:
 
           if (replicateResp.ok) {
             const repData = await replicateResp.json();
-            console.log("Replicate status:", repData.status);
+            console.log("Replicate initial status:", repData.status);
 
             if (repData.status === "succeeded" && repData.output) {
-              videoUrl = typeof repData.output === "string" ? repData.output : repData.output[0] || repData.output;
-              console.log("Replicate video generated!");
-            } else if (repData.status === "processing" || repData.status === "starting") {
-              // Poll for completion
+              videoUrl = typeof repData.output === "string" ? repData.output : repData.output[0] || null;
+              console.log("Replicate video done immediately!");
+            } else if (repData.id && (repData.status === "processing" || repData.status === "starting")) {
+              // Poll up to 4 minutes
               const predictionId = repData.id;
-              const maxPoll = 120000;
-              const pollStart = Date.now();
-
-              while (Date.now() - pollStart < maxPoll) {
-                await new Promise((r) => setTimeout(r, 3000));
+              const pollEnd = Date.now() + 240000;
+              while (Date.now() < pollEnd) {
+                await new Promise((r) => setTimeout(r, 5000));
                 const pollResp = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
                   headers: { Authorization: `Bearer ${replicateApiKey}` },
                 });
                 if (pollResp.ok) {
                   const pollData = await pollResp.json();
-                  console.log("Replicate poll status:", pollData.status);
+                  console.log("Replicate poll:", pollData.status);
                   if (pollData.status === "succeeded" && pollData.output) {
-                    videoUrl = typeof pollData.output === "string" ? pollData.output : pollData.output[0] || pollData.output;
+                    videoUrl = typeof pollData.output === "string" ? pollData.output : pollData.output[0] || null;
                     break;
                   } else if (pollData.status === "failed" || pollData.status === "canceled") {
                     console.error("Replicate failed:", pollData.error);
@@ -297,14 +295,15 @@ Le visuel doit être:
               }
             }
           } else {
-            console.error("Replicate error:", replicateResp.status, await replicateResp.text());
+            const errText = await replicateResp.text();
+            console.error("Replicate error:", replicateResp.status, errText);
           }
         } catch (e) {
           console.error("Replicate request failed:", e);
         }
       }
 
-      // Fallback to Runway if Replicate failed
+      // Fallback: Runway Gen-3
       if (!videoUrl && runwayApiKey) {
         try {
           console.log("Fallback to Runway Gen-3...");
@@ -328,21 +327,16 @@ Le visuel doit être:
           if (runwayResponse.ok) {
             const runwayData = await runwayResponse.json();
             const taskId = runwayData.id;
-            console.log("Runway task:", taskId);
-
-            const maxPoll = 120000;
-            const pollStart = Date.now();
-
-            while (Date.now() - pollStart < maxPoll) {
-              await new Promise((r) => setTimeout(r, 3000));
+            const pollEnd = Date.now() + 240000;
+            while (Date.now() < pollEnd) {
+              await new Promise((r) => setTimeout(r, 5000));
               const statusResp = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
                 headers: { Authorization: `Bearer ${runwayApiKey}`, "X-Runway-Version": "2024-11-06" },
               });
-
               if (statusResp.ok) {
                 const statusData = await statusResp.json();
                 if (statusData.status === "SUCCEEDED") {
-                  videoUrl = statusData.output?.[0];
+                  videoUrl = statusData.output?.[0] || null;
                   break;
                 } else if (statusData.status === "FAILED") {
                   console.error("Runway failed");
@@ -358,8 +352,70 @@ Le visuel doit être:
         }
       }
 
+      // Fallback: Cloudinary — create a real MP4 from image (zoom/pan animation)
       if (!videoUrl) {
-        // Return image as fallback
+        const CLOUDINARY_URL = Deno.env.get("CLOUDINARY_URL");
+        if (CLOUDINARY_URL) {
+          try {
+            console.log("Fallback: Creating MP4 via Cloudinary animation...");
+            const cloudinaryMatch = CLOUDINARY_URL.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+            if (cloudinaryMatch) {
+              const [, apiKey, apiSecret, cloudName] = cloudinaryMatch;
+
+              // Upload the base image to Cloudinary
+              const imgFetch = await fetch(imagePublicUrl);
+              if (imgFetch.ok) {
+                const imgBlob = await imgFetch.blob();
+                const formData = new FormData();
+                formData.append("file", imgBlob);
+                formData.append("upload_preset", "ml_default");
+                formData.append("api_key", apiKey);
+
+                const uploadResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+                  method: "POST",
+                  body: formData,
+                });
+
+                if (uploadResp.ok) {
+                  const uploadData = await uploadResp.json();
+                  const publicId = uploadData.public_id;
+                  console.log("Cloudinary image uploaded:", publicId);
+
+                  // Create animated MP4: zoom-in effect over 5-10 seconds
+                  const dur = Math.min(safeDuration, 10);
+                  const animatedVideoUrl = `https://res.cloudinary.com/${cloudName}/video/upload/` +
+                    `e_zoompan:du_${dur};zoom_1.5;x_0.5;y_0.5,` +
+                    `ac_none,` +
+                    `fps_25,` +
+                    `vc_mp4/` +
+                    `${publicId.replace(/\//g, ":")}.mp4`;
+
+                  console.log("Cloudinary animated URL:", animatedVideoUrl);
+
+                  // Fetch and verify the video
+                  await new Promise(r => setTimeout(r, 3000)); // Give Cloudinary time to process
+                  const videoCheckResp = await fetch(animatedVideoUrl, { method: "HEAD" });
+                  if (videoCheckResp.ok) {
+                    videoUrl = animatedVideoUrl;
+                    console.log("Cloudinary MP4 ready!");
+                  } else {
+                    // Try fetching it directly
+                    const videoFetchResp = await fetch(animatedVideoUrl);
+                    if (videoFetchResp.ok) {
+                      videoUrl = animatedVideoUrl;
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Cloudinary fallback failed:", e);
+          }
+        }
+      }
+
+      if (!videoUrl) {
+        // Last resort: return image as fallback
         await serviceClient.from("generated_videos").update({
           video_url: imagePublicUrl,
           status: "completed",
@@ -372,12 +428,14 @@ Le visuel doit être:
             success: true,
             videoId: videoData.id,
             videoUrl: imagePublicUrl,
-            message: "Image générée. La vidéo n'a pas pu être créée, l'image est disponible.",
+            isImage: true,
+            message: "Génération vidéo indisponible pour le moment. L'image de base est disponible.",
             videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1),
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
 
       // Upload video to storage
       await serviceClient.from("generated_videos").update({ progress_step: "finalizing", progress_percentage: 90 }).eq("id", videoData.id);
