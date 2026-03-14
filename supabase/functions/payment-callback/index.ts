@@ -296,7 +296,7 @@ serve(async (req) => {
       }
 
       // Envoyer l'email de confirmation uniquement pour les abonnements
-      if (!isCreditsPayment) {
+      if (!isCreditsPayment && !isShopActivation) {
         const { data: profile } = await supabase
           .from("profiles")
           .select("email, full_name")
