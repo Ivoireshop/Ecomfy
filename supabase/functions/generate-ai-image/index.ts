@@ -151,8 +151,6 @@ serve(async (req) => {
       console.log("Using image editing with GPT vision + image generation");
 
       // Use the Lovable AI gateway for image generation with editing
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      
       const editResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
