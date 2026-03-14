@@ -39,6 +39,10 @@ import CookiesPolicy from "./pages/CookiesPolicy";
 import ApiDocumentation from "./pages/ApiDocumentation";
 import Blog from "./pages/Blog";
 import LegalNotice from "./pages/LegalNotice";
+import ShopManager from "./pages/ShopManager";
+import ShopBuilder from "./pages/ShopBuilder";
+import ShopEditor from "./pages/ShopEditor";
+import ShopView from "./pages/ShopView";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
@@ -47,9 +51,10 @@ const queryClient = new QueryClient();
 const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
+  const isShopView = location.pathname.startsWith("/shop/");
   const publicPages = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice"];
-  const showSidebar = !publicPages.includes(location.pathname) && !isShowcaseView;
-  const showSupport = !publicPages.includes(location.pathname) && !isShowcaseView;
+  const showSidebar = !publicPages.includes(location.pathname) && !isShowcaseView && !isShopView;
+  const showSupport = !publicPages.includes(location.pathname) && !isShowcaseView && !isShopView;
 
   return (
     <>
@@ -203,6 +208,10 @@ const AppContent = () => {
         <Route path="/api-documentation" element={<ApiDocumentation />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/legal-notice" element={<LegalNotice />} />
+        <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
+        <Route path="/shop-builder" element={<ProtectedRoute><ShopBuilder /></ProtectedRoute>} />
+        <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
+        <Route path="/shop/:slug" element={<ShopView />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
@@ -212,9 +221,10 @@ const AppContent = () => {
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
+  const isShopView = location.pathname.startsWith("/shop/");
 
-  // For showcase views, render without sidebar
-  if (isShowcaseView) {
+  // For showcase/shop views, render without sidebar
+  if (isShowcaseView || isShopView) {
     return (
       <main className="w-full">
         <AppContent />
