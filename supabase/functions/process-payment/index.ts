@@ -19,7 +19,7 @@ const PaymentSchema = z.object({
   provider: z.string().optional(),
   phone: z.string().optional(),
   promo_code: z.string().optional(),
-  payment_type: z.enum(["subscription", "credits"]).default("subscription"),
+  payment_type: z.enum(["subscription", "credits", "shop_activation"]).default("subscription"),
   credits_pack: z.object({
     size: z.number(),
     price: z.number()
@@ -245,9 +245,11 @@ serve(async (req) => {
     });
 
     // Build payload base (callback URLs will be attached after method/provider resolution)
-    const messageText = payment_type === 'credits' && credits_pack 
-      ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
-      : "Abonnement Visuel Pro - Plan Premium";
+    const messageText = payment_type === 'shop_activation'
+      ? "Activation Boutique E-commerce - Visuel Pro"
+      : payment_type === 'credits' && credits_pack 
+        ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
+        : "Abonnement Visuel Pro - Plan Premium";
     
     const basePayload = {
       amount: finalAmount,

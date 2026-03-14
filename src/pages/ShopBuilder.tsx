@@ -89,6 +89,10 @@ const ShopBuilder = () => {
         slug = slug + "-" + Math.random().toString(36).substring(2, 6);
       }
 
+      // Check if user already paid for activation
+      const { data: profile } = await supabase.from("profiles").select("shop_activation_paid").eq("id", session.user.id).single() as any;
+      const alreadyActivated = profile?.shop_activation_paid || false;
+
       const selectedTheme = THEMES.find(t => t.id === formData.theme);
       const shopData: any = {
         user_id: session.user.id,
@@ -103,6 +107,8 @@ const ShopBuilder = () => {
         primary_color: aiContent?.primary_color || selectedTheme?.colors[1] || formData.primaryColor,
         secondary_color: aiContent?.secondary_color || selectedTheme?.colors[0] || formData.secondaryColor,
         theme: formData.theme,
+        is_activated: alreadyActivated,
+        is_published: alreadyActivated,
       };
 
       const { data, error } = await supabase.from("shops").insert(shopData).select().single() as any;

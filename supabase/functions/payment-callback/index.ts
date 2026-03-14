@@ -150,9 +150,35 @@ serve(async (req) => {
 
     if (status === "success" || status === "completed") {
       const isCreditsPayment = payment_type === 'credits';
+      const isShopActivation = payment_type === 'shop_activation';
       const creditsAmount = credits_size ? parseInt(credits_size) : 0;
       
-      if (isCreditsPayment && creditsAmount > 0) {
+      if (isShopActivation) {
+        // Handle shop activation - one-time payment per user
+        console.log(`Processing shop activation for user ${user_id}`);
+        
+        const { error: activationError } = await supabase
+          .from("profiles")
+          .update({ shop_activation_paid: true })
+          .eq("id", user_id);
+        
+        if (activationError) {
+          console.error("Error activating shop:", activationError);
+          throw activationError;
+        }
+        
+        // Auto-activate all existing shops for this user
+        const { error: shopsError } = await supabase
+          .from("shops")
+          .update({ is_activated: true, is_published: true })
+          .eq("user_id", user_id);
+        
+        if (shopsError) {
+          console.error("Error activating user shops:", shopsError);
+        }
+        
+        console.log(`Shop activation completed for user ${user_id}`);
+      } else if (isCreditsPayment && creditsAmount > 0) {
         // Handle credits purchase
         console.log(`Processing credits purchase: ${creditsAmount} credits for user ${user_id}`);
         
@@ -270,7 +296,7 @@ serve(async (req) => {
       }
 
       // Envoyer l'email de confirmation uniquement pour les abonnements
-      if (!isCreditsPayment) {
+      if (!isCreditsPayment && !isShopActivation) {
         const { data: profile } = await supabase
           .from("profiles")
           .select("email, full_name")
