@@ -208,6 +208,10 @@ const AppContent = () => {
         <Route path="/api-documentation" element={<ApiDocumentation />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/legal-notice" element={<LegalNotice />} />
+        <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
+        <Route path="/shop-builder" element={<ProtectedRoute><ShopBuilder /></ProtectedRoute>} />
+        <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
+        <Route path="/shop/:slug" element={<ShopView />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
