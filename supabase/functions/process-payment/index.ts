@@ -19,7 +19,7 @@ const PaymentSchema = z.object({
   provider: z.string().optional(),
   phone: z.string().optional(),
   promo_code: z.string().optional(),
-  payment_type: z.enum(["subscription", "credits"]).default("subscription"),
+  payment_type: z.enum(["subscription", "credits", "shop_activation"]).default("subscription"),
   credits_pack: z.object({
     size: z.number(),
     price: z.number()
