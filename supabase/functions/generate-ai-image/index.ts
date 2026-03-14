@@ -178,13 +178,13 @@ serve(async (req) => {
       if (!generatedImageData) {
         // Fallback to pure generation
         console.log("No image returned from edit API, falling back to generation");
-        imageUrl = await generatePureImage(OPENAI_API_KEY, enhancedPrompt, preset);
+        imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
       } else {
         imageUrl = generatedImageData;
       }
     } else {
       // Pure text-to-image generation
-      imageUrl = await generatePureImage(OPENAI_API_KEY, enhancedPrompt, preset);
+      imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
     }
 
     // Save to generated_images
