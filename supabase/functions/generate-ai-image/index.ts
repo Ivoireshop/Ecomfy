@@ -76,9 +76,9 @@ serve(async (req) => {
     const body = await req.json();
     const { mode, prompt, style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     let imageUrl: string;
