@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Eye, Save, Package, ShoppingCart, Image as ImageIcon, Bell, Upload, Settings, ArrowLeft, BarChart3, Palette, MessageSquare, Globe, Search, MoreVertical, Edit, Zap, TrendingUp } from "lucide-react";
+import { Loader2, Plus, Trash2, Eye, Save, Package, ShoppingCart, Image as ImageIcon, Bell, Upload, Settings, ArrowLeft, BarChart3, Palette, MessageSquare, Globe, Search, Edit, Zap, TrendingUp, DollarSign, Tag, Box, FileText, ToggleLeft, Smartphone, CreditCard, X } from "lucide-react";
 
 interface Product {
   id: string;
@@ -27,6 +28,8 @@ interface Product {
   is_featured: boolean;
   display_order: number;
   currency: string | null;
+  sku: string | null;
+  weight: number | null;
   product_images?: { id: string; image_url: string; is_primary: boolean; display_order: number }[];
 }
 
@@ -56,6 +59,11 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Annulé", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
 };
 
+const CATEGORIES = [
+  "Mode & Vêtements", "Électronique", "Beauté & Soins", "Maison & Déco",
+  "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
+];
+
 type ActiveSection = "overview" | "products" | "orders" | "appearance" | "settings";
 
 const ShopEditor = () => {
@@ -70,25 +78,38 @@ const ShopEditor = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeSection, setActiveSection] = useState<ActiveSection>("overview");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activating, setActivating] = useState(false);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [activationPhone, setActivationPhone] = useState("");
+  const [activationProvider, setActivationProvider] = useState("");
+  const [shopActivationPaid, setShopActivationPaid] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
-    category: "général", stock_quantity: 10, is_digital: false, is_published: true,
+    category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
+    sku: "", weight: 0, is_featured: false,
   });
+  const [productImages, setProductImages] = useState<File[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [unreadOrders, setUnreadOrders] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [shopRes, productsRes, ordersRes] = await Promise.all([
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const [shopRes, productsRes, ordersRes, profileRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
       supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }) as any,
+      session ? supabase.from("profiles").select("shop_activation_paid").eq("id", session.user.id).single() as any : null,
     ]);
     if (shopRes.data) setShop(shopRes.data);
     if (productsRes.data) setProducts(productsRes.data);
     if (ordersRes.data) {
       setOrders(ordersRes.data);
       setUnreadOrders(ordersRes.data.filter((o: Order) => !o.is_read).length);
+    }
+    if (profileRes?.data) {
+      setShopActivationPaid(profileRes.data.shop_activation_paid || false);
     }
     setLoading(false);
   }, [id]);
@@ -108,6 +129,47 @@ const ShopEditor = () => {
     return () => { supabase.removeChannel(channel); };
   }, [id]);
 
+  const isActivated = shopActivationPaid || shop?.is_activated;
+
+  const handleActivateShop = async () => {
+    if (!activationProvider) {
+      toast({ title: "Choisissez un opérateur", variant: "destructive" });
+      return;
+    }
+    if (activationProvider !== "wave" && !activationPhone) {
+      toast({ title: "Entrez votre numéro de téléphone", variant: "destructive" });
+      return;
+    }
+    setActivating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non connecté");
+
+      const { data, error } = await supabase.functions.invoke("process-payment", {
+        body: {
+          amount: 1300, // ~2$ in XOF
+          payment_method: "mobile_money",
+          user_id: session.user.id,
+          provider: activationProvider,
+          phone: activationPhone,
+          payment_type: "shop_activation",
+        },
+      });
+
+      if (error) throw error;
+      const paymentUrl = data?.payment_url || data?.url || data?.checkout_url || data?.link;
+      if (paymentUrl) {
+        window.location.assign(paymentUrl);
+        return;
+      }
+      throw new Error("Impossible d'ouvrir la page de paiement");
+    } catch (err) {
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Erreur de paiement", variant: "destructive" });
+    } finally {
+      setActivating(false);
+    }
+  };
+
   const saveShop = async () => {
     if (!shop) return;
     setSaving(true);
@@ -125,7 +187,21 @@ const ShopEditor = () => {
 
   const saveProduct = async () => {
     if (!id) return;
-    const productData = { ...newProduct, shop_id: id };
+    const productData = {
+      name: newProduct.name,
+      description: newProduct.description,
+      short_description: newProduct.short_description,
+      price: newProduct.price,
+      compare_at_price: newProduct.compare_at_price || null,
+      category: newProduct.category,
+      stock_quantity: newProduct.stock_quantity,
+      is_digital: newProduct.is_digital,
+      is_published: newProduct.is_published,
+      is_featured: newProduct.is_featured,
+      sku: newProduct.sku || null,
+      weight: newProduct.weight || null,
+      shop_id: id,
+    };
     let result;
     if (editingProduct) {
       result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
@@ -135,12 +211,23 @@ const ShopEditor = () => {
     if (result.error) {
       toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
     } else {
-      toast({ title: editingProduct ? "Produit modifié" : "Produit ajouté !" });
+      // Upload images for new product
+      if (!editingProduct && productImages.length > 0 && result.data?.[0]?.id) {
+        for (const file of productImages) {
+          await uploadProductImage(result.data[0].id, file);
+        }
+      }
+      toast({ title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓" });
       setProductDialogOpen(false);
       setEditingProduct(null);
-      setNewProduct({ name: "", description: "", short_description: "", price: 0, compare_at_price: 0, category: "général", stock_quantity: 10, is_digital: false, is_published: true });
+      resetProductForm();
       fetchData();
     }
+  };
+
+  const resetProductForm = () => {
+    setNewProduct({ name: "", description: "", short_description: "", price: 0, compare_at_price: 0, category: "Autre", stock_quantity: 10, is_digital: false, is_published: true, sku: "", weight: 0, is_featured: false });
+    setProductImages([]);
   };
 
   const deleteProduct = async (productId: string) => {
@@ -158,7 +245,6 @@ const ShopEditor = () => {
     if (uploadError) { toast({ title: "Erreur", description: uploadError.message, variant: "destructive" }); setUploadingImage(false); return; }
     const { data: urlData } = supabase.storage.from("shop-images").getPublicUrl(path);
     await supabase.from("product_images").insert({ product_id: productId, image_url: urlData.publicUrl, is_primary: false }) as any;
-    toast({ title: "Image ajoutée !" });
     setUploadingImage(false);
     fetchData();
   };
@@ -209,7 +295,7 @@ const ShopEditor = () => {
                 <p className="text-[10px] text-muted-foreground">/{shop.slug}</p>
               </div>
             </div>
-            {!shop.is_activated && (
+            {!isActivated && (
               <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/20">
                 <Zap className="h-3 w-3 mr-1" /> Non activée
               </Badge>
@@ -217,7 +303,7 @@ const ShopEditor = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => window.open(`/shop/${shop.slug}`, "_blank")} className="gap-1.5 hidden md:flex">
-              <Eye className="h-4 w-4" /> Voir la boutique
+              <Eye className="h-4 w-4" /> Voir
             </Button>
             <Button size="sm" onClick={saveShop} disabled={saving} className="gap-1.5">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -254,73 +340,118 @@ const ShopEditor = () => {
       </header>
 
       {/* Activation Banner */}
-      {!shop.is_activated && (
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-primary-foreground px-4 md:px-6 py-3">
+      {!isActivated && (
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 md:px-6 py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Zap className="h-5 w-5" />
               <div>
-                <p className="font-semibold text-sm">Activez votre boutique pour la rendre visible</p>
-                <p className="text-xs opacity-90">Frais unique de 2$ • Accès complet à toutes les fonctionnalités</p>
+                <p className="font-semibold text-sm">Activez vos boutiques pour les rendre visibles</p>
+                <p className="text-xs opacity-90">Paiement unique de 2$ · Toutes vos boutiques activées à vie</p>
               </div>
             </div>
-            <Button size="sm" variant="secondary" className="font-semibold shadow-lg">Activer · 2$</Button>
+            <Button size="sm" variant="secondary" className="font-semibold shadow-lg" onClick={() => setShowActivationModal(true)}>
+              Activer · 2$
+            </Button>
           </div>
         </div>
       )}
+
+      {/* Activation Payment Modal */}
+      <Dialog open={showActivationModal} onOpenChange={setShowActivationModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-orange-500" />
+              Activer vos boutiques
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted/50 rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Frais d'activation</span>
+                <span className="font-bold text-lg">1 300 FCFA</span>
+              </div>
+              <p className="text-xs text-muted-foreground">≈ 2$ USD · Paiement unique · Toutes vos boutiques activées</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Opérateur Mobile Money</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "wave", label: "Wave", color: "bg-blue-500" },
+                  { id: "orange", label: "Orange Money", color: "bg-orange-500" },
+                  { id: "mtn", label: "MTN MoMo", color: "bg-yellow-500" },
+                  { id: "moov", label: "Moov Money", color: "bg-blue-600" },
+                ].map(op => (
+                  <button
+                    key={op.id}
+                    onClick={() => setActivationProvider(op.id)}
+                    className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      activationProvider === op.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className={`h-2 w-2 rounded-full ${op.color} inline-block mr-2`} />
+                    {op.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {activationProvider && activationProvider !== "wave" && (
+              <div className="space-y-1.5">
+                <Label>Numéro de téléphone</Label>
+                <Input
+                  value={activationPhone}
+                  onChange={(e) => setActivationPhone(e.target.value)}
+                  placeholder="07 XX XX XX XX"
+                />
+              </div>
+            )}
+
+            <Button
+              onClick={handleActivateShop}
+              disabled={activating || !activationProvider}
+              className="w-full gap-2"
+              size="lg"
+            >
+              {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              Payer 1 300 FCFA
+            </Button>
+
+            <p className="text-[10px] text-center text-muted-foreground">
+              Commission de 0,025$ prélevée sur chaque vente
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex-1 px-4 md:px-6 py-6 max-w-6xl mx-auto w-full">
         {/* Overview */}
         {activeSection === "overview" && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-primary" />
+              {[
+                { icon: TrendingUp, label: "FCFA de ventes", value: new Intl.NumberFormat("fr-FR").format(totalRevenue), bg: "bg-primary/10", iconColor: "text-primary" },
+                { icon: ShoppingCart, label: "Commandes", value: orders.length, bg: "bg-blue-500/10", iconColor: "text-blue-600" },
+                { icon: Package, label: "Produits", value: products.length, bg: "bg-green-500/10", iconColor: "text-green-600" },
+                { icon: Bell, label: "Nouvelles", value: newOrders, bg: "bg-orange-500/10", iconColor: "text-orange-600" },
+              ].map((stat, i) => (
+                <Card key={i} className="p-5">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-10 w-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                      <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stat.value}</p>
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">{new Intl.NumberFormat("fr-FR").format(totalRevenue)}</p>
-                    <p className="text-xs text-muted-foreground">FCFA de ventes</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                    <ShoppingCart className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{orders.length}</p>
-                    <p className="text-xs text-muted-foreground">Commandes</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                    <Package className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{products.length}</p>
-                    <p className="text-xs text-muted-foreground">Produits</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                    <Bell className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{newOrders}</p>
-                    <p className="text-xs text-muted-foreground">Nouvelles</p>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              ))}
             </div>
-
-            {/* Recent Orders */}
             <Card className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold">Commandes récentes</h3>
@@ -361,47 +492,261 @@ const ShopEditor = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Rechercher un produit..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
               </div>
-              <Dialog open={productDialogOpen} onOpenChange={(open) => {
-                setProductDialogOpen(open);
-                if (!open) { setEditingProduct(null); setNewProduct({ name: "", description: "", short_description: "", price: 0, compare_at_price: 0, category: "général", stock_quantity: 10, is_digital: false, is_published: true }); }
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2"><Plus className="h-4 w-4" /> Ajouter un produit</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>{editingProduct ? "Modifier le produit" : "Nouveau produit"}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-1.5"><Label>Nom du produit *</Label><Input value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} placeholder="Ex: T-shirt Premium" /></div>
-                    <div className="space-y-1.5"><Label>Description courte</Label><Input value={newProduct.short_description} onChange={(e) => setNewProduct({ ...newProduct, short_description: e.target.value })} placeholder="Résumé en une ligne" /></div>
-                    <div className="space-y-1.5"><Label>Description complète</Label><Textarea value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} rows={3} /></div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5"><Label>Prix (FCFA) *</Label><Input type="number" value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })} /></div>
-                      <div className="space-y-1.5"><Label>Ancien prix</Label><Input type="number" value={newProduct.compare_at_price} onChange={(e) => setNewProduct({ ...newProduct, compare_at_price: Number(e.target.value) })} /></div>
+              <Button className="gap-2" onClick={() => { resetProductForm(); setEditingProduct(null); setProductDialogOpen(true); }}>
+                <Plus className="h-4 w-4" /> Ajouter un produit
+              </Button>
+            </div>
+
+            {/* Product Form Dialog - Shopify-style */}
+            <Dialog open={productDialogOpen} onOpenChange={(open) => {
+              setProductDialogOpen(open);
+              if (!open) { setEditingProduct(null); resetProductForm(); }
+            }}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+                <div className="sticky top-0 z-10 bg-card border-b px-6 py-4 flex items-center justify-between">
+                  <DialogTitle className="text-lg font-bold">
+                    {editingProduct ? "Modifier le produit" : "Ajouter un produit"}
+                  </DialogTitle>
+                </div>
+
+                <div className="px-6 pb-6 space-y-6">
+                  {/* Section: Infos de base */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <FileText className="h-4 w-4" />
+                      Informations générales
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Titre du produit <span className="text-destructive">*</span></Label>
+                      <Input 
+                        value={newProduct.name} 
+                        onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} 
+                        placeholder="Ex: Robe en wax imprimé"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Description courte</Label>
+                      <Input 
+                        value={newProduct.short_description} 
+                        onChange={(e) => setNewProduct({ ...newProduct, short_description: e.target.value })} 
+                        placeholder="Un résumé attractif en une ligne"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Description détaillée</Label>
+                      <Textarea 
+                        value={newProduct.description} 
+                        onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} 
+                        placeholder="Décrivez votre produit en détail : matériaux, dimensions, entretien..."
+                        rows={4}
+                        className="resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Section: Médias */}
+                  {!editingProduct && (
+                    <>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                          <ImageIcon className="h-4 w-4" />
+                          Photos du produit
+                        </div>
+                        <div className="border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
+                          {productImages.length > 0 ? (
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap gap-3 justify-center">
+                                {productImages.map((file, i) => (
+                                  <div key={i} className="relative group">
+                                    <img src={URL.createObjectURL(file)} alt="" className="h-20 w-20 object-cover rounded-lg" />
+                                    <button
+                                      onClick={() => setProductImages(prev => prev.filter((_, idx) => idx !== i))}
+                                      className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                              <label className="cursor-pointer">
+                                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
+                                  if (e.target.files) setProductImages(prev => [...prev, ...Array.from(e.target.files!)]);
+                                }} />
+                                <span className="text-sm text-primary hover:underline">+ Ajouter d'autres photos</span>
+                              </label>
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer space-y-2 block">
+                              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
+                                if (e.target.files) setProductImages(Array.from(e.target.files));
+                              }} />
+                              <div className="h-12 w-12 mx-auto rounded-xl bg-muted flex items-center justify-center">
+                                <Upload className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                              <p className="text-sm font-medium">Glissez vos images ici ou cliquez pour parcourir</p>
+                              <p className="text-xs text-muted-foreground">PNG, JPG, WEBP · Max 5 Mo par image</p>
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                      <div className="border-t" />
+                    </>
+                  )}
+
+                  {/* Section: Tarification */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <DollarSign className="h-4 w-4" />
+                      Tarification
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5"><Label>Catégorie</Label><Input value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} /></div>
-                      <div className="space-y-1.5"><Label>Stock</Label><Input type="number" value={newProduct.stock_quantity} onChange={(e) => setNewProduct({ ...newProduct, stock_quantity: Number(e.target.value) })} /></div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Prix de vente (FCFA) <span className="text-destructive">*</span></Label>
+                        <div className="relative">
+                          <Input 
+                            type="number" 
+                            value={newProduct.price || ""} 
+                            onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })} 
+                            placeholder="0"
+                            className="h-11 pr-16"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">FCFA</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Prix barré <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+                        <div className="relative">
+                          <Input 
+                            type="number" 
+                            value={newProduct.compare_at_price || ""} 
+                            onChange={(e) => setNewProduct({ ...newProduct, compare_at_price: Number(e.target.value) })} 
+                            placeholder="0"
+                            className="h-11 pr-16"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">FCFA</span>
+                        </div>
+                        {newProduct.compare_at_price > 0 && newProduct.price > 0 && newProduct.compare_at_price > newProduct.price && (
+                          <p className="text-xs text-green-600">
+                            -{Math.round((1 - newProduct.price / newProduct.compare_at_price) * 100)}% de réduction
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2"><Switch checked={newProduct.is_digital} onCheckedChange={(v) => setNewProduct({ ...newProduct, is_digital: v })} /><Label>Digital</Label></div>
-                      <div className="flex items-center gap-2"><Switch checked={newProduct.is_published} onCheckedChange={(v) => setNewProduct({ ...newProduct, is_published: v })} /><Label>Publié</Label></div>
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Section: Inventaire & Organisation */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <Box className="h-4 w-4" />
+                      Inventaire & Organisation
                     </div>
-                    <Button onClick={saveProduct} disabled={!newProduct.name || newProduct.price <= 0} className="w-full" size="lg">
-                      {editingProduct ? "Enregistrer les modifications" : "Ajouter le produit"}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Catégorie</Label>
+                        <Select value={newProduct.category} onValueChange={(v) => setNewProduct({ ...newProduct, category: v })}>
+                          <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Quantité en stock</Label>
+                        <Input 
+                          type="number" 
+                          value={newProduct.stock_quantity} 
+                          onChange={(e) => setNewProduct({ ...newProduct, stock_quantity: Number(e.target.value) })} 
+                          className="h-11"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">SKU <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+                        <Input 
+                          value={newProduct.sku} 
+                          onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })} 
+                          placeholder="REF-001"
+                          className="h-11"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Poids (kg) <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+                        <Input 
+                          type="number" 
+                          step="0.1"
+                          value={newProduct.weight || ""} 
+                          onChange={(e) => setNewProduct({ ...newProduct, weight: Number(e.target.value) })} 
+                          placeholder="0.5"
+                          className="h-11"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Section: Paramètres */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <ToggleLeft className="h-4 w-4" />
+                      Paramètres
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                        <div>
+                          <p className="text-sm font-medium">Produit publié</p>
+                          <p className="text-xs text-muted-foreground">Visible dans la boutique</p>
+                        </div>
+                        <Switch checked={newProduct.is_published} onCheckedChange={(v) => setNewProduct({ ...newProduct, is_published: v })} />
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                        <div>
+                          <p className="text-sm font-medium">Produit vedette</p>
+                          <p className="text-xs text-muted-foreground">Mis en avant sur la page d'accueil</p>
+                        </div>
+                        <Switch checked={newProduct.is_featured} onCheckedChange={(v) => setNewProduct({ ...newProduct, is_featured: v })} />
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                        <div>
+                          <p className="text-sm font-medium">Produit digital</p>
+                          <p className="text-xs text-muted-foreground">Pas de livraison physique requise</p>
+                        </div>
+                        <Switch checked={newProduct.is_digital} onCheckedChange={(v) => setNewProduct({ ...newProduct, is_digital: v })} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submit */}
+                  <div className="sticky bottom-0 bg-card pt-4 border-t -mx-6 px-6 pb-2">
+                    <Button 
+                      onClick={saveProduct} 
+                      disabled={!newProduct.name || newProduct.price <= 0} 
+                      className="w-full gap-2" 
+                      size="lg"
+                    >
+                      {editingProduct ? (
+                        <><Save className="h-4 w-4" /> Enregistrer les modifications</>
+                      ) : (
+                        <><Plus className="h-4 w-4" /> Ajouter le produit</>
+                      )}
                     </Button>
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {filteredProducts.length === 0 ? (
               <Card className="p-12 text-center">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="font-semibold mb-1">{searchQuery ? "Aucun résultat" : "Aucun produit"}</h3>
                 <p className="text-sm text-muted-foreground mb-4">{searchQuery ? "Essayez un autre terme" : "Ajoutez votre premier produit pour démarrer"}</p>
-                {!searchQuery && <Button onClick={() => setProductDialogOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Ajouter un produit</Button>}
+                {!searchQuery && <Button onClick={() => { resetProductForm(); setProductDialogOpen(true); }} className="gap-2"><Plus className="h-4 w-4" /> Ajouter un produit</Button>}
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -415,13 +760,9 @@ const ShopEditor = () => {
                           <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
                         </div>
                       )}
-                      {!product.is_published && (
-                        <Badge variant="secondary" className="absolute top-2 left-2">Brouillon</Badge>
-                      )}
-                      {product.is_digital && (
-                        <Badge className="absolute top-2 right-2 bg-purple-500">Digital</Badge>
-                      )}
-                      {/* Hover Actions */}
+                      {!product.is_published && <Badge variant="secondary" className="absolute top-2 left-2">Brouillon</Badge>}
+                      {product.is_digital && <Badge className="absolute top-2 right-2 bg-purple-500">Digital</Badge>}
+                      {product.is_featured && <Badge className="absolute top-2 right-2 bg-amber-500">Vedette</Badge>}
                       <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                         <label className="cursor-pointer">
                           <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadProductImage(product.id, e.target.files[0])} />
@@ -429,7 +770,12 @@ const ShopEditor = () => {
                         </label>
                         <Button size="sm" variant="secondary" className="gap-1" onClick={() => {
                           setEditingProduct(product);
-                          setNewProduct({ name: product.name, description: product.description || "", short_description: product.short_description || "", price: product.price, compare_at_price: product.compare_at_price || 0, category: product.category, stock_quantity: product.stock_quantity, is_digital: product.is_digital, is_published: product.is_published });
+                          setNewProduct({
+                            name: product.name, description: product.description || "", short_description: product.short_description || "",
+                            price: product.price, compare_at_price: product.compare_at_price || 0, category: product.category,
+                            stock_quantity: product.stock_quantity, is_digital: product.is_digital, is_published: product.is_published,
+                            sku: product.sku || "", weight: product.weight || 0, is_featured: product.is_featured,
+                          });
                           setProductDialogOpen(true);
                         }}>
                           <Edit className="h-3 w-3" /> Modifier
@@ -440,7 +786,12 @@ const ShopEditor = () => {
                       <h3 className="font-semibold text-sm mb-1 line-clamp-1">{product.name}</h3>
                       <p className="text-xs text-muted-foreground mb-2">{product.category} · Stock: {product.stock_quantity}</p>
                       <div className="flex items-center justify-between">
-                        <span className="font-bold" style={{ color: primaryColor }}>{new Intl.NumberFormat("fr-FR").format(product.price)} FCFA</span>
+                        <div>
+                          <span className="font-bold" style={{ color: primaryColor }}>{new Intl.NumberFormat("fr-FR").format(product.price)} FCFA</span>
+                          {product.compare_at_price && product.compare_at_price > product.price && (
+                            <span className="text-xs text-muted-foreground line-through ml-2">{new Intl.NumberFormat("fr-FR").format(product.compare_at_price)}</span>
+                          )}
+                        </div>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteProduct(product.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -535,10 +886,9 @@ const ShopEditor = () => {
                   </div>
                 </div>
               </div>
-              {/* Preview */}
               <div className="rounded-xl overflow-hidden border">
                 <div className="h-16 flex items-center px-4" style={{ background: `linear-gradient(135deg, ${shop.primary_color || "#2563eb"}, ${shop.secondary_color || "#7c3aed"})` }}>
-                  <span className="text-primary-foreground font-bold">{shop.business_name}</span>
+                  <span className="text-white font-bold">{shop.business_name}</span>
                 </div>
                 <div className="p-4 bg-muted/30 text-sm text-muted-foreground">Aperçu des couleurs de votre boutique</div>
               </div>
