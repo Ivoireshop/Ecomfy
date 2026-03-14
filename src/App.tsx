@@ -39,6 +39,10 @@ import CookiesPolicy from "./pages/CookiesPolicy";
 import ApiDocumentation from "./pages/ApiDocumentation";
 import Blog from "./pages/Blog";
 import LegalNotice from "./pages/LegalNotice";
+import ShopManager from "./pages/ShopManager";
+import ShopBuilder from "./pages/ShopBuilder";
+import ShopEditor from "./pages/ShopEditor";
+import ShopView from "./pages/ShopView";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 
