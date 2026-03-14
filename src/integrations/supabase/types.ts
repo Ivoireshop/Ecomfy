@@ -893,6 +893,131 @@ export type Database = {
           },
         ]
       }
+      order_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_id: string
+          product_id: string
+          product_image_url: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_id: string
+          product_id: string
+          product_image_url?: string | null
+          product_name: string
+          quantity?: number
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          product_id?: string
+          product_image_url?: string | null
+          product_name?: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          commission_amount: number
+          created_at: string
+          customer_address: string | null
+          customer_city: string | null
+          customer_country: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          id: string
+          is_read: boolean | null
+          notes: string | null
+          order_number: string
+          order_status: string
+          payment_method: string
+          payment_status: string
+          shop_id: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          commission_amount?: number
+          created_at?: string
+          customer_address?: string | null
+          customer_city?: string | null
+          customer_country?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          id?: string
+          is_read?: boolean | null
+          notes?: string | null
+          order_number: string
+          order_status?: string
+          payment_method?: string
+          payment_status?: string
+          shop_id: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          commission_amount?: number
+          created_at?: string
+          customer_address?: string | null
+          customer_city?: string | null
+          customer_country?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          is_read?: boolean | null
+          notes?: string | null
+          order_number?: string
+          order_status?: string
+          payment_method?: string
+          payment_status?: string
+          shop_id?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_links: {
         Row: {
           course_id: string
@@ -977,6 +1102,118 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_images: {
+        Row: {
+          alt_text: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string
+          image_url: string
+          is_primary: boolean | null
+          product_id: string
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url: string
+          is_primary?: boolean | null
+          product_id: string
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string
+          is_primary?: boolean | null
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string | null
+          compare_at_price: number | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          digital_file_url: string | null
+          display_order: number | null
+          id: string
+          is_digital: boolean | null
+          is_featured: boolean | null
+          is_published: boolean | null
+          name: string
+          price: number
+          shop_id: string
+          short_description: string | null
+          sku: string | null
+          stock_quantity: number | null
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          category?: string | null
+          compare_at_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          digital_file_url?: string | null
+          display_order?: number | null
+          id?: string
+          is_digital?: boolean | null
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          name: string
+          price?: number
+          shop_id: string
+          short_description?: string | null
+          sku?: string | null
+          stock_quantity?: number | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          category?: string | null
+          compare_at_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          digital_file_url?: string | null
+          display_order?: number | null
+          id?: string
+          is_digital?: boolean | null
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          name?: string
+          price?: number
+          shop_id?: string
+          short_description?: string | null
+          sku?: string | null
+          stock_quantity?: number | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
             referencedColumns: ["id"]
           },
         ]
@@ -1095,6 +1332,105 @@ export type Database = {
           referred_id?: string | null
           referrer_id?: string
           status?: string
+        }
+        Relationships: []
+      }
+      shops: {
+        Row: {
+          activation_fee_paid: boolean | null
+          address: string | null
+          banner_url: string | null
+          business_description: string | null
+          business_name: string
+          chatbot_enabled: boolean | null
+          chatbot_welcome_message: string | null
+          city: string | null
+          commission_rate: number | null
+          country: string | null
+          created_at: string
+          currency: string | null
+          email: string | null
+          id: string
+          is_activated: boolean | null
+          is_published: boolean | null
+          logo_url: string | null
+          payment_methods: string[] | null
+          phone_number: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          theme: string | null
+          total_orders: number | null
+          total_sales: number | null
+          updated_at: string
+          user_id: string
+          whatsapp_number: string | null
+        }
+        Insert: {
+          activation_fee_paid?: boolean | null
+          address?: string | null
+          banner_url?: string | null
+          business_description?: string | null
+          business_name: string
+          chatbot_enabled?: boolean | null
+          chatbot_welcome_message?: string | null
+          city?: string | null
+          commission_rate?: number | null
+          country?: string | null
+          created_at?: string
+          currency?: string | null
+          email?: string | null
+          id?: string
+          is_activated?: boolean | null
+          is_published?: boolean | null
+          logo_url?: string | null
+          payment_methods?: string[] | null
+          phone_number?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          theme?: string | null
+          total_orders?: number | null
+          total_sales?: number | null
+          updated_at?: string
+          user_id: string
+          whatsapp_number?: string | null
+        }
+        Update: {
+          activation_fee_paid?: boolean | null
+          address?: string | null
+          banner_url?: string | null
+          business_description?: string | null
+          business_name?: string
+          chatbot_enabled?: boolean | null
+          chatbot_welcome_message?: string | null
+          city?: string | null
+          commission_rate?: number | null
+          country?: string | null
+          created_at?: string
+          currency?: string | null
+          email?: string | null
+          id?: string
+          is_activated?: boolean | null
+          is_published?: boolean | null
+          logo_url?: string | null
+          payment_methods?: string[] | null
+          phone_number?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          theme?: string | null
+          total_orders?: number | null
+          total_sales?: number | null
+          updated_at?: string
+          user_id?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
@@ -1864,6 +2200,7 @@ export type Database = {
       generate_api_key: { Args: never; Returns: string }
       generate_certificate_number: { Args: never; Returns: string }
       generate_domain_verification_code: { Args: never; Returns: string }
+      generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
       get_next_queue_item: { Args: never; Returns: string }
       has_role: {
