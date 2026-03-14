@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Eye, Save, Package, ShoppingCart, Image as ImageIcon, DollarSign, Bell, Upload } from "lucide-react";
+import { Loader2, Plus, Trash2, Eye, Save, Package, ShoppingCart, Image as ImageIcon, DollarSign, Bell, Upload, Settings } from "lucide-react";
 
 interface Product {
   id: string;
