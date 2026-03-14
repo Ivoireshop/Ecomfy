@@ -221,9 +221,10 @@ const AppContent = () => {
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
+  const isShopView = location.pathname.startsWith("/shop/");
 
-  // For showcase views, render without sidebar
-  if (isShowcaseView) {
+  // For showcase/shop views, render without sidebar
+  if (isShowcaseView || isShopView) {
     return (
       <main className="w-full">
         <AppContent />
