@@ -76,9 +76,9 @@ serve(async (req) => {
     const body = await req.json();
     const { mode, prompt, style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     let imageUrl: string;
@@ -151,8 +151,6 @@ serve(async (req) => {
       console.log("Using image editing with GPT vision + image generation");
 
       // Use the Lovable AI gateway for image generation with editing
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      
       const editResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -178,13 +176,13 @@ serve(async (req) => {
       if (!generatedImageData) {
         // Fallback to pure generation
         console.log("No image returned from edit API, falling back to generation");
-        imageUrl = await generatePureImage(OPENAI_API_KEY, enhancedPrompt, preset);
+        imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
       } else {
         imageUrl = generatedImageData;
       }
     } else {
       // Pure text-to-image generation
-      imageUrl = await generatePureImage(OPENAI_API_KEY, enhancedPrompt, preset);
+      imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
     }
 
     // Save to generated_images
@@ -238,64 +236,47 @@ serve(async (req) => {
   }
 });
 
-async function generatePureImage(apiKey: string, prompt: string, preset?: any): Promise<string> {
-  // Determine size based on preset
-  let size: "1024x1024" | "1536x1024" | "1024x1536" = "1024x1024";
-  
-  if (preset) {
-    const aspectRatio = preset.width / preset.height;
-    if (aspectRatio > 1.3) {
-      size = "1536x1024"; // Horizontal
-    } else if (aspectRatio < 0.77) {
-      size = "1024x1536"; // Vertical
-    }
-  }
+async function generatePureImage(lovableApiKey: string, prompt: string): Promise<string> {
+  console.log("Generating image via Lovable AI Gateway");
 
-  console.log(`Generating image with size: ${size}`);
-
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${lovableApiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-image-1",
-      prompt: prompt,
-      size: size,
-      quality: "high",
-      n: 1,
+      model: "google/gemini-3-pro-image-preview",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      modalities: ["image", "text"],
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("OpenAI API error:", errorText);
-    throw new Error(`Erreur OpenAI: ${response.status}`);
+    console.error("Lovable AI Gateway error:", response.status, errorText);
+    if (response.status === 429) {
+      throw new Error("Trop de requêtes, veuillez réessayer dans quelques instants.");
+    }
+    if (response.status === 402) {
+      throw new Error("Crédits IA épuisés. Veuillez recharger vos crédits.");
+    }
+    throw new Error(`Erreur de génération d'image: ${response.status}`);
   }
 
   const data = await response.json();
-  const b64Image = data.data?.[0]?.b64_json;
+  const generatedImageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
-  if (b64Image) {
-    return `data:image/png;base64,${b64Image}`;
+  if (!generatedImageUrl) {
+    throw new Error("Aucune image générée");
   }
 
-  const generatedUrl = data.data?.[0]?.url;
-  if (generatedUrl) {
-    // Convert URL to base64
-    const imageResponse = await fetch(generatedUrl);
-    const imageBlob = await imageResponse.blob();
-    const arrayBuffer = await imageBlob.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return `data:image/png;base64,${btoa(binary)}`;
-  }
-
-  throw new Error("Aucune image générée");
+  return generatedImageUrl;
 }
 
 function buildTextToImagePrompt(prompt: string, style: string): string {
