@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface Product {
   id: string;
@@ -26,15 +26,8 @@ interface Product {
   product_images: { id: string; image_url: string; is_primary: boolean }[];
 }
 
-interface CartItem {
-  product: Product;
-  quantity: number;
-}
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+interface CartItem { product: Product; quantity: number; }
+interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ShopView = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -49,34 +42,37 @@ const ShopView = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [orderLoading, setOrderLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [orderSuccess, setOrderSuccess] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
   });
 
-  useEffect(() => {
-    fetchShop();
-  }, [slug]);
+  useEffect(() => { fetchShop(); }, [slug]);
 
   const fetchShop = async () => {
     if (!slug) return;
     const { data: shopData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).single() as any;
     if (!shopData) { setLoading(false); return; }
     setShop(shopData);
-
     const { data: productsData } = await supabase.from("products").select("*, product_images(*)").eq("shop_id", shopData.id).eq("is_published", true).order("display_order") as any;
     setProducts(productsData || []);
     setLoading(false);
-
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
     }
   };
 
   const categories = ["all", ...new Set(products.map(p => p.category))];
-
-  const filteredProducts = selectedCategory === "all" ? products : products.filter(p => p.category === selectedCategory);
+  const filteredProducts = products.filter(p => {
+    const matchCat = selectedCategory === "all" || p.category === selectedCategory;
+    const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCat && matchSearch;
+  });
+  const featuredProducts = products.filter(p => p.is_featured);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -84,7 +80,7 @@ const ShopView = () => {
       if (existing) return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       return [...prev, { product, quantity: 1 }];
     });
-    toast({ title: "Ajouté au panier", description: product.name });
+    toast({ title: "✓ Ajouté au panier", description: product.name });
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -96,7 +92,6 @@ const ShopView = () => {
   };
 
   const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.product.id !== productId));
-
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -109,38 +104,24 @@ const ShopView = () => {
     try {
       const commissionAmount = cartTotal * (shop.commission_rate || 0.025);
       const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
-      
-      const { data: order, error: orderError } = await supabase.from("orders").insert({
-        shop_id: shop.id,
-        order_number: orderNumData || `VP-${Date.now()}`,
-        customer_name: customerInfo.name,
-        customer_email: customerInfo.email,
-        customer_phone: customerInfo.phone,
-        customer_address: customerInfo.address,
-        customer_city: customerInfo.city,
-        subtotal: cartTotal,
-        commission_amount: commissionAmount,
-        total: cartTotal,
+      const { data: order, error } = await supabase.from("orders").insert({
+        shop_id: shop.id, order_number: orderNumData || `VP-${Date.now()}`,
+        customer_name: customerInfo.name, customer_email: customerInfo.email,
+        customer_phone: customerInfo.phone, customer_address: customerInfo.address,
+        customer_city: customerInfo.city, subtotal: cartTotal,
+        commission_amount: commissionAmount, total: cartTotal,
         payment_method: customerInfo.paymentMethod,
       }).select().single() as any;
-
-      if (orderError) throw orderError;
-
+      if (error) throw error;
       const orderItems = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.product.id,
-        product_name: item.product.name,
+        order_id: order.id, product_id: item.product.id, product_name: item.product.name,
         product_image_url: item.product.product_images?.[0]?.image_url || null,
-        quantity: item.quantity,
-        unit_price: item.product.price,
+        quantity: item.quantity, unit_price: item.product.price,
         total_price: item.product.price * item.quantity,
       }));
-
       await supabase.from("order_items").insert(orderItems) as any;
-
-      toast({ title: "🎉 Commande passée !", description: `N° ${order.order_number}. Le vendeur vous contactera bientôt.` });
+      setOrderSuccess(true);
       setCart([]);
-      setCheckoutOpen(false);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -155,7 +136,6 @@ const ShopView = () => {
     setChatInput("");
     setChatMessages(prev => [...prev, { role: "user", content: userMsg }]);
     setChatLoading(true);
-
     try {
       const { data, error } = await supabase.functions.invoke("shop-chatbot", {
         body: { message: userMsg, shopName: shop.business_name, shopDescription: shop.business_description, products: products.map(p => ({ name: p.name, price: p.price, description: p.short_description })) },
@@ -163,151 +143,340 @@ const ShopView = () => {
       if (error) throw error;
       setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
     } catch {
-      setChatMessages(prev => [...prev, { role: "assistant", content: "Désolé, je ne peux pas répondre pour le moment. Contactez le vendeur directement." }]);
-    } finally {
-      setChatLoading(false);
-    }
+      setChatMessages(prev => [...prev, { role: "assistant", content: "Désolé, je ne peux pas répondre. Contactez le vendeur directement." }]);
+    } finally { setChatLoading(false); }
   };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  if (!shop) return <div className="min-h-screen flex items-center justify-center flex-col gap-4"><Store className="h-16 w-16 text-muted-foreground" /><h1 className="text-2xl font-bold">Boutique introuvable</h1></div>;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full" />
+        <p className="text-sm text-muted-foreground">Chargement de la boutique...</p>
+      </div>
+    </div>
+  );
+  
+  if (!shop) return (
+    <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-background">
+      <Store className="h-20 w-20 text-muted-foreground/30" />
+      <h1 className="text-2xl font-bold">Boutique introuvable</h1>
+      <p className="text-muted-foreground">Cette boutique n'existe pas ou n'est pas encore disponible</p>
+    </div>
+  );
 
   const primaryColor = shop.primary_color || "#2563eb";
+  const secondaryColor = shop.secondary_color || "#7c3aed";
+  const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b sticky top-0 z-40 bg-background/95 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-8 w-8 rounded" /> : <Store className="h-6 w-6" style={{ color: primaryColor }} />}
-            <h1 className="font-bold text-lg">{shop.business_name}</h1>
+      {/* Sticky Header */}
+      <header className="border-b sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {shop.logo_url ? (
+              <img src={shop.logo_url} alt="" className="h-9 w-9 rounded-xl object-cover flex-shrink-0" />
+            ) : (
+              <div className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: primaryColor + "15" }}>
+                <Store className="h-5 w-5" style={{ color: primaryColor }} />
+              </div>
+            )}
+            <span className="font-bold text-lg truncate">{shop.business_name}</span>
           </div>
-          <div className="flex items-center gap-3">
+          
+          {/* Search - Desktop */}
+          <div className="hidden md:flex relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Rechercher un produit..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              className="pl-10 bg-muted/50 border-0 focus-visible:ring-1"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="sm" className="gap-1"><Phone className="h-4 w-4" /> Contact</Button>
+                <Button variant="ghost" size="icon" className="rounded-xl">
+                  <Phone className="h-5 w-5" />
+                </Button>
               </a>
             )}
-            <Button variant="outline" size="sm" className="gap-1 relative" onClick={() => setCheckoutOpen(true)}>
-              <ShoppingCart className="h-4 w-4" />
-              Panier
-              {cartCount > 0 && <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs" style={{ backgroundColor: primaryColor }}>{cartCount}</Badge>}
+            <Button 
+              variant="outline" 
+              className="gap-2 rounded-xl relative" 
+              onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span className="hidden sm:inline">Panier</span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center text-primary-foreground" style={{ backgroundColor: primaryColor }}>
+                  {cartCount}
+                </span>
+              )}
             </Button>
           </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="py-12 px-4 text-center" style={{ background: `linear-gradient(135deg, ${primaryColor}10, ${shop.secondary_color || "#7c3aed"}10)` }}>
-        <h2 className="text-3xl md:text-4xl font-bold mb-3">{shop.business_name}</h2>
-        {shop.business_description && <p className="text-muted-foreground max-w-2xl mx-auto">{shop.business_description}</p>}
+      <section className="relative overflow-hidden" style={{ background: `linear-gradient(145deg, ${primaryColor}, ${secondaryColor})` }}>
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/20 -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-white/20 translate-y-1/2 -translate-x-1/2" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24 text-center text-primary-foreground">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">{shop.business_name}</h1>
+          {shop.business_description && (
+            <p className="text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{shop.business_description}</p>
+          )}
+          <div className="flex gap-3 justify-center mt-8">
+            <Button size="lg" variant="secondary" className="rounded-xl gap-2 font-semibold shadow-lg" onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>
+              <ShoppingBag className="h-5 w-5" /> Voir les produits
+            </Button>
+            {shop.whatsapp_number && (
+              <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
+                <Button size="lg" variant="outline" className="rounded-xl gap-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                  <MessageCircle className="h-5 w-5" /> Nous contacter
+                </Button>
+              </a>
+            )}
+          </div>
+        </div>
       </section>
 
-      {/* Categories */}
-      {categories.length > 2 && (
-        <div className="max-w-7xl mx-auto px-4 py-4 flex gap-2 overflow-x-auto">
-          {categories.map(cat => (
-            <Button key={cat} variant={selectedCategory === cat ? "default" : "outline"} size="sm" onClick={() => setSelectedCategory(cat)} style={selectedCategory === cat ? { backgroundColor: primaryColor } : {}}>
-              {cat === "all" ? "Tout" : cat}
-            </Button>
-          ))}
-        </div>
+      {/* Featured Products */}
+      {featuredProducts.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 py-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">⭐ Produits en vedette</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {featuredProducts.slice(0, 4).map(product => (
+              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={setSelectedProduct} formatPrice={formatPrice} />
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* Products Grid */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {/* All Products */}
+      <section id="products" className="max-w-7xl mx-auto px-4 py-12">
+        <h2 className="text-2xl font-bold mb-6">Tous les produits</h2>
+        
+        {/* Mobile Search */}
+        <div className="md:hidden relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
+        </div>
+
+        {/* Categories */}
+        {categories.length > 2 && (
+          <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide">
+            {categories.map(cat => (
+              <Button
+                key={cat}
+                variant={selectedCategory === cat ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory(cat)}
+                className="rounded-full whitespace-nowrap"
+                style={selectedCategory === cat ? { backgroundColor: primaryColor } : {}}
+              >
+                {cat === "all" ? "Tout voir" : cat}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {filteredProducts.map(product => (
-            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-square bg-muted relative">
-                {product.product_images?.[0] ? (
-                  <img src={product.product_images[0].image_url} alt={product.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><Store className="h-8 w-8 text-muted-foreground" /></div>
-                )}
-                {product.compare_at_price && product.compare_at_price > product.price && (
-                  <Badge className="absolute top-2 left-2 bg-red-500">-{Math.round((1 - product.price / product.compare_at_price) * 100)}%</Badge>
-                )}
-                {product.is_digital && <Badge className="absolute top-2 right-2" variant="secondary">Digital</Badge>}
-              </div>
-              <div className="p-3">
-                <h3 className="font-medium text-sm line-clamp-2">{product.name}</h3>
-                {product.short_description && <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{product.short_description}</p>}
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="font-bold text-sm" style={{ color: primaryColor }}>{new Intl.NumberFormat("fr-FR").format(product.price)} FCFA</span>
-                  {product.compare_at_price && product.compare_at_price > product.price && (
-                    <span className="text-xs text-muted-foreground line-through">{new Intl.NumberFormat("fr-FR").format(product.compare_at_price)}</span>
-                  )}
-                </div>
-                <Button size="sm" className="w-full mt-3 gap-1" style={{ backgroundColor: primaryColor }} onClick={() => addToCart(product)}>
-                  <ShoppingCart className="h-3 w-3" /> Ajouter
-                </Button>
-              </div>
-            </Card>
+            <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={setSelectedProduct} formatPrice={formatPrice} />
           ))}
         </div>
-        {filteredProducts.length === 0 && <p className="text-center text-muted-foreground py-12">Aucun produit dans cette catégorie</p>}
-      </div>
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-16">
+            <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+            <p className="text-lg font-medium">Aucun produit trouvé</p>
+            <p className="text-sm text-muted-foreground">Essayez une autre catégorie ou recherche</p>
+          </div>
+        )}
+      </section>
+
+      {/* Contact Section */}
+      <section className="border-t bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+          <h2 className="text-2xl font-bold mb-2">Une question ?</h2>
+          <p className="text-muted-foreground mb-6">N'hésitez pas à nous contacter</p>
+          <div className="flex flex-wrap gap-4 justify-center">
+            {shop.whatsapp_number && (
+              <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
+                <Button size="lg" className="rounded-xl gap-2" style={{ backgroundColor: "#25D366" }}>
+                  <MessageCircle className="h-5 w-5" /> WhatsApp
+                </Button>
+              </a>
+            )}
+            {shop.phone_number && (
+              <a href={`tel:${shop.phone_number}`}>
+                <Button size="lg" variant="outline" className="rounded-xl gap-2">
+                  <Phone className="h-5 w-5" /> {shop.phone_number}
+                </Button>
+              </a>
+            )}
+            {shop.email && (
+              <a href={`mailto:${shop.email}`}>
+                <Button size="lg" variant="outline" className="rounded-xl gap-2">
+                  <Mail className="h-5 w-5" /> Email
+                </Button>
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="border-t py-8 px-4 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} {shop.business_name}. Propulsé par <span className="font-semibold">VisualPro</span></p>
-        {shop.whatsapp_number && <p className="mt-1">Contact: {shop.whatsapp_number}</p>}
+      <footer className="border-t py-8 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-6 w-6 rounded" /> : <Store className="h-4 w-4" style={{ color: primaryColor }} />}
+            <span>© {new Date().getFullYear()} {shop.business_name}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
+            Propulsé par <span className="font-semibold text-foreground ml-1">VisualPro</span>
+          </div>
+        </div>
       </footer>
+
+      {/* Product Detail Dialog */}
+      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedProduct && (
+            <>
+              <div className="aspect-square rounded-xl overflow-hidden bg-muted mb-4">
+                {selectedProduct.product_images?.[0] ? (
+                  <img src={selectedProduct.product_images[0].image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><Store className="h-16 w-16 text-muted-foreground/30" /></div>
+                )}
+              </div>
+              {selectedProduct.product_images && selectedProduct.product_images.length > 1 && (
+                <div className="flex gap-2 mb-4 overflow-x-auto">
+                  {selectedProduct.product_images.map((img, i) => (
+                    <img key={img.id} src={img.image_url} alt="" className="h-16 w-16 rounded-lg object-cover border-2 border-transparent hover:border-primary cursor-pointer" />
+                  ))}
+                </div>
+              )}
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold">{selectedProduct.name}</h2>
+                    <Badge variant="outline" className="mt-1">{selectedProduct.category}</Badge>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold" style={{ color: primaryColor }}>{formatPrice(selectedProduct.price)} FCFA</p>
+                    {selectedProduct.compare_at_price && selectedProduct.compare_at_price > selectedProduct.price && (
+                      <p className="text-sm text-muted-foreground line-through">{formatPrice(selectedProduct.compare_at_price)} FCFA</p>
+                    )}
+                  </div>
+                </div>
+                {selectedProduct.description && <p className="text-muted-foreground leading-relaxed">{selectedProduct.description}</p>}
+                {selectedProduct.short_description && !selectedProduct.description && <p className="text-muted-foreground">{selectedProduct.short_description}</p>}
+                <div className="flex gap-3 pt-2">
+                  <Button className="flex-1 rounded-xl gap-2 h-12 text-base" style={{ backgroundColor: primaryColor }} onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }}>
+                    <ShoppingCart className="h-5 w-5" /> Ajouter au panier
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Checkout Dialog */}
       <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>🛒 Panier ({cartCount} articles)</DialogTitle></DialogHeader>
-          {cart.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Votre panier est vide</p>
-          ) : (
-            <div className="space-y-4">
-              {cart.map(item => (
-                <div key={item.product.id} className="flex items-center gap-3">
-                  <div className="h-12 w-12 bg-muted rounded overflow-hidden flex-shrink-0">
-                    {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" className="h-full w-full object-cover" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.product.name}</p>
-                    <p className="text-xs text-muted-foreground">{new Intl.NumberFormat("fr-FR").format(item.product.price)} FCFA</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
-                    <span className="text-sm w-6 text-center">{item.quantity}</span>
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                  </div>
-                </div>
-              ))}
-              <div className="border-t pt-3">
-                <div className="flex justify-between font-semibold"><span>Total</span><span>{new Intl.NumberFormat("fr-FR").format(cartTotal)} FCFA</span></div>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {orderSuccess ? (
+            <div className="text-center py-8">
+              <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: primaryColor + "15" }}>
+                <CheckCircle2 className="h-10 w-10" style={{ color: primaryColor }} />
               </div>
-              <div className="space-y-3 border-t pt-3">
-                <h4 className="font-medium">Informations de livraison</h4>
-                <div><Label>Nom complet *</Label><Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} /></div>
-                <div><Label>Téléphone *</Label><Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07..." /></div>
-                <div><Label>Email</Label><Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} /></div>
-                <div><Label>Adresse de livraison</Label><Textarea value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} rows={2} /></div>
-                <div><Label>Ville</Label><Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} /></div>
-                <div>
-                  <Label>Mode de paiement</Label>
-                  <Select value={customerInfo.paymentMethod} onValueChange={(v) => setCustomerInfo({ ...customerInfo, paymentMethod: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                      <SelectItem value="cash_on_delivery">Paiement à la livraison</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="w-full" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !customerInfo.name || !customerInfo.phone}>
-                  {orderLoading ? "Traitement..." : "Commander"}
-                </Button>
-              </div>
+              <h2 className="text-2xl font-bold mb-2">Commande confirmée ! 🎉</h2>
+              <p className="text-muted-foreground mb-6">Le vendeur vous contactera sous peu pour finaliser votre commande.</p>
+              <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
+                Continuer mes achats
+              </Button>
             </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ShoppingBag className="h-5 w-5" /> Mon panier ({cartCount})
+                </DialogTitle>
+              </DialogHeader>
+              {cart.length === 0 ? (
+                <div className="text-center py-12">
+                  <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+                  <p className="font-medium">Votre panier est vide</p>
+                  <p className="text-sm text-muted-foreground mt-1">Parcourez nos produits et ajoutez vos coups de cœur</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {cart.map(item => (
+                    <div key={item.product.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                      <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
+                        {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" className="h-full w-full object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{item.product.name}</p>
+                        <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
+                        <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
+                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="font-semibold text-lg">Total</span>
+                      <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 border-t pt-4">
+                    <h4 className="font-bold">Vos informations</h4>
+                    <div className="space-y-1.5"><Label>Nom complet *</Label><Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} className="rounded-xl" /></div>
+                    <div className="space-y-1.5"><Label>Téléphone *</Label><Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07..." className="rounded-xl" /></div>
+                    <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} className="rounded-xl" /></div>
+                    <div className="space-y-1.5"><Label>Adresse de livraison</Label><Textarea value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} rows={2} className="rounded-xl" /></div>
+                    <div className="space-y-1.5"><Label>Ville</Label><Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} className="rounded-xl" /></div>
+                    <div className="space-y-1.5">
+                      <Label>Mode de paiement</Label>
+                      <Select value={customerInfo.paymentMethod} onValueChange={(v) => setCustomerInfo({ ...customerInfo, paymentMethod: v })}>
+                        <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mobile_money">📱 Mobile Money</SelectItem>
+                          <SelectItem value="cash_on_delivery">💵 Paiement à la livraison</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      className="w-full h-12 rounded-xl text-base font-semibold gap-2" 
+                      style={{ backgroundColor: primaryColor }}
+                      onClick={placeOrder} 
+                      disabled={orderLoading || !customerInfo.name || !customerInfo.phone}
+                    >
+                      {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Commander · {formatPrice(cartTotal)} FCFA</>}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>
@@ -317,38 +486,106 @@ const ShopView = () => {
         <>
           <button
             onClick={() => setChatOpen(!chatOpen)}
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg flex items-center justify-center z-50 text-white"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-xl flex items-center justify-center z-50 text-primary-foreground transition-transform hover:scale-110"
             style={{ backgroundColor: primaryColor }}
           >
             {chatOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
           </button>
 
           {chatOpen && (
-            <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-background border rounded-2xl shadow-2xl z-50 flex flex-col" style={{ height: "400px" }}>
-              <div className="p-3 border-b rounded-t-2xl text-white font-semibold" style={{ backgroundColor: primaryColor }}>
-                💬 Assistant {shop.business_name}
+            <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-background border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden" style={{ height: "420px" }}>
+              <div className="px-4 py-3 border-b text-primary-foreground font-semibold flex items-center gap-2" style={{ backgroundColor: primaryColor }}>
+                <MessageCircle className="h-5 w-5" />
+                Assistant {shop.business_name}
               </div>
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${msg.role === "user" ? "text-white" : "bg-muted"}`} style={msg.role === "user" ? { backgroundColor: primaryColor } : {}}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${msg.role === "user" ? "text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md"}`} style={msg.role === "user" ? { backgroundColor: primaryColor } : {}}>
                       {msg.content}
                     </div>
                   </div>
                 ))}
-                {chatLoading && <div className="flex justify-start"><div className="bg-muted rounded-lg px-3 py-2 text-sm animate-pulse">Réflexion...</div></div>}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">
+                      <div className="flex gap-1"><div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" /><div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0.1s" }} /><div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0.2s" }} /></div>
+                    </div>
+                  </div>
+                )}
                 <div ref={chatEndRef} />
               </div>
               <div className="p-3 border-t flex gap-2">
-                <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Votre message..." onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} className="flex-1" />
-                <Button size="icon" onClick={sendChatMessage} disabled={chatLoading} style={{ backgroundColor: primaryColor }}><Send className="h-4 w-4 text-white" /></Button>
+                <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Votre message..." onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} className="flex-1 rounded-xl" />
+                <Button size="icon" onClick={sendChatMessage} disabled={chatLoading} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
+                  <Send className="h-4 w-4 text-primary-foreground" />
+                </Button>
               </div>
             </div>
           )}
         </>
       )}
+
+      {/* Floating Cart Button - Mobile */}
+      {cartCount > 0 && !checkoutOpen && (
+        <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
+          <Button 
+            className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2"
+            style={{ backgroundColor: primaryColor }}
+            onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
+          >
+            <ShoppingBag className="h-5 w-5" />
+            Voir le panier · {formatPrice(cartTotal)} FCFA
+            <Badge className="ml-auto bg-primary-foreground/20 text-primary-foreground">{cartCount}</Badge>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
+
+// Product Card Component
+function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice }: {
+  product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string;
+}) {
+  return (
+    <Card className="overflow-hidden group cursor-pointer border-0 shadow-sm hover:shadow-xl transition-all duration-300" onClick={() => onView(product)}>
+      <div className="aspect-square bg-muted relative overflow-hidden">
+        {product.product_images?.[0] ? (
+          <img src={product.product_images[0].image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center"><Store className="h-10 w-10 text-muted-foreground/30" /></div>
+        )}
+        {product.compare_at_price && product.compare_at_price > product.price && (
+          <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground rounded-lg font-bold">
+            -{Math.round((1 - product.price / product.compare_at_price) * 100)}%
+          </Badge>
+        )}
+        {product.is_digital && <Badge className="absolute top-2 right-2 bg-purple-600 rounded-lg">Digital</Badge>}
+      </div>
+      <div className="p-3 md:p-4">
+        <h3 className="font-semibold text-sm line-clamp-2 mb-1">{product.name}</h3>
+        {product.short_description && <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{product.short_description}</p>}
+        <div className="flex items-end justify-between gap-2">
+          <div>
+            <span className="font-bold text-base" style={{ color: primaryColor }}>{formatPrice(product.price)}</span>
+            <span className="text-xs text-muted-foreground ml-1">FCFA</span>
+            {product.compare_at_price && product.compare_at_price > product.price && (
+              <span className="text-xs text-muted-foreground line-through ml-2">{formatPrice(product.compare_at_price)}</span>
+            )}
+          </div>
+          <Button 
+            size="icon" 
+            className="h-9 w-9 rounded-xl flex-shrink-0" 
+            style={{ backgroundColor: primaryColor }}
+            onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
+          >
+            <Plus className="h-4 w-4 text-primary-foreground" />
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export default ShopView;
