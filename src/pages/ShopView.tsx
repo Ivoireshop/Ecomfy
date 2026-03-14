@@ -396,85 +396,196 @@ const ShopView = () => {
       </Dialog>
 
       {/* Checkout Dialog */}
-      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={checkoutOpen} onOpenChange={(open) => { setCheckoutOpen(open); if (!open) { setCheckoutStep("cart"); setOrderSuccess(false); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-0">
           {orderSuccess ? (
-            <div className="text-center py-8">
+            <div className="text-center py-12 px-6">
               <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: primaryColor + "15" }}>
                 <CheckCircle2 className="h-10 w-10" style={{ color: primaryColor }} />
               </div>
               <h2 className="text-2xl font-bold mb-2">Commande confirmée ! 🎉</h2>
               <p className="text-muted-foreground mb-6">Le vendeur vous contactera sous peu pour finaliser votre commande.</p>
-              <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
+              <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); setCheckoutStep("cart"); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
                 Continuer mes achats
               </Button>
             </div>
           ) : (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <ShoppingBag className="h-5 w-5" /> Mon panier ({cartCount})
-                </DialogTitle>
-              </DialogHeader>
-              {cart.length === 0 ? (
-                <div className="text-center py-12">
-                  <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
-                  <p className="font-medium">Votre panier est vide</p>
-                  <p className="text-sm text-muted-foreground mt-1">Parcourez nos produits et ajoutez vos coups de cœur</p>
+              {/* Step Indicator */}
+              <div className="px-6 pt-6 pb-2">
+                <div className="flex items-center justify-between mb-1">
+                  {[
+                    { key: "cart", label: "Panier", icon: ShoppingBag },
+                    { key: "info", label: "Livraison", icon: Truck },
+                    { key: "confirm", label: "Paiement", icon: CreditCard },
+                  ].map((step, i) => {
+                    const steps = ["cart", "info", "confirm"];
+                    const currentIdx = steps.indexOf(checkoutStep);
+                    const stepIdx = i;
+                    const isActive = stepIdx === currentIdx;
+                    const isDone = stepIdx < currentIdx;
+                    return (
+                      <div key={step.key} className="flex items-center flex-1">
+                        <div className="flex flex-col items-center flex-1">
+                          <div
+                            className={`h-9 w-9 rounded-full flex items-center justify-center mb-1 transition-colors ${!isDone && !isActive ? "bg-muted text-muted-foreground" : "text-primary-foreground"}`}
+                            style={isDone || isActive ? { backgroundColor: primaryColor } : {}}
+                          >
+                            {isDone ? <CheckCircle2 className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
+                          </div>
+                          <span className={`text-[11px] font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{step.label}</span>
+                        </div>
+                        {i < 2 && <div className={`h-0.5 flex-1 mx-1 rounded-full mt-[-14px] ${isDone ? "" : "bg-muted"}`} style={isDone ? { backgroundColor: primaryColor } : {}} />}
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {cart.map(item => (
-                    <div key={item.product.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
-                      <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
-                        {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" className="h-full w-full object-cover" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                        <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
-                        <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="font-semibold text-lg">Total</span>
-                      <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                    </div>
-                  </div>
+              </div>
 
-                  <div className="space-y-3 border-t pt-4">
-                    <h4 className="font-bold">Vos informations</h4>
-                    <div className="space-y-1.5"><Label>Nom complet *</Label><Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} className="rounded-xl" /></div>
-                    <div className="space-y-1.5"><Label>Téléphone *</Label><Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07..." className="rounded-xl" /></div>
-                    <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} className="rounded-xl" /></div>
-                    <div className="space-y-1.5"><Label>Adresse de livraison</Label><Textarea value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} rows={2} className="rounded-xl" /></div>
-                    <div className="space-y-1.5"><Label>Ville</Label><Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} className="rounded-xl" /></div>
-                    <div className="space-y-1.5">
-                      <Label>Mode de paiement</Label>
-                      <Select value={customerInfo.paymentMethod} onValueChange={(v) => setCustomerInfo({ ...customerInfo, paymentMethod: v })}>
-                        <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mobile_money">📱 Mobile Money</SelectItem>
-                          <SelectItem value="cash_on_delivery">💵 Paiement à la livraison</SelectItem>
-                        </SelectContent>
-                      </Select>
+              {/* Step: Cart */}
+              {checkoutStep === "cart" && (
+                <div className="px-6 pb-6">
+                  {cart.length === 0 ? (
+                    <div className="text-center py-12">
+                      <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+                      <p className="font-medium">Votre panier est vide</p>
+                      <p className="text-sm text-muted-foreground mt-1">Parcourez nos produits et ajoutez vos coups de cœur</p>
                     </div>
-                    <Button 
-                      className="w-full h-12 rounded-xl text-base font-semibold gap-2" 
-                      style={{ backgroundColor: primaryColor }}
-                      onClick={placeOrder} 
-                      disabled={orderLoading || !customerInfo.name || !customerInfo.phone}
-                    >
-                      {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Commander · {formatPrice(cartTotal)} FCFA</>}
-                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      {cart.map(item => (
+                        <div key={item.product.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                          <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
+                            {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" className="h-full w-full object-cover" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{item.product.name}</p>
+                            <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
+                            <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="border-t pt-3 mt-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-lg">Total</span>
+                          <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                        </div>
+                      </div>
+                      <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
+                        Continuer <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step: Customer Info */}
+              {checkoutStep === "info" && (
+                <div className="px-6 pb-6 space-y-5">
+                  <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <ArrowLeft className="h-4 w-4" /> Retour au panier
+                  </button>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" style={{ color: primaryColor }} />
+                      <h4 className="font-bold text-sm">Contact</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Nom complet *</Label>
+                        <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder="Jean Kouassi" className="rounded-xl h-11" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Téléphone *</Label>
+                        <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-xl h-11" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Email <span className="text-muted-foreground/50">(facultatif)</span></Label>
+                        <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-11" />
+                      </div>
+                    </div>
                   </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4" style={{ color: primaryColor }} />
+                      <h4 className="font-bold text-sm">Livraison</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs text-muted-foreground">Adresse / Quartier *</Label>
+                        <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-xl h-11" />
+                      </div>
+                      <div className="space-y-1 col-span-2 sm:col-span-1">
+                        <Label className="text-xs text-muted-foreground">Ville *</Label>
+                        <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-xl h-11" />
+                      </div>
+                    </div>
+                  </div>
+                  <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("confirm")} disabled={!customerInfo.name || !customerInfo.phone || !customerInfo.address || !customerInfo.city}>
+                    Passer au paiement <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Step: Payment & Confirm */}
+              {checkoutStep === "confirm" && (
+                <div className="px-6 pb-6 space-y-5">
+                  <button onClick={() => setCheckoutStep("info")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <ArrowLeft className="h-4 w-4" /> Retour
+                  </button>
+                  <div className="bg-muted/30 rounded-xl p-4 space-y-2">
+                    <h4 className="font-bold text-sm mb-3">Résumé de la commande</h4>
+                    {cart.map(item => (
+                      <div key={item.product.id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{item.product.name} × {item.quantity}</span>
+                        <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2 flex justify-between font-bold">
+                      <span>Total</span>
+                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 rounded-xl p-4 space-y-1.5 text-sm">
+                    <h4 className="font-bold text-sm mb-2">Livraison à</h4>
+                    <p className="font-medium">{customerInfo.name}</p>
+                    <p className="text-muted-foreground">{customerInfo.address}, {customerInfo.city}</p>
+                    <p className="text-muted-foreground">{customerInfo.phone}</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" style={{ color: primaryColor }} />
+                      <h4 className="font-bold text-sm">Mode de paiement</h4>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { value: "mobile_money", label: "Mobile Money", icon: "📱", desc: "Wave, Orange, MTN, Moov" },
+                        { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵", desc: "Payez en espèces à la réception" },
+                      ].map(method => (
+                        <button
+                          key={method.value}
+                          onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                          className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-muted hover:border-muted-foreground/30"}`}
+                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+                        >
+                          <span className="text-2xl">{method.icon}</span>
+                          <div>
+                            <p className="font-semibold text-sm">{method.label}</p>
+                            <p className="text-xs text-muted-foreground">{method.desc}</p>
+                          </div>
+                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-5 w-5 ml-auto flex-shrink-0" style={{ color: primaryColor }} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading}>
+                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
+                  </Button>
                 </div>
               )}
             </>
