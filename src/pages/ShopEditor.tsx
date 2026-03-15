@@ -170,6 +170,23 @@ const ShopEditor = () => {
     }
   };
 
+  const uploadShopImage = async (file: File, type: 'logo' | 'banner' | 'favicon') => {
+    if (!shop) return;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${shop.id}/${type}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('shop-images').upload(filePath, file);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('shop-images').getPublicUrl(filePath);
+      const fieldName = type === 'logo' ? 'logo_url' : type === 'banner' ? 'banner_url' : 'favicon_url';
+      await supabase.from('shops').update({ [fieldName]: urlData.publicUrl }).eq('id', shop.id);
+      setShop({ ...shop, [fieldName]: urlData.publicUrl });
+      toast({ title: `✓ ${type === 'logo' ? 'Logo' : type === 'banner' ? 'Bannière' : 'Favicon'} mis à jour` });
+    } catch (err) {
+      toast({ title: "Erreur d'upload", variant: "destructive" });
+    }
+  };
+
   const saveShop = async () => {
     if (!shop) return;
     setSaving(true);
@@ -179,6 +196,7 @@ const ShopEditor = () => {
       city: shop.city, primary_color: shop.primary_color, secondary_color: shop.secondary_color,
       chatbot_enabled: shop.chatbot_enabled, chatbot_welcome_message: shop.chatbot_welcome_message,
       is_published: shop.is_published, seo_title: shop.seo_title, seo_description: shop.seo_description,
+      logo_url: shop.logo_url, banner_url: shop.banner_url, favicon_url: shop.favicon_url,
     }).eq("id", shop.id) as any;
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
     else toast({ title: "✓ Sauvegardé" });
