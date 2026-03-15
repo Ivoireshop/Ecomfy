@@ -70,6 +70,15 @@ const ShopView = () => {
     const { data: productsData } = await supabase.from("products").select("*, product_images(*)").eq("shop_id", shopData.id).eq("is_published", true).order("display_order") as any;
     setProducts(productsData || []);
     setLoading(false);
+    // Set favicon dynamically
+    if (shopData.favicon_url) {
+      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+      link.rel = 'icon';
+      link.href = shopData.favicon_url;
+      document.head.appendChild(link);
+    }
+    // Set page title
+    document.title = shopData.business_name || 'Boutique';
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
     }
