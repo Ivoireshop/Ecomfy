@@ -181,6 +181,12 @@ const ShopView = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Preview Mode Banner */}
+      {shop._isPreview && (
+        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-50">
+          ⚠️ Mode prévisualisation — Cette boutique n'est pas encore en ligne
+        </div>
+      )}
       {/* Sticky Header */}
       <header className="border-b sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">

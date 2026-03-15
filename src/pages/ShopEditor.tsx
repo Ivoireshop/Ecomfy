@@ -303,7 +303,10 @@ const ShopEditor = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => window.open(`/shop/${shop.slug}`, "_blank")} className="gap-1.5 hidden md:flex">
-              <Eye className="h-4 w-4" /> Voir
+              <Eye className="h-4 w-4" /> {isActivated ? "Voir" : "Prévisualiser"}
+            </Button>
+            <Button variant="outline" size="icon" className="md:hidden" onClick={() => window.open(`/shop/${shop.slug}`, "_blank")}>
+              <Eye className="h-4 w-4" />
             </Button>
             <Button size="sm" onClick={saveShop} disabled={saving} className="gap-1.5">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
