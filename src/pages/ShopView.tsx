@@ -56,12 +56,29 @@ const ShopView = () => {
 
   const fetchShop = async () => {
     if (!slug) return;
-    const { data: shopData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).single() as any;
+    // First try to find published & activated shop
+    let { data: shopData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).single() as any;
+    // If not found, try to find any shop with this slug (preview mode)
+    if (!shopData) {
+      const { data: previewData } = await supabase.from("shops").select("*").eq("slug", slug).single() as any;
+      if (previewData) {
+        shopData = { ...previewData, _isPreview: true };
+      }
+    }
     if (!shopData) { setLoading(false); return; }
     setShop(shopData);
     const { data: productsData } = await supabase.from("products").select("*, product_images(*)").eq("shop_id", shopData.id).eq("is_published", true).order("display_order") as any;
     setProducts(productsData || []);
     setLoading(false);
+    // Set favicon dynamically
+    if (shopData.favicon_url) {
+      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+      link.rel = 'icon';
+      link.href = shopData.favicon_url;
+      document.head.appendChild(link);
+    }
+    // Set page title
+    document.title = shopData.business_name || 'Boutique';
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
     }
@@ -173,6 +190,12 @@ const ShopView = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Preview Mode Banner */}
+      {shop._isPreview && (
+        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-50">
+          ⚠️ Mode prévisualisation — Cette boutique n'est pas encore en ligne
+        </div>
+      )}
       {/* Sticky Header */}
       <header className="border-b sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
