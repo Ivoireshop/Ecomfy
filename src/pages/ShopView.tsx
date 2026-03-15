@@ -32,7 +32,26 @@ interface ChatMessage { role: "user" | "assistant"; content: string; }
 const ShopView = () => {
   const { slug, id } = useParams<{ slug?: string; id?: string }>();
   const [shop, setShop] = useState<any>(null);
-...
+  const [products, setProducts] = useState<Product[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirm">("cart");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const [customerInfo, setCustomerInfo] = useState({
+    name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
+  });
+
   useEffect(() => { fetchShop(); }, [slug, id]);
 
   const fetchShop = async () => {
