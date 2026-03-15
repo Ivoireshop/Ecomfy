@@ -323,16 +323,16 @@ const ShopEditor = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open(isActivated ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
+              onClick={() => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
               className="gap-1.5 hidden md:flex"
             >
-              <Eye className="h-4 w-4" /> {isActivated ? "Voir" : "Prévisualiser"}
+              <Eye className="h-4 w-4" /> {shop?.is_activated && shop?.is_published ? "Voir" : "Prévisualiser"}
             </Button>
             <Button
               variant="outline"
               size="icon"
               className="md:hidden"
-              onClick={() => window.open(isActivated ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
+              onClick={() => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
             >
               <Eye className="h-4 w-4" />
             </Button>
