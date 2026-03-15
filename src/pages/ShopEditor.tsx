@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Eye, Save, Package, ShoppingCart, Image as ImageIcon, Bell, Upload, Settings, ArrowLeft, BarChart3, Palette, MessageSquare, Globe, Search, Edit, Zap, TrendingUp, DollarSign, Tag, Box, FileText, ToggleLeft, Smartphone, CreditCard, X } from "lucide-react";
+import { Loader2, Plus, Trash2, Eye, Save, Package, ShoppingCart, Image as ImageIcon, Bell, Upload, Settings, ArrowLeft, BarChart3, Palette, MessageSquare, Globe, Search, Edit, Zap, TrendingUp, DollarSign, Tag, Box, FileText, ToggleLeft, Smartphone, CreditCard, X, Store } from "lucide-react";
 
 interface Product {
   id: string;
