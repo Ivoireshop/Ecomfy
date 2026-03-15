@@ -222,7 +222,7 @@ const AppContent = () => {
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
 
   // For showcase/shop views, render without sidebar
   if (isShowcaseView || isShopView) {
