@@ -1353,6 +1353,7 @@ export type Database = {
           created_at: string
           currency: string | null
           email: string | null
+          favicon_url: string | null
           id: string
           is_activated: boolean | null
           is_published: boolean | null
@@ -1385,6 +1386,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           email?: string | null
+          favicon_url?: string | null
           id?: string
           is_activated?: boolean | null
           is_published?: boolean | null
@@ -1417,6 +1419,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           email?: string | null
+          favicon_url?: string | null
           id?: string
           is_activated?: boolean | null
           is_published?: boolean | null
