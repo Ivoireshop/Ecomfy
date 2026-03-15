@@ -56,29 +56,38 @@ const ShopView = () => {
 
   const fetchShop = async () => {
     if (!slug) return;
-    // First try to find published & activated shop
-    let { data: shopData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).single() as any;
-    // If not found, try to find any shop with this slug (preview mode)
-    if (!shopData) {
-      const { data: previewData } = await supabase.from("shops").select("*").eq("slug", slug).single() as any;
+    let shopData: any = null;
+
+    // First try published & activated shop (public access)
+    const { data: liveData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).maybeSingle() as any;
+    
+    if (liveData) {
+      shopData = liveData;
+    } else {
+      // Try owner preview (requires auth via RLS ALL policy)
+      const { data: previewData } = await supabase.from("shops").select("*").eq("slug", slug).maybeSingle() as any;
       if (previewData) {
         shopData = { ...previewData, _isPreview: true };
       }
     }
+
     if (!shopData) { setLoading(false); return; }
     setShop(shopData);
+
     const { data: productsData } = await supabase.from("products").select("*, product_images(*)").eq("shop_id", shopData.id).eq("is_published", true).order("display_order") as any;
     setProducts(productsData || []);
     setLoading(false);
-    // Set favicon dynamically
-    if (shopData.favicon_url) {
-      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
-      link.rel = 'icon';
-      link.href = shopData.favicon_url;
-      document.head.appendChild(link);
-    }
-    // Set page title
-    document.title = shopData.business_name || 'Boutique';
+
+    // Set favicon dynamically (shop's own favicon, not VisualPro)
+    const faviconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+    faviconLink.rel = 'icon';
+    faviconLink.type = 'image/png';
+    faviconLink.href = shopData.favicon_url || shopData.logo_url || '/favicon.png';
+    if (!faviconLink.parentNode) document.head.appendChild(faviconLink);
+
+    // Set page title to shop name
+    document.title = shopData.seo_title || shopData.business_name || 'Boutique';
+
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
     }
