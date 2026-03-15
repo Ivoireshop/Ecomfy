@@ -56,7 +56,15 @@ const ShopView = () => {
 
   const fetchShop = async () => {
     if (!slug) return;
-    const { data: shopData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).single() as any;
+    // First try to find published & activated shop
+    let { data: shopData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).single() as any;
+    // If not found, try to find any shop with this slug (preview mode)
+    if (!shopData) {
+      const { data: previewData } = await supabase.from("shops").select("*").eq("slug", slug).single() as any;
+      if (previewData) {
+        shopData = { ...previewData, _isPreview: true };
+      }
+    }
     if (!shopData) { setLoading(false); return; }
     setShop(shopData);
     const { data: productsData } = await supabase.from("products").select("*, product_images(*)").eq("shop_id", shopData.id).eq("is_published", true).order("display_order") as any;
