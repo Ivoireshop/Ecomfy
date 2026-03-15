@@ -889,6 +889,66 @@ const ShopEditor = () => {
         {/* Appearance */}
         {activeSection === "appearance" && (
           <div className="space-y-6 max-w-2xl">
+            {/* Logo & Favicon */}
+            <Card className="p-6 space-y-5">
+              <h3 className="font-bold text-lg flex items-center gap-2"><ImageIcon className="h-5 w-5" /> Identité visuelle</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label>Logo de la boutique</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="h-20 w-20 rounded-2xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30">
+                      {shop.logo_url ? (
+                        <img src={shop.logo_url} alt="Logo" className="h-full w-full object-cover" />
+                      ) : (
+                        <Store className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="cursor-pointer">
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadShopImage(e.target.files[0], 'logo')} />
+                        <Button size="sm" variant="outline" className="gap-1.5" asChild><span><Upload className="h-3 w-3" /> Changer le logo</span></Button>
+                      </label>
+                      <p className="text-[10px] text-muted-foreground">PNG, JPG · 512x512 recommandé</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <Label>Favicon</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30">
+                      {shop.favicon_url ? (
+                        <img src={shop.favicon_url} alt="Favicon" className="h-full w-full object-contain" />
+                      ) : (
+                        <Globe className="h-6 w-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="cursor-pointer">
+                        <input type="file" accept="image/png,image/x-icon,image/svg+xml" className="hidden" onChange={(e) => e.target.files?.[0] && uploadShopImage(e.target.files[0], 'favicon')} />
+                        <Button size="sm" variant="outline" className="gap-1.5" asChild><span><Upload className="h-3 w-3" /> Changer le favicon</span></Button>
+                      </label>
+                      <p className="text-[10px] text-muted-foreground">ICO, PNG · 32x32 ou 64x64</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Label>Bannière</Label>
+                <div className="rounded-xl border-2 border-dashed border-border overflow-hidden bg-muted/30">
+                  {shop.banner_url ? (
+                    <img src={shop.banner_url} alt="Bannière" className="w-full h-32 object-cover" />
+                  ) : (
+                    <div className="h-32 flex items-center justify-center">
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadShopImage(e.target.files[0], 'banner')} />
+                  <Button size="sm" variant="outline" className="gap-1.5" asChild><span><Upload className="h-3 w-3" /> Changer la bannière</span></Button>
+                </label>
+              </div>
+            </Card>
             <Card className="p-6 space-y-5">
               <h3 className="font-bold text-lg flex items-center gap-2"><Palette className="h-5 w-5" /> Couleurs</h3>
               <div className="grid grid-cols-2 gap-6">
