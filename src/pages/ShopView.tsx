@@ -30,7 +30,7 @@ interface CartItem { product: Product; quantity: number; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ShopView = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug, id } = useParams<{ slug?: string; id?: string }>();
   const [shop, setShop] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -52,41 +52,74 @@ const ShopView = () => {
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
   });
 
-  useEffect(() => { fetchShop(); }, [slug]);
+  useEffect(() => { fetchShop(); }, [slug, id]);
 
   const fetchShop = async () => {
-    if (!slug) return;
+    if (!slug && !id) return;
     let shopData: any = null;
 
-    // First try published & activated shop (public access)
-    const { data: liveData } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).maybeSingle() as any;
-    
-    if (liveData) {
-      shopData = liveData;
-    } else {
-      // Try owner preview (requires auth via RLS ALL policy)
-      const { data: previewData } = await supabase.from("shops").select("*").eq("slug", slug).maybeSingle() as any;
-      if (previewData) {
-        shopData = { ...previewData, _isPreview: true };
+    if (id) {
+      // Dedicated editor preview route (owner-only via RLS)
+      const { data: previewById } = await supabase.from("shops").select("*").eq("id", id).maybeSingle() as any;
+      if (previewById) {
+        shopData = { ...previewById, _isPreview: true };
+      }
+    } else if (slug) {
+      // Public live shop
+      const { data: liveRows } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .eq("is_activated", true)
+        .order("created_at", { ascending: false })
+        .limit(1) as any;
+
+      const liveData = liveRows?.[0];
+      if (liveData) {
+        shopData = liveData;
+      } else {
+        // Owner fallback preview by slug
+        const { data: previewRows } = await supabase
+          .from("shops")
+          .select("*")
+          .eq("slug", slug)
+          .order("created_at", { ascending: false })
+          .limit(1) as any;
+
+        const previewData = previewRows?.[0];
+        if (previewData) {
+          shopData = { ...previewData, _isPreview: true };
+        }
       }
     }
 
     if (!shopData) { setLoading(false); return; }
     setShop(shopData);
 
-    const { data: productsData } = await supabase.from("products").select("*, product_images(*)").eq("shop_id", shopData.id).eq("is_published", true).order("display_order") as any;
+    let productsQuery = supabase
+      .from("products")
+      .select("*, product_images(*)")
+      .eq("shop_id", shopData.id)
+      .order("display_order");
+
+    if (!shopData._isPreview) {
+      productsQuery = productsQuery.eq("is_published", true);
+    }
+
+    const { data: productsData } = await productsQuery as any;
     setProducts(productsData || []);
     setLoading(false);
 
-    // Set favicon dynamically (shop's own favicon, not VisualPro)
-    const faviconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
-    faviconLink.rel = 'icon';
-    faviconLink.type = 'image/png';
-    faviconLink.href = shopData.favicon_url || shopData.logo_url || '/favicon.png';
+    // Set favicon dynamically (shop branding first)
+    const faviconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement("link");
+    faviconLink.rel = "icon";
+    faviconLink.type = "image/png";
+    faviconLink.href = shopData.favicon_url || shopData.logo_url || "/favicon.png";
     if (!faviconLink.parentNode) document.head.appendChild(faviconLink);
 
     // Set page title to shop name
-    document.title = shopData.seo_title || shopData.business_name || 'Boutique';
+    document.title = shopData.seo_title || shopData.business_name || "Boutique";
 
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);

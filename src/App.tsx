@@ -211,6 +211,7 @@ const AppContent = () => {
         <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
         <Route path="/shop-builder" element={<ProtectedRoute><ShopBuilder /></ProtectedRoute>} />
         <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
+        <Route path="/shop-preview/:id" element={<ProtectedRoute><ShopView /></ProtectedRoute>} />
         <Route path="/shop/:slug" element={<ShopView />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -221,7 +222,7 @@ const AppContent = () => {
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
 
   // For showcase/shop views, render without sidebar
   if (isShowcaseView || isShopView) {

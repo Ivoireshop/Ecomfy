@@ -221,7 +221,7 @@ const ShopManager = () => {
                       <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => window.open(`/shop/${shop.slug}`, "_blank")}
+                        onClick={() => window.open(shop.is_activated && shop.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
                       >
                         <ArrowUpRight className="h-4 w-4" />
                       </Button>

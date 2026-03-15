@@ -320,10 +320,20 @@ const ShopEditor = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.open(`/shop/${shop.slug}`, "_blank")} className="gap-1.5 hidden md:flex">
-              <Eye className="h-4 w-4" /> {isActivated ? "Voir" : "Prévisualiser"}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
+              className="gap-1.5 hidden md:flex"
+            >
+              <Eye className="h-4 w-4" /> {shop?.is_activated && shop?.is_published ? "Voir" : "Prévisualiser"}
             </Button>
-            <Button variant="outline" size="icon" className="md:hidden" onClick={() => window.open(`/shop/${shop.slug}`, "_blank")}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:hidden"
+              onClick={() => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
+            >
               <Eye className="h-4 w-4" />
             </Button>
             <Button size="sm" onClick={saveShop} disabled={saving} className="gap-1.5">
