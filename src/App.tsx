@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
 import { SupportButton } from "@/components/SupportButton";
@@ -73,11 +73,6 @@ const AppContent = () => {
   return (
     <>
       <BackButton />
-      {showSidebar && (
-        <div className="fixed top-14 left-1 md:top-16 md:left-3 z-50">
-          <SidebarTrigger className="bg-background/80 backdrop-blur-sm shadow-md border border-border rounded-full p-2" />
-        </div>
-      )}
       {showSupport && <SupportButton />}
       <Suspense fallback={<PageLoader />}>
         <Routes>

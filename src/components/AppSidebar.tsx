@@ -17,6 +17,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -143,21 +144,26 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full">
         <TooltipProvider>
           {/* Header */}
-          <SidebarGroup>
-            <SidebarGroupLabel className={isCollapsed ? "text-center px-0 mb-2" : "mb-2"}>
-              <div className="flex items-center justify-between gap-2">
-                {!isCollapsed && (
-                  <span className="font-bold text-base bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    VisualPro
-                  </span>
-                )}
-                <UserAvatar />
+          <SidebarGroup className="pb-2">
+            <SidebarGroupLabel className={isCollapsed ? "px-0 mb-3" : "mb-3 px-3"}>
+              <div className={isCollapsed ? "flex flex-col items-center gap-3" : "flex flex-col gap-3"}>
+                <div className="flex items-center justify-between gap-2">
+                  {!isCollapsed && (
+                    <span className="font-bold text-base bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                      VisualPro
+                    </span>
+                  )}
+                  <UserAvatar />
+                </div>
+                <div className={isCollapsed ? "flex justify-center" : "flex justify-start"}>
+                  <SidebarTrigger className="h-9 w-9 rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted" />
+                </div>
               </div>
             </SidebarGroupLabel>
           </SidebarGroup>
 
           {/* Navigation groups */}
-          <div className="flex-1 overflow-y-auto space-y-1">
+          <div className="flex-1 overflow-y-auto space-y-2 pt-1">
             <NavSection label="Création" items={mainItems} isCollapsed={isCollapsed} />
             <NavSection label="Business" items={businessItems} isCollapsed={isCollapsed} />
             <NavSection label="Apprendre" items={learningItems} isCollapsed={isCollapsed} />
