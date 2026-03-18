@@ -348,7 +348,26 @@ const Auth = () => {
     }
   };
 
-  return (
+  const handleSocialLogin = async (provider: "google" | "apple") => {
+    setIsLoading(true);
+    try {
+      const { error } = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin,
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error(`Erreur connexion ${provider}:`, error);
+      toast({
+        title: "Erreur",
+        description: `Impossible de se connecter avec ${provider === 'google' ? 'Google' : 'Apple'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
     <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-6 lg:p-8">
       <div className="w-full max-w-md mx-auto">
         <div className="text-center mb-8">
