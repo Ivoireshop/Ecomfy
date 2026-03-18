@@ -1,5 +1,8 @@
-import { Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, Gift, HelpCircle, PlayCircle, Code2, Store } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { 
+  Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, 
+  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt
+} from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
@@ -24,19 +27,88 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const items = [
+const mainItems = [
   { title: "Accueil", url: "/", icon: Home },
   { title: "Générateur", url: "/generator", icon: Image },
+  { title: "Bibliothèque", url: "/library", icon: Video },
+];
+
+const businessItems = [
   { title: "Sites Vitrines", url: "/showcase-manager", icon: Globe },
   { title: "Boutiques", url: "/shop-manager", icon: Store },
-  { title: "Bibliothèque", url: "/library", icon: Video },
-  { title: "Parrainage", url: "/referral", icon: Gift },
-  { title: "Abonnement", url: "/subscription", icon: CreditCard },
+];
+
+const learningItems = [
+  { title: "Espace Étudiant", url: "/student", icon: GraduationCap },
   { title: "Tutoriel", url: "/tutorial", icon: HelpCircle },
   { title: "Démo Vidéo", url: "/demo", icon: PlayCircle },
-  { title: "Avis & Commentaires", url: "/feedback", icon: MessageSquare },
-  { title: "Espace Développeur", url: "/api-documentation", icon: Code2 },
 ];
+
+const accountItems = [
+  { title: "Abonnement", url: "/subscription", icon: CreditCard },
+  { title: "Historique", url: "/payment-history", icon: Receipt },
+  { title: "Parrainage", url: "/referral", icon: Gift },
+  { title: "Avis", url: "/feedback", icon: MessageSquare },
+  { title: "API", url: "/api-documentation", icon: Code2 },
+];
+
+interface NavItemProps {
+  item: { title: string; url: string; icon: React.ElementType };
+  isCollapsed: boolean;
+}
+
+const NavItem = ({ item, isCollapsed }: NavItemProps) => (
+  <SidebarMenuItem>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <SidebarMenuButton asChild>
+          <NavLink
+            to={item.url}
+            end={item.url === "/"}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+                isActive 
+                  ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`
+            }
+          >
+            <item.icon className="h-4 w-4 shrink-0" />
+            <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
+          </NavLink>
+        </SidebarMenuButton>
+      </TooltipTrigger>
+      {isCollapsed && (
+        <TooltipContent side="right">
+          <p>{item.title}</p>
+        </TooltipContent>
+      )}
+    </Tooltip>
+  </SidebarMenuItem>
+);
+
+interface NavSectionProps {
+  label: string;
+  items: { title: string; url: string; icon: React.ElementType }[];
+  isCollapsed: boolean;
+}
+
+const NavSection = ({ label, items, isCollapsed }: NavSectionProps) => (
+  <SidebarGroup>
+    {!isCollapsed && (
+      <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 px-3 mb-1">
+        {label}
+      </SidebarGroupLabel>
+    )}
+    <SidebarGroupContent>
+      <SidebarMenu>
+        {items.map((item) => (
+          <NavItem key={item.title} item={item} isCollapsed={isCollapsed} />
+        ))}
+      </SidebarMenu>
+    </SidebarGroupContent>
+  </SidebarGroup>
+);
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -51,7 +123,7 @@ export function AppSidebar() {
           .from("user_roles")
           .select("role")
           .eq("user_id", session.user.id)
-          // @ts-ignore - Types will update after migration
+          // @ts-ignore
           .in("role", ["founder", "co_founder"]);
         
         setIsFounder(data && data.length > 0);
@@ -61,106 +133,49 @@ export function AppSidebar() {
     checkFounderStatus();
   }, []);
 
+  const founderItems = [
+    { title: "Tableau de Bord", url: "/founder-dashboard", icon: BarChart },
+    { title: "Codes Promo", url: "/promo-codes", icon: Tag },
+  ];
+
   return (
     <Sidebar collapsible="icon">
-      <SidebarContent>
+      <SidebarContent className="flex flex-col h-full">
         <TooltipProvider>
+          {/* Header */}
           <SidebarGroup>
-            <SidebarGroupLabel className={isCollapsed ? "text-center px-0 mb-4" : "mb-4"}>
+            <SidebarGroupLabel className={isCollapsed ? "text-center px-0 mb-2" : "mb-2"}>
               <div className="flex items-center justify-between gap-2">
-                {!isCollapsed && <span>VisualPro</span>}
+                {!isCollapsed && (
+                  <span className="font-bold text-base bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    VisualPro
+                  </span>
+                )}
                 <UserAvatar />
               </div>
             </SidebarGroupLabel>
+          </SidebarGroup>
 
+          {/* Navigation groups */}
+          <div className="flex-1 overflow-y-auto space-y-1">
+            <NavSection label="Création" items={mainItems} isCollapsed={isCollapsed} />
+            <NavSection label="Business" items={businessItems} isCollapsed={isCollapsed} />
+            <NavSection label="Apprendre" items={learningItems} isCollapsed={isCollapsed} />
+            <NavSection label="Compte" items={accountItems} isCollapsed={isCollapsed} />
+            {isFounder && (
+              <NavSection label="Administration" items={founderItems} isCollapsed={isCollapsed} />
+            )}
+          </div>
+
+          {/* Footer */}
+          <SidebarGroup className="mt-auto pb-4">
             <SidebarGroupContent>
-              <SidebarMenu>
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton asChild>
-                          <NavLink 
-                            to={item.url} 
-                            end
-                            className={({ isActive }) =>
-                              isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                            }
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      {isCollapsed && (
-                        <TooltipContent side="right">
-                          <p>{item.title}</p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </SidebarMenuItem>
-                ))}
-              
-              {isFounder && (
-                <>
-                  <SidebarMenuItem>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton asChild>
-                          <NavLink 
-                            to="/founder-dashboard" 
-                            className={({ isActive }) =>
-                              isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                            }
-                          >
-                            <BarChart className="h-4 w-4" />
-                            <span className={isCollapsed ? "md:hidden" : ""}>Tableau de Bord</span>
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      {isCollapsed && (
-                        <TooltipContent side="right">
-                          <p>Tableau de Bord</p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton asChild>
-                          <NavLink 
-                            to="/promo-codes" 
-                            className={({ isActive }) =>
-                              isActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
-                            }
-                          >
-                            <Tag className="h-4 w-4" />
-                            <span className={isCollapsed ? "md:hidden" : ""}>Codes Promo</span>
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      {isCollapsed && (
-                        <TooltipContent side="right">
-                          <p>Codes Promo</p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </SidebarMenuItem>
-                </>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupContent>
-            <div className={isCollapsed ? "flex justify-center" : "flex items-center gap-2 px-2"}>
-              <ThemeToggle />
-              {!isCollapsed && <span className="text-sm text-muted-foreground">Thème</span>}
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
+              <div className={isCollapsed ? "flex justify-center" : "flex items-center gap-2 px-3"}>
+                <ThemeToggle />
+                {!isCollapsed && <span className="text-sm text-muted-foreground">Thème</span>}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </TooltipProvider>
       </SidebarContent>
     </Sidebar>
