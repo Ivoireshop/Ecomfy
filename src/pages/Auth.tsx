@@ -12,8 +12,6 @@ import { Loader2, Sparkles, Gift, Eye, EyeOff } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Session } from "@supabase/supabase-js";
-import { Badge } from "@/components/ui/badge";
 
 const Auth = () => {
   const navigate = useNavigate();
