@@ -74,8 +74,8 @@ const AppContent = () => {
     <>
       <BackButton />
       {showSidebar && (
-        <div className="fixed top-1 left-1 md:top-2 md:left-3 z-50">
-          <SidebarTrigger />
+        <div className="fixed top-14 left-1 md:top-16 md:left-3 z-50">
+          <SidebarTrigger className="bg-background/80 backdrop-blur-sm shadow-md border border-border rounded-full p-2" />
         </div>
       )}
       {showSupport && <SupportButton />}
