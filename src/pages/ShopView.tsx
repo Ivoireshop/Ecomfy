@@ -240,16 +240,16 @@ const ShopView = () => {
       )}
       {/* Sticky Header */}
       <header className="border-b sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {shop.logo_url ? (
-              <img src={shop.logo_url} alt="" className="h-9 w-9 rounded-xl object-cover flex-shrink-0" />
+              <img src={shop.logo_url} alt="" className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover flex-shrink-0" />
             ) : (
-              <div className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: primaryColor + "15" }}>
-                <Store className="h-5 w-5" style={{ color: primaryColor }} />
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: primaryColor + "15" }}>
+                <Store className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: primaryColor }} />
               </div>
             )}
-            <span className="font-bold text-lg truncate">{shop.business_name}</span>
+            <span className="font-bold text-base sm:text-lg truncate">{shop.business_name}</span>
           </div>
           
           {/* Search - Desktop */}
@@ -263,21 +263,21 @@ const ShopView = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="icon" className="rounded-xl">
-                  <Phone className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9">
+                  <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </a>
             )}
             <Button 
               variant="outline" 
-              className="gap-2 rounded-xl relative" 
+              className="gap-1.5 sm:gap-2 rounded-xl relative h-9 px-3 sm:px-4" 
               onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
             >
-              <ShoppingBag className="h-5 w-5" />
-              <span className="hidden sm:inline">Panier</span>
+              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline text-sm">Panier</span>
               {cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center text-primary-foreground" style={{ backgroundColor: primaryColor }}>
                   {cartCount}
@@ -290,23 +290,33 @@ const ShopView = () => {
 
       {/* Hero */}
       <section className="relative overflow-hidden" style={{ background: `linear-gradient(145deg, ${primaryColor}, ${secondaryColor})` }}>
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/20 -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-white/20 translate-y-1/2 -translate-x-1/2" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24 text-center text-primary-foreground">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">{shop.business_name}</h1>
-          {shop.business_description && (
-            <p className="text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{shop.business_description}</p>
+        {shop.banner_url ? (
+          <div className="absolute inset-0">
+            <img src={shop.banner_url} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20" />
+          </div>
+        ) : (
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/20 -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-white/20 translate-y-1/2 -translate-x-1/2" />
+          </div>
+        )}
+        <div className="relative max-w-7xl mx-auto px-4 py-12 sm:py-16 md:py-24 text-center text-primary-foreground">
+          {shop.logo_url && (
+            <img src={shop.logo_url} alt={shop.business_name} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
           )}
-          <div className="flex gap-3 justify-center mt-8">
-            <Button size="lg" variant="secondary" className="rounded-xl gap-2 font-semibold shadow-lg" onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>
-              <ShoppingBag className="h-5 w-5" /> Voir les produits
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-4 tracking-tight">{shop.business_name}</h1>
+          {shop.business_description && (
+            <p className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{shop.business_description}</p>
+          )}
+          <div className="flex gap-3 justify-center mt-6 sm:mt-8 flex-wrap">
+            <Button size="lg" variant="secondary" className="rounded-xl gap-2 font-semibold shadow-lg h-11 sm:h-12 text-sm sm:text-base" onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>
+              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" /> Voir les produits
             </Button>
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="rounded-xl gap-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                  <MessageCircle className="h-5 w-5" /> Nous contacter
+                <Button size="lg" variant="outline" className="rounded-xl gap-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 h-11 sm:h-12 text-sm sm:text-base">
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" /> Nous contacter
                 </Button>
               </a>
             )}
