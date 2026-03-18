@@ -246,16 +246,14 @@ const AppWithSidebar = () => {
     );
   }
 
-  // Authenticated dashboard pages: with sidebar
+  // Authenticated dashboard pages: with top/bottom nav bar
   return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <main className="flex-1">
-          <AppContent />
-        </main>
-      </div>
-    </SidebarProvider>
+    <div className="min-h-screen w-full">
+      <DashboardNav />
+      <main className="flex-1 pb-20 md:pb-0">
+        <AppContent />
+      </main>
+    </div>
   );
 };
 
