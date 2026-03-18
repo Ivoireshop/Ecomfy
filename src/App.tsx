@@ -3,7 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { DashboardNav } from "@/components/AppSidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
 import { SupportButton } from "@/components/SupportButton";
 import { BackButton } from "@/components/BackButton";
@@ -66,11 +67,17 @@ const AppContent = () => {
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
+  const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
   const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
 
   return (
     <>
       <BackButton />
+      {showSidebar && (
+        <div className="fixed top-1 left-1 md:top-2 md:left-3 z-50">
+          <SidebarTrigger />
+        </div>
+      )}
       {showSupport && <SupportButton />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -245,14 +252,16 @@ const AppWithSidebar = () => {
     );
   }
 
-  // Authenticated dashboard pages: with top/bottom nav bar
+  // Authenticated dashboard pages: with sidebar
   return (
-    <div className="min-h-screen w-full">
-      <DashboardNav />
-      <main className="flex-1 pb-20 md:pb-0">
-        <AppContent />
-      </main>
-    </div>
+    <SidebarProvider defaultOpen={false}>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        <main className="flex-1">
+          <AppContent />
+        </main>
+      </div>
+    </SidebarProvider>
   );
 };
 
