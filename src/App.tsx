@@ -66,7 +66,6 @@ const AppContent = () => {
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
-  const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
   const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
 
   return (
