@@ -72,9 +72,10 @@ const AppContent = () => {
   const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
 
   return (
-    <>
+    <div className="pb-16 md:pb-0">
       <BackButton />
       {showSupport && <SupportButton />}
+      <MobileBottomNav />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
