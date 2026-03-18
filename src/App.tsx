@@ -235,12 +235,16 @@ const AppContent = () => {
   );
 };
 
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice"];
+
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
+  const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
 
-  if (isShowcaseView || isShopView) {
+  // Showcase/shop/public pages: no sidebar at all
+  if (isShowcaseView || isShopView || isPublicPage) {
     return (
       <main className="w-full">
         <AppContent />
@@ -248,6 +252,7 @@ const AppWithSidebar = () => {
     );
   }
 
+  // Authenticated dashboard pages: with sidebar
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full">
