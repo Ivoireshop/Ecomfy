@@ -18,11 +18,19 @@ export function BackButton() {
     return null;
   }
 
+  const handleBack = () => {
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
+
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={() => navigate(-1)}
+      onClick={handleBack}
       className="fixed top-1 left-10 sm:top-3 sm:left-14 z-40 bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-accent h-8 w-8"
     >
       <ArrowLeft className="h-4 w-4" />
