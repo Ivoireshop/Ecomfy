@@ -143,23 +143,25 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent className="flex flex-col h-full">
         <TooltipProvider>
-          {/* Header */}
-          <SidebarGroup className="pb-2">
-            <SidebarGroupLabel className={isCollapsed ? "px-0 mb-3" : "mb-3 px-3"}>
-              <div className={isCollapsed ? "flex flex-col items-center gap-3" : "flex flex-col gap-3"}>
-                <div className="flex items-center justify-between gap-2">
-                  {!isCollapsed && (
-                    <span className="font-bold text-base bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                      VisualPro
-                    </span>
-                  )}
-                  <UserAvatar />
-                </div>
-                <div className={isCollapsed ? "flex justify-center" : "flex justify-start"}>
-                  <SidebarTrigger className="h-9 w-9 rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted" />
-                </div>
+      {/* Header */}
+          <SidebarGroup className="pb-2 pt-3">
+            <div className={isCollapsed ? "flex flex-col items-center gap-3 px-1" : "flex flex-col gap-3 px-3"}>
+              <div className="flex items-center justify-between gap-2">
+                {!isCollapsed && (
+                  <span className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    VisualPro
+                  </span>
+                )}
+                {isCollapsed && (
+                  <span className="font-bold text-xs bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    VP
+                  </span>
+                )}
+                {!isCollapsed && <UserAvatar />}
               </div>
-            </SidebarGroupLabel>
+              <SidebarTrigger className="h-9 w-9 min-h-[36px] min-w-[36px] rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted flex items-center justify-center" />
+              {isCollapsed && <UserAvatar />}
+            </div>
           </SidebarGroup>
 
           {/* Navigation groups */}
