@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
 import { SupportButton } from "@/components/SupportButton";
 import { BackButton } from "@/components/BackButton";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
 
@@ -71,9 +72,10 @@ const AppContent = () => {
   const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
 
   return (
-    <>
+    <div className="pb-16 md:pb-0">
       <BackButton />
       {showSupport && <SupportButton />}
+      <MobileBottomNav />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -226,7 +228,7 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
-    </>
+    </div>
   );
 };
 
