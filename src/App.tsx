@@ -72,11 +72,6 @@ const AppContent = () => {
   return (
     <>
       <BackButton />
-      {showSidebar && (
-        <div className="fixed top-1 left-1 md:top-2 md:left-3 z-50">
-          <SidebarTrigger />
-        </div>
-      )}
       {showSupport && <SupportButton />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
