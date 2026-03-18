@@ -739,35 +739,35 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice }
     <Card className="overflow-hidden group cursor-pointer border-0 shadow-sm hover:shadow-xl transition-all duration-300" onClick={() => onView(product)}>
       <div className="aspect-square bg-muted relative overflow-hidden">
         {product.product_images?.[0] ? (
-          <img src={product.product_images[0].image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+          <img src={product.product_images[0].image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center"><Store className="h-10 w-10 text-muted-foreground/30" /></div>
+          <div className="w-full h-full flex items-center justify-center"><Store className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30" /></div>
         )}
         {product.compare_at_price && product.compare_at_price > product.price && (
-          <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground rounded-lg font-bold">
+          <Badge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-destructive text-destructive-foreground rounded-lg font-bold text-[10px] sm:text-xs px-1.5 sm:px-2">
             -{Math.round((1 - product.price / product.compare_at_price) * 100)}%
           </Badge>
         )}
-        {product.is_digital && <Badge className="absolute top-2 right-2 bg-purple-600 rounded-lg">Digital</Badge>}
+        {product.is_digital && <Badge className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-purple-600 rounded-lg text-[10px] sm:text-xs">Digital</Badge>}
       </div>
-      <div className="p-3 md:p-4">
-        <h3 className="font-semibold text-sm line-clamp-2 mb-1">{product.name}</h3>
-        {product.short_description && <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{product.short_description}</p>}
-        <div className="flex items-end justify-between gap-2">
-          <div>
-            <span className="font-bold text-base" style={{ color: primaryColor }}>{formatPrice(product.price)}</span>
-            <span className="text-xs text-muted-foreground ml-1">FCFA</span>
+      <div className="p-2.5 sm:p-3 md:p-4">
+        <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 mb-0.5 sm:mb-1">{product.name}</h3>
+        {product.short_description && <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1 mb-1.5 sm:mb-2 hidden sm:block">{product.short_description}</p>}
+        <div className="flex items-end justify-between gap-1 sm:gap-2">
+          <div className="min-w-0">
+            <span className="font-bold text-sm sm:text-base block truncate" style={{ color: primaryColor }}>{formatPrice(product.price)}</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground">FCFA</span>
             {product.compare_at_price && product.compare_at_price > product.price && (
-              <span className="text-xs text-muted-foreground line-through ml-2">{formatPrice(product.compare_at_price)}</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground line-through ml-1 hidden sm:inline">{formatPrice(product.compare_at_price)}</span>
             )}
           </div>
           <Button 
             size="icon" 
-            className="h-9 w-9 rounded-xl flex-shrink-0" 
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0" 
             style={{ backgroundColor: primaryColor }}
             onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
           >
-            <Plus className="h-4 w-4 text-primary-foreground" />
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
           </Button>
         </div>
       </div>
