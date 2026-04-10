@@ -431,6 +431,14 @@ const ShopEditor = () => {
             <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} />
           )}
 
+          {activeSection === "statistics" && (
+            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} />
+          )}
+
+          {activeSection === "theme" && (
+            <ShopThemeSettings shop={shop} setShop={setShop} />
+          )}
+
           {activeSection === "products" && (
             <ProductsTable
               products={products}
