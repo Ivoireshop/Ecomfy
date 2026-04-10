@@ -104,6 +104,7 @@ const ProductView = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirm">("cart");
+  const [showInlineCheckout, setShowInlineCheckout] = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
