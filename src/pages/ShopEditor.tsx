@@ -72,6 +72,7 @@ const ShopEditor = () => {
   const [saving, setSaving] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showProductEditor, setShowProductEditor] = useState(false);
   const [activeSection, setActiveSection] = useState<ActiveSection>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [activating, setActivating] = useState(false);
