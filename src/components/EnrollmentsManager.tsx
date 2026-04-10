@@ -2,9 +2,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Check, X, ExternalLink } from "lucide-react";
+import { Loader2, Send, Users, CheckCircle, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -15,10 +18,6 @@ interface Enrollment {
   student_email: string;
   student_phone: string | null;
   payment_status: string;
-  payment_method: string | null;
-  payment_proof_url: string | null;
-  amount_paid: number | null;
-  transaction_reference: string | null;
   validated_at: string | null;
   created_at: string;
 }
@@ -38,7 +37,12 @@ export function EnrollmentsManager({ showcaseSiteId }: EnrollmentsManagerProps) 
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>("all");
+  const [sending, setSending] = useState(false);
+
+  // Form state
+  const [studentName, setStudentName] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
 
   useEffect(() => {
     loadData();
@@ -46,24 +50,23 @@ export function EnrollmentsManager({ showcaseSiteId }: EnrollmentsManagerProps) 
 
   const loadData = async () => {
     try {
-      // Load courses
-      const { data: coursesData, error: coursesError } = await supabase
-        .from("courses")
-        .select("id, title, price, currency")
-        .eq("showcase_site_id", showcaseSiteId);
+      const [coursesRes, enrollmentsRes] = await Promise.all([
+        supabase
+          .from("courses")
+          .select("id, title, price, currency")
+          .eq("showcase_site_id", showcaseSiteId),
+        supabase
+          .from("enrollments")
+          .select("*")
+          .eq("showcase_site_id", showcaseSiteId)
+          .order("created_at", { ascending: false }),
+      ]);
 
-      if (coursesError) throw coursesError;
-      setCourses(coursesData || []);
+      if (coursesRes.error) throw coursesRes.error;
+      if (enrollmentsRes.error) throw enrollmentsRes.error;
 
-      // Load enrollments
-      const { data: enrollmentsData, error: enrollmentsError } = await supabase
-        .from("enrollments")
-        .select("*")
-        .eq("showcase_site_id", showcaseSiteId)
-        .order("created_at", { ascending: false });
-
-      if (enrollmentsError) throw enrollmentsError;
-      setEnrollments(enrollmentsData || []);
+      setCourses(coursesRes.data || []);
+      setEnrollments(enrollmentsRes.data || []);
     } catch (error: any) {
       toast.error("Erreur lors du chargement");
       console.error(error);
@@ -72,98 +75,66 @@ export function EnrollmentsManager({ showcaseSiteId }: EnrollmentsManagerProps) 
     }
   };
 
-  const getCourseInfo = (courseId: string) => {
-    return courses.find((c) => c.id === courseId);
-  };
+  const handleSendCourse = async () => {
+    if (!studentName.trim() || !studentEmail.trim() || !selectedCourseId) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
 
-  const handleValidatePayment = async (id: string) => {
+    setSending(true);
     try {
-      const enrollment = enrollments.find((e) => e.id === id);
-      if (!enrollment) {
-        toast.error("Inscription introuvable");
-        return;
-      }
-
-      // Update enrollment status
-      const { error: updateError } = await supabase
+      // Create enrollment as paid directly
+      const { data: enrollment, error: insertError } = await supabase
         .from("enrollments")
-        .update({
+        .insert({
+          showcase_site_id: showcaseSiteId,
+          course_id: selectedCourseId,
+          student_name: studentName.trim(),
+          student_email: studentEmail.trim(),
           payment_status: "paid",
           validated_at: new Date().toISOString(),
         })
-        .eq("id", id);
+        .select()
+        .single();
 
-      if (updateError) throw updateError;
+      if (insertError) throw insertError;
 
-      // Create student account and access
-      const { data, error: createError } = await supabase.functions.invoke(
+      // Create student account and send credentials email
+      const { error: createError } = await supabase.functions.invoke(
         "create-student-account",
         {
           body: {
-            enrollmentId: id,
-            courseId: enrollment.course_id,
-            studentEmail: enrollment.student_email,
-            studentName: enrollment.student_name,
+            enrollmentId: enrollment.id,
+            courseId: selectedCourseId,
+            studentEmail: studentEmail.trim(),
+            studentName: studentName.trim(),
           },
         }
       );
 
       if (createError) {
         console.error("Error creating student account:", createError);
-        toast.error("Paiement validé mais erreur lors de la création du compte");
+        toast.error("Inscription créée mais erreur lors de l'envoi du mail");
       } else {
-        toast.success("Paiement validé et compte étudiant créé avec succès");
+        toast.success("Formation envoyée avec succès ! L'étudiant recevra ses identifiants par email.");
       }
 
+      // Reset form
+      setStudentName("");
+      setStudentEmail("");
+      setSelectedCourseId("");
       loadData();
     } catch (error: any) {
-      toast.error("Erreur lors de la validation");
+      toast.error("Erreur lors de l'envoi");
       console.error(error);
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleRejectPayment = async (id: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir refuser ce paiement ?")) return;
-
-    try {
-      const { error } = await supabase
-        .from("enrollments")
-        .update({ payment_status: "cancelled" })
-        .eq("id", id);
-
-      if (error) throw error;
-      toast.success("Paiement refusé");
-      loadData();
-    } catch (error: any) {
-      toast.error("Erreur lors du refus");
-      console.error(error);
-    }
+  const getCourseTitle = (courseId: string) => {
+    return courses.find((c) => c.id === courseId)?.title || "Formation inconnue";
   };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive"> = {
-      pending: "secondary",
-      paid: "default",
-      cancelled: "destructive",
-    };
-
-    const labels: Record<string, string> = {
-      pending: "En attente",
-      paid: "Payé",
-      cancelled: "Annulé",
-    };
-
-    return (
-      <Badge variant={variants[status] || "default"}>
-        {labels[status] || status}
-      </Badge>
-    );
-  };
-
-  const filteredEnrollments = enrollments.filter((enrollment) => {
-    if (filter === "all") return true;
-    return enrollment.payment_status === filter;
-  });
 
   if (loading) {
     return (
@@ -174,132 +145,143 @@ export function EnrollmentsManager({ showcaseSiteId }: EnrollmentsManagerProps) 
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Inscriptions & Paiements</h2>
-        <div className="flex gap-2">
+    <div className="space-y-8">
+      {/* Send Course Form */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5 text-primary" />
+            Envoyer une formation
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Entrez le nom et l'email de l'étudiant. Il recevra automatiquement ses identifiants par email.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="student-name">Nom de l'étudiant</Label>
+              <Input
+                id="student-name"
+                placeholder="Ex: Jean Dupont"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="student-email">Email de l'étudiant</Label>
+              <Input
+                id="student-email"
+                type="email"
+                placeholder="ex: jean@email.com"
+                value={studentEmail}
+                onChange={(e) => setStudentEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Formation</Label>
+              <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une formation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <Button
-            variant={filter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("all")}
+            className="mt-4 w-full md:w-auto"
+            onClick={handleSendCourse}
+            disabled={sending || !studentName.trim() || !studentEmail.trim() || !selectedCourseId}
           >
-            Tous ({enrollments.length})
+            {sending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Envoi en cours...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Envoyer la formation
+              </>
+            )}
           </Button>
-          <Button
-            variant={filter === "pending" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("pending")}
-          >
-            En attente ({enrollments.filter((e) => e.payment_status === "pending").length})
-          </Button>
-          <Button
-            variant={filter === "paid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("paid")}
-          >
-            Payés ({enrollments.filter((e) => e.payment_status === "paid").length})
-          </Button>
-        </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6 flex items-center gap-3">
+            <Users className="h-8 w-8 text-primary" />
+            <div>
+              <div className="text-2xl font-bold">{enrollments.length}</div>
+              <div className="text-sm text-muted-foreground">Total étudiants</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 flex items-center gap-3">
+            <CheckCircle className="h-8 w-8 text-green-500" />
+            <div>
+              <div className="text-2xl font-bold">
+                {enrollments.filter((e) => e.payment_status === "paid").length}
+              </div>
+              <div className="text-sm text-muted-foreground">Accès accordés</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 flex items-center gap-3">
+            <Clock className="h-8 w-8 text-yellow-500" />
+            <div>
+              <div className="text-2xl font-bold">
+                {enrollments.filter((e) => e.payment_status === "pending").length}
+              </div>
+              <div className="text-sm text-muted-foreground">En attente</div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="space-y-4">
-        {filteredEnrollments.length === 0 ? (
+      {/* Enrollments List */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Historique des envois</h3>
+        {enrollments.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              Aucune inscription trouvée
+              Aucun envoi effectué pour le moment
             </CardContent>
           </Card>
         ) : (
-          filteredEnrollments.map((enrollment) => {
-            const course = getCourseInfo(enrollment.course_id);
-            return (
+          <div className="space-y-3">
+            {enrollments.map((enrollment) => (
               <Card key={enrollment.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <CardTitle>{course?.title || "Formation inconnue"}</CardTitle>
-                      <div className="text-sm text-muted-foreground">
-                        {format(new Date(enrollment.created_at), "PPP à HH:mm", { locale: fr })}
-                      </div>
-                    </div>
-                    {getStatusBadge(enrollment.payment_status)}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground">Étudiant</div>
-                      <div>{enrollment.student_name}</div>
-                      <div className="text-sm text-muted-foreground">{enrollment.student_email}</div>
-                      {enrollment.student_phone && (
-                        <div className="text-sm text-muted-foreground">{enrollment.student_phone}</div>
-                      )}
-                    </div>
-
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground">Paiement</div>
-                      <div className="font-bold text-lg">
-                        {enrollment.amount_paid || course?.price} {course?.currency}
-                      </div>
-                      {enrollment.payment_method && (
-                        <div className="text-sm text-muted-foreground capitalize">
-                          via {enrollment.payment_method}
-                        </div>
-                      )}
-                      {enrollment.transaction_reference && (
-                        <div className="text-sm text-muted-foreground">
-                          Réf: {enrollment.transaction_reference}
-                        </div>
-                      )}
+                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="font-medium">{enrollment.student_name}</div>
+                    <div className="text-sm text-muted-foreground">{enrollment.student_email}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {getCourseTitle(enrollment.course_id)}
                     </div>
                   </div>
-
-                  {enrollment.payment_proof_url && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">
-                        Justificatif de paiement
-                      </div>
-                      <a
-                        href={enrollment.payment_proof_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline inline-flex items-center gap-1"
-                      >
-                        Voir le justificatif
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </div>
-                  )}
-
-                  {enrollment.payment_status === "pending" && (
-                    <div className="flex gap-2 pt-4 border-t">
-                      <Button
-                        size="sm"
-                        onClick={() => handleValidatePayment(enrollment.id)}
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        Valider le paiement
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleRejectPayment(enrollment.id)}
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Refuser
-                      </Button>
-                    </div>
-                  )}
-
-                  {enrollment.validated_at && (
-                    <div className="text-sm text-muted-foreground">
-                      Validé le {format(new Date(enrollment.validated_at), "PPP à HH:mm", { locale: fr })}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <Badge variant={enrollment.payment_status === "paid" ? "default" : "secondary"}>
+                      {enrollment.payment_status === "paid" ? "Accès envoyé" : "En attente"}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(enrollment.created_at), "dd MMM yyyy", { locale: fr })}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
-            );
-          })
+            ))}
+          </div>
         )}
       </div>
     </div>
