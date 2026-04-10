@@ -1347,13 +1347,18 @@ export type Database = {
           business_name: string
           chatbot_enabled: boolean | null
           chatbot_welcome_message: string | null
+          checkout_fields: Json | null
           city: string | null
+          cod_delivery_rate: number | null
           commission_rate: number | null
           country: string | null
           created_at: string
           currency: string | null
           email: string | null
+          facebook_pixels: string[] | null
           favicon_url: string | null
+          google_analytics_code: string | null
+          google_analytics_ids: string[] | null
           id: string
           is_activated: boolean | null
           is_published: boolean | null
@@ -1365,7 +1370,9 @@ export type Database = {
           seo_description: string | null
           seo_title: string | null
           slug: string
+          snapchat_pixels: string[] | null
           theme: string | null
+          tiktok_pixels: string[] | null
           total_orders: number | null
           total_sales: number | null
           updated_at: string
@@ -1380,13 +1387,18 @@ export type Database = {
           business_name: string
           chatbot_enabled?: boolean | null
           chatbot_welcome_message?: string | null
+          checkout_fields?: Json | null
           city?: string | null
+          cod_delivery_rate?: number | null
           commission_rate?: number | null
           country?: string | null
           created_at?: string
           currency?: string | null
           email?: string | null
+          facebook_pixels?: string[] | null
           favicon_url?: string | null
+          google_analytics_code?: string | null
+          google_analytics_ids?: string[] | null
           id?: string
           is_activated?: boolean | null
           is_published?: boolean | null
@@ -1398,7 +1410,9 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           slug: string
+          snapchat_pixels?: string[] | null
           theme?: string | null
+          tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
           updated_at?: string
@@ -1413,13 +1427,18 @@ export type Database = {
           business_name?: string
           chatbot_enabled?: boolean | null
           chatbot_welcome_message?: string | null
+          checkout_fields?: Json | null
           city?: string | null
+          cod_delivery_rate?: number | null
           commission_rate?: number | null
           country?: string | null
           created_at?: string
           currency?: string | null
           email?: string | null
+          facebook_pixels?: string[] | null
           favicon_url?: string | null
+          google_analytics_code?: string | null
+          google_analytics_ids?: string[] | null
           id?: string
           is_activated?: boolean | null
           is_published?: boolean | null
@@ -1431,7 +1450,9 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           slug?: string
+          snapchat_pixels?: string[] | null
           theme?: string | null
+          tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
           updated_at?: string
