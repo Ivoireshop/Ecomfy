@@ -279,3 +279,8 @@ p, .text-content {
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
