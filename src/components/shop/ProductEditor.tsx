@@ -116,6 +116,70 @@ export function ProductEditor({
     editorRef.current?.focus();
   }, []);
 
+  // Image resize/align controls
+  const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
+  const [imageToolbar, setImageToolbar] = useState<{ top: number; left: number } | null>(null);
+
+  const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "IMG") {
+      const img = target as HTMLImageElement;
+      setSelectedEditorImage(img);
+      img.style.outline = "2px solid #3b82f6";
+      img.style.outlineOffset = "2px";
+      const rect = img.getBoundingClientRect();
+      const editorRect = editorRef.current?.getBoundingClientRect();
+      if (editorRect) {
+        setImageToolbar({ top: rect.top - editorRect.top - 44, left: rect.left - editorRect.left });
+      }
+    } else {
+      if (selectedEditorImage) {
+        selectedEditorImage.style.outline = "none";
+        selectedEditorImage.style.outlineOffset = "0";
+      }
+      setSelectedEditorImage(null);
+      setImageToolbar(null);
+    }
+  }, [selectedEditorImage]);
+
+  const resizeImage = (size: string) => {
+    if (!selectedEditorImage) return;
+    selectedEditorImage.style.maxWidth = size;
+    selectedEditorImage.style.width = size;
+    selectedEditorImage.style.height = "auto";
+    handleEditorInput();
+  };
+
+  const alignImage = (align: string) => {
+    if (!selectedEditorImage) return;
+    const wrapper = selectedEditorImage.parentElement;
+    if (align === "center") {
+      selectedEditorImage.style.display = "block";
+      selectedEditorImage.style.marginLeft = "auto";
+      selectedEditorImage.style.marginRight = "auto";
+      selectedEditorImage.style.float = "none";
+    } else if (align === "left") {
+      selectedEditorImage.style.float = "left";
+      selectedEditorImage.style.marginRight = "12px";
+      selectedEditorImage.style.marginLeft = "0";
+      selectedEditorImage.style.display = "inline";
+    } else if (align === "right") {
+      selectedEditorImage.style.float = "right";
+      selectedEditorImage.style.marginLeft = "12px";
+      selectedEditorImage.style.marginRight = "0";
+      selectedEditorImage.style.display = "inline";
+    }
+    handleEditorInput();
+  };
+
+  const deleteEditorImage = () => {
+    if (!selectedEditorImage) return;
+    selectedEditorImage.remove();
+    setSelectedEditorImage(null);
+    setImageToolbar(null);
+    handleEditorInput();
+  };
+
   const insertImage = () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -125,7 +189,7 @@ export function ProductEditor({
       if (file) {
         const reader = new FileReader();
         reader.onload = () => {
-          execCmd("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;" />`);
+          execCmd("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" />`);
         };
         reader.readAsDataURL(file);
       }
