@@ -462,15 +462,30 @@ const ProductView = () => {
                 </div>
               </div>
 
-              <Button 
-                className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
-                style={{ backgroundColor: primaryColor }}
-                onClick={() => addToCart(product, quantity)}
-                disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Ajouter au panier · ${formatPrice(product.price * quantity)} FCFA`}
-              </Button>
+              {shop.theme_config?.single_page_checkout ? (
+                <Button 
+                  className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
+                  style={{ backgroundColor: primaryColor }}
+                  onClick={() => {
+                    addToCart(product, quantity);
+                    setShowInlineCheckout(true);
+                  }}
+                  disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant · ${formatPrice(product.price * quantity)} FCFA`}
+                </Button>
+              ) : (
+                <Button 
+                  className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
+                  style={{ backgroundColor: primaryColor }}
+                  onClick={() => addToCart(product, quantity)}
+                  disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Ajouter au panier · ${formatPrice(product.price * quantity)} FCFA`}
+                </Button>
+              )}
 
               {shop.whatsapp_number && (
                 <a 
@@ -482,6 +497,97 @@ const ProductView = () => {
                     <MessageCircle className="h-5 w-5" /> Commander via WhatsApp
                   </Button>
                 </a>
+              )}
+
+              {/* Inline Single-Page Checkout */}
+              {shop.theme_config?.single_page_checkout && showInlineCheckout && cart.length > 0 && (
+                <div className="mt-4 border-2 rounded-2xl p-4 sm:p-6 space-y-5" style={{ borderColor: primaryColor + "30" }}>
+                  <h3 className="font-bold text-lg flex items-center gap-2" style={{ color: primaryColor }}>
+                    <CreditCard className="h-5 w-5" /> Finaliser votre commande
+                  </h3>
+
+                  {/* Cart Summary */}
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                    {cart.map(item => (
+                      <div key={item.product.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          {item.product.product_images?.[0] && (
+                            <img src={item.product.product_images[0].image_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                          )}
+                          <span className="font-medium">{item.product.name} × {item.quantity}</span>
+                        </div>
+                        <span className="font-bold">{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2 flex justify-between font-bold">
+                      <span>Total</span>
+                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                    </div>
+                  </div>
+
+                  {/* Contact */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Informations</h4></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-500">Nom complet *</Label>
+                        <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder="Jean Kouassi" className="rounded-xl h-11" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-500">Téléphone *</Label>
+                        <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-xl h-11" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-500">Adresse / Quartier *</Label>
+                        <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-xl h-11" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-500">Ville *</Label>
+                        <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-xl h-11" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Method */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Paiement</h4></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
+                        { value: "mobile_money", label: "Mobile Money", icon: "📱" },
+                      ].map(method => (
+                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                          className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200"}`}
+                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+                        >
+                          <span className="text-xl">{method.icon}</span>
+                          <span className="font-semibold text-sm">{method.label}</span>
+                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto" style={{ color: primaryColor }} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button 
+                    className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg"
+                    style={{ backgroundColor: primaryColor }}
+                    onClick={placeOrder} 
+                    disabled={orderLoading || !customerInfo.name || !customerInfo.phone || !customerInfo.address || !customerInfo.city}
+                  >
+                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
+                  </Button>
+                </div>
+              )}
+
+              {/* Inline order success */}
+              {shop.theme_config?.single_page_checkout && orderSuccess && (
+                <div className="mt-4 border-2 border-green-200 rounded-2xl p-6 text-center bg-green-50">
+                  <div className="h-16 w-16 mx-auto rounded-full flex items-center justify-center mb-4 bg-green-100">
+                    <CheckCircle2 className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Commande confirmée ! 🎉</h3>
+                  <p className="text-gray-500 text-sm">Le vendeur vous contactera sous peu.</p>
+                </div>
               )}
             </div>
 
