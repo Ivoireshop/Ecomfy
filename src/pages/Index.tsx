@@ -337,6 +337,7 @@ const Index = () => {
               subtitle="Vidéo & Animation"
               description="Transformez n'importe quel visuel en vidéo captivante avec des animations fluides et des effets professionnels. Idéal pour capturer l'attention sur TikTok, Instagram et Facebook."
               images={[videoPreview1, videoPreview2]}
+              videos={[videoModelCosmetics.url, videoModelHandbag.url]}
               icon={Video}
               gradient="from-blue-500 to-cyan-500"
               reversed
