@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { 
   Video, Image as ImageIcon, Globe, Zap, 
   Shield, Users, Code, BookOpen, FileText, Lock,
-  CheckCircle2, ArrowRight, TrendingUp, Wand2
+  CheckCircle2, ArrowRight, TrendingUp, Wand2, Store,
+  GraduationCap, Sparkles, Layers, Rocket, Eye,
+  Play, ChevronRight
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +54,6 @@ const Index = () => {
     setSession(session);
     
     if (session?.user) {
-      // Charger le profil
       const { data: profileData } = await supabase
         .from("profiles")
         .select("*")
@@ -60,12 +61,10 @@ const Index = () => {
         .single();
       setProfile(profileData);
       
-      // Vérifier si l'utilisateur doit voir le tutoriel
       if (profileData && !profileData.onboarding_completed) {
         setShowOnboarding(true);
       }
       
-      // Charger l'abonnement
       const { data: subData } = await supabase
         .from("subscriptions")
         .select("*")
@@ -79,8 +78,7 @@ const Index = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % carouselImages.length);
-    }, 3000); // Change image every 3 seconds
-
+    }, 3000);
     return () => clearInterval(interval);
   }, [carouselImages.length]);
 
@@ -95,12 +93,75 @@ const Index = () => {
       console.error("Error loading feedback:", error);
       return;
     }
-
     setPublishedFeedback(data || []);
   };
 
+  // Services cards for the hub
+  const services = [
+    {
+      icon: ImageIcon,
+      title: "Visuels Publicitaires",
+      desc: "Créez des images professionnelles pour vos campagnes marketing en quelques secondes grâce à l'IA.",
+      color: "from-orange-500 to-pink-500",
+      bgLight: "bg-orange-50 dark:bg-orange-950/30",
+      iconColor: "text-orange-600",
+      route: session ? "/generator" : "/auth",
+      cta: "Créer un visuel",
+    },
+    {
+      icon: Video,
+      title: "Vidéos Animées",
+      desc: "Transformez vos visuels en vidéos captivantes avec des animations et effets professionnels.",
+      color: "from-blue-500 to-cyan-500",
+      bgLight: "bg-blue-50 dark:bg-blue-950/30",
+      iconColor: "text-blue-600",
+      route: session ? "/generator" : "/auth",
+      cta: "Créer une vidéo",
+    },
+    {
+      icon: Globe,
+      title: "Sites Vitrine",
+      desc: "Lancez votre site web professionnel en quelques minutes. Idéal pour présenter vos services.",
+      color: "from-violet-500 to-purple-500",
+      bgLight: "bg-violet-50 dark:bg-violet-950/30",
+      iconColor: "text-violet-600",
+      route: session ? "/showcase-manager" : "/auth",
+      cta: "Créer un site",
+    },
+    {
+      icon: Store,
+      title: "Boutiques E-commerce",
+      desc: "Vendez vos produits en ligne avec une boutique complète : paiements, commandes et livraison.",
+      color: "from-emerald-500 to-teal-500",
+      bgLight: "bg-emerald-50 dark:bg-emerald-950/30",
+      iconColor: "text-emerald-600",
+      route: session ? "/shop-manager" : "/auth",
+      cta: "Créer une boutique",
+    },
+    {
+      icon: GraduationCap,
+      title: "Formations en Ligne",
+      desc: "Créez et vendez vos formations avec modules, certificats et espace étudiant intégré.",
+      color: "from-amber-500 to-yellow-500",
+      bgLight: "bg-amber-50 dark:bg-amber-950/30",
+      iconColor: "text-amber-600",
+      route: session ? "/showcase-manager" : "/auth",
+      cta: "Créer une formation",
+    },
+    {
+      icon: Code,
+      title: "API & Intégrations",
+      desc: "Connectez VisualPro à vos outils via notre API REST complète avec documentation.",
+      color: "from-slate-500 to-gray-500",
+      bgLight: "bg-slate-50 dark:bg-slate-950/30",
+      iconColor: "text-slate-600",
+      route: "/api-documentation",
+      cta: "Voir la doc API",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
+    <div className="min-h-screen bg-background">
       <Header />
       
       {showOnboarding && session?.user && (
@@ -110,483 +171,310 @@ const Index = () => {
         />
       )}
       
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 md:py-32">
-        <div className="max-w-5xl mx-auto text-center">
-          <Badge className="mb-6 animate-fade-in" variant="secondary">
-            <Wand2 className="w-4 h-4 mr-2" />
-            Plateforme de création visuelle pour l'Afrique
-          </Badge>
-          
-          <h1 className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-primary via-purple-600 to-secondary bg-clip-text text-transparent leading-tight animate-fade-in">
-            {session && profile 
-              ? `Bienvenue ${profile.full_name?.split(' ')[0]}`
-              : "Créez des Visuels Pros en Quelques Secondes"
-            }
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto animate-fade-in">
-            La première plateforme africaine de création visuelle propulsée par l'IA. 
-            Créez des publicités, vidéos et sites vitrine professionnels instantanément.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-in">
-            <Button 
-              size="lg" 
-              className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              onClick={() => navigate(session ? "/generator" : "/auth")}
-            >
-              <Wand2 className="mr-2 h-5 w-5" />
-              {session ? "Créer maintenant" : "Commencer gratuitement"}
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              Découvrir les fonctionnalités
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </div>
+      {/* ===== HERO ===== */}
+      <section className="relative overflow-hidden">
+        {/* Background gradient mesh */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-secondary/8" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-pulse delay-1000" />
 
-          {/* Carousel d'exemples */}
-          <div className="relative h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl mb-8 animate-fade-in">
-            {carouselImages.map((image, index) => (
-              <img
-                key={index}
-                src={image.src}
-                alt={image.alt}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-                  index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto animate-fade-in">
-            <div>
-              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">500+</div>
-              <div className="text-muted-foreground">Utilisateurs actifs</div>
-            </div>
-            <div>
-              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">10k+</div>
-              <div className="text-muted-foreground">Visuels créés</div>
-            </div>
-            <div>
-              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">98%</div>
-              <div className="text-muted-foreground">Satisfaction</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Section Fonctionnalités Principales */}
-      <section id="features" className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Toutes les fonctionnalités dont vous avez besoin
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Visual Pro combine intelligence artificielle et simplicité pour vous offrir 
-              une suite complète d'outils de création professionnels.
+        <div className="container relative mx-auto px-4 py-16 md:py-28">
+          <div className="max-w-5xl mx-auto text-center">
+            <Badge className="mb-6 px-4 py-1.5 text-sm animate-fade-in bg-primary/10 text-primary border-primary/20 hover:bg-primary/15">
+              <Sparkles className="w-4 h-4 mr-2" />
+              La plateforme tout-en-un pour les entrepreneurs africains
+            </Badge>
+            
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in">
+              {session && profile 
+                ? <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Bonjour {profile.full_name?.split(' ')[0]} 👋
+                  </span>
+                : <>
+                    <span className="text-foreground">Tout ce qu'il faut pour</span>
+                    <br />
+                    <span className="bg-gradient-to-r from-primary via-purple-500 to-secondary bg-clip-text text-transparent">
+                      réussir en ligne
+                    </span>
+                  </>
+              }
+            </h1>
+            
+            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in leading-relaxed">
+              {session 
+                ? "Que souhaitez-vous faire aujourd'hui ? Choisissez votre outil ci-dessous."
+                : "Visuels IA, vidéos, sites vitrine, boutiques e-commerce et formations — créez, vendez et développez votre business depuis une seule plateforme."
+              }
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
-            <Card className="p-8 hover:shadow-xl transition-all hover:scale-105 cursor-pointer" onClick={() => navigate(session ? "/generator" : "/auth")}>
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
-                <ImageIcon className="w-8 h-8 text-primary" />
+            
+            {!session && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
+                <Button 
+                  size="lg" 
+                  className="text-lg px-10 py-7 shadow-xl hover:shadow-2xl transition-all hover:scale-105 bg-gradient-to-r from-primary to-primary/90"
+                  onClick={() => navigate("/auth")}
+                >
+                  <Rocket className="mr-2 h-5 w-5" />
+                  Commencer gratuitement
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                  onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Découvrir la plateforme
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
               </div>
-              <h3 className="text-2xl font-bold mb-4">Génération d'Images IA</h3>
-              <p className="text-muted-foreground mb-6">
-                Créez des visuels publicitaires professionnels en quelques secondes. 
-                Parfait pour réseaux sociaux, sites web et campagnes marketing.
-              </p>
-              <ul className="space-y-3">
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Templates optimisés pour chaque secteur</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Adaptation automatique aux formats sociaux</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Génération en moins de 30 secondes</span>
-                </li>
-              </ul>
-            </Card>
-
-            <Card className="p-8 hover:shadow-xl transition-all hover:scale-105 cursor-pointer" onClick={() => navigate(session ? "/generator" : "/auth")}>
-              <div className="w-16 h-16 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6">
-                <Video className="w-8 h-8 text-secondary" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4">Création de Vidéos</h3>
-              <p className="text-muted-foreground mb-6">
-                Transformez vos visuels en vidéos animées captivantes avec effets 
-                et transitions professionnels automatiques.
-              </p>
-              <ul className="space-y-3">
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Animations fluides et professionnelles</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Musique d'ambiance personnalisable</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-secondary mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Export HD pour toutes plateformes</span>
-                </li>
-              </ul>
-            </Card>
-
-            <Card className="p-8 hover:shadow-xl transition-all hover:scale-105 cursor-pointer" onClick={() => navigate(session ? "/showcase-manager" : "/auth")}>
-              <div className="w-16 h-16 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6">
-                <Globe className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4">Sites Vitrine IA</h3>
-              <p className="text-muted-foreground mb-6">
-                Créez votre site web professionnel en quelques minutes. 
-                Idéal pour présenter vos services et attirer de nouveaux clients.
-              </p>
-              <ul className="space-y-3">
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Design responsive automatique</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Formulaire de contact intégré</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Domaine personnalisé disponible</span>
-                </li>
-              </ul>
-            </Card>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Section Comment ça marche */}
-      <section className="py-20">
+      {/* ===== SERVICES HUB ===== */}
+      <section id="services" className="py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Simple, Rapide, Efficace
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Créez du contenu professionnel en 3 étapes simples
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold text-primary-foreground">
-                1
-              </div>
-              <h3 className="text-2xl font-bold mb-4">Décrivez votre projet</h3>
-              <p className="text-muted-foreground">
-                Entrez une description simple de ce que vous voulez créer. 
-                L'IA comprend vos besoins et génère les bonnes suggestions.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold text-secondary-foreground">
-                2
-              </div>
-              <h3 className="text-2xl font-bold mb-4">Personnalisez</h3>
-              <p className="text-muted-foreground">
-                Ajustez les couleurs, textes, images selon votre marque. 
-                Notre éditeur intuitif vous donne un contrôle total.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold text-white">
-                3
-              </div>
-              <h3 className="text-2xl font-bold mb-4">Téléchargez & Partagez</h3>
-              <p className="text-muted-foreground">
-                Exportez en haute qualité et partagez directement sur vos 
-                réseaux sociaux ou téléchargez pour usage offline.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Section Exemples/Templates */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Des résultats professionnels garantis
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Découvrez quelques exemples de visuels créés avec Visual Pro
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {[
-              { img: exampleHandbag, title: "Mode & Accessoires", color: "bg-pink-500" },
-              { img: examplePhone, title: "Technologie", color: "bg-blue-500" },
-              { img: exampleFood, title: "Restauration", color: "bg-orange-500" },
-              { img: exampleBeauty, title: "Beauté & Cosmétiques", color: "bg-purple-500" },
-              { img: exampleFitness, title: "Sport & Fitness", color: "bg-green-500" },
-              { img: exampleRealestate, title: "Immobilier", color: "bg-indigo-500" },
-            ].map((example, idx) => (
-              <Card key={idx} className="overflow-hidden hover:shadow-xl transition-all hover:scale-105 cursor-pointer group">
-                <div className="relative h-64 overflow-hidden">
-                  <img src={example.img} alt={example.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  <div className={`absolute inset-0 ${example.color} opacity-0 group-hover:opacity-20 transition-opacity`}></div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-lg">{example.title}</h3>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section Tarification */}
-      <section id="pricing" className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Des tarifs adaptés à vos besoins
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Commencez gratuitement, puis choisissez le plan qui vous convient
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <Card className="p-8 hover:shadow-xl transition-all">
-              <Badge className="mb-4" variant="secondary">Gratuit</Badge>
-              <h3 className="text-3xl font-bold mb-4">Découverte</h3>
-              <div className="mb-6">
-                <span className="text-5xl font-bold">0€</span>
-                <span className="text-muted-foreground">/mois</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>3 générations d'images gratuites</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>1 vidéo gratuite</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Tous les templates</span>
-                </li>
-              </ul>
-              <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
-                Commencer gratuitement
-              </Button>
-            </Card>
-
-            <Card className="p-8 border-2 border-primary hover:shadow-xl transition-all relative">
-              <Badge className="mb-4 bg-primary">Populaire</Badge>
-              <h3 className="text-3xl font-bold mb-4">Packs à la Carte</h3>
-              <div className="mb-6">
-                <span className="text-2xl font-bold text-muted-foreground">À partir de</span>
-                <br />
-                <span className="text-4xl font-bold">1000 FCFA</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>10 images - 1000 FCFA</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>20 images - 2000 FCFA</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>30 images - 3000 FCFA</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>50 images + Site vitrine - 5000 FCFA</span>
-                </li>
-              </ul>
-              <Button className="w-full" onClick={() => navigate(session ? "/subscription" : "/auth")}>
-                Voir tous les packs
-              </Button>
-            </Card>
-
-            <Card className="p-8 hover:shadow-xl transition-all">
-              <Badge className="mb-4" variant="secondary">Entreprise</Badge>
-              <h3 className="text-3xl font-bold mb-4">Business</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold">65 000 FCFA</span>
-                <span className="text-muted-foreground">/mois</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Générations illimitées d'images</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Générations illimitées de vidéos</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Sites vitrine illimités</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                  <span>Accès API</span>
-                </li>
-              </ul>
-              <Button className="w-full" variant="outline" onClick={() => navigate(session ? "/subscription" : "/auth")}>
-                Choisir Business
-              </Button>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Section API & Intégrations */}
-      <section id="api" className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                API & Intégrations
+          {!session && (
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Une plateforme, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">toutes les solutions</span>
               </h2>
-              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                Connectez Visual Pro à vos outils préférés et automatisez votre workflow
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Chaque outil dont vous avez besoin pour lancer et développer votre activité en ligne
               </p>
             </div>
+          )}
 
-            <div className="grid md:grid-cols-2 gap-8">
-              <Card className="p-8">
-                <Code className="w-12 h-12 text-primary mb-4" />
-                <h3 className="text-2xl font-bold mb-4">API REST Complète</h3>
-                <p className="text-muted-foreground mb-6">
-                  Intégrez Visual Pro directement dans vos applications avec notre API REST. 
-                  Créez, modifiez et gérez vos contenus par programmation.
-                </p>
-                <ul className="space-y-2 mb-6">
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 text-primary mr-2" />
-                    <span>Documentation complète</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 text-primary mr-2" />
-                    <span>SDKs JavaScript, Python, PHP</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 text-primary mr-2" />
-                    <span>Webhooks en temps réel</span>
-                  </li>
-                </ul>
-                <Button variant="outline" onClick={() => navigate('/api-documentation')}>
-                  Voir la documentation API
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Card>
+          {session && (
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl font-bold mb-2">Choisissez votre outil</h2>
+              <p className="text-muted-foreground">Sélectionnez l'action que vous souhaitez effectuer</p>
+            </div>
+          )}
 
-              <Card className="p-8">
-                <Zap className="w-12 h-12 text-secondary mb-4" />
-                <h3 className="text-2xl font-bold mb-4">Intégrations Natives</h3>
-                <p className="text-muted-foreground mb-6">
-                  Connectez-vous facilement à vos outils marketing préférés et 
-                  automatisez la création de contenu.
-                </p>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
-                    <div className="font-semibold">Zapier</div>
-                    <div className="text-xs text-muted-foreground">Automatisation</div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
+            {services.map((service, idx) => (
+              <Card 
+                key={idx} 
+                className={`group relative overflow-hidden border-2 border-transparent hover:border-primary/20 transition-all duration-300 hover:shadow-2xl cursor-pointer ${service.bgLight}`}
+                onClick={() => navigate(service.route)}
+              >
+                <div className="p-6 md:p-8">
+                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${service.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform`}>
+                    <service.icon className="w-7 h-7 text-white" />
                   </div>
-                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
-                    <div className="font-semibold">Make</div>
-                    <div className="text-xs text-muted-foreground">Workflows</div>
-                  </div>
-                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
-                    <div className="font-semibold">WordPress</div>
-                    <div className="text-xs text-muted-foreground">Plugin</div>
-                  </div>
-                  <div className="border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
-                    <div className="font-semibold">Shopify</div>
-                    <div className="text-xs text-muted-foreground">E-commerce</div>
+                  <h3 className="text-xl font-bold mb-2 text-foreground">{service.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed mb-5">{service.desc}</p>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-primary group-hover:gap-3 transition-all">
+                    {service.cta}
+                    <ChevronRight className="w-4 h-4" />
                   </div>
                 </div>
-                <Button variant="outline" onClick={() => navigate(session ? "/subscription" : "/auth")}>
-                  Voir toutes les intégrations
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
               </Card>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Section Témoignages */}
-      {publishedFeedback.length > 0 && (
-        <section className="py-20">
+      {/* ===== CAROUSEL D'EXEMPLES ===== */}
+      {!session && (
+        <section className="py-16 bg-muted/30">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                Ils nous font confiance
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Des résultats <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">époustouflants</span>
               </h2>
-              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                Découvrez ce que nos utilisateurs disent de Visual Pro
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Découvrez ce que nos utilisateurs créent avec VisualPro
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="relative h-[350px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl max-w-4xl mx-auto">
+              {carouselImages.map((image, index) => (
+                <img
+                  key={index}
+                  src={image.src}
+                  alt={image.alt}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+                    index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+              ))}
+              {/* Overlay gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              <div className="absolute bottom-6 left-6 right-6">
+                <div className="flex gap-2">
+                  {carouselImages.map((_, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => setCurrentImageIndex(idx)}
+                      className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'w-8 bg-white' : 'w-4 bg-white/50'}`} 
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto mt-14">
+              <div className="text-center">
+                <div className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">500+</div>
+                <div className="text-sm text-muted-foreground font-medium">Utilisateurs actifs</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">10k+</div>
+                <div className="text-sm text-muted-foreground font-medium">Créations générées</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">98%</div>
+                <div className="text-sm text-muted-foreground font-medium">Satisfaction client</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== COMMENT CA MARCHE ===== */}
+      {!session && (
+        <section className="py-16 md:py-24">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                3 étapes pour démarrer
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Une expérience simplifiée pour créer du contenu de qualité pro
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {[
+                { step: "1", title: "Créez votre compte", desc: "Inscription gratuite en 30 secondes. Choisissez votre outil et commencez immédiatement.", color: "bg-primary" },
+                { step: "2", title: "Choisissez votre outil", desc: "Visuels IA, boutique e-commerce, site vitrine ou formation — tout est à portée de clic.", color: "bg-secondary" },
+                { step: "3", title: "Lancez-vous !", desc: "Publiez, vendez et développez votre activité. Résultats professionnels garantis.", color: "bg-gradient-to-r from-primary to-secondary" },
+              ].map((item, idx) => (
+                <div key={idx} className="text-center group">
+                  <div className={`w-16 h-16 ${item.color} rounded-2xl flex items-center justify-center mx-auto mb-5 text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform`}>
+                    {item.step}
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">{item.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== TARIFICATION ===== */}
+      {!session && (
+        <section id="pricing" className="py-16 md:py-24 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Des tarifs <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">accessibles</span>
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Commencez gratuitement, évoluez selon vos besoins
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <Card className="p-7 hover:shadow-xl transition-all border-2 border-transparent hover:border-primary/10">
+                <Badge className="mb-4" variant="secondary">Gratuit</Badge>
+                <h3 className="text-2xl font-bold mb-3">Découverte</h3>
+                <div className="mb-5">
+                  <span className="text-4xl font-extrabold">0€</span>
+                  <span className="text-muted-foreground">/mois</span>
+                </div>
+                <ul className="space-y-2.5 mb-7 text-sm">
+                  {["3 générations d'images", "1 vidéo gratuite", "Tous les templates"].map((f, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
+                  Commencer gratuitement
+                </Button>
+              </Card>
+
+              <Card className="p-7 border-2 border-primary hover:shadow-xl transition-all relative bg-primary/[0.02]">
+                <Badge className="mb-4 bg-primary text-primary-foreground">Populaire</Badge>
+                <h3 className="text-2xl font-bold mb-3">Packs à la Carte</h3>
+                <div className="mb-5">
+                  <span className="text-sm text-muted-foreground">À partir de</span>
+                  <br />
+                  <span className="text-4xl font-extrabold">1 000 FCFA</span>
+                </div>
+                <ul className="space-y-2.5 mb-7 text-sm">
+                  {["10 images — 1 000 FCFA", "20 images — 2 000 FCFA", "50 images + Site — 5 000 FCFA"].map((f, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button className="w-full" onClick={() => navigate("/auth")}>
+                  Voir tous les packs
+                </Button>
+              </Card>
+
+              <Card className="p-7 hover:shadow-xl transition-all border-2 border-transparent hover:border-primary/10">
+                <Badge className="mb-4" variant="secondary">Entreprise</Badge>
+                <h3 className="text-2xl font-bold mb-3">Business</h3>
+                <div className="mb-5">
+                  <span className="text-4xl font-extrabold">65 000</span>
+                  <span className="text-muted-foreground"> FCFA/mois</span>
+                </div>
+                <ul className="space-y-2.5 mb-7 text-sm">
+                  {["Images illimitées", "Vidéos illimitées", "Sites & boutiques illimités", "Accès API"].map((f, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>
+                  Choisir Business
+                </Button>
+              </Card>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== TÉMOIGNAGES ===== */}
+      {!session && publishedFeedback.length > 0 && (
+        <section className="py-16 md:py-24">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Ils nous font <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">confiance</span>
+              </h2>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {publishedFeedback.map((feedback) => (
                 <Card key={feedback.id} className="p-6 hover:shadow-xl transition-all">
-                  <div className="flex items-center mb-4">
+                  <div className="flex items-center mb-3">
                     {[...Array(5)].map((_, i) => (
-                      <svg
-                        key={i}
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        strokeWidth="2"
-                        stroke="currentColor"
-                        className={`w-5 h-5 ${
-                          i < feedback.rating
-                            ? 'text-yellow-500 fill-yellow-500'
-                            : 'text-gray-300 fill-none'
-                        }`}
-                      >
+                      <svg key={i} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"
+                        className={`w-4 h-4 ${i < feedback.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300 fill-none'}`}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
                       </svg>
                     ))}
                   </div>
-                  <p className="text-muted-foreground mb-4 italic line-clamp-4">
-                    "{feedback.comment}"
-                  </p>
+                  <p className="text-muted-foreground text-sm mb-4 italic line-clamp-4">"{feedback.comment}"</p>
                   <div className="flex items-center gap-3">
                     {feedback.photo_url && (
-                      <img
-                        src={feedback.photo_url}
-                        alt={feedback.full_name}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
+                      <img src={feedback.photo_url} alt={feedback.full_name} className="w-9 h-9 rounded-full object-cover" />
                     )}
                     <div>
-                      <div className="font-semibold">{feedback.full_name}</div>
-                      {feedback.country && (
-                        <div className="text-sm text-muted-foreground">{feedback.country}</div>
-                      )}
+                      <div className="font-semibold text-sm">{feedback.full_name}</div>
+                      {feedback.country && <div className="text-xs text-muted-foreground">{feedback.country}</div>}
                     </div>
                   </div>
                 </Card>
@@ -596,82 +484,73 @@ const Index = () => {
         </section>
       )}
 
-      {/* Section Équipe */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Notre équipe
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Des passionnés dévoués à démocratiser la création visuelle en Afrique
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card className="p-8 text-center hover:shadow-xl transition-all">
-              <img
-                src={founderImage}
-                alt="Ulrich DJATÉ"
-                className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
-              />
-              <h3 className="text-2xl font-bold mb-2">Ulrich DJATÉ</h3>
-              <p className="text-primary font-semibold mb-4">Fondateur, CEO & Architecte</p>
-              <p className="text-muted-foreground mb-4">
-                Expert en intelligence artificielle, développement, vibe coding et entrepreneur à succès
+      {/* ===== ÉQUIPE ===== */}
+      {!session && (
+        <section className="py-16 md:py-24 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">Notre équipe</h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Des passionnés dévoués à démocratiser la création digitale en Afrique
               </p>
-              <blockquote className="italic text-sm text-primary border-l-4 border-primary pl-4 py-2">
-                "L'innovation en Afrique commence par croire en nos propres capacités. Avec VisualPro, nous donnons aux entrepreneurs africains les outils pour transformer leurs visions en réalité."
-              </blockquote>
-            </Card>
+            </div>
 
-            <Card className="p-8 text-center hover:shadow-xl transition-all">
-              <img
-                src={cofounderImage}
-                alt="Regnis AGNISSAN"
-                className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
-              />
-              <h3 className="text-2xl font-bold mb-2">Regnis AGNISSAN</h3>
-              <p className="text-secondary font-semibold mb-4">Co-fondateur</p>
-              <p className="text-muted-foreground mb-4">
-                Entrepreneur ivoirien, entrepreneur digital et expert en e-commerce
-              </p>
-              <blockquote className="italic text-sm text-secondary border-l-4 border-secondary pl-4 py-2">
-                "Le succès digital ne se mesure pas seulement en chiffres, mais par l'impact qu'on crée. Ensemble, bâtissons l'avenir du commerce en ligne en Afrique."
-              </blockquote>
-            </Card>
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <Card className="p-8 text-center hover:shadow-xl transition-all">
+                <img src={founderImage} alt="Ulrich DJATÉ" className="w-28 h-28 rounded-full mx-auto mb-4 object-cover ring-4 ring-primary/20" />
+                <h3 className="text-xl font-bold mb-1">Ulrich DJATÉ</h3>
+                <p className="text-primary font-semibold text-sm mb-3">Fondateur, CEO & Architecte</p>
+                <p className="text-muted-foreground text-sm mb-4">Expert en IA, développement et vibe coding</p>
+                <blockquote className="italic text-xs text-primary border-l-4 border-primary pl-3 py-1 text-left">
+                  "L'innovation en Afrique commence par croire en nos propres capacités."
+                </blockquote>
+              </Card>
+
+              <Card className="p-8 text-center hover:shadow-xl transition-all">
+                <img src={cofounderImage} alt="Regnis AGNISSAN" className="w-28 h-28 rounded-full mx-auto mb-4 object-cover ring-4 ring-secondary/20" />
+                <h3 className="text-xl font-bold mb-1">Regnis AGNISSAN</h3>
+                <p className="text-secondary font-semibold text-sm mb-3">Co-fondateur</p>
+                <p className="text-muted-foreground text-sm mb-4">Entrepreneur digital et expert en e-commerce</p>
+                <blockquote className="italic text-xs text-secondary border-l-4 border-secondary pl-3 py-1 text-left">
+                  "Ensemble, bâtissons l'avenir du commerce en ligne en Afrique."
+                </blockquote>
+              </Card>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* Section CTA Final */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <Card className="bg-gradient-to-r from-primary/10 via-purple-500/10 to-secondary/10 p-12 text-center max-w-4xl mx-auto">
-            <TrendingUp className="w-16 h-16 mx-auto mb-6 text-primary" />
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Prêt à transformer votre communication visuelle ?
-            </h2>
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Rejoignez les centaines d'entrepreneurs africains qui utilisent Visual Pro 
-              pour créer du contenu professionnel en quelques clics.
-            </p>
-            <Button 
-              size="lg" 
-              className="text-lg px-10 py-7 shadow-lg hover:shadow-xl"
-              onClick={() => navigate(session ? "/generator" : "/auth")}
-            >
-              <Wand2 className="mr-2 h-5 w-5" />
-              {session ? "Créer maintenant" : "Commencer gratuitement"}
-            </Button>
-          </Card>
-        </div>
-      </section>
+      {/* ===== CTA FINAL ===== */}
+      {!session && (
+        <section className="py-16 md:py-24">
+          <div className="container mx-auto px-4">
+            <div className="relative max-w-4xl mx-auto rounded-3xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary via-purple-600 to-secondary opacity-90" />
+              <div className="relative p-10 md:p-16 text-center text-white">
+                <Rocket className="w-12 h-12 mx-auto mb-6 opacity-90" />
+                <h2 className="text-3xl md:text-5xl font-extrabold mb-4">
+                  Prêt à transformer votre business ?
+                </h2>
+                <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl mx-auto">
+                  Rejoignez les centaines d'entrepreneurs africains qui utilisent VisualPro pour réussir en ligne.
+                </p>
+                <Button 
+                  size="lg" 
+                  className="text-lg px-10 py-7 bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl font-bold"
+                  onClick={() => navigate("/auth")}
+                >
+                  <Wand2 className="mr-2 h-5 w-5" />
+                  Commencer gratuitement
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <Footer />
     </div>
   );
 };
-
 
 export default Index;
