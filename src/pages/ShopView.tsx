@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,6 +31,7 @@ interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ShopView = () => {
   const { slug, id } = useParams<{ slug?: string; id?: string }>();
+  const navigate = useNavigate();
   const [shop, setShop] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -332,7 +333,10 @@ const ShopView = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {featuredProducts.slice(0, 4).map(product => (
-              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={setSelectedProduct} formatPrice={formatPrice} />
+              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
+                const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
+                navigate(`${base}/product?product=${p.id}`);
+              }} formatPrice={formatPrice} />
             ))}
           </div>
         </section>
@@ -368,7 +372,10 @@ const ShopView = () => {
 
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={setSelectedProduct} formatPrice={formatPrice} />
+            <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
+              const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
+              navigate(`${base}/product?product=${p.id}`);
+            }} formatPrice={formatPrice} />
           ))}
         </div>
         {filteredProducts.length === 0 && (

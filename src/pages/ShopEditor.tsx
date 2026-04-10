@@ -443,7 +443,7 @@ const ShopEditor = () => {
               onUploadImage={uploadProductImage}
               onPreviewProduct={(product) => {
                 const base = shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`;
-                window.open(`${base}?product=${product.id}`, "_blank");
+                window.open(`${base}/product?product=${product.id}`, "_blank");
               }}
               primaryColor={primaryColor}
               orders={orders}
