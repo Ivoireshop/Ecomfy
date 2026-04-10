@@ -25,6 +25,8 @@ import exampleFood from "@/assets/example-food-ad.jpg";
 import exampleBeauty from "@/assets/example-beauty-ad.jpg";
 import exampleFitness from "@/assets/example-fitness-ad.jpg";
 import exampleRealestate from "@/assets/example-realestate-ad.jpg";
+import videoModelCosmetics from "@/assets/video-model-cosmetics.mp4.asset.json";
+import videoModelHandbag from "@/assets/video-model-handbag.mp4.asset.json";
 import videoPreview1 from "@/assets/video-preview-1.jpg";
 import videoPreview2 from "@/assets/video-preview-2.jpg";
 import showcaseSitePreview from "@/assets/showcase-site-preview.jpg";
