@@ -296,6 +296,13 @@ const ProductView = () => {
         🔥 Offre spéciale en cours — Profitez de nos meilleurs prix ! 📦 Livraison disponible
       </div>
 
+      {/* Interior payment notice */}
+      {shop.theme_config?.force_mobile_money_interior && (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-center py-2.5 px-4 text-xs sm:text-sm">
+          <span className="font-semibold">📢 Information importante :</span> Si vous êtes à l'intérieur du pays (hors Abidjan), le paiement par Mobile Money est obligatoire avant la validation de votre commande pour permettre l'expédition de votre colis.
+        </div>
+      )}
+
       {/* Header - conditionally hidden */}
       {!shop.theme_config?.hide_product_header && (
         <header className="border-b bg-white sticky top-0 z-40">
