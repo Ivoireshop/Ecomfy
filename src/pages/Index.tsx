@@ -25,6 +25,15 @@ import exampleFood from "@/assets/example-food-ad.jpg";
 import exampleBeauty from "@/assets/example-beauty-ad.jpg";
 import exampleFitness from "@/assets/example-fitness-ad.jpg";
 import exampleRealestate from "@/assets/example-realestate-ad.jpg";
+import videoPreview1 from "@/assets/video-preview-1.jpg";
+import videoPreview2 from "@/assets/video-preview-2.jpg";
+import showcaseSitePreview from "@/assets/showcase-site-preview.jpg";
+import showcaseDevPreview from "@/assets/showcase-dev-preview.jpg";
+import ecommerceDashboard from "@/assets/ecommerce-dashboard.jpg";
+import ecommerceProductPage from "@/assets/ecommerce-product-page.jpg";
+import ecommerceShopping from "@/assets/ecommerce-shopping.jpg";
+import formationClassroom from "@/assets/formation-classroom.jpg";
+import formationOnline from "@/assets/formation-online.jpg";
 
 /* ── Scroll-reveal hook ── */
 const useReveal = (threshold = 0.15) => {
@@ -325,7 +334,7 @@ const Index = () => {
               title="Vidéos Animées Pro"
               subtitle="Vidéo & Animation"
               description="Transformez n'importe quel visuel en vidéo captivante avec des animations fluides et des effets professionnels. Idéal pour capturer l'attention sur TikTok, Instagram et Facebook."
-              images={[exampleBeauty, exampleFitness]}
+              images={[videoPreview1, videoPreview2]}
               icon={Video}
               gradient="from-blue-500 to-cyan-500"
               reversed
@@ -337,7 +346,7 @@ const Index = () => {
               title="Sites Vitrine Professionnels"
               subtitle="Site vitrine"
               description="Lancez votre site web professionnel en quelques minutes. Présentez vos services, votre portfolio et recevez des réservations — sans aucune compétence technique."
-              images={[featureRapide, featureAfrique]}
+              images={[featureRapide, showcaseSitePreview, showcaseDevPreview]}
               icon={Globe}
               gradient="from-violet-500 to-purple-500"
               cta="Créer un site vitrine"
@@ -348,7 +357,7 @@ const Index = () => {
               title="Boutiques E-commerce"
               subtitle="E-commerce"
               description="Vendez vos produits en ligne avec une boutique complète : gestion des stocks, paiements Mobile Money, suivi des commandes et livraisons intégrées."
-              images={[exampleRealestate, exampleHandbag]}
+              images={[ecommerceDashboard, ecommerceProductPage, ecommerceShopping]}
               icon={Store}
               gradient="from-emerald-500 to-teal-500"
               reversed
@@ -360,9 +369,10 @@ const Index = () => {
               title="Formations en Ligne"
               subtitle="E-learning"
               description="Créez et vendez vos formations avec des modules structurés, un espace étudiant dédié, des certificats automatiques et des liens de paiement intégrés."
-              images={[featureIA, featureAfrique]}
+              images={[formationClassroom, formationOnline]}
               icon={GraduationCap}
               gradient="from-amber-500 to-yellow-500"
+              reversed
               cta="Créer une formation"
               onClick={() => navigate(session ? "/showcase-manager?tab=courses" : "/auth")}
             />
