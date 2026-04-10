@@ -31,6 +31,7 @@ interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ShopView = () => {
   const { slug, id } = useParams<{ slug?: string; id?: string }>();
+  const navigate = useNavigate();
   const [shop, setShop] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
