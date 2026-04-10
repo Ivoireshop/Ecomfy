@@ -273,16 +273,21 @@ const Index = () => {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
               {hubServices.map((s, idx) => (
-                <Card key={idx} className={`group relative overflow-hidden border-2 border-transparent hover:border-primary/20 transition-all duration-300 hover:shadow-2xl cursor-pointer ${s.bgLight}`} onClick={() => navigate(s.route)}>
+                <Card
+                  key={idx}
+                  className={`group relative overflow-hidden border-2 border-transparent hover:border-primary/20 transition-all duration-500 hover:shadow-2xl cursor-pointer animate-fade-in ${s.bgLight}`}
+                  style={{ animationDelay: `${idx * 100}ms`, animationFillMode: 'both' }}
+                  onClick={() => navigate(s.route)}
+                >
                   <div className="p-6 md:p-8">
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform`}>
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
                       <s.icon className="w-7 h-7 text-white" />
                     </div>
                     <h3 className="text-xl font-bold mb-2 text-foreground">{s.title}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed mb-5">{s.desc}</p>
                     <div className="flex items-center gap-2 text-sm font-semibold text-primary group-hover:gap-3 transition-all">
                       {s.cta}
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </Card>
