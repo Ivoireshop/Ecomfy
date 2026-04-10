@@ -561,21 +561,43 @@ const ProductView = () => {
                   {/* Payment Method */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Paiement</h4></div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {[
-                        { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
-                        { value: "mobile_money", label: "Mobile Money", icon: "📱" },
-                      ].map(method => (
-                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                          className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200"}`}
-                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
-                        >
-                          <span className="text-xl">{method.icon}</span>
-                          <span className="font-semibold text-sm">{method.label}</span>
-                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto" style={{ color: primaryColor }} />}
-                        </button>
-                      ))}
-                    </div>
+                    
+                    {/* Interior city warning */}
+                    {shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan' && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-sm text-amber-800">
+                        <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
+                      </div>
+                    )}
+
+                    {(() => {
+                      const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan';
+                      const methods = isInterior
+                        ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
+                        : [
+                            { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
+                            { value: "mobile_money", label: "Mobile Money", icon: "📱" },
+                          ];
+                      
+                      // Auto-select mobile_money for interior
+                      if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
+                        setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {methods.map(method => (
+                            <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                              className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200"}`}
+                              style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+                            >
+                              <span className="text-xl">{method.icon}</span>
+                              <span className="font-semibold text-sm">{method.label}</span>
+                              {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto" style={{ color: primaryColor }} />}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <Button 
