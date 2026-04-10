@@ -116,6 +116,70 @@ export function ProductEditor({
     editorRef.current?.focus();
   }, []);
 
+  // Image resize/align controls
+  const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
+  const [imageToolbar, setImageToolbar] = useState<{ top: number; left: number } | null>(null);
+
+  const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "IMG") {
+      const img = target as HTMLImageElement;
+      setSelectedEditorImage(img);
+      img.style.outline = "2px solid #3b82f6";
+      img.style.outlineOffset = "2px";
+      const rect = img.getBoundingClientRect();
+      const editorRect = editorRef.current?.getBoundingClientRect();
+      if (editorRect) {
+        setImageToolbar({ top: rect.top - editorRect.top - 44, left: rect.left - editorRect.left });
+      }
+    } else {
+      if (selectedEditorImage) {
+        selectedEditorImage.style.outline = "none";
+        selectedEditorImage.style.outlineOffset = "0";
+      }
+      setSelectedEditorImage(null);
+      setImageToolbar(null);
+    }
+  }, [selectedEditorImage]);
+
+  const resizeImage = (size: string) => {
+    if (!selectedEditorImage) return;
+    selectedEditorImage.style.maxWidth = size;
+    selectedEditorImage.style.width = size;
+    selectedEditorImage.style.height = "auto";
+    handleEditorInput();
+  };
+
+  const alignImage = (align: string) => {
+    if (!selectedEditorImage) return;
+    const wrapper = selectedEditorImage.parentElement;
+    if (align === "center") {
+      selectedEditorImage.style.display = "block";
+      selectedEditorImage.style.marginLeft = "auto";
+      selectedEditorImage.style.marginRight = "auto";
+      selectedEditorImage.style.float = "none";
+    } else if (align === "left") {
+      selectedEditorImage.style.float = "left";
+      selectedEditorImage.style.marginRight = "12px";
+      selectedEditorImage.style.marginLeft = "0";
+      selectedEditorImage.style.display = "inline";
+    } else if (align === "right") {
+      selectedEditorImage.style.float = "right";
+      selectedEditorImage.style.marginLeft = "12px";
+      selectedEditorImage.style.marginRight = "0";
+      selectedEditorImage.style.display = "inline";
+    }
+    handleEditorInput();
+  };
+
+  const deleteEditorImage = () => {
+    if (!selectedEditorImage) return;
+    selectedEditorImage.remove();
+    setSelectedEditorImage(null);
+    setImageToolbar(null);
+    handleEditorInput();
+  };
+
   const insertImage = () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -125,7 +189,7 @@ export function ProductEditor({
       if (file) {
         const reader = new FileReader();
         reader.onload = () => {
-          execCmd("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;" />`);
+          execCmd("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" />`);
         };
         reader.readAsDataURL(file);
       }
@@ -386,16 +450,37 @@ export function ProductEditor({
               </div>
 
               {/* Editor Area */}
-              <div
-                ref={editorRef}
-                contentEditable
-                className="min-h-[350px] p-4 text-sm focus:outline-none [&>*]:mb-2"
-                style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-                onInput={handleEditorInput}
-                onKeyDown={handleEditorKeyDown}
-                suppressContentEditableWarning
-                data-code-view="false"
-              />
+              <div className="relative">
+                {/* Image Toolbar */}
+                {selectedEditorImage && imageToolbar && (
+                  <div 
+                    className="absolute z-50 flex items-center gap-1 bg-popover border rounded-lg shadow-lg p-1.5"
+                    style={{ top: Math.max(0, imageToolbar.top), left: imageToolbar.left }}
+                  >
+                    <button onClick={() => resizeImage("25%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="25%">25%</button>
+                    <button onClick={() => resizeImage("50%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="50%">50%</button>
+                    <button onClick={() => resizeImage("75%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="75%">75%</button>
+                    <button onClick={() => resizeImage("100%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="100%">100%</button>
+                    <div className="w-px h-5 bg-border mx-0.5" />
+                    <button onClick={() => alignImage("left")} className="p-1 rounded hover:bg-muted" title="Gauche"><AlignLeft className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => alignImage("center")} className="p-1 rounded hover:bg-muted" title="Centre"><AlignCenter className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => alignImage("right")} className="p-1 rounded hover:bg-muted" title="Droite"><AlignRight className="h-3.5 w-3.5" /></button>
+                    <div className="w-px h-5 bg-border mx-0.5" />
+                    <button onClick={deleteEditorImage} className="p-1 rounded hover:bg-destructive/10 text-destructive" title="Supprimer"><X className="h-3.5 w-3.5" /></button>
+                  </div>
+                )}
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  className="min-h-[350px] p-4 text-sm focus:outline-none [&>*]:mb-2"
+                  style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                  onInput={handleEditorInput}
+                  onKeyDown={handleEditorKeyDown}
+                  onClick={handleEditorClick}
+                  suppressContentEditableWarning
+                  data-code-view="false"
+                />
+              </div>
             </div>
           </div>
 
