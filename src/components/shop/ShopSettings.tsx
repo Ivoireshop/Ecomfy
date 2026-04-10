@@ -214,6 +214,26 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), single_page_checkout: v } })}
                 />
               </div>
+              <div className="flex items-center justify-between p-4 rounded-xl border">
+                <div>
+                  <p className="font-medium">Masquer le menu / navigation</p>
+                  <p className="text-sm text-muted-foreground">Cache l'en-tête et le fil d'Ariane sur la fiche produit (idéal pour les landing pages)</p>
+                </div>
+                <Switch
+                  checked={shop.theme_config?.hide_product_header || false}
+                  onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), hide_product_header: v } })}
+                />
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-xl border">
+                <div>
+                  <p className="font-medium">Bouton Commander flottant</p>
+                  <p className="text-sm text-muted-foreground">Le bouton reste visible en bas de l'écran même en scrollant</p>
+                </div>
+                <Switch
+                  checked={shop.theme_config?.sticky_order_button || false}
+                  onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), sticky_order_button: v } })}
+                />
+              </div>
             </Card>
             <Card className="p-6 space-y-3">
               <p className="text-sm text-muted-foreground mb-2">Configurez les champs affichés lors du checkout client</p>
