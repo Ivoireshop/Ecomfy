@@ -1,18 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Menu, X, Wand2 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/visualpro-logo.svg";
+
 export function Header() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const handleTarifClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    navigate("/subscription");
-  };
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted) {
+        setIsAuthenticated(!!session?.user);
+      }
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) {
+        setIsAuthenticated(!!session?.user);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const menuItems = [
     { label: "Accueil", href: "/" },
@@ -26,7 +50,6 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo - Always visible */}
           <div
             onClick={() => navigate("/")}
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
@@ -37,7 +60,6 @@ export function Header() {
             </span>
           </div>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             {menuItems.map((item) => (
               <a
@@ -60,19 +82,19 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
-            <Button variant="ghost" onClick={() => navigate("/auth")}>
-              Connexion
-            </Button>
-            <Button onClick={() => navigate("/auth")}>
+            {!isAuthenticated && (
+              <Button variant="ghost" onClick={() => navigate("/auth")}>
+                Connexion
+              </Button>
+            )}
+            <Button onClick={() => navigate(isAuthenticated ? "/" : "/auth")}>
               <Wand2 className="mr-2 h-4 w-4" />
-              Commencer
+              {isAuthenticated ? "Tableau de bord" : "Commencer"}
             </Button>
           </div>
 
-          {/* Mobile Menu */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild className="md:hidden">
               <Button variant="ghost" size="icon">
@@ -116,25 +138,27 @@ export function Header() {
                     <span className="text-sm text-muted-foreground">Thème</span>
                     <ThemeToggle />
                   </div>
+                  {!isAuthenticated && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        navigate("/auth");
+                        setIsOpen(false);
+                      }}
+                    >
+                      Connexion
+                    </Button>
+                  )}
                   <Button
-                    variant="outline"
                     className="w-full"
                     onClick={() => {
-                      navigate("/auth");
-                      setIsOpen(false);
-                    }}
-                  >
-                    Connexion
-                  </Button>
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      navigate("/auth");
+                      navigate(isAuthenticated ? "/" : "/auth");
                       setIsOpen(false);
                     }}
                   >
                     <Wand2 className="mr-2 h-4 w-4" />
-                    Commencer
+                    {isAuthenticated ? "Tableau de bord" : "Commencer"}
                   </Button>
                 </div>
               </div>
