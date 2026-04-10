@@ -52,6 +52,7 @@ const ShopEditor = lazy(() => import("./pages/ShopEditor"));
 const ShopView = lazy(() => import("./pages/ShopView"));
 const ProductView = lazy(() => import("./pages/ProductView"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
+const CoursesManager = lazy(() => import("./pages/CoursesManager"));
 
 const queryClient = new QueryClient();
 
@@ -222,6 +223,7 @@ const AppContent = () => {
           <Route path="/blog" element={<Blog />} />
           <Route path="/legal-notice" element={<LegalNotice />} />
           <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
+          <Route path="/courses-manager" element={<ProtectedRoute><CoursesManager /></ProtectedRoute>} />
           <Route path="/shop-builder" element={<ProtectedRoute><ShopBuilder /></ProtectedRoute>} />
           <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
           <Route path="/shop-preview/:id" element={<ProtectedRoute><ShopView /></ProtectedRoute>} />

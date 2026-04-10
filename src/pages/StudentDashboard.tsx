@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, BookOpen, Clock, CheckCircle2, Play, LogOut, Award } from "lucide-react";
+import { Loader2, BookOpen, Clock, CheckCircle2, Play, LogOut, Award, GraduationCap, Trophy } from "lucide-react";
 
 interface CourseAccess {
   id: string;
@@ -26,6 +26,7 @@ export default function StudentDashboard() {
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     checkAuth();
@@ -40,6 +41,15 @@ export default function StudentDashboard() {
     }
 
     setUser(user);
+
+    // Load profile
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+    
+    setProfile(profileData);
     loadCourses();
   };
 
@@ -56,7 +66,6 @@ export default function StudentDashboard() {
       if (accessError) throw accessError;
       setCourses(accessData || []);
 
-      // Calculate progress for each course
       if (accessData && accessData.length > 0) {
         const courseIds = accessData.map(a => a.course_id);
         const { data: progressData } = await supabase
@@ -86,6 +95,9 @@ export default function StudentDashboard() {
     navigate("/auth");
   };
 
+  const completedCourses = courses.filter(c => progress[c.course_id] === 100).length;
+  const inProgressCourses = courses.filter(c => (progress[c.course_id] || 0) > 0 && progress[c.course_id] < 100).length;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -96,88 +108,162 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Mon Espace Étudiant</h1>
-            {user && <p className="text-sm text-muted-foreground">{user.email}</p>}
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <GraduationCap className="h-7 w-7 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">
+                  Bonjour, {profile?.full_name || "Étudiant"} 👋
+                </h1>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate("/student/certificates")}>
+                <Award className="h-4 w-4 mr-2" />
+                Mes Certificats
+              </Button>
+              <Button variant="ghost" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
+              </Button>
+            </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Déconnexion
-          </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-3xl font-bold mb-2">Mes Formations</h2>
-            <p className="text-muted-foreground">
-              Continuez votre apprentissage où vous vous étiez arrêté
-            </p>
-          </div>
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <Card>
+            <CardContent className="pt-6 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{courses.length}</div>
+                <div className="text-sm text-muted-foreground">Formations</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Play className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{inProgressCourses}</div>
+                <div className="text-sm text-muted-foreground">En cours</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Trophy className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{completedCourses}</div>
+                <div className="text-sm text-muted-foreground">Terminées</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Courses */}
+        <div>
+          <h2 className="text-xl font-bold mb-6">Mes Formations</h2>
 
           {courses.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
-                <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">Aucune formation disponible</h3>
-                <p className="text-muted-foreground mb-4">
-                  Vous n'avez pas encore accès à des formations
+              <CardContent className="py-16 text-center">
+                <GraduationCap className="h-16 w-16 mx-auto mb-4 text-muted-foreground/40" />
+                <h3 className="text-xl font-semibold mb-2">Aucune formation disponible</h3>
+                <p className="text-muted-foreground">
+                  Vous n'avez pas encore accès à des formations. Contactez votre formateur.
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((access) => (
-                <Card key={access.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  {access.course.image_url && (
-                    <img
-                      src={access.course.image_url}
-                      alt={access.course.title}
-                      className="w-full h-48 object-cover"
-                    />
-                  )}
-                  <CardHeader>
-                    <CardTitle className="line-clamp-2">{access.course.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {access.course.description}
-                    </p>
+              {courses.map((access) => {
+                const courseProgress = progress[access.course_id] || 0;
+                const isCompleted = courseProgress === 100;
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Progression</span>
-                        <span className="font-medium">{progress[access.course_id] || 0}%</span>
-                      </div>
-                      <Progress value={progress[access.course_id] || 0} />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Accès depuis {new Date(access.access_granted_at).toLocaleDateString()}
-                      </div>
-                      {progress[access.course_id] === 100 && (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Terminé
+                return (
+                  <Card
+                    key={access.id}
+                    className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
+                    onClick={() => navigate(`/student/course/${access.course_id}`)}
+                  >
+                    <div className="relative">
+                      {access.course.image_url ? (
+                        <img
+                          src={access.course.image_url}
+                          alt={access.course.title}
+                          className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-44 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                          <BookOpen className="h-12 w-12 text-primary/50" />
+                        </div>
+                      )}
+                      {isCompleted && (
+                        <div className="absolute top-3 right-3">
+                          <Badge className="bg-green-500 text-white">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Terminé
+                          </Badge>
+                        </div>
+                      )}
+                      {!isCompleted && courseProgress > 0 && (
+                        <div className="absolute top-3 right-3">
+                          <Badge variant="secondary">
+                            En cours
+                          </Badge>
                         </div>
                       )}
                     </div>
 
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate(`/student/course/${access.course_id}`)}
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      {progress[access.course_id] > 0 ? "Continuer" : "Commencer"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+                    <CardContent className="p-5 space-y-4">
+                      <h3 className="font-semibold text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                        {access.course.title}
+                      </h3>
+
+                      {access.course.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {access.course.description}
+                        </p>
+                      )}
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Progression</span>
+                          <span className="font-semibold">{courseProgress}%</span>
+                        </div>
+                        <Progress value={courseProgress} className="h-2" />
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Depuis {new Date(access.access_granted_at).toLocaleDateString("fr-FR")}
+                        </div>
+                      </div>
+
+                      <Button className="w-full" variant={isCompleted ? "outline" : "default"}>
+                        <Play className="h-4 w-4 mr-2" />
+                        {isCompleted ? "Revoir" : courseProgress > 0 ? "Continuer" : "Commencer"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

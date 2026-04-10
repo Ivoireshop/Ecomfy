@@ -1,6 +1,6 @@
 import { 
   Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, 
-  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt
+  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt, BookOpen
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -36,6 +36,7 @@ const mainItems = [
 
 const businessItems = [
   { title: "Sites Vitrines", url: "/showcase-manager", icon: Globe },
+  { title: "Formations", url: "/courses-manager", icon: BookOpen },
   { title: "Boutiques", url: "/shop-manager", icon: Store },
 ];
 

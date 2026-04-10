@@ -428,9 +428,10 @@ export type Database = {
           max_participants: number | null
           price: number
           short_description: string | null
-          showcase_site_id: string
+          showcase_site_id: string | null
           title: string
           updated_at: string | null
+          user_id: string | null
           whatsapp_group_link: string | null
         }
         Insert: {
@@ -446,9 +447,10 @@ export type Database = {
           max_participants?: number | null
           price?: number
           short_description?: string | null
-          showcase_site_id: string
+          showcase_site_id?: string | null
           title: string
           updated_at?: string | null
+          user_id?: string | null
           whatsapp_group_link?: string | null
         }
         Update: {
@@ -464,9 +466,10 @@ export type Database = {
           max_participants?: number | null
           price?: number
           short_description?: string | null
-          showcase_site_id?: string
+          showcase_site_id?: string | null
           title?: string
           updated_at?: string | null
+          user_id?: string | null
           whatsapp_group_link?: string | null
         }
         Relationships: [
@@ -550,7 +553,7 @@ export type Database = {
           payment_method: string | null
           payment_proof_url: string | null
           payment_status: string
-          showcase_site_id: string
+          showcase_site_id: string | null
           student_email: string
           student_name: string
           student_phone: string | null
@@ -567,7 +570,7 @@ export type Database = {
           payment_method?: string | null
           payment_proof_url?: string | null
           payment_status?: string
-          showcase_site_id: string
+          showcase_site_id?: string | null
           student_email: string
           student_name: string
           student_phone?: string | null
@@ -584,7 +587,7 @@ export type Database = {
           payment_method?: string | null
           payment_proof_url?: string | null
           payment_status?: string
-          showcase_site_id?: string
+          showcase_site_id?: string | null
           student_email?: string
           student_name?: string
           student_phone?: string | null
