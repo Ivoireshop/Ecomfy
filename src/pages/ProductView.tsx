@@ -531,7 +531,7 @@ const ProductView = () => {
                 return (
                   <a 
                     key={rp.id} 
-                    href={shop._isPreview ? `/shop-preview/${shop.id}?product=${rp.id}` : `/shop/${shop.slug}?product=${rp.id}`}
+                    href={shop._isPreview ? `/shop-preview/${shop.id}/product?product=${rp.id}` : `/shop/${shop.slug}/product?product=${rp.id}`}
                     className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all group border"
                   >
                     <div className="aspect-square bg-gray-100 overflow-hidden">
