@@ -25,6 +25,8 @@ import exampleFood from "@/assets/example-food-ad.jpg";
 import exampleBeauty from "@/assets/example-beauty-ad.jpg";
 import exampleFitness from "@/assets/example-fitness-ad.jpg";
 import exampleRealestate from "@/assets/example-realestate-ad.jpg";
+import videoModelCosmetics from "@/assets/video-model-cosmetics.mp4.asset.json";
+import videoModelHandbag from "@/assets/video-model-handbag.mp4.asset.json";
 import videoPreview1 from "@/assets/video-preview-1.jpg";
 import videoPreview2 from "@/assets/video-preview-2.jpg";
 import showcaseSitePreview from "@/assets/showcase-site-preview.jpg";
@@ -81,6 +83,7 @@ interface ServiceSectionProps {
   subtitle: string;
   description: string;
   images: string[];
+  videos?: string[];
   icon: React.ElementType;
   gradient: string;
   reversed?: boolean;
@@ -88,15 +91,22 @@ interface ServiceSectionProps {
   onClick: () => void;
 }
 
-const ServiceSection = ({ title, subtitle, description, images, icon: Icon, gradient, reversed, cta, onClick }: ServiceSectionProps) => {
+const ServiceSection = ({ title, subtitle, description, images, videos, icon: Icon, gradient, reversed, cta, onClick }: ServiceSectionProps) => {
   const { ref, visible } = useReveal();
-  const [imgIdx, setImgIdx] = useState(0);
+  const [mediaIdx, setMediaIdx] = useState(0);
+  const isVideo = !!videos;
+  const mediaCount = isVideo ? videos.length : images.length;
 
   useEffect(() => {
+    if (isVideo) return; // videos cycle via onEnded
     if (images.length <= 1) return;
-    const iv = setInterval(() => setImgIdx(p => (p + 1) % images.length), 2500);
+    const iv = setInterval(() => setMediaIdx(p => (p + 1) % images.length), 2500);
     return () => clearInterval(iv);
-  }, [images.length]);
+  }, [images.length, isVideo]);
+
+  const handleVideoEnded = () => {
+    if (videos) setMediaIdx(p => (p + 1) % videos.length);
+  };
 
   return (
     <div
@@ -109,22 +119,44 @@ const ServiceSection = ({ title, subtitle, description, images, icon: Icon, grad
       <div className="w-full md:w-1/2 relative">
         <div className={`absolute -inset-4 bg-gradient-to-br ${gradient} rounded-3xl opacity-20 blur-2xl`} />
         <div className="relative h-[260px] md:h-[340px] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
-          {images.map((src, i) => (
-            <img
-              key={i}
-              src={src}
-              alt={title}
-              className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
-                i === imgIdx ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
-              }`}
-            />
-          ))}
+          {isVideo ? (
+            videos.map((src, i) => (
+              <video
+                key={i}
+                src={src}
+                autoPlay={i === mediaIdx}
+                muted
+                playsInline
+                onEnded={handleVideoEnded}
+                className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
+                  i === mediaIdx ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
+                }`}
+              />
+            ))
+          ) : (
+            images.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt={title}
+                className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
+                  i === mediaIdx ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
+                }`}
+              />
+            ))
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          {images.length > 1 && (
+          {mediaCount > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {images.map((_, i) => (
-                <span key={i} className={`block h-1.5 rounded-full transition-all ${i === imgIdx ? 'w-6 bg-white' : 'w-3 bg-white/40'}`} />
+              {Array.from({ length: mediaCount }).map((_, i) => (
+                <span key={i} className={`block h-1.5 rounded-full transition-all ${i === mediaIdx ? 'w-6 bg-white' : 'w-3 bg-white/40'}`} />
               ))}
+            </div>
+          )}
+          {isVideo && (
+            <div className="absolute top-3 right-3 bg-black/50 rounded-full px-2.5 py-1 flex items-center gap-1.5">
+              <Play className="w-3 h-3 text-white fill-white" />
+              <span className="text-white text-xs font-medium">Vidéo</span>
             </div>
           )}
         </div>
@@ -335,6 +367,7 @@ const Index = () => {
               subtitle="Vidéo & Animation"
               description="Transformez n'importe quel visuel en vidéo captivante avec des animations fluides et des effets professionnels. Idéal pour capturer l'attention sur TikTok, Instagram et Facebook."
               images={[videoPreview1, videoPreview2]}
+              videos={[videoModelCosmetics.url, videoModelHandbag.url]}
               icon={Video}
               gradient="from-blue-500 to-cyan-500"
               reversed
