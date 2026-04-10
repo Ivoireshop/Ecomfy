@@ -52,6 +52,7 @@ const ShopEditor = lazy(() => import("./pages/ShopEditor"));
 const ShopView = lazy(() => import("./pages/ShopView"));
 const ProductView = lazy(() => import("./pages/ProductView"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
+const CoursesManager = lazy(() => import("./pages/CoursesManager"));
 
 const queryClient = new QueryClient();
 
