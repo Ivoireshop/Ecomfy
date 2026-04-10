@@ -1372,6 +1372,7 @@ export type Database = {
           slug: string
           snapchat_pixels: string[] | null
           theme: string | null
+          theme_config: Json | null
           tiktok_pixels: string[] | null
           total_orders: number | null
           total_sales: number | null
@@ -1412,6 +1413,7 @@ export type Database = {
           slug: string
           snapchat_pixels?: string[] | null
           theme?: string | null
+          theme_config?: Json | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
@@ -1452,6 +1454,7 @@ export type Database = {
           slug?: string
           snapchat_pixels?: string[] | null
           theme?: string | null
+          theme_config?: Json | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null

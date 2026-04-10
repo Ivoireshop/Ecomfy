@@ -366,9 +366,14 @@ const ProductView = () => {
               )}
             </div>
 
-            {/* Stock status */}
-            {product.stock_quantity !== null && product.stock_quantity > 0 && product.stock_quantity < 10 && (
-              <p className="text-sm text-orange-600 font-medium">⚡ Plus que {product.stock_quantity} en stock</p>
+            {/* Countdown Timer */}
+            {shop.theme_config?.countdown_enabled && (
+              <CountdownTimer color={shop.theme_config?.countdown_color || "#dc2626"} days={shop.theme_config?.countdown_days || 0} hours={shop.theme_config?.countdown_hours || 12} minutes={shop.theme_config?.countdown_minutes || 0} />
+            )}
+
+            {/* Stock urgency */}
+            {product.stock_quantity !== null && product.stock_quantity > 0 && product.stock_quantity < 20 && (
+              <StockUrgencyBar stock={product.stock_quantity} maxStock={20} color={shop.theme_config?.stock_urgency_color || "#ef4444"} text={shop.theme_config?.stock_urgency_text} />
             )}
             {product.stock_quantity !== null && product.stock_quantity <= 0 && (
               <p className="text-sm text-red-600 font-medium">Rupture de stock</p>

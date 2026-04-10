@@ -18,6 +18,8 @@ import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
 import { ShopSettings } from "@/components/shop/ShopSettings";
 import { ProductEditor } from "@/components/shop/ProductEditor";
+import { ShopStatistics } from "@/components/shop/ShopStatistics";
+import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface Product {
@@ -174,6 +176,7 @@ const ShopEditor = () => {
       snapchat_pixels: shop.snapchat_pixels, google_analytics_ids: shop.google_analytics_ids,
       google_analytics_code: shop.google_analytics_code, checkout_fields: shop.checkout_fields,
       cod_delivery_rate: shop.cod_delivery_rate, payment_methods: shop.payment_methods,
+      theme_config: shop.theme_config,
     }).eq("id", shop.id) as any;
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
     else toast({ title: "✓ Sauvegardé" });
@@ -427,6 +430,14 @@ const ShopEditor = () => {
         <div className="px-4 md:px-8 py-6 md:py-8 mt-[52px] md:mt-0">
           {activeSection === "overview" && (
             <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} />
+          )}
+
+          {activeSection === "statistics" && (
+            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} />
+          )}
+
+          {activeSection === "theme" && (
+            <ShopThemeSettings shop={shop} setShop={setShop} />
           )}
 
           {activeSection === "products" && (
