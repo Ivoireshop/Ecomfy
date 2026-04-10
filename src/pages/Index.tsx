@@ -345,26 +345,7 @@ const Index = () => {
       )}
 
       {/* ===== STATS ===== */}
-      {!session && (
-        <section className="py-16 bg-muted/30">
-          <div className="container mx-auto px-4">
-            {(() => { const r = useReveal(0.2); return (
-              <div ref={r.ref} className={`grid grid-cols-3 gap-6 max-w-3xl mx-auto transition-all duration-700 ${r.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                {[
-                  { val: "500+", label: "Utilisateurs actifs" },
-                  { val: "10k+", label: "Créations générées" },
-                  { val: "98%", label: "Satisfaction client" },
-                ].map((s, i) => (
-                  <div key={i} className="text-center">
-                    <div className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">{s.val}</div>
-                    <div className="text-sm text-muted-foreground font-medium">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            ); })()}
-          </div>
-        </section>
-      )}
+      {!session && <StatsSection />}
 
       {/* ===== COMMENT CA MARCHE ===== */}
       {!session && (
@@ -379,18 +360,15 @@ const Index = () => {
                 { step: "1", title: "Créez votre compte", desc: "Inscription gratuite en 30 secondes.", color: "bg-primary" },
                 { step: "2", title: "Choisissez votre outil", desc: "Visuels IA, boutique, site vitrine ou formation.", color: "bg-secondary" },
                 { step: "3", title: "Lancez-vous !", desc: "Publiez, vendez et développez votre activité.", color: "bg-gradient-to-r from-primary to-secondary" },
-              ].map((item, idx) => {
-                const r = useReveal(0.2);
-                return (
-                  <div key={idx} ref={r.ref} className={`text-center group transition-all duration-500 delay-${idx * 150} ${r.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                    <div className={`w-16 h-16 ${item.color} rounded-2xl flex items-center justify-center mx-auto mb-5 text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform`}>
-                      {item.step}
-                    </div>
-                    <h3 className="text-xl font-bold mb-3">{item.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
+              ].map((item, idx) => (
+                <div key={idx} className="text-center group animate-fade-in" style={{ animationDelay: `${idx * 150}ms` }}>
+                  <div className={`w-16 h-16 ${item.color} rounded-2xl flex items-center justify-center mx-auto mb-5 text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform`}>
+                    {item.step}
                   </div>
-                );
-              })}
+                  <h3 className="text-xl font-bold mb-3">{item.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
