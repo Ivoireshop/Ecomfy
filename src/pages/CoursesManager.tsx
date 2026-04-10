@@ -491,13 +491,23 @@ export default function CoursesManager() {
 /* ---- Sub-components ---- */
 
 function StudentsSendSection({ courseId, courseTitle }: { courseId: string; courseTitle: string }) {
+  type StudentEnrollment = {
+    id: string;
+    student_name: string;
+    student_email: string;
+    payment_status: string;
+    created_at: string;
+  };
+
   const [studentName, setStudentName] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
   const [sending, setSending] = useState(false);
-  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(true);
+  const [actionKey, setActionKey] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoadingEnrollments(true);
     loadEnrollments();
   }, [courseId]);
 
@@ -505,22 +515,47 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
     try {
       const { data, error } = await supabase
         .from("enrollments")
-        .select("*")
+        .select("id, student_name, student_email, payment_status, created_at")
         .eq("course_id", courseId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setEnrollments(data || []);
+      setEnrollments((data || []) as StudentEnrollment[]);
     } catch (error) {
       console.error(error);
+      toast.error("Impossible de charger les étudiants");
     } finally {
       setLoadingEnrollments(false);
     }
   };
 
+  const getStatusBadge = (paymentStatus: string) => {
+    if (paymentStatus === "paid") {
+      return <Badge>Accès actif</Badge>;
+    }
+
+    if (paymentStatus === "revoked") {
+      return <Badge variant="destructive">Accès coupé</Badge>;
+    }
+
+    return <Badge variant="secondary">En attente</Badge>;
+  };
+
   const handleSend = async () => {
-    if (!studentName.trim() || !studentEmail.trim()) {
+    const trimmedName = studentName.trim();
+    const trimmedEmail = studentEmail.trim().toLowerCase();
+
+    if (!trimmedName || !trimmedEmail) {
       toast.error("Veuillez remplir le nom et l'email");
+      return;
+    }
+
+    const existingEnrollment = enrollments.find(
+      (enrollment) => enrollment.student_email.trim().toLowerCase() === trimmedEmail
+    );
+
+    if (existingEnrollment) {
+      toast.error("Cet étudiant est déjà inscrit. Utilisez les actions à droite pour gérer son accès.");
       return;
     }
 
@@ -530,8 +565,8 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
         .from("enrollments")
         .insert({
           course_id: courseId,
-          student_name: studentName.trim(),
-          student_email: studentEmail.trim(),
+          student_name: trimmedName,
+          student_email: trimmedEmail,
           payment_status: "paid",
           validated_at: new Date().toISOString(),
         })
@@ -540,33 +575,114 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
 
       if (insertError) throw insertError;
 
-      const { error: createError } = await supabase.functions.invoke(
-        "create-student-account",
-        {
-          body: {
-            enrollmentId: enrollment.id,
-            courseId,
-            studentEmail: studentEmail.trim(),
-            studentName: studentName.trim(),
-          },
-        }
-      );
+      const response = await supabase.functions.invoke("create-student-account", {
+        body: {
+          enrollmentId: enrollment.id,
+          courseId,
+          studentEmail: trimmedEmail,
+          studentName: trimmedName,
+        },
+      });
 
-      if (createError) {
-        toast.error("Inscription créée mais erreur lors de l'envoi du mail");
+      if (response.error) {
+        throw response.error;
+      }
+
+      const result = response.data as { success?: boolean; message?: string } | null;
+
+      if (result?.success) {
+        toast.success(result.message || "Formation envoyée avec succès.");
       } else {
-        toast.success("Formation envoyée ! L'étudiant recevra ses identifiants par email.");
+        toast.error(result?.message || "Compte créé, mais l'email n'a pas pu être envoyé.");
       }
 
       setStudentName("");
       setStudentEmail("");
       loadEnrollments();
     } catch (error: any) {
-      toast.error("Erreur lors de l'envoi");
+      toast.error(error?.message || "Erreur lors de l'envoi");
       console.error(error);
     } finally {
       setSending(false);
     }
+  };
+
+  const runStudentAction = async (
+    enrollmentId: string,
+    action: "revoke" | "restore" | "delete",
+  ) => {
+    setActionKey(`${action}-${enrollmentId}`);
+
+    try {
+      const response = await supabase.functions.invoke("manage-student-access", {
+        body: {
+          enrollmentId,
+          action,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const result = response.data as { success?: boolean; message?: string } | null;
+
+      if (!result?.success) {
+        toast.error(result?.message || "Action impossible");
+        return;
+      }
+
+      toast.success(result.message || "Action effectuée");
+      loadEnrollments();
+    } catch (error: any) {
+      toast.error(error?.message || "Action impossible");
+      console.error(error);
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const handleResend = async (enrollment: StudentEnrollment) => {
+    setActionKey(`resend-${enrollment.id}`);
+
+    try {
+      const response = await supabase.functions.invoke("create-student-account", {
+        body: {
+          enrollmentId: enrollment.id,
+          courseId,
+          studentEmail: enrollment.student_email,
+          studentName: enrollment.student_name,
+          resend: true,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const result = response.data as { success?: boolean; message?: string } | null;
+
+      if (result?.success) {
+        toast.success(result.message || "Accès renvoyés avec succès.");
+      } else {
+        toast.error(result?.message || "Le renvoi a échoué.");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Le renvoi a échoué.");
+      console.error(error);
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const handleDelete = async (enrollmentId: string) => {
+    const confirmed = window.confirm("Voulez-vous vraiment supprimer cet étudiant de cette formation ?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    await runStudentAction(enrollmentId, "delete");
   };
 
   return (
@@ -578,7 +694,7 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
             Envoyer cette formation
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Entrez le nom et l'email de l'étudiant. Il recevra automatiquement ses identifiants par email.
+            Ajoutez un étudiant à <strong>{courseTitle}</strong>, puis gérez ensuite son accès directement depuis la liste.
           </p>
         </CardHeader>
         <CardContent>
@@ -616,9 +732,12 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
       </Card>
 
       <div>
-        <h3 className="text-lg font-semibold mb-4">
-          Étudiants inscrits ({enrollments.filter(e => e.payment_status === "paid").length})
+        <h3 className="text-lg font-semibold mb-2">
+          Étudiants inscrits ({enrollments.length})
         </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Vous pouvez renvoyer les accès, couper l'accès, le réactiver ou supprimer l'étudiant de cette formation.
+        </p>
         {loadingEnrollments ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -630,21 +749,79 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
-            {enrollments.map((e) => (
-              <Card key={e.id}>
-                <CardContent className="py-3 flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{e.student_name}</div>
-                    <div className="text-sm text-muted-foreground">{e.student_email}</div>
+          <div className="space-y-3">
+            {enrollments.map((enrollment) => (
+              <Card key={enrollment.id}>
+                <CardContent className="py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <div className="font-medium break-words">{enrollment.student_name}</div>
+                    <div className="text-sm text-muted-foreground break-all">{enrollment.student_email}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Ajouté le {format(new Date(enrollment.created_at), "dd MMM yyyy", { locale: fr })}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={e.payment_status === "paid" ? "default" : "secondary"}>
-                      {e.payment_status === "paid" ? "Accès envoyé" : "En attente"}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(e.created_at), "dd MMM yyyy", { locale: fr })}
-                    </span>
+
+                  <div className="flex flex-col gap-2 md:items-end">
+                    {getStatusBadge(enrollment.payment_status)}
+                    <div className="flex flex-wrap gap-2 md:justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResend(enrollment)}
+                        disabled={actionKey !== null}
+                      >
+                        {actionKey === `resend-${enrollment.id}` ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-2" />
+                        )}
+                        Renvoyer
+                      </Button>
+
+                      {enrollment.payment_status === "paid" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => runStudentAction(enrollment.id, "revoke")}
+                          disabled={actionKey !== null}
+                        >
+                          {actionKey === `revoke-${enrollment.id}` ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <EyeOff className="h-4 w-4 mr-2" />
+                          )}
+                          Couper l'accès
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => runStudentAction(enrollment.id, "restore")}
+                          disabled={actionKey !== null}
+                        >
+                          {actionKey === `restore-${enrollment.id}` ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Eye className="h-4 w-4 mr-2" />
+                          )}
+                          Réactiver l'accès
+                        </Button>
+                      )}
+
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(enrollment.id)}
+                        disabled={actionKey !== null}
+                      >
+                        {actionKey === `delete-${enrollment.id}` ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-2" />
+                        )}
+                        Supprimer
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -656,6 +833,7 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
   );
 }
 
+function CourseSettings({ course, onUpdate }: { course: Course; onUpdate: () => void }) {
 function CourseSettings({ course, onUpdate }: { course: Course; onUpdate: () => void }) {
   const [title, setTitle] = useState(course.title);
   const [description, setDescription] = useState(course.description || "");
