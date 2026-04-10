@@ -450,16 +450,37 @@ export function ProductEditor({
               </div>
 
               {/* Editor Area */}
-              <div
-                ref={editorRef}
-                contentEditable
-                className="min-h-[350px] p-4 text-sm focus:outline-none [&>*]:mb-2"
-                style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-                onInput={handleEditorInput}
-                onKeyDown={handleEditorKeyDown}
-                suppressContentEditableWarning
-                data-code-view="false"
-              />
+              <div className="relative">
+                {/* Image Toolbar */}
+                {selectedEditorImage && imageToolbar && (
+                  <div 
+                    className="absolute z-50 flex items-center gap-1 bg-popover border rounded-lg shadow-lg p-1.5"
+                    style={{ top: Math.max(0, imageToolbar.top), left: imageToolbar.left }}
+                  >
+                    <button onClick={() => resizeImage("25%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="25%">25%</button>
+                    <button onClick={() => resizeImage("50%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="50%">50%</button>
+                    <button onClick={() => resizeImage("75%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="75%">75%</button>
+                    <button onClick={() => resizeImage("100%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="100%">100%</button>
+                    <div className="w-px h-5 bg-border mx-0.5" />
+                    <button onClick={() => alignImage("left")} className="p-1 rounded hover:bg-muted" title="Gauche"><AlignLeft className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => alignImage("center")} className="p-1 rounded hover:bg-muted" title="Centre"><AlignCenter className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => alignImage("right")} className="p-1 rounded hover:bg-muted" title="Droite"><AlignRight className="h-3.5 w-3.5" /></button>
+                    <div className="w-px h-5 bg-border mx-0.5" />
+                    <button onClick={deleteEditorImage} className="p-1 rounded hover:bg-destructive/10 text-destructive" title="Supprimer"><X className="h-3.5 w-3.5" /></button>
+                  </div>
+                )}
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  className="min-h-[350px] p-4 text-sm focus:outline-none [&>*]:mb-2"
+                  style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                  onInput={handleEditorInput}
+                  onKeyDown={handleEditorKeyDown}
+                  onClick={handleEditorClick}
+                  suppressContentEditableWarning
+                  data-code-view="false"
+                />
+              </div>
             </div>
           </div>
 
