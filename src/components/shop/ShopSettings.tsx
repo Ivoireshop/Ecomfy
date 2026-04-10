@@ -234,6 +234,16 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), sticky_order_button: v } })}
                 />
               </div>
+              <div className="flex items-center justify-between p-4 rounded-xl border">
+                <div>
+                  <p className="font-medium">Paiement obligatoire pour l'intérieur du pays</p>
+                  <p className="text-sm text-muted-foreground">Les clients hors Abidjan doivent payer par Mobile Money avant de valider. Seuls les clients d'Abidjan peuvent payer à la livraison.</p>
+                </div>
+                <Switch
+                  checked={shop.theme_config?.force_mobile_money_interior || false}
+                  onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), force_mobile_money_interior: v } })}
+                />
+              </div>
             </Card>
             <Card className="p-6 space-y-3">
               <p className="text-sm text-muted-foreground mb-2">Configurez les champs affichés lors du checkout client</p>
