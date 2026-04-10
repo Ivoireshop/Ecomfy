@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface RequestBody {
@@ -14,42 +14,253 @@ interface RequestBody {
   resend?: boolean;
 }
 
+interface EmailSendResult {
+  success: boolean;
+  message: string;
+}
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
+
+const jsonResponse = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+async function findExistingUserIdByEmail(supabaseClient: ReturnType<typeof createClient>, email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: profileMatch } = await supabaseClient
+    .from("profiles")
+    .select("id, email")
+    .ilike("email", normalizedEmail)
+    .maybeSingle();
+
+  if (profileMatch?.id) {
+    return profileMatch.id;
+  }
+
+  let page = 1;
+  const perPage = 200;
+
+  while (page <= 10) {
+    const { data, error } = await supabaseClient.auth.admin.listUsers({ page, perPage });
+
+    if (error) {
+      throw error;
+    }
+
+    const match = data.users.find(
+      (user) => user.email?.trim().toLowerCase() === normalizedEmail
+    );
+
+    if (match?.id) {
+      return match.id;
+    }
+
+    if (data.users.length < perPage) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return null;
+}
+
+function formatEmailErrorMessage(rawError: unknown) {
+  const fallback = "l'envoi de l'email a échoué";
+
+  if (!rawError || typeof rawError !== "object") {
+    return fallback;
+  }
+
+  const errorMessage =
+    ("message" in rawError && typeof rawError.message === "string" && rawError.message) ||
+    ("error" in rawError && typeof rawError.error === "string" && rawError.error) ||
+    fallback;
+
+  const normalized = errorMessage.toLowerCase();
+
+  if (normalized.includes("testing emails") || normalized.includes("sandbox")) {
+    return "le service email est encore en mode test et ne peut pas envoyer vers des adresses externes";
+  }
+
+  if (normalized.includes("verify a domain") || normalized.includes("not verified") || normalized.includes("domain")) {
+    return "le domaine d’envoi email n’est pas encore vérifié";
+  }
+
+  return errorMessage;
+}
+
+async function sendStudentEmail({
+  studentEmail,
+  studentName,
+  courseTitle,
+  whatsappGroupLink,
+  tempPassword,
+  resend,
+}: {
+  studentEmail: string;
+  studentName: string;
+  courseTitle: string;
+  whatsappGroupLink: string | null;
+  tempPassword: string;
+  resend: boolean;
+}): Promise<EmailSendResult> {
+  if (!RESEND_API_KEY) {
+    return {
+      success: false,
+      message: "le service d'envoi d'email n'est pas configuré",
+    };
+  }
+
+  const whatsappSection = whatsappGroupLink
+    ? `
+        <div style="background-color: #dcf8c6; padding: 20px; border-radius: 10px; margin: 20px 0;">
+          <h3 style="color: #25D366; margin-top: 0;">🎉 Rejoignez le groupe WhatsApp d'accompagnement</h3>
+          <p>Cliquez sur le lien ci-dessous pour rejoindre le groupe d'accompagnement de votre formation :</p>
+          <p style="text-align: center; margin: 20px 0;">
+            <a href="${whatsappGroupLink}" style="background-color: #25D366; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+              Rejoindre le groupe WhatsApp
+            </a>
+          </p>
+        </div>
+      `
+    : "";
+
+  const emailBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2563eb;">${resend ? "Vos accès ont été réinitialisés" : "Bienvenue sur votre espace de formation !"}</h2>
+      <p>Bonjour <strong>${studentName}</strong>,</p>
+      <p>${resend ? "Voici vos nouveaux accès pour" : "Votre accès pour"} <strong>${courseTitle}</strong>.</p>
+
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0;">Vos identifiants d'accès :</h3>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          <li style="padding: 5px 0;"><strong>Email :</strong> ${studentEmail}</li>
+          <li style="padding: 5px 0;"><strong>Mot de passe temporaire :</strong> <code style="background: #e5e7eb; padding: 3px 6px; border-radius: 3px;">${tempPassword}</code></li>
+        </ul>
+      </div>
+
+      ${whatsappSection}
+
+      <p>Pour accéder à votre formation :</p>
+      <ol>
+        <li>Connectez-vous sur votre espace étudiant</li>
+        <li>Utilisez le mot de passe temporaire ci-dessus</li>
+        <li>Changez votre mot de passe après connexion</li>
+        ${whatsappGroupLink ? "<li>Rejoignez le groupe WhatsApp d'accompagnement</li>" : ""}
+        <li>Commencez votre formation</li>
+      </ol>
+
+      <p style="margin-top: 30px;">À bientôt sur la plateforme !</p>
+    </div>
+  `;
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "VisualPro <onboarding@resend.dev>",
+        to: [studentEmail],
+        subject: resend
+          ? "Vos nouveaux accès à votre formation"
+          : "Vos identifiants d'accès à votre formation",
+        html: emailBody,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: formatEmailErrorMessage(result),
+      };
+    }
+
+    return {
+      success: true,
+      message: resend
+        ? "Les accès ont été renvoyés avec succès."
+        : "La formation a été envoyée avec succès.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: formatEmailErrorMessage(error),
+    };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const authHeader = req.headers.get("Authorization");
 
-    const { enrollmentId, courseId, studentEmail, studentName, resend }: RequestBody = await req.json();
+    if (!authHeader) {
+      return jsonResponse({ error: "Non autorisé" }, 401);
+    }
 
-    let userId: string;
-    let tempPassword: string | null = null;
+    const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
 
-    // Check if user already exists
-    const { data: existingUsers } = await supabaseClient.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === studentEmail);
+    const {
+      data: { user },
+      error: userError,
+    } = await userClient.auth.getUser();
 
-    if (existingUser) {
-      userId = existingUser.id;
-      
-      if (!resend) {
-        // Generate new password for existing user
-        tempPassword = Math.random().toString(36).slice(-12) + "A1!";
-        await supabaseClient.auth.admin.updateUser(userId, {
-          password: tempPassword,
-        });
-      }
-    } else {
-      // Generate a temporary password
-      tempPassword = Math.random().toString(36).slice(-12) + "A1!";
+    if (userError || !user) {
+      return jsonResponse({ error: "Session invalide" }, 401);
+    }
 
-      // Create user account
-      const { data: userData, error: userError } = await supabaseClient.auth.admin.createUser({
+    const body = (await req.json()) as RequestBody;
+    const enrollmentId = body.enrollmentId?.trim();
+    const courseId = body.courseId?.trim();
+    const studentEmail = body.studentEmail?.trim().toLowerCase();
+    const studentName = body.studentName?.trim();
+    const resend = body.resend === true;
+
+    if (!enrollmentId || !courseId || !studentEmail || !studentName) {
+      return jsonResponse({ error: "Données manquantes" }, 400);
+    }
+
+    const { data: course, error: courseError } = await serviceClient
+      .from("courses")
+      .select("id, title, whatsapp_group_link, user_id")
+      .eq("id", courseId)
+      .single();
+
+    if (courseError || !course) {
+      return jsonResponse({ error: "Formation introuvable" }, 404);
+    }
+
+    if (!course.user_id || course.user_id !== user.id) {
+      return jsonResponse({ error: "Vous ne pouvez pas gérer cette formation" }, 403);
+    }
+
+    const tempPassword = `${Math.random().toString(36).slice(-8)}A1!${Math.random().toString(36).slice(-2)}`;
+    let userId = await findExistingUserIdByEmail(serviceClient, studentEmail);
+
+    if (!userId) {
+      const { data: createdUser, error: createUserError } = await serviceClient.auth.admin.createUser({
         email: studentEmail,
         password: tempPassword,
         email_confirm: true,
@@ -58,148 +269,87 @@ serve(async (req) => {
         },
       });
 
-      if (userError) throw userError;
-      userId = userData.user.id;
+      if (createUserError) {
+        if (createUserError.code !== "email_exists") {
+          throw createUserError;
+        }
 
-      // Create profile
-      const { error: profileError } = await supabaseClient
-        .from("profiles")
-        .insert({
-          id: userId,
-          email: studentEmail,
-          full_name: studentName,
-        });
+        userId = await findExistingUserIdByEmail(serviceClient, studentEmail);
 
-      if (profileError && profileError.code !== "23505") {
-        console.error("Profile creation error:", profileError);
+        if (!userId) {
+          throw createUserError;
+        }
+      } else {
+        userId = createdUser.user.id;
       }
     }
 
-    // Create student access (upsert)
-    if (!resend) {
-      const { error: accessError } = await supabaseClient
-        .from("student_access")
-        .upsert({
+    if (!userId) {
+      return jsonResponse({ error: "Impossible de retrouver l'utilisateur" }, 400);
+    }
+
+    const { error: updateUserError } = await serviceClient.auth.admin.updateUserById(userId, {
+      password: tempPassword,
+      user_metadata: {
+        full_name: studentName,
+      },
+    });
+
+    if (updateUserError) {
+      throw updateUserError;
+    }
+
+    const { error: profileError } = await serviceClient
+      .from("profiles")
+      .upsert(
+        {
+          id: userId,
+          email: studentEmail,
+          full_name: studentName,
+        },
+        { onConflict: "id" }
+      );
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    const { error: accessError } = await serviceClient
+      .from("student_access")
+      .upsert(
+        {
           user_id: userId,
           course_id: courseId,
           enrollment_id: enrollmentId,
           is_active: true,
-        }, { onConflict: "user_id,course_id" });
+        },
+        { onConflict: "user_id,course_id" }
+      );
 
-      if (accessError) {
-        console.error("Student access error:", accessError);
-      }
+    if (accessError) {
+      throw accessError;
     }
 
-    // Get course details
-    const { data: courseData } = await supabaseClient
-      .from("courses")
-      .select("title, whatsapp_group_link")
-      .eq("id", courseId)
-      .single();
-
-    const whatsappSection = courseData?.whatsapp_group_link
-      ? `
-        <div style="background-color: #dcf8c6; padding: 20px; border-radius: 10px; margin: 20px 0;">
-          <h3 style="color: #25D366; margin-top: 0;">🎉 Rejoignez le groupe WhatsApp d'accompagnement</h3>
-          <p>Cliquez sur le lien ci-dessous pour rejoindre le groupe d'accompagnement de votre formation :</p>
-          <p style="text-align: center; margin: 20px 0;">
-            <a href="${courseData.whatsapp_group_link}" 
-               style="background-color: #25D366; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-              Rejoindre le groupe WhatsApp
-            </a>
-          </p>
-        </div>
-      `
-      : "";
-
-    // Build email body
-    const passwordSection = tempPassword
-      ? `
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Vos identifiants d'accès :</h3>
-          <ul style="list-style: none; padding: 0;">
-            <li style="padding: 5px 0;"><strong>Email :</strong> ${studentEmail}</li>
-            <li style="padding: 5px 0;"><strong>Mot de passe temporaire :</strong> <code style="background: #e5e7eb; padding: 3px 6px; border-radius: 3px;">${tempPassword}</code></li>
-          </ul>
-        </div>
-      `
-      : `
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Vos identifiants d'accès :</h3>
-          <p>Connectez-vous avec votre email <strong>${studentEmail}</strong> et votre mot de passe habituel.</p>
-        </div>
-      `;
-
-    const emailBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">${resend ? "Rappel : Accès à votre formation" : "Bienvenue sur votre espace de formation !"}</h2>
-        <p>Bonjour <strong>${studentName}</strong>,</p>
-        <p>${resend ? "Voici un rappel de vos accès pour" : "Votre accès pour"} <strong>${courseData?.title || "la formation"}</strong> ${resend ? "." : "a été validé avec succès ! 🎉"}</p>
-        
-        ${passwordSection}
-        ${whatsappSection}
-
-        <p>Pour accéder à votre formation :</p>
-        <ol>
-          <li>Connectez-vous sur votre espace étudiant</li>
-          ${tempPassword ? "<li>Changez votre mot de passe temporaire</li>" : ""}
-          ${courseData?.whatsapp_group_link ? "<li>Rejoignez le groupe WhatsApp d'accompagnement</li>" : ""}
-          <li>Commencez votre formation</li>
-        </ol>
-
-        <p style="margin-top: 30px;">À bientôt sur la plateforme !</p>
-        <p style="color: #6b7280; font-size: 14px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-          Si vous avez des questions, n'hésitez pas à nous contacter.
-        </p>
-      </div>
-    `;
-
-    // Send email via Resend directly
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY is not configured");
-    }
-
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: "VisualPro <onboarding@resend.dev>",
-        to: [studentEmail],
-        subject: resend
-          ? "Rappel : Vos accès à votre formation"
-          : "Vos identifiants d'accès à votre formation",
-        html: emailBody,
-      }),
+    const emailResult = await sendStudentEmail({
+      studentEmail,
+      studentName,
+      courseTitle: course.title,
+      whatsappGroupLink: course.whatsapp_group_link,
+      tempPassword,
+      resend,
     });
 
-    const emailResult = await emailResponse.json();
-    
-    if (!emailResponse.ok) {
-      console.error("Resend error:", emailResult);
-      throw new Error(emailResult?.message || "Erreur lors de l'envoi de l'email");
-    }
-
-    console.log("Email sent successfully:", emailResult);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: resend ? "Email renvoyé avec succès" : "Compte créé avec succès",
-        userId,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: emailResult.success,
+      emailSent: emailResult.success,
+      userId,
+      message: emailResult.success
+        ? emailResult.message
+        : `Compte créé, mais ${emailResult.message}.`,
+    });
   } catch (error) {
     console.error("Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-    );
+    return jsonResponse({ error: errorMessage }, 400);
   }
 });
