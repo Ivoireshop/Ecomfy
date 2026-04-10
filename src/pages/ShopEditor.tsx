@@ -17,6 +17,7 @@ import { ProductsTable } from "@/components/shop/ProductsTable";
 import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
 import { ShopSettings } from "@/components/shop/ShopSettings";
+import { ProductEditor } from "@/components/shop/ProductEditor";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface Product {
