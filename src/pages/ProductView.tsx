@@ -564,14 +564,14 @@ const ProductView = () => {
                     <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Paiement</h4></div>
                     
                     {/* Interior city warning */}
-                    {shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan' && (
+                    {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-sm text-amber-800">
                         <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
                       </div>
                     )}
 
                     {(() => {
-                      const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan';
+                      const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
                       const methods = isInterior
                         ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
                         : [
@@ -884,14 +884,14 @@ const ProductView = () => {
                     <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Mode de paiement</h4></div>
                     
                     {/* Interior city warning in modal */}
-                    {shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan' && (
+                    {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-sm text-amber-800">
                         <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
                       </div>
                     )}
 
                     {(() => {
-                      const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan';
+                      const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
                       const methods = isInterior
                         ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱", desc: "Wave, Orange, MTN, Moov" }]
                         : [
