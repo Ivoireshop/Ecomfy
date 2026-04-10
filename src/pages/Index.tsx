@@ -210,7 +210,7 @@ const Index = () => {
       )}
 
       {/* ===== SCROLLING TICKER ===== */}
-      {!session && <TickerBanner />}
+      <TickerBanner />
 
       {/* ===== HERO ===== */}
       <section className="relative overflow-hidden">
