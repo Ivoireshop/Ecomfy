@@ -69,6 +69,7 @@ const StockUrgencyBarInline = ({ stock, maxStock, color, text }: { stock: number
 };
 
 interface Product {
+  id: string;
   name: string;
   description: string | null;
   short_description: string | null;
