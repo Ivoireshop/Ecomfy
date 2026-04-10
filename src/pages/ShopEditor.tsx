@@ -207,10 +207,47 @@ const ShopEditor = () => {
       }
       toast({ title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓" });
       setProductDialogOpen(false);
+      setShowProductEditor(false);
       setEditingProduct(null);
       resetProductForm();
       fetchData();
     }
+  };
+
+  const handleProductEditorSave = async (data: any, newImgs: File[]) => {
+    if (!id) return;
+    setSaving(true);
+    const productData = {
+      name: data.name, description: data.description, short_description: data.short_description,
+      price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
+      stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
+      is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
+    };
+    let result;
+    if (editingProduct) {
+      result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
+    } else {
+      result = await supabase.from("products").insert(productData) as any;
+    }
+    if (result.error) {
+      toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
+    } else {
+      const prodId = editingProduct?.id || result.data?.[0]?.id;
+      if (prodId && newImgs.length > 0) {
+        for (const file of newImgs) await uploadProductImage(prodId, file);
+      }
+      toast({ title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓" });
+      setShowProductEditor(false);
+      setEditingProduct(null);
+      resetProductForm();
+      fetchData();
+    }
+    setSaving(false);
+  };
+
+  const deleteProductImage = async (imageId: string) => {
+    await supabase.from("product_images").delete().eq("id", imageId) as any;
+    fetchData();
   };
 
   const deleteProduct = async (productId: string) => {
