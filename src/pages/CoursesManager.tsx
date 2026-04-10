@@ -834,7 +834,6 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
 }
 
 function CourseSettings({ course, onUpdate }: { course: Course; onUpdate: () => void }) {
-function CourseSettings({ course, onUpdate }: { course: Course; onUpdate: () => void }) {
   const [title, setTitle] = useState(course.title);
   const [description, setDescription] = useState(course.description || "");
   const [shortDesc, setShortDesc] = useState(course.short_description || "");
