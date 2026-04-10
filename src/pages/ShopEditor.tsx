@@ -416,6 +416,9 @@ const ShopEditor = () => {
               onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file) : undefined}
               onDeleteImage={deleteProductImage}
               saving={saving}
+              shopSlug={shop.slug}
+              shopActivated={!!isActivated}
+              shopPublished={shop.is_published}
             />
           </div>
         )}
