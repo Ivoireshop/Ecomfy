@@ -881,22 +881,41 @@ const ProductView = () => {
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Mode de paiement</h4></div>
-                    {[
-                      { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵", desc: "Payez en espèces à la réception" },
-                      { value: "mobile_money", label: "Mobile Money", icon: "📱", desc: "Wave, Orange, MTN, Moov" },
-                    ].map(method => (
-                      <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                        className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all w-full ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200 hover:border-gray-300"}`}
-                        style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
-                      >
-                        <span className="text-2xl">{method.icon}</span>
-                        <div>
-                          <p className="font-semibold text-sm">{method.label}</p>
-                          <p className="text-xs text-gray-500">{method.desc}</p>
-                        </div>
-                        {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-5 w-5 ml-auto" style={{ color: primaryColor }} />}
-                      </button>
-                    ))}
+                    
+                    {/* Interior city warning in modal */}
+                    {shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan' && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-sm text-amber-800">
+                        <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
+                      </div>
+                    )}
+
+                    {(() => {
+                      const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && customerInfo.city.trim().toLowerCase() !== 'abidjan';
+                      const methods = isInterior
+                        ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱", desc: "Wave, Orange, MTN, Moov" }]
+                        : [
+                            { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵", desc: "Payez en espèces à la réception" },
+                            { value: "mobile_money", label: "Mobile Money", icon: "📱", desc: "Wave, Orange, MTN, Moov" },
+                          ];
+                      
+                      if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
+                        setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
+                      }
+
+                      return methods.map(method => (
+                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                          className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all w-full ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200 hover:border-gray-300"}`}
+                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+                        >
+                          <span className="text-2xl">{method.icon}</span>
+                          <div>
+                            <p className="font-semibold text-sm">{method.label}</p>
+                            <p className="text-xs text-gray-500">{method.desc}</p>
+                          </div>
+                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-5 w-5 ml-auto" style={{ color: primaryColor }} />}
+                        </button>
+                      ));
+                    })()}
                   </div>
                   <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading}>
                     {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
