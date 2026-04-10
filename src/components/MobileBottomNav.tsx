@@ -2,7 +2,7 @@ import { Home, Image, CreditCard, Menu } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Video, Globe, Store, GraduationCap, HelpCircle, PlayCircle, Gift, MessageSquare, Code2, Receipt } from "lucide-react";
+import { Video, Globe, Store, GraduationCap, HelpCircle, PlayCircle, Gift, MessageSquare, Code2, Receipt, BookOpen } from "lucide-react";
 
 const mainNav = [
   { title: "Accueil", url: "/", icon: Home },
@@ -15,6 +15,7 @@ const allItems = [
   { title: "Générateur", url: "/generator", icon: Image },
   { title: "Bibliothèque", url: "/library", icon: Video },
   { title: "Sites Vitrines", url: "/showcase-manager", icon: Globe },
+  { title: "Formations", url: "/courses-manager", icon: BookOpen },
   { title: "Boutiques", url: "/shop-manager", icon: Store },
   { title: "Espace Étudiant", url: "/student", icon: GraduationCap },
   { title: "Tutoriel", url: "/tutorial", icon: HelpCircle },
