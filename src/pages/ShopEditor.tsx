@@ -17,6 +17,7 @@ import { ProductsTable } from "@/components/shop/ProductsTable";
 import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
 import { ShopSettings } from "@/components/shop/ShopSettings";
+import { ProductEditor } from "@/components/shop/ProductEditor";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface Product {
@@ -71,6 +72,7 @@ const ShopEditor = () => {
   const [saving, setSaving] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showProductEditor, setShowProductEditor] = useState(false);
   const [activeSection, setActiveSection] = useState<ActiveSection>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [activating, setActivating] = useState(false);
@@ -205,10 +207,47 @@ const ShopEditor = () => {
       }
       toast({ title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓" });
       setProductDialogOpen(false);
+      setShowProductEditor(false);
       setEditingProduct(null);
       resetProductForm();
       fetchData();
     }
+  };
+
+  const handleProductEditorSave = async (data: any, newImgs: File[]) => {
+    if (!id) return;
+    setSaving(true);
+    const productData = {
+      name: data.name, description: data.description, short_description: data.short_description,
+      price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
+      stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
+      is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
+    };
+    let result;
+    if (editingProduct) {
+      result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
+    } else {
+      result = await supabase.from("products").insert(productData) as any;
+    }
+    if (result.error) {
+      toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
+    } else {
+      const prodId = editingProduct?.id || result.data?.[0]?.id;
+      if (prodId && newImgs.length > 0) {
+        for (const file of newImgs) await uploadProductImage(prodId, file);
+      }
+      toast({ title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓" });
+      setShowProductEditor(false);
+      setEditingProduct(null);
+      resetProductForm();
+      fetchData();
+    }
+    setSaving(false);
+  };
+
+  const deleteProductImage = async (imageId: string) => {
+    await supabase.from("product_images").delete().eq("id", imageId) as any;
+    fetchData();
   };
 
   const deleteProduct = async (productId: string) => {
@@ -358,159 +397,28 @@ const ShopEditor = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Product Dialog */}
-        <Dialog open={productDialogOpen} onOpenChange={(open) => { setProductDialogOpen(open); if (!open) { setEditingProduct(null); resetProductForm(); } }}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
-            <div className="sticky top-0 z-10 bg-card border-b px-6 py-4">
-              <DialogTitle className="text-lg font-bold">
-                {editingProduct ? "Modifier le produit" : "Créer un produit"}
-              </DialogTitle>
-            </div>
-            <div className="flex flex-col lg:flex-row gap-0">
-              {/* Main Form */}
-              <div className="flex-1 px-6 pb-6 space-y-6">
-                {/* Name & Description */}
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Nom <span className="text-destructive">*</span></Label>
-                    <Input value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} placeholder="Ex: chemise d'été bleue..." className="h-11" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Catégorie</Label>
-                    <Select value={newProduct.category} onValueChange={(v) => setNewProduct({ ...newProduct, category: v })}>
-                      <SelectTrigger className="h-11"><SelectValue placeholder="Sélectionner une catégorie" /></SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Description détaillée</Label>
-                    <Textarea value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} placeholder="Écrivez quelque chose" rows={6} className="resize-none" />
-                  </div>
-                </div>
-
-                <div className="border-t" />
-
-                {/* Pricing - YouCan style */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" /> Tarification
-                  </h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Prix</Label>
-                      <Input type="number" value={newProduct.price || ""} onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })} placeholder="0" className="h-11" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Comparer au prix</Label>
-                      <Input type="number" value={newProduct.compare_at_price || ""} onChange={(e) => setNewProduct({ ...newProduct, compare_at_price: Number(e.target.value) })} placeholder="0" className="h-11" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Prix de revient</Label>
-                      <Input type="number" disabled placeholder="—" className="h-11" />
-                    </div>
-                  </div>
-                  {newProduct.compare_at_price > 0 && newProduct.price > 0 && newProduct.compare_at_price > newProduct.price && (
-                    <p className="text-xs text-green-600">-{Math.round((1 - newProduct.price / newProduct.compare_at_price) * 100)}% de réduction</p>
-                  )}
-                </div>
-
-                <div className="border-t" />
-
-                {/* Images */}
-                {!editingProduct && (
-                  <>
-                    <div className="space-y-4">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <ImageIcon className="h-4 w-4" /> Images
-                      </h3>
-                      <div className="border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
-                        {productImages.length > 0 ? (
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap gap-3 justify-center">
-                              {productImages.map((file, i) => (
-                                <div key={i} className="relative group">
-                                  <img src={URL.createObjectURL(file)} alt="" className="h-20 w-20 object-cover rounded-lg" />
-                                  <button onClick={() => setProductImages(prev => prev.filter((_, idx) => idx !== i))}
-                                    className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                            <label className="cursor-pointer">
-                              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files) setProductImages(prev => [...prev, ...Array.from(e.target.files!)]); }} />
-                              <span className="text-sm text-primary hover:underline">+ Ajouter d'autres photos</span>
-                            </label>
-                          </div>
-                        ) : (
-                          <label className="cursor-pointer space-y-2 block">
-                            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files) setProductImages(Array.from(e.target.files)); }} />
-                            <div className="h-12 w-12 mx-auto rounded-xl bg-muted flex items-center justify-center">
-                              <Upload className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <p className="text-sm font-medium">Choisissez le fichier à télécharger</p>
-                            <p className="text-xs text-muted-foreground">PNG, JPG, WEBP · Taille recommandée 800x800</p>
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                    <div className="border-t" />
-                  </>
-                )}
-
-                {/* Settings toggles */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <ToggleLeft className="h-4 w-4" /> Paramètres
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      { label: "Produit publié", desc: "Visible dans la boutique", key: "is_published" as const },
-                      { label: "Produit vedette", desc: "Mis en avant sur la page d'accueil", key: "is_featured" as const },
-                      { label: "Produit digital", desc: "Pas de livraison physique requise", key: "is_digital" as const },
-                    ].map(item => (
-                      <div key={item.key} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-                        <div><p className="text-sm font-medium">{item.label}</p><p className="text-xs text-muted-foreground">{item.desc}</p></div>
-                        <Switch checked={newProduct[item.key] as boolean} onCheckedChange={(v) => setNewProduct({ ...newProduct, [item.key]: v })} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Sidebar - YouCan style */}
-              <div className="w-full lg:w-[220px] border-t lg:border-t-0 lg:border-l bg-muted/20 p-5 space-y-5">
-                <div>
-                  <h4 className="font-semibold text-sm mb-3">Visibilité</h4>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={newProduct.is_published} onChange={(e) => setNewProduct({ ...newProduct, is_published: e.target.checked })} className="rounded" />
-                    Boutique en ligne
-                  </label>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm mb-3">Détails de stockage</h4>
-                  <div className="space-y-2">
-                    <Input value={newProduct.sku} onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })} placeholder="SKU" className="h-9 text-sm" />
-                    <Input type="number" value={newProduct.weight || ""} onChange={(e) => setNewProduct({ ...newProduct, weight: Number(e.target.value) })} placeholder="Poids" className="h-9 text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm mb-3">Inventaire</h4>
-                  <Input type="number" value={newProduct.stock_quantity} onChange={(e) => setNewProduct({ ...newProduct, stock_quantity: Number(e.target.value) })} className="h-9 text-sm" />
-                </div>
-              </div>
-            </div>
-
-            {/* Submit */}
-            <div className="sticky bottom-0 bg-card border-t px-6 py-4">
-              <Button onClick={saveProduct} disabled={!newProduct.name || newProduct.price <= 0} className="w-full gap-2" size="lg">
-                {editingProduct ? <><Save className="h-4 w-4" /> Enregistrer</> : <><Plus className="h-4 w-4" /> Ajouter le produit</>}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Full-page Product Editor */}
+        {showProductEditor && (
+          <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+            <ProductEditor
+              initialData={editingProduct ? {
+                name: editingProduct.name, description: editingProduct.description || "",
+                short_description: editingProduct.short_description || "",
+                price: editingProduct.price, compare_at_price: editingProduct.compare_at_price || 0,
+                category: editingProduct.category, stock_quantity: editingProduct.stock_quantity,
+                is_digital: editingProduct.is_digital, is_published: editingProduct.is_published,
+                is_featured: editingProduct.is_featured, sku: editingProduct.sku || "", weight: editingProduct.weight || 0,
+              } : undefined}
+              existingImages={editingProduct?.product_images || []}
+              isEditing={!!editingProduct}
+              onSave={handleProductEditorSave}
+              onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
+              onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file) : undefined}
+              onDeleteImage={deleteProductImage}
+              saving={saving}
+            />
+          </div>
+        )}
 
         {/* Page Content */}
         <div className="px-4 md:px-8 py-6 md:py-8 mt-[52px] md:mt-0">
@@ -523,16 +431,10 @@ const ShopEditor = () => {
               products={products}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
-              onAddProduct={() => { resetProductForm(); setEditingProduct(null); setProductDialogOpen(true); }}
+              onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
               onEditProduct={(product) => {
                 setEditingProduct(product);
-                setNewProduct({
-                  name: product.name, description: product.description || "", short_description: product.short_description || "",
-                  price: product.price, compare_at_price: product.compare_at_price || 0, category: product.category,
-                  stock_quantity: product.stock_quantity, is_digital: product.is_digital, is_published: product.is_published,
-                  sku: product.sku || "", weight: product.weight || 0, is_featured: product.is_featured,
-                });
-                setProductDialogOpen(true);
+                setShowProductEditor(true);
               }}
               onDeleteProduct={deleteProduct}
               onUploadImage={uploadProductImage}
