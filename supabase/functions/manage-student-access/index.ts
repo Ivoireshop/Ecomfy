@@ -13,7 +13,6 @@ interface RequestBody {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -35,16 +34,12 @@ serve(async (req) => {
     }
 
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
-    });
+    const token = authHeader.replace("Bearer ", "");
 
     const {
       data: { user },
       error: userError,
-    } = await userClient.auth.getUser();
+    } = await serviceClient.auth.getUser(token);
 
     if (userError || !user) {
       console.error("Auth error:", userError?.message);
@@ -65,7 +60,6 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: "Action invalide" });
     }
 
-    // Fetch enrollment
     const { data: enrollment, error: enrollmentError } = await serviceClient
       .from("enrollments")
       .select("id, course_id, student_email, student_name")
@@ -77,7 +71,6 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: "Inscription introuvable" });
     }
 
-    // Fetch course and verify ownership
     const { data: course, error: courseError } = await serviceClient
       .from("courses")
       .select("id, user_id")
@@ -140,8 +133,6 @@ serve(async (req) => {
       return jsonResponse({ success: true, message: "Accès réactivé avec succès." });
     }
 
-    // Delete action
-    // First delete student_access (may not exist, that's ok)
     const { error: accessDeleteError } = await serviceClient
       .from("student_access")
       .delete()
@@ -151,7 +142,6 @@ serve(async (req) => {
       console.error("Delete access error (non-blocking):", accessDeleteError.message);
     }
 
-    // Then delete enrollment
     const { error: enrollmentDeleteError } = await serviceClient
       .from("enrollments")
       .delete()
