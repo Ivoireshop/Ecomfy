@@ -176,6 +176,7 @@ const ShopEditor = () => {
       snapchat_pixels: shop.snapchat_pixels, google_analytics_ids: shop.google_analytics_ids,
       google_analytics_code: shop.google_analytics_code, checkout_fields: shop.checkout_fields,
       cod_delivery_rate: shop.cod_delivery_rate, payment_methods: shop.payment_methods,
+      theme_config: shop.theme_config,
     }).eq("id", shop.id) as any;
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
     else toast({ title: "✓ Sauvegardé" });
