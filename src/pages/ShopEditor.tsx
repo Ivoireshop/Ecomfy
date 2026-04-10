@@ -431,16 +431,10 @@ const ShopEditor = () => {
               products={products}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
-              onAddProduct={() => { resetProductForm(); setEditingProduct(null); setProductDialogOpen(true); }}
+              onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
               onEditProduct={(product) => {
                 setEditingProduct(product);
-                setNewProduct({
-                  name: product.name, description: product.description || "", short_description: product.short_description || "",
-                  price: product.price, compare_at_price: product.compare_at_price || 0, category: product.category,
-                  stock_quantity: product.stock_quantity, is_digital: product.is_digital, is_published: product.is_published,
-                  sku: product.sku || "", weight: product.weight || 0, is_featured: product.is_featured,
-                });
-                setProductDialogOpen(true);
+                setShowProductEditor(true);
               }}
               onDeleteProduct={deleteProduct}
               onUploadImage={uploadProductImage}
