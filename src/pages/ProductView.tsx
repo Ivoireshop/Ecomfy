@@ -15,7 +15,60 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 
-interface Product {
+// Countdown Timer Component
+const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; days: number; hours: number; minutes: number }) => {
+  const [timeLeft, setTimeLeft] = useState({ d: days, h: hours, m: minutes, s: 0 });
+
+  useEffect(() => {
+    const totalSeconds = timeLeft.d * 86400 + timeLeft.h * 3600 + timeLeft.m * 60 + timeLeft.s;
+    if (totalSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        const total = prev.d * 86400 + prev.h * 3600 + prev.m * 60 + prev.s - 1;
+        if (total <= 0) return { d: 0, h: 0, m: 0, s: 0 };
+        return { d: Math.floor(total / 86400), h: Math.floor((total % 86400) / 3600), m: Math.floor((total % 3600) / 60), s: total % 60 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const Box = ({ val, label }: { val: number; label: string }) => (
+    <div className="flex flex-col items-center">
+      <div className="w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-xl" style={{ backgroundColor: color }}>{String(val).padStart(2, '0')}</div>
+      <span className="text-xs text-gray-500 mt-1">{label}</span>
+    </div>
+  );
+
+  return (
+    <div className="flex items-center gap-1 py-2">
+      <Clock className="w-4 h-4 mr-1" style={{ color }} />
+      <span className="text-sm font-semibold mr-2" style={{ color }}>Offre expire dans :</span>
+      <div className="flex gap-2">
+        <Box val={timeLeft.d} label="Jours" /><span className="text-xl font-bold self-start mt-3" style={{ color }}>:</span>
+        <Box val={timeLeft.h} label="Heures" /><span className="text-xl font-bold self-start mt-3" style={{ color }}>:</span>
+        <Box val={timeLeft.m} label="Min" /><span className="text-xl font-bold self-start mt-3" style={{ color }}>:</span>
+        <Box val={timeLeft.s} label="Sec" />
+      </div>
+    </div>
+  );
+};
+
+// Stock Urgency Bar Component
+const StockUrgencyBarInline = ({ stock, maxStock, color, text }: { stock: number; maxStock: number; color: string; text?: string }) => {
+  const pct = Math.min((stock / maxStock) * 100, 100);
+  return (
+    <div className="space-y-1.5 py-1">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium" style={{ color }}>{text || `🔥 Dépêchez-vous ! Il ne reste que ${stock} en stock`}</span>
+      </div>
+      <div className="w-full h-2.5 rounded-full bg-gray-200 overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+    </div>
+  );
+};
+
+
   id: string;
   name: string;
   description: string | null;
