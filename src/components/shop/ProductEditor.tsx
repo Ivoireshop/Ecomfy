@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,8 @@ import {
   ArrowLeft, Save, Plus, X, Upload, Image as ImageIcon, DollarSign,
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
-  ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3
+  ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3,
+  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -18,12 +19,22 @@ const CATEGORIES = [
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
 ];
 
-const FONT_SIZES = ["12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "36px", "48px"];
+const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
 
 const COLORS = [
   "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF",
   "#FF0000", "#FF6600", "#FFCC00", "#00CC00", "#0066FF", "#9933FF",
   "#FF3399", "#FF9966", "#FFFF00", "#66FF66", "#66CCFF", "#CC99FF",
+];
+
+const PRODUCT_TYPES = ["Physique", "Digital", "Service", "Abonnement"];
+const PRODUCT_LOCATIONS = ["Entrepôt principal", "Stock fournisseur", "Dropshipping", "Sur commande"];
+
+const EMOJIS = [
+  "😀","😂","😍","🥰","😎","🤩","🔥","✅","⭐","💯","🎉","💪",
+  "❤️","💚","💙","💛","🧡","💜","🖤","🤍","👍","👏","🙏","💰",
+  "🛒","📦","🎁","✨","⚡","🏷️","📣","🚀","💎","🌟","👑","🔔",
+  "⚠️","🆕","🔝","♻️","🌿","🍃","💊","🧴","🧪","💄","👗","👟",
 ];
 
 interface ProductImage {
@@ -57,10 +68,14 @@ interface ProductEditorProps {
   onUploadImage?: (file: File) => void;
   onDeleteImage?: (imageId: string) => void;
   saving?: boolean;
+  shopSlug?: string;
+  shopActivated?: boolean;
+  shopPublished?: boolean;
 }
 
 export function ProductEditor({
-  initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, saving
+  initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, saving,
+  shopSlug, shopActivated, shopPublished
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
@@ -71,10 +86,30 @@ export function ProductEditor({
   const [showFontSize, setShowFontSize] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [seoKeywords, setSeoKeywords] = useState("");
+  const [productType, setProductType] = useState("Physique");
+  const [productLocation, setProductLocation] = useState("Entrepôt principal");
+  const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
+  const editorInitialized = useRef(false);
+
+  // Initialize editor content only once
+  useEffect(() => {
+    if (editorRef.current && !editorInitialized.current && product.description) {
+      editorRef.current.innerHTML = product.description;
+      editorInitialized.current = true;
+    }
+  }, [product.description]);
+
+  const closeAllDropdowns = useCallback(() => {
+    setShowFontSize(false);
+    setShowTextColor(false);
+    setShowBgColor(false);
+    setShowEmoji(false);
+  }, []);
 
   const execCmd = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -90,7 +125,7 @@ export function ProductEditor({
       if (file) {
         const reader = new FileReader();
         reader.onload = () => {
-          execCmd("insertImage", reader.result as string);
+          execCmd("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;" />`);
         };
         reader.readAsDataURL(file);
       }
@@ -104,7 +139,7 @@ export function ProductEditor({
       let embedUrl = url;
       const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
       if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
-      const html = `<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:12px 0;"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
+      const html = `<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:12px 0;border-radius:8px;"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
       execCmd("insertHTML", html);
     }
   };
@@ -114,9 +149,52 @@ export function ProductEditor({
     if (url) execCmd("createLink", url);
   };
 
+  const insertHR = () => {
+    execCmd("insertHTML", '<hr style="border:none;border-top:1px solid #ddd;margin:16px 0;" />');
+  };
+
+  const insertTable = () => {
+    const html = `<table style="width:100%;border-collapse:collapse;margin:12px 0;"><tbody>
+      <tr><td style="border:1px solid #ddd;padding:8px;">Cell 1</td><td style="border:1px solid #ddd;padding:8px;">Cell 2</td><td style="border:1px solid #ddd;padding:8px;">Cell 3</td></tr>
+      <tr><td style="border:1px solid #ddd;padding:8px;">Cell 4</td><td style="border:1px solid #ddd;padding:8px;">Cell 5</td><td style="border:1px solid #ddd;padding:8px;">Cell 6</td></tr>
+    </tbody></table>`;
+    execCmd("insertHTML", html);
+  };
+
+  const insertEmoji = (emoji: string) => {
+    execCmd("insertText", emoji);
+    setShowEmoji(false);
+  };
+
+  const toggleCodeView = () => {
+    if (!editorRef.current) return;
+    const isCode = editorRef.current.getAttribute("data-code-view") === "true";
+    if (isCode) {
+      editorRef.current.innerHTML = editorRef.current.innerText;
+      editorRef.current.setAttribute("data-code-view", "false");
+    } else {
+      editorRef.current.innerText = editorRef.current.innerHTML;
+      editorRef.current.setAttribute("data-code-view", "true");
+    }
+  };
+
+  const insertSpecialChar = () => {
+    const char = prompt("Entrez un caractère spécial (ex: Ω, ©, ™, €, £, ¥)");
+    if (char) execCmd("insertText", char);
+  };
+
   const handleEditorInput = () => {
     if (editorRef.current) {
       setProduct(prev => ({ ...prev, description: editorRef.current!.innerHTML }));
+    }
+  };
+
+  // Handle Enter key properly - ensure default browser behavior works
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      // Let default contentEditable behavior handle Enter (insert <div> or <br>)
+      // Don't preventDefault - this is the fix for the spacing issue
+      e.stopPropagation();
     }
   };
 
@@ -124,6 +202,9 @@ export function ProductEditor({
     ...existingImages.map(img => ({ type: "existing" as const, ...img })),
     ...newImages.map((file, i) => ({ type: "new" as const, id: `new-${i}`, image_url: URL.createObjectURL(file), file })),
   ];
+
+  const shopUrl = shopSlug ? `/shop/${shopSlug}` : null;
+  const canViewInShop = shopActivated && shopPublished && shopUrl;
 
   return (
     <div className="min-h-screen bg-background">
@@ -184,11 +265,10 @@ export function ProductEditor({
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Description complète</Label>
             <div className="border rounded-lg overflow-hidden">
-              {/* Toolbar */}
+              {/* Toolbar Row 1 */}
               <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
-                {/* Undo / Redo */}
-                <ToolbarButton icon={<Undo className="h-3.5 w-3.5" />} onClick={() => execCmd("undo")} title="Annuler" />
-                <ToolbarButton icon={<Redo className="h-3.5 w-3.5" />} onClick={() => execCmd("redo")} title="Rétablir" />
+                {/* Fullscreen placeholder */}
+                <ToolbarButton icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
                 <ToolbarDivider />
 
                 {/* Text formatting */}
@@ -200,13 +280,13 @@ export function ProductEditor({
 
                 {/* Font size */}
                 <div className="relative">
-                  <ToolbarButton icon={<Type className="h-3.5 w-3.5" />} onClick={() => { setShowFontSize(!showFontSize); setShowTextColor(false); setShowBgColor(false); }} title="Taille du texte" />
+                  <ToolbarButton icon={<span className="text-[10px] font-bold">12</span>} onClick={() => { closeAllDropdowns(); setShowFontSize(!showFontSize); }} title="Taille du texte" hasDropdown />
                   {showFontSize && (
-                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[100px]">
+                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
                       {FONT_SIZES.map(size => (
                         <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
-                          onClick={() => { execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size; setShowFontSize(false); }}>
-                          {size}
+                          onClick={() => { execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; setShowFontSize(false); }}>
+                          {size}px
                         </button>
                       ))}
                     </div>
@@ -215,7 +295,7 @@ export function ProductEditor({
 
                 {/* Text color */}
                 <div className="relative">
-                  <ToolbarButton icon={<div className="flex flex-col items-center"><span className="text-[10px] font-bold leading-none">A</span><div className="w-3 h-0.5 bg-red-500 rounded-full mt-0.5" /></div>} onClick={() => { setShowTextColor(!showTextColor); setShowFontSize(false); setShowBgColor(false); }} title="Couleur du texte" />
+                  <ToolbarButton icon={<div className="flex flex-col items-center"><span className="text-[10px] font-bold leading-none">A</span><div className="w-3 h-0.5 bg-red-500 rounded-full mt-0.5" /></div>} onClick={() => { closeAllDropdowns(); setShowTextColor(!showTextColor); }} title="Couleur du texte" hasDropdown />
                   {showTextColor && (
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px]">
                       <div className="grid grid-cols-6 gap-1">
@@ -230,9 +310,9 @@ export function ProductEditor({
                   )}
                 </div>
 
-                {/* Background color */}
+                {/* Background color / highlighter */}
                 <div className="relative">
-                  <ToolbarButton icon={<Palette className="h-3.5 w-3.5" />} onClick={() => { setShowBgColor(!showBgColor); setShowTextColor(false); setShowFontSize(false); }} title="Couleur de fond" />
+                  <ToolbarButton icon={<div className="flex flex-col items-center"><span className="text-[10px] font-bold leading-none">A</span><div className="w-3 h-1 bg-yellow-400 rounded-sm mt-0.5" /></div>} onClick={() => { closeAllDropdowns(); setShowBgColor(!showBgColor); }} title="Surligneur" hasDropdown />
                   {showBgColor && (
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px]">
                       <div className="grid grid-cols-6 gap-1">
@@ -246,22 +326,61 @@ export function ProductEditor({
                     </div>
                   )}
                 </div>
+
+                {/* Eraser - remove formatting */}
+                <ToolbarButton icon={<Palette className="h-3.5 w-3.5" />} onClick={() => execCmd("removeFormat")} title="Supprimer le formatage" />
                 <ToolbarDivider />
 
+                {/* Paragraph / Heading */}
+                <ToolbarButton icon={<span className="text-[10px] font-bold">¶</span>} onClick={() => execCmd("formatBlock", "<p>")} title="Paragraphe" hasDropdown />
+
                 {/* Alignment */}
-                <ToolbarButton icon={<AlignLeft className="h-3.5 w-3.5" />} onClick={() => execCmd("justifyLeft")} title="Aligner à gauche" />
+                <ToolbarButton icon={<AlignLeft className="h-3.5 w-3.5" />} onClick={() => execCmd("justifyLeft")} title="Aligner à gauche" hasDropdown />
+                <ToolbarDivider />
+
+                {/* Lists */}
+                <ToolbarButton icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => execCmd("insertOrderedList")} title="Liste numérotée" hasDropdown />
+                <ToolbarButton icon={<List className="h-3.5 w-3.5" />} onClick={() => execCmd("insertUnorderedList")} title="Liste à puces" hasDropdown />
+                <ToolbarDivider />
+
+                {/* Alignment group */}
                 <ToolbarButton icon={<AlignCenter className="h-3.5 w-3.5" />} onClick={() => execCmd("justifyCenter")} title="Centrer" />
                 <ToolbarButton icon={<AlignRight className="h-3.5 w-3.5" />} onClick={() => execCmd("justifyRight")} title="Aligner à droite" />
                 <ToolbarButton icon={<AlignJustify className="h-3.5 w-3.5" />} onClick={() => execCmd("justifyFull")} title="Justifier" />
                 <ToolbarDivider />
 
-                {/* Lists */}
-                <ToolbarButton icon={<List className="h-3.5 w-3.5" />} onClick={() => execCmd("insertUnorderedList")} title="Liste à puces" />
-                <ToolbarButton icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => execCmd("insertOrderedList")} title="Liste numérotée" />
-                <ToolbarDivider />
-
-                {/* Media */}
+                {/* Link, Table, Emoji, Special char */}
                 <ToolbarButton icon={<LinkIcon className="h-3.5 w-3.5" />} onClick={insertLink} title="Insérer un lien" />
+                <ToolbarButton icon={<Table className="h-3.5 w-3.5" />} onClick={insertTable} title="Insérer un tableau" />
+                <div className="relative">
+                  <ToolbarButton icon={<Smile className="h-3.5 w-3.5" />} onClick={() => { closeAllDropdowns(); setShowEmoji(!showEmoji); }} title="Émojis" />
+                  {showEmoji && (
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[260px]">
+                      <div className="grid grid-cols-8 gap-1">
+                        {EMOJIS.map(emoji => (
+                          <button key={emoji} className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-lg"
+                            onClick={() => insertEmoji(emoji)}>
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <ToolbarButton icon={<span className="text-[11px] font-serif">Ω</span>} onClick={insertSpecialChar} title="Caractères spéciaux" />
+              </div>
+
+              {/* Toolbar Row 2 */}
+              <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
+                {/* Horizontal rule */}
+                <ToolbarButton icon={<Minus className="h-3.5 w-3.5" />} onClick={insertHR} title="Ligne horizontale" />
+                {/* Code view */}
+                <ToolbarButton icon={<Code className="h-3.5 w-3.5" />} onClick={toggleCodeView} title="Code source" />
+                {/* Undo / Redo */}
+                <ToolbarButton icon={<Undo className="h-3.5 w-3.5" />} onClick={() => execCmd("undo")} title="Annuler" />
+                <ToolbarButton icon={<Redo className="h-3.5 w-3.5" />} onClick={() => execCmd("redo")} title="Rétablir" />
+                <ToolbarDivider />
+                {/* Image & Video */}
                 <ToolbarButton icon={<ImageIcon className="h-3.5 w-3.5" />} onClick={insertImage} title="Insérer une image" />
                 <ToolbarButton icon={<Video className="h-3.5 w-3.5" />} onClick={insertVideo} title="Insérer une vidéo" />
               </div>
@@ -270,15 +389,17 @@ export function ProductEditor({
               <div
                 ref={editorRef}
                 contentEditable
-                className="min-h-[350px] p-4 text-sm focus:outline-none prose prose-sm max-w-none dark:prose-invert"
+                className="min-h-[350px] p-4 text-sm focus:outline-none [&>*]:mb-2"
+                style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                 onInput={handleEditorInput}
-                dangerouslySetInnerHTML={{ __html: product.description || "" }}
+                onKeyDown={handleEditorKeyDown}
                 suppressContentEditableWarning
+                data-code-view="false"
               />
             </div>
           </div>
 
-          {/* Tarification (collapsible) */}
+          {/* Tarification */}
           <CollapsibleSection title="Tarification" icon={<DollarSign className="h-4 w-4" />} defaultOpen>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
@@ -291,23 +412,23 @@ export function ProductEditor({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm">Prix de revient</Label>
-                <Input type="number" disabled placeholder="—" className="h-10" />
+                <Input type="number" value={costPrice || ""} onChange={(e) => setCostPrice(Number(e.target.value))} placeholder="0" className="h-10" />
               </div>
             </div>
             {product.compare_at_price > 0 && product.price > 0 && product.compare_at_price > product.price && (
               <p className="text-xs text-green-600 mt-2">-{Math.round((1 - product.price / product.compare_at_price) * 100)}% de réduction</p>
+            )}
+            {costPrice > 0 && product.price > 0 && (
+              <p className="text-xs text-blue-600 mt-1">Marge : {Math.round(((product.price - costPrice) / product.price) * 100)}% ({product.price - costPrice} bénéfice)</p>
             )}
           </CollapsibleSection>
 
           {/* Images */}
           <CollapsibleSection title="Images" icon={<ImageIcon className="h-4 w-4" />} defaultOpen>
             <div className="space-y-3">
-              {/* Info */}
               <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
                 <div className="text-blue-600 text-xs">ℹ️ Recommandation : utilisez une même taille/résolution de qualité. Le produit sera affiché avec la taille de 800x800</div>
               </div>
-
-              {/* Image grid */}
               {allImages.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                   {allImages.map((img) => (
@@ -326,21 +447,9 @@ export function ProductEditor({
                   ))}
                 </div>
               )}
-
-              {/* Upload zone */}
               <label className="cursor-pointer block">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      const files = Array.from(e.target.files);
-                      setNewImages(prev => [...prev, ...files]);
-                    }
-                  }}
-                />
+                <input type="file" accept="image/*" multiple className="hidden"
+                  onChange={(e) => { if (e.target.files) setNewImages(prev => [...prev, ...Array.from(e.target.files!)]); }} />
                 <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm font-medium">Glissez & déposez ou cliquez pour télécharger</p>
@@ -379,16 +488,55 @@ export function ProductEditor({
 
           {/* Options avancées */}
           <CollapsibleSection title="Options avancées" icon={<Settings className="h-4 w-4" />}>
-            <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Toggles */}
               {[
-                { label: "Produit vedette", desc: "Mis en avant sur la page d'accueil", key: "is_featured" as const },
-                { label: "Produit digital", desc: "Pas de livraison physique requise", key: "is_digital" as const },
+                { label: "Recocher", desc: "Permettre aux clients de recommander ce produit", key: "is_featured" as const },
+                { label: "Déballer", desc: "Permettre le déballage vidéo du produit", key: "is_digital" as const },
               ].map(item => (
                 <div key={item.key} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                   <div><p className="text-sm font-medium">{item.label}</p><p className="text-xs text-muted-foreground">{item.desc}</p></div>
                   <Switch checked={product[item.key] as boolean} onCheckedChange={(v) => setProduct({ ...product, [item.key]: v })} />
                 </div>
               ))}
+
+              {/* Product type */}
+              <div className="space-y-1.5">
+                <Label className="text-sm flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Type de produit</Label>
+                <Select value={productType} onValueChange={setProductType}>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Product location */}
+              <div className="space-y-1.5">
+                <Label className="text-sm flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Emplacement du produit</Label>
+                <Select value={productLocation} onValueChange={setProductLocation}>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_LOCATIONS.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Compte Arribo */}
+              <div className="space-y-1.5">
+                <Label className="text-sm">Compte Arribo</Label>
+                <Input placeholder="Identifiant Arribo (optionnel)" className="h-10" />
+                <p className="text-xs text-muted-foreground">Connectez votre compte Arribo pour la livraison automatique</p>
+              </div>
+
+              {/* More toggles */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <div>
+                  <p className="text-sm font-medium">Produit vedette</p>
+                  <p className="text-xs text-muted-foreground">Mis en avant sur la page d'accueil</p>
+                </div>
+                <Switch checked={product.is_featured} onCheckedChange={(v) => setProduct({ ...product, is_featured: v })} />
+              </div>
             </div>
           </CollapsibleSection>
 
@@ -463,24 +611,17 @@ export function ProductEditor({
             </Select>
           </div>
 
-          {/* Name (sidebar) */}
+          {/* Name */}
           <div>
             <h4 className="font-semibold text-sm mb-3">Nom du produit</h4>
-            <Input
-              value={product.name}
-              onChange={(e) => setProduct({ ...product, name: e.target.value })}
-              placeholder="Nom du produit"
-              className="h-9 text-sm"
-            />
+            <Input value={product.name} onChange={(e) => setProduct({ ...product, name: e.target.value })} placeholder="Nom du produit" className="h-9 text-sm" />
           </div>
 
           {/* Vendeur */}
           <div>
             <h4 className="font-semibold text-sm mb-3">Vendeur</h4>
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
-              <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                V
-              </div>
+              <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">V</div>
               <span>Propriétaire</span>
             </div>
           </div>
@@ -488,23 +629,38 @@ export function ProductEditor({
       </div>
 
       {/* Bottom Bar */}
-      <div className="sticky bottom-0 z-20 bg-card border-t px-4 md:px-6 py-3 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground hidden sm:block">
-          {isEditing ? "Les modifications seront sauvegardées automatiquement" : "Remplissez les informations du produit"}
-        </span>
-        <div className="flex items-center gap-2 ml-auto">
-          <Button variant="outline" size="sm" onClick={onCancel}>
-            Annuler
-          </Button>
-          <Button
-            size="sm"
-            className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-            onClick={() => onSave(product, newImages)}
-            disabled={!product.name || product.price <= 0 || saving}
-          >
-            <Save className="h-3.5 w-3.5" />
-            {isEditing ? "Enregistrer" : "Ajouter le produit"}
-          </Button>
+      <div className="sticky bottom-0 z-20 bg-card border-t px-4 md:px-6 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground hidden sm:block">
+            {isEditing ? "Les modifications seront sauvegardées automatiquement" : "Remplissez les informations du produit"}
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            {canViewInShop && (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(shopUrl!, "_blank")}>
+                <Store className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Voir en magasin</span>
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+              const previewSlug = product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "";
+              if (shopSlug) window.open(`/shop/${shopSlug}?preview_product=${previewSlug}`, "_blank");
+            }}>
+              <Eye className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Prévisualiser</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={onCancel}>
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => onSave(product, newImages)}
+              disabled={!product.name || product.price <= 0 || saving}
+            >
+              <Save className="h-3.5 w-3.5" />
+              {isEditing ? "Enregistrer" : "Ajouter le produit"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -512,15 +668,16 @@ export function ProductEditor({
 }
 
 /* ─── Toolbar Helpers ────────────────────────────────────── */
-function ToolbarButton({ icon, onClick, title }: { icon: React.ReactNode; onClick: () => void; title: string }) {
+function ToolbarButton({ icon, onClick, title, hasDropdown }: { icon: React.ReactNode; onClick: () => void; title: string; hasDropdown?: boolean }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => { e.preventDefault(); onClick(); }}
       title={title}
-      className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted transition-colors text-foreground/70 hover:text-foreground"
+      className="h-7 min-w-[28px] px-0.5 flex items-center justify-center rounded hover:bg-muted transition-colors text-foreground/70 hover:text-foreground"
     >
       {icon}
+      {hasDropdown && <ChevronDown className="h-2 w-2 ml-0.5 opacity-50" />}
     </button>
   );
 }
