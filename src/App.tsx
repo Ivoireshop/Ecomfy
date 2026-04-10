@@ -50,6 +50,7 @@ const ShopManager = lazy(() => import("./pages/ShopManager"));
 const ShopBuilder = lazy(() => import("./pages/ShopBuilder"));
 const ShopEditor = lazy(() => import("./pages/ShopEditor"));
 const ShopView = lazy(() => import("./pages/ShopView"));
+const ProductView = lazy(() => import("./pages/ProductView"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
 
 const queryClient = new QueryClient();
@@ -225,6 +226,8 @@ const AppContent = () => {
           <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
           <Route path="/shop-preview/:id" element={<ProtectedRoute><ShopView /></ProtectedRoute>} />
           <Route path="/shop/:slug" element={<ShopView />} />
+          <Route path="/shop-preview/:id/product" element={<ProtectedRoute><ProductView /></ProtectedRoute>} />
+          <Route path="/shop/:slug/product" element={<ProductView /> } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
