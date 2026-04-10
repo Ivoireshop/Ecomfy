@@ -586,11 +586,6 @@ const ProductView = () => {
                   <Phone className="h-4 w-4" /> {shop.phone_number}
                 </a>
               )}
-              {shop.email && (
-                <a href={`mailto:${shop.email}`} className="flex items-center gap-1 hover:text-gray-700">
-                  <Mail className="h-4 w-4" /> {shop.email}
-                </a>
-              )}
             </div>
           </div>
           <div className="text-center text-xs text-gray-400 mt-6 flex items-center justify-center gap-1">
