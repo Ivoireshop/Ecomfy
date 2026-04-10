@@ -296,57 +296,59 @@ const ProductView = () => {
         🔥 Offre spéciale en cours — Profitez de nos meilleurs prix ! 📦 Livraison disponible
       </div>
 
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={goToShop}>
-            {shop.logo_url ? (
-              <img src={shop.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover flex-shrink-0" />
-            ) : (
-              <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: primaryColor + "15" }}>
-                <Store className="h-4 w-4" style={{ color: primaryColor }} />
-              </div>
-            )}
-            <span className="font-bold text-sm sm:text-base truncate">{shop.business_name}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {shop.whatsapp_number && (
-              <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
-                  <Phone className="h-4 w-4" />
-                </Button>
-              </a>
-            )}
-            <Button 
-              variant="outline" 
-              className="gap-1.5 rounded-lg relative h-9 px-3" 
-              onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              <span className="hidden sm:inline text-sm">Panier</span>
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
-                  {cartCount}
-                </span>
+      {/* Header - conditionally hidden */}
+      {!shop.theme_config?.hide_product_header && (
+        <header className="border-b bg-white sticky top-0 z-40">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={goToShop}>
+              {shop.logo_url ? (
+                <img src={shop.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover flex-shrink-0" />
+              ) : (
+                <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: primaryColor + "15" }}>
+                  <Store className="h-4 w-4" style={{ color: primaryColor }} />
+                </div>
               )}
-            </Button>
-          </div>
-        </div>
+              <span className="font-bold text-sm sm:text-base truncate">{shop.business_name}</span>
+            </div>
 
-        {/* Secondary nav */}
-        <div className="border-t bg-gray-50">
-          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-1.5 flex items-center gap-2 text-xs text-gray-500">
-            <button onClick={goToShop} className="hover:text-gray-800 flex items-center gap-1">
-              <ArrowLeft className="h-3 w-3" /> Accueil
-            </button>
-            <span>/</span>
-            <span className="text-gray-400">{product.category || "Produits"}</span>
-            <span>/</span>
-            <span className="text-gray-800 font-medium truncate">{product.name}</span>
+            <div className="flex items-center gap-2">
+              {shop.whatsapp_number && (
+                <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
+                    <Phone className="h-4 w-4" />
+                  </Button>
+                </a>
+              )}
+              <Button 
+                variant="outline" 
+                className="gap-1.5 rounded-lg relative h-9 px-3" 
+                onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
+              >
+                <ShoppingBag className="h-4 w-4" />
+                <span className="hidden sm:inline text-sm">Panier</span>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+                    {cartCount}
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      </header>
+
+          {/* Secondary nav */}
+          <div className="border-t bg-gray-50">
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 py-1.5 flex items-center gap-2 text-xs text-gray-500">
+              <button onClick={goToShop} className="hover:text-gray-800 flex items-center gap-1">
+                <ArrowLeft className="h-3 w-3" /> Accueil
+              </button>
+              <span>/</span>
+              <span className="text-gray-400">{product.category || "Produits"}</span>
+              <span>/</span>
+              <span className="text-gray-800 font-medium truncate">{product.name}</span>
+            </div>
+          </div>
+        </header>
+      )}
 
       {/* ====== PRODUCT HERO SECTION ====== */}
       <section className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
@@ -917,12 +919,43 @@ const ProductView = () => {
       )}
 
       {/* Floating Cart - Mobile */}
-      {cartCount > 0 && !checkoutOpen && (
+      {cartCount > 0 && !checkoutOpen && !shop.theme_config?.sticky_order_button && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
           <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}>
             <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
             <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
           </Button>
+        </div>
+      )}
+
+      {/* Sticky Order Button - always visible when enabled */}
+      {shop.theme_config?.sticky_order_button && product && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-4 py-3 safe-area-bottom">
+          <div className="max-w-6xl mx-auto flex items-center gap-3">
+            <div className="flex-1 min-w-0 hidden sm:block">
+              <p className="font-bold text-sm truncate">{product.name}</p>
+              <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
+            </div>
+            <Button 
+              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
+              style={{ backgroundColor: primaryColor }}
+              onClick={() => {
+                if (shop.theme_config?.single_page_checkout) {
+                  addToCart(product, quantity);
+                  setShowInlineCheckout(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  addToCart(product, quantity);
+                  setCheckoutOpen(true);
+                  setOrderSuccess(false);
+                }
+              }}
+              disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander maintenant"}
+            </Button>
+          </div>
         </div>
       )}
     </div>
