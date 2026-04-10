@@ -18,6 +18,8 @@ import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
 import { ShopSettings } from "@/components/shop/ShopSettings";
 import { ProductEditor } from "@/components/shop/ProductEditor";
+import { ShopStatistics } from "@/components/shop/ShopStatistics";
+import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface Product {
