@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Menu, X, Wand2 } from "lucide-react";
+import { Menu, Wand2 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,18 +15,15 @@ export function Header() {
   useEffect(() => {
     let mounted = true;
 
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (mounted) {
-        setIsAuthenticated(!!session?.user);
-      }
-    };
-
-    init();
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) {
+        setIsAuthenticated(!!session?.user);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted) {
         setIsAuthenticated(!!session?.user);
       }
@@ -91,7 +88,7 @@ export function Header() {
             )}
             <Button onClick={() => navigate(isAuthenticated ? "/" : "/auth")}>
               <Wand2 className="mr-2 h-4 w-4" />
-              {isAuthenticated ? "Tableau de bord" : "Commencer"}
+              {isAuthenticated ? "Mon espace" : "Commencer"}
             </Button>
           </div>
 
@@ -158,7 +155,7 @@ export function Header() {
                     }}
                   >
                     <Wand2 className="mr-2 h-4 w-4" />
-                    {isAuthenticated ? "Tableau de bord" : "Commencer"}
+                    {isAuthenticated ? "Mon espace" : "Commencer"}
                   </Button>
                 </div>
               </div>

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, ExternalLink, Settings, Trash2, Eye, EyeOff, Copy, CheckCircle2, Globe } from "lucide-react";
+import { Loader2, Plus, ExternalLink, Settings, Trash2, Eye, EyeOff, Copy, CheckCircle2, Globe, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -29,6 +29,9 @@ interface ShowcaseSite {
 
 export default function ShowcaseManager() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isCoursesView = searchParams.get("tab") === "courses";
+
   const [sites, setSites] = useState<ShowcaseSite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -39,11 +42,17 @@ export default function ShowcaseManager() {
     loadSites();
   }, []);
 
+  useEffect(() => {
+    if (!isLoading && isCoursesView && sites.length === 1) {
+      navigate(`/showcase-editor/${sites[0].id}?tab=courses`, { replace: true });
+    }
+  }, [isCoursesView, isLoading, sites, navigate]);
+
   const loadSites = async () => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         navigate("/auth");
         return;
@@ -94,12 +103,16 @@ export default function ShowcaseManager() {
     return `https://${subdomain}.visualpro.cloud`;
   };
 
+  const getPreviewUrl = (subdomain: string) => {
+    return isCoursesView ? `/showcase/${subdomain}/courses` : `/showcase/${subdomain}`;
+  };
+
   const copyPublicUrl = (subdomain: string, siteId: string) => {
     const url = getPublicUrl(subdomain);
     navigator.clipboard.writeText(url);
     setCopiedId(siteId);
     toast.success("Lien copié dans le presse-papier!");
-    
+
     setTimeout(() => {
       setCopiedId(null);
     }, 2000);
@@ -124,6 +137,10 @@ export default function ShowcaseManager() {
     }
   };
 
+  const handleManage = (siteId: string) => {
+    navigate(isCoursesView ? `/showcase-editor/${siteId}?tab=courses` : `/showcase-editor/${siteId}`);
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 flex items-center justify-center min-h-[400px]">
@@ -135,154 +152,177 @@ export default function ShowcaseManager() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Mes sites vitrines</h1>
+            <h1 className="text-4xl font-bold mb-2">
+              {isCoursesView ? "Mes formations en ligne" : "Mes sites vitrines"}
+            </h1>
             <p className="text-muted-foreground">
-              Gérez vos sites professionnels
+              {isCoursesView
+                ? "Choisissez un espace pour gérer vos cours, inscriptions et certificats"
+                : "Gérez vos sites professionnels"}
             </p>
           </div>
           <Button onClick={() => navigate("/showcase-builder")}>
             <Plus className="mr-2 h-4 w-4" />
-            Créer un site
+            {isCoursesView ? "Créer un espace de formation" : "Créer un site"}
           </Button>
         </div>
 
         {sites.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center space-y-4">
-              <h3 className="text-xl font-semibold">Aucun site vitrine</h3>
+              <h3 className="text-xl font-semibold">
+                {isCoursesView ? "Aucun espace de formation" : "Aucun site vitrine"}
+              </h3>
               <p className="text-muted-foreground">
-                Commencez par créer votre premier site professionnel
+                {isCoursesView
+                  ? "Créez d'abord un site vitrine pour y ajouter vos formations en ligne"
+                  : "Commencez par créer votre premier site professionnel"}
               </p>
               <Button onClick={() => navigate("/showcase-builder")}>
                 <Plus className="mr-2 h-4 w-4" />
-                Créer mon premier site
+                {isCoursesView ? "Créer mon premier espace" : "Créer mon premier site"}
               </Button>
             </CardContent>
           </Card>
         ) : (
           <>
-            {/* Tableaux de bord pour chaque site */}
-            <div className="space-y-6 mb-8">
+            {!isCoursesView && (
+              <div className="space-y-6 mb-8">
+                {sites.map((site) => (
+                  <ShowcaseDashboardCard
+                    key={`dashboard-${site.id}`}
+                    siteId={site.id}
+                    businessName={site.business_name}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {sites.map((site) => (
-                <ShowcaseDashboardCard
-                  key={`dashboard-${site.id}`}
-                  siteId={site.id}
-                  businessName={site.business_name}
-                />
+                <Card key={site.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start mb-2 gap-3">
+                      <CardTitle className="text-xl">{site.business_name}</CardTitle>
+                      {site.is_published ? (
+                        <Badge>Publié</Badge>
+                      ) : (
+                        <Badge variant="outline">Brouillon</Badge>
+                      )}
+                    </div>
+                    <CardDescription className="font-mono text-xs">
+                      {isCoursesView ? `${site.subdomain}.visualpro.cloud/courses` : `${site.subdomain}.visualpro.cloud`}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {site.is_published && (
+                      <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <Globe className="h-3 w-3" />
+                          <span>{isCoursesView ? "Page formations en ligne" : "Site en ligne"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={getPublicUrl(site.subdomain)}
+                            readOnly
+                            className="text-xs font-mono h-8"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2"
+                            onClick={() => copyPublicUrl(site.subdomain, site.id)}
+                          >
+                            {copiedId === site.id ? (
+                              <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-8 px-2"
+                            onClick={() => window.open(getPublicUrl(site.subdomain), "_blank")}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => window.open(getPreviewUrl(site.subdomain), "_blank")}
+                      disabled={!site.is_published}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      {site.is_published
+                        ? isCoursesView
+                          ? "Prévisualiser les formations"
+                          : "Prévisualiser"
+                        : isCoursesView
+                          ? "Page formations non publiée"
+                          : "Site non publié"}
+                    </Button>
+
+                    <Button
+                      variant={site.is_published ? "outline" : "default"}
+                      className="w-full"
+                      onClick={() => togglePublish(site.id, site.is_published)}
+                    >
+                      {site.is_published ? (
+                        <>
+                          <EyeOff className="mr-2 h-4 w-4" />
+                          Dépublier
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Publier
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleManage(site.id)}
+                      >
+                        {isCoursesView ? (
+                          <>
+                            <GraduationCap className="mr-2 h-4 w-4" />
+                            Formations
+                          </>
+                        ) : (
+                          <>
+                            <Settings className="mr-2 h-4 w-4" />
+                            Modifier
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          setSiteToDelete(site.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Supprimer
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-
-            {/* Grille des sites */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {sites.map((site) => (
-              <Card key={site.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-between items-start mb-2">
-                    <CardTitle className="text-xl">{site.business_name}</CardTitle>
-                    {site.is_published ? (
-                      <Badge>Publié</Badge>
-                    ) : (
-                      <Badge variant="outline">Brouillon</Badge>
-                    )}
-                  </div>
-                  <CardDescription className="font-mono text-xs">
-                    {site.subdomain}.visualpro.cloud
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {site.is_published && (
-                    <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                        <Globe className="h-3 w-3" />
-                        <span>Site en ligne</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={getPublicUrl(site.subdomain)}
-                          readOnly
-                          className="text-xs font-mono h-8"
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-2"
-                          onClick={() => copyPublicUrl(site.subdomain, site.id)}
-                        >
-                          {copiedId === site.id ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-600" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="h-8 px-2"
-                          onClick={() => window.open(getPublicUrl(site.subdomain), "_blank")}
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => window.open(`/showcase/${site.subdomain}`, "_blank")}
-                    disabled={!site.is_published}
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    {site.is_published ? "Prévisualiser" : "Site non publié"}
-                  </Button>
-                  
-                  <Button
-                    variant={site.is_published ? "outline" : "default"}
-                    className="w-full"
-                    onClick={() => togglePublish(site.id, site.is_published)}
-                  >
-                    {site.is_published ? (
-                      <>
-                        <EyeOff className="mr-2 h-4 w-4" />
-                        Dépublier
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="mr-2 h-4 w-4" />
-                        Publier
-                      </>
-                    )}
-                  </Button>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => navigate(`/showcase-editor/${site.id}`)}
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      Modifier
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => {
-                        setSiteToDelete(site.id);
-                        setDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Supprimer
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
           </>
         )}
       </div>
