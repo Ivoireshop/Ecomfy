@@ -67,14 +67,14 @@ const PageLoader = () => (
 const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
   const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
   const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
 
   return (
-    <div className="pb-16 md:pb-0">
-      <BackButton />
+    <div className={isShopView ? "" : "pb-16 md:pb-0"}>
+      {!isShopView && <BackButton />}
       {showSupport && <SupportButton />}
       <MobileBottomNav />
       <Suspense fallback={<PageLoader />}>

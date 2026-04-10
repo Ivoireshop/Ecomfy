@@ -33,7 +33,7 @@ export function MobileBottomNav() {
   const [open, setOpen] = useState(false);
 
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
 
   if (isShowcaseView || isShopView || isPublicPage) return null;
