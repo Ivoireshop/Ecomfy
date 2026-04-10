@@ -536,8 +536,13 @@ const ShopEditor = () => {
               }}
               onDeleteProduct={deleteProduct}
               onUploadImage={uploadProductImage}
+              onPreviewProduct={(product) => {
+                const base = shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`;
+                window.open(`${base}?product=${product.id}`, "_blank");
+              }}
               primaryColor={primaryColor}
               orders={orders}
+              shopSlug={shop.slug}
             />
           )}
 
