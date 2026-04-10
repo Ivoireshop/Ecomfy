@@ -376,11 +376,6 @@ const Index = () => {
               cta="Créer une formation"
               onClick={() => navigate(session ? "/showcase-manager?tab=courses" : "/auth")}
             />
-              icon={GraduationCap}
-              gradient="from-amber-500 to-yellow-500"
-              cta="Créer une formation"
-              onClick={() => navigate(session ? "/showcase-manager?tab=courses" : "/auth")}
-            />
           </div>
         </div>
       </section>
