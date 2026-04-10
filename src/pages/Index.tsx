@@ -138,6 +138,29 @@ const ServiceSection = ({ title, subtitle, description, images, icon: Icon, grad
   );
 };
 
+/* ── Stats section (extracted to avoid hooks-in-render) ── */
+const StatsSection = () => {
+  const { ref, visible } = useReveal(0.2);
+  return (
+    <section className="py-16 bg-muted/30">
+      <div className="container mx-auto px-4">
+        <div ref={ref} className={`grid grid-cols-3 gap-6 max-w-3xl mx-auto transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          {[
+            { val: "500+", label: "Utilisateurs actifs" },
+            { val: "10k+", label: "Créations générées" },
+            { val: "98%", label: "Satisfaction client" },
+          ].map((s, i) => (
+            <div key={i} className="text-center">
+              <div className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">{s.val}</div>
+              <div className="text-sm text-muted-foreground font-medium">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const [publishedFeedback, setPublishedFeedback] = useState<any[]>([]);
