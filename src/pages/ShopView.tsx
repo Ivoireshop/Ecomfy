@@ -333,7 +333,10 @@ const ShopView = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {featuredProducts.slice(0, 4).map(product => (
-              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={setSelectedProduct} formatPrice={formatPrice} />
+              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
+                const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
+                navigate(`${base}/product?product=${p.id}`);
+              }} formatPrice={formatPrice} />
             ))}
           </div>
         </section>
@@ -369,7 +372,10 @@ const ShopView = () => {
 
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={setSelectedProduct} formatPrice={formatPrice} />
+            <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
+              const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
+              navigate(`${base}/product?product=${p.id}`);
+            }} formatPrice={formatPrice} />
           ))}
         </div>
         {filteredProducts.length === 0 && (
