@@ -202,6 +202,19 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
         {activeTab === "checkout" && (
           <>
             <h2 className="text-xl font-bold">Informations de paiement</h2>
+            <Card className="p-6 space-y-4">
+              <h3 className="font-semibold">Mode de checkout</h3>
+              <div className="flex items-center justify-between p-4 rounded-xl border">
+                <div>
+                  <p className="font-medium">Checkout sur une seule page</p>
+                  <p className="text-sm text-muted-foreground">Panier, informations et paiement sur la même page (sans étapes)</p>
+                </div>
+                <Switch
+                  checked={shop.theme_config?.single_page_checkout || false}
+                  onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), single_page_checkout: v } })}
+                />
+              </div>
+            </Card>
             <Card className="p-6 space-y-3">
               <p className="text-sm text-muted-foreground mb-2">Configurez les champs affichés lors du checkout client</p>
               {checkoutFields.map(field => (
