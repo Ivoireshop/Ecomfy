@@ -930,14 +930,14 @@ const ProductView = () => {
 
       {/* Sticky Order Button - always visible when enabled */}
       {shop.theme_config?.sticky_order_button && product && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-4 py-3 safe-area-bottom">
+        <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="flex-1 min-w-0 hidden sm:block">
               <p className="font-bold text-sm truncate">{product.name}</p>
               <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
             </div>
             <Button 
-              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
+              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none"
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 if (shop.theme_config?.single_page_checkout) {
