@@ -230,6 +230,7 @@ const ProductView = () => {
       }));
       await supabase.from("order_items").insert(orderItems) as any;
       setOrderSuccess(true);
+      setShowInlineCheckout(false);
       setCart([]);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery" });
     } catch (error: any) {
