@@ -621,14 +621,25 @@ function StudentsSendSection({ courseId, courseTitle }: { courseId: string; cour
         },
       });
 
+      // Handle FunctionsHttpError - read body from error context
       if (response.error) {
-        throw response.error;
+        let errorMsg = "Action impossible";
+        try {
+          // Try to get the response body from the error
+          const errorData = response.data || (response.error as any)?.context;
+          if (errorData?.error) {
+            errorMsg = errorData.error;
+          }
+        } catch {}
+        toast.error(errorMsg);
+        console.error("manage-student-access error:", response.error, response.data);
+        return;
       }
 
-      const result = response.data as { success?: boolean; message?: string } | null;
+      const result = response.data as { success?: boolean; message?: string; error?: string } | null;
 
       if (!result?.success) {
-        toast.error(result?.message || "Action impossible");
+        toast.error(result?.error || result?.message || "Action impossible");
         return;
       }
 

@@ -30,15 +30,14 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader) {
-      return jsonResponse({ error: "Non autorisé" }, 401);
+      console.error("No auth header");
+      return jsonResponse({ success: false, error: "Non autorisé" });
     }
 
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: {
-        headers: {
-          Authorization: authHeader,
-        },
+        headers: { Authorization: authHeader },
       },
     });
 
@@ -48,21 +47,25 @@ serve(async (req) => {
     } = await userClient.auth.getUser();
 
     if (userError || !user) {
-      return jsonResponse({ error: "Session invalide" }, 401);
+      console.error("Auth error:", userError?.message);
+      return jsonResponse({ success: false, error: "Session invalide" });
     }
 
     const body = (await req.json()) as RequestBody;
     const enrollmentId = body.enrollmentId?.trim();
     const action = body.action;
 
+    console.log("Action:", action, "EnrollmentId:", enrollmentId, "User:", user.id);
+
     if (!enrollmentId || !action) {
-      return jsonResponse({ error: "Données manquantes" }, 400);
+      return jsonResponse({ success: false, error: "Données manquantes" });
     }
 
     if (!["revoke", "restore", "delete"].includes(action)) {
-      return jsonResponse({ error: "Action invalide" }, 400);
+      return jsonResponse({ success: false, error: "Action invalide" });
     }
 
+    // Fetch enrollment
     const { data: enrollment, error: enrollmentError } = await serviceClient
       .from("enrollments")
       .select("id, course_id, student_email, student_name")
@@ -70,9 +73,11 @@ serve(async (req) => {
       .single();
 
     if (enrollmentError || !enrollment) {
-      return jsonResponse({ error: "Inscription introuvable" }, 404);
+      console.error("Enrollment not found:", enrollmentError?.message);
+      return jsonResponse({ success: false, error: "Inscription introuvable" });
     }
 
+    // Fetch course and verify ownership
     const { data: course, error: courseError } = await serviceClient
       .from("courses")
       .select("id, user_id")
@@ -80,23 +85,23 @@ serve(async (req) => {
       .single();
 
     if (courseError || !course) {
-      return jsonResponse({ error: "Formation introuvable" }, 404);
+      console.error("Course not found:", courseError?.message);
+      return jsonResponse({ success: false, error: "Formation introuvable" });
     }
 
     if (!course.user_id || course.user_id !== user.id) {
-      return jsonResponse({ error: "Vous ne pouvez pas gérer cet étudiant" }, 403);
+      console.error("Not owner. Course user_id:", course.user_id, "Request user:", user.id);
+      return jsonResponse({ success: false, error: "Vous ne pouvez pas gérer cet étudiant" });
     }
 
     if (action === "revoke") {
       const { error: enrollmentUpdateError } = await serviceClient
         .from("enrollments")
-        .update({
-          payment_status: "revoked",
-          validated_at: null,
-        })
+        .update({ payment_status: "revoked", validated_at: null })
         .eq("id", enrollmentId);
 
       if (enrollmentUpdateError) {
+        console.error("Revoke enrollment error:", enrollmentUpdateError.message);
         throw enrollmentUpdateError;
       }
 
@@ -106,25 +111,20 @@ serve(async (req) => {
         .eq("enrollment_id", enrollmentId);
 
       if (accessUpdateError) {
-        throw accessUpdateError;
+        console.error("Revoke access error:", accessUpdateError.message);
       }
 
-      return jsonResponse({
-        success: true,
-        message: "Accès retiré avec succès.",
-      });
+      return jsonResponse({ success: true, message: "Accès retiré avec succès." });
     }
 
     if (action === "restore") {
       const { error: enrollmentUpdateError } = await serviceClient
         .from("enrollments")
-        .update({
-          payment_status: "paid",
-          validated_at: new Date().toISOString(),
-        })
+        .update({ payment_status: "paid", validated_at: new Date().toISOString() })
         .eq("id", enrollmentId);
 
       if (enrollmentUpdateError) {
+        console.error("Restore enrollment error:", enrollmentUpdateError.message);
         throw enrollmentUpdateError;
       }
 
@@ -134,40 +134,39 @@ serve(async (req) => {
         .eq("enrollment_id", enrollmentId);
 
       if (accessUpdateError) {
-        throw accessUpdateError;
+        console.error("Restore access error:", accessUpdateError.message);
       }
 
-      return jsonResponse({
-        success: true,
-        message: "Accès réactivé avec succès.",
-      });
+      return jsonResponse({ success: true, message: "Accès réactivé avec succès." });
     }
 
+    // Delete action
+    // First delete student_access (may not exist, that's ok)
     const { error: accessDeleteError } = await serviceClient
       .from("student_access")
       .delete()
       .eq("enrollment_id", enrollmentId);
 
     if (accessDeleteError) {
-      throw accessDeleteError;
+      console.error("Delete access error (non-blocking):", accessDeleteError.message);
     }
 
+    // Then delete enrollment
     const { error: enrollmentDeleteError } = await serviceClient
       .from("enrollments")
       .delete()
       .eq("id", enrollmentId);
 
     if (enrollmentDeleteError) {
+      console.error("Delete enrollment error:", enrollmentDeleteError.message);
       throw enrollmentDeleteError;
     }
 
-    return jsonResponse({
-      success: true,
-      message: "Étudiant supprimé de cette formation.",
-    });
+    console.log("Student deleted successfully:", enrollmentId);
+    return jsonResponse({ success: true, message: "Étudiant supprimé de cette formation." });
   } catch (error) {
     console.error("Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
-    return jsonResponse({ error: errorMessage }, 400);
+    return jsonResponse({ success: false, error: errorMessage });
   }
 });
