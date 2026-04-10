@@ -11,6 +11,7 @@ interface RequestBody {
   courseId: string;
   studentEmail: string;
   studentName: string;
+  resend?: boolean;
 }
 
 serve(async (req) => {
@@ -24,59 +25,78 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { enrollmentId, courseId, studentEmail, studentName }: RequestBody = await req.json();
+    const { enrollmentId, courseId, studentEmail, studentName, resend }: RequestBody = await req.json();
 
-    // Generate a temporary password
-    const tempPassword = Math.random().toString(36).slice(-12) + "A1!";
+    let userId: string;
+    let tempPassword: string | null = null;
 
-    // Create user account
-    const { data: userData, error: userError } = await supabaseClient.auth.admin.createUser({
-      email: studentEmail,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: studentName,
-      },
-    });
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseClient.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === studentEmail);
 
-    if (userError) throw userError;
+    if (existingUser) {
+      userId = existingUser.id;
+      
+      if (!resend) {
+        // Generate new password for existing user
+        tempPassword = Math.random().toString(36).slice(-12) + "A1!";
+        await supabaseClient.auth.admin.updateUser(userId, {
+          password: tempPassword,
+        });
+      }
+    } else {
+      // Generate a temporary password
+      tempPassword = Math.random().toString(36).slice(-12) + "A1!";
 
-    // Create profile
-    const { error: profileError } = await supabaseClient
-      .from("profiles")
-      .insert({
-        id: userData.user.id,
+      // Create user account
+      const { data: userData, error: userError } = await supabaseClient.auth.admin.createUser({
         email: studentEmail,
-        full_name: studentName,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: studentName,
+        },
       });
 
-    if (profileError && profileError.code !== "23505") {
-      // Ignore duplicate key error
-      console.error("Profile creation error:", profileError);
+      if (userError) throw userError;
+      userId = userData.user.id;
+
+      // Create profile
+      const { error: profileError } = await supabaseClient
+        .from("profiles")
+        .insert({
+          id: userId,
+          email: studentEmail,
+          full_name: studentName,
+        });
+
+      if (profileError && profileError.code !== "23505") {
+        console.error("Profile creation error:", profileError);
+      }
     }
 
-    // Create student access
-    const { error: accessError } = await supabaseClient
-      .from("student_access")
-      .insert({
-        user_id: userData.user.id,
-        course_id: courseId,
-        enrollment_id: enrollmentId,
-        is_active: true,
-      });
+    // Create student access (upsert)
+    if (!resend) {
+      const { error: accessError } = await supabaseClient
+        .from("student_access")
+        .upsert({
+          user_id: userId,
+          course_id: courseId,
+          enrollment_id: enrollmentId,
+          is_active: true,
+        }, { onConflict: "user_id,course_id" });
 
-    if (accessError) throw accessError;
+      if (accessError) {
+        console.error("Student access error:", accessError);
+      }
+    }
 
-    // Get course details including WhatsApp link
-    const { data: courseData, error: courseError } = await supabaseClient
+    // Get course details
+    const { data: courseData } = await supabaseClient
       .from("courses")
       .select("title, whatsapp_group_link")
       .eq("id", courseId)
       .single();
-
-    if (courseError) {
-      console.error("Error fetching course:", courseError);
-    }
 
     const whatsappSection = courseData?.whatsapp_group_link
       ? `
@@ -93,13 +113,9 @@ serve(async (req) => {
       `
       : "";
 
-    // Send email with credentials and WhatsApp link
-    const emailBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Bienvenue sur votre espace de formation !</h2>
-        <p>Bonjour <strong>${studentName}</strong>,</p>
-        <p>Votre paiement pour <strong>${courseData?.title || "la formation"}</strong> a été validé avec succès ! 🎉</p>
-        
+    // Build email body
+    const passwordSection = tempPassword
+      ? `
         <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <h3 style="margin-top: 0;">Vos identifiants d'accès :</h3>
           <ul style="list-style: none; padding: 0;">
@@ -107,14 +123,28 @@ serve(async (req) => {
             <li style="padding: 5px 0;"><strong>Mot de passe temporaire :</strong> <code style="background: #e5e7eb; padding: 3px 6px; border-radius: 3px;">${tempPassword}</code></li>
           </ul>
         </div>
+      `
+      : `
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Vos identifiants d'accès :</h3>
+          <p>Connectez-vous avec votre email <strong>${studentEmail}</strong> et votre mot de passe habituel.</p>
+        </div>
+      `;
 
+    const emailBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">${resend ? "Rappel : Accès à votre formation" : "Bienvenue sur votre espace de formation !"}</h2>
+        <p>Bonjour <strong>${studentName}</strong>,</p>
+        <p>${resend ? "Voici un rappel de vos accès pour" : "Votre accès pour"} <strong>${courseData?.title || "la formation"}</strong> ${resend ? "." : "a été validé avec succès ! 🎉"}</p>
+        
+        ${passwordSection}
         ${whatsappSection}
 
         <p>Pour accéder à votre formation :</p>
         <ol>
           <li>Connectez-vous sur votre espace étudiant</li>
-          <li>Changez votre mot de passe temporaire</li>
-          <li>Rejoignez le groupe WhatsApp d'accompagnement${courseData?.whatsapp_group_link ? " (lien ci-dessus)" : ""}</li>
+          ${tempPassword ? "<li>Changez votre mot de passe temporaire</li>" : ""}
+          ${courseData?.whatsapp_group_link ? "<li>Rejoignez le groupe WhatsApp d'accompagnement</li>" : ""}
           <li>Commencez votre formation</li>
         </ol>
 
@@ -125,19 +155,42 @@ serve(async (req) => {
       </div>
     `;
 
-    await supabaseClient.functions.invoke("send-email", {
-      body: {
-        to: studentEmail,
-        subject: "Vos identifiants d'accès à votre formation",
-        html: emailBody,
+    // Send email via Resend directly
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${resendApiKey}`,
       },
+      body: JSON.stringify({
+        from: "VisualPro <onboarding@resend.dev>",
+        to: [studentEmail],
+        subject: resend
+          ? "Rappel : Vos accès à votre formation"
+          : "Vos identifiants d'accès à votre formation",
+        html: emailBody,
+      }),
     });
+
+    const emailResult = await emailResponse.json();
+    
+    if (!emailResponse.ok) {
+      console.error("Resend error:", emailResult);
+      throw new Error(emailResult?.message || "Erreur lors de l'envoi de l'email");
+    }
+
+    console.log("Email sent successfully:", emailResult);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Compte créé avec succès",
-        userId: userData.user.id,
+        message: resend ? "Email renvoyé avec succès" : "Compte créé avec succès",
+        userId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
