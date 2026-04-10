@@ -223,6 +223,7 @@ const AppContent = () => {
           <Route path="/blog" element={<Blog />} />
           <Route path="/legal-notice" element={<LegalNotice />} />
           <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
+          <Route path="/courses-manager" element={<ProtectedRoute><CoursesManager /></ProtectedRoute>} />
           <Route path="/shop-builder" element={<ProtectedRoute><ShopBuilder /></ProtectedRoute>} />
           <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
           <Route path="/shop-preview/:id" element={<ProtectedRoute><ShopView /></ProtectedRoute>} />
