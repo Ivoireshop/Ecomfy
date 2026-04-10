@@ -297,80 +297,78 @@ const Index = () => {
         </section>
       )}
 
-      {/* ===== ANIMATED SERVICE SECTIONS (visitors) ===== */}
-      {!session && (
-        <section id="services" className="py-16 md:py-24 space-y-20 md:space-y-32">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                Une plateforme, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">toutes les solutions</span>
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Chaque outil dont vous avez besoin pour lancer et développer votre activité en ligne
-              </p>
-            </div>
-
-            <div className="space-y-20 md:space-y-32 max-w-6xl mx-auto">
-              <ServiceSection
-                title="Visuels Publicitaires IA"
-                subtitle="Création de visuels"
-                description="Générez des images publicitaires professionnelles en quelques secondes grâce à l'intelligence artificielle. Parfait pour vos campagnes marketing sur les réseaux sociaux."
-                images={[exampleHandbag, examplePhone, exampleFood]}
-                icon={ImageIcon}
-                gradient="from-orange-500 to-pink-500"
-                cta="Créer un visuel"
-                onClick={() => navigate("/auth")}
-              />
-
-              <ServiceSection
-                title="Vidéos Animées Pro"
-                subtitle="Vidéo & Animation"
-                description="Transformez n'importe quel visuel en vidéo captivante avec des animations fluides et des effets professionnels. Idéal pour capturer l'attention sur TikTok, Instagram et Facebook."
-                images={[exampleBeauty, exampleFitness]}
-                icon={Video}
-                gradient="from-blue-500 to-cyan-500"
-                reversed
-                cta="Créer une vidéo"
-                onClick={() => navigate("/auth")}
-              />
-
-              <ServiceSection
-                title="Sites Vitrine Professionnels"
-                subtitle="Site vitrine"
-                description="Lancez votre site web professionnel en quelques minutes. Présentez vos services, votre portfolio et recevez des réservations — sans aucune compétence technique."
-                images={[featureRapide, featureAfrique]}
-                icon={Globe}
-                gradient="from-violet-500 to-purple-500"
-                cta="Créer un site vitrine"
-                onClick={() => navigate("/auth")}
-              />
-
-              <ServiceSection
-                title="Boutiques E-commerce"
-                subtitle="E-commerce"
-                description="Vendez vos produits en ligne avec une boutique complète : gestion des stocks, paiements Mobile Money, suivi des commandes et livraisons intégrées."
-                images={[exampleRealestate, exampleHandbag]}
-                icon={Store}
-                gradient="from-emerald-500 to-teal-500"
-                reversed
-                cta="Créer une boutique"
-                onClick={() => navigate("/auth")}
-              />
-
-              <ServiceSection
-                title="Formations en Ligne"
-                subtitle="E-learning"
-                description="Créez et vendez vos formations avec des modules structurés, un espace étudiant dédié, des certificats automatiques et des liens de paiement intégrés."
-                images={[featureIA, featureAfrique]}
-                icon={GraduationCap}
-                gradient="from-amber-500 to-yellow-500"
-                cta="Créer une formation"
-                onClick={() => navigate("/auth")}
-              />
-            </div>
+      {/* ===== ANIMATED SERVICE SECTIONS ===== */}
+      <section id="services" className="py-16 md:py-24 space-y-20 md:space-y-32">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">
+              Une plateforme, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">toutes les solutions</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Chaque outil dont vous avez besoin pour lancer et développer votre activité en ligne
+            </p>
           </div>
-        </section>
-      )}
+
+          <div className="space-y-20 md:space-y-32 max-w-6xl mx-auto">
+            <ServiceSection
+              title="Visuels Publicitaires IA"
+              subtitle="Création de visuels"
+              description="Générez des images publicitaires professionnelles en quelques secondes grâce à l'intelligence artificielle. Parfait pour vos campagnes marketing sur les réseaux sociaux."
+              images={[exampleHandbag, examplePhone, exampleFood]}
+              icon={ImageIcon}
+              gradient="from-orange-500 to-pink-500"
+              cta="Créer un visuel"
+              onClick={() => navigate(session ? "/generator" : "/auth")}
+            />
+
+            <ServiceSection
+              title="Vidéos Animées Pro"
+              subtitle="Vidéo & Animation"
+              description="Transformez n'importe quel visuel en vidéo captivante avec des animations fluides et des effets professionnels. Idéal pour capturer l'attention sur TikTok, Instagram et Facebook."
+              images={[exampleBeauty, exampleFitness]}
+              icon={Video}
+              gradient="from-blue-500 to-cyan-500"
+              reversed
+              cta="Créer une vidéo"
+              onClick={() => navigate(session ? "/generator" : "/auth")}
+            />
+
+            <ServiceSection
+              title="Sites Vitrine Professionnels"
+              subtitle="Site vitrine"
+              description="Lancez votre site web professionnel en quelques minutes. Présentez vos services, votre portfolio et recevez des réservations — sans aucune compétence technique."
+              images={[featureRapide, featureAfrique]}
+              icon={Globe}
+              gradient="from-violet-500 to-purple-500"
+              cta="Créer un site vitrine"
+              onClick={() => navigate(session ? "/showcase-manager" : "/auth")}
+            />
+
+            <ServiceSection
+              title="Boutiques E-commerce"
+              subtitle="E-commerce"
+              description="Vendez vos produits en ligne avec une boutique complète : gestion des stocks, paiements Mobile Money, suivi des commandes et livraisons intégrées."
+              images={[exampleRealestate, exampleHandbag]}
+              icon={Store}
+              gradient="from-emerald-500 to-teal-500"
+              reversed
+              cta="Créer une boutique"
+              onClick={() => navigate(session ? "/shop-manager" : "/auth")}
+            />
+
+            <ServiceSection
+              title="Formations en Ligne"
+              subtitle="E-learning"
+              description="Créez et vendez vos formations avec des modules structurés, un espace étudiant dédié, des certificats automatiques et des liens de paiement intégrés."
+              images={[featureIA, featureAfrique]}
+              icon={GraduationCap}
+              gradient="from-amber-500 to-yellow-500"
+              cta="Créer une formation"
+              onClick={() => navigate(session ? "/showcase-manager?tab=courses" : "/auth")}
+            />
+          </div>
+        </div>
+      </section>
 
       {/* ===== STATS ===== */}
       {!session && <StatsSection />}
