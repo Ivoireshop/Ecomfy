@@ -919,12 +919,43 @@ const ProductView = () => {
       )}
 
       {/* Floating Cart - Mobile */}
-      {cartCount > 0 && !checkoutOpen && (
+      {cartCount > 0 && !checkoutOpen && !shop.theme_config?.sticky_order_button && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
           <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}>
             <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
             <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
           </Button>
+        </div>
+      )}
+
+      {/* Sticky Order Button - always visible when enabled */}
+      {shop.theme_config?.sticky_order_button && product && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-4 py-3 safe-area-bottom">
+          <div className="max-w-6xl mx-auto flex items-center gap-3">
+            <div className="flex-1 min-w-0 hidden sm:block">
+              <p className="font-bold text-sm truncate">{product.name}</p>
+              <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
+            </div>
+            <Button 
+              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
+              style={{ backgroundColor: primaryColor }}
+              onClick={() => {
+                if (shop.theme_config?.single_page_checkout) {
+                  addToCart(product, quantity);
+                  setShowInlineCheckout(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  addToCart(product, quantity);
+                  setCheckoutOpen(true);
+                  setOrderSuccess(false);
+                }
+              }}
+              disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander maintenant"}
+            </Button>
+          </div>
         </div>
       )}
     </div>
