@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink } from "lucide-react";
 
 interface Product {
   id: string;
@@ -34,13 +34,15 @@ interface ProductsTableProps {
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
   onUploadImage: (productId: string, file: File) => void;
+  onPreviewProduct?: (product: Product) => void;
   primaryColor: string;
   orders: { order_items?: { product_id: string; quantity: number }[] }[];
+  shopSlug?: string;
 }
 
 export function ProductsTable({
   products, searchQuery, onSearchChange, onAddProduct,
-  onEditProduct, onDeleteProduct, onUploadImage, primaryColor, orders,
+  onEditProduct, onDeleteProduct, onUploadImage, onPreviewProduct, primaryColor, orders, shopSlug,
 }: ProductsTableProps) {
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -166,9 +168,11 @@ export function ProductsTable({
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir" onClick={() => onEditProduct(product)}>
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </Button>
+                          {onPreviewProduct && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Prévisualiser la fiche" onClick={() => onPreviewProduct(product)}>
+                              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => onEditProduct(product)}>
                             <Edit className="h-4 w-4 text-muted-foreground" />
                           </Button>

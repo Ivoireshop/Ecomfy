@@ -16,6 +16,7 @@ import { ShopSidebar, type ActiveSection } from "@/components/shop/ShopSidebar";
 import { ProductsTable } from "@/components/shop/ProductsTable";
 import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
+import { ShopSettings } from "@/components/shop/ShopSettings";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface Product {
@@ -167,6 +168,10 @@ const ShopEditor = () => {
       chatbot_enabled: shop.chatbot_enabled, chatbot_welcome_message: shop.chatbot_welcome_message,
       is_published: shop.is_published, seo_title: shop.seo_title, seo_description: shop.seo_description,
       logo_url: shop.logo_url, banner_url: shop.banner_url, favicon_url: shop.favicon_url,
+      facebook_pixels: shop.facebook_pixels, tiktok_pixels: shop.tiktok_pixels,
+      snapchat_pixels: shop.snapchat_pixels, google_analytics_ids: shop.google_analytics_ids,
+      google_analytics_code: shop.google_analytics_code, checkout_fields: shop.checkout_fields,
+      cod_delivery_rate: shop.cod_delivery_rate, payment_methods: shop.payment_methods,
     }).eq("id", shop.id) as any;
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
     else toast({ title: "✓ Sauvegardé" });
@@ -531,8 +536,13 @@ const ShopEditor = () => {
               }}
               onDeleteProduct={deleteProduct}
               onUploadImage={uploadProductImage}
+              onPreviewProduct={(product) => {
+                const base = shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`;
+                window.open(`${base}?product=${product.id}`, "_blank");
+              }}
               primaryColor={primaryColor}
               orders={orders}
+              shopSlug={shop.slug}
             />
           )}
 
@@ -629,34 +639,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "settings" && (
-            <div className="space-y-6 max-w-2xl">
-              <h2 className="text-xl font-bold">Paramètres</h2>
-              <Card className="p-6 space-y-4">
-                <h3 className="font-bold text-lg">Informations générales</h3>
-                <div className="space-y-1.5"><Label>Nom de la boutique</Label><Input value={shop.business_name} onChange={(e) => setShop({ ...shop, business_name: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>Description</Label><Textarea value={shop.business_description || ""} onChange={(e) => setShop({ ...shop, business_description: e.target.value })} rows={3} /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label>WhatsApp</Label><Input value={shop.whatsapp_number || ""} onChange={(e) => setShop({ ...shop, whatsapp_number: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>Téléphone</Label><Input value={shop.phone_number || ""} onChange={(e) => setShop({ ...shop, phone_number: e.target.value })} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label>Email</Label><Input value={shop.email || ""} onChange={(e) => setShop({ ...shop, email: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>Ville</Label><Input value={shop.city || ""} onChange={(e) => setShop({ ...shop, city: e.target.value })} /></div>
-                </div>
-              </Card>
-              <Card className="p-6 space-y-4">
-                <h3 className="font-bold text-lg">Publication</h3>
-                <div className="flex items-center justify-between">
-                  <div><p className="font-medium">Boutique en ligne</p><p className="text-sm text-muted-foreground">Rendre la boutique visible aux visiteurs</p></div>
-                  <Switch checked={shop.is_published} onCheckedChange={(v) => setShop({ ...shop, is_published: v })} />
-                </div>
-              </Card>
-              <Card className="p-6 border-destructive/20">
-                <h3 className="font-bold text-lg text-destructive mb-2">Zone de danger</h3>
-                <p className="text-sm text-muted-foreground mb-4">Cette action est irréversible</p>
-                <Button variant="destructive" size="sm">Supprimer la boutique</Button>
-              </Card>
-            </div>
+            <ShopSettings shop={shop} setShop={setShop} onDeleteShop={() => navigate("/shop-manager")} />
           )}
         </div>
       </main>
