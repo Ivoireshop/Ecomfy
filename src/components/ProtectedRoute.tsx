@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
+import { useAuthReady } from "@/hooks/useAuthReady";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,41 +10,14 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requireActiveSubscription = false }: ProtectedRouteProps) => {
-  const [session, setSession] = useState<Session | null>(null);
+  const { session, user, isReady } = useAuthReady();
   const [isLoading, setIsLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState(0);
   const [isFounder, setIsFounder] = useState(false);
 
-  useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session && requireActiveSubscription) {
-        checkSubscription(session.user.id);
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        if (session && requireActiveSubscription) {
-          checkSubscription(session.user.id);
-        } else {
-          setIsLoading(false);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [requireActiveSubscription]);
-
-  const checkSubscription = async (userId: string) => {
+  const checkSubscription = useCallback(async (userId: string) => {
     try {
-      // Check if user is founder or co-founder
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
@@ -52,18 +25,15 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
         // @ts-ignore - Role types will be updated after migration
         .in("role", ["founder", "co_founder"]);
 
-      const isFounderOrCofounder = roleData && roleData.length > 0;
+      const isFounderOrCofounder = !!roleData?.length;
       setIsFounder(isFounderOrCofounder);
 
-      // Founders and co-founders have unlimited access
       if (isFounderOrCofounder) {
         setHasActiveSubscription(true);
-        setFreeGenerationsRemaining(999999); // Effectively unlimited
-        setIsLoading(false);
+        setFreeGenerationsRemaining(999999);
         return;
       }
 
-      // Always check free generations first for regular users
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("free_generations_remaining")
@@ -72,13 +42,11 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
 
       if (profileError) {
         console.error("Error loading profile:", profileError);
-        // Don't block access if profile load fails - let them try
-        setFreeGenerationsRemaining(3); // Give benefit of the doubt
+        setFreeGenerationsRemaining(3);
       } else {
         setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
       }
 
-      // Then check subscription for regular users
       const { data: subData, error: subError } = await supabase
         .from("subscriptions")
         .select("status")
@@ -89,19 +57,39 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
         console.error("Error loading subscription:", subError);
         setHasActiveSubscription(false);
       } else {
-        const hasActiveSub = subData?.status === "active";
-        setHasActiveSubscription(hasActiveSub);
+        setHasActiveSubscription(subData?.status === "active");
       }
     } catch (error) {
       console.error("Unexpected error checking subscription:", error);
-      // Don't block users on errors - let them access with free generations
       setHasActiveSubscription(false);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!user) {
+      setHasActiveSubscription(false);
+      setFreeGenerationsRemaining(0);
+      setIsFounder(false);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!requireActiveSubscription) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    void checkSubscription(user.id);
+  }, [checkSubscription, isReady, requireActiveSubscription, user]);
+
+  if (isLoading || !isReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -113,7 +101,6 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
     return <Navigate to="/auth" replace />;
   }
 
-  // Founders and co-founders bypass subscription requirements
   if (requireActiveSubscription && !isFounder && !hasActiveSubscription && freeGenerationsRemaining <= 0) {
     return <Navigate to="/subscription" replace />;
   }
