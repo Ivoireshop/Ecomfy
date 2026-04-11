@@ -336,6 +336,12 @@ const Auth = () => {
           description: "Veuillez vérifier votre boîte mail et cliquer sur le lien de confirmation avant de vous connecter.",
           variant: "destructive",
         });
+      } else if (errorMessage.toLowerCase().includes("invalid") || errorMessage.toLowerCase().includes("credentials")) {
+        toast({
+          title: "Identifiants incorrects",
+          description: "Email ou mot de passe incorrect. Si vous avez oublié votre mot de passe, cliquez sur « Mot de passe oublié ? » ci-dessous.",
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "Erreur",
