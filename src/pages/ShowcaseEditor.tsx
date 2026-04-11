@@ -614,7 +614,7 @@ export default function ShowcaseEditor() {
   };
 
   const getPublicUrl = () => {
-    return `${window.location.origin}/showcase/${subdomain}`;
+    return `https://visuelpro.cloud/showcase/${subdomain}`;
   };
 
   const copyPublicUrl = () => {
