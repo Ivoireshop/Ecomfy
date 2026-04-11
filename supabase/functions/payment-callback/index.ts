@@ -328,32 +328,23 @@ serve(async (req) => {
         }
       }
 
-      // Rediriger l'utilisateur vers la page de succès
-      const explicitReturn = return_url || url.searchParams.get("return_url") || null;
-      const originHeader = req.headers.get("origin");
-      const refererHeader = req.headers.get("referer");
-      const computedOrigin = originHeader || (refererHeader ? new URL(refererHeader).origin : "");
-      const finalReturnUrl = explicitReturn || computedOrigin || "";
+      // Toujours rediriger vers visuelpro.cloud
+      const finalReturnUrl = "https://visuelpro.cloud";
       return new Response(null, {
         status: 302,
         headers: {
           ...corsHeaders,
-          "Location": `${finalReturnUrl || "/"}/?payment=success`,
+          "Location": `${finalReturnUrl}/?payment=success`,
         },
       });
     } else {
-      
-      // Rediriger vers la page d'échec
-      const explicitReturn = return_url || url.searchParams.get("return_url") || null;
-      const originHeader = req.headers.get("origin");
-      const refererHeader = req.headers.get("referer");
-      const computedOrigin = originHeader || (refererHeader ? new URL(refererHeader).origin : "");
-      const finalReturnUrl = explicitReturn || computedOrigin || "";
+      // Toujours rediriger vers visuelpro.cloud
+      const finalReturnUrl = "https://visuelpro.cloud";
       return new Response(null, {
         status: 302,
         headers: {
           ...corsHeaders,
-          "Location": `${finalReturnUrl || "/"}/?payment=failed`,
+          "Location": `${finalReturnUrl}/?payment=failed`,
         },
       });
     }

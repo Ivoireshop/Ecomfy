@@ -225,9 +225,8 @@ serve(async (req) => {
         }
       );
     }
-    const origin = req.headers.get("origin") || undefined;
-    const referer = req.headers.get("referer") || undefined;
-    const baseReturnUrl = origin || (referer ? new URL(referer).origin : undefined);
+    // Always use visuelpro.cloud as the return domain
+    const baseReturnUrl = "https://visuelpro.cloud";
     const orderId = `${payment_type === 'credits' ? 'credits' : 'sub'}_${user_id}_${Date.now()}`;
 
     console.log("Calling Lygos API:", {
