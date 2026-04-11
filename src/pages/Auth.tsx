@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,142 +18,94 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const { session, isReady } = useAuthReady();
+  const handledSessionRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
 
-  // Form states
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpFullName, setSignUpFullName] = useState("");
   const [signUpPhone, setSignUpPhone] = useState("");
   const [signUpCountry, setSignUpCountry] = useState("");
   const [referralCode, setReferralCode] = useState("");
-  
+
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
   useEffect(() => {
-    // Check for referral code in URL
-    const refCode = searchParams.get('ref');
+    const refCode = searchParams.get("ref");
     if (refCode) {
       setReferralCode(refCode.toUpperCase());
     }
+  }, [searchParams]);
 
-    // Check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        // Check if coming from email confirmation
-        const urlParams = new URLSearchParams(window.location.search);
-        const isEmailConfirmed = urlParams.get('type') === 'signup';
-        
-        if (isEmailConfirmed) {
-          // Process referral code if stored in localStorage
-          const referralKey = `referral_${session.user.email}`;
-          const storedReferralCode = localStorage.getItem(referralKey);
-          
-          if (storedReferralCode) {
-            try {
-              const { data: refResult, error: refError } = await supabase.rpc('process_referral_signup', {
-                referred_user_id: session.user.id,
-                referral_code_input: storedReferralCode
-              });
+  const handleAuthenticatedSession = useCallback(async (currentSession: Session) => {
+    const sessionKey = currentSession.access_token ?? currentSession.user.id;
+    if (handledSessionRef.current === sessionKey) {
+      return;
+    }
 
-              if (!refError && refResult) {
-                toast({
-                  title: "Félicitations ! 🎉",
-                  description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) ! Bienvenue sur VisualPro !",
-                });
-              } else {
-                toast({
-                  title: "Félicitations ! 🎉",
-                  description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
-                });
-              }
-              
-              // Clean up localStorage
-              localStorage.removeItem(referralKey);
-            } catch (error) {
-              console.error("Erreur lors du traitement du parrainage:", error);
-              toast({
-                title: "Félicitations ! 🎉",
-                description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
-              });
-            }
+    handledSessionRef.current = sessionKey;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEmailConfirmed = urlParams.get("type") === "signup";
+
+    if (isEmailConfirmed) {
+      const referralKey = `referral_${currentSession.user.email}`;
+      const storedReferralCode = localStorage.getItem(referralKey);
+
+      if (storedReferralCode) {
+        try {
+          const { data: refResult, error: refError } = await supabase.rpc("process_referral_signup", {
+            referred_user_id: currentSession.user.id,
+            referral_code_input: storedReferralCode,
+          });
+
+          if (!refError && refResult) {
+            toast({
+              title: "Félicitations ! 🎉",
+              description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) ! Bienvenue sur VisualPro !",
+            });
           } else {
             toast({
               title: "Félicitations ! 🎉",
               description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
             });
           }
+        } catch (error) {
+          console.error("Erreur lors du traitement du parrainage:", error);
+          toast({
+            title: "Félicitations ! 🎉",
+            description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+          });
+        } finally {
+          localStorage.removeItem(referralKey);
         }
-        
-        navigate("/generator");
+      } else {
+        toast({
+          title: "Félicitations ! 🎉",
+          description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+        });
       }
-    });
+    }
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        if (session) {
-          // Show welcome message for new sign ups
-          if (event === 'SIGNED_IN') {
-            const urlParams = new URLSearchParams(window.location.search);
-            const isEmailConfirmed = urlParams.get('type') === 'signup';
-            
-            if (isEmailConfirmed) {
-              // Process referral code if stored in localStorage
-              const referralKey = `referral_${session.user.email}`;
-              const storedReferralCode = localStorage.getItem(referralKey);
-              
-              if (storedReferralCode) {
-                setTimeout(async () => {
-                  try {
-                    const { data: refResult, error: refError } = await supabase.rpc('process_referral_signup', {
-                      referred_user_id: session.user.id,
-                      referral_code_input: storedReferralCode
-                    });
-
-                    if (!refError && refResult) {
-                      toast({
-                        title: "Félicitations ! 🎉",
-                        description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites ! Bienvenue sur VisualPro !",
-                      });
-                    } else {
-                      toast({
-                        title: "Félicitations ! 🎉",
-                        description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
-                      });
-                    }
-                    
-                    // Clean up localStorage
-                    localStorage.removeItem(referralKey);
-                  } catch (error) {
-                    console.error("Erreur lors du traitement du parrainage:", error);
-                    toast({
-                      title: "Félicitations ! 🎉",
-                      description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
-                    });
-                  }
-                }, 0);
-              } else {
-                toast({
-                  title: "Félicitations ! 🎉",
-                  description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
-                });
-              }
-            }
-          }
-          navigate("/generator");
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    navigate("/generator", { replace: true });
   }, [navigate, toast]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!session) {
+      handledSessionRef.current = null;
+      return;
+    }
+
+    void handleAuthenticatedSession(session);
+  }, [handleAuthenticatedSession, isReady, session]);
 
   const validatePassword = (password: string): { valid: boolean; message?: string } => {
     if (password.length < 8) {
@@ -167,7 +120,7 @@ const Auth = () => {
     if (!/[0-9]/.test(password)) {
       return { valid: false, message: "Le mot de passe doit contenir au moins un chiffre" };
     }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    if (!/[!@#$%^&*(),.?\":{}|<>]/.test(password)) {
       return { valid: false, message: "Le mot de passe doit contenir au moins un caractère spécial (!@#$%^&*...)" };
     }
     return { valid: true };
@@ -175,7 +128,7 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!signUpEmail || !signUpPassword || !signUpFullName || !signUpPhone || !signUpCountry) {
       toast({
         title: "Erreur",
@@ -185,7 +138,6 @@ const Auth = () => {
       return;
     }
 
-    // Validate password strength
     const passwordCheck = validatePassword(signUpPassword);
     if (!passwordCheck.valid) {
       toast({
@@ -200,14 +152,14 @@ const Auth = () => {
 
     try {
       const redirectUrl = `${window.location.origin}/`;
-      
-      // Store referral code in localStorage if provided
+      const trimmedEmail = signUpEmail.trim().toLowerCase();
+
       if (referralCode && referralCode.trim()) {
-        localStorage.setItem(`referral_${signUpEmail}`, referralCode);
+        localStorage.setItem(`referral_${trimmedEmail}`, referralCode.trim().toUpperCase());
       }
-      
+
       const { error } = await supabase.auth.signUp({
-        email: signUpEmail,
+        email: trimmedEmail,
         password: signUpPassword,
         options: {
           emailRedirectTo: redirectUrl,
@@ -226,7 +178,6 @@ const Auth = () => {
         description: "Un email de confirmation contenant un lien d'activation vous a été envoyé. Veuillez cliquer dessus pour activer votre compte.",
       });
 
-      // Clear form fields
       setSignUpEmail("");
       setSignUpPassword("");
       setSignUpFullName("");
@@ -246,7 +197,9 @@ const Auth = () => {
   };
 
   const handleForgotPassword = async () => {
-    if (!signInEmail) {
+    const trimmedEmail = signInEmail.trim().toLowerCase();
+
+    if (!trimmedEmail) {
       toast({
         title: "Email requis",
         description: "Veuillez entrer votre email pour réinitialiser votre mot de passe",
@@ -257,7 +210,7 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(signInEmail, {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
@@ -281,7 +234,7 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!signInEmail || !signInPassword) {
       toast({
         title: "Erreur",
@@ -302,7 +255,6 @@ const Auth = () => {
 
       if (error) throw error;
 
-      // Vérifier si l'email est confirmé
       if (data.user && !data.user.email_confirmed_at) {
         await supabase.auth.signOut();
         toast({
@@ -313,24 +265,14 @@ const Auth = () => {
         return;
       }
 
-      // Récupérer le profil de l'utilisateur pour le message de bienvenue
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', data.user.id)
-        .single();
-
-      const userName = profile?.full_name || data.user.email?.split('@')[0] || 'utilisateur';
-      
       toast({
-        title: "Heureux de vous revoir !",
-        description: `Bienvenue ${userName}`,
+        title: "Connexion réussie",
+        description: "Redirection vers votre espace…",
       });
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
       const errorMessage = error instanceof Error ? error.message : "";
-      
-      // Gérer spécifiquement l'erreur d'email non confirmé
+
       if (errorMessage.toLowerCase().includes("email not confirmed")) {
         toast({
           title: "Email non vérifié",
@@ -339,8 +281,8 @@ const Auth = () => {
         });
       } else if (errorMessage.toLowerCase().includes("invalid") || errorMessage.toLowerCase().includes("credentials")) {
         toast({
-          title: "Identifiants incorrects",
-          description: "Email ou mot de passe incorrect. Si vous avez oublié votre mot de passe, cliquez sur « Mot de passe oublié ? » ci-dessous.",
+          title: "Connexion refusée",
+          description: "Le serveur n'a pas pu valider ces identifiants. Vérifiez l'email exact, la casse du mot de passe et l'absence d'espaces cachés.",
           variant: "destructive",
         });
       } else {
@@ -366,13 +308,14 @@ const Auth = () => {
       console.error(`Erreur connexion ${provider}:`, error);
       toast({
         title: "Erreur",
-        description: `Impossible de se connecter avec ${provider === 'google' ? 'Google' : 'Apple'}`,
+        description: `Impossible de se connecter avec ${provider === "google" ? "Google" : "Apple"}`,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-6 lg:p-8">
       <div className="w-full max-w-md mx-auto">
