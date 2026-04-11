@@ -294,8 +294,9 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      const trimmedEmail = signInEmail.trim().toLowerCase();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: signInEmail,
+        email: trimmedEmail,
         password: signInPassword,
       });
 
