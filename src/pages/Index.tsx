@@ -264,12 +264,12 @@ const Index = () => {
             {session && profile ? (
               <>
                 <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in">
-                  <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    Bonjour {profile.full_name?.split(' ')[0]} 👋
+                  <span className="text-foreground">
+                    {profile.full_name?.split(' ')[0]}, bienvenue.
                   </span>
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground mb-10 animate-fade-in">
-                  Que souhaitez-vous faire aujourd'hui ? Choisissez votre outil ci-dessous.
+                  Votre espace de travail est prêt.
                 </p>
               </>
             ) : (

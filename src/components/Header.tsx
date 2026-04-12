@@ -87,7 +87,6 @@ export function Header() {
               </Button>
             )}
             <Button onClick={() => navigate(isAuthenticated ? "/" : "/auth")}>
-              <Wand2 className="mr-2 h-4 w-4" />
               {isAuthenticated ? "Mon espace" : "Commencer"}
             </Button>
           </div>
@@ -154,7 +153,6 @@ export function Header() {
                       setIsOpen(false);
                     }}
                   >
-                    <Wand2 className="mr-2 h-4 w-4" />
                     {isAuthenticated ? "Mon espace" : "Commencer"}
                   </Button>
                 </div>
