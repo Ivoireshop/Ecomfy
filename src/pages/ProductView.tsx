@@ -186,10 +186,10 @@ const ProductView = () => {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
-  const addToCart = (prod: Product, qty: number = 1) => {
+  const addToCart = (prod: Product, qty: number = 1, replace: boolean = false) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === prod.id);
-      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: item.quantity + qty } : item);
+      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty } : item);
       return [...prev, { product: prod, quantity: qty }];
     });
     toast({ title: "✓ Ajouté au panier", description: prod.name });
