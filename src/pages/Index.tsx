@@ -263,13 +263,13 @@ const Index = () => {
           <div className="max-w-5xl mx-auto text-center">
             {session && profile ? (
               <>
-                <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in">
-                  <span className="text-foreground">
-                    {profile.full_name?.split(' ')[0]}, bienvenue.
+                <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in uppercase tracking-tight">
+                  <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    {profile.full_name?.split(' ')[0]}, Bienvenue.
                   </span>
                 </h1>
-                <p className="text-lg md:text-xl text-muted-foreground mb-10 animate-fade-in">
-                  Votre espace de travail est prêt.
+                <p className="text-base md:text-lg text-muted-foreground mb-10 animate-fade-in tracking-wide uppercase font-medium">
+                  Votre Espace De Travail Est Prêt
                 </p>
               </>
             ) : (
