@@ -478,7 +478,7 @@ const ProductView = () => {
                   className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: primaryColor }}
                   onClick={() => {
-                    addToCart(product, quantity);
+                    addToCart(product, quantity, true);
                     setShowInlineCheckout(true);
                   }}
                   disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
