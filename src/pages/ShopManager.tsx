@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Store, Eye, Settings, Package, TrendingUp, ShoppingBag, BarChart3, ArrowUpRight, Zap } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, Zap, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Shop {
@@ -27,6 +29,9 @@ const ShopManager = () => {
   const navigate = useNavigate();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<Shop | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchShops();
@@ -48,6 +53,32 @@ const ShopManager = () => {
       setShops((data as any[]) || []);
     }
     setLoading(false);
+  };
+
+  const handleDeleteShop = async () => {
+    if (!deleteTarget || deleteConfirmText !== deleteTarget.business_name) return;
+    setDeleting(true);
+    try {
+      // Delete related data first
+      const { data: products } = await supabase.from("products").select("id").eq("shop_id", deleteTarget.id);
+      if (products?.length) {
+        const productIds = products.map(p => p.id);
+        await supabase.from("product_images").delete().in("product_id", productIds);
+        await supabase.from("order_items").delete().in("product_id", productIds);
+      }
+      await supabase.from("products").delete().eq("shop_id", deleteTarget.id);
+      await supabase.from("orders").delete().eq("shop_id", deleteTarget.id);
+      const { error } = await supabase.from("shops").delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      toast({ title: "Boutique supprimée", description: `"${deleteTarget.business_name}" a été supprimée définitivement.` });
+      setShops(prev => prev.filter(s => s.id !== deleteTarget.id));
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message || "Impossible de supprimer la boutique", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+    }
   };
 
   const formatPrice = (amount: number, currency: string) => {
@@ -74,7 +105,6 @@ const ShopManager = () => {
             </Button>
           </div>
 
-          {/* Stats Overview */}
           {shops.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
               <Card className="p-4 bg-primary/5 border-primary/20">
@@ -161,7 +191,6 @@ const ShopManager = () => {
               const color = shop.primary_color || "#2563eb";
               return (
                 <Card key={shop.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300 border-transparent hover:border-primary/20">
-                  {/* Shop Banner / Visual */}
                   <div className="h-36 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}, ${color}dd)` }}>
                     {shop.banner_url ? (
                       <img src={shop.banner_url} alt="" className="w-full h-full object-cover" />
@@ -170,7 +199,6 @@ const ShopManager = () => {
                         <Store className="h-16 w-16 text-primary-foreground/30" />
                       </div>
                     )}
-                    {/* Status Badge */}
                     <div className="absolute top-3 right-3">
                       {shop.is_activated ? (
                         shop.is_published ? (
@@ -182,7 +210,6 @@ const ShopManager = () => {
                         <Badge variant="outline" className="bg-background/80 backdrop-blur-sm">Non activée</Badge>
                       )}
                     </div>
-                    {/* Logo overlay */}
                     {shop.logo_url && (
                       <div className="absolute bottom-3 left-4">
                         <img src={shop.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover border-2 border-background shadow-lg" />
@@ -197,7 +224,6 @@ const ShopManager = () => {
                       visualpro.app/shop/{shop.slug}
                     </p>
 
-                    {/* Mini Stats */}
                     <div className="grid grid-cols-2 gap-3 mb-5">
                       <div className="bg-muted/50 rounded-xl p-3 text-center">
                         <p className="text-lg font-bold">{shop.total_orders || 0}</p>
@@ -209,21 +235,25 @@ const ShopManager = () => {
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex gap-2">
-                      <Button 
-                        className="flex-1 gap-2" 
-                        onClick={() => navigate(`/shop-editor/${shop.id}`)}
-                      >
+                      <Button className="flex-1 gap-2" onClick={() => navigate(`/shop-editor/${shop.id}`)}>
                         <Settings className="h-4 w-4" />
                         Gérer
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="icon"
                         onClick={() => window.open(shop.is_activated && shop.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
                       >
                         <ArrowUpRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => setDeleteTarget(shop)}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -231,7 +261,6 @@ const ShopManager = () => {
               );
             })}
 
-            {/* Add New Shop Card */}
             <Card 
               className="overflow-hidden border-dashed border-2 hover:border-primary/50 cursor-pointer transition-all duration-300 flex items-center justify-center min-h-[320px] group"
               onClick={() => navigate("/shop-builder")}
@@ -246,6 +275,41 @@ const ShopManager = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteConfirmText(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Supprimer la boutique</DialogTitle>
+            <DialogDescription>
+              Cette action est irréversible. Tous les produits, commandes et données associées seront supprimés définitivement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm">
+              Pour confirmer, tapez <strong>{deleteTarget?.business_name}</strong> ci-dessous :
+            </p>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={deleteTarget?.business_name}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteConfirmText(""); }}>
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteConfirmText !== deleteTarget?.business_name || deleting}
+                onClick={handleDeleteShop}
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Supprimer définitivement
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

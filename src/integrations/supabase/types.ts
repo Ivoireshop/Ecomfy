@@ -1461,6 +1461,7 @@ export type Database = {
           seo_title: string | null
           slug: string
           snapchat_pixels: string[] | null
+          social_proof_enabled: boolean | null
           theme: string | null
           theme_config: Json | null
           tiktok_pixels: string[] | null
@@ -1502,6 +1503,7 @@ export type Database = {
           seo_title?: string | null
           slug: string
           snapchat_pixels?: string[] | null
+          social_proof_enabled?: boolean | null
           theme?: string | null
           theme_config?: Json | null
           tiktok_pixels?: string[] | null
@@ -1543,6 +1545,7 @@ export type Database = {
           seo_title?: string | null
           slug?: string
           snapchat_pixels?: string[] | null
+          social_proof_enabled?: boolean | null
           theme?: string | null
           theme_config?: Json | null
           tiktok_pixels?: string[] | null

@@ -155,6 +155,10 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                 <div><p className="font-medium">Boutique en ligne</p><p className="text-sm text-muted-foreground">Rendre la boutique visible aux visiteurs</p></div>
                 <Switch checked={shop.is_published} onCheckedChange={(v) => setShop({ ...shop, is_published: v })} />
               </div>
+              <div className="flex items-center justify-between">
+                <div><p className="font-medium">Preuve sociale</p><p className="text-sm text-muted-foreground">Afficher les notifications de commandes récentes aux visiteurs</p></div>
+                <Switch checked={shop.social_proof_enabled || false} onCheckedChange={(v) => setShop({ ...shop, social_proof_enabled: v })} />
+              </div>
             </Card>
           </>
         )}

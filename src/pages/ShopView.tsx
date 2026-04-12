@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -734,6 +735,9 @@ const ShopView = () => {
           </Button>
         </div>
       )}
+
+      {/* Social Proof Notifications */}
+      <SocialProofNotification shopId={shop.id} enabled={shop.social_proof_enabled || false} />
     </div>
   );
 };
