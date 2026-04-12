@@ -265,7 +265,7 @@ const Index = () => {
               <>
                 <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in tracking-tight">
                   <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" style={{ fontFamily: "'Georgia', serif" }}>
-                    {profile.full_name?.split(' ')[0]}, bienvenue
+                    {new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} {profile.full_name?.split(' ')[0]}, Bienvenue
                   </span>
                   <span className="inline-block animate-wiggle text-4xl sm:text-5xl md:text-6xl ml-2">👋</span>
                 </h1>
