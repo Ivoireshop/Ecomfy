@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ShoppingBag, X } from "lucide-react";
 
@@ -13,64 +13,89 @@ interface SocialProofNotificationProps {
   enabled: boolean;
 }
 
+const DEMO_ORDERS: RecentOrder[] = [
+  { customer_name: "Kouadio", product_name: "un article", created_at: new Date(Date.now() - 3 * 60000).toISOString() },
+  { customer_name: "Aminata", product_name: "un produit", created_at: new Date(Date.now() - 12 * 60000).toISOString() },
+  { customer_name: "Ibrahim", product_name: "un article", created_at: new Date(Date.now() - 45 * 60000).toISOString() },
+];
+
 export function SocialProofNotification({ shopId, enabled }: SocialProofNotificationProps) {
   const [orders, setOrders] = useState<RecentOrder[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [showCount, setShowCount] = useState(0);
+
+  const fetchRecentOrders = useCallback(async () => {
+    // Fetch recent orders with their items for product names
+    const { data: ordersData } = await supabase
+      .from("orders")
+      .select("id, customer_name, customer_city, created_at")
+      .eq("shop_id", shopId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (!ordersData?.length) {
+      // No real orders: use demo data so shop owner can preview
+      setOrders(DEMO_ORDERS);
+      return;
+    }
+
+    const orderResults: RecentOrder[] = [];
+    for (const order of ordersData.slice(0, 5)) {
+      // Get first product name from order items
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("product_name")
+        .eq("order_id", order.id)
+        .limit(1);
+
+      const productName = items?.[0]?.product_name || "un article";
+      const firstName = order.customer_name?.split(" ")[0] || "Un client";
+
+      orderResults.push({
+        customer_name: firstName,
+        product_name: productName,
+        created_at: order.created_at,
+      });
+    }
+    setOrders(orderResults);
+  }, [shopId]);
 
   useEffect(() => {
     if (!enabled) return;
-
-    const fetchRecentOrders = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("customer_name, created_at")
-        .eq("shop_id", shopId)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      if (!data?.length) return;
-
-      // Get order items for product names
-      const orderResults: RecentOrder[] = [];
-      for (const order of data.slice(0, 5)) {
-        orderResults.push({
-          customer_name: order.customer_name.split(" ")[0],
-          product_name: "un article",
-          created_at: order.created_at,
-        });
-      }
-      setOrders(orderResults);
-    };
-
     fetchRecentOrders();
-  }, [shopId, enabled]);
+  }, [shopId, enabled, fetchRecentOrders]);
 
+  // Show first notification after delay, then cycle
   useEffect(() => {
     if (!enabled || orders.length === 0 || dismissed) return;
 
-    // Show first notification after 5 seconds
     const showTimer = setTimeout(() => {
       setVisible(true);
-    }, 5000);
+      setShowCount(1);
+    }, 4000);
 
     return () => clearTimeout(showTimer);
   }, [orders, enabled, dismissed]);
 
+  // Auto-hide current, then show next
   useEffect(() => {
     if (!visible || dismissed) return;
 
-    // Auto-hide after 6 seconds, then show next
     const hideTimer = setTimeout(() => {
       setVisible(false);
+
+      // Show next after a pause (up to orders.length cycles)
       setTimeout(() => {
-        if (currentIndex < orders.length - 1) {
-          setCurrentIndex(prev => prev + 1);
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < orders.length) {
+          setCurrentIndex(nextIndex);
+          setShowCount(prev => prev + 1);
           setVisible(true);
         }
-      }, 8000);
-    }, 6000);
+      }, 6000);
+    }, 5000);
 
     return () => clearTimeout(hideTimer);
   }, [visible, currentIndex, orders.length, dismissed]);
@@ -88,7 +113,7 @@ export function SocialProofNotification({ shopId, enabled }: SocialProofNotifica
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 dark:text-white">
-            {order.customer_name} a passé une commande
+            {order.customer_name} a commandé <span className="font-semibold">{order.product_name}</span>
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             {timeAgo}
