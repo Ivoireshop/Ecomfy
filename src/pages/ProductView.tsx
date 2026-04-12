@@ -119,6 +119,19 @@ const ProductView = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Sync cart with current quantity when user changes quantity while inline checkout is open
+  useEffect(() => {
+    if (showInlineCheckout && product) {
+      setCart(prev => {
+        const existing = prev.find(item => item.product.id === product.id);
+        if (existing && existing.quantity !== quantity) {
+          return prev.map(item => item.product.id === product.id ? { ...item, quantity } : item);
+        }
+        return prev;
+      });
+    }
+  }, [quantity, showInlineCheckout, product]);
+
   useEffect(() => { fetchData(); }, [slug, id, productId]);
 
   const fetchData = async () => {
