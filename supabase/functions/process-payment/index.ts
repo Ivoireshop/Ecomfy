@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,9 +10,8 @@ const corsHeaders = {
 // Zod validation schema
 const PaymentSchema = z.object({
   amount: z.number(),
-  payment_method: z.enum(["mobile_money", "card", "bank_card"], {
-    errorMap: () => ({ message: "Méthode de paiement invalide. Utilisez 'mobile_money' ou 'card'" })
-  }),
+  // GeniusPay : si on omet le payment_method, le client choisit sur la page checkout (recommandé)
+  payment_method: z.string().optional(),
   user_id: z.string().uuid({
     message: "ID utilisateur invalide"
   }),
@@ -184,234 +183,135 @@ serve(async (req) => {
       });
     }
 
-    // Normalize provider and phone for Lygos compatibility
-    const mapProvider = (p?: string) => {
-      if (!p) return undefined;
-      const val = p.toLowerCase().trim();
-      if (val === "move") return "moov"; // common typo
-      return val; // accepted: wave, orange, mtn, moov
-    };
-    const normalizePhone = (ph?: string) => {
-      if (!ph) return undefined;
-      let v = ph.trim().replace(/[^\d+]/g, "");
-      if (v.startsWith("+")) return v;
-      if (v.startsWith("225")) return `+${v}`; // CI format without plus
-      if (v.length === 10 && v.startsWith("0")) return `+225${v.slice(1)}`; // default to CI if local format
-      return v;
-    };
-    const maskPhone = (p?: string) => {
-      if (!p) return undefined;
-      return p.length > 6 ? `${p.slice(0, 4)}****${p.slice(-2)}` : p;
-    };
+    // === GeniusPay integration ===
+    const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
+    const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
 
-    const normalizedProvider = mapProvider(provider);
-    const normalizedPhone = normalizePhone(phone);
-    const phoneMasked = maskPhone(normalizedPhone);
-
-    console.log("Processing payment:", { amount, payment_method, user_id, provider: normalizedProvider, phone: phoneMasked });
-
-    const LYGOS_API_KEY = Deno.env.get("LYGOS_API_KEY");
-    
-    if (!LYGOS_API_KEY) {
-      console.error("LYGOS_API_KEY not configured");
+    if (!GENIUSPAY_API_KEY || !GENIUSPAY_API_SECRET) {
+      console.error("GeniusPay credentials not configured");
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           success: false,
-          error: "Le système de paiement n'est pas configuré. Veuillez contacter l'administrateur."
+          error: "La passerelle de paiement n'est pas configurée. Contactez l'administrateur."
         }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    // Always use visuelpro.cloud as the return domain
+
     const baseReturnUrl = "https://visuelpro.cloud";
-    const orderId = `${payment_type === 'credits' ? 'credits' : 'sub'}_${user_id}_${Date.now()}`;
+    const orderId = `${payment_type === 'credits' ? 'credits' : payment_type === 'shop_activation' ? 'shop' : 'sub'}_${user_id}_${Date.now()}`;
 
-    console.log("Calling Lygos API:", {
-      amount,
-      payment_method,
-      payment_type,
-      credits_pack,
-      user_id,
-      provider: normalizedProvider,
-      phone: phoneMasked,
-      currency: "XOF",
-      country: "CI",
-      shop_name: "Visuel Pro",
-      order_id: orderId
-    });
-
-    // Build payload base (callback URLs will be attached after method/provider resolution)
-    const messageText = payment_type === 'shop_activation'
+    const description = payment_type === 'shop_activation'
       ? "Activation Boutique E-commerce - Visuel Pro"
-      : payment_type === 'credits' && credits_pack 
+      : payment_type === 'credits' && credits_pack
         ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
-        : "Abonnement Visuel Pro - Plan Premium";
-    
-    const basePayload = {
-      amount: finalAmount,
-      currency: "XOF",
-      country: "CI",
-      shop_name: "Visuel Pro",
-      message: messageText,
+        : "Abonnement Visuel Pro";
+
+    // Fetch user profile (name, email, phone) for the customer object
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email, phone')
+      .eq('id', user_id)
+      .single();
+
+    const customer: Record<string, string> = {};
+    if (userProfile?.full_name) customer.name = userProfile.full_name;
+    if (userProfile?.email) customer.email = userProfile.email;
+    const customerPhone = phone || userProfile?.phone;
+    if (customerPhone) {
+      let v = String(customerPhone).trim().replace(/[^\d+]/g, "");
+      if (!v.startsWith("+")) {
+        if (v.startsWith("225")) v = `+${v}`;
+        else if (v.length === 10 && v.startsWith("0")) v = `+225${v.slice(1)}`;
+        else v = `+225${v}`;
+      }
+      customer.phone = v;
+    }
+
+    // Metadata embedded in the payment for the webhook to credit the user
+    const metadata: Record<string, unknown> = {
       user_id,
       order_id: orderId,
-    } as Record<string, unknown>;
-
-    let payload: Record<string, unknown> = { ...basePayload };
-    const methodLower = (payment_method || '').toLowerCase();
-    if (methodLower === 'card' || methodLower === 'bank_card') {
-      payload.payment_method = 'card';
-      // Do not include phone/provider for card payments
-    } else {
-      payload.payment_method = 'mobile_money';
-      if (normalizedProvider) {
-        payload.provider = normalizedProvider;
-        payload.operator = normalizedProvider;
-      }
-      if (normalizedPhone && normalizedProvider !== 'wave') {
-        payload.phone = normalizedPhone;
-      }
-    }
-
-    // Attach callback URLs including return_url and metadata for recording
-    const successParamsObj: Record<string, string> = {
-      status: 'success',
-      user_id,
-      amount: String(finalAmount),
-      original_amount: String(amount),
-      transaction_id: orderId,
-      payment_method: String((payload as any).payment_method || ''),
-      provider: String((payload as any).provider || ''),
-      payment_type: payment_type || 'subscription',
-      credits_size: credits_pack?.size ? String(credits_pack.size) : '',
-      return_url: baseReturnUrl || ''
+      payment_type,
+      original_amount: amount,
     };
-    
-    if (promoCodeId) {
-      successParamsObj.promo_code_id = promoCodeId;
-    }
-    if (discountPercentage) {
-      successParamsObj.discount_percentage = String(discountPercentage);
-    }
-    
-    const successParams = new URLSearchParams(successParamsObj);
-    const failureParams = new URLSearchParams({
-      status: 'failure',
-      user_id,
-      payment_method: String((payload as any).payment_method || ''),
-      provider: String((payload as any).provider || ''),
-      return_url: baseReturnUrl || ''
-    });
+    if (credits_pack?.size) metadata.credits_size = credits_pack.size;
+    if (promoCodeId) metadata.promo_code_id = promoCodeId;
+    if (discountPercentage) metadata.discount_percentage = discountPercentage;
 
-    (payload as any).success_url = `${supabaseUrl}/functions/v1/payment-callback?${successParams.toString()}`;
-    (payload as any).failure_url = `${supabaseUrl}/functions/v1/payment-callback?${failureParams.toString()}`;
+    // Hosted checkout (no payment_method) -> client picks Wave/Orange/MTN/Moov/Card
+    const geniusPayload: Record<string, unknown> = {
+      amount: finalAmount,
+      currency: "XOF",
+      description,
+      customer,
+      metadata,
+      success_url: `${baseReturnUrl}/payment-success?ref=${orderId}`,
+      error_url: `${baseReturnUrl}/subscription?payment=failed`,
+    };
 
-    console.log('Gateway payload (sanitized):', { ...payload, phone: phoneMasked });
+    console.log("Calling GeniusPay:", { ...geniusPayload, customer: { ...customer, phone: customer.phone ? `${customer.phone.slice(0, 4)}****` : undefined } });
 
-    // Retry logic for API calls with timeout
-    const MAX_RETRIES = 3;
-    const TIMEOUT_MS = 15000; // 15 seconds timeout
-    
     let paymentData: any = null;
-    let lastError: Error | null = null;
-    
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        console.log(`Lygos API attempt ${attempt}/${MAX_RETRIES}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-        
-        const paymentResponse = await fetch("https://api.lygosapp.com/v1/gateway", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": LYGOS_API_KEY,
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-        if (!paymentResponse.ok) {
-          let errDetail = '';
-          try {
-            const errJson = await paymentResponse.json();
-            errDetail = errJson?.message || errJson?.error || JSON.stringify(errJson);
-          } catch (_) {
-            errDetail = await paymentResponse.text();
-          }
-          console.error("Lygos API error:", paymentResponse.status, errDetail);
-          throw new Error(`Erreur Lygos: ${errDetail || paymentResponse.status}`);
-        }
+      const resp = await fetch("https://pay.genius.ci/api/v1/merchant/payments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": GENIUSPAY_API_KEY,
+          "X-API-Secret": GENIUSPAY_API_SECRET,
+        },
+        body: JSON.stringify(geniusPayload),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
 
-        paymentData = await paymentResponse.json();
-        console.log("Lygos API response:", paymentData);
-        break; // Success, exit retry loop
-        
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        console.error(`Attempt ${attempt} failed:`, lastError.message);
-        
-        // Check if it's a network/DNS error
-        if (lastError.message.includes('dns error') || 
-            lastError.message.includes('name resolution') ||
-            lastError.message.includes('AbortError') ||
-            lastError.message.includes('network')) {
-          console.log(`Network error detected, ${attempt < MAX_RETRIES ? 'retrying...' : 'no more retries'}`);
-          
-          if (attempt < MAX_RETRIES) {
-            // Wait before retry (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-            continue;
-          }
-        }
-        
-        // For non-network errors or last attempt, break
-        if (attempt === MAX_RETRIES) {
-          break;
-        }
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok || json?.success === false) {
+        const errMsg = json?.error?.message || json?.message || `HTTP ${resp.status}`;
+        console.error("GeniusPay API error:", resp.status, json);
+        return new Response(
+          JSON.stringify({ success: false, error: `Erreur passerelle de paiement: ${errMsg}` }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    }
-    
-    if (!paymentData) {
-      console.error("All payment attempts failed:", lastError?.message);
-      
-      // Provide user-friendly error message
-      const isNetworkError = lastError?.message?.includes('dns error') || 
-                             lastError?.message?.includes('name resolution') ||
-                             lastError?.message?.includes('network');
-      
+      paymentData = json.data || json;
+      console.log("GeniusPay response:", { reference: paymentData?.reference, status: paymentData?.status });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("GeniusPay request failed:", msg);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           success: false,
-          error: isNetworkError 
-            ? "Le service de paiement est temporairement indisponible. Veuillez réessayer dans quelques instants."
-            : (lastError?.message || "Une erreur est survenue lors du paiement")
+          error: "Le service de paiement est temporairement indisponible. Veuillez réessayer."
         }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    
+
+    // Pre-record a pending payment so the webhook can mark it completed by reference
+    try {
+      await supabase.from("payments").insert({
+        user_id,
+        payment_method: "geniuspay",
+        amount: finalAmount,
+        currency: "XOF",
+        provider: "geniuspay",
+        transaction_id: paymentData.reference,
+        status: "pending",
+        metadata,
+      });
+    } catch (e) {
+      console.warn("Could not pre-record payment:", e);
+    }
+
     // Send notification email to founders if promo code was used
     if (promo_code && promoCodeId) {
       try {
-        // Get user profile for notification
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', user_id)
-          .single();
-
         if (userProfile) {
-          // Call notification function
           await supabase.functions.invoke('send-promo-notification', {
             body: {
               userName: userProfile.full_name || 'Utilisateur',
@@ -426,19 +326,18 @@ serve(async (req) => {
         }
       } catch (notifError) {
         console.error('Error sending promo notification:', notifError);
-        // Don't fail the payment if notification fails
       }
     }
-    
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
-        payment_url: paymentData.payment_url || paymentData.url || paymentData.checkout_url || paymentData.link,
-        transaction_id: paymentData.transaction_id || paymentData.order_id || paymentData.id || orderId,
+        payment_url: paymentData.checkout_url || paymentData.payment_url,
+        checkout_url: paymentData.checkout_url || paymentData.payment_url,
+        transaction_id: paymentData.reference || orderId,
+        reference: paymentData.reference,
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
