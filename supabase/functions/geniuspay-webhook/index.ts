@@ -1,0 +1,237 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-webhook-timestamp, x-webhook-event, x-webhook-environment, x-webhook-delivery",
+};
+
+// HMAC-SHA256(timestamp + "." + json_payload) -> hex
+async function computeSignature(secret: string, data: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Always return 200 with JSON body to acknowledge receipt — GeniusPay won't retry on 4xx repeatedly
+  const ack = (body: Record<string, unknown>, log = false) => {
+    if (log) console.log("Webhook ack:", body);
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const secret = Deno.env.get("GENIUSPAY_WEBHOOK_SECRET");
+    if (!secret) {
+      console.error("GENIUSPAY_WEBHOOK_SECRET not configured");
+      return ack({ success: false, error: "Webhook secret not configured" });
+    }
+
+    const rawBody = await req.text();
+    const signature = req.headers.get("X-Webhook-Signature") || req.headers.get("x-webhook-signature") || "";
+    const timestamp = req.headers.get("X-Webhook-Timestamp") || req.headers.get("x-webhook-timestamp") || "";
+    const eventHeader = req.headers.get("X-Webhook-Event") || req.headers.get("x-webhook-event") || "";
+
+    if (!signature || !timestamp) {
+      console.warn("Missing webhook signature/timestamp headers");
+      return ack({ success: false, error: "Missing signature headers" });
+    }
+
+    // Replay protection (5 min window)
+    const tsNum = parseInt(timestamp, 10);
+    if (!Number.isFinite(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > 300) {
+      console.warn("Webhook timestamp outside tolerance:", timestamp);
+      return ack({ success: false, error: "Timestamp out of range" });
+    }
+
+    const expected = await computeSignature(secret, `${timestamp}.${rawBody}`);
+    if (!timingSafeEqual(expected, signature)) {
+      console.warn("Invalid webhook signature", {
+        received: signature.slice(0, 12) + "...",
+        expected: expected.slice(0, 12) + "...",
+      });
+      return ack({ success: false, error: "Invalid signature" });
+    }
+
+    let payload: any;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return ack({ success: false, error: "Invalid JSON" });
+    }
+
+    const event = payload?.event || eventHeader;
+    const data = payload?.data || {};
+    const reference: string | undefined = data?.reference;
+    const status: string | undefined = data?.status;
+    const metadata = data?.metadata || {};
+    const amountPaid = Number(data?.amount) || 0;
+
+    console.log("GeniusPay webhook:", { event, reference, status, environment: payload?.environment });
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Always upsert/log the payment record by reference
+    if (reference) {
+      try {
+        const { data: existing } = await supabase
+          .from("payments")
+          .select("id, status")
+          .eq("transaction_id", reference)
+          .maybeSingle();
+
+        const paymentRow = {
+          user_id: metadata.user_id || null,
+          payment_method: data?.payment_method || data?.provider || "geniuspay",
+          amount: amountPaid,
+          currency: data?.currency || "XOF",
+          provider: data?.provider || data?.payment_method || "geniuspay",
+          transaction_id: reference,
+          status: event === "payment.success" || status === "completed" ? "completed" :
+                  event === "payment.failed" ? "failed" :
+                  event === "payment.cancelled" ? "cancelled" :
+                  event === "payment.expired" ? "expired" :
+                  event === "payment.refunded" ? "refunded" : (status || "pending"),
+          metadata,
+        };
+
+        if (existing) {
+          await supabase.from("payments").update(paymentRow).eq("id", existing.id);
+        } else if (paymentRow.user_id) {
+          await supabase.from("payments").insert(paymentRow);
+        }
+      } catch (e) {
+        console.error("Failed to upsert payment row:", e);
+      }
+    }
+
+    // Only credit on success
+    if (event !== "payment.success" && status !== "completed") {
+      return ack({ success: true, ignored: true, event, status }, true);
+    }
+
+    const userId = metadata?.user_id;
+    const paymentType = metadata?.payment_type || "subscription";
+    const creditsSize = Number(metadata?.credits_size || 0);
+    const promoCodeId = metadata?.promo_code_id;
+    const discountPct = Number(metadata?.discount_percentage || 0);
+
+    if (!userId) {
+      console.warn("No user_id in metadata, cannot credit user", { reference });
+      return ack({ success: true, warning: "no user_id in metadata" });
+    }
+
+    if (paymentType === "shop_activation") {
+      await supabase.from("profiles").update({ shop_activation_paid: true }).eq("id", userId);
+      await supabase.from("shops").update({ is_activated: true, is_published: true }).eq("user_id", userId);
+      console.log("Shop activated for", userId);
+    } else if (paymentType === "credits" && creditsSize > 0) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("purchased_credits, has_showcase_access")
+        .eq("id", userId)
+        .single();
+
+      const newTotal = (profile?.purchased_credits || 0) + creditsSize;
+      const enableShowcase = creditsSize >= 50 || profile?.has_showcase_access;
+
+      await supabase.from("profiles").update({
+        purchased_credits: newTotal,
+        has_showcase_access: enableShowcase,
+      }).eq("id", userId);
+
+      await supabase.from("credit_purchases").insert({
+        user_id: userId,
+        pack_size: creditsSize,
+        pack_price: amountPaid,
+        credits_added: creditsSize,
+      });
+      console.log(`Credited ${creditsSize} credits to`, userId, "total:", newTotal);
+    } else {
+      // Subscription
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 30);
+
+      await supabase.from("subscriptions").update({
+        status: "active",
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("user_id", userId);
+
+      // Send confirmation email
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", userId)
+          .single();
+        if (profile?.email) {
+          await supabase.functions.invoke("send-subscription-email", {
+            body: {
+              email: profile.email,
+              full_name: profile.full_name || "Cher utilisateur",
+              amount: amountPaid,
+              start_date: startDate.toISOString(),
+              end_date: endDate.toISOString(),
+            },
+          });
+        }
+      } catch (e) {
+        console.warn("Could not send subscription email:", e);
+      }
+      console.log("Subscription activated for", userId);
+    }
+
+    // Increment promo usage
+    if (promoCodeId) {
+      try {
+        const { data: promo } = await supabase
+          .from("promo_codes")
+          .select("code")
+          .eq("id", promoCodeId)
+          .single();
+        if (promo?.code) {
+          await supabase.rpc("increment_promo_usage", { promo_code: promo.code });
+        }
+      } catch (e) {
+        console.warn("Promo increment failed:", e);
+      }
+    }
+
+    return ack({ success: true, event, reference }, true);
+  } catch (err) {
+    console.error("Webhook handler error:", err);
+    return new Response(
+      JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Unknown error" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
