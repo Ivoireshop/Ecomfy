@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut, Receipt, Zap, Star, X, Check, Sparkles, TrendingUp, Users } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 
 interface Subscription {
   id: string;
@@ -201,6 +202,7 @@ const Subscription = () => {
     options?: { provider?: string; phone?: string }
   ) => {
     setIsProcessing(true);
+    const paymentWindow = openPaymentWindow();
     try {
       const planAmount = selectedPlan === 'startup' ? 50000 : 10000;
       const amount = selectedPack ? selectedPack.price : planAmount;
@@ -226,13 +228,14 @@ const Subscription = () => {
 
       const paymentUrl = data?.payment_url || data?.url || data?.checkout_url || data?.link;
       if (paymentUrl && typeof paymentUrl === "string") {
-        window.location.assign(paymentUrl);
+        redirectToPaymentUrl(paymentUrl, paymentWindow);
         return;
       }
 
       console.error("Paiement: réponse inattendue", data);
       throw new Error("Impossible d'ouvrir la page de paiement. Veuillez réessayer.");
     } catch (error) {
+      closePaymentWindow(paymentWindow);
       console.error("Erreur lors du paiement:", error);
       toast({
         title: "Erreur",
