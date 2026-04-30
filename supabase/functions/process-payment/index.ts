@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,9 +10,8 @@ const corsHeaders = {
 // Zod validation schema
 const PaymentSchema = z.object({
   amount: z.number(),
-  payment_method: z.enum(["mobile_money", "card", "bank_card"], {
-    errorMap: () => ({ message: "Méthode de paiement invalide. Utilisez 'mobile_money' ou 'card'" })
-  }),
+  // GeniusPay : si on omet le payment_method, le client choisit sur la page checkout (recommandé)
+  payment_method: z.string().optional(),
   user_id: z.string().uuid({
     message: "ID utilisateur invalide"
   }),
