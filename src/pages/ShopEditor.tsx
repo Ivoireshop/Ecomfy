@@ -21,6 +21,7 @@ import { ProductEditor } from "@/components/shop/ProductEditor";
 import { ShopStatistics } from "@/components/shop/ShopStatistics";
 import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 
 interface Product {
   id: string;
@@ -132,6 +133,7 @@ const ShopEditor = () => {
     if (!activationProvider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
     if (activationProvider !== "wave" && !activationPhone) { toast({ title: "Entrez votre numéro", variant: "destructive" }); return; }
     setActivating(true);
+    const paymentWindow = openPaymentWindow();
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connecté");
@@ -140,9 +142,10 @@ const ShopEditor = () => {
       });
       if (error) throw error;
       const paymentUrl = data?.payment_url || data?.url || data?.checkout_url || data?.link;
-      if (paymentUrl) { window.location.assign(paymentUrl); return; }
+      if (paymentUrl && typeof paymentUrl === "string") { redirectToPaymentUrl(paymentUrl, paymentWindow); return; }
       throw new Error("Impossible d'ouvrir la page de paiement");
     } catch (err) {
+      closePaymentWindow(paymentWindow);
       toast({ title: "Erreur", description: err instanceof Error ? err.message : "Erreur de paiement", variant: "destructive" });
     } finally { setActivating(false); }
   };
