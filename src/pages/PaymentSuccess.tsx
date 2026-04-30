@@ -13,14 +13,37 @@ export default function PaymentSuccess() {
   const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
   const [courseName, setCourseName] = useState<string>("");
   const enrollmentId = searchParams.get("enrollment_id");
+  const paymentRef = searchParams.get("ref");
 
   useEffect(() => {
+    // Filet de sécurité : si on revient de GeniusPay avec une référence,
+    // on vérifie le statut côté serveur et on crédite si nécessaire.
+    if (paymentRef) {
+      verifyPayment(paymentRef);
+    }
     if (enrollmentId) {
       loadEnrollmentDetails();
     } else {
       setLoading(false);
     }
-  }, [enrollmentId]);
+  }, [enrollmentId, paymentRef]);
+
+  const verifyPayment = async (reference: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-payment", {
+        body: { reference },
+      });
+      if (error) {
+        console.warn("verify-payment error:", error);
+        return;
+      }
+      if (data?.applied) {
+        toast.success("Paiement confirmé et compte mis à jour !");
+      }
+    } catch (e) {
+      console.warn("verify-payment failed:", e);
+    }
+  };
 
   const loadEnrollmentDetails = async () => {
     try {
