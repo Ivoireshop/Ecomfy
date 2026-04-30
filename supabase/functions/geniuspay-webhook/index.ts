@@ -89,6 +89,13 @@ serve(async (req) => {
     const status: string | undefined = data?.status;
     const metadata = data?.metadata || {};
     const amountPaid = Number(data?.amount) || 0;
+    const currency: string = (data?.currency || "XOF").toUpperCase();
+    const deliveryId =
+      req.headers.get("X-Webhook-Delivery") ||
+      req.headers.get("x-webhook-delivery") ||
+      payload?.id ||
+      data?.id ||
+      `${reference || "noref"}:${event || "noevt"}:${timestamp}`;
 
     console.log("GeniusPay webhook:", { event, reference, status, environment: payload?.environment });
 
@@ -97,20 +104,90 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // ───── IDEMPOTENCE: refuse same (provider, event_id) twice ─────
+    try {
+      const { error: dupErr } = await supabase.from("webhook_events").insert({
+        provider: "geniuspay",
+        event_id: String(deliveryId),
+        event_type: event,
+        reference: reference || null,
+        amount: amountPaid,
+        currency,
+        payload,
+      });
+      if (dupErr) {
+        // 23505 = unique_violation → already processed
+        if ((dupErr as any).code === "23505") {
+          console.log("Duplicate webhook ignored:", { deliveryId, reference, event });
+          return ack({ success: true, duplicate: true, event, reference }, true);
+        }
+        console.warn("webhook_events insert error (non-blocking):", dupErr);
+      }
+    } catch (e) {
+      console.warn("Idempotence check failed (non-blocking):", e);
+    }
+
     // Always upsert/log the payment record by reference
     if (reference) {
       try {
         const { data: existing } = await supabase
           .from("payments")
-          .select("id, status")
+          .select("id, status, amount, currency, user_id")
           .eq("transaction_id", reference)
           .maybeSingle();
+
+        // ───── ANTI-FRAUDE: vérifier la cohérence avec le paiement initial ─────
+        if (existing) {
+          // 1) Déjà completed → ne pas recréditer
+          if (existing.status === "completed") {
+            console.log("Payment already completed, skipping re-credit:", reference);
+            return ack({ success: true, alreadyCompleted: true, reference }, true);
+          }
+          // 2) Montant doit correspondre (tolérance 1 unité pour arrondi)
+          if (
+            (event === "payment.success" || status === "completed") &&
+            existing.amount != null &&
+            Math.abs(Number(existing.amount) - amountPaid) > 1
+          ) {
+            console.error("Amount mismatch — possible fraud:", {
+              reference,
+              expected: existing.amount,
+              received: amountPaid,
+            });
+            return ack({ success: false, error: "Amount mismatch", reference }, true);
+          }
+          // 3) Devise doit correspondre
+          if (
+            existing.currency &&
+            existing.currency.toUpperCase() !== currency
+          ) {
+            console.error("Currency mismatch — possible fraud:", {
+              reference,
+              expected: existing.currency,
+              received: currency,
+            });
+            return ack({ success: false, error: "Currency mismatch", reference }, true);
+          }
+          // 4) user_id metadata doit correspondre au paiement initial
+          if (
+            metadata?.user_id &&
+            existing.user_id &&
+            existing.user_id !== metadata.user_id
+          ) {
+            console.error("User mismatch — possible fraud:", {
+              reference,
+              expected: existing.user_id,
+              received: metadata.user_id,
+            });
+            return ack({ success: false, error: "User mismatch", reference }, true);
+          }
+        }
 
         const paymentRow = {
           user_id: metadata.user_id || null,
           payment_method: data?.payment_method || data?.provider || "geniuspay",
           amount: amountPaid,
-          currency: data?.currency || "XOF",
+          currency,
           provider: data?.provider || data?.payment_method || "geniuspay",
           transaction_id: reference,
           status: event === "payment.success" || status === "completed" ? "completed" :
