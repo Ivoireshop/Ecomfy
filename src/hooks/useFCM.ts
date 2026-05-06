@@ -78,7 +78,7 @@ export function useFCM(shopId?: string) {
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       register();
     }
-  }, [register]);
+  }, [register, shopId]);
 
   return { token, status, register };
 }

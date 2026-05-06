@@ -23,6 +23,7 @@ import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
 import { BillingHistory } from "@/components/shop/BillingHistory";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
+import { useFCM } from "@/hooks/useFCM";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 
@@ -119,6 +120,9 @@ const ShopEditor = () => {
 
   // Native browser/PWA notifications + sound for new orders
   useOrderNotifications(id);
+
+  // Auto-register FCM push token (so notifications arrive even when PWA is closed)
+  useFCM(id);
 
   useEffect(() => {
     if (!id) return;
