@@ -1,8 +1,8 @@
-import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export type ActiveSection = "overview" | "products" | "orders" | "appearance" | "statistics" | "theme" | "settings";
+export type ActiveSection = "overview" | "products" | "orders" | "appearance" | "statistics" | "theme" | "billing" | "settings";
 
 interface ShopSidebarProps {
   shopName: string;
@@ -28,6 +28,7 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; }[
   { id: "statistics", label: "Statistiques", icon: PieChart },
   { id: "appearance", label: "Boutique", icon: Palette },
   { id: "theme", label: "Thème", icon: Paintbrush },
+  { id: "billing", label: "Facturation", icon: Receipt },
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
 
