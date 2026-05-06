@@ -1067,6 +1067,7 @@ const ProductView = () => {
                 } else {
                   addToCart(product, quantity);
                   setCheckoutOpen(true);
+                  setCheckoutStep("info");
                   setOrderSuccess(false);
                 }
               }}
