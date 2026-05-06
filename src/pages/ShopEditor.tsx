@@ -180,6 +180,15 @@ const ShopEditor = () => {
       google_analytics_code: shop.google_analytics_code, checkout_fields: shop.checkout_fields,
       cod_delivery_rate: shop.cod_delivery_rate, payment_methods: shop.payment_methods,
       theme_config: shop.theme_config,
+      tracking_enabled: shop.tracking_enabled,
+      facebook_access_token: shop.facebook_access_token,
+      facebook_test_event_code: shop.facebook_test_event_code,
+      tiktok_access_token: shop.tiktok_access_token,
+      snapchat_access_token: shop.snapchat_access_token,
+      ga4_measurement_id: shop.ga4_measurement_id,
+      ga4_api_secret: shop.ga4_api_secret,
+      google_ads_conversion_id: shop.google_ads_conversion_id,
+      google_ads_conversion_label: shop.google_ads_conversion_label,
     }).eq("id", shop.id) as any;
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
     else toast({ title: "✓ Sauvegardé" });
