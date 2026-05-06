@@ -21,6 +21,8 @@ import { ProductEditor } from "@/components/shop/ProductEditor";
 import { ShopStatistics } from "@/components/shop/ShopStatistics";
 import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
+import { BillingHistory } from "@/components/shop/BillingHistory";
+import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 
@@ -114,6 +116,9 @@ const ShopEditor = () => {
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Native browser/PWA notifications + sound for new orders
+  useOrderNotifications(id);
 
   useEffect(() => {
     if (!id) return;
@@ -576,6 +581,10 @@ const ShopEditor = () => {
 
           {activeSection === "settings" && (
             <ShopSettings shop={shop} setShop={setShop} onDeleteShop={() => navigate("/shop-manager")} />
+          )}
+
+          {activeSection === "billing" && (
+            <BillingHistory shopId={shop.id} shop={shop} orderCount={orders.length} />
           )}
         </div>
       </main>
