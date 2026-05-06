@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -91,6 +92,25 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                   <Badge variant={order.payment_method === "mobile_money" ? "default" : "outline"} className="text-xs">
                     {order.payment_method === "mobile_money" ? "Mobile Money" : "À la livraison"}
                   </Badge>
+                  {order.customer_phone && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Button asChild size="sm" variant="outline" className="h-9">
+                        <a href={`tel:${order.customer_phone.replace(/[^0-9+]/g, "")}`} onClick={(e) => e.stopPropagation()}>
+                          <Phone className="h-4 w-4 mr-1" /> Appeler
+                        </a>
+                      </Button>
+                      <Button asChild size="sm" className="h-9 bg-green-600 hover:bg-green-700 text-white">
+                        <a
+                          href={`https://wa.me/${order.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}?text=${encodeURIComponent(`Bonjour ${order.customer_name}, je vous contacte au sujet de votre commande ${order.order_number}.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp
+                        </a>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
