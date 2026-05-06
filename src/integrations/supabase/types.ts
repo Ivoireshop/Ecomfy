@@ -1440,10 +1440,14 @@ export type Database = {
           checkout_fields: Json | null
           city: string | null
           cod_delivery_rate: number | null
+          commission_balance_due: number
+          commission_per_order: number
           commission_rate: number | null
+          commission_threshold: number
           country: string | null
           created_at: string
           currency: string | null
+          delivery_advisor_phone: string | null
           email: string | null
           facebook_access_token: string | null
           facebook_pixels: string[] | null
@@ -1458,7 +1462,10 @@ export type Database = {
           id: string
           is_activated: boolean | null
           is_published: boolean | null
+          is_suspended: boolean
           logo_url: string | null
+          order_confirmation_message: string | null
+          payment_deadline: string | null
           payment_methods: string[] | null
           phone_number: string | null
           primary_color: string | null
@@ -1491,10 +1498,14 @@ export type Database = {
           checkout_fields?: Json | null
           city?: string | null
           cod_delivery_rate?: number | null
+          commission_balance_due?: number
+          commission_per_order?: number
           commission_rate?: number | null
+          commission_threshold?: number
           country?: string | null
           created_at?: string
           currency?: string | null
+          delivery_advisor_phone?: string | null
           email?: string | null
           facebook_access_token?: string | null
           facebook_pixels?: string[] | null
@@ -1509,7 +1520,10 @@ export type Database = {
           id?: string
           is_activated?: boolean | null
           is_published?: boolean | null
+          is_suspended?: boolean
           logo_url?: string | null
+          order_confirmation_message?: string | null
+          payment_deadline?: string | null
           payment_methods?: string[] | null
           phone_number?: string | null
           primary_color?: string | null
@@ -1542,10 +1556,14 @@ export type Database = {
           checkout_fields?: Json | null
           city?: string | null
           cod_delivery_rate?: number | null
+          commission_balance_due?: number
+          commission_per_order?: number
           commission_rate?: number | null
+          commission_threshold?: number
           country?: string | null
           created_at?: string
           currency?: string | null
+          delivery_advisor_phone?: string | null
           email?: string | null
           facebook_access_token?: string | null
           facebook_pixels?: string[] | null
@@ -1560,7 +1578,10 @@ export type Database = {
           id?: string
           is_activated?: boolean | null
           is_published?: boolean | null
+          is_suspended?: boolean
           logo_url?: string | null
+          order_confirmation_message?: string | null
+          payment_deadline?: string | null
           payment_methods?: string[] | null
           phone_number?: string | null
           primary_color?: string | null
