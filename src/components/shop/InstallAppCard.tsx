@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Bell, Download, Check } from "lucide-react";
+import { Smartphone, Bell, Download, Check, HelpCircle, Share, Plus, Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { requestNotificationPermission } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
@@ -29,6 +31,7 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
   }, []);
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isAndroid = /Android/i.test(navigator.userAgent);
 
   const handleInstall = async () => {
     if (deferredPrompt) {
@@ -101,6 +104,156 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
           <strong>Sur iPhone :</strong> Ouvrez ce lien dans Safari, touchez le bouton Partager <span className="inline-block">⬆</span> puis « Sur l'écran d'accueil » pour installer l'application.
         </div>
       )}
+
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="sm" className="w-full gap-2 text-primary">
+            <HelpCircle className="h-4 w-4" /> Guide pas à pas (avec captures)
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Comment installer & activer les notifications</DialogTitle>
+          </DialogHeader>
+
+          <Tabs defaultValue={isIOS ? "ios" : isAndroid ? "android" : "ios"}>
+            <TabsList className="grid grid-cols-3 w-full">
+              <TabsTrigger value="ios">iPhone</TabsTrigger>
+              <TabsTrigger value="android">Android</TabsTrigger>
+              <TabsTrigger value="desktop">Ordinateur</TabsTrigger>
+            </TabsList>
+
+            {/* ===== iPhone ===== */}
+            <TabsContent value="ios" className="space-y-5 pt-4">
+              <section>
+                <h4 className="font-semibold mb-2">📲 Installer l'application</h4>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
+                    <div>
+                      Ouvrez cette page <strong>uniquement avec Safari</strong> (pas Chrome, pas Facebook, pas Instagram).
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
+                    <div>
+                      Regardez <strong>en bas de l'écran</strong> (ou en haut sur iPad). Vous verrez une barre avec plusieurs icônes.
+                      Touchez l'icône <strong>Partager</strong> :
+                      <div className="mt-2 inline-flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                        <Share className="h-5 w-5 text-primary" />
+                        <span className="text-xs">un carré avec une flèche ⬆ qui sort vers le haut</span>
+                      </div>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">3</span>
+                    <div>
+                      Si vous ne voyez pas la barre du bas, <strong>touchez une fois en bas de l'écran</strong> ou <strong>faites défiler vers le haut</strong>, la barre Safari apparaîtra.
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">4</span>
+                    <div>
+                      Dans le menu qui s'ouvre, <strong>faites glisser vers le bas</strong> et choisissez :
+                      <div className="mt-2 inline-flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                        <Plus className="h-5 w-5 text-primary" />
+                        <span className="text-xs font-medium">« Sur l'écran d'accueil »</span>
+                      </div>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">5</span>
+                    <div>Touchez <strong>« Ajouter »</strong> en haut à droite. L'icône VisualPro apparaît sur votre écran d'accueil.</div>
+                  </li>
+                </ol>
+              </section>
+
+              <section>
+                <h4 className="font-semibold mb-2">🔔 Activer les notifications (iPhone)</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  ⚠️ Sur iPhone, les notifications fonctionnent <strong>uniquement après avoir installé l'application</strong> (étapes ci-dessus).
+                </p>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
+                    <div>Une fois installée, ouvrez l'app <strong>VisualPro depuis votre écran d'accueil</strong> (pas depuis Safari).</div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
+                    <div>Allez dans <strong>Boutique → Facturation</strong> et touchez <strong>« Activer les notifications »</strong>. iOS vous demandera l'autorisation : touchez <strong>Autoriser</strong>.</div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">3</span>
+                    <div>
+                      Si vous avez touché « Refuser » par erreur :
+                      <div className="mt-1 pl-2 border-l-2 border-primary/30 text-xs space-y-1">
+                        <div>• Ouvrez <strong>Réglages</strong> de l'iPhone</div>
+                        <div>• Faites défiler jusqu'à <strong>VisualPro</strong></div>
+                        <div>• Touchez <strong>Notifications</strong> → activez <strong>« Autoriser les notifications »</strong></div>
+                      </div>
+                    </div>
+                  </li>
+                </ol>
+              </section>
+            </TabsContent>
+
+            {/* ===== Android ===== */}
+            <TabsContent value="android" className="space-y-5 pt-4">
+              <section>
+                <h4 className="font-semibold mb-2">📲 Installer l'application</h4>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
+                    <div>Ouvrez cette page avec <strong>Chrome</strong> (recommandé).</div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
+                    <div>Touchez le bouton <strong>« Installer l'application »</strong> ci-dessus, ou ouvrez le menu <strong>⋮</strong> en haut à droite de Chrome puis choisissez <strong>« Installer l'application »</strong> ou <strong>« Ajouter à l'écran d'accueil »</strong>.</div>
+                  </li>
+                </ol>
+              </section>
+
+              <section>
+                <h4 className="font-semibold mb-2">🔔 Activer les notifications</h4>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
+                    <div>Touchez <strong>« Activer les notifications »</strong>. Chrome demandera l'autorisation → touchez <strong>Autoriser</strong>.</div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
+                    <div>
+                      Si elles sont bloquées :
+                      <div className="mt-1 pl-2 border-l-2 border-primary/30 text-xs space-y-1">
+                        <div>• Dans Chrome, touchez le <strong>cadenas 🔒</strong> à gauche de l'adresse du site</div>
+                        <div>• Touchez <strong>Autorisations</strong> → <strong>Notifications</strong> → activez l'interrupteur</div>
+                        <div>• Rechargez la page et réessayez</div>
+                      </div>
+                    </div>
+                  </li>
+                </ol>
+              </section>
+            </TabsContent>
+
+            {/* ===== Desktop ===== */}
+            <TabsContent value="desktop" className="space-y-5 pt-4">
+              <section>
+                <h4 className="font-semibold mb-2">💻 Installer & activer (Chrome / Edge)</h4>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
+                    <div>Cliquez sur l'icône <strong>installation</strong> à droite de la barre d'adresse (un petit écran avec flèche ⤓), ou menu <strong>⋮</strong> → <strong>« Installer VisualPro »</strong>.</div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
+                    <div>Pour les notifications : cliquez sur le <strong>cadenas 🔒</strong> à gauche de l'URL → <strong>Notifications : Autoriser</strong>, puis rechargez.</div>
+                  </li>
+                </ol>
+              </section>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
