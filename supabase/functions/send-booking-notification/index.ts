@@ -29,6 +29,14 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authHeader = req.headers.get("Authorization") || req.headers.get("apikey");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { showcaseSiteId, bookingDetails }: BookingNotificationRequest = await req.json();
     

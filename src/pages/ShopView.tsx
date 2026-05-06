@@ -68,14 +68,11 @@ const ShopView = () => {
         shopData = { ...previewById, _isPreview: true };
       }
     } else if (slug) {
-      // Public live shop
+      // Public live shop (uses sanitized public view that hides sensitive financial fields)
       const { data: liveRows } = await supabase
-        .from("shops")
+        .from("shops_public" as any)
         .select("*")
         .eq("slug", slug)
-        .eq("is_published", true)
-        .eq("is_activated", true)
-        .eq("is_suspended", false)
         .order("created_at", { ascending: false })
         .limit(1) as any;
 

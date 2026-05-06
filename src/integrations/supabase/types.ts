@@ -604,6 +604,13 @@ export type Database = {
             referencedRelation: "shops"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "device_tokens_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       email_reminders: {
@@ -1192,6 +1199,13 @@ export type Database = {
             referencedRelation: "shops"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orders_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payment_links: {
@@ -1390,6 +1404,13 @@ export type Database = {
             columns: ["shop_id"]
             isOneToOne: false
             referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2511,7 +2532,135 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      shops_public: {
+        Row: {
+          address: string | null
+          banner_url: string | null
+          business_description: string | null
+          business_name: string | null
+          chatbot_enabled: boolean | null
+          chatbot_welcome_message: string | null
+          checkout_fields: Json | null
+          city: string | null
+          cod_delivery_rate: number | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          delivery_advisor_phone: string | null
+          email: string | null
+          facebook_pixels: string[] | null
+          favicon_url: string | null
+          google_analytics_code: string | null
+          google_analytics_ids: string[] | null
+          id: string | null
+          is_activated: boolean | null
+          is_published: boolean | null
+          is_suspended: boolean | null
+          logo_url: string | null
+          order_confirmation_message: string | null
+          payment_methods: string[] | null
+          phone_number: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string | null
+          snapchat_pixels: string[] | null
+          social_proof_enabled: boolean | null
+          theme: string | null
+          theme_config: Json | null
+          tiktok_pixels: string[] | null
+          tracking_enabled: boolean | null
+          updated_at: string | null
+          user_id: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          address?: string | null
+          banner_url?: string | null
+          business_description?: string | null
+          business_name?: string | null
+          chatbot_enabled?: boolean | null
+          chatbot_welcome_message?: string | null
+          checkout_fields?: Json | null
+          city?: string | null
+          cod_delivery_rate?: number | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          delivery_advisor_phone?: string | null
+          email?: string | null
+          facebook_pixels?: string[] | null
+          favicon_url?: string | null
+          google_analytics_code?: string | null
+          google_analytics_ids?: string[] | null
+          id?: string | null
+          is_activated?: boolean | null
+          is_published?: boolean | null
+          is_suspended?: boolean | null
+          logo_url?: string | null
+          order_confirmation_message?: string | null
+          payment_methods?: string[] | null
+          phone_number?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string | null
+          snapchat_pixels?: string[] | null
+          social_proof_enabled?: boolean | null
+          theme?: string | null
+          theme_config?: Json | null
+          tiktok_pixels?: string[] | null
+          tracking_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          address?: string | null
+          banner_url?: string | null
+          business_description?: string | null
+          business_name?: string | null
+          chatbot_enabled?: boolean | null
+          chatbot_welcome_message?: string | null
+          checkout_fields?: Json | null
+          city?: string | null
+          cod_delivery_rate?: number | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          delivery_advisor_phone?: string | null
+          email?: string | null
+          facebook_pixels?: string[] | null
+          favicon_url?: string | null
+          google_analytics_code?: string | null
+          google_analytics_ids?: string[] | null
+          id?: string | null
+          is_activated?: boolean | null
+          is_published?: boolean | null
+          is_suspended?: boolean | null
+          logo_url?: string | null
+          order_confirmation_message?: string | null
+          payment_methods?: string[] | null
+          phone_number?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string | null
+          snapchat_pixels?: string[] | null
+          social_proof_enabled?: boolean | null
+          theme?: string | null
+          theme_config?: Json | null
+          tiktok_pixels?: string[] | null
+          tracking_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_expired_trash: { Args: never; Returns: undefined }
