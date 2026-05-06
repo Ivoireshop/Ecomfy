@@ -53,6 +53,7 @@ const ShopView = lazy(() => import("./pages/ShopView"));
 const ProductView = lazy(() => import("./pages/ProductView"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
 const CoursesManager = lazy(() => import("./pages/CoursesManager"));
+const OrderConfirmed = lazy(() => import("./pages/OrderConfirmed"));
 
 const queryClient = new QueryClient();
 
@@ -69,7 +70,8 @@ const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
-  const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
+  const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
+  const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
   const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
   const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
 
@@ -230,6 +232,7 @@ const AppContent = () => {
           <Route path="/shop/:slug" element={<ShopView />} />
           <Route path="/shop-preview/:id/product" element={<ProtectedRoute><ProductView /></ProtectedRoute>} />
           <Route path="/shop/:slug/product" element={<ProductView /> } />
+          <Route path="/order-confirmed" element={<OrderConfirmed />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
