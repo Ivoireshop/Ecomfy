@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
+import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 
 // Countdown Timer Component
