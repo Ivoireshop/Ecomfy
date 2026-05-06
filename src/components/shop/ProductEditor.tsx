@@ -98,6 +98,41 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
+  const { toast } = useToast();
+
+  // AI image generation
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleGenerateAiImage = async () => {
+    const prompt = aiPrompt.trim();
+    if (!prompt) {
+      toast({ title: "Décrivez votre visuel", description: "Saisissez une description du produit.", variant: "destructive" });
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-ai-image", {
+        body: { prompt: `Photo produit professionnelle, fond neutre, éclairage studio. ${prompt}`, mode: "simple" },
+      });
+      if (error) throw error;
+      const imageUrl: string | undefined = data?.imageUrl || data?.image_url;
+      if (!imageUrl) throw new Error("Aucune image reçue");
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const ext = (blob.type.split("/")[1] || "png").split(";")[0];
+      const file = new File([blob], `ai-${Date.now()}.${ext}`, { type: blob.type || "image/png" });
+      setNewImages((prev) => [...prev, file]);
+      toast({ title: "✓ Image ajoutée", description: "Pensez à enregistrer le produit." });
+      setAiOpen(false);
+      setAiPrompt("");
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Génération impossible", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // Initialize editor content only once
   useEffect(() => {
