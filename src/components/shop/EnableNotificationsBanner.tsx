@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Bell, X, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
