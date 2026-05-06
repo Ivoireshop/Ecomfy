@@ -137,6 +137,10 @@ const ShopView = () => {
   const featuredProducts = products.filter(p => p.is_featured);
 
   const addToCart = (product: Product) => {
+    if (shop?._isPreview) {
+      toast({ title: "🔒 Aperçu", description: "Activez la boutique pour recevoir des commandes." });
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
