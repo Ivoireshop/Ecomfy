@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     );
 
     // Find shop owner + tokens
-    const { data: shop } = await supabase.from("shops").select("user_id, name").eq("id", shop_id).maybeSingle();
+    const { data: shop } = await supabase.from("shops").select("user_id, business_name").eq("id", shop_id).maybeSingle();
     if (!shop) {
       return new Response(JSON.stringify({ success: false, error: "shop_not_found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
