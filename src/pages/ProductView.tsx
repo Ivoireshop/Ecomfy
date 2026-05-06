@@ -549,7 +549,7 @@ const ProductView = () => {
                   className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: primaryColor }}
                   onClick={() => {
-                    addToCart(product, quantity, true);
+                    addToCart(product, quantity, true, true);
                     setShowInlineCheckout(true);
                   }}
                   disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
@@ -562,7 +562,7 @@ const ProductView = () => {
                   className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: primaryColor }}
                   onClick={() => {
-                    addToCart(product, quantity, true);
+                    addToCart(product, quantity, true, true);
                     setCheckoutOpen(true);
                     setCheckoutStep("info");
                     setOrderSuccess(false);
@@ -1066,11 +1066,11 @@ const ProductView = () => {
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 if (shop.theme_config?.single_page_checkout) {
-                  addToCart(product, quantity, true);
+                  addToCart(product, quantity, true, true);
                   setShowInlineCheckout(true);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                  addToCart(product, quantity, true);
+                  addToCart(product, quantity, true, true);
                   setCheckoutOpen(true);
                   setCheckoutStep("info");
                   setOrderSuccess(false);
