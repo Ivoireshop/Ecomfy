@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, Zap, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useOrderNotifications } from "@/hooks/useOrderNotifications";
+import { useFCM } from "@/hooks/useFCM";
 
 interface Shop {
   id: string;
@@ -32,6 +34,11 @@ const ShopManager = () => {
   const [deleteTarget, setDeleteTarget] = useState<Shop | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Global notifications: realtime in-app + push FCM for ALL the user's shops.
+  // Realtime is filtered server-side by RLS (only this user's shops are returned).
+  useOrderNotifications();
+  useFCM();
 
   useEffect(() => {
     fetchShops();
