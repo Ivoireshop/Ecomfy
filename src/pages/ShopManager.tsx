@@ -10,6 +10,7 @@ import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, 
 import { toast } from "@/hooks/use-toast";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
+import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
 
 interface Shop {
   id: string;
@@ -165,6 +166,7 @@ const ShopManager = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+        <EnableNotificationsBanner />
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
