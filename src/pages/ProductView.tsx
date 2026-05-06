@@ -144,10 +144,11 @@ const ProductView = () => {
       const { data } = await supabase.from("shops").select("*").eq("id", id).maybeSingle() as any;
       if (data) shopData = { ...data, _isPreview: true };
     } else if (slug) {
-      const { data: rows } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).eq("is_suspended", false).limit(1) as any;
+      const { data: rows } = await supabase.from("shops_public" as any).select("*").eq("slug", slug).limit(1) as any;
       const live = rows?.[0];
       if (live) shopData = live;
       else {
+        // Owner-only fallback (RLS will filter to the owner)
         const { data: pRows } = await supabase.from("shops").select("*").eq("slug", slug).limit(1) as any;
         if (pRows?.[0]) shopData = { ...pRows[0], _isPreview: true };
       }
