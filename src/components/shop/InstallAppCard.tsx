@@ -4,15 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Smartphone, Bell, Download, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { requestNotificationPermission } from "@/hooks/useOrderNotifications";
+import { useFCM } from "@/hooks/useFCM";
 
 type BIPEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
-export function InstallAppCard() {
+export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
   const [deferredPrompt, setDeferredPrompt] = useState<BIPEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default",
   );
+  const { status: fcmStatus, register: registerFCM } = useFCM(shopId);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -54,8 +56,13 @@ export function InstallAppCard() {
     const p = await requestNotificationPermission();
     setNotifPerm(p);
     if (p === "granted") {
-      toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte à chaque nouvelle commande." });
-      try { new Notification("VisualPro est prêt", { body: "Vous recevrez les notifications de nouvelles commandes ici.", icon: "/app-icon-512.png" }); } catch {}
+      const token = await registerFCM();
+      if (token) {
+        toast({ title: "🔔 Notifications push activées", description: "Vous recevrez une alerte même quand l'application est fermée." });
+      } else {
+        toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte quand l'application est ouverte." });
+      }
+      try { new Notification("VisualPro est prêt", { body: "Notifications de nouvelles commandes activées.", icon: "/app-icon-512.png" }); } catch {}
     } else if (p === "denied") {
       toast({ title: "Notifications bloquées", description: "Activez-les dans les paramètres de votre navigateur.", variant: "destructive" });
     }

@@ -90,7 +90,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
       )}
 
       {/* Install app card */}
-      <InstallAppCard />
+      <InstallAppCard shopId={shopId} />
 
       {/* Payments table */}
       <Card className="p-5">
