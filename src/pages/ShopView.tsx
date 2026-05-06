@@ -196,15 +196,19 @@ const ShopView = () => {
     try {
       const commissionAmount = cartTotal * (shop.commission_rate || 0.025);
       const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
-      const { data: order, error } = await supabase.from("orders").insert({
-        shop_id: shop.id, order_number: orderNumData || `VP-${Date.now()}`,
+      const orderId = (crypto as any).randomUUID();
+      const orderNumber = orderNumData || `VP-${Date.now()}`;
+      const { error } = await supabase.from("orders").insert({
+        id: orderId,
+        shop_id: shop.id, order_number: orderNumber,
         customer_name: customerInfo.name, customer_email: customerInfo.email,
         customer_phone: customerInfo.phone, customer_address: customerInfo.address,
         customer_city: customerInfo.city, subtotal: cartTotal,
         commission_amount: commissionAmount, total: cartTotal,
         payment_method: customerInfo.paymentMethod,
-      }).select().single() as any;
+      }) as any;
       if (error) throw error;
+      const order = { id: orderId, order_number: orderNumber };
       const orderItems = cart.map(item => ({
         order_id: order.id, product_id: item.product.id, product_name: item.product.name,
         product_image_url: item.product.product_images?.[0]?.image_url || null,
