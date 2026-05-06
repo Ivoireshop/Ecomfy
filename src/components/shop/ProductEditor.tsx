@@ -795,6 +795,36 @@ export function ProductEditor({
           </div>
         </div>
       </div>
+
+      {/* AI Image Generator Dialog */}
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Générer un visuel produit</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label className="text-sm">Décrivez votre produit</Label>
+            <Textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Ex: bouteille de parfum élégante en verre transparent, fond beige minimaliste"
+              rows={4}
+              disabled={aiLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              L'image sera ajoutée à la galerie. Pensez à enregistrer le produit ensuite.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiOpen(false)} disabled={aiLoading}>
+              Annuler
+            </Button>
+            <Button onClick={handleGenerateAiImage} disabled={aiLoading}>
+              {aiLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération…</>) : "Générer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
