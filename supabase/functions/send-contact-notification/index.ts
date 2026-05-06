@@ -20,6 +20,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Basic anti-spam: require an Authorization header (anon key is acceptable for public forms)
+    const authHeader = req.headers.get("Authorization") || req.headers.get("apikey");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { showcaseSiteId, contactName, contactEmail, contactPhone, message }: ContactNotificationRequest = await req.json();
 
     console.log("Sending contact notification for site:", showcaseSiteId);
