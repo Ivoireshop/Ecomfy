@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   User, Settings2, BarChart3, CreditCard, ShoppingCart,
-  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2,
+  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -286,6 +286,25 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
               L'ajout de trop de pixels peut affecter la vitesse de votre page.
             </p>
 
+            {/* Master switch */}
+            <Card className="p-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                  Suivi serveur (Conversions API)
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Active le suivi côté serveur (Meta CAPI, TikTok Events API, Snap CAPI, GA4 Measurement Protocol).
+                  Les événements <code>PageView, ViewContent, AddToCart, Purchase</code> sont envoyés en double avec
+                  un même <code>event_id</code> pour la déduplication automatique côté Meta / TikTok.
+                </p>
+              </div>
+              <Switch
+                checked={shop.tracking_enabled !== false}
+                onCheckedChange={(v) => setShop({ ...shop, tracking_enabled: v })}
+              />
+            </Card>
+
             {/* Google Analytics */}
             <Card className="overflow-hidden">
               <div className="bg-red-500 text-white px-5 py-3 flex items-center justify-between">
@@ -323,7 +342,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   <Facebook className="h-4 w-4" /> Paramètres de pixel Facebook
                 </div>
               </div>
-              <div className="p-5 space-y-3">
+              <div className="p-5 space-y-4">
                 <div className="flex gap-2">
                   <Input value={newFbPixel} onChange={(e) => setNewFbPixel(e.target.value)} placeholder="ID du pixel Facebook" />
                   <Button onClick={() => addPixel("facebook_pixels", newFbPixel, setNewFbPixel)} className="shrink-0 gap-1"><Plus className="h-4 w-4" /> Ajouter</Button>
@@ -334,6 +353,27 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePixel("facebook_pixels", i)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
+                <div className="space-y-1.5 border-t pt-4">
+                  <Label className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Access Token (Conversions API)</Label>
+                  <Input
+                    type="password"
+                    value={shop.facebook_access_token || ""}
+                    onChange={(e) => setShop({ ...shop, facebook_access_token: e.target.value })}
+                    placeholder="EAAG... (token CAPI permanent)"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Gestionnaire d'événements Meta → Paramètres → Conversions API → Générer un jeton d'accès. Permet de tracer les achats serveur même si le pixel est bloqué.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Code d'événement test (optionnel)</Label>
+                  <Input
+                    value={shop.facebook_test_event_code || ""}
+                    onChange={(e) => setShop({ ...shop, facebook_test_event_code: e.target.value })}
+                    placeholder="TEST12345"
+                  />
+                  <p className="text-xs text-muted-foreground">À retirer une fois la configuration validée dans Test Events.</p>
+                </div>
               </div>
             </Card>
 
@@ -344,7 +384,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   <span className="text-base">♪</span> Paramètres de pixel TikTok
                 </div>
               </div>
-              <div className="p-5 space-y-3">
+              <div className="p-5 space-y-4">
                 <div className="flex gap-2">
                   <Input value={newTiktokPixel} onChange={(e) => setNewTiktokPixel(e.target.value)} placeholder="ID du pixel TikTok" />
                   <Button onClick={() => addPixel("tiktok_pixels", newTiktokPixel, setNewTiktokPixel)} className="shrink-0 gap-1"><Plus className="h-4 w-4" /> Ajouter</Button>
@@ -355,6 +395,16 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePixel("tiktok_pixels", i)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
+                <div className="space-y-1.5 border-t pt-4">
+                  <Label className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Access Token (Events API)</Label>
+                  <Input
+                    type="password"
+                    value={shop.tiktok_access_token || ""}
+                    onChange={(e) => setShop({ ...shop, tiktok_access_token: e.target.value })}
+                    placeholder="Token Events API TikTok"
+                  />
+                  <p className="text-xs text-muted-foreground">TikTok Events Manager → Settings → Events API → Generate Access Token.</p>
+                </div>
               </div>
             </Card>
 
@@ -365,7 +415,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   <span className="text-base">👻</span> Paramètres de pixel Snapchat
                 </div>
               </div>
-              <div className="p-5 space-y-3">
+              <div className="p-5 space-y-4">
                 <div className="flex gap-2">
                   <Input value={newSnapPixel} onChange={(e) => setNewSnapPixel(e.target.value)} placeholder="ID du pixel Snapchat" />
                   <Button onClick={() => addPixel("snapchat_pixels", newSnapPixel, setNewSnapPixel)} className="shrink-0 gap-1"><Plus className="h-4 w-4" /> Ajouter</Button>
@@ -376,6 +426,64 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePixel("snapchat_pixels", i)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
+                <div className="space-y-1.5 border-t pt-4">
+                  <Label className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Access Token (Conversions API)</Label>
+                  <Input
+                    type="password"
+                    value={shop.snapchat_access_token || ""}
+                    onChange={(e) => setShop({ ...shop, snapchat_access_token: e.target.value })}
+                    placeholder="Token CAPI Snapchat"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Google Ads + GA4 Measurement Protocol */}
+            <Card className="overflow-hidden">
+              <div className="bg-emerald-600 text-white px-5 py-3 flex items-center gap-2 font-semibold text-sm">
+                <Globe className="h-4 w-4" /> Google Ads & GA4 (suivi serveur)
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>GA4 Measurement ID</Label>
+                    <Input
+                      value={shop.ga4_measurement_id || ""}
+                      onChange={(e) => setShop({ ...shop, ga4_measurement_id: e.target.value })}
+                      placeholder="G-XXXXXXXXXX"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>GA4 API Secret</Label>
+                    <Input
+                      type="password"
+                      value={shop.ga4_api_secret || ""}
+                      onChange={(e) => setShop({ ...shop, ga4_api_secret: e.target.value })}
+                      placeholder="Measurement Protocol secret"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Google Ads Conversion ID</Label>
+                    <Input
+                      value={shop.google_ads_conversion_id || ""}
+                      onChange={(e) => setShop({ ...shop, google_ads_conversion_id: e.target.value })}
+                      placeholder="AW-XXXXXXXXXX"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Conversion Label (Achat)</Label>
+                    <Input
+                      value={shop.google_ads_conversion_label || ""}
+                      onChange={(e) => setShop({ ...shop, google_ads_conversion_label: e.target.value })}
+                      placeholder="abcDEFghIJKlmnoPQ"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  GA4 → Admin → Data Streams → Measurement Protocol API secrets pour générer le secret. Le coût par achat sera disponible dans Google Ads une fois la conversion liée à Google Ads.
+                </p>
               </div>
             </Card>
           </>
