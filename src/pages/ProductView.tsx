@@ -182,13 +182,20 @@ const ProductView = () => {
       setRelatedProducts(related || []);
     }
 
-    // Set page title & favicon
+    // Set page title & favicon — remove ALL existing icon links so the
+    // default VisualPro favicon doesn't remain in tabs / Google search.
     document.title = productData?.name || shopData.business_name || "Produit";
-    const faviconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement("link");
-    faviconLink.rel = "icon";
-    faviconLink.type = "image/png";
-    faviconLink.href = shopData.favicon_url || shopData.logo_url || "/favicon.png";
-    if (!faviconLink.parentNode) document.head.appendChild(faviconLink);
+    const iconHref = shopData.favicon_url || shopData.logo_url || "/favicon.png";
+    document.head
+      .querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']")
+      .forEach((el) => el.parentNode?.removeChild(el));
+    (["icon", "shortcut icon", "apple-touch-icon"] as const).forEach((rel) => {
+      const l = document.createElement("link");
+      l.rel = rel;
+      l.type = "image/png";
+      l.href = `${iconHref}${iconHref.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      document.head.appendChild(l);
+    });
 
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
