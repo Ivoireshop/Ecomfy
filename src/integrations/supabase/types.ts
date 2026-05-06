@@ -2568,6 +2568,16 @@ export type Database = {
           message: string
         }[]
       }
+      verify_certificate_by_number: {
+        Args: { _certificate_number: string }
+        Returns: {
+          certificate_number: string
+          certificate_url: string
+          completion_date: string
+          course_title: string
+          student_name: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "founder" | "co_founder"
