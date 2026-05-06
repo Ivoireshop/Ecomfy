@@ -145,9 +145,20 @@ Deno.serve(async (req) => {
       } else {
         const txt = await res.text();
         failed.push(txt.slice(0, 200));
-        // Clean up invalid tokens
-        if (res.status === 404 || res.status === 400) {
+        // Only remove the token when FCM explicitly says it is invalid
+        // (UNREGISTERED / INVALID_ARGUMENT for the registration token).
+        // 400 alone can be transient (payload, throttling) and previously
+        // wiped valid tokens — never deleting them again until the user
+        // manually re-registered.
+        const isUnregistered = res.status === 404 ||
+          /UNREGISTERED|registration-token-not-registered|NOT_FOUND/i.test(txt);
+        const isInvalidToken = res.status === 400 &&
+          /invalid.*registration|INVALID_ARGUMENT.*token/i.test(txt);
+        if (isUnregistered || isInvalidToken) {
+          console.log("[push] removing invalid token", txt.slice(0, 200));
           await supabase.from("device_tokens").delete().eq("fcm_token", t.fcm_token);
+        } else {
+          console.warn("[push] FCM error (token kept)", res.status, txt.slice(0, 200));
         }
       }
     }));
