@@ -579,6 +579,15 @@ export function ProductEditor({
                   <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP · Taille recommandée 800x800</p>
                 </div>
               </label>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setAiOpen(true)}
+              >
+                <ImageIcon className="h-4 w-4" />
+                Générer un visuel produit (IA)
+              </Button>
             </div>
           </CollapsibleSection>
 
