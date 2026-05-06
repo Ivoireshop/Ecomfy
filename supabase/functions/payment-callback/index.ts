@@ -103,24 +103,17 @@ serve(async (req) => {
 
       console.log("Webhook signature verified successfully");
     } else if (req.method === "GET") {
-      // For GET requests (redirect callbacks), construct payload from query params
-      paymentData = {
-        status: url.searchParams.get("status"),
-        user_id: url.searchParams.get("user_id"),
-        amount: url.searchParams.get("amount"),
-        transaction_id: url.searchParams.get("transaction_id"),
-        payment_method: url.searchParams.get("payment_method"),
-        provider: url.searchParams.get("provider"),
-        return_url: url.searchParams.get("return_url"),
-        promo_code_id: url.searchParams.get("promo_code_id"),
-        discount_percentage: url.searchParams.get("discount_percentage"),
-        payment_type: url.searchParams.get("payment_type"),
-        credits_size: url.searchParams.get("credits_size"),
-      };
-      
-      // Note: GET redirects from Lygos are user-facing and don't need signature verification
-      // as they're not trusted for payment confirmation - only POST webhooks update the database
-      console.log("GET redirect received (user-facing, no signature required)");
+      // SECURITY: GET redirects are unsigned and untrusted. NEVER mutate the database here.
+      // Only the signed POST webhook is authoritative. We just bounce the user to the app.
+      const status = url.searchParams.get("status");
+      const finalReturnUrl = "https://visuelpro.cloud";
+      const target = (status === "success" || status === "completed")
+        ? `${finalReturnUrl}/?payment=success`
+        : `${finalReturnUrl}/?payment=failed`;
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, "Location": target },
+      });
     }
 
     console.log("Payment callback received:", {
