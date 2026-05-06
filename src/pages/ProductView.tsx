@@ -144,7 +144,7 @@ const ProductView = () => {
       const { data } = await supabase.from("shops").select("*").eq("id", id).maybeSingle() as any;
       if (data) shopData = { ...data, _isPreview: true };
     } else if (slug) {
-      const { data: rows } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).limit(1) as any;
+      const { data: rows } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).eq("is_suspended", false).limit(1) as any;
       const live = rows?.[0];
       if (live) shopData = live;
       else {
