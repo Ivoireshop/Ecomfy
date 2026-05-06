@@ -487,7 +487,9 @@ const ProductView = () => {
                 </div>
               </div>
 
-              {shop.theme_config?.single_page_checkout ? (
+              {shop._isPreview ? (
+                <PreviewLockedNotice primaryColor={primaryColor} />
+              ) : shop.theme_config?.single_page_checkout ? (
                 <Button 
                   className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: primaryColor }}
@@ -512,7 +514,7 @@ const ProductView = () => {
                 </Button>
               )}
 
-              {shop.whatsapp_number && (
+              {!shop._isPreview && shop.whatsapp_number && (
                 <a 
                   href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par "${product.name}" à ${formatPrice(product.price)} FCFA`)}`} 
                   target="_blank" rel="noopener noreferrer" 
