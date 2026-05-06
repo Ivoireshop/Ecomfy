@@ -75,6 +75,7 @@ const ShopView = () => {
         .eq("slug", slug)
         .eq("is_published", true)
         .eq("is_activated", true)
+        .eq("is_suspended", false)
         .order("created_at", { ascending: false })
         .limit(1) as any;
 
