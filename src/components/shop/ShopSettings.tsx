@@ -150,6 +150,29 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
               </div>
             </Card>
             <Card className="p-6 space-y-4">
+              <h3 className="font-bold text-lg">Confirmation de commande</h3>
+              <p className="text-sm text-muted-foreground">
+                Ces informations s'affichent sur la page de remerciement après chaque commande.
+              </p>
+              <div className="space-y-1.5">
+                <Label>Numéro du conseiller livraison</Label>
+                <Input
+                  value={shop.delivery_advisor_phone || ""}
+                  onChange={(e) => setShop({ ...shop, delivery_advisor_phone: e.target.value })}
+                  placeholder="07 XX XX XX XX"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Message de confirmation</Label>
+                <Textarea
+                  rows={3}
+                  value={shop.order_confirmation_message || ""}
+                  onChange={(e) => setShop({ ...shop, order_confirmation_message: e.target.value })}
+                  placeholder="Félicitations ! Un conseiller va vous appeler pour la livraison."
+                />
+              </div>
+            </Card>
+            <Card className="p-6 space-y-4">
               <h3 className="font-bold text-lg">Publication</h3>
               <div className="flex items-center justify-between">
                 <div><p className="font-medium">Boutique en ligne</p><p className="text-sm text-muted-foreground">Rendre la boutique visible aux visiteurs</p></div>
