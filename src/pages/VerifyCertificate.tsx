@@ -35,16 +35,15 @@ const VerifyCertificate = () => {
     setCertificate(null);
 
     try {
-      const { data, error } = await supabase
-        .from("course_certificates")
-        .select("*")
-        .eq("certificate_number", number.toUpperCase().trim())
-        .single();
+      const { data, error } = await supabase.rpc("verify_certificate_by_number", {
+        _certificate_number: number.toUpperCase().trim(),
+      });
 
-      if (error || !data) {
+      if (error || !data || (Array.isArray(data) && data.length === 0)) {
         setNotFound(true);
       } else {
-        setCertificate(data);
+        const cert = Array.isArray(data) ? data[0] : data;
+        setCertificate(cert as Certificate);
       }
     } catch (err) {
       console.error("Error verifying certificate:", err);
