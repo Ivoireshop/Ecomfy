@@ -201,9 +201,6 @@ const ShopView = () => {
         total_price: item.product.price * item.quantity,
       }));
       await supabase.from("order_items").insert(orderItems) as any;
-      setOrderSuccess(true);
-      setCart([]);
-      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
       trackEvent(shop, "Purchase", {
         value: cartTotal,
         order_id: order.order_number,
@@ -214,6 +211,21 @@ const ShopView = () => {
         phone: customerInfo.phone,
         first_name: customerInfo.name,
         city: customerInfo.city,
+      });
+      setCart([]);
+      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
+      setCheckoutOpen(false);
+      navigate("/order-confirmed", {
+        state: {
+          shopName: shop.business_name,
+          shopSlug: shop.slug,
+          primaryColor: shop.primary_color,
+          message: shop.order_confirmation_message,
+          advisorPhone: shop.delivery_advisor_phone || shop.phone_number,
+          whatsappNumber: shop.whatsapp_number,
+          orderNumber: order.order_number,
+          total: cartTotal,
+        },
       });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
