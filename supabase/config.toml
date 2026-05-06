@@ -80,3 +80,6 @@ verify_jwt = true
 
 [functions.geniuspay-webhook]
 verify_jwt = false
+
+[functions.track-conversion]
+verify_jwt = false
