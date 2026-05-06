@@ -730,7 +730,10 @@ const ProductView = () => {
           <div className="max-w-4xl mx-auto px-3 sm:px-6 py-8 sm:py-12">
             <div 
               className="prose prose-sm sm:prose-base max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-img:rounded-xl prose-img:mx-auto prose-img:shadow-sm prose-a:text-blue-600 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description, { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'src'] }) }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description, {
+                ALLOWED_TAGS: ['p','br','strong','b','em','i','u','s','ul','ol','li','h1','h2','h3','h4','h5','h6','blockquote','code','pre','img','a','span','div','hr','table','thead','tbody','tr','th','td'],
+                ALLOWED_ATTR: ['href','src','alt','title','class','style','target','rel','width','height']
+              }) }}
               style={{ whiteSpace: "pre-wrap" }}
             />
           </div>
