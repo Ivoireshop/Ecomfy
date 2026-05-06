@@ -561,11 +561,16 @@ const ProductView = () => {
                 <Button 
                   className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: primaryColor }}
-                  onClick={() => addToCart(product, quantity)}
+                  onClick={() => {
+                    addToCart(product, quantity, true);
+                    setCheckoutOpen(true);
+                    setCheckoutStep("info");
+                    setOrderSuccess(false);
+                  }}
                   disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Ajouter au panier · ${formatPrice(product.price * quantity)} FCFA`}
+                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant · ${formatPrice(product.price * quantity)} FCFA`}
                 </Button>
               )}
 
@@ -1061,11 +1066,11 @@ const ProductView = () => {
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 if (shop.theme_config?.single_page_checkout) {
-                  addToCart(product, quantity);
+                  addToCart(product, quantity, true);
                   setShowInlineCheckout(true);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                  addToCart(product, quantity);
+                  addToCart(product, quantity, true);
                   setCheckoutOpen(true);
                   setCheckoutStep("info");
                   setOrderSuccess(false);
