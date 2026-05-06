@@ -58,6 +58,14 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    // Anti-spam: require an Authorization header. The DB trigger calls with the anon key,
+    // which is acceptable; anonymous direct callers without any header are rejected.
+    const authHeader = req.headers.get("Authorization") || req.headers.get("apikey");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ success: false, error: "unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
     const body = await req.json().catch(() => ({}));
     const { order_id, shop_id, customer_name, total, order_number } = body;
 
