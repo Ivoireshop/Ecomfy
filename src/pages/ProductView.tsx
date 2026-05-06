@@ -144,7 +144,7 @@ const ProductView = () => {
       const { data } = await supabase.from("shops").select("*").eq("id", id).maybeSingle() as any;
       if (data) shopData = { ...data, _isPreview: true };
     } else if (slug) {
-      const { data: rows } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).limit(1) as any;
+      const { data: rows } = await supabase.from("shops").select("*").eq("slug", slug).eq("is_published", true).eq("is_activated", true).eq("is_suspended", false).limit(1) as any;
       const live = rows?.[0];
       if (live) shopData = live;
       else {
@@ -265,10 +265,6 @@ const ProductView = () => {
         total_price: item.product.price * item.quantity,
       }));
       await supabase.from("order_items").insert(orderItems) as any;
-      setOrderSuccess(true);
-      setShowInlineCheckout(false);
-      setCart([]);
-      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery" });
       trackEvent(shop, "Purchase", {
         value: cartTotal,
         order_id: order.order_number,
@@ -279,6 +275,22 @@ const ProductView = () => {
         phone: customerInfo.phone,
         first_name: customerInfo.name,
         city: customerInfo.city,
+      });
+      setCart([]);
+      setShowInlineCheckout(false);
+      setCheckoutOpen(false);
+      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery" });
+      navigate("/order-confirmed", {
+        state: {
+          shopName: shop.business_name,
+          shopSlug: shop.slug,
+          primaryColor: shop.primary_color,
+          message: shop.order_confirmation_message,
+          advisorPhone: shop.delivery_advisor_phone || shop.phone_number,
+          whatsappNumber: shop.whatsapp_number,
+          orderNumber: order.order_number,
+          total: cartTotal,
+        },
       });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });

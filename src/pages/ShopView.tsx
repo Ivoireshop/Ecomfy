@@ -75,6 +75,7 @@ const ShopView = () => {
         .eq("slug", slug)
         .eq("is_published", true)
         .eq("is_activated", true)
+        .eq("is_suspended", false)
         .order("created_at", { ascending: false })
         .limit(1) as any;
 
@@ -201,9 +202,6 @@ const ShopView = () => {
         total_price: item.product.price * item.quantity,
       }));
       await supabase.from("order_items").insert(orderItems) as any;
-      setOrderSuccess(true);
-      setCart([]);
-      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
       trackEvent(shop, "Purchase", {
         value: cartTotal,
         order_id: order.order_number,
@@ -214,6 +212,21 @@ const ShopView = () => {
         phone: customerInfo.phone,
         first_name: customerInfo.name,
         city: customerInfo.city,
+      });
+      setCart([]);
+      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
+      setCheckoutOpen(false);
+      navigate("/order-confirmed", {
+        state: {
+          shopName: shop.business_name,
+          shopSlug: shop.slug,
+          primaryColor: shop.primary_color,
+          message: shop.order_confirmation_message,
+          advisorPhone: shop.delivery_advisor_phone || shop.phone_number,
+          whatsappNumber: shop.whatsapp_number,
+          orderNumber: order.order_number,
+          total: cartTotal,
+        },
       });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -255,6 +268,16 @@ const ShopView = () => {
       <Store className="h-20 w-20 text-muted-foreground/30" />
       <h1 className="text-2xl font-bold">Boutique introuvable</h1>
       <p className="text-muted-foreground">Cette boutique n'existe pas ou n'est pas encore disponible</p>
+    </div>
+  );
+
+  if (shop.is_suspended && !shop._isPreview) return (
+    <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-background p-6 text-center">
+      <Store className="h-20 w-20 text-muted-foreground/30" />
+      <h1 className="text-2xl font-bold">Boutique temporairement indisponible</h1>
+      <p className="text-muted-foreground max-w-md">
+        Cette boutique est momentanément fermée. Veuillez réessayer plus tard ou contacter le vendeur.
+      </p>
     </div>
   );
 

@@ -20,6 +20,7 @@ import { ShopSettings } from "@/components/shop/ShopSettings";
 import { ProductEditor } from "@/components/shop/ProductEditor";
 import { ShopStatistics } from "@/components/shop/ShopStatistics";
 import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
+import { BillingBanner } from "@/components/shop/BillingBanner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 
@@ -347,6 +348,13 @@ const ShopEditor = () => {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0">
+        {/* Billing balance banner */}
+        <BillingBanner
+          balanceDue={Number(shop.commission_balance_due) || 0}
+          threshold={Number(shop.commission_threshold) || 12000}
+          paymentDeadline={shop.payment_deadline}
+          isSuspended={!!shop.is_suspended}
+        />
         {/* Activation Banner */}
         {!isActivated && (
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 md:px-6 py-3">
