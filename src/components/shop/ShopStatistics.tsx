@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,23 +33,43 @@ interface ShopStatisticsProps {
 export function ShopStatistics({ orders, products, primaryColor }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
+  const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("7d");
+
+  // Filter orders based on selected period
+  const filteredOrders = useMemo(() => {
+    if (period === "all") return orders;
+    const now = new Date();
+    const start = new Date();
+    if (period === "today") {
+      start.setHours(0, 0, 0, 0);
+    } else if (period === "7d") {
+      start.setDate(now.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === "30d") {
+      start.setDate(now.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+    }
+    return orders.filter(o => new Date(o.created_at) >= start);
+  }, [orders, period]);
+
   const stats = useMemo(() => {
-    const totals = orders.map(o => o.total);
+    const totals = filteredOrders.map(o => o.total);
     const totalRevenue = totals.reduce((a, b) => a + b, 0);
     const maxOrder = totals.length ? Math.max(...totals) : 0;
     const minOrder = totals.length ? Math.min(...totals) : 0;
     const avgOrder = totals.length ? totalRevenue / totals.length : 0;
-    return { totalRevenue, maxOrder, minOrder, avgOrder, orderCount: orders.length };
-  }, [orders]);
+    return { totalRevenue, maxOrder, minOrder, avgOrder, orderCount: filteredOrders.length };
+  }, [filteredOrders]);
 
-  // Chart data - orders over last 7 days
+  // Chart data - orders over the selected period
   const chartData = useMemo(() => {
     const days: { date: string; commandes: number; ventes: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
+    const dayCount = period === "today" ? 1 : period === "7d" ? 7 : period === "30d" ? 30 : 30;
+    for (let i = dayCount - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().split("T")[0];
-      const dayOrders = orders.filter(o => o.created_at.startsWith(key));
+      const dayOrders = filteredOrders.filter(o => o.created_at.startsWith(key));
       days.push({
         date: d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }),
         commandes: dayOrders.length,
@@ -57,12 +77,12 @@ export function ShopStatistics({ orders, products, primaryColor }: ShopStatistic
       });
     }
     return days;
-  }, [orders]);
+  }, [filteredOrders, period]);
 
   // Top products
   const topProducts = useMemo(() => {
     const map: Record<string, { name: string; views: number; orders: number; revenue: number }> = {};
-    orders.forEach(o => {
+    filteredOrders.forEach(o => {
       o.order_items?.forEach(item => {
         if (!map[item.product_id]) map[item.product_id] = { name: item.product_name, views: 0, orders: 0, revenue: 0 };
         map[item.product_id].orders += item.quantity;
@@ -71,22 +91,22 @@ export function ShopStatistics({ orders, products, primaryColor }: ShopStatistic
       });
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  }, [orders]);
+  }, [filteredOrders]);
 
   // Country breakdown
   const countryData = useMemo(() => {
     const map: Record<string, { revenue: number; orders: number }> = {};
-    orders.forEach(o => {
+    filteredOrders.forEach(o => {
       const country = o.customer_country || o.customer_city || "Inconnu";
       if (!map[country]) map[country] = { revenue: 0, orders: 0 };
       map[country].revenue += o.total;
       map[country].orders += 1;
     });
     return Object.entries(map).map(([name, data]) => ({ name: name.substring(0, 20), ...data })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  }, [orders]);
+  }, [filteredOrders]);
 
   // Conversion funnel (simulated)
-  const conversionRate = orders.length > 0 ? ((orders.length / Math.max(orders.length * 8, 1)) * 100).toFixed(1) : "0";
+  const conversionRate = filteredOrders.length > 0 ? ((filteredOrders.length / Math.max(filteredOrders.length * 8, 1)) * 100).toFixed(1) : "0";
 
   const PIE_COLORS = [primaryColor, "#f43f5e", "#f59e0b", "#10b981", "#8b5cf6"];
 
@@ -103,7 +123,7 @@ export function ShopStatistics({ orders, products, primaryColor }: ShopStatistic
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Statistiques</h2>
-        <Select defaultValue="7d">
+        <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
           <SelectTrigger className="w-[160px]">
             <SelectValue />
           </SelectTrigger>
@@ -195,8 +215,8 @@ export function ShopStatistics({ orders, products, primaryColor }: ShopStatistic
         <Card className="p-5">
           <h3 className="font-bold text-sm mb-1">Trafic</h3>
           <div className="flex items-center gap-6 mb-2">
-            <div><p className="text-xs text-muted-foreground">Visiteurs</p><p className="text-2xl font-bold">{orders.length * 8}</p></div>
-            <div><p className="text-xs text-muted-foreground">Pages vues</p><p className="text-2xl font-bold">{orders.length * 15}</p></div>
+              <div><p className="text-xs text-muted-foreground">Visiteurs</p><p className="text-2xl font-bold">{filteredOrders.length * 8}</p></div>
+              <div><p className="text-xs text-muted-foreground">Pages vues</p><p className="text-2xl font-bold">{filteredOrders.length * 15}</p></div>
           </div>
           <p className="text-xs text-muted-foreground mb-2">Source de trafic</p>
           <ResponsiveContainer width="100%" height={130}>
@@ -217,9 +237,9 @@ export function ShopStatistics({ orders, products, primaryColor }: ShopStatistic
           <div className="mt-3 border-t pt-3">
             <p className="text-xs text-muted-foreground mb-2">Appareils</p>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div><Monitor className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-[10px] text-muted-foreground">Ordinateur</p><p className="font-bold text-sm">{Math.floor(orders.length * 0.3)}</p></div>
-              <div><Smartphone className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-[10px] text-muted-foreground">Mobile</p><p className="font-bold text-sm">{Math.floor(orders.length * 6.5)}</p></div>
-              <div><Tablet className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-[10px] text-muted-foreground">Tablette</p><p className="font-bold text-sm">{Math.floor(orders.length * 0.2)}</p></div>
+              <div><Monitor className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-[10px] text-muted-foreground">Ordinateur</p><p className="font-bold text-sm">{Math.floor(filteredOrders.length * 0.3)}</p></div>
+              <div><Smartphone className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-[10px] text-muted-foreground">Mobile</p><p className="font-bold text-sm">{Math.floor(filteredOrders.length * 6.5)}</p></div>
+              <div><Tablet className="h-5 w-5 mx-auto text-muted-foreground mb-1" /><p className="text-[10px] text-muted-foreground">Tablette</p><p className="font-bold text-sm">{Math.floor(filteredOrders.length * 0.2)}</p></div>
             </div>
           </div>
         </Card>
