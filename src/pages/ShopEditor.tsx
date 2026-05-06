@@ -133,6 +133,19 @@ const ShopEditor = () => {
     return () => { supabase.removeChannel(channel); };
   }, [id]);
 
+  // Refresh orders when the tab becomes visible or window regains focus
+  useEffect(() => {
+    if (!id) return;
+    const refresh = () => { fetchData(); };
+    const onVis = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [id, fetchData]);
+
   const isActivated = shopActivationPaid || shop?.is_activated;
 
   const handleActivateShop = async () => {

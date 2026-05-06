@@ -35,9 +35,10 @@ export function MobileBottomNav() {
 
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
+  const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
 
-  if (isShowcaseView || isShopView || isPublicPage) return null;
+  if (isShowcaseView || isShopView || isPublicPage || isOrderConfirmed) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
