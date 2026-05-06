@@ -31,17 +31,39 @@ export function useFCM(shopId?: string) {
         : await Notification.requestPermission();
       if (perm !== "granted") { setStatus("denied"); return null; }
 
-      const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+      // Force a fresh service worker (old cached SW from previous VAPID can
+      // return stale/invalid tokens). Unregister any existing FCM SW first.
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) {
+          if (r.active?.scriptURL?.includes("firebase-messaging-sw.js")) {
+            await r.unregister();
+          }
+        }
+      } catch (e) { console.warn("[FCM] sw cleanup", e); }
+      const swReg = await navigator.serviceWorker.register(
+        "/firebase-messaging-sw.js?v=2",
+      );
+      await navigator.serviceWorker.ready;
       const vapidKey = await fetchVapidKey();
-      if (!vapidKey) { setStatus("error"); return null; }
+      if (!vapidKey) {
+        console.error("[FCM] no VAPID key from edge function");
+        setStatus("error"); return null;
+      }
 
       const fcmToken = await getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
-      if (!fcmToken) { setStatus("error"); return null; }
+      if (!fcmToken) {
+        console.error("[FCM] getToken returned empty");
+        setStatus("error"); return null;
+      }
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setStatus("error"); return null; }
+      if (!user) {
+        console.error("[FCM] no auth user");
+        setStatus("error"); return null;
+      }
 
-      await supabase.from("device_tokens").upsert(
+      const { error: upsertErr } = await supabase.from("device_tokens").upsert(
         {
           user_id: user.id,
           shop_id: shopId ?? null,
@@ -51,6 +73,10 @@ export function useFCM(shopId?: string) {
         },
         { onConflict: "fcm_token" }
       );
+      if (upsertErr) {
+        console.error("[FCM] upsert failed", upsertErr);
+        setStatus("error"); return null;
+      }
 
       setToken(fcmToken);
       setStatus("registered");
