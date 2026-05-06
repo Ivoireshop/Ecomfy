@@ -119,8 +119,7 @@ serve(async (req) => {
     console.log("Payment callback received:", {
       method: req.method,
       status: paymentData.status,
-      user_id: paymentData.user_id,
-      amount: paymentData.amount
+      transaction_id: paymentData.transaction_id,
     });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -148,7 +147,7 @@ serve(async (req) => {
       
       if (isShopActivation) {
         // Handle shop activation - one-time payment per user
-        console.log(`Processing shop activation for user ${user_id}`);
+        console.log("Processing shop activation");
         
         const { error: activationError } = await supabase
           .from("profiles")
@@ -170,10 +169,10 @@ serve(async (req) => {
           console.error("Error activating user shops:", shopsError);
         }
         
-        console.log(`Shop activation completed for user ${user_id}`);
+        console.log("Shop activation completed");
       } else if (isCreditsPayment && creditsAmount > 0) {
         // Handle credits purchase
-        console.log(`Processing credits purchase: ${creditsAmount} credits for user ${user_id}`);
+        console.log("Processing credits purchase");
         
         // Add credits to user profile
         const { data: currentProfile, error: profileError } = await supabase
@@ -203,7 +202,7 @@ serve(async (req) => {
           throw updateProfileError;
         }
         
-        console.log(`Credits added: ${creditsAmount} (total: ${newCreditsTotal}), showcase access: ${shouldEnableShowcase}`);
+        console.log("Credits added successfully");
         
         // Record credit purchase
         const { error: creditPurchaseError } = await supabase
@@ -239,7 +238,7 @@ serve(async (req) => {
           throw updateError;
         }
 
-        console.log("Subscription activated for user:", user_id);
+        console.log("Subscription activated");
       }
 
       const { error: paymentError } = await supabase
