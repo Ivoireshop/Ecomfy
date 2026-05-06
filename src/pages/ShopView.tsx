@@ -137,6 +137,10 @@ const ShopView = () => {
   const featuredProducts = products.filter(p => p.is_featured);
 
   const addToCart = (product: Product) => {
+    if (shop?._isPreview) {
+      toast({ title: "🔒 Aperçu", description: "Activez la boutique pour recevoir des commandes." });
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
@@ -276,7 +280,13 @@ const ShopView = () => {
             <Button 
               variant="outline" 
               className="gap-1.5 sm:gap-2 rounded-xl relative h-9 px-3 sm:px-4" 
-              onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
+              onClick={() => {
+                if (shop._isPreview) return;
+                setCheckoutOpen(true);
+                setOrderSuccess(false);
+              }}
+              disabled={shop._isPreview}
+              title={shop._isPreview ? "Disponible une fois la boutique activée" : undefined}
             >
               <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden sm:inline text-sm">Panier</span>
@@ -468,9 +478,15 @@ const ShopView = () => {
                 {selectedProduct.description && <p className="text-muted-foreground leading-relaxed">{selectedProduct.description}</p>}
                 {selectedProduct.short_description && !selectedProduct.description && <p className="text-muted-foreground">{selectedProduct.short_description}</p>}
                 <div className="flex gap-3 pt-2">
-                  <Button className="flex-1 rounded-xl gap-2 h-12 text-base" style={{ backgroundColor: primaryColor }} onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }}>
-                    <ShoppingCart className="h-5 w-5" /> Ajouter au panier
-                  </Button>
+                  {shop._isPreview ? (
+                    <div className="flex-1 rounded-xl border-2 border-dashed px-4 py-3 text-center text-xs text-muted-foreground" style={{ borderColor: primaryColor + "40" }}>
+                      🔒 Commande disponible après activation de la boutique
+                    </div>
+                  ) : (
+                    <Button className="flex-1 rounded-xl gap-2 h-12 text-base" style={{ backgroundColor: primaryColor }} onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }}>
+                      <ShoppingCart className="h-5 w-5" /> Ajouter au panier
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
@@ -722,7 +738,7 @@ const ShopView = () => {
       )}
 
       {/* Floating Cart Button - Mobile */}
-      {cartCount > 0 && !checkoutOpen && (
+      {!shop._isPreview && cartCount > 0 && !checkoutOpen && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
           <Button 
             className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2"

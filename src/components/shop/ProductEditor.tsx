@@ -6,12 +6,15 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Save, Plus, X, Upload, Image as ImageIcon, DollarSign,
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
   ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3,
-  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag
+  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -95,6 +98,41 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
+  const { toast } = useToast();
+
+  // AI image generation
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleGenerateAiImage = async () => {
+    const prompt = aiPrompt.trim();
+    if (!prompt) {
+      toast({ title: "Décrivez votre visuel", description: "Saisissez une description du produit.", variant: "destructive" });
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-ai-image", {
+        body: { prompt: `Photo produit professionnelle, fond neutre, éclairage studio. ${prompt}`, mode: "simple" },
+      });
+      if (error) throw error;
+      const imageUrl: string | undefined = data?.imageUrl || data?.image_url;
+      if (!imageUrl) throw new Error("Aucune image reçue");
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const ext = (blob.type.split("/")[1] || "png").split(";")[0];
+      const file = new File([blob], `ai-${Date.now()}.${ext}`, { type: blob.type || "image/png" });
+      setNewImages((prev) => [...prev, file]);
+      toast({ title: "✓ Image ajoutée", description: "Pensez à enregistrer le produit." });
+      setAiOpen(false);
+      setAiPrompt("");
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Génération impossible", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // Initialize editor content only once
   useEffect(() => {
@@ -541,6 +579,15 @@ export function ProductEditor({
                   <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP · Taille recommandée 800x800</p>
                 </div>
               </label>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setAiOpen(true)}
+              >
+                <ImageIcon className="h-4 w-4" />
+                Générer un visuel produit (IA)
+              </Button>
             </div>
           </CollapsibleSection>
 
@@ -748,6 +795,36 @@ export function ProductEditor({
           </div>
         </div>
       </div>
+
+      {/* AI Image Generator Dialog */}
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Générer un visuel produit</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label className="text-sm">Décrivez votre produit</Label>
+            <Textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Ex: bouteille de parfum élégante en verre transparent, fond beige minimaliste"
+              rows={4}
+              disabled={aiLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              L'image sera ajoutée à la galerie. Pensez à enregistrer le produit ensuite.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiOpen(false)} disabled={aiLoading}>
+              Annuler
+            </Button>
+            <Button onClick={handleGenerateAiImage} disabled={aiLoading}>
+              {aiLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération…</>) : "Générer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

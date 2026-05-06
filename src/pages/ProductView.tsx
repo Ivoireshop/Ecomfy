@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
+import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 
 // Countdown Timer Component
@@ -486,7 +487,9 @@ const ProductView = () => {
                 </div>
               </div>
 
-              {shop.theme_config?.single_page_checkout ? (
+              {shop._isPreview ? (
+                <PreviewLockedNotice primaryColor={primaryColor} />
+              ) : shop.theme_config?.single_page_checkout ? (
                 <Button 
                   className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: primaryColor }}
@@ -511,7 +514,7 @@ const ProductView = () => {
                 </Button>
               )}
 
-              {shop.whatsapp_number && (
+              {!shop._isPreview && shop.whatsapp_number && (
                 <a 
                   href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par "${product.name}" à ${formatPrice(product.price)} FCFA`)}`} 
                   target="_blank" rel="noopener noreferrer" 
@@ -981,7 +984,7 @@ const ProductView = () => {
       )}
 
       {/* Floating Cart - Mobile */}
-      {cartCount > 0 && !checkoutOpen && !shop.theme_config?.sticky_order_button && (
+      {!shop._isPreview && cartCount > 0 && !checkoutOpen && !shop.theme_config?.sticky_order_button && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
           <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}>
             <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
@@ -991,7 +994,7 @@ const ProductView = () => {
       )}
 
       {/* Sticky Order Button - always visible when enabled */}
-      {shop.theme_config?.sticky_order_button && product && (
+      {!shop._isPreview && shop.theme_config?.sticky_order_button && product && (
         <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="flex-1 min-w-0 hidden sm:block">
