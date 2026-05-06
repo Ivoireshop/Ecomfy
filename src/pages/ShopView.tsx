@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard } from "lucide-react";
+import { initShopPixels, trackEvent } from "@/lib/tracking";
 
 interface Product {
   id: string;
@@ -126,6 +127,12 @@ const ShopView = () => {
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
     }
+
+    // ---- Tracking pixels (skip in preview/owner mode) ----
+    if (!shopData._isPreview) {
+      initShopPixels(shopData);
+      trackEvent(shopData, "PageView");
+    }
   };
 
   const categories = ["all", ...new Set(products.map(p => p.category))];
@@ -147,6 +154,14 @@ const ShopView = () => {
       return [...prev, { product, quantity: 1 }];
     });
     toast({ title: "✓ Ajouté au panier", description: product.name });
+    trackEvent(shop, "AddToCart", {
+      value: product.price,
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: "product",
+      contents: [{ id: product.id, quantity: 1, item_price: product.price }],
+      num_items: 1,
+    });
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -189,6 +204,17 @@ const ShopView = () => {
       setOrderSuccess(true);
       setCart([]);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
+      trackEvent(shop, "Purchase", {
+        value: cartTotal,
+        order_id: order.order_number,
+        content_ids: cart.map((c) => c.product.id),
+        contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
+        num_items: cart.reduce((s, c) => s + c.quantity, 0),
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        first_name: customerInfo.name,
+        city: customerInfo.city,
+      });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {

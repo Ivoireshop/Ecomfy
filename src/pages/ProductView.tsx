@@ -16,6 +16,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { isAbidjanZone } from "@/lib/abidjanZones";
+import { initShopPixels, trackEvent } from "@/lib/tracking";
 
 // Countdown Timer Component
 const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; days: number; hours: number; minutes: number }) => {
@@ -194,6 +195,18 @@ const ProductView = () => {
     }
 
     setLoading(false);
+
+    if (!shopData._isPreview && productData) {
+      initShopPixels(shopData);
+      trackEvent(shopData, "PageView");
+      trackEvent(shopData, "ViewContent", {
+        value: productData.price,
+        content_ids: [productData.id],
+        content_name: productData.name,
+        content_type: "product",
+        contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
+      });
+    }
   };
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
@@ -207,6 +220,14 @@ const ProductView = () => {
       return [...prev, { product: prod, quantity: qty }];
     });
     toast({ title: "✓ Ajouté au panier", description: prod.name });
+    trackEvent(shop, "AddToCart", {
+      value: prod.price * qty,
+      content_ids: [prod.id],
+      content_name: prod.name,
+      content_type: "product",
+      contents: [{ id: prod.id, quantity: qty, item_price: prod.price }],
+      num_items: qty,
+    });
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -248,6 +269,17 @@ const ProductView = () => {
       setShowInlineCheckout(false);
       setCart([]);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery" });
+      trackEvent(shop, "Purchase", {
+        value: cartTotal,
+        order_id: order.order_number,
+        content_ids: cart.map((c) => c.product.id),
+        contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
+        num_items: cart.reduce((s, c) => s + c.quantity, 0),
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        first_name: customerInfo.name,
+        city: customerInfo.city,
+      });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally { setOrderLoading(false); }

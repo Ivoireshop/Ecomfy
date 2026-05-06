@@ -1445,8 +1445,14 @@ export type Database = {
           created_at: string
           currency: string | null
           email: string | null
+          facebook_access_token: string | null
           facebook_pixels: string[] | null
+          facebook_test_event_code: string | null
           favicon_url: string | null
+          ga4_api_secret: string | null
+          ga4_measurement_id: string | null
+          google_ads_conversion_id: string | null
+          google_ads_conversion_label: string | null
           google_analytics_code: string | null
           google_analytics_ids: string[] | null
           id: string
@@ -1460,13 +1466,16 @@ export type Database = {
           seo_description: string | null
           seo_title: string | null
           slug: string
+          snapchat_access_token: string | null
           snapchat_pixels: string[] | null
           social_proof_enabled: boolean | null
           theme: string | null
           theme_config: Json | null
+          tiktok_access_token: string | null
           tiktok_pixels: string[] | null
           total_orders: number | null
           total_sales: number | null
+          tracking_enabled: boolean | null
           updated_at: string
           user_id: string
           whatsapp_number: string | null
@@ -1487,8 +1496,14 @@ export type Database = {
           created_at?: string
           currency?: string | null
           email?: string | null
+          facebook_access_token?: string | null
           facebook_pixels?: string[] | null
+          facebook_test_event_code?: string | null
           favicon_url?: string | null
+          ga4_api_secret?: string | null
+          ga4_measurement_id?: string | null
+          google_ads_conversion_id?: string | null
+          google_ads_conversion_label?: string | null
           google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string
@@ -1502,13 +1517,16 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           slug: string
+          snapchat_access_token?: string | null
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
           theme?: string | null
           theme_config?: Json | null
+          tiktok_access_token?: string | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
+          tracking_enabled?: boolean | null
           updated_at?: string
           user_id: string
           whatsapp_number?: string | null
@@ -1529,8 +1547,14 @@ export type Database = {
           created_at?: string
           currency?: string | null
           email?: string | null
+          facebook_access_token?: string | null
           facebook_pixels?: string[] | null
+          facebook_test_event_code?: string | null
           favicon_url?: string | null
+          ga4_api_secret?: string | null
+          ga4_measurement_id?: string | null
+          google_ads_conversion_id?: string | null
+          google_ads_conversion_label?: string | null
           google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string
@@ -1544,13 +1568,16 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           slug?: string
+          snapchat_access_token?: string | null
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
           theme?: string | null
           theme_config?: Json | null
+          tiktok_access_token?: string | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
+          tracking_enabled?: boolean | null
           updated_at?: string
           user_id?: string
           whatsapp_number?: string | null
