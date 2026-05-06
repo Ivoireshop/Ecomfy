@@ -16,19 +16,15 @@ export function EnableNotificationsBanner() {
   const [perm, setPerm] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default",
   );
-  const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const { status, register } = useFCM();
 
-  useEffect(() => {
-    setDismissed(sessionStorage.getItem("notif-banner-dismissed") === "1");
-  }, []);
-
-  // Hide once permission granted AND token registered
+  // Banner stays visible until a token is actually registered server-side.
+  // (We intentionally no longer honour a dismiss flag — too many users hid it
+  // and then never received notifications.)
   if (typeof window === "undefined") return null;
   if (!("Notification" in window)) return null;
-  if (perm === "granted" && status === "registered") return null;
-  if (dismissed) return null;
+  if (status === "registered") return null;
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isStandalone =
@@ -60,16 +56,15 @@ export function EnableNotificationsBanner() {
         toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte à chaque nouvelle commande, même app fermée." });
         try { new Notification("VisualPro", { body: "Notifications activées avec succès." }); } catch {}
       } else {
-        toast({ title: "Erreur", description: "Impossible d'enregistrer le token. Réessayez.", variant: "destructive" });
+        toast({
+          title: "Échec de l'enregistrement",
+          description: "Token non créé. Réinstallez l'app depuis l'écran d'accueil ou réessayez.",
+          variant: "destructive",
+        });
       }
     } finally {
       setBusy(false);
     }
-  };
-
-  const handleDismiss = () => {
-    sessionStorage.setItem("notif-banner-dismissed", "1");
-    setDismissed(true);
   };
 
   return (
@@ -86,9 +81,6 @@ export function EnableNotificationsBanner() {
       <Button onClick={handleEnable} size="sm" disabled={busy} className="gap-2 shrink-0">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
         Activer
-      </Button>
-      <Button onClick={handleDismiss} size="icon" variant="ghost" className="shrink-0">
-        <X className="h-4 w-4" />
       </Button>
     </Card>
   );
