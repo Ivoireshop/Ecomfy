@@ -14,7 +14,7 @@ import {
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
   ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3,
-  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2, Wand
+  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2
 } from "lucide-react";
 
 const CATEGORIES = [
