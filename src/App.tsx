@@ -74,12 +74,13 @@ const AppContent = () => {
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
   const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
   const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
+  const hideChrome = isShopView || isOrderConfirmed;
 
   return (
-    <div className={isShopView ? "" : "pb-16 md:pb-0"}>
-      {!isShopView && <BackButton />}
+    <div className={hideChrome ? "" : "pb-16 md:pb-0"}>
+      {!hideChrome && <BackButton />}
       {showSupport && <SupportButton />}
-      <MobileBottomNav />
+      {!isOrderConfirmed && <MobileBottomNav />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -246,7 +247,8 @@ const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
-  const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
+  const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
+  const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
 
   // Showcase/shop/public pages: no sidebar at all
   if (isShowcaseView || isShopView || isPublicPage) {
