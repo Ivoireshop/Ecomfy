@@ -552,6 +552,9 @@ const ProductView = () => {
                   onClick={() => {
                     addToCart(product, quantity, true, true);
                     setShowInlineCheckout(true);
+                    setTimeout(() => {
+                      document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 80);
                   }}
                   disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
                 >
@@ -589,7 +592,7 @@ const ProductView = () => {
 
               {/* Inline Single-Page Checkout */}
               {shop.theme_config?.single_page_checkout && showInlineCheckout && cart.length > 0 && (
-                <div className="mt-4 border-2 rounded-2xl p-4 sm:p-6 space-y-5" style={{ borderColor: primaryColor + "30" }}>
+                <div id="inline-checkout" className="mt-4 border-2 rounded-2xl p-4 sm:p-6 space-y-5 scroll-mt-24" style={{ borderColor: primaryColor + "30" }}>
                   <h3 className="font-bold text-lg flex items-center gap-2" style={{ color: primaryColor }}>
                     <CreditCard className="h-5 w-5" /> Finaliser votre commande
                   </h3>
@@ -1072,7 +1075,9 @@ const ProductView = () => {
                 if (shop.theme_config?.single_page_checkout) {
                   addToCart(product, quantity, true, true);
                   setShowInlineCheckout(true);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  setTimeout(() => {
+                    document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 80);
                 } else {
                   addToCart(product, quantity, true, true);
                   setCheckoutOpen(true);
