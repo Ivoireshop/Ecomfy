@@ -2688,6 +2688,7 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_usage: { Args: { promo_code: string }; Returns: boolean }
+      is_shop_publicly_visible: { Args: { _shop_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string
