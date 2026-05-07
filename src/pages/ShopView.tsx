@@ -38,6 +38,7 @@ const ShopView = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirm">("cart");
   const [chatOpen, setChatOpen] = useState(false);
@@ -57,45 +58,72 @@ const ShopView = () => {
 
   useEffect(() => { fetchShop(); }, [slug, id]);
 
+  // Retry helper for flaky networks (in-app browsers, mobile data, ad-blockers)
+  const fetchWithRetry = async (fn: () => Promise<any>, attempts = 3): Promise<any> => {
+    let lastErr: any = null;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await fn();
+        if (!res?.error) return res;
+        lastErr = res.error;
+      } catch (e) {
+        lastErr = e;
+      }
+      await new Promise((r) => setTimeout(r, 400 * Math.pow(2, i)));
+    }
+    return { data: null, error: lastErr };
+  };
+
   const fetchShop = async () => {
     if (!slug && !id) return;
+    setFetchError(null);
+    setLoading(true);
     let shopData: any = null;
+    let networkError = false;
 
     if (id) {
-      // Dedicated editor preview route (owner-only via RLS)
-      const { data: previewById } = await supabase.from("shops").select("*").eq("id", id).maybeSingle() as any;
-      if (previewById) {
-        shopData = { ...previewById, _isPreview: true };
-      }
+      const { data: previewById, error } = await fetchWithRetry(() =>
+        supabase.from("shops").select("*").eq("id", id).maybeSingle()
+      );
+      if (error && !previewById) networkError = true;
+      if (previewById) shopData = { ...previewById, _isPreview: true };
     } else if (slug) {
-      // Public live shop (uses sanitized public view that hides sensitive financial fields)
-      const { data: liveRows } = await supabase
-        .from("shops_public" as any)
-        .select("*")
-        .eq("slug", slug)
-        .order("created_at", { ascending: false })
-        .limit(1) as any;
-
-      const liveData = liveRows?.[0];
-      if (liveData) {
-        shopData = liveData;
-      } else {
-        // Owner fallback preview by slug
-        const { data: previewRows } = await supabase
-          .from("shops")
+      const { data: liveRows, error: liveErr } = await fetchWithRetry(() =>
+        supabase
+          .from("shops_public" as any)
           .select("*")
           .eq("slug", slug)
           .order("created_at", { ascending: false })
-          .limit(1) as any;
+          .limit(1)
+      );
 
-        const previewData = previewRows?.[0];
-        if (previewData) {
-          shopData = { ...previewData, _isPreview: true };
-        }
+      const liveData = (liveRows as any)?.[0];
+      if (liveData) {
+        shopData = liveData;
+      } else if (liveErr) {
+        networkError = true;
+      } else {
+        const { data: previewRows, error: prevErr } = await fetchWithRetry(() =>
+          supabase
+            .from("shops")
+            .select("*")
+            .eq("slug", slug)
+            .order("created_at", { ascending: false })
+            .limit(1)
+        );
+        const previewData = (previewRows as any)?.[0];
+        if (previewData) shopData = { ...previewData, _isPreview: true };
+        else if (prevErr) networkError = true;
       }
     }
 
-    if (!shopData) { setLoading(false); return; }
+    if (!shopData) {
+      if (networkError) {
+        setFetchError("Impossible de charger la boutique. Vérifiez votre connexion et réessayez.");
+      }
+      setLoading(false);
+      return;
+    }
     setShop(shopData);
 
     let productsQuery = supabase
