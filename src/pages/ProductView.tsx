@@ -589,7 +589,7 @@ const ProductView = () => {
 
               {/* Inline Single-Page Checkout */}
               {shop.theme_config?.single_page_checkout && showInlineCheckout && cart.length > 0 && (
-                <div className="mt-4 border-2 rounded-2xl p-4 sm:p-6 space-y-5" style={{ borderColor: primaryColor + "30" }}>
+                <div id="inline-checkout" className="mt-4 border-2 rounded-2xl p-4 sm:p-6 space-y-5 scroll-mt-24" style={{ borderColor: primaryColor + "30" }}>
                   <h3 className="font-bold text-lg flex items-center gap-2" style={{ color: primaryColor }}>
                     <CreditCard className="h-5 w-5" /> Finaliser votre commande
                   </h3>
