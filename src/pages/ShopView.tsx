@@ -59,7 +59,7 @@ const ShopView = () => {
   useEffect(() => { fetchShop(); }, [slug, id]);
 
   // Retry helper for flaky networks (in-app browsers, mobile data, ad-blockers)
-  const fetchWithRetry = async (fn: () => Promise<any>, attempts = 3): Promise<any> => {
+  const fetchWithRetry = async (fn: () => any, attempts = 3): Promise<any> => {
     let lastErr: any = null;
     for (let i = 0; i < attempts; i++) {
       try {
