@@ -552,6 +552,9 @@ const ProductView = () => {
                   onClick={() => {
                     addToCart(product, quantity, true, true);
                     setShowInlineCheckout(true);
+                    setTimeout(() => {
+                      document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 80);
                   }}
                   disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
                 >
@@ -1072,7 +1075,9 @@ const ProductView = () => {
                 if (shop.theme_config?.single_page_checkout) {
                   addToCart(product, quantity, true, true);
                   setShowInlineCheckout(true);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  setTimeout(() => {
+                    document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 80);
                 } else {
                   addToCart(product, quantity, true, true);
                   setCheckoutOpen(true);
