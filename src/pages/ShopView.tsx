@@ -681,110 +681,112 @@ const ShopView = () => {
                 </div>
               )}
 
-              {/* Step: Customer Info */}
-              {checkoutStep === "info" && (
-                <div className="px-6 pb-6 space-y-5">
-                  <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeft className="h-4 w-4" /> Retour au panier
+              {/* Step: Info + Paiement + Confirmation (vue compacte) */}
+              {(checkoutStep === "info" || checkoutStep === "confirm") && (() => {
+                const cf: any[] = shop.checkout_fields || [];
+                const enabled = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+                };
+                const required = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.required : ["first_name","phone","city"].includes(id);
+                };
+                const showFullName = enabled("first_name") && enabled("last_name");
+                const showFirstOnly = enabled("first_name") && !enabled("last_name");
+                const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
+                const canSubmit =
+                  (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
+                  (!enabled("phone") || !required("phone") || !!customerInfo.phone) &&
+                  (!enabled("city") || !required("city") || !!customerInfo.city) &&
+                  (!enabled("address") || !required("address") || !!customerInfo.address);
+                return (
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
+                  <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <ArrowLeft className="h-3.5 w-3.5" /> Retour au panier
                   </button>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" style={{ color: primaryColor }} />
-                      <h4 className="font-bold text-sm">Contact</h4>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Nom complet *</Label>
-                        <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder="Jean Kouassi" className="rounded-xl h-11" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Téléphone *</Label>
-                        <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-xl h-11" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Email <span className="text-muted-foreground/50">(facultatif)</span></Label>
-                        <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-11" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4" style={{ color: primaryColor }} />
-                      <h4 className="font-bold text-sm">Livraison</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1 col-span-2">
-                        <Label className="text-xs text-muted-foreground">Adresse / Quartier *</Label>
-                        <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-xl h-11" />
-                      </div>
-                      <div className="space-y-1 col-span-2 sm:col-span-1">
-                        <Label className="text-xs text-muted-foreground">Ville *</Label>
-                        <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-xl h-11" />
-                      </div>
-                    </div>
-                  </div>
-                  <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("confirm")} disabled={!customerInfo.name || !customerInfo.phone || !customerInfo.address || !customerInfo.city}>
-                    Passer au paiement <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-
-              {/* Step: Payment & Confirm */}
-              {checkoutStep === "confirm" && (
-                <div className="px-6 pb-6 space-y-5">
-                  <button onClick={() => setCheckoutStep("info")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeft className="h-4 w-4" /> Retour
-                  </button>
-                  <div className="bg-muted/30 rounded-xl p-4 space-y-2">
-                    <h4 className="font-bold text-sm mb-3">Résumé de la commande</h4>
+                  {/* Résumé compact */}
+                  <div className="bg-muted/30 rounded-xl p-3 space-y-1 text-xs">
                     {cart.map(item => (
-                      <div key={item.product.id} className="flex justify-between text-sm">
+                      <div key={item.product.id} className="flex justify-between">
                         <span className="text-muted-foreground">{item.product.name} × {item.quantity}</span>
                         <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
                       </div>
                     ))}
-                    <div className="border-t pt-2 mt-2 flex justify-between font-bold">
+                    <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
                       <span>Total</span>
                       <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
                     </div>
                   </div>
-                  <div className="bg-muted/30 rounded-xl p-4 space-y-1.5 text-sm">
-                    <h4 className="font-bold text-sm mb-2">Livraison à</h4>
-                    <p className="font-medium">{customerInfo.name}</p>
-                    <p className="text-muted-foreground">{customerInfo.address}, {customerInfo.city}</p>
-                    <p className="text-muted-foreground">{customerInfo.phone}</p>
+                  {/* Infos client */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <User className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+                      <h4 className="font-bold text-xs">Vos informations</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {enabled("first_name") && (
+                        <div className="space-y-0.5 col-span-2">
+                          <Label className="text-[11px] text-muted-foreground">{nameLabel} {required("first_name") && "*"}</Label>
+                          <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                      {enabled("phone") && (
+                        <div className="space-y-0.5 col-span-2">
+                          <Label className="text-[11px] text-muted-foreground">Téléphone {required("phone") && "*"}</Label>
+                          <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                      {enabled("email") && (
+                        <div className="space-y-0.5 col-span-2">
+                          <Label className="text-[11px] text-muted-foreground">Email {required("email") && "*"}</Label>
+                          <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                      {enabled("city") && (
+                        <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                          <Label className="text-[11px] text-muted-foreground">Ville {required("city") && "*"}</Label>
+                          <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                      {enabled("address") && (
+                        <div className={`space-y-0.5 col-span-2 ${enabled("city") ? "sm:col-span-1" : ""}`}>
+                          <Label className="text-[11px] text-muted-foreground">Adresse {required("address") && "*"}</Label>
+                          <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-3">
+                  {/* Paiement */}
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4" style={{ color: primaryColor }} />
-                      <h4 className="font-bold text-sm">Mode de paiement</h4>
+                      <h4 className="font-bold text-xs">Mode de paiement</h4>
                     </div>
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
-                        { value: "mobile_money", label: "Mobile Money", icon: "📱", desc: "Wave, Orange, MTN, Moov" },
-                        { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵", desc: "Payez en espèces à la réception" },
+                        { value: "mobile_money", label: "Mobile Money", icon: "📱" },
+                        { value: "cash_on_delivery", label: "À la livraison", icon: "💵" },
                       ].map(method => (
                         <button
                           key={method.value}
                           onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                          className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-muted hover:border-muted-foreground/30"}`}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-muted"}`}
                           style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
                         >
-                          <span className="text-2xl">{method.icon}</span>
-                          <div>
-                            <p className="font-semibold text-sm">{method.label}</p>
-                            <p className="text-xs text-muted-foreground">{method.desc}</p>
-                          </div>
-                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-5 w-5 ml-auto flex-shrink-0" style={{ color: primaryColor }} />}
+                          <span className="text-lg">{method.icon}</span>
+                          <p className="font-semibold text-xs">{method.label}</p>
+                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto flex-shrink-0" style={{ color: primaryColor }} />}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading}>
+                  <Button className="w-full h-11 rounded-xl text-sm font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
                     {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
                   </Button>
                 </div>
-              )}
+                );
+              })()}
             </>
           )}
         </DialogContent>
