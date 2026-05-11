@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ProductLivePreview } from "./ProductLivePreview";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -74,11 +76,12 @@ interface ProductEditorProps {
   shopSlug?: string;
   shopActivated?: boolean;
   shopPublished?: boolean;
+  productId?: string;
 }
 
 export function ProductEditor({
   initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, saving,
-  shopSlug, shopActivated, shopPublished
+  shopSlug, shopActivated, shopPublished, productId,
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
@@ -307,6 +310,35 @@ export function ProductEditor({
 
   const shopUrl = shopSlug ? `/shop/${shopSlug}` : null;
   const canViewInShop = shopActivated && shopPublished && shopUrl;
+  const liveProductUrl =
+    shopSlug && productId && shopActivated && shopPublished && product.is_published
+      ? `/shop/${shopSlug}/product?product=${productId}`
+      : null;
+
+  const previewImages = allImages.map((img) => ({ id: img.id, image_url: img.image_url }));
+
+  const PreviewSheet = ({ trigger }: { trigger: React.ReactNode }) => (
+    <Sheet>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent side="right" className="w-full sm:max-w-[720px] p-0 flex flex-col">
+        <SheetHeader className="px-4 py-3 border-b">
+          <SheetTitle>Aperçu live de la fiche produit</SheetTitle>
+        </SheetHeader>
+        <div className="flex-1 min-h-0">
+          <ProductLivePreview
+            name={product.name}
+            shortDescription={product.short_description}
+            description={product.description}
+            price={product.price}
+            compareAtPrice={product.compare_at_price}
+            category={product.category}
+            stock={product.stock_quantity}
+            images={previewImages}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -325,6 +357,14 @@ export function ProductEditor({
             <Button variant="outline" size="sm" onClick={onCancel}>
               Annuler
             </Button>
+            <PreviewSheet
+              trigger={
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Eye className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Aperçu live</span>
+                </Button>
+              }
+            />
             <Button
               size="sm"
               className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white"
@@ -773,13 +813,26 @@ export function ProductEditor({
                 <span className="hidden sm:inline">Voir en magasin</span>
               </Button>
             )}
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
-              const previewSlug = product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "";
-              if (shopSlug) window.open(`/shop/${shopSlug}?preview_product=${previewSlug}`, "_blank");
-            }}>
-              <Eye className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Prévisualiser</span>
-            </Button>
+            <PreviewSheet
+              trigger={
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Eye className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Aperçu live</span>
+                </Button>
+              }
+            />
+            {liveProductUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-green-500 text-green-700 hover:bg-green-50"
+                onClick={() => window.open(liveProductUrl, "_blank")}
+                title="Ouvrir le lien public partageable"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Voir en live</span>
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={onCancel}>
               Annuler
             </Button>
