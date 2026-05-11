@@ -308,6 +308,9 @@ export function ProductEditor({
     ...newImages.map((file, i) => ({ type: "new" as const, id: `new-${i}`, image_url: URL.createObjectURL(file), file })),
   ];
 
+  // Append a cache-busting timestamp so the new tab always loads the freshest
+  // shop / product data right after a save+publish.
+  const cacheBust = () => `v=${Date.now()}`;
   const shopUrl = shopSlug ? `/shop/${shopSlug}` : null;
   const canViewInShop = shopActivated && shopPublished && shopUrl;
   const liveProductUrl =
@@ -808,7 +811,7 @@ export function ProductEditor({
           </span>
           <div className="flex items-center gap-2 ml-auto">
             {canViewInShop && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(shopUrl!, "_blank")}>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(`${shopUrl}?${cacheBust()}`, "_blank")}>
                 <Store className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Voir en magasin</span>
               </Button>
@@ -826,7 +829,7 @@ export function ProductEditor({
                 variant="outline"
                 size="sm"
                 className="gap-1.5 border-green-500 text-green-700 hover:bg-green-50"
-                onClick={() => window.open(liveProductUrl, "_blank")}
+                onClick={() => window.open(`${liveProductUrl}&${cacheBust()}`, "_blank")}
                 title="Ouvrir le lien public partageable"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
