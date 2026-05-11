@@ -15,6 +15,7 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
+import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 
@@ -1091,6 +1092,8 @@ const ProductView = () => {
           </div>
         </div>
       )}
+
+      <SocialProofNotification shopId={shop.id} enabled={shop.social_proof_enabled || false} />
     </div>
   );
 };
