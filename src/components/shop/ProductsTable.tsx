@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface Product {
   id: string;
+  slug?: string | null;
   name: string;
   description: string | null;
   short_description: string | null;
@@ -175,6 +177,21 @@ export function ProductsTable({
                           {onPreviewProduct && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir en magasin" onClick={() => onPreviewProduct(product)}>
                               <ExternalLink className="h-4 w-4 text-green-600" />
+                            </Button>
+                          )}
+                          {shopSlug && product.slug && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Copier le lien produit"
+                              onClick={() => {
+                                const url = `https://visuelpro.cloud/shop/${shopSlug}/p/${product.slug}`;
+                                navigator.clipboard.writeText(url);
+                                toast({ title: "Lien copié ✓", description: url });
+                              }}
+                            >
+                              <Link2 className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           )}
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => onEditProduct(product)}>
