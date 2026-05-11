@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   User, Settings2, BarChart3, CreditCard, ShoppingCart,
-  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck,
+  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck, Link2, Copy, Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -46,6 +46,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [savingSocialProof, setSavingSocialProof] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Pixel state
   const [newFbPixel, setNewFbPixel] = useState("");
@@ -151,6 +152,47 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
               <div className="space-y-1.5">
                 <Label>Nom de la boutique</Label>
                 <Input value={shop.business_name} onChange={(e) => setShop({ ...shop, business_name: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5"><Link2 className="h-3.5 w-3.5" /> Lien public de la boutique</Label>
+                <div className="flex items-stretch rounded-md border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring">
+                  <span className="px-2.5 py-2 text-xs sm:text-sm text-muted-foreground bg-muted/60 border-r select-none whitespace-nowrap">
+                    visuelpro.cloud/shop/
+                  </span>
+                  <Input
+                    value={shop.slug || ""}
+                    onChange={(e) => setShop({
+                      ...shop,
+                      slug: e.target.value
+                        .toLowerCase()
+                        .normalize("NFD")
+                        .replace(/[\u0300-\u036f]/g, "")
+                        .replace(/[^a-z0-9-]/g, "-")
+                        .replace(/-+/g, "-")
+                        .slice(0, 50),
+                    })}
+                    placeholder="ma-boutique"
+                    className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-none border-l"
+                    onClick={() => {
+                      const url = `https://visuelpro.cloud/shop/${shop.slug || ""}`;
+                      navigator.clipboard.writeText(url);
+                      setLinkCopied(true);
+                      toast({ title: "Lien copié ✓", description: url });
+                      setTimeout(() => setLinkCopied(false), 2000);
+                    }}
+                  >
+                    {linkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ce lien fonctionne pour <strong>tout le monde</strong> (Facebook, TikTok, Snapchat, Google, WhatsApp…). Lettres, chiffres et tirets uniquement. Cliquez sur <strong>Sauvegarder</strong> pour confirmer.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label>Description</Label>
