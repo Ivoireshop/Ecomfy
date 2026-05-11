@@ -380,6 +380,7 @@ const ShopEditor = () => {
           threshold={Number(shop.commission_threshold) || 12000}
           paymentDeadline={shop.payment_deadline}
           isSuspended={!!shop.is_suspended}
+          shopId={shop.id}
         />
         <div className="px-4 md:px-6 pt-4">
           <EnableNotificationsBanner />
