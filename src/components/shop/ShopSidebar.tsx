@@ -96,15 +96,18 @@ export function ShopSidebar({
             </div>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 text-white/60 hover:text-white hover:bg-white/5"
-          onClick={onPreview}
-        >
-          <Eye className="h-4 w-4" />
-          {isPublished ? "Voir la boutique" : "Prévisualiser"}
-        </Button>
+        {isActivated && isPublished && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-green-300 hover:text-white hover:bg-green-500/20"
+            onClick={onPreview}
+            title="Ouvrir le lien public à utiliser pour vos campagnes publicitaires"
+          >
+            <Eye className="h-4 w-4" />
+            Voir en magasin
+          </Button>
+        )}
         <Button
           size="sm"
           className="w-full gap-2"
