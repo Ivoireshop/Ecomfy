@@ -38,6 +38,12 @@ interface OrdersListProps {
 
 export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+  // Sequential numbering: oldest = #1, newest = #N (orders are passed in desc order)
+  const sortedAsc = [...orders].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const sequenceById: Record<string, number> = {};
+  sortedAsc.forEach((o, i) => { sequenceById[o.id] = i + 1; });
 
   return (
     <div className="space-y-4">
@@ -56,8 +62,11 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     {!order.is_read && <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />}
-                    <div>
-                      <span className="font-mono text-sm font-bold">{order.order_number}</span>
+                     <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold">Commande #{sequenceById[order.id]}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground">{order.order_number}</span>
+                      </div>
                       <p className="text-sm text-muted-foreground">{order.customer_name} · {order.customer_phone}</p>
                       {order.customer_address && <p className="text-xs text-muted-foreground">{order.customer_address}, {order.customer_city}</p>}
                     </div>
