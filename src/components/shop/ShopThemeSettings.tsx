@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
+import DOMPurify from "dompurify";
 
 interface ShopThemeSettingsProps {
   shop: any;
@@ -131,6 +132,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (ordinateur)</p>
                     <RichTextEditor value={themeConfig.review_bar_desktop_content || ""} onChange={v => updateThemeConfig("review_bar_desktop_content", v)} />
                   </div>
+                  <ReviewLivePreview themeConfig={themeConfig} variant="desktop" />
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_desktop_text || "#FFFFFF"} onChange={v => updateThemeConfig("review_desktop_text", v)} />
                     <ColorField label="Couleur arrière-plan" value={themeConfig.review_desktop_bg || "#803160"} onChange={v => updateThemeConfig("review_desktop_bg", v)} />
@@ -156,6 +158,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (mobile)</p>
                     <RichTextEditor value={themeConfig.review_bar_mobile_content || ""} onChange={v => updateThemeConfig("review_bar_mobile_content", v)} />
                   </div>
+                  <ReviewLivePreview themeConfig={themeConfig} variant="mobile" />
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_mobile_text || "#FFFFFFFF"} onChange={v => updateThemeConfig("review_mobile_text", v)} />
                     <ColorField label="Couleur arrière-plan" value={themeConfig.review_mobile_bg || "#000000FF"} onChange={v => updateThemeConfig("review_mobile_bg", v)} />
@@ -333,6 +336,52 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
       <div className="flex items-center gap-2 border rounded-lg px-2 py-1.5">
         <input type="color" value={value.substring(0, 7)} onChange={e => onChange(e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0" />
         <Input value={value} onChange={e => onChange(e.target.value)} className="border-0 shadow-none h-8 text-xs font-mono p-0 focus-visible:ring-0" />
+      </div>
+    </div>
+  );
+}
+
+function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant: "desktop" | "mobile" }) {
+  const Icon = variant === "desktop" ? Monitor : Smartphone;
+  const html = variant === "desktop"
+    ? (themeConfig.review_bar_desktop_content || "")
+    : (themeConfig.review_bar_mobile_content || themeConfig.review_bar_desktop_content || "");
+  const textColor = variant === "desktop"
+    ? (themeConfig.review_desktop_text || "#FFFFFF")
+    : (themeConfig.review_mobile_text || "#FFFFFF");
+  const bgColor = variant === "desktop"
+    ? (themeConfig.review_desktop_bg || "#803160")
+    : (themeConfig.review_mobile_bg || "#000000");
+
+  const sanitized = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "s", "span", "div", "img", "a", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "table", "thead", "tbody", "tr", "td", "th", "hr", "font"],
+    ALLOWED_ATTR: ["href", "src", "alt", "title", "target", "rel", "style", "class", "color", "size", "face", "align"],
+  });
+
+  const frameClass = variant === "desktop"
+    ? "rounded-lg border bg-background overflow-hidden"
+    : "mx-auto rounded-[1.4rem] border-[8px] border-slate-900 bg-white overflow-hidden";
+  const innerStyle = variant === "mobile" ? { width: 320 } : undefined;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        Aperçu en direct ({variant === "desktop" ? "ordinateur" : "mobile"}) — tel qu'il s'affichera sur la boutique
+      </div>
+      <div className={frameClass} style={innerStyle}>
+        {html.trim() ? (
+          <div style={{ color: textColor, backgroundColor: bgColor }}>
+            <div
+              className="mx-auto max-w-7xl px-3 py-2 text-center text-sm font-medium leading-relaxed [&_a]:underline [&_img]:mx-auto [&_img]:max-h-28 [&_img]:max-w-full [&_img]:rounded-md [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+              dangerouslySetInnerHTML={{ __html: sanitized }}
+            />
+          </div>
+        ) : (
+          <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+            Saisissez du contenu pour voir l'aperçu…
+          </div>
+        )}
       </div>
     </div>
   );
