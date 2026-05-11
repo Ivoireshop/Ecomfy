@@ -59,6 +59,19 @@ const ShopView = () => {
 
   useEffect(() => { fetchShop(); }, [slug, id]);
 
+  // Refetch when the tab regains focus / becomes visible so any change
+  // published from the editor is reflected immediately on the live shop.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") fetchShop(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, id]);
+
   // Retry helper for flaky networks (in-app browsers, mobile data, ad-blockers)
   const fetchWithRetry = async (fn: () => any, attempts = 3): Promise<any> => {
     let lastErr: any = null;
