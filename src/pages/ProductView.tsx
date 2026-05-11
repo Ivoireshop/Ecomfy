@@ -644,28 +644,58 @@ const ProductView = () => {
                     </div>
                   </div>
 
-                  {/* Contact */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Informations</h4></div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Nom complet *</Label>
-                        <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder="Jean Kouassi" className="rounded-xl h-11" />
+                  {/* Contact - respects checkout_fields */}
+                  {(() => {
+                    const cf: any[] = shop.checkout_fields || [];
+                    const isEnabled = (id: string) => {
+                      const f = cf.find((x: any) => x.id === id);
+                      return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+                    };
+                    const isRequired = (id: string) => {
+                      const f = cf.find((x: any) => x.id === id);
+                      return f ? !!f.required : ["first_name","phone","city"].includes(id);
+                    };
+                    const showFullName = isEnabled("first_name") && isEnabled("last_name");
+                    const showFirstOnly = isEnabled("first_name") && !isEnabled("last_name");
+                    const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Informations</h4></div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {isEnabled("first_name") && (
+                            <div className="space-y-1 sm:col-span-2">
+                              <Label className="text-xs text-gray-500">{nameLabel} {isRequired("first_name") && "*"}</Label>
+                              <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-11" />
+                            </div>
+                          )}
+                          {isEnabled("phone") && (
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-500">Téléphone {isRequired("phone") && "*"}</Label>
+                              <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-xl h-11" />
+                            </div>
+                          )}
+                          {isEnabled("email") && (
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-500">Email {isRequired("email") && "*"}</Label>
+                              <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-11" />
+                            </div>
+                          )}
+                          {isEnabled("city") && (
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-500">Ville {isRequired("city") && "*"}</Label>
+                              <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-xl h-11" />
+                            </div>
+                          )}
+                          {isEnabled("address") && (
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-500">Adresse {isRequired("address") && "*"}</Label>
+                              <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-xl h-11" />
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Téléphone *</Label>
-                        <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-xl h-11" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Adresse / Quartier *</Label>
-                        <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-xl h-11" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-500">Ville *</Label>
-                        <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-xl h-11" />
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Payment Method */}
                   <div className="space-y-3">
@@ -709,14 +739,33 @@ const ProductView = () => {
                     })()}
                   </div>
 
+                  {(() => {
+                    const cf: any[] = shop.checkout_fields || [];
+                    const isEnabled = (id: string) => {
+                      const f = cf.find((x: any) => x.id === id);
+                      return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+                    };
+                    const isRequired = (id: string) => {
+                      const f = cf.find((x: any) => x.id === id);
+                      return f ? !!f.required : ["first_name","phone","city"].includes(id);
+                    };
+                    const canSubmit =
+                      (!isEnabled("first_name") || !isRequired("first_name") || !!customerInfo.name) &&
+                      (!isEnabled("phone") || !isRequired("phone") || !!customerInfo.phone) &&
+                      (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
+                      (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
+                      (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
+                    return (
                   <Button 
                     className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg"
                     style={{ backgroundColor: primaryColor }}
                     onClick={placeOrder} 
-                    disabled={orderLoading || !customerInfo.name || !customerInfo.phone || !customerInfo.address || !customerInfo.city}
+                    disabled={orderLoading || !canSubmit}
                   >
                     {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
                   </Button>
+                    );
+                  })()}
                 </div>
               )}
 
