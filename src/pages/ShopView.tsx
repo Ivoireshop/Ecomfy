@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type CSSProperties } from "react";
 import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -352,7 +352,7 @@ const ShopView = () => {
           "--shop-header-mobile-bg": themeConfig.header_mobile_bg || "hsl(var(--background))",
           "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg || "hsl(var(--background))",
           borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "hsl(var(--border))",
-        } as React.CSSProperties}
+        } as CSSProperties}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
