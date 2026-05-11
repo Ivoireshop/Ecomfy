@@ -68,9 +68,9 @@ export function ProductLivePreview({
   const gallery = images.length > 0 ? images : [];
 
   return (
-    <div className="flex flex-col h-full bg-muted/20">
+    <div className="flex flex-col bg-muted/20 min-h-full">
       {/* Device toggle */}
-      <div className="flex items-center justify-between gap-2 p-3 border-b bg-background">
+      <div className="flex items-center justify-between gap-2 p-3 border-b bg-background sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <Button
           size="sm"
@@ -102,7 +102,7 @@ export function ProductLivePreview({
       </div>
 
       {/* Preview frame */}
-      <div className="flex-1 overflow-auto p-4 flex justify-center">
+      <div className="p-4 flex justify-center">
         <div
           className={cn(
             "bg-white shadow-2xl border rounded-xl overflow-hidden transition-all",
