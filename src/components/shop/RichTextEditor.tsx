@@ -26,6 +26,7 @@ interface RichTextEditorProps {
 
 export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
@@ -35,8 +36,8 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   const [imgRect, setImgRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
 
   const updateRect = useCallback((img: HTMLImageElement | null) => {
-    if (!img || !editorRef.current) { setImgRect(null); return; }
-    const er = editorRef.current.getBoundingClientRect();
+    if (!img || !wrapperRef.current) { setImgRect(null); return; }
+    const er = wrapperRef.current.getBoundingClientRect();
     const ir = img.getBoundingClientRect();
     setImgRect({ left: ir.left - er.left, top: ir.top - er.top, width: ir.width, height: ir.height });
   }, []);
@@ -163,7 +164,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-background relative">
+    <div ref={wrapperRef} className="border rounded-lg overflow-hidden bg-background relative">
       {/* Row 1 */}
       <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
         <TBtn icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
