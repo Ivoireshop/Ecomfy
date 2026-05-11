@@ -128,14 +128,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 <TabsContent value="review_desktop" className="mt-6 space-y-6">
                   <div className="border rounded-xl p-4 bg-muted/20 min-h-[150px]">
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (ordinateur)</p>
-                    <div 
-                      contentEditable 
-                      suppressContentEditableWarning
-                      className="min-h-[100px] p-3 rounded-lg border bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      style={{ whiteSpace: "pre-wrap" }}
-                      onInput={e => updateThemeConfig("review_bar_desktop_content", (e.target as HTMLDivElement).innerHTML)}
-                      dangerouslySetInnerHTML={{ __html: themeConfig.review_bar_desktop_content || "" }}
-                    />
+                    <RichTextEditor value={themeConfig.review_bar_desktop_content || ""} onChange={v => updateThemeConfig("review_bar_desktop_content", v)} />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_desktop_text || "#FFFFFF"} onChange={v => updateThemeConfig("review_desktop_text", v)} />
@@ -160,14 +153,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 <TabsContent value="review_mobile" className="mt-6 space-y-6">
                   <div className="border rounded-xl p-4 bg-muted/20 min-h-[150px]">
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (mobile)</p>
-                    <div 
-                      contentEditable 
-                      suppressContentEditableWarning
-                      className="min-h-[100px] p-3 rounded-lg border bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      style={{ whiteSpace: "pre-wrap" }}
-                      onInput={e => updateThemeConfig("review_bar_mobile_content", (e.target as HTMLDivElement).innerHTML)}
-                      dangerouslySetInnerHTML={{ __html: themeConfig.review_bar_mobile_content || "" }}
-                    />
+                    <RichTextEditor value={themeConfig.review_bar_mobile_content || ""} onChange={v => updateThemeConfig("review_bar_mobile_content", v)} />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_mobile_text || "#FFFFFFFF"} onChange={v => updateThemeConfig("review_mobile_text", v)} />
@@ -183,7 +169,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                       <Label className="text-xs">Actif</Label>
                       <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
                         <span className="text-sm">Activer</span>
-                        <Switch checked={themeConfig.review_mobile_active || false} onCheckedChange={v => updateThemeConfig("review_mobile_active", v)} />
+                        <Switch checked={themeConfig.review_mobile_active !== false} onCheckedChange={v => updateThemeConfig("review_mobile_active", v)} />
                       </div>
                     </div>
                   </div>
@@ -347,6 +333,51 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input type="color" value={value.substring(0, 7)} onChange={e => onChange(e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0" />
         <Input value={value} onChange={e => onChange(e.target.value)} className="border-0 shadow-none h-8 text-xs font-mono p-0 focus-visible:ring-0" />
       </div>
+    </div>
+  );
+}
+
+function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const runCommand = (command: string, commandValue?: string) => {
+    document.execCommand(command, false, commandValue);
+  };
+
+  const addImage = () => {
+    const url = window.prompt("Collez l'URL de l'image");
+    if (url) runCommand("insertImage", url);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-background p-2">
+        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("bold"); }}>Gras</Button>
+        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("italic"); }}>Italique</Button>
+        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("underline"); }}>Souligner</Button>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" onChange={(e) => runCommand("fontSize", e.target.value)} defaultValue="3">
+          <option value="2">Petit</option>
+          <option value="3">Normal</option>
+          <option value="5">Grand</option>
+          <option value="7">Très grand</option>
+        </select>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" onChange={(e) => runCommand("fontName", e.target.value)} defaultValue="Arial">
+          <option value="Arial">Arial</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Tahoma">Tahoma</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+        <input type="color" title="Couleur texte" className="h-9 w-10 rounded-md border" onChange={(e) => runCommand("foreColor", e.target.value)} />
+        <input type="color" title="Surlignage" className="h-9 w-10 rounded-md border" onChange={(e) => runCommand("hiliteColor", e.target.value)} />
+        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("justifyCenter"); }}>Centrer</Button>
+        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); addImage(); }}>Image</Button>
+      </div>
+      <div
+        contentEditable
+        suppressContentEditableWarning
+        className="min-h-[120px] rounded-lg border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        style={{ whiteSpace: "pre-wrap" }}
+        onInput={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
+        dangerouslySetInnerHTML={{ __html: value }}
+      />
     </div>
   );
 }
