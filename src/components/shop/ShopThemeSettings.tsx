@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown } from "lucide-react";
+import { RichTextEditor } from "./RichTextEditor";
 
 interface ShopThemeSettingsProps {
   shop: any;
@@ -337,47 +338,4 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const runCommand = (command: string, commandValue?: string) => {
-    document.execCommand(command, false, commandValue);
-  };
 
-  const addImage = () => {
-    const url = window.prompt("Collez l'URL de l'image");
-    if (url) runCommand("insertImage", url);
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-background p-2">
-        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("bold"); }}>Gras</Button>
-        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("italic"); }}>Italique</Button>
-        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("underline"); }}>Souligner</Button>
-        <select className="h-9 rounded-md border bg-background px-2 text-sm" onChange={(e) => runCommand("fontSize", e.target.value)} defaultValue="3">
-          <option value="2">Petit</option>
-          <option value="3">Normal</option>
-          <option value="5">Grand</option>
-          <option value="7">Très grand</option>
-        </select>
-        <select className="h-9 rounded-md border bg-background px-2 text-sm" onChange={(e) => runCommand("fontName", e.target.value)} defaultValue="Arial">
-          <option value="Arial">Arial</option>
-          <option value="Georgia">Georgia</option>
-          <option value="Tahoma">Tahoma</option>
-          <option value="Verdana">Verdana</option>
-        </select>
-        <input type="color" title="Couleur texte" className="h-9 w-10 rounded-md border" onChange={(e) => runCommand("foreColor", e.target.value)} />
-        <input type="color" title="Surlignage" className="h-9 w-10 rounded-md border" onChange={(e) => runCommand("hiliteColor", e.target.value)} />
-        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); runCommand("justifyCenter"); }}>Centrer</Button>
-        <Button type="button" variant="outline" size="sm" onMouseDown={(e) => { e.preventDefault(); addImage(); }}>Image</Button>
-      </div>
-      <div
-        contentEditable
-        suppressContentEditableWarning
-        className="min-h-[120px] rounded-lg border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-        style={{ whiteSpace: "pre-wrap" }}
-        onInput={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
-        dangerouslySetInnerHTML={{ __html: value }}
-      />
-    </div>
-  );
-}
