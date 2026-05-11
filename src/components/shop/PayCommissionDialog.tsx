@@ -102,15 +102,34 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue }: 
 
           <div>
             <Label className="text-sm">Montant à payer (FCFA)</Label>
+            <div className="grid grid-cols-4 gap-2 mt-2">
+              {[
+                { label: "25%", value: Math.max(100, Math.round(balanceDue * 0.25)) },
+                { label: "50%", value: Math.max(100, Math.round(balanceDue * 0.5)) },
+                { label: "75%", value: Math.max(100, Math.round(balanceDue * 0.75)) },
+                { label: "100%", value: Math.max(100, Math.round(balanceDue)) },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setAmount(preset.value)}
+                  className={`py-2 rounded-lg border-2 text-xs font-semibold transition-all ${amount === preset.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
             <Input
               type="number"
               min={100}
               max={Math.round(balanceDue)}
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="mt-1"
+              className="mt-2"
             />
-            <p className="text-xs text-muted-foreground mt-1">Maximum : {fmt(balanceDue)} FCFA</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Payez en plusieurs fois si besoin. Minimum 100 FCFA · Maximum : {fmt(balanceDue)} FCFA
+            </p>
           </div>
 
           <Button onClick={submit} disabled={loading || !provider} className="w-full gap-2" size="lg">
