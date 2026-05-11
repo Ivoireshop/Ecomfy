@@ -93,7 +93,7 @@ interface CartItem { product: Product; quantity: number; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ProductView = () => {
-  const { slug, id } = useParams<{ slug?: string; id?: string }>();
+  const { slug, id, productSlug } = useParams<{ slug?: string; id?: string; productSlug?: string }>();
   const [searchParams] = useSearchParams();
   const productId = searchParams.get("product");
   const navigate = useNavigate();
@@ -136,7 +136,7 @@ const ProductView = () => {
     }
   }, [quantity, showInlineCheckout, product]);
 
-  useEffect(() => { fetchData(); }, [slug, id, productId]);
+  useEffect(() => { fetchData(); }, [slug, id, productId, productSlug]);
 
   // Refetch on tab focus / visibility so changes published from the editor
   // appear immediately on the live product page.
@@ -149,10 +149,10 @@ const ProductView = () => {
       document.removeEventListener("visibilitychange", refresh);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug, id, productId]);
+  }, [slug, id, productId, productSlug]);
 
   const fetchData = async () => {
-    if ((!slug && !id) || !productId) { setLoading(false); return; }
+    if ((!slug && !id) || (!productId && !productSlug)) { setLoading(false); return; }
     let shopData: any = null;
 
     if (id) {
@@ -173,12 +173,16 @@ const ProductView = () => {
     setShop(shopData);
 
     // Fetch product
-    const { data: productData } = await supabase
+    let productQuery = supabase
       .from("products")
       .select("*, product_images(*)")
-      .eq("id", productId)
-      .eq("shop_id", shopData.id)
-      .maybeSingle() as any;
+      .eq("shop_id", shopData.id);
+    if (productSlug) {
+      productQuery = productQuery.eq("slug", productSlug);
+    } else if (productId) {
+      productQuery = productQuery.eq("id", productId);
+    }
+    const { data: productData } = await productQuery.maybeSingle() as any;
 
     if (productData) {
       // Sort images by display_order
@@ -192,7 +196,7 @@ const ProductView = () => {
         .from("products")
         .select("*, product_images(*)")
         .eq("shop_id", shopData.id)
-        .neq("id", productId)
+        .neq("id", productData.id)
         .eq("is_published", true)
         .limit(4) as any;
       setRelatedProducts(related || []);
