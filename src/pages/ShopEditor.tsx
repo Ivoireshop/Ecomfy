@@ -192,7 +192,34 @@ const ShopEditor = () => {
   const saveShop = async () => {
     if (!shop) return;
     setSaving(true);
+
+    // Sanitize and validate the slug (public link). The user can edit it
+    // freely in Settings → Général → Lien public, so we make sure it is
+    // URL-safe and unique before saving. If they leave it empty, fall
+    // back to a slug derived from the business name.
+    const sanitize = (v: string) =>
+      (v || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 50);
+    let nextSlug = sanitize(shop.slug || shop.business_name || "");
+    if (!nextSlug) nextSlug = "boutique";
+    if (nextSlug !== shop.slug) {
+      const { data: clash } = await supabase
+        .from("shops")
+        .select("id")
+        .eq("slug", nextSlug)
+        .neq("id", shop.id) as any;
+      if (clash && clash.length > 0) {
+        nextSlug = `${nextSlug}-${Math.random().toString(36).substring(2, 6)}`;
+      }
+    }
+
     const { error } = await supabase.from("shops").update({
+      slug: nextSlug,
       business_name: shop.business_name, business_description: shop.business_description,
       whatsapp_number: shop.whatsapp_number, phone_number: shop.phone_number, email: shop.email,
       city: shop.city, primary_color: shop.primary_color, secondary_color: shop.secondary_color,
@@ -218,7 +245,10 @@ const ShopEditor = () => {
       google_ads_conversion_label: shop.google_ads_conversion_label,
     }).eq("id", shop.id) as any;
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    else toast({ title: "✓ Sauvegardé" });
+    else {
+      if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
+      toast({ title: "✓ Sauvegardé" });
+    }
     setSaving(false);
   };
 
