@@ -169,8 +169,8 @@ export function ProductsTable({
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
                           {onPreviewProduct && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Prévisualiser la fiche" onClick={() => onPreviewProduct(product)}>
-                              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir en magasin" onClick={() => onPreviewProduct(product)}>
+                              <ExternalLink className="h-4 w-4 text-green-600" />
                             </Button>
                           )}
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => onEditProduct(product)}>

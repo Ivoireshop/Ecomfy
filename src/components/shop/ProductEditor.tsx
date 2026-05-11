@@ -320,11 +320,11 @@ export function ProductEditor({
   const PreviewSheet = ({ trigger }: { trigger: React.ReactNode }) => (
     <Sheet>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-[720px] p-0 flex flex-col">
-        <SheetHeader className="px-4 py-3 border-b">
+      <SheetContent side="right" className="w-full sm:max-w-[720px] p-0 flex flex-col h-full">
+        <SheetHeader className="px-4 py-3 border-b shrink-0">
           <SheetTitle>Aperçu live de la fiche produit</SheetTitle>
         </SheetHeader>
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <ProductLivePreview
             name={product.name}
             shortDescription={product.short_description}

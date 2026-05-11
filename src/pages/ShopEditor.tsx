@@ -502,10 +502,11 @@ const ShopEditor = () => {
               }}
               onDeleteProduct={deleteProduct}
               onUploadImage={uploadProductImage}
-              onPreviewProduct={(product) => {
-                const base = shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`;
-                window.open(`${base}/product?product=${product.id}`, "_blank");
-              }}
+              onPreviewProduct={
+                shop?.is_activated && shop?.is_published
+                  ? (product) => window.open(`/shop/${shop.slug}/product?product=${product.id}`, "_blank")
+                  : undefined
+              }
               primaryColor={primaryColor}
               orders={orders}
               shopSlug={shop.slug}
