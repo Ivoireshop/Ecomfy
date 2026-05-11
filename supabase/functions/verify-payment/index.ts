@@ -116,6 +116,29 @@ serve(async (req) => {
       await supabase.from("shops")
         .update({ is_activated: true, activation_fee_paid: true, is_published: true })
         .eq("user_id", userId);
+      // Trace de facturation
+      try {
+        const { data: shopRow } = await supabase
+          .from("shops").select("id").eq("user_id", userId).maybeSingle();
+        if (shopRow?.id) {
+          const { data: existingTrace } = await supabase
+            .from("commission_payments").select("id")
+            .eq("transaction_reference", reference).maybeSingle();
+          if (!existingTrace) {
+            await supabase.from("commission_payments").insert({
+              shop_id: shopRow.id,
+              amount: Number(payment.amount) || 0,
+              payment_method: "geniuspay",
+              transaction_reference: reference,
+              status: "paid",
+              created_by: userId,
+              notes: "Activation de la boutique",
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("verify-payment activation trace failed:", e);
+      }
     } else if (paymentType === "credits" && creditsSize > 0) {
       const { data: profile } = await supabase
         .from("profiles").select("purchased_credits, has_showcase_access").eq("id", userId).single();
