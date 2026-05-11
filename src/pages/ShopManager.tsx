@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, Zap, Trash2, Loader2 } from "lucide-react";
+import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, Zap, Trash2, Loader2, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
@@ -228,10 +228,21 @@ const ShopManager = () => {
 
                   <div className="p-5">
                     <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors">{shop.business_name}</h3>
-                    <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
-                      <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                      visualpro.app/shop/{shop.slug}
-                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = `https://visuelpro.cloud/shop/${shop.slug}`;
+                        navigator.clipboard.writeText(url);
+                        toast({ title: "Lien copié ✓", description: url });
+                      }}
+                      className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5 hover:text-primary transition-colors group/link"
+                      title="Copier le lien public"
+                    >
+                      <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="truncate">visuelpro.cloud/shop/{shop.slug}</span>
+                      <Copy className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity shrink-0" />
+                    </button>
 
                     <div className="grid grid-cols-2 gap-3 mb-5">
                       <div className="bg-muted/50 rounded-xl p-3 text-center">

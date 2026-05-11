@@ -94,6 +94,7 @@ const ShopView = () => {
     setLoading(true);
     let shopData: any = null;
     let networkError = false;
+    let inactiveShop: any = null;
 
     if (id) {
       const { data: previewById, error } = await fetchWithRetry(() =>
@@ -117,23 +118,39 @@ const ShopView = () => {
       } else if (liveErr) {
         networkError = true;
       } else {
+        // Slug not found in the public view. Try the base table to see if the
+        // shop exists but is not yet activated / published / is suspended,
+        // so we can display a clear message instead of "Boutique introuvable".
         const { data: previewRows, error: prevErr } = await fetchWithRetry(() =>
           supabase
             .from("shops")
-            .select("*")
+            .select("id, business_name, slug, logo_url, is_activated, is_published, is_suspended, user_id")
             .eq("slug", slug)
             .order("created_at", { ascending: false })
             .limit(1)
         );
         const previewData = (previewRows as any)?.[0];
-        if (previewData) shopData = { ...previewData, _isPreview: true };
-        else if (prevErr) networkError = true;
+        if (previewData) {
+          // If owner is viewing their own shop, show preview mode.
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session && session.user.id === previewData.user_id) {
+            shopData = { ...previewData, _isPreview: true };
+          } else {
+            inactiveShop = previewData;
+          }
+        } else if (prevErr) networkError = true;
       }
     }
 
     if (!shopData) {
       if (networkError) {
         setFetchError("Impossible de charger la boutique. Vérifiez votre connexion et réessayez.");
+      } else if (inactiveShop) {
+        setFetchError(
+          inactiveShop.is_suspended
+            ? "Cette boutique est temporairement indisponible. Merci de réessayer plus tard."
+            : "Cette boutique est en cours de configuration. Elle sera bientôt disponible."
+        );
       }
       setLoading(false);
       return;
@@ -320,7 +337,7 @@ const ShopView = () => {
     <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-background">
       <Store className="h-20 w-20 text-muted-foreground/30" />
       <h1 className="text-2xl font-bold">
-        {fetchError ? "Connexion interrompue" : "Boutique introuvable"}
+        {fetchError ? "Boutique momentanément indisponible" : "Boutique introuvable"}
       </h1>
       <p className="text-muted-foreground max-w-md text-center px-4">
         {fetchError ?? "Cette boutique n'existe pas ou n'est pas encore disponible"}
