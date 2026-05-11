@@ -62,6 +62,7 @@ interface ProductData {
   is_featured: boolean;
   sku: string;
   weight: number;
+  slug?: string;
 }
 
 interface ProductEditorProps {
@@ -86,7 +87,7 @@ export function ProductEditor({
   const [product, setProduct] = useState<ProductData>(initialData || {
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
-    sku: "", weight: 0, is_featured: false,
+    sku: "", weight: 0, is_featured: false, slug: "",
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
