@@ -471,6 +471,7 @@ const ShopEditor = () => {
               shopSlug={shop.slug}
               shopActivated={!!isActivated}
               shopPublished={shop.is_published}
+              productId={editingProduct?.id}
             />
           </div>
         )}
