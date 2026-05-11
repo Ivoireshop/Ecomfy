@@ -227,6 +227,24 @@ serve(async (req) => {
     if (paymentType === "shop_activation") {
       await supabase.from("profiles").update({ shop_activation_paid: true }).eq("id", userId);
       await supabase.from("shops").update({ is_activated: true, is_published: true }).eq("user_id", userId);
+      // Trace de facturation : enregistrer le paiement d'activation parmi les facturations de la boutique
+      try {
+        const { data: shopRow } = await supabase
+          .from("shops").select("id").eq("user_id", userId).maybeSingle();
+        if (shopRow?.id) {
+          await supabase.from("commission_payments").insert({
+            shop_id: shopRow.id,
+            amount: amountPaid,
+            payment_method: "geniuspay",
+            transaction_reference: reference,
+            status: "paid",
+            created_by: userId,
+            notes: "Activation de la boutique",
+          });
+        }
+      } catch (e) {
+        console.warn("Could not log activation payment:", e);
+      }
       console.log("Shop activated for", userId);
     } else if (paymentType === "commission_payment") {
       const shopId = metadata?.shop_id;
