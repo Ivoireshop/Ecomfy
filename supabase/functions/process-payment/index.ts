@@ -18,7 +18,8 @@ const PaymentSchema = z.object({
   provider: z.string().optional(),
   phone: z.string().optional(),
   promo_code: z.string().optional(),
-  payment_type: z.enum(["subscription", "credits", "shop_activation"]).default("subscription"),
+  payment_type: z.enum(["subscription", "credits", "shop_activation", "commission_payment"]).default("subscription"),
+  shop_id: z.string().uuid().optional(),
   credits_pack: z.object({
     size: z.number(),
     price: z.number()
@@ -111,7 +112,7 @@ serve(async (req) => {
       );
     }
 
-    const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack } = validatedData;
+    const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id } = validatedData;
 
     // Initialize Supabase client for promo code validation
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -199,13 +200,19 @@ serve(async (req) => {
     }
 
     const baseReturnUrl = "https://visuelpro.cloud";
-    const orderId = `${payment_type === 'credits' ? 'credits' : payment_type === 'shop_activation' ? 'shop' : 'sub'}_${user_id}_${Date.now()}`;
+    const typePrefix = payment_type === 'credits' ? 'credits'
+      : payment_type === 'shop_activation' ? 'shop'
+      : payment_type === 'commission_payment' ? 'commission'
+      : 'sub';
+    const orderId = `${typePrefix}_${user_id}_${Date.now()}`;
 
     const description = payment_type === 'shop_activation'
       ? "Activation Boutique E-commerce - Visuel Pro"
-      : payment_type === 'credits' && credits_pack
-        ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
-        : "Abonnement Visuel Pro";
+      : payment_type === 'commission_payment'
+        ? "Règlement commission VisualPro"
+        : payment_type === 'credits' && credits_pack
+          ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
+          : "Abonnement Visuel Pro";
 
     // Fetch user profile (name, email, phone) for the customer object
     const { data: userProfile } = await supabase
@@ -236,6 +243,7 @@ serve(async (req) => {
       original_amount: amount,
     };
     if (credits_pack?.size) metadata.credits_size = credits_pack.size;
+    if (shop_id) metadata.shop_id = shop_id;
     if (promoCodeId) metadata.promo_code_id = promoCodeId;
     if (discountPercentage) metadata.discount_percentage = discountPercentage;
 
