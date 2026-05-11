@@ -2532,6 +2532,42 @@ export type Database = {
       }
     }
     Views: {
+      shop_social_proof_orders: {
+        Row: {
+          created_at: string | null
+          customer_name: string | null
+          product_name: string | null
+          shop_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_name?: never
+          product_name?: never
+          shop_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_name?: never
+          product_name?: never
+          shop_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shops_public: {
         Row: {
           address: string | null
