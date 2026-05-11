@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type CSSProperties } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
+import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 
@@ -344,6 +345,8 @@ const ProductView = () => {
   );
 
   const primaryColor = shop.primary_color || "#2563eb";
+  const themeConfig = shop.theme_config || {};
+  const hasReviewBar = Boolean(themeConfig.review_bar_desktop_content || themeConfig.review_bar_mobile_content);
   const images = product.product_images || [];
   const discount = product.compare_at_price && product.compare_at_price > product.price
     ? Math.round((1 - product.price / product.compare_at_price) * 100)
@@ -363,10 +366,13 @@ const ProductView = () => {
         </div>
       )}
 
-      {/* Top Promo Bar */}
-      <div className="text-white text-center py-2 px-4 text-xs sm:text-sm font-medium" style={{ backgroundColor: primaryColor }}>
-        🔥 Offre spéciale en cours — Profitez de nos meilleurs prix ! 📦 Livraison disponible
-      </div>
+      <ShopReviewBar themeConfig={themeConfig} placement="above" />
+
+      {!hasReviewBar && (
+        <div className="text-white text-center py-2 px-4 text-xs sm:text-sm font-medium" style={{ backgroundColor: primaryColor }}>
+          🔥 Offre spéciale en cours — Profitez de nos meilleurs prix ! 📦 Livraison disponible
+        </div>
+      )}
 
       {/* Interior payment notice */}
       {shop.theme_config?.force_mobile_money_interior && (
@@ -377,7 +383,14 @@ const ProductView = () => {
 
       {/* Header - conditionally hidden */}
       {!shop.theme_config?.hide_product_header && (
-        <header className="border-b bg-white sticky top-0 z-40">
+        <header
+          className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)]"
+          style={{
+            "--shop-header-mobile-bg": themeConfig.header_mobile_bg || "#FFFFFF",
+            "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg || "#FFFFFF",
+            borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "#e5e7eb",
+          } as CSSProperties}
+        >
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={goToShop}>
               {shop.logo_url ? (
@@ -428,6 +441,7 @@ const ProductView = () => {
           </div>
         </header>
       )}
+      <ShopReviewBar themeConfig={themeConfig} placement="below" />
 
       {/* ====== PRODUCT HERO SECTION ====== */}
       <section className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
@@ -792,7 +806,14 @@ const ProductView = () => {
       </section>
 
       {/* ====== FOOTER ====== */}
-      <footer className="border-t bg-gray-50 py-8 px-4">
+      <footer
+        className="border-t py-8 px-4"
+        style={themeConfig.footer_custom ? {
+          backgroundColor: themeConfig.footer_bg || "#F9FAFB",
+          color: themeConfig.footer_text || "#6B7280",
+          borderColor: themeConfig.footer_border === false ? "transparent" : themeConfig.footer_border_color || "#e5e7eb",
+        } : { backgroundColor: "#F9FAFB" }}
+      >
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-2">
