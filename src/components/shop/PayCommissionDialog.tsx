@@ -68,7 +68,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md top-[8%] translate-y-0 sm:top-[50%] sm:translate-y-[-50%] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-red-600" />Régler ma commission</DialogTitle>
           <DialogDescription>
