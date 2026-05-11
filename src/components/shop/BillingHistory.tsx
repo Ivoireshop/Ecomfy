@@ -4,8 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Receipt, Wallet, AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
+import { Loader2, Receipt, Wallet, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { InstallAppCard } from "./InstallAppCard";
+import { PayCommissionDialog } from "./PayCommissionDialog";
 
 interface BillingHistoryProps {
   shopId: string;
@@ -19,6 +20,7 @@ const SUPPORT_PHONE = "+225 07 58 15 27 61";
 export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps) {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payOpen, setPayOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -62,32 +64,39 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
           <div className="text-2xl font-bold text-green-600">{fmt(totalPaid)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
           <div className="text-xs text-muted-foreground mt-1">{payments.filter(p => p.status === "paid").length} règlement{payments.length > 1 ? "s" : ""}</div>
         </Card>
-        <Card className={`p-4 ${balanceDue >= threshold ? "border-red-500/50 bg-red-50 dark:bg-red-950/20" : ""}`}>
-          <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Wallet className="h-3 w-3" />Solde à payer</div>
-          <div className={`text-2xl font-bold ${balanceDue >= threshold ? "text-red-600" : ""}`}>{fmt(balanceDue)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
-          <div className="text-xs text-muted-foreground mt-1">Seuil : {fmt(threshold)} FCFA</div>
+        <Card className={`p-4 ${balanceDue > 0 ? "border-red-500/60 bg-red-50 dark:bg-red-950/20" : ""}`}>
+          <div className={`text-xs mb-1 flex items-center gap-1 ${balanceDue > 0 ? "text-red-700 dark:text-red-400 font-semibold" : "text-muted-foreground"}`}>
+            <Wallet className="h-3 w-3" />Solde à payer
+          </div>
+          <div className={`text-2xl font-bold ${balanceDue > 0 ? "text-red-600" : ""}`}>{fmt(balanceDue)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
+          <div className="text-xs text-muted-foreground mt-1">Seuil de blocage : {fmt(threshold)} FCFA</div>
+          {balanceDue > 0 && (
+            <Button size="sm" className="mt-3 w-full gap-2" variant="destructive" onClick={() => setPayOpen(true)}>
+              <Wallet className="h-4 w-4" /> Payer maintenant
+            </Button>
+          )}
         </Card>
       </div>
 
       {balanceDue >= threshold && (
-        <Card className="p-4 border-red-500/50 bg-red-50 dark:bg-red-950/20">
+        <Card className="p-4 border-red-500/60 bg-red-50 dark:bg-red-950/20">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <h3 className="font-semibold text-red-900 dark:text-red-300">Facture à régler</h3>
               <p className="text-sm text-red-800/80 dark:text-red-300/80 mt-1">
-                Votre solde a atteint le seuil de facturation. Contactez le support VisualPro pour régler votre facture, sinon votre boutique sera automatiquement suspendue.
+                Votre solde a atteint le seuil de facturation. Réglez via Wave, Orange Money, MTN ou Moov pour éviter la suspension automatique de votre boutique.
               </p>
-              <Button asChild size="sm" className="mt-3 gap-2" variant="destructive">
-                <a href={`https://wa.me/${SUPPORT_PHONE.replace(/[^0-9]/g, "")}?text=Bonjour,%20je%20souhaite%20régler%20ma%20facture%20VisualPro%20pour%20la%20boutique%20${encodeURIComponent(shop?.business_name || "")}`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Payer via WhatsApp
-                </a>
+              <Button size="sm" className="mt-3 gap-2" variant="destructive" onClick={() => setPayOpen(true)}>
+                <Wallet className="h-4 w-4" />
+                Payer maintenant
               </Button>
             </div>
           </div>
         </Card>
       )}
+
+      <PayCommissionDialog open={payOpen} onOpenChange={setPayOpen} shopId={shopId} balanceDue={balanceDue} />
 
       {/* Install app card */}
       <InstallAppCard shopId={shopId} />
