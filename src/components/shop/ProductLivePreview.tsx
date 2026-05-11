@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
-import { Smartphone, Monitor, ShoppingCart, Star, Truck, Shield, Heart, Share2 } from "lucide-react";
+import { Smartphone, Monitor, ShoppingCart, Star, Truck, Shield, Heart, Share2, Save, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface PreviewImage {
   id: string;
@@ -27,7 +28,26 @@ interface ProductLivePreviewProps {
 export function ProductLivePreview({
   name, shortDescription, description, price, compareAtPrice, category, stock, images,
 }: ProductLivePreviewProps) {
-  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const STORAGE_KEY = "productPreview.device";
+  const [device, setDevice] = useState<"mobile" | "desktop">(() => {
+    if (typeof window === "undefined") return "mobile";
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    return saved === "desktop" || saved === "mobile" ? saved : "mobile";
+  });
+  const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
+
+  // Auto-persist device preference
+  useEffect(() => {
+    try { window.localStorage.setItem(STORAGE_KEY, device); } catch {}
+  }, [device]);
+
+  const handleSaveView = () => {
+    try { window.localStorage.setItem(STORAGE_KEY, device); } catch {}
+    setSaved(true);
+    toast({ title: "Vue sauvegardée ✓", description: `Aperçu ${device === "mobile" ? "Mobile" : "Ordinateur"} restauré au retour.` });
+    setTimeout(() => setSaved(false), 2000);
+  };
   const [activeImg, setActiveImg] = useState(0);
 
   const safeDescription = useMemo(
@@ -50,8 +70,9 @@ export function ProductLivePreview({
   return (
     <div className="flex flex-col h-full bg-muted/20">
       {/* Device toggle */}
-      <div className="flex items-center justify-center gap-2 p-3 border-b bg-background">
-        <Button
+      <div className="flex items-center justify-between gap-2 p-3 border-b bg-background">
+        <div className="flex items-center gap-2">
+          <Button
           size="sm"
           variant={device === "mobile" ? "default" : "outline"}
           onClick={() => setDevice("mobile")}
@@ -66,6 +87,17 @@ export function ProductLivePreview({
           className="gap-1.5"
         >
           <Monitor className="h-4 w-4" /> Ordinateur
+        </Button>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleSaveView}
+          className="gap-1.5"
+          title="Sauvegarder cette vue pour la restaurer au retour"
+        >
+          {saved ? <Check className="h-4 w-4 text-green-600" /> : <Save className="h-4 w-4" />}
+          <span className="hidden sm:inline">{saved ? "Sauvegardé" : "Sauvegarder la vue"}</span>
         </Button>
       </div>
 
