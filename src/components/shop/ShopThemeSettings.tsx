@@ -341,4 +341,62 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
+function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant: "desktop" | "mobile" }) {
+  // Force the preview to render only the chosen variant by overriding active flags
+  const previewConfig = {
+    ...themeConfig,
+    review_desktop_active: variant === "desktop",
+    review_mobile_active: variant === "mobile",
+    review_desktop_above: false,
+    review_mobile_above: false,
+  };
+  const Icon = variant === "desktop" ? Monitor : Smartphone;
+  const frameClass = variant === "desktop"
+    ? "rounded-lg border bg-background overflow-hidden"
+    : "mx-auto rounded-[1.6rem] border-[8px] border-slate-900 bg-white overflow-hidden";
+  const innerStyle = variant === "mobile" ? { width: 320 } : undefined;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        Aperçu en direct ({variant === "desktop" ? "ordinateur" : "mobile"})
+      </div>
+      <div className={frameClass} style={innerStyle}>
+        {/* Force visibility of the targeted variant */}
+        <div className={variant === "desktop" ? "" : "[&_.hidden]:!block [&_.md\\:hidden]:!block"}>
+          <div className={variant === "desktop" ? "[&_.hidden]:!block [&_.md\\:block]:!block" : "hidden"}>
+            <ShopReviewBar themeConfig={previewConfig} placement="below" />
+          </div>
+          {variant === "mobile" && (
+            <div className="block">
+              {/* Render mobile bar directly */}
+              <MobileBarOnly themeConfig={previewConfig} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileBarOnly({ themeConfig }: { themeConfig: any }) {
+  const html = themeConfig.review_bar_mobile_content || themeConfig.review_bar_desktop_content || "";
+  const textColor = themeConfig.review_mobile_text || "#FFFFFF";
+  const bgColor = themeConfig.review_mobile_bg || "#000000";
+  if (!html.trim()) {
+    return <div className="px-3 py-3 text-center text-xs text-muted-foreground">Saisissez du contenu pour voir l'aperçu…</div>;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const DOMPurify = require("dompurify");
+  return (
+    <div style={{ color: textColor, backgroundColor: bgColor }}>
+      <div
+        className="mx-auto px-3 py-2 text-center text-sm font-medium leading-relaxed [&_a]:underline [&_img]:mx-auto [&_img]:max-h-28 [&_img]:max-w-full [&_img]:rounded-md"
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+      />
+    </div>
+  );
+}
+
 
