@@ -163,7 +163,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-background">
+    <div className="border rounded-lg overflow-hidden bg-background relative">
       {/* Row 1 */}
       <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
         <TBtn icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
