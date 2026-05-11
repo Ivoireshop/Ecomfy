@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard } from "lucide-react";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
+import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 
 interface Product {
   id: string;
@@ -332,6 +333,7 @@ const ShopView = () => {
 
   const primaryColor = shop.primary_color || "#2563eb";
   const secondaryColor = shop.secondary_color || "#7c3aed";
+  const themeConfig = shop.theme_config || {};
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   return (
@@ -342,8 +344,16 @@ const ShopView = () => {
           ⚠️ Mode prévisualisation — Cette boutique n'est pas encore en ligne
         </div>
       )}
+      <ShopReviewBar themeConfig={themeConfig} placement="above" />
       {/* Sticky Header */}
-      <header className="border-b sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header
+        className="border-b sticky top-0 z-40 backdrop-blur bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)]"
+        style={{
+          "--shop-header-mobile-bg": themeConfig.header_mobile_bg || "hsl(var(--background))",
+          "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg || "hsl(var(--background))",
+          borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "hsl(var(--border))",
+        } as React.CSSProperties}
+      >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {shop.logo_url ? (
@@ -397,6 +407,7 @@ const ShopView = () => {
           </div>
         </div>
       </header>
+      <ShopReviewBar themeConfig={themeConfig} placement="below" />
 
       {/* Hero */}
       <section className="relative overflow-hidden" style={{ background: `linear-gradient(145deg, ${primaryColor}, ${secondaryColor})` }}>
@@ -528,7 +539,14 @@ const ShopView = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8 px-4">
+      <footer
+        className="border-t py-8 px-4"
+        style={themeConfig.footer_custom ? {
+          backgroundColor: themeConfig.footer_bg || "hsl(var(--background))",
+          color: themeConfig.footer_text || "hsl(var(--muted-foreground))",
+          borderColor: themeConfig.footer_border === false ? "transparent" : themeConfig.footer_border_color || "hsl(var(--border))",
+        } : undefined}
+      >
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-6 w-6 rounded" /> : <Store className="h-4 w-4" style={{ color: primaryColor }} />}
