@@ -2680,6 +2680,14 @@ export type Database = {
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
       get_next_queue_item: { Args: never; Returns: string }
+      get_shop_social_proof_orders: {
+        Args: { _limit?: number; _shop_id: string }
+        Returns: {
+          created_at: string
+          customer_name: string
+          product_name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

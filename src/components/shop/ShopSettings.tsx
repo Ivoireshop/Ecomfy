@@ -44,6 +44,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [savingSocialProof, setSavingSocialProof] = useState(false);
 
   // Pixel state
   const [newFbPixel, setNewFbPixel] = useState("");
@@ -78,6 +79,20 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
   const updateCheckoutField = (fieldId: string, key: keyof CheckoutField, value: boolean) => {
     const updated = checkoutFields.map(f => f.id === fieldId ? { ...f, [key]: value } : f);
     setShop({ ...shop, checkout_fields: updated });
+  };
+
+  const updateSocialProof = async (enabled: boolean) => {
+    const previous = shop.social_proof_enabled || false;
+    setShop({ ...shop, social_proof_enabled: enabled });
+    setSavingSocialProof(true);
+    const { error } = await supabase.from("shops").update({ social_proof_enabled: enabled }).eq("id", shop.id) as any;
+    setSavingSocialProof(false);
+    if (error) {
+      setShop({ ...shop, social_proof_enabled: previous });
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: enabled ? "Preuve sociale activée ✓" : "Preuve sociale désactivée" });
   };
 
   const handleDeleteShop = async () => {
@@ -180,7 +195,10 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
               </div>
               <div className="flex items-center justify-between">
                 <div><p className="font-medium">Preuve sociale</p><p className="text-sm text-muted-foreground">Afficher les notifications de commandes récentes aux visiteurs</p></div>
-                <Switch checked={shop.social_proof_enabled || false} onCheckedChange={(v) => setShop({ ...shop, social_proof_enabled: v })} />
+                <div className="flex items-center gap-2">
+                  {savingSocialProof && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  <Switch checked={shop.social_proof_enabled || false} onCheckedChange={updateSocialProof} disabled={savingSocialProof} />
+                </div>
               </div>
             </Card>
           </>
