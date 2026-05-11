@@ -68,18 +68,18 @@ export function EnableNotificationsBanner() {
   };
 
   return (
-    <Card className="p-4 mb-4 border-primary/30 bg-primary/5 flex items-center gap-3">
-      <div className="h-10 w-10 shrink-0 rounded-full bg-primary/15 flex items-center justify-center">
-        <Bell className="h-5 w-5 text-primary" />
+    <Card className="p-3 mb-4 border-primary/30 bg-primary/5 flex items-center gap-2.5">
+      <div className="h-8 w-8 shrink-0 rounded-full bg-primary/15 flex items-center justify-center">
+        <Bell className="h-4 w-4 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm">Activez les notifications de commandes</p>
-        <p className="text-xs text-muted-foreground">
-          Recevez une alerte instantanée sur votre téléphone à chaque nouvelle commande.
+        <p className="font-semibold text-xs sm:text-sm leading-tight">Activez les notifications</p>
+        <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
+          Alerte instantanée à chaque commande.
         </p>
       </div>
-      <Button onClick={handleEnable} size="sm" disabled={busy} className="gap-2 shrink-0">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+      <Button onClick={handleEnable} size="sm" disabled={busy} className="h-8 px-3 text-xs gap-1.5 shrink-0">
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
         Activer
       </Button>
     </Card>

@@ -373,7 +373,7 @@ const ShopEditor = () => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 mt-[52px] md:mt-0">
         {/* Billing balance banner */}
         <BillingBanner
           balanceDue={Number(shop.commission_balance_due) || 0}
@@ -478,7 +478,7 @@ const ShopEditor = () => {
         )}
 
         {/* Page Content */}
-        <div className="px-4 md:px-8 py-6 md:py-8 mt-[52px] md:mt-0">
+        <div className="px-4 md:px-8 py-6 md:py-8">
           {activeSection === "overview" && (
             <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} />
           )}
