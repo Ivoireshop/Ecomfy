@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { CheckoutMobilePreview } from "./CheckoutMobilePreview";
 
 type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "danger";
 
@@ -247,6 +248,8 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
         {activeTab === "checkout" && (
           <>
             <h2 className="text-xl font-bold">Informations de paiement</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+              <div className="space-y-4 min-w-0">
             <Card className="p-6 space-y-4">
               <h3 className="font-semibold">Mode de checkout</h3>
               <div className="flex items-center justify-between p-4 rounded-xl border">
@@ -316,6 +319,11 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                 </div>
               ))}
             </Card>
+              </div>
+              <div className="lg:block">
+                <CheckoutMobilePreview shop={shop} />
+              </div>
+            </div>
           </>
         )}
 
