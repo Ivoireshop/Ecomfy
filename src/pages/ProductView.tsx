@@ -138,6 +138,19 @@ const ProductView = () => {
 
   useEffect(() => { fetchData(); }, [slug, id, productId]);
 
+  // Refetch on tab focus / visibility so changes published from the editor
+  // appear immediately on the live product page.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") fetchData(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, id, productId]);
+
   const fetchData = async () => {
     if ((!slug && !id) || !productId) { setLoading(false); return; }
     let shopData: any = null;
