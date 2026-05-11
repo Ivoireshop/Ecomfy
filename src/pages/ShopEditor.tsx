@@ -535,7 +535,12 @@ const ShopEditor = () => {
               onUploadImage={uploadProductImage}
               onPreviewProduct={
                 shop?.is_activated && shop?.is_published
-                  ? (product) => window.open(`/shop/${shop.slug}/product?product=${product.id}`, "_blank")
+                  ? (product) => window.open(
+                      (product as any).slug
+                        ? `/shop/${shop.slug}/p/${(product as any).slug}`
+                        : `/shop/${shop.slug}/product?product=${product.id}`,
+                      "_blank"
+                    )
                   : undefined
               }
               primaryColor={primaryColor}
