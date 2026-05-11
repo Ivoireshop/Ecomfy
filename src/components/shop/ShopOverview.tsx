@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, ShoppingCart, Package, Bell } from "lucide-react";
+import { useMemo } from "react";
 
 interface Order {
   id: string;
@@ -39,10 +40,73 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
     { icon: Bell, label: "Nouvelles", value: newOrders, bg: "bg-orange-500/10", iconColor: "text-orange-600" },
   ];
 
+  const periods = useMemo(() => {
+    const now = new Date();
+    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    const today = startOfDay(now);
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const endYesterday = new Date(today);
+    const dow = (today.getDay() + 6) % 7; // Monday=0
+    const startWeek = new Date(today); startWeek.setDate(startWeek.getDate() - dow);
+    const startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const sum = (from: Date, to?: Date) => {
+      const list = orders.filter(o => {
+        const t = new Date(o.created_at).getTime();
+        return t >= from.getTime() && (!to || t < to.getTime());
+      });
+      return { count: list.length, total: list.reduce((s, o) => s + Number(o.total || 0), 0) };
+    };
+
+    return {
+      today: sum(today),
+      yesterday: sum(yesterday, endYesterday),
+      week: sum(startWeek),
+      month: sum(startMonth),
+    };
+  }, [orders]);
+
+  const PeriodCard = ({ label, count, total, accent }: { label: string; count: number; total: number; accent: string }) => (
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+        <span className={`h-2 w-2 rounded-full ${accent}`} />
+      </div>
+      <p className="text-2xl font-bold leading-tight">{count}</p>
+      <p className="text-[11px] text-muted-foreground mb-2">commande{count > 1 ? "s" : ""}</p>
+      <p className="text-sm font-semibold text-primary">{fmt(total)} FCFA</p>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">Tableau de bord</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+      {/* Mobile: total + 2x2 périodes */}
+      <div className="md:hidden space-y-3">
+        <Card className="p-5 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total depuis l'ouverture</p>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-3xl font-bold">{orders.length}</p>
+              <p className="text-xs text-muted-foreground">commandes totales</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xl font-bold text-primary">{fmt(totalRevenue)}</p>
+              <p className="text-xs text-muted-foreground">FCFA générés</p>
+            </div>
+          </div>
+        </Card>
+        <div className="grid grid-cols-2 gap-3">
+          <PeriodCard label="Aujourd'hui" count={periods.today.count} total={periods.today.total} accent="bg-primary" />
+          <PeriodCard label="Hier" count={periods.yesterday.count} total={periods.yesterday.total} accent="bg-blue-500" />
+          <PeriodCard label="Cette semaine" count={periods.week.count} total={periods.week.total} accent="bg-green-500" />
+          <PeriodCard label="Ce mois" count={periods.month.count} total={periods.month.total} accent="bg-orange-500" />
+        </div>
+      </div>
+
+      {/* Desktop: stats existantes */}
+      <div className="hidden md:grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((stat, i) => (
           <Card key={i} className="p-5">
             <div className="flex items-center gap-3">
