@@ -26,11 +26,75 @@ interface RichTextEditorProps {
 
 export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  const [imgRect, setImgRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+
+  const updateRect = useCallback((img: HTMLImageElement | null) => {
+    if (!img || !wrapperRef.current) { setImgRect(null); return; }
+    const er = wrapperRef.current.getBoundingClientRect();
+    const ir = img.getBoundingClientRect();
+    setImgRect({ left: ir.left - er.left, top: ir.top - er.top, width: ir.width, height: ir.height });
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t && t.tagName === "IMG" && editorRef.current?.contains(t)) {
+        const img = t as HTMLImageElement;
+        setSelectedImg(img);
+        updateRect(img);
+      } else if (!t?.closest?.("[data-img-handle]")) {
+        setSelectedImg(null);
+        setImgRect(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [updateRect]);
+
+  useEffect(() => {
+    if (!selectedImg) return;
+    const onUpd = () => updateRect(selectedImg);
+    window.addEventListener("resize", onUpd);
+    window.addEventListener("scroll", onUpd, true);
+    return () => {
+      window.removeEventListener("resize", onUpd);
+      window.removeEventListener("scroll", onUpd, true);
+    };
+  }, [selectedImg, updateRect]);
+
+  const startResize = (e: React.MouseEvent, dir: "right" | "left") => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectedImg) return;
+    const img = selectedImg;
+    const startX = e.clientX;
+    const startW = img.getBoundingClientRect().width;
+    const ratio = img.naturalWidth && img.naturalHeight
+      ? img.naturalHeight / img.naturalWidth
+      : img.getBoundingClientRect().height / startW;
+    img.style.maxWidth = "none";
+    const onMove = (ev: MouseEvent) => {
+      const delta = dir === "right" ? ev.clientX - startX : startX - ev.clientX;
+      const newW = Math.max(40, startW + delta);
+      img.style.width = newW + "px";
+      img.style.height = newW * ratio + "px";
+      updateRect(img);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      if (editorRef.current) onChange(editorRef.current.innerHTML);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
 
   useEffect(() => {
     if (editorRef.current && !initialized.current) {
@@ -100,7 +164,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-background">
+    <div ref={wrapperRef} className="border rounded-lg overflow-hidden bg-background relative">
       {/* Row 1 */}
       <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
         <TBtn icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
@@ -203,6 +267,27 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         onInput={handleInput}
         data-code-view="false"
       />
+      {selectedImg && imgRect && (
+        <div
+          data-img-handle
+          className="pointer-events-none absolute z-20"
+          style={{ left: imgRect.left, top: imgRect.top, width: imgRect.width, height: imgRect.height }}
+        >
+          <div className="absolute inset-0 ring-2 ring-primary rounded-sm" />
+          <div
+            data-img-handle
+            onMouseDown={(e) => startResize(e, "left")}
+            className="pointer-events-auto absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-8 bg-primary rounded-sm cursor-ew-resize shadow"
+            title="Réduire / agrandir"
+          />
+          <div
+            data-img-handle
+            onMouseDown={(e) => startResize(e, "right")}
+            className="pointer-events-auto absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-8 bg-primary rounded-sm cursor-ew-resize shadow"
+            title="Réduire / agrandir"
+          />
+        </div>
+      )}
     </div>
   );
 }
