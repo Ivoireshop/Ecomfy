@@ -233,6 +233,9 @@ const AppContent = () => {
           <Route path="/shop/:slug" element={<ShopView />} />
           <Route path="/shop-preview/:id/product" element={<ProtectedRoute><ProductView /></ProtectedRoute>} />
           <Route path="/shop/:slug/product" element={<ProductView /> } />
+          {/* Clean shareable product URLs (e.g. /shop/ma-boutique/p/mon-produit) */}
+          <Route path="/shop-preview/:id/p/:productSlug" element={<ProtectedRoute><ProductView /></ProtectedRoute>} />
+          <Route path="/shop/:slug/p/:productSlug" element={<ProductView /> } />
           <Route path="/order-confirmed" element={<OrderConfirmed />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

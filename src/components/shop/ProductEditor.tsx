@@ -62,6 +62,7 @@ interface ProductData {
   is_featured: boolean;
   sku: string;
   weight: number;
+  slug?: string;
 }
 
 interface ProductEditorProps {
@@ -86,7 +87,7 @@ export function ProductEditor({
   const [product, setProduct] = useState<ProductData>(initialData || {
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
-    sku: "", weight: 0, is_featured: false,
+    sku: "", weight: 0, is_featured: false, slug: "",
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
@@ -726,7 +727,44 @@ export function ProductEditor({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-sm">URL slug</Label>
-                  <Input value={product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : ""} disabled className="h-10 bg-muted/30" />
+                  <Input
+                    value={product.slug || ""}
+                    onChange={(e) =>
+                      setProduct({
+                        ...product,
+                        slug: e.target.value
+                          .toLowerCase()
+                          .normalize("NFD")
+                          .replace(/[\u0300-\u036f]/g, "")
+                          .replace(/[^a-z0-9-]+/g, "-")
+                          .replace(/-+/g, "-")
+                          .replace(/^-|-$/g, ""),
+                      })
+                    }
+                    placeholder={product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "mon-produit"}
+                    className="h-10"
+                  />
+                  {shopSlug && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-muted-foreground truncate">
+                        visuelpro.cloud/shop/{shopSlug}/p/{product.slug || (product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "mon-produit")}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => {
+                          const s = product.slug || (product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "");
+                          const url = `https://visuelpro.cloud/shop/${shopSlug}/p/${s}`;
+                          navigator.clipboard.writeText(url);
+                          toast({ title: "Lien copié ✓", description: url });
+                        }}
+                      >
+                        Copier
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-1.5">

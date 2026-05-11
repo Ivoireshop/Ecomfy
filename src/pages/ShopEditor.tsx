@@ -264,6 +264,7 @@ const ShopEditor = () => {
       price: newProduct.price, compare_at_price: newProduct.compare_at_price || null, category: newProduct.category,
       stock_quantity: newProduct.stock_quantity, is_digital: newProduct.is_digital, is_published: newProduct.is_published,
       is_featured: newProduct.is_featured, sku: newProduct.sku || null, weight: newProduct.weight || null, shop_id: id,
+      slug: (newProduct as any).slug || null,
     };
     let result;
     if (editingProduct) {
@@ -294,6 +295,7 @@ const ShopEditor = () => {
       price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
       stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
       is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
+      slug: data.slug || null,
     };
     let result;
     if (editingProduct) {
@@ -491,6 +493,7 @@ const ShopEditor = () => {
                 category: editingProduct.category, stock_quantity: editingProduct.stock_quantity,
                 is_digital: editingProduct.is_digital, is_published: editingProduct.is_published,
                 is_featured: editingProduct.is_featured, sku: editingProduct.sku || "", weight: editingProduct.weight || 0,
+                slug: (editingProduct as any).slug || "",
               } : undefined}
               existingImages={editingProduct?.product_images || []}
               isEditing={!!editingProduct}
@@ -535,7 +538,12 @@ const ShopEditor = () => {
               onUploadImage={uploadProductImage}
               onPreviewProduct={
                 shop?.is_activated && shop?.is_published
-                  ? (product) => window.open(`/shop/${shop.slug}/product?product=${product.id}`, "_blank")
+                  ? (product) => window.open(
+                      (product as any).slug
+                        ? `/shop/${shop.slug}/p/${(product as any).slug}`
+                        : `/shop/${shop.slug}/product?product=${product.id}`,
+                      "_blank"
+                    )
                   : undefined
               }
               primaryColor={primaryColor}

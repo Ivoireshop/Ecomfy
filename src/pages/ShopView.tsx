@@ -485,7 +485,7 @@ const ShopView = () => {
             {featuredProducts.slice(0, 4).map(product => (
               <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
                 const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
-                navigate(`${base}/product?product=${p.id}`);
+                navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
               }} formatPrice={formatPrice} />
             ))}
           </div>
@@ -524,7 +524,7 @@ const ShopView = () => {
           {filteredProducts.map(product => (
             <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
               const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
-              navigate(`${base}/product?product=${p.id}`);
+              navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
             }} formatPrice={formatPrice} />
           ))}
         </div>

@@ -1352,6 +1352,7 @@ export type Database = {
           shop_id: string
           short_description: string | null
           sku: string | null
+          slug: string | null
           stock_quantity: number | null
           updated_at: string | null
           weight: number | null
@@ -1373,6 +1374,7 @@ export type Database = {
           shop_id: string
           short_description?: string | null
           sku?: string | null
+          slug?: string | null
           stock_quantity?: number | null
           updated_at?: string | null
           weight?: number | null
@@ -1394,6 +1396,7 @@ export type Database = {
           shop_id?: string
           short_description?: string | null
           sku?: string | null
+          slug?: string | null
           stock_quantity?: number | null
           updated_at?: string | null
           weight?: number | null
@@ -2718,6 +2721,8 @@ export type Database = {
           read_ct: number
         }[]
       }
+      slugify: { Args: { _value: string }; Returns: string }
+      unaccent: { Args: { "": string }; Returns: string }
       validate_promo_code: {
         Args: { promo_code: string }
         Returns: {
