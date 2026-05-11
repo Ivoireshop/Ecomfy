@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
+import { ShopReviewBar } from "./ShopReviewBar";
 
 interface ShopThemeSettingsProps {
   shop: any;
@@ -131,6 +132,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (ordinateur)</p>
                     <RichTextEditor value={themeConfig.review_bar_desktop_content || ""} onChange={v => updateThemeConfig("review_bar_desktop_content", v)} />
                   </div>
+                  <ReviewLivePreview themeConfig={themeConfig} variant="desktop" />
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_desktop_text || "#FFFFFF"} onChange={v => updateThemeConfig("review_desktop_text", v)} />
                     <ColorField label="Couleur arrière-plan" value={themeConfig.review_desktop_bg || "#803160"} onChange={v => updateThemeConfig("review_desktop_bg", v)} />
@@ -156,6 +158,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (mobile)</p>
                     <RichTextEditor value={themeConfig.review_bar_mobile_content || ""} onChange={v => updateThemeConfig("review_bar_mobile_content", v)} />
                   </div>
+                  <ReviewLivePreview themeConfig={themeConfig} variant="mobile" />
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_mobile_text || "#FFFFFFFF"} onChange={v => updateThemeConfig("review_mobile_text", v)} />
                     <ColorField label="Couleur arrière-plan" value={themeConfig.review_mobile_bg || "#000000FF"} onChange={v => updateThemeConfig("review_mobile_bg", v)} />
