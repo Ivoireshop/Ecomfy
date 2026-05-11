@@ -228,6 +228,39 @@ serve(async (req) => {
       await supabase.from("profiles").update({ shop_activation_paid: true }).eq("id", userId);
       await supabase.from("shops").update({ is_activated: true, is_published: true }).eq("user_id", userId);
       console.log("Shop activated for", userId);
+    } else if (paymentType === "commission_payment") {
+      const shopId = metadata?.shop_id;
+      if (shopId) {
+        const { data: shopRow } = await supabase
+          .from("shops")
+          .select("commission_balance_due, commission_threshold")
+          .eq("id", shopId)
+          .single();
+        const currentBalance = Number(shopRow?.commission_balance_due) || 0;
+        const threshold = Number(shopRow?.commission_threshold) || 12000;
+        const newBalance = Math.max(0, currentBalance - amountPaid);
+        const updates: Record<string, unknown> = {
+          commission_balance_due: newBalance,
+          updated_at: new Date().toISOString(),
+        };
+        if (newBalance < threshold) {
+          updates.payment_deadline = null;
+          updates.is_suspended = false;
+        }
+        await supabase.from("shops").update(updates).eq("id", shopId);
+        await supabase.from("commission_payments").insert({
+          shop_id: shopId,
+          amount: amountPaid,
+          payment_method: "geniuspay",
+          transaction_reference: reference,
+          status: "paid",
+          created_by: userId,
+          notes: "Paiement en ligne via GeniusPay",
+        });
+        console.log(`Commission paid ${amountPaid} for shop ${shopId}, new balance ${newBalance}`);
+      } else {
+        console.warn("commission_payment without shop_id metadata", { reference });
+      }
     } else if (paymentType === "credits" && creditsSize > 0) {
       const { data: profile } = await supabase
         .from("profiles")
