@@ -48,11 +48,15 @@ export function ProductsTable({
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Count orders per product
+  // Count distinct orders per product (1 order = 1, even if multiple units)
   const orderCounts: Record<string, number> = {};
   orders.forEach(o => {
+    const seen = new Set<string>();
     o.order_items?.forEach(item => {
-      orderCounts[item.product_id] = (orderCounts[item.product_id] || 0) + item.quantity;
+      if (!seen.has(item.product_id)) {
+        seen.add(item.product_id);
+        orderCounts[item.product_id] = (orderCounts[item.product_id] || 0) + 1;
+      }
     });
   });
 
