@@ -493,6 +493,7 @@ const ShopEditor = () => {
                 category: editingProduct.category, stock_quantity: editingProduct.stock_quantity,
                 is_digital: editingProduct.is_digital, is_published: editingProduct.is_published,
                 is_featured: editingProduct.is_featured, sku: editingProduct.sku || "", weight: editingProduct.weight || 0,
+                slug: (editingProduct as any).slug || "",
               } : undefined}
               existingImages={editingProduct?.product_images || []}
               isEditing={!!editingProduct}
