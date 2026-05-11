@@ -86,7 +86,7 @@ export function SocialProofNotification({ shopId, enabled }: SocialProofNotifica
   const timeAgo = getTimeAgo(order.created_at);
 
   return (
-    <div className="fixed bottom-24 left-4 right-4 sm:right-auto sm:bottom-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-500">
+    <div className="fixed bottom-24 left-4 right-4 sm:right-auto sm:bottom-4 z-[10000] animate-in slide-in-from-bottom-4 fade-in duration-500">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 max-w-xs flex items-start gap-3">
         <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
           <ShoppingBag className="h-5 w-5 text-green-600" />
