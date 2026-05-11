@@ -75,6 +75,7 @@ const StockUrgencyBarInline = ({ stock, maxStock, color, text }: { stock: number
 
 interface Product {
   id: string;
+  slug?: string | null;
   name: string;
   description: string | null;
   short_description: string | null;
@@ -835,7 +836,9 @@ const ProductView = () => {
                 return (
                   <a 
                     key={rp.id} 
-                    href={shop._isPreview ? `/shop-preview/${shop.id}/product?product=${rp.id}` : `/shop/${shop.slug}/product?product=${rp.id}`}
+                    href={shop._isPreview
+                      ? (rp.slug ? `/shop-preview/${shop.id}/p/${rp.slug}` : `/shop-preview/${shop.id}/product?product=${rp.id}`)
+                      : (rp.slug ? `/shop/${shop.slug}/p/${rp.slug}` : `/shop/${shop.slug}/product?product=${rp.id}`)}
                     className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all group border"
                   >
                     <div className="aspect-square bg-gray-100 overflow-hidden">
