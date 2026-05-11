@@ -128,14 +128,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 <TabsContent value="review_desktop" className="mt-6 space-y-6">
                   <div className="border rounded-xl p-4 bg-muted/20 min-h-[150px]">
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (ordinateur)</p>
-                    <div 
-                      contentEditable 
-                      suppressContentEditableWarning
-                      className="min-h-[100px] p-3 rounded-lg border bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      style={{ whiteSpace: "pre-wrap" }}
-                      onInput={e => updateThemeConfig("review_bar_desktop_content", (e.target as HTMLDivElement).innerHTML)}
-                      dangerouslySetInnerHTML={{ __html: themeConfig.review_bar_desktop_content || "" }}
-                    />
+                    <RichTextEditor value={themeConfig.review_bar_desktop_content || ""} onChange={v => updateThemeConfig("review_bar_desktop_content", v)} />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_desktop_text || "#FFFFFF"} onChange={v => updateThemeConfig("review_desktop_text", v)} />
@@ -160,14 +153,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 <TabsContent value="review_mobile" className="mt-6 space-y-6">
                   <div className="border rounded-xl p-4 bg-muted/20 min-h-[150px]">
                     <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (mobile)</p>
-                    <div 
-                      contentEditable 
-                      suppressContentEditableWarning
-                      className="min-h-[100px] p-3 rounded-lg border bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      style={{ whiteSpace: "pre-wrap" }}
-                      onInput={e => updateThemeConfig("review_bar_mobile_content", (e.target as HTMLDivElement).innerHTML)}
-                      dangerouslySetInnerHTML={{ __html: themeConfig.review_bar_mobile_content || "" }}
-                    />
+                    <RichTextEditor value={themeConfig.review_bar_mobile_content || ""} onChange={v => updateThemeConfig("review_bar_mobile_content", v)} />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_mobile_text || "#FFFFFFFF"} onChange={v => updateThemeConfig("review_mobile_text", v)} />
@@ -183,7 +169,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                       <Label className="text-xs">Actif</Label>
                       <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
                         <span className="text-sm">Activer</span>
-                        <Switch checked={themeConfig.review_mobile_active || false} onCheckedChange={v => updateThemeConfig("review_mobile_active", v)} />
+                        <Switch checked={themeConfig.review_mobile_active !== false} onCheckedChange={v => updateThemeConfig("review_mobile_active", v)} />
                       </div>
                     </div>
                   </div>
