@@ -79,12 +79,15 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     const ratio = img.naturalWidth && img.naturalHeight
       ? img.naturalHeight / img.naturalWidth
       : img.getBoundingClientRect().height / startW;
-    img.style.maxWidth = "none";
+    const containerW = editorRef.current
+      ? editorRef.current.clientWidth - 24 // padding p-3 = 12px each side
+      : startW;
     const onMove = (ev: MouseEvent) => {
       const delta = dir === "right" ? ev.clientX - startX : startX - ev.clientX;
-      const newW = Math.max(40, startW + delta);
+      const newW = Math.min(containerW, Math.max(40, startW + delta));
       img.style.width = newW + "px";
       img.style.height = newW * ratio + "px";
+      img.style.maxWidth = "100%";
       updateRect(img);
     };
     const onUp = () => {
