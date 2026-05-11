@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, ShoppingCart, Package, Bell } from "lucide-react";
+import { ShoppingCart, Package, Bell, TrendingUp } from "lucide-react";
 import { useMemo } from "react";
 
 interface Order {
@@ -32,13 +32,6 @@ interface ShopOverviewProps {
 
 export function ShopOverview({ orders, productCount, totalRevenue, newOrders, onViewAllOrders }: ShopOverviewProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
-
-  const stats = [
-    { icon: TrendingUp, label: "FCFA de ventes", value: fmt(totalRevenue), bg: "bg-primary/10", iconColor: "text-primary" },
-    { icon: ShoppingCart, label: "Commandes", value: orders.length, bg: "bg-blue-500/10", iconColor: "text-blue-600" },
-    { icon: Package, label: "Produits", value: productCount, bg: "bg-green-500/10", iconColor: "text-green-600" },
-    { icon: Bell, label: "Nouvelles", value: newOrders, bg: "bg-orange-500/10", iconColor: "text-orange-600" },
-  ];
 
   const periods = useMemo(() => {
     const now = new Date();
@@ -78,26 +71,48 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
     </Card>
   );
 
+  const QuickStat = ({ icon: Icon, value, label, color }: { icon: any; value: string | number; label: string; color: string }) => (
+    <div className="flex items-center gap-3">
+      <div className={`h-9 w-9 rounded-lg ${color} flex items-center justify-center`}>
+        <Icon className="h-4 w-4 text-white" />
+      </div>
+      <div>
+        <p className="text-lg font-bold leading-tight">{value}</p>
+        <p className="text-[11px] text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">Tableau de bord</h2>
 
-      {/* Mobile: total + 2x2 périodes */}
-      <div className="md:hidden space-y-3">
+      {/* Total card + quick stats row on desktop */}
+      <div className="space-y-4">
         <Card className="p-5 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total depuis l'ouverture</p>
-          <div className="mt-2 flex items-end justify-between gap-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <p className="text-3xl font-bold">{orders.length}</p>
-              <p className="text-xs text-muted-foreground">commandes totales</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total depuis l'ouverture</p>
+              <div className="mt-2 flex items-end gap-6">
+                <div>
+                  <p className="text-3xl font-bold">{orders.length}</p>
+                  <p className="text-xs text-muted-foreground">commandes totales</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{fmt(totalRevenue)}</p>
+                  <p className="text-xs text-muted-foreground">FCFA générés</p>
+                </div>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xl font-bold text-primary">{fmt(totalRevenue)}</p>
-              <p className="text-xs text-muted-foreground">FCFA générés</p>
+            <div className="hidden md:flex items-center gap-6 pr-4">
+              <QuickStat icon={Package} value={productCount} label="Produits" color="bg-green-500" />
+              <QuickStat icon={Bell} value={newOrders} label="Nouvelles" color="bg-orange-500" />
             </div>
           </div>
         </Card>
-        <div className="grid grid-cols-2 gap-3">
+
+        {/* Period cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <PeriodCard label="Aujourd'hui" count={periods.today.count} total={periods.today.total} accent="bg-primary" />
           <PeriodCard label="Hier" count={periods.yesterday.count} total={periods.yesterday.total} accent="bg-blue-500" />
           <PeriodCard label="Cette semaine" count={periods.week.count} total={periods.week.total} accent="bg-green-500" />
@@ -105,22 +120,6 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
         </div>
       </div>
 
-      {/* Desktop: stats existantes */}
-      <div className="hidden md:grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat, i) => (
-          <Card key={i} className="p-5">
-            <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold">Commandes récentes</h3>
