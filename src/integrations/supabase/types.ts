@@ -2532,42 +2532,6 @@ export type Database = {
       }
     }
     Views: {
-      shop_social_proof_orders: {
-        Row: {
-          created_at: string | null
-          customer_name: string | null
-          product_name: string | null
-          shop_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          customer_name?: never
-          product_name?: never
-          shop_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          customer_name?: never
-          product_name?: never
-          shop_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orders_shop_id_fkey"
-            columns: ["shop_id"]
-            isOneToOne: false
-            referencedRelation: "shops"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_shop_id_fkey"
-            columns: ["shop_id"]
-            isOneToOne: false
-            referencedRelation: "shops_public"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       shops_public: {
         Row: {
           address: string | null
@@ -2716,6 +2680,14 @@ export type Database = {
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
       get_next_queue_item: { Args: never; Returns: string }
+      get_shop_social_proof_orders: {
+        Args: { _limit?: number; _shop_id: string }
+        Returns: {
+          created_at: string
+          customer_name: string
+          product_name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
