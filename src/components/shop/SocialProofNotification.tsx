@@ -27,39 +27,22 @@ export function SocialProofNotification({ shopId, enabled }: SocialProofNotifica
   const [showCount, setShowCount] = useState(0);
 
   const fetchRecentOrders = useCallback(async () => {
-    // Fetch recent orders with their items for product names
-    const { data: ordersData } = await supabase
-      .from("orders")
-      .select("id, customer_name, customer_city, created_at")
-      .eq("shop_id", shopId)
-      .order("created_at", { ascending: false })
-      .limit(10);
+    const { data: ordersData, error } = await (supabase as any).rpc("get_shop_social_proof_orders", {
+      _shop_id: shopId,
+      _limit: 5,
+    });
 
-    if (!ordersData?.length) {
-      // No real orders: use demo data so shop owner can preview
+    if (error || !ordersData?.length) {
+      // No public orders yet: use demo data so the activation is immediately visible.
       setOrders(DEMO_ORDERS);
       return;
     }
 
-    const orderResults: RecentOrder[] = [];
-    for (const order of ordersData.slice(0, 5)) {
-      // Get first product name from order items
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("product_name")
-        .eq("order_id", order.id)
-        .limit(1);
-
-      const productName = items?.[0]?.product_name || "un article";
-      const firstName = order.customer_name?.split(" ")[0] || "Un client";
-
-      orderResults.push({
-        customer_name: firstName,
-        product_name: productName,
-        created_at: order.created_at,
-      });
-    }
-    setOrders(orderResults);
+    setOrders(ordersData.map((order: RecentOrder) => ({
+      customer_name: order.customer_name || "Un client",
+      product_name: order.product_name || "un article",
+      created_at: order.created_at,
+    })));
   }, [shopId]);
 
   useEffect(() => {
@@ -86,14 +69,11 @@ export function SocialProofNotification({ shopId, enabled }: SocialProofNotifica
     const hideTimer = setTimeout(() => {
       setVisible(false);
 
-      // Show next after a pause (up to orders.length cycles)
+      // Show next after a pause, then loop continuously.
       setTimeout(() => {
-        const nextIndex = currentIndex + 1;
-        if (nextIndex < orders.length) {
-          setCurrentIndex(nextIndex);
-          setShowCount(prev => prev + 1);
-          setVisible(true);
-        }
+        setCurrentIndex((currentIndex + 1) % orders.length);
+        setShowCount(prev => prev + 1);
+        setVisible(true);
       }, 6000);
     }, 5000);
 
