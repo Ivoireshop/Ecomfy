@@ -337,7 +337,7 @@ const ShopView = () => {
     <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-background">
       <Store className="h-20 w-20 text-muted-foreground/30" />
       <h1 className="text-2xl font-bold">
-        {fetchError ? "Connexion interrompue" : "Boutique introuvable"}
+        {fetchError ? "Boutique momentanément indisponible" : "Boutique introuvable"}
       </h1>
       <p className="text-muted-foreground max-w-md text-center px-4">
         {fetchError ?? "Cette boutique n'existe pas ou n'est pas encore disponible"}
