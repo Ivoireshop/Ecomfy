@@ -150,8 +150,8 @@ export function EnableNotificationsBanner() {
         </div>
 
         <p className="text-[10px] text-muted-foreground leading-snug pt-1 border-t">
-          📱 Sur mobile : ouvrez l'app installée à l'écran d'accueil pour entendre la sonnerie même app fermée.
-          Si rien ne sonne, vérifiez que le mode silencieux n'est pas activé sur votre téléphone.
+          📱 App fermée ou écran verrouillé : le téléphone joue le son système de notification.
+          La sonnerie VisualPro personnalisée se joue quand l'app est ouverte.
         </p>
       </Card>
     );
@@ -184,8 +184,8 @@ export function EnableNotificationsBanner() {
       }
       const token = await register();
       if (token) {
-        toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte à chaque nouvelle commande, même app fermée." });
-        try { new Notification("VisualPro", { body: "Notifications activées avec succès." }); } catch {}
+        toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte sonore à chaque commande selon les réglages du téléphone." });
+        try { new Notification("VisualPro", { body: "Notifications activées avec succès.", icon: "/app-icon-512.png", silent: false }); } catch {}
       } else {
         toast({
           title: "Échec de l'enregistrement",
