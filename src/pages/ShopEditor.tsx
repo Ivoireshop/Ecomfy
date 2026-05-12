@@ -129,6 +129,8 @@ const ShopEditor = () => {
 
   // Auto-register FCM push token (so notifications arrive even when PWA is closed)
   useFCM(id);
+  // Native iOS/Android push registration (rings even when app is closed/locked)
+  useNativePush(id);
 
   useEffect(() => {
     if (!id) return;
