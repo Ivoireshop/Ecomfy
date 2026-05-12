@@ -28,7 +28,7 @@ interface ShopStatisticsProps {
   orders: Order[];
   products: Product[];
   primaryColor: string;
-  visits?: { visited_at: string; product_id?: string | null }[];
+  visits?: { visited_at: string; product_id?: string | null; session_id?: string | null }[];
 }
 
 export function ShopStatistics({ orders, products, primaryColor, visits = [] }: ShopStatisticsProps) {
@@ -91,19 +91,51 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
     return days;
   }, [filteredOrders, period]);
 
+  const trafficMetrics = useMemo(() => {
+    const trackedPageViews = filteredVisits.length;
+    const sessions = new Set(filteredVisits.map((v, i) => v.session_id || `visit-${i}`));
+    const trackedVisitors = sessions.size;
+    const hasReliableTrackedTraffic = trackedVisitors >= filteredOrders.length;
+    const visitors = hasReliableTrackedTraffic ? trackedVisitors : filteredOrders.length * 8;
+    const pageViews = hasReliableTrackedTraffic ? Math.max(trackedPageViews, visitors) : filteredOrders.length * 15;
+    const conversion = visitors > 0 ? Math.min((filteredOrders.length / visitors) * 100, 100) : 0;
+
+    return {
+      visitors,
+      pageViews,
+      conversionRate: conversion.toFixed(1),
+    };
+  }, [filteredOrders.length, filteredVisits]);
+
   // Top products
   const topProducts = useMemo(() => {
     const map: Record<string, { name: string; views: number; orders: number; revenue: number }> = {};
+    const productViews = filteredVisits.reduce<Record<string, number>>((acc, visit) => {
+      if (visit.product_id) acc[visit.product_id] = (acc[visit.product_id] || 0) + 1;
+      return acc;
+    }, {});
+
     filteredOrders.forEach(o => {
       o.order_items?.forEach(item => {
         if (!map[item.product_id]) map[item.product_id] = { name: item.product_name, views: 0, orders: 0, revenue: 0 };
         map[item.product_id].orders += item.quantity;
         map[item.product_id].revenue += item.total_price;
-        map[item.product_id].views += Math.floor(Math.random() * 50) + 10; // Simulated views
       });
     });
-    return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  }, [filteredOrders]);
+
+    Object.entries(productViews).forEach(([productId, views]) => {
+      if (!map[productId]) {
+        const product = products.find(p => p.id === productId);
+        map[productId] = { name: product?.name || "Produit", views: 0, orders: 0, revenue: 0 };
+      }
+      map[productId].views = views;
+    });
+
+    return Object.values(map)
+      .map(product => ({ ...product, views: Math.max(product.views, product.orders) }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+  }, [filteredOrders, filteredVisits, products]);
 
   // Country breakdown
   const countryData = useMemo(() => {
@@ -116,12 +148,6 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
     });
     return Object.entries(map).map(([name, data]) => ({ name: name.substring(0, 20), ...data })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   }, [filteredOrders]);
-
-  // Real conversion rate = orders / unique visits (over selected period)
-  const visitCount = filteredVisits.length;
-  const conversionRate = visitCount > 0
-    ? ((filteredOrders.length / visitCount) * 100).toFixed(1)
-    : (filteredOrders.length > 0 ? "100" : "0");
 
   const PIE_COLORS = [primaryColor, "#f43f5e", "#f59e0b", "#10b981", "#8b5cf6"];
 
@@ -157,7 +183,7 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
           { label: "Revenus totaux", value: `${fmt(stats.totalRevenue)} FCFA`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30", trend: "+12%" },
           { label: "Commandes", value: stats.orderCount.toString(), icon: ShoppingCart, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30", trend: "+5%" },
           { label: "Produits", value: products.length.toString(), icon: Package, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30", trend: null },
-          { label: "Taux conversion", value: `${conversionRate}%`, icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/30", trend: "+0.3%" },
+          { label: "Taux conversion", value: `${trafficMetrics.conversionRate}%`, icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/30", trend: null },
         ].map((kpi, i) => (
           <Card key={i} className="p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-3">
@@ -230,8 +256,8 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
         <Card className="p-5">
           <h3 className="font-bold text-sm mb-1">Trafic</h3>
           <div className="flex items-center gap-6 mb-2">
-              <div><p className="text-xs text-muted-foreground">Visiteurs</p><p className="text-2xl font-bold">{filteredOrders.length * 8}</p></div>
-              <div><p className="text-xs text-muted-foreground">Pages vues</p><p className="text-2xl font-bold">{filteredOrders.length * 15}</p></div>
+              <div><p className="text-xs text-muted-foreground">Visiteurs</p><p className="text-2xl font-bold">{trafficMetrics.visitors}</p></div>
+              <div><p className="text-xs text-muted-foreground">Pages vues</p><p className="text-2xl font-bold">{trafficMetrics.pageViews}</p></div>
           </div>
           <p className="text-xs text-muted-foreground mb-2">Source de trafic</p>
           <ResponsiveContainer width="100%" height={130}>

@@ -98,7 +98,7 @@ const ShopEditor = () => {
   const [productImages, setProductImages] = useState<File[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [unreadOrders, setUnreadOrders] = useState(0);
-  const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null }[]>([]);
+  const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null }[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -108,7 +108,7 @@ const ShopEditor = () => {
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
       supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }) as any,
       session ? supabase.from("profiles").select("shop_activation_paid").eq("id", session.user.id).single() as any : null,
-      supabase.from("shop_visits" as any).select("visited_at, product_id").eq("shop_id", id).order("visited_at", { ascending: false }).limit(5000) as any,
+      supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
     if (shopRes.data) setShop(shopRes.data);
     if (productsRes.data) setProducts(productsRes.data);
