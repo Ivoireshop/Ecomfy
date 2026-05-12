@@ -147,6 +147,8 @@ Deno.serve(async (req) => {
             body: bodyText,
             order_id: String(order_id || ""),
             shop_id: String(shop_id),
+            customer_city: String(orderDetails?.customer_city || ""),
+            customer_country: String(orderDetails?.customer_country || ""),
             url: clickUrl,
           },
         },
