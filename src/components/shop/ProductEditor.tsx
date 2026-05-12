@@ -63,7 +63,23 @@ interface ProductData {
   sku: string;
   weight: number;
   slug?: string;
+  bundle_offers?: BundleOffer[];
+  bundle_position?: string;
 }
+
+export interface BundleOffer {
+  quantity: number;
+  price: number;
+  label?: string;
+}
+
+export const BUNDLE_POSITIONS: { value: string; label: string }[] = [
+  { value: "under_image", label: "Sous l'image du produit" },
+  { value: "after_price", label: "Sous le prix" },
+  { value: "after_countdown", label: "Sous le compte à rebours" },
+  { value: "after_description", label: "Après la description" },
+  { value: "above_cta", label: "Juste avant le bouton commander" },
+];
 
 interface ProductEditorProps {
   initialData?: ProductData;
@@ -88,6 +104,7 @@ export function ProductEditor({
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
     sku: "", weight: 0, is_featured: false, slug: "",
+    bundle_offers: [], bundle_position: "after_countdown",
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
