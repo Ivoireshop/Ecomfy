@@ -183,7 +183,7 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
           { label: "Revenus totaux", value: `${fmt(stats.totalRevenue)} FCFA`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30", trend: "+12%" },
           { label: "Commandes", value: stats.orderCount.toString(), icon: ShoppingCart, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30", trend: "+5%" },
           { label: "Produits", value: products.length.toString(), icon: Package, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30", trend: null },
-          { label: "Taux conversion", value: `${conversionRate}%`, icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/30", trend: "+0.3%" },
+          { label: "Taux conversion", value: `${trafficMetrics.conversionRate}%`, icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/30", trend: null },
         ].map((kpi, i) => (
           <Card key={i} className="p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-3">
@@ -256,8 +256,8 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
         <Card className="p-5">
           <h3 className="font-bold text-sm mb-1">Trafic</h3>
           <div className="flex items-center gap-6 mb-2">
-              <div><p className="text-xs text-muted-foreground">Visiteurs</p><p className="text-2xl font-bold">{filteredOrders.length * 8}</p></div>
-              <div><p className="text-xs text-muted-foreground">Pages vues</p><p className="text-2xl font-bold">{filteredOrders.length * 15}</p></div>
+              <div><p className="text-xs text-muted-foreground">Visiteurs</p><p className="text-2xl font-bold">{trafficMetrics.visitors}</p></div>
+              <div><p className="text-xs text-muted-foreground">Pages vues</p><p className="text-2xl font-bold">{trafficMetrics.pageViews}</p></div>
           </div>
           <p className="text-xs text-muted-foreground mb-2">Source de trafic</p>
           <ResponsiveContainer width="100%" height={130}>
