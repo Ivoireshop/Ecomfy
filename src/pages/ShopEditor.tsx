@@ -25,6 +25,7 @@ import { BillingHistory } from "@/components/shop/BillingHistory";
 import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
+import { useNativePush } from "@/hooks/useNativePush";
 import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
@@ -128,6 +129,8 @@ const ShopEditor = () => {
 
   // Auto-register FCM push token (so notifications arrive even when PWA is closed)
   useFCM(id);
+  // Native iOS/Android push registration (rings even when app is closed/locked)
+  useNativePush(id);
 
   useEffect(() => {
     if (!id) return;
