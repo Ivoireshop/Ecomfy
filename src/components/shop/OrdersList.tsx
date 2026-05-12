@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -67,8 +67,19 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                         <span className="text-sm font-bold">Commande #{sequenceById[order.id]}</span>
                         <span className="font-mono text-[11px] text-muted-foreground">{order.order_number}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground">{order.customer_name} · {order.customer_phone}</p>
-                      {order.customer_address && <p className="text-xs text-muted-foreground">{order.customer_address}, {order.customer_city}</p>}
+                      <div className="mt-1 grid gap-0.5 text-xs sm:text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 shrink-0" /> <span className="font-medium text-foreground">{order.customer_name}</span></span>
+                        <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 shrink-0" /> {order.customer_phone}</span>
+                        {order.customer_city && (
+                          <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 shrink-0" /> {order.customer_city}</span>
+                        )}
+                        {order.customer_address && (
+                          <span className="flex items-center gap-1.5"><Home className="h-3.5 w-3.5 shrink-0" /> {order.customer_address}</span>
+                        )}
+                        {order.customer_email && (
+                          <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 shrink-0" /> {order.customer_email}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
