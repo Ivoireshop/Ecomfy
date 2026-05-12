@@ -42,9 +42,28 @@ export function EnableNotificationsBanner() {
   const previewSound = (id: NotificationSoundId, vol: number) => {
     try {
       const a = new Audio(getSoundFile(id));
+      a.preload = "auto";
       a.volume = vol;
       a.play().catch(() => {});
     } catch {}
+  };
+  const testNotification = () => {
+    previewSound(soundId, volume);
+    if (Notification.permission === "granted") {
+      try {
+        const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
+          body: "Test du son système pour les commandes.",
+          icon: "/app-icon-512.png",
+          badge: "/app-icon-512.png",
+          tag: `visualpro-test-${Date.now()}`,
+          renotify: true,
+          requireInteraction: true,
+          silent: false,
+          vibrate: [300, 80, 300, 80, 700],
+        };
+        new Notification("💰 VisualPro", options);
+      } catch {}
+    }
   };
 
   if (status === "registered") {
@@ -87,7 +106,7 @@ export function EnableNotificationsBanner() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => previewSound(soundId, volume)}
+              onClick={testNotification}
               className="h-9 px-3 gap-1.5 shrink-0"
             >
               <Play className="h-3.5 w-3.5" />
@@ -150,8 +169,8 @@ export function EnableNotificationsBanner() {
         </div>
 
         <p className="text-[10px] text-muted-foreground leading-snug pt-1 border-t">
-          📱 Sur mobile : ouvrez l'app installée à l'écran d'accueil pour entendre la sonnerie même app fermée.
-          Si rien ne sonne, vérifiez que le mode silencieux n'est pas activé sur votre téléphone.
+          📱 App fermée ou écran verrouillé : le téléphone joue le son système de notification.
+          La sonnerie VisualPro personnalisée se joue quand l'app est ouverte.
         </p>
       </Card>
     );
@@ -184,8 +203,8 @@ export function EnableNotificationsBanner() {
       }
       const token = await register();
       if (token) {
-        toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte à chaque nouvelle commande, même app fermée." });
-        try { new Notification("VisualPro", { body: "Notifications activées avec succès." }); } catch {}
+        toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte sonore à chaque commande selon les réglages du téléphone." });
+        try { new Notification("VisualPro", { body: "Notifications activées avec succès.", icon: "/app-icon-512.png", silent: false }); } catch {}
       } else {
         toast({
           title: "Échec de l'enregistrement",

@@ -33,6 +33,7 @@ export function playNotificationSound() {
   try {
     const a = new Audio(getSoundFile(getSavedSoundId()));
     a.volume = getSavedVolume();
+    a.preload = "auto";
     a.play().catch(() => {});
   } catch {}
 }
@@ -95,12 +96,17 @@ export function useOrderNotifications(shopId?: string) {
           // Fire system notification
           if ("Notification" in window && Notification.permission === "granted") {
             try {
-              const n = new Notification("🛒 Nouvelle commande", {
+              const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
                 body: `${order.customer_name} • ${Number(order.total).toLocaleString("fr-FR")} FCFA`,
                 icon: "/app-icon-512.png",
                 badge: "/app-icon-512.png",
                 tag: `order-${order.id}`,
-              });
+                renotify: true,
+                requireInteraction: true,
+                silent: false,
+                vibrate: [300, 80, 300, 80, 700],
+              };
+              const n = new Notification("💰 Nouvelle commande VisualPro", options);
               n.onclick = () => {
                 window.focus();
                 window.location.href = `/shop-editor/${order.shop_id}`;

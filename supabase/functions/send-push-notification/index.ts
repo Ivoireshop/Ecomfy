@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     const projectId = sa.project_id;
 
     const totalFmt = Number(total || 0).toLocaleString("fr-FR");
-    const titleText = "🛒 Nouvelle commande";
+    const titleText = "💰 Nouvelle commande VisualPro";
     const bodyText = `${customer_name || "Client"} • ${totalFmt} FCFA${order_number ? " • " + order_number : ""}`;
     const clickUrl = `/shop-editor/${shop_id}`;
 
@@ -121,16 +121,23 @@ Deno.serve(async (req) => {
       const message = {
         message: {
           token: t.fcm_token,
-          notification: { title: titleText, body: bodyText },
           webpush: {
             notification: {
+              title: titleText,
+              body: bodyText,
               icon: "/app-icon-512.png",
               badge: "/app-icon-512.png",
               requireInteraction: true,
+              renotify: true,
+              silent: false,
+              vibrate: [300, 80, 300, 80, 700],
+              tag: `visualpro-order-${order_id || Date.now()}`,
             },
             fcm_options: { link: clickUrl },
           },
           data: {
+            title: titleText,
+            body: bodyText,
             order_id: String(order_id || ""),
             shop_id: String(shop_id),
             url: clickUrl,

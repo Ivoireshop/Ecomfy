@@ -15,15 +15,17 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   const { title, body, icon, click_action } = payload.notification || {};
   const data = payload.data || {};
-  self.registration.showNotification(title || '🛒 Nouvelle commande', {
-    body: body || '',
+  const orderId = data.order_id || Date.now().toString();
+  self.registration.showNotification(title || data.title || '💰 Nouvelle commande VisualPro', {
+    body: body || data.body || "Une nouvelle commande vient d'arriver.",
     icon: icon || '/app-icon-512.png',
     badge: '/app-icon-512.png',
-    tag: data.order_id || 'order',
+    tag: `visualpro-order-${orderId}`,
     data: { url: click_action || data.url || '/', order_id: data.order_id },
     requireInteraction: true,
-    vibrate: [300, 100, 300, 100, 600],
+    vibrate: [300, 80, 300, 80, 700],
     renotify: true,
+    silent: false,
   });
   // Notify any open page so it can play the VisualPro cash sound in foreground.
   self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
