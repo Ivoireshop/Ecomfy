@@ -1,10 +1,20 @@
 import { useState } from "react";
-import { Bell, Loader2, Volume2, VolumeX } from "lucide-react";
+import { Bell, Loader2, Volume2, VolumeX, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useFCM } from "@/hooks/useFCM";
-import { requestNotificationPermission } from "@/hooks/useOrderNotifications";
+import {
+  requestNotificationPermission,
+  NOTIFICATION_SOUNDS,
+  getSavedSoundId,
+  getSavedVolume,
+  getSoundFile,
+  type NotificationSoundId,
+} from "@/hooks/useOrderNotifications";
 
 /**
  * Persistent banner that prompts the seller to enable push notifications.
@@ -20,6 +30,8 @@ export function EnableNotificationsBanner() {
   const [voiceOn, setVoiceOn] = useState<boolean>(
     typeof window !== "undefined" ? localStorage.getItem("vp_voice_notify") === "on" : false,
   );
+  const [soundId, setSoundId] = useState<NotificationSoundId>(getSavedSoundId());
+  const [volume, setVolume] = useState<number>(getSavedVolume());
   const { status, register } = useFCM();
 
   // Banner stays visible until a token is actually registered server-side.
@@ -27,40 +39,120 @@ export function EnableNotificationsBanner() {
   // and then never received notifications.)
   if (typeof window === "undefined") return null;
   if (!("Notification" in window)) return null;
+  const previewSound = (id: NotificationSoundId, vol: number) => {
+    try {
+      const a = new Audio(getSoundFile(id));
+      a.volume = vol;
+      a.play().catch(() => {});
+    } catch {}
+  };
+
   if (status === "registered") {
-    // Once notifications are set up, expose the optional voice announcement.
-    // The signature VisualPro "ka-ching" sound always plays by default.
     return (
-      <Card className="p-3 mb-4 flex items-center gap-2.5">
-        <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
-          {voiceOn ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+      <Card className="p-4 mb-4 space-y-4">
+        <div className="flex items-start gap-2.5">
+          <div className="h-8 w-8 shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">
+            <Bell className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm leading-tight">🔔 Notifications activées</p>
+            <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+              Personnalisez la sonnerie qui retentit à chaque nouvelle commande.
+            </p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-xs sm:text-sm leading-tight">Annonce vocale (optionnelle)</p>
-          <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
-            Le son "ka-ching" VisualPro sonne déjà à chaque commande. Activez la voix pour entendre aussi le nom du client et le montant.
-          </p>
+
+        {/* Sound picker */}
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold">Sonnerie</Label>
+          <div className="flex gap-2">
+            <Select
+              value={soundId}
+              onValueChange={(v) => {
+                const id = v as NotificationSoundId;
+                setSoundId(id);
+                localStorage.setItem("vp_notif_sound", id);
+                previewSound(id, volume);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {NOTIFICATION_SOUNDS.map(s => (
+                  <SelectItem key={s.id} value={s.id} className="text-xs">{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => previewSound(soundId, volume)}
+              className="h-9 px-3 gap-1.5 shrink-0"
+            >
+              <Play className="h-3.5 w-3.5" />
+              Tester
+            </Button>
+          </div>
         </div>
-        <Button
-          size="sm"
-          variant={voiceOn ? "default" : "outline"}
-          onClick={() => {
-            const next = !voiceOn;
-            setVoiceOn(next);
-            localStorage.setItem("vp_voice_notify", next ? "on" : "off");
-            if (next && "speechSynthesis" in window) {
-              try {
-                const u = new SpeechSynthesisUtterance("Annonce vocale activée");
-                u.lang = "fr-FR";
-                window.speechSynthesis.speak(u);
-              } catch {}
-            }
-            toast({ title: next ? "🔊 Voix activée" : "🔇 Voix désactivée" });
-          }}
-          className="h-8 px-3 text-xs gap-1.5 shrink-0"
-        >
-          {voiceOn ? "Désactiver" : "Activer la voix"}
-        </Button>
+
+        {/* Volume slider */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-semibold flex items-center gap-1.5">
+              {volume === 0 ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+              Volume
+            </Label>
+            <span className="text-xs text-muted-foreground">{Math.round(volume * 100)}%</span>
+          </div>
+          <Slider
+            value={[volume * 100]}
+            min={0}
+            max={100}
+            step={5}
+            onValueChange={(v) => {
+              const next = (v[0] || 0) / 100;
+              setVolume(next);
+              localStorage.setItem("vp_notif_volume", String(next));
+            }}
+            onValueCommit={() => previewSound(soundId, volume)}
+          />
+        </div>
+
+        {/* Voice toggle */}
+        <div className="flex items-center justify-between gap-3 pt-1 border-t">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold">Annonce vocale</p>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Lit aussi le nom du client et le montant.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant={voiceOn ? "default" : "outline"}
+            onClick={() => {
+              const next = !voiceOn;
+              setVoiceOn(next);
+              localStorage.setItem("vp_voice_notify", next ? "on" : "off");
+              if (next && "speechSynthesis" in window) {
+                try {
+                  const u = new SpeechSynthesisUtterance("Annonce vocale activée");
+                  u.lang = "fr-FR";
+                  window.speechSynthesis.speak(u);
+                } catch {}
+              }
+              toast({ title: next ? "🔊 Voix activée" : "🔇 Voix désactivée" });
+            }}
+            className="h-8 px-3 text-xs shrink-0"
+          >
+            {voiceOn ? "Désactiver" : "Activer"}
+          </Button>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground leading-snug pt-1 border-t">
+          📱 Sur mobile : ouvrez l'app installée à l'écran d'accueil pour entendre la sonnerie même app fermée.
+          Si rien ne sonne, vérifiez que le mode silencieux n'est pas activé sur votre téléphone.
+        </p>
       </Card>
     );
   }

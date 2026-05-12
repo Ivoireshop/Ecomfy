@@ -28,9 +28,10 @@ interface ShopStatisticsProps {
   orders: Order[];
   products: Product[];
   primaryColor: string;
+  visits?: { visited_at: string; product_id?: string | null }[];
 }
 
-export function ShopStatistics({ orders, products, primaryColor }: ShopStatisticsProps) {
+export function ShopStatistics({ orders, products, primaryColor, visits = [] }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("7d");
@@ -51,6 +52,17 @@ export function ShopStatistics({ orders, products, primaryColor }: ShopStatistic
     }
     return orders.filter(o => new Date(o.created_at) >= start);
   }, [orders, period]);
+
+  // Filter visits using the same period window
+  const filteredVisits = useMemo(() => {
+    if (period === "all") return visits;
+    const now = new Date();
+    const start = new Date();
+    if (period === "today") start.setHours(0, 0, 0, 0);
+    else if (period === "7d") { start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0); }
+    else if (period === "30d") { start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0); }
+    return visits.filter(v => new Date(v.visited_at) >= start);
+  }, [visits, period]);
 
   const stats = useMemo(() => {
     const totals = filteredOrders.map(o => o.total);
@@ -105,8 +117,11 @@ export function ShopStatistics({ orders, products, primaryColor }: ShopStatistic
     return Object.entries(map).map(([name, data]) => ({ name: name.substring(0, 20), ...data })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   }, [filteredOrders]);
 
-  // Conversion funnel (simulated)
-  const conversionRate = filteredOrders.length > 0 ? ((filteredOrders.length / Math.max(filteredOrders.length * 8, 1)) * 100).toFixed(1) : "0";
+  // Real conversion rate = orders / unique visits (over selected period)
+  const visitCount = filteredVisits.length;
+  const conversionRate = visitCount > 0
+    ? ((filteredOrders.length / visitCount) * 100).toFixed(1)
+    : (filteredOrders.length > 0 ? "100" : "0");
 
   const PIE_COLORS = [primaryColor, "#f43f5e", "#f59e0b", "#10b981", "#8b5cf6"];
 

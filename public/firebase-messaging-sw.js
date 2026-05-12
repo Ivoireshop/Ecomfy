@@ -20,9 +20,10 @@ messaging.onBackgroundMessage((payload) => {
     icon: icon || '/app-icon-512.png',
     badge: '/app-icon-512.png',
     tag: data.order_id || 'order',
-    data: { url: click_action || data.url || '/' },
+    data: { url: click_action || data.url || '/', order_id: data.order_id },
     requireInteraction: true,
-    sound: '/sounds/visualpro-cash.mp3',
+    vibrate: [300, 100, 300, 100, 600],
+    renotify: true,
   });
   // Notify any open page so it can play the VisualPro cash sound in foreground.
   self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {

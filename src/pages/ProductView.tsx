@@ -209,6 +209,22 @@ const ProductView = () => {
       setRelatedProducts(related || []);
     }
 
+    // Track product visit (skip preview)
+    if (productData && !shopData._isPreview) {
+      try {
+        let sid = sessionStorage.getItem("vp_visit_session");
+        if (!sid) {
+          sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          sessionStorage.setItem("vp_visit_session", sid);
+        }
+        await supabase.from("shop_visits" as any).insert({
+          shop_id: shopData.id,
+          product_id: productData.id,
+          session_id: sid,
+        } as any);
+      } catch {}
+    }
+
     // Set page title & favicon — remove ALL existing icon links so the
     // default VisualPro favicon doesn't remain in tabs / Google search.
     document.title = productData?.name || shopData.business_name || "Produit";
