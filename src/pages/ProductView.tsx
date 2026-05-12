@@ -90,10 +90,11 @@ interface Product {
   currency: string | null;
   bundle_offers?: { quantity: number; price: number; label?: string }[] | null;
   bundle_position?: string | null;
+  variants?: { name: string; options: string[] }[] | null;
   product_images: { id: string; image_url: string; is_primary: boolean; display_order: number | null }[];
 }
 
-interface CartItem { product: Product; quantity: number; }
+interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string>; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ProductView = () => {
@@ -109,6 +110,7 @@ const ProductView = () => {
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedBundleIdx, setSelectedBundleIdx] = useState<number | null>(null);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -246,10 +248,19 @@ const ProductView = () => {
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   const addToCart = (prod: Product, qty: number = 1, replace: boolean = false, silent: boolean = false) => {
+    // Validate variants
+    const variantGroups = Array.isArray(prod.variants) ? prod.variants : [];
+    const isCurrent = product && prod.id === product.id;
+    const chosen = isCurrent ? selectedVariants : {};
+    const missing = variantGroups.filter(g => g?.name && Array.isArray(g?.options) && g.options.length > 0 && !chosen[g.name]);
+    if (missing.length > 0) {
+      toast({ title: "Sélection requise", description: `Choisissez : ${missing.map(m => m.name).join(", ")}`, variant: "destructive" });
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(item => item.product.id === prod.id);
-      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty } : item);
-      return [...prev, { product: prod, quantity: qty }];
+      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty, selectedVariants: isCurrent ? chosen : item.selectedVariants } : item);
+      return [...prev, { product: prod, quantity: qty, selectedVariants: isCurrent ? chosen : undefined }];
     });
     if (!silent) toast({ title: "✓ Ajouté au panier", description: prod.name });
     trackEvent(shop, "AddToCart", {
