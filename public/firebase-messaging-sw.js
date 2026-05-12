@@ -22,6 +22,11 @@ messaging.onBackgroundMessage((payload) => {
     tag: data.order_id || 'order',
     data: { url: click_action || data.url || '/' },
     requireInteraction: true,
+    sound: '/sounds/visualpro-cash.mp3',
+  });
+  // Notify any open page so it can play the VisualPro cash sound in foreground.
+  self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+    cs.forEach((c) => c.postMessage({ type: 'vp-new-order', order_id: data.order_id }));
   });
 });
 
