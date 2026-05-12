@@ -65,12 +65,18 @@ interface ProductData {
   slug?: string;
   bundle_offers?: BundleOffer[];
   bundle_position?: string;
+  variants?: VariantGroup[];
 }
 
 export interface BundleOffer {
   quantity: number;
   price: number;
   label?: string;
+}
+
+export interface VariantGroup {
+  name: string;        // ex: "Taille", "Couleur"
+  options: string[];   // ex: ["S","M","L"]
 }
 
 export const BUNDLE_POSITIONS: { value: string; label: string }[] = [
