@@ -76,10 +76,9 @@ export function useOrderNotifications(shopId?: string) {
           playNotificationSound();
           if (voiceEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
             try {
-              const totalFmt = Number(order.total || 0).toLocaleString("fr-FR");
-              const firstName = String(order.customer_name || "").split(" ")[0] || "";
+              const place = String(order.customer_city || order.customer_country || "").trim();
               const u = new SpeechSynthesisUtterance(
-                `Vous avez une nouvelle commande${firstName ? " de " + firstName : ""}, montant ${totalFmt} francs.`,
+                place ? `Tu as une nouvelle commande de ${place}.` : `Tu as une nouvelle commande.`,
               );
               u.lang = "fr-FR";
               u.rate = 1;
