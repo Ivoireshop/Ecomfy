@@ -608,6 +608,40 @@ const ProductView = () => {
               <p className="text-gray-600 text-sm leading-relaxed">{product.short_description}</p>
             )}
 
+            {/* Variantes (taille, couleur, ...) */}
+            {Array.isArray(product.variants) && product.variants.length > 0 && (
+              <div className="space-y-3">
+                {product.variants.map((group, gi) => (
+                  group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
+                    <div key={gi} className="space-y-1.5">
+                      <Label className="text-sm font-medium text-gray-700">
+                        {group.name}
+                        {selectedVariants[group.name] && (
+                          <span className="ml-2 text-gray-500 font-normal">: {selectedVariants[group.name]}</span>
+                        )}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {group.options.map((opt, oi) => {
+                          const active = selectedVariants[group.name] === opt;
+                          return (
+                            <button
+                              key={oi}
+                              type="button"
+                              onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
+                              className={`px-3 h-9 rounded-lg border-2 text-sm font-medium transition ${active ? "shadow-sm" : "border-gray-200 hover:border-gray-400"}`}
+                              style={active ? { borderColor: primaryColor, background: primaryColor + "15", color: primaryColor } : undefined}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null
+                ))}
+              </div>
+            )}
+
             {/* Quantity + Add to Cart */}
             <div className="pt-2 space-y-3">
               <div className="flex items-center gap-3">
