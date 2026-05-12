@@ -111,6 +111,7 @@ export function ProductEditor({
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
     sku: "", weight: 0, is_featured: false, slug: "",
     bundle_offers: [], bundle_position: "after_countdown",
+    variants: [],
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
