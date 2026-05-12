@@ -42,9 +42,28 @@ export function EnableNotificationsBanner() {
   const previewSound = (id: NotificationSoundId, vol: number) => {
     try {
       const a = new Audio(getSoundFile(id));
+      a.preload = "auto";
       a.volume = vol;
       a.play().catch(() => {});
     } catch {}
+  };
+  const testNotification = () => {
+    previewSound(soundId, volume);
+    if (Notification.permission === "granted") {
+      try {
+        const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
+          body: "Test du son système pour les commandes.",
+          icon: "/app-icon-512.png",
+          badge: "/app-icon-512.png",
+          tag: `visualpro-test-${Date.now()}`,
+          renotify: true,
+          requireInteraction: true,
+          silent: false,
+          vibrate: [300, 80, 300, 80, 700],
+        };
+        new Notification("💰 VisualPro", options);
+      } catch {}
+    }
   };
 
   if (status === "registered") {
@@ -87,7 +106,7 @@ export function EnableNotificationsBanner() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => previewSound(soundId, volume)}
+              onClick={testNotification}
               className="h-9 px-3 gap-1.5 shrink-0"
             >
               <Play className="h-3.5 w-3.5" />
