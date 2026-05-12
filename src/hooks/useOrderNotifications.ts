@@ -28,8 +28,30 @@ export function useOrderNotifications(shopId?: string) {
         { event: "INSERT", schema: "public", table: "orders", ...(filter ? { filter } : {}) },
         (payload) => {
           const order: any = payload.new;
-          // Play sound
-          try { audioRef.current?.play().catch(() => {}); } catch {}
+          // Voice announcement (preferred) + fallback ping
+          const voiceEnabled = localStorage.getItem("vp_voice_notify") !== "off";
+          let spoke = false;
+          if (voiceEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
+            try {
+              const totalFmt = Number(order.total || 0).toLocaleString("fr-FR");
+              const firstName = String(order.customer_name || "").split(" ")[0] || "";
+              const u = new SpeechSynthesisUtterance(
+                `Vous avez une nouvelle commande${firstName ? " de " + firstName : ""}, montant ${totalFmt} francs.`,
+              );
+              u.lang = "fr-FR";
+              u.rate = 1;
+              u.pitch = 1;
+              const voices = window.speechSynthesis.getVoices();
+              const fr = voices.find(v => v.lang?.toLowerCase().startsWith("fr"));
+              if (fr) u.voice = fr;
+              window.speechSynthesis.cancel();
+              window.speechSynthesis.speak(u);
+              spoke = true;
+            } catch {}
+          }
+          if (!spoke) {
+            try { audioRef.current?.play().catch(() => {}); } catch {}
+          }
           // Fire system notification
           if ("Notification" in window && Notification.permission === "granted") {
             try {

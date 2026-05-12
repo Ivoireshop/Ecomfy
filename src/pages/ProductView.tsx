@@ -87,6 +87,8 @@ interface Product {
   is_digital: boolean | null;
   is_published: boolean | null;
   currency: string | null;
+  bundle_offers?: { quantity: number; price: number; label?: string }[] | null;
+  bundle_position?: string | null;
   product_images: { id: string; image_url: string; is_primary: boolean; display_order: number | null }[];
 }
 
@@ -105,6 +107,7 @@ const ProductView = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedBundleIdx, setSelectedBundleIdx] = useState<number | null>(null);
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -542,6 +545,37 @@ const ProductView = () => {
                 hours={shop.theme_config?.countdown_hours || 12}
                 minutes={shop.theme_config?.countdown_minutes || 0}
               />
+            )}
+
+            {/* Offres en lot (bundles) */}
+            {Array.isArray(product.bundle_offers) && product.bundle_offers.length > 0 && (
+              <div className="space-y-2 rounded-xl border-2 p-3" style={{ borderColor: primaryColor + "30" }}>
+                <p className="text-sm font-bold" style={{ color: primaryColor }}>🎁 Offres en lot</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {product.bundle_offers.map((b, i) => {
+                    const active = selectedBundleIdx === i;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBundleIdx(active ? null : i);
+                          setQuantity(active ? 1 : Math.max(1, Number(b.quantity) || 1));
+                        }}
+                        className={`text-left p-3 rounded-lg border-2 transition ${active ? "shadow-md" : "border-gray-200 hover:border-gray-400"}`}
+                        style={active ? { borderColor: primaryColor, background: primaryColor + "10" } : undefined}
+                      >
+                        <div className="font-bold text-sm">
+                          {b.label || `${b.quantity} unité${b.quantity > 1 ? "s" : ""}`}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {b.quantity} × produit · <span className="font-bold" style={{ color: primaryColor }}>{formatPrice(b.price)} FCFA</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             {/* Stock urgency */}

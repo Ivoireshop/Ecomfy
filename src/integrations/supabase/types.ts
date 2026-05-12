@@ -1334,8 +1334,49 @@ export type Database = {
           },
         ]
       }
+      product_reviews: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          product_id: string | null
+          rating: number
+          reviewer_email: string | null
+          reviewer_name: string
+          shop_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          rating: number
+          reviewer_email?: string | null
+          reviewer_name: string
+          shop_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          rating?: number
+          reviewer_email?: string | null
+          reviewer_name?: string
+          shop_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
+          bundle_offers: Json
+          bundle_position: string
           category: string | null
           compare_at_price: number | null
           created_at: string | null
@@ -1358,6 +1399,8 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          bundle_offers?: Json
+          bundle_position?: string
           category?: string | null
           compare_at_price?: number | null
           created_at?: string | null
@@ -1380,6 +1423,8 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          bundle_offers?: Json
+          bundle_position?: string
           category?: string | null
           compare_at_price?: number | null
           created_at?: string | null

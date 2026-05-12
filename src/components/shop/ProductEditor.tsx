@@ -63,7 +63,23 @@ interface ProductData {
   sku: string;
   weight: number;
   slug?: string;
+  bundle_offers?: BundleOffer[];
+  bundle_position?: string;
 }
+
+export interface BundleOffer {
+  quantity: number;
+  price: number;
+  label?: string;
+}
+
+export const BUNDLE_POSITIONS: { value: string; label: string }[] = [
+  { value: "under_image", label: "Sous l'image du produit" },
+  { value: "after_price", label: "Sous le prix" },
+  { value: "after_countdown", label: "Sous le compte à rebours" },
+  { value: "after_description", label: "Après la description" },
+  { value: "above_cta", label: "Juste avant le bouton commander" },
+];
 
 interface ProductEditorProps {
   initialData?: ProductData;
@@ -88,6 +104,7 @@ export function ProductEditor({
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
     sku: "", weight: 0, is_featured: false, slug: "",
+    bundle_offers: [], bundle_position: "after_countdown",
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
@@ -636,11 +653,88 @@ export function ProductEditor({
           </CollapsibleSection>
 
           {/* Variantes */}
-          <CollapsibleSection title="Variantes" icon={<Layers className="h-4 w-4" />}>
-            <div className="text-center py-6 text-muted-foreground">
-              <Layers className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Ajoutez des variantes (taille, couleur, etc.)</p>
-              <p className="text-xs mt-1">Fonctionnalité bientôt disponible</p>
+          <CollapsibleSection title="Offres en lot (variantes de prix)" icon={<Layers className="h-4 w-4" />} defaultOpen>
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Proposez des remises selon la quantité (ex: 1 = 7 500, 2 = 10 000, 3 = 16 000). Le client choisit son lot directement sur la fiche produit.
+              </p>
+              <div className="space-y-2">
+                {(product.bundle_offers || []).map((offer, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-end p-2 rounded-lg border bg-muted/20">
+                    <div className="col-span-3 space-y-1">
+                      <Label className="text-xs">Quantité</Label>
+                      <Input
+                        type="number" min={1} value={offer.quantity || ""}
+                        onChange={(e) => {
+                          const next = [...(product.bundle_offers || [])];
+                          next[idx] = { ...next[idx], quantity: Number(e.target.value) };
+                          setProduct({ ...product, bundle_offers: next });
+                        }}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="col-span-4 space-y-1">
+                      <Label className="text-xs">Prix total (FCFA)</Label>
+                      <Input
+                        type="number" min={0} value={offer.price || ""}
+                        onChange={(e) => {
+                          const next = [...(product.bundle_offers || [])];
+                          next[idx] = { ...next[idx], price: Number(e.target.value) };
+                          setProduct({ ...product, bundle_offers: next });
+                        }}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="col-span-4 space-y-1">
+                      <Label className="text-xs">Libellé (optionnel)</Label>
+                      <Input
+                        value={offer.label || ""}
+                        placeholder="Pack famille…"
+                        onChange={(e) => {
+                          const next = [...(product.bundle_offers || [])];
+                          next[idx] = { ...next[idx], label: e.target.value };
+                          setProduct({ ...product, bundle_offers: next });
+                        }}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button
+                        type="button" variant="ghost" size="icon" className="h-9 w-9"
+                        onClick={() => {
+                          const next = (product.bundle_offers || []).filter((_, i) => i !== idx);
+                          setProduct({ ...product, bundle_offers: next });
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button" variant="outline" size="sm" className="w-full gap-1.5"
+                onClick={() => setProduct({
+                  ...product,
+                  bundle_offers: [...(product.bundle_offers || []), { quantity: (product.bundle_offers?.length || 0) + 1, price: 0, label: "" }],
+                })}
+              >
+                <Plus className="h-4 w-4" /> Ajouter une offre
+              </Button>
+              <div className="space-y-1.5 pt-2 border-t">
+                <Label className="text-sm">Emplacement sur la fiche produit</Label>
+                <Select
+                  value={product.bundle_position || "after_countdown"}
+                  onValueChange={(v) => setProduct({ ...product, bundle_position: v })}
+                >
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BUNDLE_POSITIONS.map(p => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CollapsibleSection>
 
