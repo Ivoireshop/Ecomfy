@@ -87,6 +87,8 @@ interface Product {
   is_digital: boolean | null;
   is_published: boolean | null;
   currency: string | null;
+  bundle_offers?: { quantity: number; price: number; label?: string }[] | null;
+  bundle_position?: string | null;
   product_images: { id: string; image_url: string; is_primary: boolean; display_order: number | null }[];
 }
 
