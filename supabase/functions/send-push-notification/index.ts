@@ -142,6 +142,38 @@ Deno.serve(async (req) => {
             },
             fcm_options: { link: clickUrl },
           },
+          android: {
+            priority: "HIGH",
+            notification: {
+              title: titleText,
+              body: bodyText,
+              channel_id: "visualpro_orders",
+              sound: "visualpro_cash",
+              default_vibrate_timings: false,
+              vibrate_timings: ["0s", "0.3s", "0.08s", "0.3s", "0.08s", "0.7s"],
+              notification_priority: "PRIORITY_MAX",
+              visibility: "PUBLIC",
+              click_action: "FLUTTER_NOTIFICATION_CLICK",
+            },
+          },
+          apns: {
+            headers: {
+              "apns-priority": "10",
+              "apns-push-type": "alert",
+            },
+            payload: {
+              aps: {
+                alert: { title: titleText, body: bodyText },
+                sound: {
+                  critical: 0,
+                  name: "visualpro_cash.wav",
+                  volume: 1.0,
+                },
+                "interruption-level": "time-sensitive",
+                badge: 1,
+              },
+            },
+          },
           data: {
             title: titleText,
             body: bodyText,
