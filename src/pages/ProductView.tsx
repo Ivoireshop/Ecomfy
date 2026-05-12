@@ -17,6 +17,7 @@ import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
+import { ProductReviews } from "@/components/shop/ProductReviews";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 
@@ -895,18 +896,7 @@ const ProductView = () => {
       )}
 
       {/* ====== REVIEWS SECTION ====== */}
-      <section className="border-t bg-white">
-        <div className="max-w-4xl mx-auto px-3 sm:px-6 py-8 sm:py-12 text-center">
-          <h2 className="text-xl sm:text-2xl font-bold mb-1">Avis</h2>
-          <div className="flex items-center justify-center gap-1 mb-4">
-            {[1, 2, 3, 4, 5].map(i => (
-              <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-            ))}
-            <span className="text-sm text-gray-500 ml-2">Aucun avis</span>
-          </div>
-          <p className="text-sm text-gray-500">Ajouter un avis</p>
-        </div>
-      </section>
+      <ProductReviews shopId={shop.id} productId={product.id} primaryColor={primaryColor} isPreview={!!shop._isPreview} />
 
       {/* ====== FOOTER ====== */}
       <footer

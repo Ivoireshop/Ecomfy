@@ -22,6 +22,7 @@ import { ShopStatistics } from "@/components/shop/ShopStatistics";
 import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
 import { BillingHistory } from "@/components/shop/BillingHistory";
+import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
@@ -656,6 +657,10 @@ const ShopEditor = () => {
 
           {activeSection === "billing" && (
             <BillingHistory shopId={shop.id} shop={shop} orderCount={orders.length} />
+          )}
+
+          {activeSection === "reviews" && (
+            <ReviewsModeration shopId={shop.id} />
           )}
         </div>
       </main>
