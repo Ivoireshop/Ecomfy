@@ -1,8 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -38,6 +40,61 @@ interface OrdersListProps {
 
 export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const buildOrderText = (order: Order, sequence: number) => {
+    const lines: string[] = [];
+    lines.push(`🛒 Commande #${sequence} (${order.order_number})`);
+    lines.push(`📅 ${new Date(order.created_at).toLocaleString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+    lines.push("");
+    lines.push("👤 CLIENT");
+    lines.push(`Nom : ${order.customer_name}`);
+    lines.push(`Téléphone : ${order.customer_phone}`);
+    if (order.customer_email) lines.push(`Email : ${order.customer_email}`);
+    if (order.customer_city) lines.push(`Ville : ${order.customer_city}`);
+    if (order.customer_address) lines.push(`Adresse : ${order.customer_address}`);
+    lines.push("");
+    lines.push("📦 PRODUITS");
+    if (order.order_items && order.order_items.length > 0) {
+      order.order_items.forEach((item) => {
+        let line = `• ${item.quantity}x ${item.product_name}`;
+        if (item.selected_variants && Object.keys(item.selected_variants).length > 0) {
+          const variants = Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ");
+          line += ` (${variants})`;
+        }
+        line += ` — ${fmt(item.total_price)} FCFA`;
+        lines.push(line);
+      });
+    }
+    lines.push("");
+    lines.push(`💰 TOTAL : ${fmt(order.total)} FCFA`);
+    lines.push(`💳 Paiement : ${order.payment_method === "mobile_money" ? "Mobile Money" : "À la livraison"}`);
+    return lines.join("\n");
+  };
+
+  const handleCopy = async (order: Order, sequence: number) => {
+    const text = buildOrderText(order, sequence);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopiedId(order.id);
+      toast.success("Informations copiées", { description: "Vous pouvez maintenant les coller où vous voulez." });
+      setTimeout(() => setCopiedId((c) => (c === order.id ? null : c)), 2000);
+    } catch {
+      toast.error("Impossible de copier");
+    }
+  };
+
   // Sequential numbering: oldest = #1, newest = #N (orders are passed in desc order)
   const sortedAsc = [...orders].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -117,6 +174,18 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                   <Badge variant={order.payment_method === "mobile_money" ? "default" : "outline"} className="text-xs">
                     {order.payment_method === "mobile_money" ? "Mobile Money" : "À la livraison"}
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9"
+                    onClick={(e) => { e.stopPropagation(); handleCopy(order, sequenceById[order.id]); }}
+                  >
+                    {copiedId === order.id ? (
+                      <><Check className="h-4 w-4 mr-1" /> Copié</>
+                    ) : (
+                      <><Copy className="h-4 w-4 mr-1" /> Copier</>
+                    )}
+                  </Button>
                   {order.customer_phone && (
                     <div className="flex items-center gap-2 ml-auto">
                       <Button asChild size="sm" variant="outline" className="h-9">
