@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Loader2 } from "lucide-react";
+import { Bell, Loader2, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
@@ -17,6 +17,9 @@ export function EnableNotificationsBanner() {
     typeof Notification !== "undefined" ? Notification.permission : "default",
   );
   const [busy, setBusy] = useState(false);
+  const [voiceOn, setVoiceOn] = useState<boolean>(
+    typeof window !== "undefined" ? localStorage.getItem("vp_voice_notify") !== "off" : true,
+  );
   const { status, register } = useFCM();
 
   // Banner stays visible until a token is actually registered server-side.
@@ -24,7 +27,42 @@ export function EnableNotificationsBanner() {
   // and then never received notifications.)
   if (typeof window === "undefined") return null;
   if (!("Notification" in window)) return null;
-  if (status === "registered") return null;
+  if (status === "registered") {
+    // Once notifications are set up, expose only the voice toggle.
+    return (
+      <Card className="p-3 mb-4 flex items-center gap-2.5">
+        <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+          {voiceOn ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-xs sm:text-sm leading-tight">Annonce vocale des commandes</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
+            Une voix annoncera "Vous avez une nouvelle commande" à chaque commande.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant={voiceOn ? "default" : "outline"}
+          onClick={() => {
+            const next = !voiceOn;
+            setVoiceOn(next);
+            localStorage.setItem("vp_voice_notify", next ? "on" : "off");
+            if (next && "speechSynthesis" in window) {
+              try {
+                const u = new SpeechSynthesisUtterance("Annonce vocale activée");
+                u.lang = "fr-FR";
+                window.speechSynthesis.speak(u);
+              } catch {}
+            }
+            toast({ title: next ? "🔊 Voix activée" : "🔇 Voix désactivée" });
+          }}
+          className="h-8 px-3 text-xs gap-1.5 shrink-0"
+        >
+          {voiceOn ? "Désactiver" : "Activer la voix"}
+        </Button>
+      </Card>
+    );
+  }
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isStandalone =
