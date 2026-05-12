@@ -25,6 +25,7 @@ import { BillingHistory } from "@/components/shop/BillingHistory";
 import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
+import { useNativePush } from "@/hooks/useNativePush";
 import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
