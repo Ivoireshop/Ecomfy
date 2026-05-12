@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMessagingInstance, getToken, onMessage } from "@/lib/firebase";
+import { getOrderAnnouncement, playNotificationSound, speakOrderNotification } from "@/hooks/useOrderNotifications";
 
 const FCM_SW_URL = "/firebase-messaging-sw.js?v=4";
 const TOKEN_STORAGE_KEY = "vp_fcm_token";
@@ -85,9 +86,15 @@ export function useFCM(shopId?: string) {
       onMessage(messaging, (payload) => {
         const data = payload.data || {};
         const { title, body } = payload.notification || {};
+        const orderLike = {
+          customer_city: data.customer_city,
+          customer_country: data.customer_country,
+        };
+        playNotificationSound();
+        speakOrderNotification(orderLike);
         if (Notification.permission === "granted") {
           const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-            body: body || data.body || "Une nouvelle commande vient d'arriver.",
+            body: body || data.body || getOrderAnnouncement(orderLike),
             icon: "/app-icon-512.png",
             badge: "/app-icon-512.png",
             tag: data.order_id ? `order-${data.order_id}` : "visualpro-order",
