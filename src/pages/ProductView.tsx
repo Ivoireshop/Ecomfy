@@ -310,6 +310,7 @@ const ProductView = () => {
         product_image_url: item.product.product_images?.[0]?.image_url || null,
         quantity: item.quantity, unit_price: item.product.price,
         total_price: item.product.price * item.quantity,
+        selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
       }));
       await supabase.from("order_items").insert(orderItems) as any;
       trackEvent(shop, "Purchase", {
