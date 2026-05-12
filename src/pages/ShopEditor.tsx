@@ -296,6 +296,10 @@ const ShopEditor = () => {
       stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
       is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
       slug: data.slug || null,
+      bundle_offers: Array.isArray(data.bundle_offers)
+        ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
+        : [],
+      bundle_position: data.bundle_position || "after_countdown",
     };
     let result;
     if (editingProduct) {
