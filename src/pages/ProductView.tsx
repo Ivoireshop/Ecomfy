@@ -107,6 +107,7 @@ const ProductView = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedBundleIdx, setSelectedBundleIdx] = useState<number | null>(null);
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
