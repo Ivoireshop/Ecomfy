@@ -29,12 +29,53 @@ export function getSavedVolume(): number {
   return isNaN(v) ? 1 : Math.min(1, Math.max(0, v));
 }
 
+function getOrderPlace(order: any): string {
+  return String(order?.customer_city || order?.customer_country || "").trim();
+}
+
+export function getOrderAnnouncement(order: any): string {
+  const place = getOrderPlace(order);
+  return place ? `Tu as une nouvelle commande de ${place}.` : `Tu as une nouvelle commande.`;
+}
+
 export function playNotificationSound() {
   try {
-    const a = new Audio(getSoundFile(getSavedSoundId()));
-    a.volume = getSavedVolume();
-    a.preload = "auto";
-    a.play().catch(() => {});
+    const file = getSoundFile(getSavedSoundId());
+    const volume = getSavedVolume();
+    [0, 700].forEach((delay) => {
+      window.setTimeout(() => {
+        try {
+          const a = new Audio(file);
+          a.volume = volume;
+          a.preload = "auto";
+          a.play().catch(() => {});
+        } catch {}
+      }, delay);
+    });
+    navigator.vibrate?.([300, 80, 300, 80, 700]);
+  } catch {}
+}
+
+export function speakOrderNotification(order: any) {
+  if (typeof window === "undefined") return;
+  if (localStorage.getItem("vp_voice_notify") !== "on") return;
+  if (!("speechSynthesis" in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(getOrderAnnouncement(order));
+    u.lang = "fr-FR";
+    u.rate = 1;
+    u.pitch = 1;
+    const assignVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const fr = voices.find(v => v.lang?.toLowerCase().startsWith("fr"));
+      if (fr) u.voice = fr;
+    };
+    assignVoice();
+    setTimeout(() => {
+      assignVoice();
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }, 900);
   } catch {}
 }
 
@@ -72,31 +113,13 @@ export function useOrderNotifications(shopId?: string) {
         { event: "INSERT", schema: "public", table: "orders", ...(filter ? { filter } : {}) },
         (payload) => {
           const order: any = payload.new;
-          const voiceEnabled = localStorage.getItem("vp_voice_notify") === "on";
           playNotificationSound();
-          if (voiceEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
-            try {
-              const place = String(order.customer_city || order.customer_country || "").trim();
-              const u = new SpeechSynthesisUtterance(
-                place ? `Tu as une nouvelle commande de ${place}.` : `Tu as une nouvelle commande.`,
-              );
-              u.lang = "fr-FR";
-              u.rate = 1;
-              u.pitch = 1;
-              const voices = window.speechSynthesis.getVoices();
-              const fr = voices.find(v => v.lang?.toLowerCase().startsWith("fr"));
-              if (fr) u.voice = fr;
-              setTimeout(() => {
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(u);
-              }, 900);
-            } catch {}
-          }
+          speakOrderNotification(order);
           // Fire system notification
           if ("Notification" in window && Notification.permission === "granted") {
             try {
               const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-                body: `${order.customer_name} • ${Number(order.total).toLocaleString("fr-FR")} FCFA`,
+                body: getOrderAnnouncement(order),
                 icon: "/app-icon-512.png",
                 badge: "/app-icon-512.png",
                 tag: `order-${order.id}`,

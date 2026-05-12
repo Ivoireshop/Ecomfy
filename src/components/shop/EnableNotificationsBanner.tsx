@@ -143,7 +143,7 @@ export function EnableNotificationsBanner() {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold">Annonce vocale</p>
             <p className="text-[11px] text-muted-foreground leading-snug">
-              Lit aussi le nom du client et le montant.
+              Dit seulement : nouvelle commande + ville ou pays.
             </p>
           </div>
           <Button

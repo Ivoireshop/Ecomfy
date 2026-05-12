@@ -109,9 +109,16 @@ Deno.serve(async (req) => {
     const accessToken = await getAccessToken(sa);
     const projectId = sa.project_id;
 
-    const totalFmt = Number(total || 0).toLocaleString("fr-FR");
     const titleText = "💰 Nouvelle commande VisualPro";
-    const bodyText = `${customer_name || "Client"} • ${totalFmt} FCFA${order_number ? " • " + order_number : ""}`;
+    const { data: orderDetails } = order_id
+      ? await supabase
+          .from("orders")
+          .select("customer_city, customer_country")
+          .eq("id", order_id)
+          .maybeSingle()
+      : { data: null } as any;
+    const place = String(orderDetails?.customer_city || orderDetails?.customer_country || "").trim();
+    const bodyText = place ? `Tu as une nouvelle commande de ${place}.` : "Tu as une nouvelle commande.";
     const clickUrl = `/shop-editor/${shop_id}`;
 
     let sent = 0;
@@ -140,6 +147,8 @@ Deno.serve(async (req) => {
             body: bodyText,
             order_id: String(order_id || ""),
             shop_id: String(shop_id),
+            customer_city: String(orderDetails?.customer_city || ""),
+            customer_country: String(orderDetails?.customer_country || ""),
             url: clickUrl,
           },
         },
