@@ -171,6 +171,21 @@ const ShopView = () => {
     setProducts(productsData || []);
     setLoading(false);
 
+    // Track shop visit (skip preview mode)
+    if (!shopData._isPreview) {
+      try {
+        let sid = sessionStorage.getItem("vp_visit_session");
+        if (!sid) {
+          sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          sessionStorage.setItem("vp_visit_session", sid);
+        }
+        await supabase.from("shop_visits" as any).insert({
+          shop_id: shopData.id,
+          session_id: sid,
+        } as any);
+      } catch {}
+    }
+
     // Set favicon dynamically (shop branding first) — remove ALL existing icon links
     // so the browser doesn't keep showing the default VisualPro favicon.
     const iconHref = shopData.favicon_url || shopData.logo_url || "/favicon.png";
