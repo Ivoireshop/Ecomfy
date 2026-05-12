@@ -659,6 +659,67 @@ export function ProductEditor({
             </div>
           </CollapsibleSection>
 
+          {/* Variantes produit (taille, couleur...) */}
+          <CollapsibleSection title="Variantes produit (taille, couleur...)" icon={<Tag className="h-4 w-4" />} defaultOpen>
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Permettez au client de choisir une taille, couleur, parfum, etc. Chaque option apparaît sur la fiche produit.
+              </p>
+              <div className="space-y-3">
+                {(product.variants || []).map((group, gIdx) => (
+                  <div key={gIdx} className="p-3 rounded-lg border bg-muted/20 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={group.name}
+                        placeholder="Nom (ex: Taille, Couleur)"
+                        onChange={(e) => {
+                          const next = [...(product.variants || [])];
+                          next[gIdx] = { ...next[gIdx], name: e.target.value };
+                          setProduct({ ...product, variants: next });
+                        }}
+                        className="h-9 flex-1"
+                      />
+                      <Button
+                        type="button" variant="ghost" size="icon" className="h-9 w-9"
+                        onClick={() => {
+                          const next = (product.variants || []).filter((_, i) => i !== gIdx);
+                          setProduct({ ...product, variants: next });
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Options (séparées par une virgule)</Label>
+                      <Input
+                        value={group.options.join(", ")}
+                        placeholder="S, M, L, XL"
+                        onChange={(e) => {
+                          const next = [...(product.variants || [])];
+                          next[gIdx] = {
+                            ...next[gIdx],
+                            options: e.target.value.split(",").map(o => o.trim()).filter(Boolean),
+                          };
+                          setProduct({ ...product, variants: next });
+                        }}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button" variant="outline" size="sm" className="w-full gap-1.5"
+                onClick={() => setProduct({
+                  ...product,
+                  variants: [...(product.variants || []), { name: "", options: [] }],
+                })}
+              >
+                <Plus className="h-4 w-4" /> Ajouter une variante
+              </Button>
+            </div>
+          </CollapsibleSection>
+
           {/* Variantes */}
           <CollapsibleSection title="Offres en lot (variantes de prix)" icon={<Layers className="h-4 w-4" />} defaultOpen>
             <div className="space-y-4">
