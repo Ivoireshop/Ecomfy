@@ -10,11 +10,26 @@ export function useOrderNotifications(shopId?: string) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Pre-load notification sound (data URI, very short ping)
-    audioRef.current = new Audio(
-      "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACgAA0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0aGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGv////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAQKAAAAAAAAAoAxXYJTAAAAAAAAAAAAAAAAAAAA//uQZAAAAlEAUf0EQACSwAo/oIgAEzwBR/QRgAJpgCj+gjAATEhETBP6XFm////////1k0NRRoaGhpKMaC4uLkS4uMjJEuLjJEuLkSJEuPyL/L8CAAA=",
-    );
+    // Signature VisualPro "ka-ching" cash register sound
+    audioRef.current = new Audio("/sounds/visualpro-cash.mp3");
     audioRef.current.preload = "auto";
+    audioRef.current.volume = 1;
+
+    // Also play sound when the FCM service worker posts a "new-order" event
+    // (covers the case where the order arrives via push, not realtime).
+    const onSwMessage = (e: MessageEvent) => {
+      if (e.data?.type === "vp-new-order") {
+        try { audioRef.current?.play().catch(() => {}); } catch {}
+      }
+    };
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSwMessage);
+    }
+    return () => {
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onSwMessage);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -28,9 +43,10 @@ export function useOrderNotifications(shopId?: string) {
         { event: "INSERT", schema: "public", table: "orders", ...(filter ? { filter } : {}) },
         (payload) => {
           const order: any = payload.new;
-          // Voice announcement (preferred) + fallback ping
-          const voiceEnabled = localStorage.getItem("vp_voice_notify") !== "off";
-          let spoke = false;
+          // Default: play VisualPro cash register sound.
+          // Voice announcement is opt-in (must be explicitly turned on).
+          const voiceEnabled = localStorage.getItem("vp_voice_notify") === "on";
+          try { audioRef.current?.play().catch(() => {}); } catch {}
           if (voiceEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
             try {
               const totalFmt = Number(order.total || 0).toLocaleString("fr-FR");
@@ -44,13 +60,12 @@ export function useOrderNotifications(shopId?: string) {
               const voices = window.speechSynthesis.getVoices();
               const fr = voices.find(v => v.lang?.toLowerCase().startsWith("fr"));
               if (fr) u.voice = fr;
-              window.speechSynthesis.cancel();
-              window.speechSynthesis.speak(u);
-              spoke = true;
+              // Delay slightly so the chime plays first
+              setTimeout(() => {
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(u);
+              }, 700);
             } catch {}
-          }
-          if (!spoke) {
-            try { audioRef.current?.play().catch(() => {}); } catch {}
           }
           // Fire system notification
           if ("Notification" in window && Notification.permission === "granted") {
