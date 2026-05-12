@@ -1589,6 +1589,30 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_visits: {
+        Row: {
+          id: string
+          product_id: string | null
+          session_id: string | null
+          shop_id: string
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          product_id?: string | null
+          session_id?: string | null
+          shop_id: string
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string | null
+          session_id?: string | null
+          shop_id?: string
+          visited_at?: string
+        }
+        Relationships: []
+      }
       shops: {
         Row: {
           activation_fee_paid: boolean | null
