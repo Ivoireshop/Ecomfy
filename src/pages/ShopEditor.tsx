@@ -98,15 +98,17 @@ const ShopEditor = () => {
   const [productImages, setProductImages] = useState<File[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [unreadOrders, setUnreadOrders] = useState(0);
+  const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null }[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
     const { data: { session } } = await supabase.auth.getSession();
-    const [shopRes, productsRes, ordersRes, profileRes] = await Promise.all([
+    const [shopRes, productsRes, ordersRes, profileRes, visitsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
       supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }) as any,
       session ? supabase.from("profiles").select("shop_activation_paid").eq("id", session.user.id).single() as any : null,
+      supabase.from("shop_visits" as any).select("visited_at, product_id").eq("shop_id", id).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
     if (shopRes.data) setShop(shopRes.data);
     if (productsRes.data) setProducts(productsRes.data);
@@ -115,6 +117,7 @@ const ShopEditor = () => {
       setUnreadOrders(ordersRes.data.filter((o: Order) => !o.is_read).length);
     }
     if (profileRes?.data) setShopActivationPaid(profileRes.data.shop_activation_paid || false);
+    if (visitsRes?.data) setVisits(visitsRes.data as any);
     setLoading(false);
   }, [id]);
 
@@ -528,7 +531,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "statistics" && (
-            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} />
+            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} />
           )}
 
           {activeSection === "theme" && (
