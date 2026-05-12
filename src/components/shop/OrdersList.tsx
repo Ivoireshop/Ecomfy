@@ -27,7 +27,7 @@ interface Order {
   order_status: string;
   is_read: boolean;
   created_at: string;
-  order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null }[];
+  order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; selected_variants?: Record<string, string> | null }[];
 }
 
 interface OrdersListProps {
@@ -95,6 +95,11 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                       <div key={item.id} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 text-xs whitespace-nowrap">
                         {item.product_image_url && <img src={item.product_image_url} alt="" className="h-6 w-6 rounded object-cover" />}
                         <span>{item.quantity}x {item.product_name}</span>
+                        {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
+                          <span className="text-primary font-medium">
+                            ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                          </span>
+                        )}
                         <span className="text-muted-foreground">{fmt(item.total_price)}</span>
                       </div>
                     ))}
