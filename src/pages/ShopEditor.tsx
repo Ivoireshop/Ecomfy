@@ -498,6 +498,8 @@ const ShopEditor = () => {
                 is_digital: editingProduct.is_digital, is_published: editingProduct.is_published,
                 is_featured: editingProduct.is_featured, sku: editingProduct.sku || "", weight: editingProduct.weight || 0,
                 slug: (editingProduct as any).slug || "",
+                bundle_offers: (editingProduct as any).bundle_offers || [],
+                bundle_position: (editingProduct as any).bundle_position || "after_countdown",
               } : undefined}
               existingImages={editingProduct?.product_images || []}
               isEditing={!!editingProduct}
