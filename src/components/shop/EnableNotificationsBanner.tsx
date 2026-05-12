@@ -18,7 +18,7 @@ export function EnableNotificationsBanner() {
   );
   const [busy, setBusy] = useState(false);
   const [voiceOn, setVoiceOn] = useState<boolean>(
-    typeof window !== "undefined" ? localStorage.getItem("vp_voice_notify") !== "off" : true,
+    typeof window !== "undefined" ? localStorage.getItem("vp_voice_notify") === "on" : false,
   );
   const { status, register } = useFCM();
 
@@ -28,16 +28,17 @@ export function EnableNotificationsBanner() {
   if (typeof window === "undefined") return null;
   if (!("Notification" in window)) return null;
   if (status === "registered") {
-    // Once notifications are set up, expose only the voice toggle.
+    // Once notifications are set up, expose the optional voice announcement.
+    // The signature VisualPro "ka-ching" sound always plays by default.
     return (
       <Card className="p-3 mb-4 flex items-center gap-2.5">
         <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
           {voiceOn ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-xs sm:text-sm leading-tight">Annonce vocale des commandes</p>
+          <p className="font-semibold text-xs sm:text-sm leading-tight">Annonce vocale (optionnelle)</p>
           <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
-            Une voix annoncera "Vous avez une nouvelle commande" à chaque commande.
+            Le son "ka-ching" VisualPro sonne déjà à chaque commande. Activez la voix pour entendre aussi le nom du client et le montant.
           </p>
         </div>
         <Button
