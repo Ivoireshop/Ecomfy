@@ -86,7 +86,7 @@ export function useFCM(shopId?: string) {
         const data = payload.data || {};
         const { title, body } = payload.notification || {};
         if (Notification.permission === "granted") {
-          new Notification(title || data.title || "💰 Nouvelle commande VisualPro", {
+          const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
             body: body || data.body || "Une nouvelle commande vient d'arriver.",
             icon: "/app-icon-512.png",
             badge: "/app-icon-512.png",
@@ -95,7 +95,8 @@ export function useFCM(shopId?: string) {
             requireInteraction: true,
             silent: false,
             vibrate: [300, 80, 300, 80, 700],
-          });
+          };
+          new Notification(title || data.title || "💰 Nouvelle commande VisualPro", options);
         }
       });
 
