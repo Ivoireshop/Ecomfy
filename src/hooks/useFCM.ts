@@ -2,6 +2,10 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMessagingInstance, getToken, onMessage } from "@/lib/firebase";
 
+const FCM_SW_URL = "/firebase-messaging-sw.js?v=4";
+const TOKEN_STORAGE_KEY = "vp_fcm_token";
+const TOKEN_DATE_STORAGE_KEY = "vp_fcm_registered_at";
+
 let cachedVapid: string | null = null;
 async function fetchVapidKey(): Promise<string | null> {
   if (cachedVapid) return cachedVapid;
@@ -14,8 +18,14 @@ async function fetchVapidKey(): Promise<string | null> {
 }
 
 export function useFCM(shopId?: string) {
-  const [token, setToken] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "registering" | "registered" | "denied" | "unsupported" | "error">("idle");
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  });
+  const [status, setStatus] = useState<"idle" | "registering" | "registered" | "denied" | "unsupported" | "error">(() => {
+    if (typeof window === "undefined" || typeof Notification === "undefined") return "idle";
+    return Notification.permission === "granted" && localStorage.getItem(TOKEN_STORAGE_KEY) ? "registered" : "idle";
+  });
 
   const register = useCallback(async () => {
     setStatus("registering");
@@ -31,19 +41,8 @@ export function useFCM(shopId?: string) {
         : await Notification.requestPermission();
       if (perm !== "granted") { setStatus("denied"); return null; }
 
-      // Force a fresh service worker (old cached SW from previous VAPID can
-      // return stale/invalid tokens). Unregister any existing FCM SW first.
-      try {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (const r of regs) {
-          if (r.active?.scriptURL?.includes("firebase-messaging-sw.js")) {
-            await r.unregister();
-          }
-        }
-      } catch (e) { console.warn("[FCM] sw cleanup", e); }
-      const swReg = await navigator.serviceWorker.register(
-        "/firebase-messaging-sw.js?v=2",
-      );
+      const swReg = await navigator.serviceWorker.register(FCM_SW_URL, { scope: "/" });
+      await swReg.update().catch(() => undefined);
       await navigator.serviceWorker.ready;
       const vapidKey = await fetchVapidKey();
       if (!vapidKey) {
@@ -80,13 +79,22 @@ export function useFCM(shopId?: string) {
 
       setToken(fcmToken);
       setStatus("registered");
+      localStorage.setItem(TOKEN_STORAGE_KEY, fcmToken);
+      localStorage.setItem(TOKEN_DATE_STORAGE_KEY, new Date().toISOString());
 
       onMessage(messaging, (payload) => {
+        const data = payload.data || {};
         const { title, body } = payload.notification || {};
         if (Notification.permission === "granted") {
-          new Notification(title || "🛒 Nouvelle commande", {
-            body: body || "",
+          new Notification(title || data.title || "💰 Nouvelle commande VisualPro", {
+            body: body || data.body || "Une nouvelle commande vient d'arriver.",
             icon: "/app-icon-512.png",
+            badge: "/app-icon-512.png",
+            tag: data.order_id ? `order-${data.order_id}` : "visualpro-order",
+            renotify: true,
+            requireInteraction: true,
+            silent: false,
+            vibrate: [300, 80, 300, 80, 700],
           });
         }
       });
