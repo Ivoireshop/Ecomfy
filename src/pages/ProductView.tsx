@@ -90,10 +90,11 @@ interface Product {
   currency: string | null;
   bundle_offers?: { quantity: number; price: number; label?: string }[] | null;
   bundle_position?: string | null;
+  variants?: { name: string; options: string[] }[] | null;
   product_images: { id: string; image_url: string; is_primary: boolean; display_order: number | null }[];
 }
 
-interface CartItem { product: Product; quantity: number; }
+interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string>; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ProductView = () => {
@@ -109,6 +110,7 @@ const ProductView = () => {
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedBundleIdx, setSelectedBundleIdx] = useState<number | null>(null);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -246,10 +248,19 @@ const ProductView = () => {
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   const addToCart = (prod: Product, qty: number = 1, replace: boolean = false, silent: boolean = false) => {
+    // Validate variants
+    const variantGroups = Array.isArray(prod.variants) ? prod.variants : [];
+    const isCurrent = product && prod.id === product.id;
+    const chosen = isCurrent ? selectedVariants : {};
+    const missing = variantGroups.filter(g => g?.name && Array.isArray(g?.options) && g.options.length > 0 && !chosen[g.name]);
+    if (missing.length > 0) {
+      toast({ title: "Sélection requise", description: `Choisissez : ${missing.map(m => m.name).join(", ")}`, variant: "destructive" });
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(item => item.product.id === prod.id);
-      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty } : item);
-      return [...prev, { product: prod, quantity: qty }];
+      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty, selectedVariants: isCurrent ? chosen : item.selectedVariants } : item);
+      return [...prev, { product: prod, quantity: qty, selectedVariants: isCurrent ? chosen : undefined }];
     });
     if (!silent) toast({ title: "✓ Ajouté au panier", description: prod.name });
     trackEvent(shop, "AddToCart", {
@@ -299,6 +310,7 @@ const ProductView = () => {
         product_image_url: item.product.product_images?.[0]?.image_url || null,
         quantity: item.quantity, unit_price: item.product.price,
         total_price: item.product.price * item.quantity,
+        selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
       }));
       await supabase.from("order_items").insert(orderItems) as any;
       trackEvent(shop, "Purchase", {
@@ -594,6 +606,40 @@ const ProductView = () => {
 
             {product.short_description && (
               <p className="text-gray-600 text-sm leading-relaxed">{product.short_description}</p>
+            )}
+
+            {/* Variantes (taille, couleur, ...) */}
+            {Array.isArray(product.variants) && product.variants.length > 0 && (
+              <div className="space-y-3">
+                {product.variants.map((group, gi) => (
+                  group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
+                    <div key={gi} className="space-y-1.5">
+                      <Label className="text-sm font-medium text-gray-700">
+                        {group.name}
+                        {selectedVariants[group.name] && (
+                          <span className="ml-2 text-gray-500 font-normal">: {selectedVariants[group.name]}</span>
+                        )}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {group.options.map((opt, oi) => {
+                          const active = selectedVariants[group.name] === opt;
+                          return (
+                            <button
+                              key={oi}
+                              type="button"
+                              onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
+                              className={`px-3 h-9 rounded-lg border-2 text-sm font-medium transition ${active ? "shadow-sm" : "border-gray-200 hover:border-gray-400"}`}
+                              style={active ? { borderColor: primaryColor, background: primaryColor + "15", color: primaryColor } : undefined}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null
+                ))}
+              </div>
             )}
 
             {/* Quantity + Add to Cart */}

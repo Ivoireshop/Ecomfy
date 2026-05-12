@@ -301,6 +301,9 @@ const ShopEditor = () => {
         ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
         : [],
       bundle_position: data.bundle_position || "after_countdown",
+      variants: Array.isArray(data.variants)
+        ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
+        : [],
     };
     let result;
     if (editingProduct) {
@@ -501,6 +504,7 @@ const ShopEditor = () => {
                 slug: (editingProduct as any).slug || "",
                 bundle_offers: (editingProduct as any).bundle_offers || [],
                 bundle_position: (editingProduct as any).bundle_position || "after_countdown",
+                variants: (editingProduct as any).variants || [],
               } : undefined}
               existingImages={editingProduct?.product_images || []}
               isEditing={!!editingProduct}

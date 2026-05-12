@@ -1085,6 +1085,7 @@ export type Database = {
           product_image_url: string | null
           product_name: string
           quantity: number
+          selected_variants: Json | null
           total_price: number
           unit_price: number
         }
@@ -1096,6 +1097,7 @@ export type Database = {
           product_image_url?: string | null
           product_name: string
           quantity?: number
+          selected_variants?: Json | null
           total_price: number
           unit_price: number
         }
@@ -1107,6 +1109,7 @@ export type Database = {
           product_image_url?: string | null
           product_name?: string
           quantity?: number
+          selected_variants?: Json | null
           total_price?: number
           unit_price?: number
         }
@@ -1396,6 +1399,7 @@ export type Database = {
           slug: string | null
           stock_quantity: number | null
           updated_at: string | null
+          variants: Json
           weight: number | null
         }
         Insert: {
@@ -1420,6 +1424,7 @@ export type Database = {
           slug?: string | null
           stock_quantity?: number | null
           updated_at?: string | null
+          variants?: Json
           weight?: number | null
         }
         Update: {
@@ -1444,6 +1449,7 @@ export type Database = {
           slug?: string | null
           stock_quantity?: number | null
           updated_at?: string | null
+          variants?: Json
           weight?: number | null
         }
         Relationships: [
