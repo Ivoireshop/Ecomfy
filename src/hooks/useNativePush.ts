@@ -6,6 +6,13 @@ import {
   playNotificationSound,
   speakOrderNotification,
 } from "@/hooks/useOrderNotifications";
+import {
+  getNotificationDeviceKey,
+  getStableNotificationId,
+  shouldHandleOrderNotification,
+} from "@/lib/notificationDevice";
+
+let nativePushStarted = false;
 
 /**
  * Registers the device for native push notifications (Android FCM / iOS APNs)
@@ -18,6 +25,8 @@ import {
 export function useNativePush(shopId?: string) {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    if (nativePushStarted) return;
+    nativePushStarted = true;
 
     let cleanup: Array<() => void> = [];
 
@@ -59,15 +68,16 @@ export function useNativePush(shopId?: string) {
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+            const deviceKey = getNotificationDeviceKey("native", Capacitor.getPlatform());
             await supabase.from("device_tokens").upsert(
               {
                 user_id: user.id,
                 shop_id: shopId ?? null,
                 fcm_token: token.value,
-                user_agent: `native-${Capacitor.getPlatform()}`,
+                user_agent: deviceKey,
                 last_used_at: new Date().toISOString(),
               },
-              { onConflict: "fcm_token" },
+              { onConflict: "user_id,user_agent" },
             );
           } catch (e) {
             console.error("[native-push] upsert token failed", e);
@@ -85,6 +95,7 @@ export function useNativePush(shopId?: string) {
           "pushNotificationReceived",
           async (notification) => {
             const data = (notification.data || {}) as Record<string, string>;
+            if (!shouldHandleOrderNotification(data.order_id, "native-foreground")) return;
             const orderLike = {
               customer_city: data.customer_city,
               customer_country: data.customer_country,
@@ -96,7 +107,7 @@ export function useNativePush(shopId?: string) {
               await LocalNotifications.schedule({
                 notifications: [
                   {
-                    id: Date.now() % 2147483647,
+                    id: getStableNotificationId(data.order_id),
                     title: notification.title || "💰 Nouvelle commande VisualPro",
                     body: notification.body || getOrderAnnouncement(orderLike),
                     sound: "visualpro_cash.wav",
