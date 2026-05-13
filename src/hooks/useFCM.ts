@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { getMessagingInstance, getToken, onMessage } from "@/lib/firebase";
 import { getOrderAnnouncement, playNotificationSound, speakOrderNotification } from "@/hooks/useOrderNotifications";
@@ -33,6 +34,9 @@ export function useFCM(shopId?: string) {
   const register = useCallback(async () => {
     setStatus("registering");
     try {
+      if (Capacitor.isNativePlatform()) {
+        setStatus("unsupported"); return null;
+      }
       if (!("serviceWorker" in navigator) || !("Notification" in window)) {
         setStatus("unsupported"); return null;
       }
@@ -71,6 +75,12 @@ export function useFCM(shopId?: string) {
         .delete()
         .eq("user_id", user.id)
         .eq("user_agent", deviceKey)
+        .neq("fcm_token", fcmToken);
+      await supabase
+        .from("device_tokens")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("user_agent", navigator.userAgent)
         .neq("fcm_token", fcmToken);
 
       const { error: upsertErr } = await supabase.from("device_tokens").upsert(
