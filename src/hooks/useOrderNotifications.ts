@@ -38,6 +38,27 @@ export function getOrderAnnouncement(order: any): string {
   return place ? `Tu as une nouvelle commande de ${place}.` : `Tu as une nouvelle commande.`;
 }
 
+/**
+ * Texte riche affiché DANS la notification (push & système).
+ * Inclut nom, téléphone, ville/pays et total — pour que le commerçant
+ * voie toutes les infos sans devoir ouvrir l'app.
+ */
+export function getOrderNotificationBody(order: any): string {
+  const name = String(order?.customer_name || "").trim();
+  const phone = String(order?.customer_phone || "").trim();
+  const city = String(order?.customer_city || "").trim();
+  const country = String(order?.customer_country || "").trim();
+  const place = [city, country].filter(Boolean).join(", ");
+  const total = order?.total != null ? `${Number(order.total).toLocaleString("fr-FR")} FCFA` : "";
+
+  const lines: string[] = [];
+  if (name) lines.push(`👤 ${name}`);
+  if (phone) lines.push(`📞 ${phone}`);
+  if (place) lines.push(`📍 ${place}`);
+  if (total) lines.push(`💰 ${total}`);
+  return lines.length ? lines.join("\n") : "Tu as une nouvelle commande.";
+}
+
 export function playNotificationSound() {
   try {
     const file = getSoundFile(getSavedSoundId());
@@ -119,7 +140,7 @@ export function useOrderNotifications(shopId?: string) {
           if ("Notification" in window && Notification.permission === "granted") {
             try {
               const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-                body: getOrderAnnouncement(order),
+                body: getOrderNotificationBody(order),
                 icon: "/app-icon-512.png",
                 badge: "/app-icon-512.png",
                 tag: `order-${order.id}`,
