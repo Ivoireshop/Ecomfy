@@ -24,7 +24,7 @@ messaging.onBackgroundMessage((payload) => {
     data: { url: click_action || data.url || '/', order_id: data.order_id },
     requireInteraction: true,
     vibrate: [300, 80, 300, 80, 700],
-    renotify: true,
+    renotify: false,
     silent: false,
   });
   // Notify any open page so it can play the VisualPro cash sound in foreground.
