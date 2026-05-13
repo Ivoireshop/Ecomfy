@@ -72,7 +72,7 @@ ffmpeg -i public/sounds/visualpro-cash.mp3 -ar 48000 -ac 1 android/app/src/main/
 2. Crée un projet (ou utilise un existant)
 3. Ajoute une app Android avec ce **package name** exact :
    ```
-   app.lovable.8e12da65322f4003b2ce9fb33dc5ff21
+   cloud.visuelpro.app
    ```
 4. Télécharge `google-services.json`
 5. Copie-le ici :

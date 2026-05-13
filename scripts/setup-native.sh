@@ -114,7 +114,7 @@ if [ ! -f "android/app/google-services.json" ]; then
   echo ""
   echo "→ Va sur https://console.firebase.google.com/"
   echo "→ Crée un projet, ajoute une app Android avec le package :"
-  echo "    app.lovable.8e12da65322f4003b2ce9fb33dc5ff21"
+  echo "    cloud.visuelpro.app"
   echo "→ Télécharge google-services.json et place-le dans :"
   echo "    android/app/google-services.json"
   echo ""
