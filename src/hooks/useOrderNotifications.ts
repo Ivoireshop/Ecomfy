@@ -136,27 +136,9 @@ export function useOrderNotifications(shopId?: string) {
           const order: any = payload.new;
           playNotificationSound();
           speakOrderNotification(order);
-          // Fire system notification
-          if ("Notification" in window && Notification.permission === "granted") {
-            try {
-              const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-                body: getOrderNotificationBody(order),
-                icon: "/app-icon-512.png",
-                badge: "/app-icon-512.png",
-                tag: `order-${order.id}`,
-                renotify: true,
-                requireInteraction: true,
-                silent: false,
-                vibrate: [300, 80, 300, 80, 700],
-              };
-              const n = new Notification("💰 Nouvelle commande VisualPro", options);
-              n.onclick = () => {
-                window.focus();
-                window.location.href = `/shop-editor/${order.shop_id}`;
-                n.close();
-              };
-            } catch {}
-          }
+          // NOTE: la notification système visuelle est gérée UNIQUEMENT par le push FCM
+          // (useFCM / service worker / native push) afin d'éviter les doublons.
+          // Ici on ne joue que le son + la voix pour un feedback immédiat dans l'onglet.
         },
       )
       .subscribe();
