@@ -66,6 +66,13 @@ export function useFCM(shopId?: string) {
       }
 
       const deviceKey = getNotificationDeviceKey("web");
+      await supabase
+        .from("device_tokens")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("user_agent", deviceKey)
+        .neq("fcm_token", fcmToken);
+
       const { error: upsertErr } = await supabase.from("device_tokens").upsert(
         {
           user_id: user.id,
@@ -74,7 +81,7 @@ export function useFCM(shopId?: string) {
           user_agent: deviceKey,
           last_used_at: new Date().toISOString(),
         },
-        { onConflict: "user_id,user_agent" }
+        { onConflict: "fcm_token" }
       );
       if (upsertErr) {
         console.error("[FCM] upsert failed", upsertErr);
