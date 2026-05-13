@@ -69,6 +69,13 @@ export function useNativePush(shopId?: string) {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             const deviceKey = getNotificationDeviceKey("native", Capacitor.getPlatform());
+            await supabase
+              .from("device_tokens")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("user_agent", deviceKey)
+              .neq("fcm_token", token.value);
+
             await supabase.from("device_tokens").upsert(
               {
                 user_id: user.id,
@@ -77,7 +84,7 @@ export function useNativePush(shopId?: string) {
                 user_agent: deviceKey,
                 last_used_at: new Date().toISOString(),
               },
-              { onConflict: "user_id,user_agent" },
+              { onConflict: "fcm_token" },
             );
           } catch (e) {
             console.error("[native-push] upsert token failed", e);
