@@ -113,12 +113,24 @@ Deno.serve(async (req) => {
     const { data: orderDetails } = order_id
       ? await supabase
           .from("orders")
-          .select("customer_city, customer_country")
+          .select("customer_name, customer_phone, customer_city, customer_country, total, order_number")
           .eq("id", order_id)
           .maybeSingle()
       : { data: null } as any;
-    const place = String(orderDetails?.customer_city || orderDetails?.customer_country || "").trim();
-    const bodyText = place ? `Tu as une nouvelle commande de ${place}.` : "Tu as une nouvelle commande.";
+    const oName = String(orderDetails?.customer_name || customer_name || "").trim();
+    const oPhone = String(orderDetails?.customer_phone || "").trim();
+    const oCity = String(orderDetails?.customer_city || "").trim();
+    const oCountry = String(orderDetails?.customer_country || "").trim();
+    const oPlace = [oCity, oCountry].filter(Boolean).join(", ");
+    const oTotal = (orderDetails?.total ?? total) != null
+      ? `${Number(orderDetails?.total ?? total).toLocaleString("fr-FR")} FCFA`
+      : "";
+    const bodyLines: string[] = [];
+    if (oName) bodyLines.push(`👤 ${oName}`);
+    if (oPhone) bodyLines.push(`📞 ${oPhone}`);
+    if (oPlace) bodyLines.push(`📍 ${oPlace}`);
+    if (oTotal) bodyLines.push(`💰 ${oTotal}`);
+    const bodyText = bodyLines.length ? bodyLines.join("\n") : "Tu as une nouvelle commande.";
     const clickUrl = `/shop-editor/${shop_id}`;
 
     let sent = 0;
@@ -179,8 +191,12 @@ Deno.serve(async (req) => {
             body: bodyText,
             order_id: String(order_id || ""),
             shop_id: String(shop_id),
+            customer_name: String(orderDetails?.customer_name || customer_name || ""),
+            customer_phone: String(orderDetails?.customer_phone || ""),
             customer_city: String(orderDetails?.customer_city || ""),
             customer_country: String(orderDetails?.customer_country || ""),
+            total: String(orderDetails?.total ?? total ?? ""),
+            order_number: String(orderDetails?.order_number || order_number || ""),
             url: clickUrl,
           },
         },
