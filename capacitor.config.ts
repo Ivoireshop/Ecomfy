@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.8e12da65322f4003b2ce9fb33dc5ff21',
+  appId: 'cloud.visuelpro.app',
   appName: 'VisualPro',
   webDir: 'dist',
   server: {
