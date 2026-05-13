@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       seenTokens.add(t.fcm_token);
       seenDevices.add(deviceKey);
       return true;
-    });
+    }).slice(0, 1);
 
     const saJson = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
     if (!saJson) {
