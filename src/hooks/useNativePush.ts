@@ -68,12 +68,25 @@ export function useNativePush(shopId?: string) {
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-            const deviceKey = getNotificationDeviceKey("native", Capacitor.getPlatform());
+            const platform = Capacitor.getPlatform();
+            const deviceKey = getNotificationDeviceKey("native", platform);
             await supabase
               .from("device_tokens")
               .delete()
               .eq("user_id", user.id)
               .eq("user_agent", deviceKey)
+              .neq("fcm_token", token.value);
+            await supabase
+              .from("device_tokens")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("user_agent", `native-${platform}`)
+              .neq("fcm_token", token.value);
+            await supabase
+              .from("device_tokens")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("user_agent", navigator.userAgent)
               .neq("fcm_token", token.value);
 
             await supabase.from("device_tokens").upsert(
@@ -139,6 +152,7 @@ export function useNativePush(shopId?: string) {
       cleanup.forEach((fn) => {
         try { fn(); } catch { /* noop */ }
       });
+      nativePushStarted = false;
     };
   }, [shopId]);
 }
