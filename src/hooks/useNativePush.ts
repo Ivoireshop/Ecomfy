@@ -74,19 +74,6 @@ export function useNativePush(shopId?: string) {
               .from("device_tokens")
               .delete()
               .eq("user_id", user.id)
-              .eq("user_agent", deviceKey)
-              .neq("fcm_token", token.value);
-            await supabase
-              .from("device_tokens")
-              .delete()
-              .eq("user_id", user.id)
-              .eq("user_agent", `native-${platform}`)
-              .neq("fcm_token", token.value);
-            await supabase
-              .from("device_tokens")
-              .delete()
-              .eq("user_id", user.id)
-              .eq("user_agent", navigator.userAgent)
               .neq("fcm_token", token.value);
 
             await supabase.from("device_tokens").upsert(
