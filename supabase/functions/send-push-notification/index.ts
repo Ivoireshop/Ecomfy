@@ -90,14 +90,26 @@ Deno.serve(async (req) => {
 
     const { data: tokens } = await supabase
       .from("device_tokens")
-      .select("fcm_token")
-      .eq("user_id", shop.user_id);
+      .select("fcm_token, user_agent, last_used_at")
+      .eq("user_id", shop.user_id)
+      .order("last_used_at", { ascending: false });
 
     if (!tokens || tokens.length === 0) {
       return new Response(JSON.stringify({ success: true, sent: 0, info: "no_tokens" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
+
+    const seenTokens = new Set<string>();
+    const seenDevices = new Set<string>();
+    const uniqueTokens = tokens.filter((t: any) => {
+      if (!t.fcm_token || seenTokens.has(t.fcm_token)) return false;
+      const deviceKey = String(t.user_agent || t.fcm_token);
+      if (seenDevices.has(deviceKey)) return false;
+      seenTokens.add(t.fcm_token);
+      seenDevices.add(deviceKey);
+      return true;
+    });
 
     const saJson = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
     if (!saJson) {
@@ -132,11 +144,12 @@ Deno.serve(async (req) => {
     if (oTotal) bodyLines.push(`💰 ${oTotal}`);
     const bodyText = bodyLines.length ? bodyLines.join("\n") : "Tu as une nouvelle commande.";
     const clickUrl = `/shop-editor/${shop_id}`;
+    const notificationTag = `visualpro-order-${order_id || Date.now()}`;
 
     let sent = 0;
     const failed: string[] = [];
 
-    await Promise.all(tokens.map(async (t: any) => {
+    await Promise.all(uniqueTokens.map(async (t: any) => {
       const message = {
         message: {
           token: t.fcm_token,
@@ -147,18 +160,20 @@ Deno.serve(async (req) => {
               icon: "/app-icon-512.png",
               badge: "/app-icon-512.png",
               requireInteraction: true,
-              renotify: true,
+              renotify: false,
               silent: false,
               vibrate: [300, 80, 300, 80, 700],
-              tag: `visualpro-order-${order_id || Date.now()}`,
+              tag: notificationTag,
             },
             fcm_options: { link: clickUrl },
           },
           android: {
+            collapse_key: notificationTag,
             priority: "HIGH",
             notification: {
               title: titleText,
               body: bodyText,
+              tag: notificationTag,
               channel_id: "visualpro_orders",
               sound: "visualpro_cash",
               default_vibrate_timings: false,
@@ -172,6 +187,7 @@ Deno.serve(async (req) => {
             headers: {
               "apns-priority": "10",
               "apns-push-type": "alert",
+              "apns-collapse-id": notificationTag,
             },
             payload: {
               aps: {
@@ -182,6 +198,7 @@ Deno.serve(async (req) => {
                   volume: 1.0,
                 },
                 "interruption-level": "time-sensitive",
+                "thread-id": notificationTag,
                 badge: 1,
               },
             },

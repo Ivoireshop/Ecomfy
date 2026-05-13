@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { getMessagingInstance, getToken, onMessage } from "@/lib/firebase";
 import { getOrderAnnouncement, playNotificationSound, speakOrderNotification } from "@/hooks/useOrderNotifications";
+import { getNotificationDeviceKey, shouldHandleOrderNotification } from "@/lib/notificationDevice";
 
 const FCM_SW_URL = "/firebase-messaging-sw.js?v=4";
 const TOKEN_STORAGE_KEY = "vp_fcm_token";
 const TOKEN_DATE_STORAGE_KEY = "vp_fcm_registered_at";
+let foregroundUnsubscribe: (() => void) | null = null;
 
 let cachedVapid: string | null = null;
 async function fetchVapidKey(): Promise<string | null> {
@@ -31,6 +34,9 @@ export function useFCM(shopId?: string) {
   const register = useCallback(async () => {
     setStatus("registering");
     try {
+      if (Capacitor.isNativePlatform()) {
+        setStatus("unsupported"); return null;
+      }
       if (!("serviceWorker" in navigator) || !("Notification" in window)) {
         setStatus("unsupported"); return null;
       }
@@ -63,12 +69,26 @@ export function useFCM(shopId?: string) {
         setStatus("error"); return null;
       }
 
+      const deviceKey = getNotificationDeviceKey("web");
+      await supabase
+        .from("device_tokens")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("user_agent", deviceKey)
+        .neq("fcm_token", fcmToken);
+      await supabase
+        .from("device_tokens")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("user_agent", navigator.userAgent)
+        .neq("fcm_token", fcmToken);
+
       const { error: upsertErr } = await supabase.from("device_tokens").upsert(
         {
           user_id: user.id,
           shop_id: shopId ?? null,
           fcm_token: fcmToken,
-          user_agent: navigator.userAgent,
+          user_agent: deviceKey,
           last_used_at: new Date().toISOString(),
         },
         { onConflict: "fcm_token" }
@@ -83,9 +103,11 @@ export function useFCM(shopId?: string) {
       localStorage.setItem(TOKEN_STORAGE_KEY, fcmToken);
       localStorage.setItem(TOKEN_DATE_STORAGE_KEY, new Date().toISOString());
 
-      onMessage(messaging, (payload) => {
+      foregroundUnsubscribe?.();
+      foregroundUnsubscribe = onMessage(messaging, (payload) => {
         const data = payload.data || {};
         const { title, body } = payload.notification || {};
+        if (!shouldHandleOrderNotification(data.order_id, "web-foreground")) return;
         const orderLike = {
           customer_city: data.customer_city,
           customer_country: data.customer_country,
