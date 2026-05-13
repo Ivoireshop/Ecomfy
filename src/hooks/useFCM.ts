@@ -74,13 +74,6 @@ export function useFCM(shopId?: string) {
         .from("device_tokens")
         .delete()
         .eq("user_id", user.id)
-        .eq("user_agent", deviceKey)
-        .neq("fcm_token", fcmToken);
-      await supabase
-        .from("device_tokens")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("user_agent", navigator.userAgent)
         .neq("fcm_token", fcmToken);
 
       const { error: upsertErr } = await supabase.from("device_tokens").upsert(
@@ -119,8 +112,8 @@ export function useFCM(shopId?: string) {
             body: body || data.body || getOrderAnnouncement(orderLike),
             icon: "/app-icon-512.png",
             badge: "/app-icon-512.png",
-            tag: data.order_id ? `order-${data.order_id}` : "visualpro-order",
-            renotify: true,
+            tag: data.order_id ? `visualpro-order-${data.order_id}` : "visualpro-order",
+            renotify: false,
             requireInteraction: true,
             silent: false,
             vibrate: [300, 80, 300, 80, 700],
