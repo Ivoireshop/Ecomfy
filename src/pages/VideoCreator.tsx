@@ -106,12 +106,11 @@ const VideoCreator = () => {
           </p>
         </div>
         <div className="relative h-[16.5rem] md:h-[20.5rem] overflow-hidden">
-          <div className="absolute inset-x-0 top-0 h-full max-w-3xl mx-auto">
+          <div className="video-trio-row flex justify-center gap-3 md:gap-5 min-w-max px-4">
             {demoVideos.map((v, i) => (
               <Card
                 key={i}
-                className="video-trio-card absolute left-1/2 top-0 w-36 md:w-44 overflow-hidden shadow-md"
-                style={{ animationDelay: `${i * -8}s` }}
+                className="w-32 sm:w-36 md:w-44 flex-shrink-0 overflow-hidden shadow-md"
               >
                 <div className="aspect-[9/16] bg-black relative">
                   <video
