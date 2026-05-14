@@ -155,6 +155,26 @@ export function ProductEditor({
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSourceImage, setAiSourceImage] = useState<string | null>(null);
+  const [aiSourceFileName, setAiSourceFileName] = useState<string>("");
+
+  const handleAiSourceFile = (file: File | null | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Fichier invalide", description: "Sélectionnez une image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "Image trop lourde", description: "Maximum 8MB.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAiSourceImage(reader.result as string);
+      setAiSourceFileName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleGenerateAiImage = async () => {
     const prompt = aiPrompt.trim();
@@ -164,9 +184,17 @@ export function ProductEditor({
     }
     setAiLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-ai-image", {
-        body: { prompt: `Photo produit professionnelle, fond neutre, éclairage studio. ${prompt}`, mode: "simple" },
-      });
+      const body = aiSourceImage
+        ? {
+            mode: "image-edit",
+            prompt: `En utilisant l'image du produit fournie comme référence visuelle exacte (forme, couleurs, texture, étiquettes), génère un visuel produit professionnel : ${prompt}. Conserve l'identité du produit à l'identique.`,
+            sourceImage: aiSourceImage,
+          }
+        : {
+            mode: "simple",
+            prompt: `Photo produit professionnelle, fond neutre, éclairage studio. ${prompt}`,
+          };
+      const { data, error } = await supabase.functions.invoke("generate-ai-image", { body });
       if (error) throw error;
       const imageUrl: string | undefined = data?.imageUrl || data?.image_url;
       if (!imageUrl) throw new Error("Aucune image reçue");
@@ -178,6 +206,8 @@ export function ProductEditor({
       toast({ title: "✓ Image ajoutée", description: "Pensez à enregistrer le produit." });
       setAiOpen(false);
       setAiPrompt("");
+      setAiSourceImage(null);
+      setAiSourceFileName("");
     } catch (e: any) {
       toast({ title: "Erreur", description: e?.message || "Génération impossible", variant: "destructive" });
     } finally {
@@ -1171,15 +1201,51 @@ export function ProductEditor({
           <DialogHeader>
             <DialogTitle>Générer un visuel produit</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Label className="text-sm">Décrivez votre produit</Label>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm">Image de votre produit (optionnel)</Label>
+              {aiSourceImage ? (
+                <div className="relative rounded-md border bg-muted/30 p-2">
+                  <img src={aiSourceImage} alt="Référence produit" className="max-h-40 mx-auto rounded" />
+                  <div className="flex items-center justify-between mt-2 text-xs">
+                    <span className="truncate text-muted-foreground">{aiSourceFileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setAiSourceImage(null); setAiSourceFileName(""); }}
+                      className="text-destructive hover:underline"
+                      disabled={aiLoading}
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center gap-1 cursor-pointer rounded-md border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-colors px-3 py-5 text-center">
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs font-medium">Importer depuis votre ordinateur</span>
+                  <span className="text-[10px] text-muted-foreground">L'IA conservera votre produit et créera la mise en scène</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleAiSourceFile(e.target.files?.[0])}
+                    disabled={aiLoading}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">{aiSourceImage ? "Instructions pour l'IA" : "Décrivez votre produit"}</Label>
             <Textarea
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Ex: bouteille de parfum élégante en verre transparent, fond beige minimaliste"
+              placeholder={aiSourceImage
+                ? "Ex: poser le produit sur une table en marbre avec des fleurs, lumière naturelle"
+                : "Ex: bouteille de parfum élégante en verre transparent, fond beige minimaliste"}
               rows={4}
               disabled={aiLoading}
             />
+            </div>
             <p className="text-xs text-muted-foreground">
               L'image sera ajoutée à la galerie. Pensez à enregistrer le produit ensuite.
             </p>
