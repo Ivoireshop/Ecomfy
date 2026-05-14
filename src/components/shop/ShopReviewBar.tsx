@@ -76,12 +76,15 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
   const desktopMode = resolveMode(themeConfig, "review_desktop");
   const mobileMode = resolveMode(themeConfig, "review_mobile");
 
+  const desktopHtml = buildContent(themeConfig, "desktop");
+  const mobileHtml = buildContent(themeConfig, "mobile") || desktopHtml;
+
   return (
     <>
       {desktopActive && desktopPlacement === placement && (
         <ReviewBarBlock
           className="hidden md:block"
-          html={themeConfig.review_bar_desktop_content}
+          html={desktopHtml}
           textColor={themeConfig.review_desktop_text || "#FFFFFF"}
           bgColor={themeConfig.review_desktop_bg || "#803160"}
           mode={desktopMode}
@@ -91,7 +94,7 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
       {mobileActive && mobilePlacement === placement && (
         <ReviewBarBlock
           className="block md:hidden"
-          html={themeConfig.review_bar_mobile_content || themeConfig.review_bar_desktop_content}
+          html={mobileHtml}
           textColor={themeConfig.review_mobile_text || "#FFFFFF"}
           bgColor={themeConfig.review_mobile_bg || "#000000"}
           mode={mobileMode}
@@ -100,4 +103,23 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
       )}
     </>
   );
+}
+
+function buildContent(cfg: any, prefix: "desktop" | "mobile"): string {
+  const key = prefix === "desktop" ? "review_desktop_messages" : "review_mobile_messages";
+  const sepKey = prefix === "desktop" ? "review_desktop_separator" : "review_mobile_separator";
+  const arr = cfg?.[key];
+  const messages: string[] = Array.isArray(arr) ? arr.filter((m: any) => typeof m === "string" && m.trim()) : [];
+  if (messages.length === 0) {
+    return prefix === "desktop"
+      ? (cfg?.review_bar_desktop_content || "")
+      : (cfg?.review_bar_mobile_content || "");
+  }
+  const separator = cfg?.[sepKey] ?? " • ";
+  const sepHtml = `<span class="vp-review-sep" style="opacity:0.6;margin:0 0.5em;">${escapeHtml(separator)}</span>`;
+  return messages.join(sepHtml);
+}
+
+function escapeHtml(s: string): string {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 }
