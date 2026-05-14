@@ -926,7 +926,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* ===== HERO COLORÉ ===== */}
       <section className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white">
         <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
