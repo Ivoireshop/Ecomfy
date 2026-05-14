@@ -1703,6 +1703,8 @@ export type Database = {
           tracking_enabled: boolean | null
           updated_at: string
           user_id: string
+          weekly_finance_email: string | null
+          weekly_finance_email_enabled: boolean
           whatsapp_number: string | null
         }
         Insert: {
@@ -1761,6 +1763,8 @@ export type Database = {
           tracking_enabled?: boolean | null
           updated_at?: string
           user_id: string
+          weekly_finance_email?: string | null
+          weekly_finance_email_enabled?: boolean
           whatsapp_number?: string | null
         }
         Update: {
@@ -1819,6 +1823,8 @@ export type Database = {
           tracking_enabled?: boolean | null
           updated_at?: string
           user_id?: string
+          weekly_finance_email?: string | null
+          weekly_finance_email_enabled?: boolean
           whatsapp_number?: string | null
         }
         Relationships: []

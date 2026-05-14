@@ -54,6 +54,7 @@ const ProductView = lazy(() => import("./pages/ProductView"));
 const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
 const CoursesManager = lazy(() => import("./pages/CoursesManager"));
 const OrderConfirmed = lazy(() => import("./pages/OrderConfirmed"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 
 const queryClient = new QueryClient();
 
@@ -86,6 +87,7 @@ const AppContent = () => {
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route
             path="/subscription" 
             element={
