@@ -926,12 +926,12 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="creation-page min-h-screen bg-background">
       {/* ===== HERO COLORÉ ===== */}
       <section className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white">
         <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl animate-pulse" />
-        <div className="container relative mx-auto px-4 py-10 md:py-16">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
           <div className="max-w-3xl mx-auto text-center space-y-4">
             <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
               <Wand2 className="w-4 h-4 mr-2" />
@@ -963,7 +963,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
       {/* ===== EXEMPLES STATIQUES ===== */}
       <section className="relative bg-background py-6 border-b">
-        <div className="container mx-auto px-4">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
             {(() => {
               const examples = [
@@ -990,7 +990,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      <div id="create" className="container mx-auto px-4 py-8 scroll-mt-20">
+      <div id="create" className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <div className="flex flex-col items-center gap-3 mb-4">
@@ -1079,7 +1079,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           </div>
 
           <Tabs value={generationType === "video" ? "image" : generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
-            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
+            <TabsList className="grid h-auto w-full max-w-3xl mx-auto grid-cols-1 sm:grid-cols-3 gap-1">
               <TabsTrigger value="image">
                 <ImageIcon className="mr-2 h-4 w-4" />
                 Classique
@@ -1098,7 +1098,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
           {/* Mode Pro - Workflow Omneky-style */}
           {generationType === "pro" && (
-            <div className="container mx-auto px-4 max-w-6xl">
+            <div className="w-full max-w-6xl mx-auto">
               {!hasActiveSubscription && !isFounder ? (
                 <Card className="border-primary/20">
                   <CardHeader>
@@ -1167,7 +1167,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
           {/* Mode Avancé - Génération IA style ChatGPT */}
           {generationType === "advanced" && (
-            <div className="container mx-auto px-4 max-w-4xl">
+            <div className="w-full max-w-4xl mx-auto">
               <AdvancedImageGenerator 
                 onImageGenerated={(imageUrl) => {
                   setGeneratedImage(imageUrl);
@@ -1192,7 +1192,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
           {/* Mode Classique - Formulaire */}
           {generationType === "image" && (
-          <div className="bg-card rounded-xl shadow-lg p-8 border">
+          <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
               <div className="space-y-2">
                 <Label htmlFor="productName">Nom du produit *</Label>
@@ -1273,7 +1273,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               </div>
 
               {/* Price Display Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border bg-muted/30">
                 <div className="space-y-1">
                   <Label htmlFor="show-price" className="text-base font-semibold">
                     Afficher le prix sur le visuel
@@ -1538,10 +1538,10 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 </Card>
 
                 <div className="mt-4 flex flex-col gap-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={() => setIsEditing(true)}
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       Éditer l'image
                     </Button>
@@ -1553,24 +1553,24 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         link.click();
                         toast({ title: "Téléchargé", description: "Image téléchargée avec succès" });
                       }}
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Télécharger
                     </Button>
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-2">
                     <Button
                       onClick={() => navigate("/library")}
                       variant="outline"
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       Voir dans la bibliothèque
                     </Button>
                     <Button
                       onClick={() => setGeneratedImage(null)}
                       variant="outline"
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       Générer un autre visuel
                     </Button>

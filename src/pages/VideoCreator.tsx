@@ -55,14 +55,14 @@ const VideoCreator = () => {
   useEffect(() => { loadStatus(); }, []);
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0 overflow-x-hidden">
+    <div className="creation-page min-h-screen bg-background pb-16 md:pb-0">
       <Header />
 
       {/* ===== HERO COLORÉ ===== */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 text-white">
         <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl animate-pulse" />
-        <div className="container relative mx-auto px-4 py-10 md:py-16">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
           <div className="max-w-3xl mx-auto text-center space-y-4">
             <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
               <Clapperboard className="w-4 h-4 mr-2" />
@@ -107,7 +107,7 @@ const VideoCreator = () => {
 
       {/* ===== VIDÉOS STATIQUES ===== */}
       <section className="relative bg-background py-6 border-b">
-        <div className="container mx-auto px-4">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {demoVideos.map((v, i) => (
               <div
