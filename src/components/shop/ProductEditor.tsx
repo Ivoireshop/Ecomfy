@@ -627,8 +627,8 @@ export function ProductEditor({
                     <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[260px]">
                       <div className="grid grid-cols-8 gap-1">
                         {EMOJIS.map(emoji => (
-                          <button key={emoji} className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-lg"
-                            onClick={() => insertEmoji(emoji)}>
+                          <button key={emoji} type="button" className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-lg"
+                            onMouseDown={(e) => { e.preventDefault(); insertEmoji(emoji); }}>
                             {emoji}
                           </button>
                         ))}
