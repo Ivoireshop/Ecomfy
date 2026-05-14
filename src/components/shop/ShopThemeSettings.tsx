@@ -317,6 +317,25 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                       </div>
                       <Switch checked={themeConfig.reviews_increment_with_orders !== false} onCheckedChange={v => updateThemeConfig("reviews_increment_with_orders", v)} />
                     </div>
+                    <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
+                      <div>
+                        <p className="text-sm font-medium">Mode réaliste (variation quotidienne)</p>
+                        <p className="text-[11px] text-muted-foreground">Le nombre d'avis varie chaque jour dans un intervalle défini, pour paraître plus crédible.</p>
+                      </div>
+                      <Switch checked={!!themeConfig.reviews_realistic_mode} onCheckedChange={v => updateThemeConfig("reviews_realistic_mode", v)} />
+                    </div>
+                    {themeConfig.reviews_realistic_mode && (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Avis minimum</Label>
+                          <Input type="number" min={0} value={themeConfig.reviews_min ?? 120} onChange={e => updateThemeConfig("reviews_min", Math.max(0, Number(e.target.value) || 0))} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Avis maximum</Label>
+                          <Input type="number" min={0} value={themeConfig.reviews_max ?? 180} onChange={e => updateThemeConfig("reviews_max", Math.max(0, Number(e.target.value) || 0))} />
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </Card>
