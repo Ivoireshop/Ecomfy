@@ -30,6 +30,11 @@
     --gradient-primary: linear-gradient(135deg, hsl(214 100% 50%), hsl(214 100% 40%));
     --gradient-hero: linear-gradient(135deg, hsl(214 100% 50%), hsl(38 100% 55%));
     --gradient-accent: linear-gradient(135deg, hsl(38 100% 55%), hsl(38 100% 65%));
+    --video-hero-start: 201 100% 92%;
+    --video-hero-mid: 198 92% 84%;
+    --video-hero-end: 214 96% 76%;
+    --video-hero-glow: 188 100% 74%;
+    --gradient-video-hero: linear-gradient(135deg, hsl(var(--video-hero-start)), hsl(var(--video-hero-mid)) 48%, hsl(var(--video-hero-end)));
     --shadow-elegant: 0 10px 40px -10px hsl(214 100% 50% / 0.2);
     
     --sidebar-background: 0 0% 98%;
@@ -277,6 +282,38 @@ p, .text-content {
 }
 
 .animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes video-trio-card {
+  0%, 20% {
+    transform: translateX(-50%) translateX(0) scale(1);
+    opacity: 1;
+    z-index: 3;
+  }
+  33%, 53% {
+    transform: translateX(-50%) translateX(calc(var(--video-card-offset) * -1)) scale(0.86);
+    opacity: 0.72;
+    z-index: 2;
+  }
+  66%, 86% {
+    transform: translateX(-50%) translateX(var(--video-card-offset)) scale(0.86);
+    opacity: 0.72;
+    z-index: 2;
+  }
+  100% {
+    transform: translateX(-50%) translateX(0) scale(1);
+    opacity: 1;
+    z-index: 3;
+  }
+}
+
+.video-trio-card {
+  --video-card-offset: clamp(7rem, 22vw, 13rem);
+  animation: video-trio-card 24s ease-in-out infinite;
+}
+
+.video-trio-card:hover {
   animation-play-state: paused;
 }
 
