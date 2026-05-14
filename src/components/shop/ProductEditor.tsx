@@ -148,6 +148,7 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
+  const savedSelection = useRef<Range | null>(null);
   const { toast } = useToast();
 
   // AI image generation
@@ -214,12 +215,29 @@ export function ProductEditor({
     } catch {}
   }, []);
 
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      savedSelection.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    editorRef.current?.focus();
+    if (!savedSelection.current) return;
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(savedSelection.current);
+  }, []);
+
   const execCmd = useCallback((command: string, value?: string) => {
+    restoreSelection();
     document.execCommand(command, false, value);
     editorRef.current?.focus();
     handleEditorInput();
     refreshActiveFormats();
-  }, [refreshActiveFormats]);
+    saveSelection();
+  }, [refreshActiveFormats, restoreSelection, saveSelection]);
 
   // Track the font size of the current text selection so the toolbar reflects reality
   useEffect(() => {
