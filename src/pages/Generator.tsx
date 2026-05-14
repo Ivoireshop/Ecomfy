@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Video, Volume2, Play, Pause, Download, Wand2, ImageIcon, Zap } from "lucide-react";
+import { Loader2, Video, Volume2, Play, Pause, Download, Wand2, ImageIcon, Zap, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -927,42 +927,46 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ===== HERO COLORÉ ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl animate-pulse" />
-        <div className="container relative mx-auto px-4 py-12 md:py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
-              <Wand2 className="w-4 h-4 mr-2" />
-              Studio Visuels Publicitaires IA
+      {/* ===== HERO SOBRE ===== */}
+      <section className="relative overflow-hidden border-b bg-card">
+        <div className="container relative mx-auto px-4 py-8 md:py-12">
+          <div className="max-w-2xl mx-auto text-center space-y-3">
+            <Badge variant="secondary" className="px-3 py-1">
+              <Wand2 className="w-3.5 h-3.5 mr-1.5" />
+              Studio Visuels IA
             </Badge>
-            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight animate-fade-in">
-              Créez des visuels qui
-              <br />
-              <span className="bg-gradient-to-r from-yellow-200 via-white to-pink-200 bg-clip-text text-transparent">
-                font vendre
-              </span>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight">
+              Créez votre visuel publicitaire
             </h1>
-            <p className="text-base md:text-lg text-white/90 animate-fade-in">
-              Générez en quelques secondes des images publicitaires professionnelles, prêtes pour Instagram, Facebook et TikTok.
+            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
+              Remplissez le formulaire ci-dessous, l'IA génère votre image prête pour Instagram, Facebook et TikTok.
             </p>
+            <div className="pt-2">
+              <Button
+                size="lg"
+                onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
+                className="rounded-full"
+              >
+                Commencer la création
+                <ArrowDown className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ===== GALERIE DÉFILANTE ===== */}
-      <section className="py-6 md:py-8 bg-gradient-to-b from-background to-muted/30 overflow-hidden border-b">
-        <div className="container mx-auto px-4 mb-4">
-          <p className="text-center text-sm text-muted-foreground">
-            ✨ Quelques visuels déjà créés sur la plateforme — inspirez-vous
+      {/* ===== GALERIE DÉFILANTE (compacte) ===== */}
+      <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
+        <div className="container mx-auto px-4 mb-3">
+          <p className="text-center text-xs md:text-sm text-muted-foreground">
+            ✨ Visuels déjà créés sur la plateforme
           </p>
         </div>
         <div className="relative">
-          <div className="flex gap-4 animate-marquee w-max">
+          <div className="flex gap-3 animate-marquee w-max">
             {[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate,
               exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
-              <Card key={i} className="w-44 md:w-56 flex-shrink-0 overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 hover:-rotate-1">
+              <Card key={i} className="w-28 md:w-36 flex-shrink-0 overflow-hidden shadow-md">
                 <div className="aspect-square bg-muted">
                   <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
                 </div>
@@ -972,7 +976,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-8">
+      <div id="create" className="container mx-auto px-4 py-8 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <div className="flex flex-col items-center gap-3 mb-4">
