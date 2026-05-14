@@ -922,8 +922,8 @@ const ProductView = () => {
         </section>
       )}
 
-      {/* ====== RELATED PRODUCTS ====== */}
-      {relatedProducts.length > 0 && (
+      {/* ====== RELATED PRODUCTS (opt-in) ====== */}
+      {!!shop?.theme_config?.show_related_products && relatedProducts.length > 0 && (
         <section className="border-t bg-gray-50">
           <div className="max-w-6xl mx-auto px-3 sm:px-6 py-8 sm:py-12">
             <h2 className="text-xl sm:text-2xl font-bold mb-6">Autres produits</h2>
