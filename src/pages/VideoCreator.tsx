@@ -59,19 +59,19 @@ const VideoCreator = () => {
       <Header />
 
       {/* ===== HERO DYNAMIQUE ===== */}
-      <section className="relative overflow-hidden border-b bg-gradient-to-br from-primary/[0.08] via-background to-secondary/[0.08]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(var(--primary)/0.15),_transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(var(--secondary)/0.10),_transparent_50%)]" />
+      <section className="relative overflow-hidden border-b bg-gradient-to-br from-[#0a1628] to-[#1e3a5f]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(59,130,246,0.25),_transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(30,58,95,0.3),_transparent_50%)]" />
         <div className="container relative mx-auto px-4 py-8 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
-            <Badge variant="secondary" className="px-3 py-1 backdrop-blur-sm bg-background/80">
-              <Clapperboard className="w-3.5 h-3.5 mr-1.5" />
+            <Badge className="px-3 py-1 bg-white/90 text-blue-950 backdrop-blur-sm shadow-sm font-semibold">
+              <Clapperboard className="w-3.5 h-3.5 mr-1.5 text-blue-700" />
               Studio Vidéo IA
             </Badge>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-white">
               Créez votre vidéo publicitaire
             </h1>
-            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
+            <p className="text-sm md:text-base text-blue-100 max-w-xl mx-auto">
               Importez vos images, décrivez votre idée, recevez une vidéo HD, 2K ou 4K en 1 à 2 minutes.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -80,7 +80,7 @@ const VideoCreator = () => {
                 { icon: Film, label: "HD / 2K / 4K" },
                 { icon: Sparkles, label: "Qualité Pro" },
               ].map((b, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-muted/80 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium">
+                <div key={i} className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium text-white">
                   <b.icon className="w-3.5 h-3.5" />
                   {b.label}
                 </div>
@@ -90,7 +90,7 @@ const VideoCreator = () => {
               <Button
                 size="lg"
                 onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
-                className="rounded-full shadow-lg hover:shadow-xl transition-all"
+                className="rounded-full shadow-lg hover:shadow-xl transition-all bg-white text-blue-950 hover:bg-blue-50"
               >
                 Commencer la création
                 <ArrowDown className="w-4 h-4 ml-2" />
