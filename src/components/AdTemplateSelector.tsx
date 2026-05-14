@@ -12,6 +12,9 @@ import exampleFood from "@/assets/example-food-ad.jpg";
 import exampleBeauty from "@/assets/example-beauty-ad.jpg";
 import exampleFitness from "@/assets/example-fitness-ad.jpg";
 import exampleRealestate from "@/assets/example-realestate-ad.jpg";
+import exampleFashion from "@/assets/example-fashion-ad.jpg";
+import exampleServices from "@/assets/example-services-ad.jpg";
+import exampleTech from "@/assets/example-tech-ad.jpg";
 
 const categoryImages: Record<string, string> = {
   "e-commerce": exampleHandbag,
@@ -19,9 +22,9 @@ const categoryImages: Record<string, string> = {
   "beaute": exampleBeauty,
   "alimentation": exampleFood,
   "fitness": exampleFitness,
-  "mode": exampleHandbag,
-  "technologie": examplePhone,
-  "services": examplePhone,
+  "mode": exampleFashion,
+  "technologie": exampleTech,
+  "services": exampleServices,
 };
 
 interface AdTemplate {
