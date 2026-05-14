@@ -261,6 +261,8 @@ export function ProductEditor({
   const [imageToolbar, setImageToolbar] = useState<{ top: number; left: number } | null>(null);
 
   const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    saveSelection();
+    refreshActiveFormats();
     const target = e.target as HTMLElement;
     if (target.tagName === "IMG") {
       const img = target as HTMLImageElement;
@@ -280,7 +282,7 @@ export function ProductEditor({
       setSelectedEditorImage(null);
       setImageToolbar(null);
     }
-  }, [selectedEditorImage]);
+  }, [selectedEditorImage, saveSelection, refreshActiveFormats]);
 
   const resizeImage = (size: string) => {
     if (!selectedEditorImage) return;
@@ -392,6 +394,8 @@ export function ProductEditor({
   const handleEditorInput = () => {
     if (editorRef.current) {
       setProduct(prev => ({ ...prev, description: editorRef.current!.innerHTML }));
+      saveSelection();
+      refreshActiveFormats();
     }
   };
 
