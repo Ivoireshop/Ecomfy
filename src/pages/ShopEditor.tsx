@@ -436,7 +436,7 @@ const ShopEditor = () => {
                 <Zap className="h-5 w-5" />
                 <div>
                   <p className="font-semibold text-sm">Activez vos boutiques pour les rendre visibles</p>
-                  <p className="text-xs opacity-90">Paiement unique de 2$ · Toutes vos boutiques activées à vie</p>
+                  <p className="text-xs opacity-90">Paiement unique de 2$ · Activation valable pour cette boutique</p>
                 </div>
               </div>
               <Button size="sm" variant="secondary" className="font-semibold shadow-lg" onClick={() => setShowActivationModal(true)}>
@@ -460,7 +460,7 @@ const ShopEditor = () => {
                   <span className="text-sm text-muted-foreground">Frais d'activation</span>
                   <span className="font-bold text-lg">1 300 FCFA</span>
                 </div>
-                <p className="text-xs text-muted-foreground">≈ 2$ USD · Paiement unique · Toutes vos boutiques activées</p>
+                <p className="text-xs text-muted-foreground">≈ 2$ USD · Paiement unique · Cette boutique sera activée</p>
               </div>
               <div className="space-y-2">
                 <Label>Opérateur Mobile Money</Label>
