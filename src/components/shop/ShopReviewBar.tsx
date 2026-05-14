@@ -10,19 +10,36 @@ const sanitizeReviewHtml = (html: string) => DOMPurify.sanitize(html, {
   ALLOWED_ATTR: ["href", "src", "alt", "title", "target", "rel", "style", "class"],
 });
 
-function ReviewBarBlock({ html, textColor, bgColor, className, scroll }: { html?: string; textColor: string; bgColor: string; className: string; scroll?: boolean }) {
+type AnimMode = "static" | "scroll" | "blink";
+
+function ReviewBarBlock({ html, textColor, bgColor, className, mode, speed }: { html?: string; textColor: string; bgColor: string; className: string; mode: AnimMode; speed: number }) {
   if (!html?.trim()) return null;
 
-  if (scroll) {
+  if (mode === "scroll") {
+    // Single copy traveling fully across — no duplicated text visible.
     return (
       <div className={className} style={{ color: textColor, backgroundColor: bgColor }}>
         <div className="relative overflow-hidden py-2">
           <div
-            className="whitespace-nowrap inline-block animate-[marquee_22s_linear_infinite] text-sm font-medium [&_*]:inline [&_p]:mr-10 [&_a]:underline [&_img]:hidden"
-            dangerouslySetInnerHTML={{ __html: sanitizeReviewHtml(html + html) }}
+            className="whitespace-nowrap inline-block text-sm font-medium [&_*]:inline [&_p]:mr-10 [&_a]:underline [&_img]:hidden"
+            style={{ animation: `vp-review-marquee ${speed}s linear infinite`, paddingLeft: "100%" }}
+            dangerouslySetInnerHTML={{ __html: sanitizeReviewHtml(html) }}
           />
         </div>
-        <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+        <style>{`@keyframes vp-review-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }`}</style>
+      </div>
+    );
+  }
+
+  if (mode === "blink") {
+    return (
+      <div className={className} style={{ color: textColor, backgroundColor: bgColor }}>
+        <div
+          className="mx-auto max-w-7xl px-3 py-2 text-center text-sm font-medium leading-relaxed [&_a]:underline [&_img]:mx-auto [&_img]:max-h-28 [&_img]:max-w-full [&_img]:rounded-md [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+          style={{ animation: `vp-review-blink ${speed}s ease-in-out infinite` }}
+          dangerouslySetInnerHTML={{ __html: sanitizeReviewHtml(html) }}
+        />
+        <style>{`@keyframes vp-review-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }`}</style>
       </div>
     );
   }
@@ -37,11 +54,27 @@ function ReviewBarBlock({ html, textColor, bgColor, className, scroll }: { html?
   );
 }
 
+function resolveMode(cfg: any, prefix: "review_desktop" | "review_mobile"): AnimMode {
+  const explicit = cfg[`${prefix}_anim`];
+  if (explicit === "static" || explicit === "scroll" || explicit === "blink") return explicit;
+  // Backward compatibility with old scroll boolean
+  if (cfg[`${prefix}_scroll`]) return "scroll";
+  return "static";
+}
+
+function resolveSpeed(cfg: any, prefix: "review_desktop" | "review_mobile", mode: AnimMode): number {
+  const raw = Number(cfg[`${prefix}_speed`]);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  return mode === "blink" ? 1.5 : 22;
+}
+
 export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProps) {
   const desktopActive = themeConfig.review_desktop_active !== false;
   const mobileActive = themeConfig.review_mobile_active !== false;
   const desktopPlacement = themeConfig.review_desktop_above ? "above" : "below";
   const mobilePlacement = themeConfig.review_mobile_above ? "above" : "below";
+  const desktopMode = resolveMode(themeConfig, "review_desktop");
+  const mobileMode = resolveMode(themeConfig, "review_mobile");
 
   return (
     <>
@@ -51,7 +84,8 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           html={themeConfig.review_bar_desktop_content}
           textColor={themeConfig.review_desktop_text || "#FFFFFF"}
           bgColor={themeConfig.review_desktop_bg || "#803160"}
-          scroll={!!themeConfig.review_desktop_scroll}
+          mode={desktopMode}
+          speed={resolveSpeed(themeConfig, "review_desktop", desktopMode)}
         />
       )}
       {mobileActive && mobilePlacement === placement && (
@@ -60,7 +94,8 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           html={themeConfig.review_bar_mobile_content || themeConfig.review_bar_desktop_content}
           textColor={themeConfig.review_mobile_text || "#FFFFFF"}
           bgColor={themeConfig.review_mobile_bg || "#000000"}
-          scroll={!!themeConfig.review_mobile_scroll}
+          mode={mobileMode}
+          speed={resolveSpeed(themeConfig, "review_mobile", mobileMode)}
         />
       )}
     </>
