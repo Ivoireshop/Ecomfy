@@ -961,30 +961,32 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      {/* ===== DÉFILEMENT EXEMPLES ===== */}
-      <section className="relative overflow-hidden bg-background py-6 border-b">
-        <div className="flex gap-4 animate-marquee w-max">
-          {(() => {
-            const examples = [
-              { src: new URL("@/assets/example-beauty-ad.jpg", import.meta.url).href, label: "Beauté" },
-              { src: new URL("@/assets/example-fitness-ad.jpg", import.meta.url).href, label: "Fitness" },
-              { src: new URL("@/assets/example-food-ad.jpg", import.meta.url).href, label: "Food" },
-              { src: new URL("@/assets/example-handbag-ad.jpg", import.meta.url).href, label: "Mode" },
-              { src: new URL("@/assets/example-phone-ad.jpg", import.meta.url).href, label: "Tech" },
-              { src: new URL("@/assets/example-realestate-ad.jpg", import.meta.url).href, label: "Immobilier" },
-            ];
-            return [...examples, ...examples, ...examples].map((ex, i) => (
-              <div
-                key={i}
-                className="relative w-48 sm:w-56 md:w-64 aspect-square rounded-xl overflow-hidden shadow-lg flex-shrink-0 bg-muted"
-              >
-                <img src={ex.src} alt={`Exemple ${ex.label}`} loading="lazy" className="w-full h-full object-cover" />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                  <p className="text-white text-xs font-semibold">{ex.label}</p>
+      {/* ===== EXEMPLES STATIQUES ===== */}
+      <section className="relative bg-background py-6 border-b">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            {(() => {
+              const examples = [
+                { src: new URL("@/assets/example-beauty-ad.jpg", import.meta.url).href, label: "Beauté" },
+                { src: new URL("@/assets/example-fitness-ad.jpg", import.meta.url).href, label: "Fitness" },
+                { src: new URL("@/assets/example-food-ad.jpg", import.meta.url).href, label: "Food" },
+                { src: new URL("@/assets/example-handbag-ad.jpg", import.meta.url).href, label: "Mode" },
+                { src: new URL("@/assets/example-phone-ad.jpg", import.meta.url).href, label: "Tech" },
+                { src: new URL("@/assets/example-realestate-ad.jpg", import.meta.url).href, label: "Immobilier" },
+              ];
+              return examples.map((ex, i) => (
+                <div
+                  key={i}
+                  className="relative aspect-square rounded-xl overflow-hidden shadow-lg bg-muted"
+                >
+                  <img src={ex.src} alt={`Exemple ${ex.label}`} loading="lazy" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                    <p className="text-white text-xs font-semibold">{ex.label}</p>
+                  </div>
                 </div>
-              </div>
-            ));
-          })()}
+              ));
+            })()}
+          </div>
         </div>
       </section>
 
