@@ -1299,6 +1299,73 @@ export type Database = {
           },
         ]
       }
+      product_ai_analyses: {
+        Row: {
+          conversion_rate: number
+          created_at: string
+          diagnosis: string | null
+          framework: string
+          id: string
+          orders_count: number
+          product_id: string | null
+          raw_markdown: string | null
+          recommendations: Json
+          rewritten_copy: Json | null
+          shop_id: string
+          visitors_count: number
+        }
+        Insert: {
+          conversion_rate?: number
+          created_at?: string
+          diagnosis?: string | null
+          framework?: string
+          id?: string
+          orders_count?: number
+          product_id?: string | null
+          raw_markdown?: string | null
+          recommendations?: Json
+          rewritten_copy?: Json | null
+          shop_id: string
+          visitors_count?: number
+        }
+        Update: {
+          conversion_rate?: number
+          created_at?: string
+          diagnosis?: string | null
+          framework?: string
+          id?: string
+          orders_count?: number
+          product_id?: string | null
+          raw_markdown?: string | null
+          recommendations?: Json
+          rewritten_copy?: Json | null
+          shop_id?: string
+          visitors_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_ai_analyses_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_ai_analyses_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_ai_analyses_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_images: {
         Row: {
           alt_text: string | null
@@ -1650,6 +1717,7 @@ export type Database = {
         Row: {
           activation_fee_paid: boolean | null
           address: string | null
+          ai_optimizer_enabled: boolean
           banner_url: string | null
           business_description: string | null
           business_name: string
@@ -1710,6 +1778,7 @@ export type Database = {
         Insert: {
           activation_fee_paid?: boolean | null
           address?: string | null
+          ai_optimizer_enabled?: boolean
           banner_url?: string | null
           business_description?: string | null
           business_name: string
@@ -1770,6 +1839,7 @@ export type Database = {
         Update: {
           activation_fee_paid?: boolean | null
           address?: string | null
+          ai_optimizer_enabled?: boolean
           banner_url?: string | null
           business_description?: string | null
           business_name?: string
