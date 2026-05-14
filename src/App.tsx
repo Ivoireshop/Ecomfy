@@ -59,6 +59,7 @@ const VisuelsPublicitaires = lazy(() => import("./pages/VisuelsPublicitaires"));
 const VideosPublicitaires = lazy(() => import("./pages/VideosPublicitaires"));
 const SitesVitrines = lazy(() => import("./pages/SitesVitrines"));
 const BoutiquesEcommerce = lazy(() => import("./pages/BoutiquesEcommerce"));
+const VideoCreator = lazy(() => import("./pages/VideoCreator"));
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,14 @@ const AppContent = () => {
                 <Generator />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/video-creator"
+            element={
+              <ProtectedRoute requireActiveSubscription>
+                <VideoCreator />
+              </ProtectedRoute>
+            }
           />
           <Route 
             path="/library" 

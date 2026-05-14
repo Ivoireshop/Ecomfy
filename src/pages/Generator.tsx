@@ -27,6 +27,12 @@ import { VariationGenerator } from "@/components/VariationGenerator";
 import { AdvancedImageGenerator } from "@/components/AdvancedImageGenerator";
 import { Switch } from "@/components/ui/switch";
 import { VideoGenerator } from "@/components/VideoGenerator";
+import exampleHandbag from "@/assets/example-handbag-ad.jpg";
+import examplePhone from "@/assets/example-phone-ad.jpg";
+import exampleFood from "@/assets/example-food-ad.jpg";
+import exampleBeauty from "@/assets/example-beauty-ad.jpg";
+import exampleFitness from "@/assets/example-fitness-ad.jpg";
+import exampleRealestate from "@/assets/example-realestate-ad.jpg";
 
 const Generator = () => {
   const navigate = useNavigate();
@@ -921,6 +927,51 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
   return (
     <div className="min-h-screen bg-background">
+      {/* ===== HERO COLORÉ ===== */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white">
+        <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl animate-pulse" />
+        <div className="container relative mx-auto px-4 py-12 md:py-16">
+          <div className="max-w-3xl mx-auto text-center space-y-4">
+            <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
+              <Wand2 className="w-4 h-4 mr-2" />
+              Studio Visuels Publicitaires IA
+            </Badge>
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight animate-fade-in">
+              Créez des visuels qui
+              <br />
+              <span className="bg-gradient-to-r from-yellow-200 via-white to-pink-200 bg-clip-text text-transparent">
+                font vendre
+              </span>
+            </h1>
+            <p className="text-base md:text-lg text-white/90 animate-fade-in">
+              Générez en quelques secondes des images publicitaires professionnelles, prêtes pour Instagram, Facebook et TikTok.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== GALERIE DÉFILANTE ===== */}
+      <section className="py-6 md:py-8 bg-gradient-to-b from-background to-muted/30 overflow-hidden border-b">
+        <div className="container mx-auto px-4 mb-4">
+          <p className="text-center text-sm text-muted-foreground">
+            ✨ Quelques visuels déjà créés sur la plateforme — inspirez-vous
+          </p>
+        </div>
+        <div className="relative">
+          <div className="flex gap-4 animate-marquee w-max">
+            {[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate,
+              exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
+              <Card key={i} className="w-44 md:w-56 flex-shrink-0 overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 hover:-rotate-1">
+                <div className="aspect-square bg-muted">
+                  <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -1009,8 +1060,8 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
             )}
           </div>
 
-          <Tabs value={generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
-            <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4">
+          <Tabs value={generationType === "video" ? "image" : generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
+            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
               <TabsTrigger value="image">
                 <ImageIcon className="mr-2 h-4 w-4" />
                 Classique
@@ -1022,10 +1073,6 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               <TabsTrigger value="pro">
                 <Zap className="mr-2 h-4 w-4" />
                 Mode Pro
-              </TabsTrigger>
-              <TabsTrigger value="video" disabled={!hasActiveSubscription}>
-                <Video className="mr-2 h-4 w-4" />
-                Vidéo {!hasActiveSubscription && "(Pro)"}
               </TabsTrigger>
             </TabsList>
           </Tabs>
