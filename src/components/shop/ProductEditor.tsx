@@ -17,7 +17,8 @@ import {
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
   ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3,
-  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2, Film
+  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2, Film,
+  ArrowUp, ArrowDown
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -112,6 +113,7 @@ interface ProductEditorProps {
   onCancel: () => void;
   onUploadImage?: (file: File) => void;
   onDeleteImage?: (imageId: string) => void;
+  onReorderImages?: (orderedIds: string[]) => void;
   saving?: boolean;
   shopSlug?: string;
   shopActivated?: boolean;
@@ -120,7 +122,7 @@ interface ProductEditorProps {
 }
 
 export function ProductEditor({
-  initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, saving,
+  initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
   shopSlug, shopActivated, shopPublished, productId,
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
@@ -446,6 +448,46 @@ export function ProductEditor({
     ...newImages.map((file, i) => ({ type: "new" as const, id: `new-${i}`, image_url: URL.createObjectURL(file), file })),
   ];
 
+  const isGifUrl = (url: string) => /\.gif(\?|$)/i.test(url);
+  const isGifItem = (img: typeof allImages[number]) =>
+    img.type === "new" ? (img as any).file?.type === "image/gif" || isGifUrl((img as any).file?.name || "") : isGifUrl(img.image_url);
+
+  const moveImage = (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= allImages.length) return;
+    const a = allImages[index];
+    const b = allImages[target];
+    // Swap within "new" group
+    if (a.type === "new" && b.type === "new") {
+      const i1 = parseInt(a.id.replace("new-", ""), 10);
+      const i2 = parseInt(b.id.replace("new-", ""), 10);
+      setNewImages(prev => {
+        const next = [...prev];
+        [next[i1], next[i2]] = [next[i2], next[i1]];
+        return next;
+      });
+      return;
+    }
+    // Swap within "existing" group
+    if (a.type === "existing" && b.type === "existing" && onReorderImages) {
+      const ordered = existingImages
+        .slice()
+        .sort((x, y) => (x.display_order ?? 0) - (y.display_order ?? 0))
+        .map(i => i.id);
+      const ai = ordered.indexOf(a.id);
+      const bi = ordered.indexOf(b.id);
+      if (ai === -1 || bi === -1) return;
+      [ordered[ai], ordered[bi]] = [ordered[bi], ordered[ai]];
+      onReorderImages(ordered);
+      return;
+    }
+    // Cross-group: not supported (would mix saved + unsaved). Toast hint.
+    toast({
+      title: "Enregistrez d'abord",
+      description: "Pour réordonner entre images existantes et nouvelles, enregistrez le produit puis réessayez.",
+    });
+  };
+
   // Append a cache-busting timestamp so the new tab always loads the freshest
   // shop / product data right after a save+publish.
   const cacheBust = () => `v=${Date.now()}`;
@@ -767,13 +809,46 @@ export function ProductEditor({
               </div>
               {allImages.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                  {allImages.map((img) => (
+                  {allImages.map((img, idx) => (
                     <div key={img.id} className="relative group aspect-square rounded-lg overflow-hidden border bg-muted">
                       <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                      {isGifItem(img) && (
+                        <span className="absolute top-1 left-1 text-[9px] font-bold tracking-wide bg-primary text-primary-foreground px-1.5 py-0.5 rounded shadow">
+                          GIF
+                        </span>
+                      )}
+                      <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
+                        {idx + 1}
+                      </span>
+                      <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          title="Déplacer avant"
+                          onClick={() => moveImage(idx, -1)}
+                          disabled={idx === 0}
+                          className="h-6 w-6 bg-background/90 text-foreground border rounded flex items-center justify-center shadow disabled:opacity-30 disabled:cursor-not-allowed hover:bg-background"
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          title="Déplacer après"
+                          onClick={() => moveImage(idx, 1)}
+                          disabled={idx === allImages.length - 1}
+                          className="h-6 w-6 bg-background/90 text-foreground border rounded flex items-center justify-center shadow disabled:opacity-30 disabled:cursor-not-allowed hover:bg-background"
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </button>
+                      </div>
                       <button
+                        type="button"
+                        title="Supprimer"
                         onClick={() => {
-                          if (img.type === "existing" && onDeleteImage) onDeleteImage(img.id);
-                          else setNewImages(prev => prev.filter((_, i) => `new-${i}` !== img.id));
+                          if (img.type === "existing" && onDeleteImage) {
+                            if (confirm("Supprimer cette image définitivement ?")) onDeleteImage(img.id);
+                          } else {
+                            setNewImages(prev => prev.filter((_, i) => `new-${i}` !== img.id));
+                          }
                         }}
                         className="absolute top-1 right-1 h-6 w-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
                       >

@@ -541,6 +541,14 @@ const ShopEditor = () => {
               onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
               onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file) : undefined}
               onDeleteImage={deleteProductImage}
+              onReorderImages={async (orderedIds) => {
+                await Promise.all(
+                  orderedIds.map((imgId, idx) =>
+                    supabase.from("product_images").update({ display_order: idx }).eq("id", imgId) as any
+                  )
+                );
+                fetchData();
+              }}
               saving={saving}
               shopSlug={shop.slug}
               shopActivated={!!isActivated}
