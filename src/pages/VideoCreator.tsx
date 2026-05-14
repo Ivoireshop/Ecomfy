@@ -55,38 +55,31 @@ const VideoCreator = () => {
   useEffect(() => { loadStatus(); }, []);
 
   return (
-    <div className="creation-page min-h-screen bg-background pb-16 md:pb-0">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
 
-      {/* ===== HERO COLORÉ ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 text-white">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl animate-pulse" />
-        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
-              <Clapperboard className="w-4 h-4 mr-2" />
+      {/* ===== HERO SOBRE ===== */}
+      <section className="relative overflow-hidden border-b bg-card">
+        <div className="container relative mx-auto px-4 py-8 md:py-12">
+          <div className="max-w-2xl mx-auto text-center space-y-3">
+            <Badge variant="secondary" className="px-3 py-1">
+              <Clapperboard className="w-3.5 h-3.5 mr-1.5" />
               Studio Vidéo IA
             </Badge>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight animate-fade-in">
-              Transformez vos idées
-              <br />
-              <span className="bg-gradient-to-r from-yellow-300 via-pink-300 to-white bg-clip-text text-transparent">
-                en vidéos publicitaires
-              </span>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight">
+              Créez votre vidéo publicitaire
             </h1>
-            <p className="text-sm sm:text-base md:text-lg text-white/90 animate-fade-in max-w-2xl mx-auto">
-              Importez vos images, décrivez votre idée, et obtenez une vidéo HD prête pour TikTok, Instagram et Facebook en 1 à 2 minutes.
+            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
+              Importez vos images, décrivez votre idée, recevez une vidéo HD en 1 à 2 minutes.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               {[
                 { icon: Zap, label: "1-2 min" },
                 { icon: Film, label: "HD 5-10s" },
-                { icon: Wand2, label: "IA Premium" },
                 { icon: Sparkles, label: "Qualité Pro" },
               ].map((b, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-white/15 backdrop-blur px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium border border-white/20">
-                  <b.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <div key={i} className="flex items-center gap-1.5 bg-muted px-3 py-1 rounded-full text-xs font-medium">
+                  <b.icon className="w-3.5 h-3.5" />
                   {b.label}
                 </div>
               ))}
@@ -95,7 +88,7 @@ const VideoCreator = () => {
               <Button
                 size="lg"
                 onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
-                className="rounded-full bg-white text-blue-700 hover:bg-white/90"
+                className="rounded-full"
               >
                 Commencer la création
                 <ArrowDown className="w-4 h-4 ml-2" />
@@ -105,28 +98,30 @@ const VideoCreator = () => {
         </div>
       </section>
 
-      {/* ===== VIDÉOS STATIQUES ===== */}
-      <section className="relative bg-background py-6 border-b">
-        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {demoVideos.map((v, i) => (
-              <div
-                key={i}
-                className="relative aspect-[9/16] rounded-xl overflow-hidden shadow-lg bg-muted"
-              >
-                <video
-                  src={v.url}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                  <p className="text-white text-xs font-semibold truncate">{v.title}</p>
-                  <p className="text-white/80 text-[10px]">{v.style}</p>
+      {/* ===== DEMO VIDEOS MARQUEE (compact) ===== */}
+      <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
+        <div className="container mx-auto px-4 mb-3">
+          <p className="text-center text-xs md:text-sm text-muted-foreground">
+            🎬 Exemples générés sur la plateforme
+          </p>
+        </div>
+        <div className="relative">
+          <div className="flex gap-3 animate-marquee w-max">
+            {[...demoVideos, ...demoVideos, ...demoVideos].map((v, i) => (
+              <Card key={i} className="w-36 md:w-44 flex-shrink-0 overflow-hidden shadow-md">
+                <div className="aspect-[9/16] bg-black relative">
+                  <video
+                    src={v.url}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                  <p className="absolute bottom-2 left-2 right-2 text-white font-medium text-xs">{v.title}</p>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>

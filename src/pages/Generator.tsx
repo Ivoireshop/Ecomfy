@@ -926,32 +926,26 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
   };
 
   return (
-    <div className="creation-page min-h-screen bg-background">
-      {/* ===== HERO COLORÉ ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl animate-pulse" />
-        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
-              <Wand2 className="w-4 h-4 mr-2" />
-              Studio Visuels Publicitaires IA
+    <div className="min-h-screen bg-background">
+      {/* ===== HERO SOBRE ===== */}
+      <section className="relative overflow-hidden border-b bg-card">
+        <div className="container relative mx-auto px-4 py-8 md:py-12">
+          <div className="max-w-2xl mx-auto text-center space-y-3">
+            <Badge variant="secondary" className="px-3 py-1">
+              <Wand2 className="w-3.5 h-3.5 mr-1.5" />
+              Studio Visuels IA
             </Badge>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight animate-fade-in">
-              Créez des visuels qui
-              <br />
-              <span className="bg-gradient-to-r from-yellow-200 via-white to-pink-200 bg-clip-text text-transparent">
-                font vendre
-              </span>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight">
+              Créez votre visuel publicitaire
             </h1>
-            <p className="text-sm sm:text-base md:text-lg text-white/90 animate-fade-in max-w-2xl mx-auto">
-              Générez en quelques secondes des images publicitaires professionnelles, prêtes pour Instagram, Facebook et TikTok.
+            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
+              Remplissez le formulaire ci-dessous, l'IA génère votre image prête pour Instagram, Facebook et TikTok.
             </p>
-            <div className="pt-3">
+            <div className="pt-2">
               <Button
                 size="lg"
                 onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
-                className="rounded-full bg-white text-pink-600 hover:bg-white/90"
+                className="rounded-full"
               >
                 Commencer la création
                 <ArrowDown className="w-4 h-4 ml-2" />
@@ -961,36 +955,28 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      {/* ===== EXEMPLES STATIQUES ===== */}
-      <section className="relative bg-background py-6 border-b">
-        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-            {(() => {
-              const examples = [
-                { src: new URL("@/assets/example-beauty-ad.jpg", import.meta.url).href, label: "Beauté" },
-                { src: new URL("@/assets/example-fitness-ad.jpg", import.meta.url).href, label: "Fitness" },
-                { src: new URL("@/assets/example-food-ad.jpg", import.meta.url).href, label: "Food" },
-                { src: new URL("@/assets/example-handbag-ad.jpg", import.meta.url).href, label: "Mode" },
-                { src: new URL("@/assets/example-phone-ad.jpg", import.meta.url).href, label: "Tech" },
-                { src: new URL("@/assets/example-realestate-ad.jpg", import.meta.url).href, label: "Immobilier" },
-              ];
-              return examples.map((ex, i) => (
-                <div
-                  key={i}
-                  className="relative aspect-square rounded-xl overflow-hidden shadow-lg bg-muted"
-                >
-                  <img src={ex.src} alt={`Exemple ${ex.label}`} loading="lazy" className="w-full h-full object-cover" />
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                    <p className="text-white text-xs font-semibold">{ex.label}</p>
-                  </div>
+      {/* ===== GALERIE DÉFILANTE (compacte) ===== */}
+      <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
+        <div className="container mx-auto px-4 mb-3">
+          <p className="text-center text-xs md:text-sm text-muted-foreground">
+            ✨ Visuels déjà créés sur la plateforme
+          </p>
+        </div>
+        <div className="relative">
+          <div className="flex gap-3 animate-marquee w-max">
+            {[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate,
+              exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
+              <Card key={i} className="w-28 md:w-36 flex-shrink-0 overflow-hidden shadow-md">
+                <div className="aspect-square bg-muted">
+                  <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
                 </div>
-              ));
-            })()}
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
-      <div id="create" className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8 scroll-mt-20">
+      <div id="create" className="container mx-auto px-4 py-8 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <div className="flex flex-col items-center gap-3 mb-4">
@@ -1079,7 +1065,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           </div>
 
           <Tabs value={generationType === "video" ? "image" : generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
-            <TabsList className="grid h-auto w-full max-w-3xl mx-auto grid-cols-1 sm:grid-cols-3 gap-1">
+            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
               <TabsTrigger value="image">
                 <ImageIcon className="mr-2 h-4 w-4" />
                 Classique
@@ -1098,7 +1084,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
           {/* Mode Pro - Workflow Omneky-style */}
           {generationType === "pro" && (
-            <div className="w-full max-w-6xl mx-auto">
+            <div className="container mx-auto px-4 max-w-6xl">
               {!hasActiveSubscription && !isFounder ? (
                 <Card className="border-primary/20">
                   <CardHeader>
@@ -1167,7 +1153,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
           {/* Mode Avancé - Génération IA style ChatGPT */}
           {generationType === "advanced" && (
-            <div className="w-full max-w-4xl mx-auto">
+            <div className="container mx-auto px-4 max-w-4xl">
               <AdvancedImageGenerator 
                 onImageGenerated={(imageUrl) => {
                   setGeneratedImage(imageUrl);
@@ -1192,7 +1178,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
           {/* Mode Classique - Formulaire */}
           {generationType === "image" && (
-          <div className="bg-card rounded-xl shadow-lg p-4 sm:p-6 md:p-8 border">
+          <div className="bg-card rounded-xl shadow-lg p-8 border">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
               <div className="space-y-2">
                 <Label htmlFor="productName">Nom du produit *</Label>
@@ -1273,7 +1259,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               </div>
 
               {/* Price Display Toggle */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border bg-muted/30">
+              <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
                 <div className="space-y-1">
                   <Label htmlFor="show-price" className="text-base font-semibold">
                     Afficher le prix sur le visuel
@@ -1538,10 +1524,10 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 </Card>
 
                 <div className="mt-4 flex flex-col gap-2">
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex gap-2">
                     <Button
                       onClick={() => setIsEditing(true)}
-                      className="w-full sm:flex-1"
+                      className="flex-1"
                     >
                       Éditer l'image
                     </Button>
@@ -1553,24 +1539,24 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         link.click();
                         toast({ title: "Téléchargé", description: "Image téléchargée avec succès" });
                       }}
-                      className="w-full sm:flex-1"
+                      className="flex-1"
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Télécharger
                     </Button>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                  <div className="flex gap-2 mt-2">
                     <Button
                       onClick={() => navigate("/library")}
                       variant="outline"
-                      className="w-full sm:flex-1"
+                      className="flex-1"
                     >
                       Voir dans la bibliothèque
                     </Button>
                     <Button
                       onClick={() => setGeneratedImage(null)}
                       variant="outline"
-                      className="w-full sm:flex-1"
+                      className="flex-1"
                     >
                       Générer un autre visuel
                     </Button>
