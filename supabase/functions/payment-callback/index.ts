@@ -137,7 +137,8 @@ serve(async (req) => {
       promo_code_id,
       discount_percentage,
       payment_type,
-      credits_size 
+      credits_size,
+      shop_id
     } = paymentData;
 
     if (status === "success" || status === "completed") {
@@ -146,23 +147,21 @@ serve(async (req) => {
       const creditsAmount = credits_size ? parseInt(credits_size) : 0;
       
       if (isShopActivation) {
-        // Handle shop activation - one-time payment per user
+        // Handle shop activation - per shop
         console.log("Processing shop activation");
-        
-        const { error: activationError } = await supabase
-          .from("profiles")
-          .update({ shop_activation_paid: true })
-          .eq("id", user_id);
-        
-        if (activationError) {
-          console.error("Error activating shop:", activationError);
-          throw activationError;
+
+        if (!shop_id) {
+          console.warn("shop_activation without shop_id, refusing global activation", { transaction_id, user_id });
+          return new Response(JSON.stringify({ success: false, error: "Boutique manquante pour l'activation" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
-        
-        // Auto-activate all existing shops for this user
+
         const { error: shopsError } = await supabase
           .from("shops")
-          .update({ is_activated: true, is_published: true })
+          .update({ is_activated: true, activation_fee_paid: true, is_published: true })
+          .eq("id", shop_id)
           .eq("user_id", user_id);
         
         if (shopsError) {
