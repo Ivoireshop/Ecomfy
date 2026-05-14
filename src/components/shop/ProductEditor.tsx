@@ -123,6 +123,7 @@ export function ProductEditor({
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
+  const [currentFontSize, setCurrentFontSize] = useState<string>("12");
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -188,6 +189,22 @@ export function ProductEditor({
   const execCmd = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
     editorRef.current?.focus();
+  }, []);
+
+  // Track the font size of the current text selection so the toolbar reflects reality
+  useEffect(() => {
+    const handler = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const node = sel.getRangeAt(0).startContainer;
+      const el = (node.nodeType === 1 ? node : node.parentElement) as HTMLElement | null;
+      if (!el || !editorRef.current?.contains(el)) return;
+      const px = window.getComputedStyle(el).fontSize;
+      const n = parseFloat(px);
+      if (!isNaN(n)) setCurrentFontSize(String(Math.round(n)));
+    };
+    document.addEventListener("selectionchange", handler);
+    return () => document.removeEventListener("selectionchange", handler);
   }, []);
 
   // Image resize/align controls
@@ -406,7 +423,7 @@ export function ProductEditor({
               size="sm"
               className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white"
               onClick={() => onSave(product, newImages)}
-              disabled={!product.name || product.price <= 0 || saving}
+              disabled={(!product.name && !product.short_description) || saving}
             >
               {saving ? (
                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -459,12 +476,12 @@ export function ProductEditor({
 
                 {/* Font size */}
                 <div className="relative">
-                  <ToolbarButton icon={<span className="text-[10px] font-bold">12</span>} onClick={() => { closeAllDropdowns(); setShowFontSize(!showFontSize); }} title="Taille du texte" hasDropdown />
+                  <ToolbarButton icon={<span className="text-[10px] font-bold">{currentFontSize}</span>} onClick={() => { closeAllDropdowns(); setShowFontSize(!showFontSize); }} title="Taille du texte" hasDropdown />
                   {showFontSize && (
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
                       {FONT_SIZES.map(size => (
                         <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
-                          onClick={() => { execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; setShowFontSize(false); }}>
+                          onClick={() => { execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; setCurrentFontSize(size); setShowFontSize(false); }}>
                           {size}px
                         </button>
                       ))}
@@ -1052,7 +1069,7 @@ export function ProductEditor({
               size="sm"
               className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
               onClick={() => onSave(product, newImages)}
-              disabled={!product.name || product.price <= 0 || saving}
+              disabled={(!product.name && !product.short_description) || saving}
             >
               <Save className="h-3.5 w-3.5" />
               {isEditing ? "Enregistrer" : "Ajouter le produit"}
