@@ -1201,15 +1201,51 @@ export function ProductEditor({
           <DialogHeader>
             <DialogTitle>Générer un visuel produit</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Label className="text-sm">Décrivez votre produit</Label>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm">Image de votre produit (optionnel)</Label>
+              {aiSourceImage ? (
+                <div className="relative rounded-md border bg-muted/30 p-2">
+                  <img src={aiSourceImage} alt="Référence produit" className="max-h-40 mx-auto rounded" />
+                  <div className="flex items-center justify-between mt-2 text-xs">
+                    <span className="truncate text-muted-foreground">{aiSourceFileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setAiSourceImage(null); setAiSourceFileName(""); }}
+                      className="text-destructive hover:underline"
+                      disabled={aiLoading}
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center gap-1 cursor-pointer rounded-md border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-colors px-3 py-5 text-center">
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs font-medium">Importer depuis votre ordinateur</span>
+                  <span className="text-[10px] text-muted-foreground">L'IA conservera votre produit et créera la mise en scène</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleAiSourceFile(e.target.files?.[0])}
+                    disabled={aiLoading}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">{aiSourceImage ? "Instructions pour l'IA" : "Décrivez votre produit"}</Label>
             <Textarea
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Ex: bouteille de parfum élégante en verre transparent, fond beige minimaliste"
+              placeholder={aiSourceImage
+                ? "Ex: poser le produit sur une table en marbre avec des fleurs, lumière naturelle"
+                : "Ex: bouteille de parfum élégante en verre transparent, fond beige minimaliste"}
               rows={4}
               disabled={aiLoading}
             />
+            </div>
             <p className="text-xs text-muted-foreground">
               L'image sera ajoutée à la galerie. Pensez à enregistrer le produit ensuite.
             </p>
