@@ -270,6 +270,17 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Related products toggle */}
+              <Card className="p-5 space-y-2 border-dashed">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">Suggestions « Autres produits »</p>
+                    <p className="text-xs text-muted-foreground">Affiche d'autres produits de la boutique sous chaque fiche produit. Désactivez pour focaliser le visiteur sur le produit de la publicité.</p>
+                  </div>
+                  <Switch checked={!!themeConfig.show_related_products} onCheckedChange={v => updateThemeConfig("show_related_products", v)} />
+                </div>
+              </Card>
             </div>
           )}
 
