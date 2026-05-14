@@ -1273,7 +1273,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               </div>
 
               {/* Price Display Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border bg-muted/30">
                 <div className="space-y-1">
                   <Label htmlFor="show-price" className="text-base font-semibold">
                     Afficher le prix sur le visuel
@@ -1538,10 +1538,10 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 </Card>
 
                 <div className="mt-4 flex flex-col gap-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={() => setIsEditing(true)}
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       Éditer l'image
                     </Button>
@@ -1553,24 +1553,24 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         link.click();
                         toast({ title: "Téléchargé", description: "Image téléchargée avec succès" });
                       }}
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Télécharger
                     </Button>
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-2">
                     <Button
                       onClick={() => navigate("/library")}
                       variant="outline"
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       Voir dans la bibliothèque
                     </Button>
                     <Button
                       onClick={() => setGeneratedImage(null)}
                       variant="outline"
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       Générer un autre visuel
                     </Button>
