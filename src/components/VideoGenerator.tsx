@@ -184,6 +184,7 @@ export function VideoGenerator({
 
             if (row.status === "completed") {
               if (progressInterval) clearInterval(progressInterval);
+              if (pollInterval) clearInterval(pollInterval);
               setProgress({ step: "completed", percentage: 100 });
               toast.success("Vidéo générée avec succès !");
               setGeneratedVideo({
@@ -200,6 +201,7 @@ export function VideoGenerator({
               if (channel) supabase.removeChannel(channel);
             } else if (row.status === "failed") {
               if (progressInterval) clearInterval(progressInterval);
+              if (pollInterval) clearInterval(pollInterval);
               toast.error("La génération de la vidéo a échoué");
               setProgress(null);
               setIsGenerating(false);
