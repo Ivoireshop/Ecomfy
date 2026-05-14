@@ -12,7 +12,8 @@ import {
   CreditCard, 
   Users, 
   PlayCircle,
-  CheckCircle2
+  CheckCircle2,
+  ShoppingBag
 } from "lucide-react";
 
 const demoVideos = [
@@ -63,6 +64,22 @@ const demoVideos = [
     ],
     videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Placeholder - à remplacer
     thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=450&fit=crop"
+  },
+  {
+    id: "shop",
+    title: "Créer une Boutique E-commerce",
+    description: "Lancez votre boutique en ligne complète avec catalogue, paiements Mobile Money et gestion des commandes.",
+    icon: ShoppingBag,
+    color: "bg-emerald-500",
+    duration: "6:10",
+    steps: [
+      "Créez votre boutique et personnalisez le thème",
+      "Ajoutez vos produits (photos, prix FCFA, stock)",
+      "Activez Mobile Money & Cash à la livraison",
+      "Partagez le lien et suivez vos commandes en temps réel"
+    ],
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    thumbnail: "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?w=800&h=450&fit=crop"
   },
   {
     id: "credits",

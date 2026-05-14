@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Image, Video, Globe, CreditCard, Users, PlayCircle } from "lucide-react";
+import { Sparkles, Image, Video, Globe, CreditCard, Users, PlayCircle, ShoppingBag } from "lucide-react";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
@@ -42,6 +42,18 @@ const tutorialCards = [
       "Optimisé pour mobile",
       "Déploiement instantané",
       "Nom de domaine personnalisé"
+    ]
+  },
+  {
+    title: "Création de Boutique",
+    description: "Lancez votre boutique e-commerce VisualPro en quelques minutes : produits, paiements Mobile Money, livraison.",
+    icon: ShoppingBag,
+    color: "bg-emerald-500",
+    features: [
+      "Catalogue produits avec photos & prix en FCFA",
+      "Paiements Mobile Money + Cash à la livraison",
+      "Tunnel de commande optimisé mobile",
+      "Statistiques, finances et notifications en temps réel"
     ]
   },
   {

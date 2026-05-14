@@ -165,6 +165,9 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
           <p className="text-xs text-muted-foreground">
             Importez 2 à {MAX_FRAMES} photos de votre produit (différents angles, couleurs ou usages). Notre moteur les assemble en un GIF prêt pour votre fiche produit.
           </p>
+          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+            ✓ Génération illimitée et gratuite — aucun crédit consommé
+          </p>
 
           {/* Frames list */}
           {frames.length > 0 && (

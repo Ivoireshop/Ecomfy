@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Image, Video, Globe, CreditCard, Users, CheckCircle2 } from "lucide-react";
+import { Sparkles, Image, Video, Globe, CreditCard, Users, CheckCircle2, ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -49,6 +49,18 @@ const tutorialSteps = [
       "Templates personnalisables",
       "Optimisé pour mobile",
       "Déploiement instantané"
+    ]
+  },
+  {
+    title: "Création de Boutique E-commerce",
+    description: "Lancez votre boutique en ligne complète : ajoutez vos produits, encaissez via Mobile Money et gérez vos commandes.",
+    icon: ShoppingBag,
+    color: "text-emerald-500",
+    tips: [
+      "Ajoutez vos produits (photos, prix, stock)",
+      "Activez Mobile Money + Cash à la livraison",
+      "Personnalisez votre thème et votre domaine",
+      "Suivez commandes, finances et statistiques"
     ]
   },
   {
