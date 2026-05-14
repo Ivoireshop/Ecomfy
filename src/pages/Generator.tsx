@@ -927,51 +927,36 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ===== HERO SOBRE ===== */}
-      <section className="relative overflow-hidden border-b bg-card">
-        <div className="container relative mx-auto px-4 py-8 md:py-12">
-          <div className="max-w-2xl mx-auto text-center space-y-3">
-            <Badge variant="secondary" className="px-3 py-1">
-              <Wand2 className="w-3.5 h-3.5 mr-1.5" />
-              Studio Visuels IA
+      {/* ===== HERO COLORÉ ===== */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white">
+        <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl animate-pulse" />
+        <div className="container relative mx-auto px-4 py-10 md:py-16">
+          <div className="max-w-3xl mx-auto text-center space-y-4">
+            <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
+              <Wand2 className="w-4 h-4 mr-2" />
+              Studio Visuels Publicitaires IA
             </Badge>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight">
-              Créez votre visuel publicitaire
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight animate-fade-in">
+              Créez des visuels qui
+              <br />
+              <span className="bg-gradient-to-r from-yellow-200 via-white to-pink-200 bg-clip-text text-transparent">
+                font vendre
+              </span>
             </h1>
-            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
-              Remplissez le formulaire ci-dessous, l'IA génère votre image prête pour Instagram, Facebook et TikTok.
+            <p className="text-sm sm:text-base md:text-lg text-white/90 animate-fade-in max-w-2xl mx-auto">
+              Générez en quelques secondes des images publicitaires professionnelles, prêtes pour Instagram, Facebook et TikTok.
             </p>
-            <div className="pt-2">
+            <div className="pt-3">
               <Button
                 size="lg"
                 onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
-                className="rounded-full"
+                className="rounded-full bg-white text-pink-600 hover:bg-white/90"
               >
                 Commencer la création
                 <ArrowDown className="w-4 h-4 ml-2" />
               </Button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== GALERIE DÉFILANTE (compacte) ===== */}
-      <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
-        <div className="container mx-auto px-4 mb-3">
-          <p className="text-center text-xs md:text-sm text-muted-foreground">
-            ✨ Visuels déjà créés sur la plateforme
-          </p>
-        </div>
-        <div className="relative">
-          <div className="flex gap-3 animate-marquee w-max">
-            {[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate,
-              exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
-              <Card key={i} className="w-28 md:w-36 flex-shrink-0 overflow-hidden shadow-md">
-                <div className="aspect-square bg-muted">
-                  <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
-                </div>
-              </Card>
-            ))}
           </div>
         </div>
       </section>
