@@ -280,10 +280,38 @@ p, .text-content {
   animation-play-state: paused;
 }
 
-/* Prevent any horizontal page scrollbar globally */
-html, body {
+/* Prevent horizontal page scroll while keeping layouts responsive */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
-  max-width: 100vw;
+  overflow-x: clip;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+.creation-page {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.creation-page * {
+  min-width: 0;
 }
 
 @keyframes ticker {
