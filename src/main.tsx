@@ -8,8 +8,8 @@ import "./index.css";
 (() => {
   try {
     const host = window.location.hostname;
-    const isLovableHost = /\.lovable\.(app|dev)$/.test(host);
-    if (isLovableHost) {
+    const isPublishedLovableHost = host === "visualpro-african-ai-creations.lovable.app";
+    if (isPublishedLovableHost) {
       const target =
         "https://visuelpro.cloud" +
         window.location.pathname +
