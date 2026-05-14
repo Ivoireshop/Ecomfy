@@ -149,6 +149,12 @@ Le visuel doit être:
 
     console.log("Starting video generation for video ID:", videoData.id);
 
+    // Kick off the heavy work in the background so the HTTP response
+    // returns immediately. This avoids the 150s edge-function timeout
+    // that was causing the client to hang ("loader infini").
+    // The client subscribes to realtime updates on `generated_videos`
+    // (filter id=videoData.id) to display progress and the final URL.
+    const backgroundWork = async () => {
     try {
       const runwayApiKey = Deno.env.get("RUNWAY_API_KEY");
       const replicateApiKey = Deno.env.get("REPLICATE_API_KEY");
@@ -456,29 +462,35 @@ Le visuel doit être:
       }).eq("id", videoData.id);
 
       console.log("Video generation completed:", videoData.id);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          videoId: videoData.id,
-          videoUrl: videoPublicUrl,
-          message: "Vidéo générée avec succès !",
-          videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1),
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     } catch (genError) {
       console.error("Video generation error:", genError);
-      await serviceClient.from("generated_videos").update({ status: "failed" }).eq("id", videoData.id);
-
-      return new Response(
-        JSON.stringify({
-          error: "Erreur lors de la génération de la vidéo",
-          details: genError instanceof Error ? genError.message : String(genError),
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      await serviceClient.from("generated_videos").update({
+        status: "failed",
+        progress_step: "failed",
+      }).eq("id", videoData.id);
     }
+    }; // end backgroundWork
+
+    // @ts-ignore - EdgeRuntime is provided by Supabase Edge runtime
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(backgroundWork());
+    } else {
+      // Fallback: fire and forget (local dev / non-edge runtimes)
+      backgroundWork().catch((e) => console.error("background error:", e));
+    }
+
+    // Respond immediately so the client can subscribe to realtime updates
+    return new Response(
+      JSON.stringify({
+        success: true,
+        videoId: videoData.id,
+        status: "processing",
+        message: "Génération démarrée. Suivez la progression en direct.",
+        videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Error in generate-video function:", error);
     return new Response(
