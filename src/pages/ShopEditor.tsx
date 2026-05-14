@@ -24,6 +24,7 @@ import { BillingBanner } from "@/components/shop/BillingBanner";
 import { BillingHistory } from "@/components/shop/BillingHistory";
 import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
 import { ShopFinances } from "@/components/shop/ShopFinances";
+import { ProductAIOptimizer } from "@/components/shop/ProductAIOptimizer";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { useNativePush } from "@/hooks/useNativePush";
@@ -707,6 +708,14 @@ const ShopEditor = () => {
 
           {activeSection === "finances" && (
             <ShopFinances shopId={shop.id} shop={shop} orders={orders as any} />
+          )}
+
+          {activeSection === "ai-optimizer" && (
+            <ProductAIOptimizer
+              shop={shop as any}
+              products={products as any}
+              onShopUpdate={(patch) => setShop((s: any) => ({ ...s, ...patch }))}
+            />
           )}
         </div>
       </main>
