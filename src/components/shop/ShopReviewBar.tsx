@@ -77,6 +77,8 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
   const mobilePlacement = themeConfig.review_mobile_above ? "above" : "below";
   const desktopMode = resolveMode(themeConfig, "review_desktop");
   const mobileMode = resolveMode(themeConfig, "review_mobile");
+  const desktopBlinkAlign = themeConfig.review_desktop_blink_align || "center";
+  const mobileBlinkAlign = themeConfig.review_mobile_blink_align || "center";
 
   const desktopHtml = buildContent(themeConfig, "desktop");
   const mobileHtml = buildContent(themeConfig, "mobile") || desktopHtml;
@@ -91,6 +93,7 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           bgColor={themeConfig.review_desktop_bg || "#803160"}
           mode={desktopMode}
           speed={resolveSpeed(themeConfig, "review_desktop", desktopMode)}
+          blinkAlign={desktopBlinkAlign}
         />
       )}
       {mobileActive && mobilePlacement === placement && (
@@ -101,6 +104,7 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           bgColor={themeConfig.review_mobile_bg || "#000000"}
           mode={mobileMode}
           speed={resolveSpeed(themeConfig, "review_mobile", mobileMode)}
+          blinkAlign={mobileBlinkAlign}
         />
       )}
     </>
