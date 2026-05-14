@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown } from "lucide-react";
+import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
 import DOMPurify from "dompurify";
 
@@ -130,10 +130,17 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </TabsContent>
 
                 <TabsContent value="review_desktop" className="mt-6 space-y-6">
-                  <div className="border rounded-xl p-4 bg-muted/20 min-h-[150px]">
-                    <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (ordinateur)</p>
-                    <RichTextEditor value={themeConfig.review_bar_desktop_content || ""} onChange={v => updateThemeConfig("review_bar_desktop_content", v)} />
-                  </div>
+                  <MessagesEditor
+                    label="Messages de la barre d'avis (ordinateur)"
+                    messages={getMessages(themeConfig, "desktop")}
+                    separator={themeConfig.review_desktop_separator ?? " • "}
+                    onChangeMessages={v => {
+                      updateThemeConfig("review_desktop_messages", v);
+                      // keep legacy field in sync (first message) for backward compatibility
+                      updateThemeConfig("review_bar_desktop_content", v[0] || "");
+                    }}
+                    onChangeSeparator={v => updateThemeConfig("review_desktop_separator", v)}
+                  />
                   <ReviewLivePreview themeConfig={themeConfig} variant="desktop" />
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_desktop_text || "#FFFFFF"} onChange={v => updateThemeConfig("review_desktop_text", v)} />
@@ -162,10 +169,16 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </TabsContent>
 
                 <TabsContent value="review_mobile" className="mt-6 space-y-6">
-                  <div className="border rounded-xl p-4 bg-muted/20 min-h-[150px]">
-                    <p className="text-sm text-muted-foreground mb-3">Contenu de la barre d'avis (mobile)</p>
-                    <RichTextEditor value={themeConfig.review_bar_mobile_content || ""} onChange={v => updateThemeConfig("review_bar_mobile_content", v)} />
-                  </div>
+                  <MessagesEditor
+                    label="Messages de la barre d'avis (mobile)"
+                    messages={getMessages(themeConfig, "mobile")}
+                    separator={themeConfig.review_mobile_separator ?? " • "}
+                    onChangeMessages={v => {
+                      updateThemeConfig("review_mobile_messages", v);
+                      updateThemeConfig("review_bar_mobile_content", v[0] || "");
+                    }}
+                    onChangeSeparator={v => updateThemeConfig("review_mobile_separator", v)}
+                  />
                   <ReviewLivePreview themeConfig={themeConfig} variant="mobile" />
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <ColorField label="Couleur du texte" value={themeConfig.review_mobile_text || "#FFFFFFFF"} onChange={v => updateThemeConfig("review_mobile_text", v)} />
@@ -409,9 +422,11 @@ function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode:
 
 function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant: "desktop" | "mobile" }) {
   const Icon = variant === "desktop" ? Monitor : Smartphone;
-  const html = variant === "desktop"
-    ? (themeConfig.review_bar_desktop_content || "")
-    : (themeConfig.review_bar_mobile_content || themeConfig.review_bar_desktop_content || "");
+  const messages = getMessages(themeConfig, variant === "desktop" ? "desktop" : "mobile");
+  const separator = variant === "desktop"
+    ? (themeConfig.review_desktop_separator ?? " • ")
+    : (themeConfig.review_mobile_separator ?? " • ");
+  const html = joinMessages(messages, separator);
   const textColor = variant === "desktop"
     ? (themeConfig.review_desktop_text || "#FFFFFF")
     : (themeConfig.review_mobile_text || "#FFFFFF");
@@ -448,6 +463,102 @@ function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant
             Saisissez du contenu pour voir l'aperçu…
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+export function getMessages(cfg: any, prefix: "desktop" | "mobile"): string[] {
+  const key = prefix === "desktop" ? "review_desktop_messages" : "review_mobile_messages";
+  const arr = cfg?.[key];
+  if (Array.isArray(arr) && arr.length > 0) return arr.filter((m: any) => typeof m === "string");
+  // Fallback to legacy single content field
+  const legacy = prefix === "desktop"
+    ? (cfg?.review_bar_desktop_content || "")
+    : (cfg?.review_bar_mobile_content || cfg?.review_bar_desktop_content || "");
+  return legacy ? [legacy] : [];
+}
+
+export function joinMessages(messages: string[], separator: string): string {
+  const cleaned = messages.map(m => (m || "").trim()).filter(Boolean);
+  if (cleaned.length === 0) return "";
+  const sep = `<span class="vp-review-sep" style="opacity:0.6;margin:0 0.5em;">${DOMPurify.sanitize(separator || "")}</span>`;
+  return cleaned.join(sep);
+}
+
+function MessagesEditor({
+  label,
+  messages,
+  separator,
+  onChangeMessages,
+  onChangeSeparator,
+}: {
+  label: string;
+  messages: string[];
+  separator: string;
+  onChangeMessages: (v: string[]) => void;
+  onChangeSeparator: (v: string) => void;
+}) {
+  const list = messages.length > 0 ? messages : [""];
+  const update = (idx: number, value: string) => {
+    const next = [...list];
+    next[idx] = value;
+    onChangeMessages(next);
+  };
+  const remove = (idx: number) => {
+    const next = list.filter((_, i) => i !== idx);
+    onChangeMessages(next.length ? next : [""]);
+  };
+  const move = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= list.length) return;
+    const next = [...list];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    onChangeMessages(next);
+  };
+  const add = () => onChangeMessages([...list, ""]);
+  return (
+    <div className="border rounded-xl p-4 bg-muted/20 space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <Button type="button" size="sm" variant="outline" onClick={add} className="gap-1">
+          <Plus className="h-3.5 w-3.5" /> Ajouter un message
+        </Button>
+      </div>
+      <div className="space-y-3">
+        {list.map((msg, idx) => (
+          <div key={idx} className="border rounded-lg p-3 bg-background space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Message {idx + 1}{idx === 0 ? " — défile en premier" : ""}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" disabled={idx === 0} onClick={() => move(idx, -1)} title="Monter">
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" disabled={idx === list.length - 1} onClick={() => move(idx, 1)} title="Descendre">
+                  <ArrowDown className="h-3.5 w-3.5" />
+                </Button>
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive" disabled={list.length === 1 && !msg} onClick={() => remove(idx)} title="Supprimer">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+            <RichTextEditor value={msg} onChange={v => update(idx, v)} />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs">Séparateur entre les messages</Label>
+        <Input
+          value={separator}
+          onChange={e => onChangeSeparator(e.target.value)}
+          placeholder=" • "
+          className="h-9"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Affiché entre chaque message (ex. « • », « | », « — »). Le premier message de la liste est aussi celui qui défile en premier.
+        </p>
       </div>
     </div>
   );
