@@ -340,13 +340,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   );
 }
 
-function TBtn({ icon, onClick, title, hasDropdown }: { icon: React.ReactNode; onClick: () => void; title: string; hasDropdown?: boolean }) {
+function TBtn({ icon, onClick, title, hasDropdown, active }: { icon: React.ReactNode; onClick: () => void; title: string; hasDropdown?: boolean; active?: boolean }) {
   return (
     <button
       type="button"
       onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       title={title}
-      className="h-7 min-w-[28px] px-0.5 flex items-center justify-center rounded hover:bg-muted transition-colors text-foreground/70 hover:text-foreground"
+      className={`h-7 min-w-[28px] px-0.5 flex items-center justify-center rounded transition-colors ${active ? "bg-primary/15 text-primary ring-1 ring-primary/30" : "text-foreground/70 hover:text-foreground hover:bg-muted"}`}
     >
       {icon}
       {hasDropdown && <ChevronDown className="h-2 w-2 ml-0.5 opacity-50" />}
