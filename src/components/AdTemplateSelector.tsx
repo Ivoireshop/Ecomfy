@@ -6,6 +6,23 @@ import { Sparkles, Check } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import exampleHandbag from "@/assets/example-handbag-ad.jpg";
+import examplePhone from "@/assets/example-phone-ad.jpg";
+import exampleFood from "@/assets/example-food-ad.jpg";
+import exampleBeauty from "@/assets/example-beauty-ad.jpg";
+import exampleFitness from "@/assets/example-fitness-ad.jpg";
+import exampleRealestate from "@/assets/example-realestate-ad.jpg";
+
+const categoryImages: Record<string, string> = {
+  "e-commerce": exampleHandbag,
+  "immobilier": exampleRealestate,
+  "beaute": exampleBeauty,
+  "alimentation": exampleFood,
+  "fitness": exampleFitness,
+  "mode": exampleHandbag,
+  "technologie": examplePhone,
+  "services": examplePhone,
+};
 
 interface AdTemplate {
   id: string;
@@ -190,20 +207,26 @@ export function AdTemplateSelector({ selectedTemplateId, onSelectTemplate }: AdT
                 </div>
               </CardHeader>
               <CardContent className="pb-3 space-y-3">
-                {/* Color palette preview */}
-                <div className="aspect-video rounded-md overflow-hidden flex">
-                  <div
-                    className="flex-1"
-                    style={{ backgroundColor: template.color_palette?.primary || "#2563eb" }}
-                  />
-                  <div
-                    className="flex-1"
-                    style={{ backgroundColor: template.color_palette?.secondary || "#7c3aed" }}
-                  />
-                  <div
-                    className="flex-1"
-                    style={{ backgroundColor: template.color_palette?.accent || "#f59e0b" }}
-                  />
+                {/* Real category preview image */}
+                <div className="aspect-video rounded-md overflow-hidden bg-muted relative">
+                  {template.thumbnail_url || categoryImages[template.category] ? (
+                    <img
+                      src={template.thumbnail_url || categoryImages[template.category]}
+                      alt={template.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-3xl">
+                      {categoryIcons[template.category]}
+                    </div>
+                  )}
+                  {/* Subtle color accent strip */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1.5 flex">
+                    <div className="flex-1" style={{ backgroundColor: template.color_palette?.primary || "#2563eb" }} />
+                    <div className="flex-1" style={{ backgroundColor: template.color_palette?.secondary || "#7c3aed" }} />
+                    <div className="flex-1" style={{ backgroundColor: template.color_palette?.accent || "#f59e0b" }} />
+                  </div>
                 </div>
 
                 {/* Info badges */}
