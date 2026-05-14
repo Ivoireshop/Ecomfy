@@ -155,6 +155,26 @@ export function ProductEditor({
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSourceImage, setAiSourceImage] = useState<string | null>(null);
+  const [aiSourceFileName, setAiSourceFileName] = useState<string>("");
+
+  const handleAiSourceFile = (file: File | null | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Fichier invalide", description: "Sélectionnez une image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "Image trop lourde", description: "Maximum 8MB.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAiSourceImage(reader.result as string);
+      setAiSourceFileName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleGenerateAiImage = async () => {
     const prompt = aiPrompt.trim();
@@ -164,9 +184,17 @@ export function ProductEditor({
     }
     setAiLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-ai-image", {
-        body: { prompt: `Photo produit professionnelle, fond neutre, éclairage studio. ${prompt}`, mode: "simple" },
-      });
+      const body = aiSourceImage
+        ? {
+            mode: "image-edit",
+            prompt: `En utilisant l'image du produit fournie comme référence visuelle exacte (forme, couleurs, texture, étiquettes), génère un visuel produit professionnel : ${prompt}. Conserve l'identité du produit à l'identique.`,
+            sourceImage: aiSourceImage,
+          }
+        : {
+            mode: "simple",
+            prompt: `Photo produit professionnelle, fond neutre, éclairage studio. ${prompt}`,
+          };
+      const { data, error } = await supabase.functions.invoke("generate-ai-image", { body });
       if (error) throw error;
       const imageUrl: string | undefined = data?.imageUrl || data?.image_url;
       if (!imageUrl) throw new Error("Aucune image reçue");
@@ -178,6 +206,8 @@ export function ProductEditor({
       toast({ title: "✓ Image ajoutée", description: "Pensez à enregistrer le produit." });
       setAiOpen(false);
       setAiPrompt("");
+      setAiSourceImage(null);
+      setAiSourceFileName("");
     } catch (e: any) {
       toast({ title: "Erreur", description: e?.message || "Génération impossible", variant: "destructive" });
     } finally {
