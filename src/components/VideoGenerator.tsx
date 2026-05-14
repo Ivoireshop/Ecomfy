@@ -253,7 +253,7 @@ export function VideoGenerator({
 
   if (!hasActiveSubscription && !isFounder) {
     return (
-      <div className="container mx-auto px-4 max-w-3xl">
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <Card className="border-primary/20">
           <CardHeader className="text-center">
             <div className="mx-auto p-4 rounded-full bg-primary/10 w-fit mb-4">
@@ -284,7 +284,7 @@ export function VideoGenerator({
   }
 
   return (
-    <div className="container mx-auto px-4 max-w-3xl space-y-6">
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="mx-auto p-3 rounded-full bg-primary/10 w-fit">
@@ -502,10 +502,10 @@ export function VideoGenerator({
                 <Download className="h-4 w-4 mr-2" />
                 Télécharger
               </Button>
-              <Button variant="outline" onClick={() => navigate("/library")}>
+              <Button className="w-full sm:w-auto" variant="outline" onClick={() => navigate("/library")}>
                 Voir la bibliothèque
               </Button>
-              <Button variant="ghost" onClick={() => setGeneratedVideo(null)}>
+              <Button className="w-full sm:w-auto" variant="ghost" onClick={() => setGeneratedVideo(null)}>
                 Nouvelle vidéo
               </Button>
             </div>
