@@ -519,10 +519,10 @@ export function ProductEditor({
                 <ToolbarDivider />
 
                 {/* Text formatting */}
-                <ToolbarButton icon={<Bold className="h-3.5 w-3.5" />} onClick={() => execCmd("bold")} title="Gras" />
-                <ToolbarButton icon={<Italic className="h-3.5 w-3.5" />} onClick={() => execCmd("italic")} title="Italique" />
-                <ToolbarButton icon={<Underline className="h-3.5 w-3.5" />} onClick={() => execCmd("underline")} title="Souligné" />
-                <ToolbarButton icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => execCmd("strikethrough")} title="Barré" />
+                <ToolbarButton icon={<Bold className="h-3.5 w-3.5" />} onClick={() => execCmd("bold")} title="Gras" active={activeFmt.bold} />
+                <ToolbarButton icon={<Italic className="h-3.5 w-3.5" />} onClick={() => execCmd("italic")} title="Italique" active={activeFmt.italic} />
+                <ToolbarButton icon={<Underline className="h-3.5 w-3.5" />} onClick={() => execCmd("underline")} title="Souligné" active={activeFmt.underline} />
+                <ToolbarButton icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => execCmd("strikethrough")} title="Barré" active={activeFmt.strike} />
                 <ToolbarDivider />
 
                 {/* Font size */}
@@ -586,8 +586,8 @@ export function ProductEditor({
                 <ToolbarDivider />
 
                 {/* Lists */}
-                <ToolbarButton icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => execCmd("insertOrderedList")} title="Liste numérotée" hasDropdown />
-                <ToolbarButton icon={<List className="h-3.5 w-3.5" />} onClick={() => execCmd("insertUnorderedList")} title="Liste à puces" hasDropdown />
+                <ToolbarButton icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => execCmd("insertOrderedList")} title="Liste numérotée" active={activeFmt.ordered} />
+                <ToolbarButton icon={<List className="h-3.5 w-3.5" />} onClick={() => execCmd("insertUnorderedList")} title="Liste à puces" active={activeFmt.unordered} />
                 <ToolbarDivider />
 
                 {/* Alignment group */}
@@ -598,7 +598,24 @@ export function ProductEditor({
 
                 {/* Link, Table, Emoji, Special char */}
                 <ToolbarButton icon={<LinkIcon className="h-3.5 w-3.5" />} onClick={insertLink} title="Insérer un lien" />
-                <ToolbarButton icon={<Table className="h-3.5 w-3.5" />} onClick={insertTable} title="Insérer un tableau" />
+                <div className="relative">
+                  <ToolbarButton icon={<Table className="h-3.5 w-3.5" />} onClick={() => { closeAllDropdowns(); setShowTablePicker(!showTablePicker); }} title="Insérer un tableau" hasDropdown />
+                  {showTablePicker && (
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-3 w-[230px] space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Lignes</Label>
+                          <Input type="number" min={1} max={12} value={tableRows} onChange={(e) => setTableRows(Number(e.target.value))} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Colonnes</Label>
+                          <Input type="number" min={1} max={8} value={tableCols} onChange={(e) => setTableCols(Number(e.target.value))} className="h-8" />
+                        </div>
+                      </div>
+                      <Button type="button" size="sm" className="w-full" onMouseDown={(e) => e.preventDefault()} onClick={insertTable}>Insérer le tableau</Button>
+                    </div>
+                  )}
+                </div>
                 <div className="relative">
                   <ToolbarButton icon={<Smile className="h-3.5 w-3.5" />} onClick={() => { closeAllDropdowns(); setShowEmoji(!showEmoji); }} title="Émojis" />
                   {showEmoji && (
@@ -614,7 +631,21 @@ export function ProductEditor({
                     </div>
                   )}
                 </div>
-                <ToolbarButton icon={<span className="text-[11px] font-serif">Ω</span>} onClick={insertSpecialChar} title="Caractères spéciaux" />
+                <div className="relative">
+                  <ToolbarButton icon={<span className="text-[11px] font-serif">Ω</span>} onClick={() => { closeAllDropdowns(); setShowSymbol(!showSymbol); }} title="Symboles & caractères spéciaux" hasDropdown />
+                  {showSymbol && (
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[280px] max-h-[260px] overflow-y-auto">
+                      <div className="grid grid-cols-8 gap-1">
+                        {SYMBOLS.map((symbol, index) => (
+                          <button key={`${symbol}-${index}`} type="button" className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-base"
+                            onMouseDown={(e) => { e.preventDefault(); insertSpecialChar(symbol); }}>
+                            {symbol}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Toolbar Row 2 */}
