@@ -58,11 +58,13 @@ const VideoCreator = () => {
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
 
-      {/* ===== HERO SOBRE ===== */}
-      <section className="relative overflow-hidden border-b bg-card">
+      {/* ===== HERO DYNAMIQUE ===== */}
+      <section className="relative overflow-hidden border-b bg-gradient-to-br from-primary/[0.08] via-background to-secondary/[0.08]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(var(--primary)/0.15),_transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(var(--secondary)/0.10),_transparent_50%)]" />
         <div className="container relative mx-auto px-4 py-8 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
-            <Badge variant="secondary" className="px-3 py-1">
+            <Badge variant="secondary" className="px-3 py-1 backdrop-blur-sm bg-background/80">
               <Clapperboard className="w-3.5 h-3.5 mr-1.5" />
               Studio Vidéo IA
             </Badge>
@@ -70,15 +72,15 @@ const VideoCreator = () => {
               Créez votre vidéo publicitaire
             </h1>
             <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
-              Importez vos images, décrivez votre idée, recevez une vidéo HD en 1 à 2 minutes.
+              Importez vos images, décrivez votre idée, recevez une vidéo HD, 2K ou 4K en 1 à 2 minutes.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               {[
                 { icon: Zap, label: "1-2 min" },
-                { icon: Film, label: "HD 5-10s" },
+                { icon: Film, label: "HD / 2K / 4K" },
                 { icon: Sparkles, label: "Qualité Pro" },
               ].map((b, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-muted px-3 py-1 rounded-full text-xs font-medium">
+                <div key={i} className="flex items-center gap-1.5 bg-muted/80 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium">
                   <b.icon className="w-3.5 h-3.5" />
                   {b.label}
                 </div>
@@ -88,7 +90,7 @@ const VideoCreator = () => {
               <Button
                 size="lg"
                 onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
-                className="rounded-full"
+                className="rounded-full shadow-lg hover:shadow-xl transition-all"
               >
                 Commencer la création
                 <ArrowDown className="w-4 h-4 ml-2" />
@@ -98,7 +100,7 @@ const VideoCreator = () => {
         </div>
       </section>
 
-      {/* ===== DEMO VIDEOS MARQUEE (compact) ===== */}
+      {/* ===== DEMO VIDEOS MARQUEE (3 uniques) ===== */}
       <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
         <div className="container mx-auto px-4 mb-3">
           <p className="text-center text-xs md:text-sm text-muted-foreground">
@@ -107,7 +109,7 @@ const VideoCreator = () => {
         </div>
         <div className="relative">
           <div className="flex gap-3 animate-marquee w-max">
-            {[...demoVideos, ...demoVideos, ...demoVideos].map((v, i) => (
+            {demoVideos.map((v, i) => (
               <Card key={i} className="w-36 md:w-44 flex-shrink-0 overflow-hidden shadow-md">
                 <div className="aspect-[9/16] bg-black relative">
                   <video
