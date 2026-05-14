@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ProductLivePreview } from "./ProductLivePreview";
+import { ProductGifGenerator } from "./ProductGifGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -16,7 +17,7 @@ import {
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
   ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3,
-  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2
+  Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2, Film
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -157,6 +158,7 @@ export function ProductEditor({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSourceImage, setAiSourceImage] = useState<string | null>(null);
   const [aiSourceFileName, setAiSourceFileName] = useState<string>("");
+  const [gifOpen, setGifOpen] = useState(false);
 
   const handleAiSourceFile = (file: File | null | undefined) => {
     if (!file) return;
@@ -799,6 +801,18 @@ export function ProductEditor({
                 <ImageIcon className="h-4 w-4" />
                 Générer un visuel produit (IA)
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setGifOpen(true)}
+              >
+                <Film className="h-4 w-4" />
+                Créer un GIF animé du produit
+              </Button>
+              <p className="text-[11px] text-muted-foreground -mt-1">
+                Astuce : importez 2 à 6 photos (différents angles, couleurs ou usages) pour obtenir un GIF qui valorise votre produit.
+              </p>
             </div>
           </CollapsibleSection>
 
@@ -1260,6 +1274,13 @@ export function ProductEditor({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* GIF generator */}
+      <ProductGifGenerator
+        open={gifOpen}
+        onOpenChange={setGifOpen}
+        onGenerated={(file) => setNewImages((prev) => [...prev, file])}
+      />
     </div>
   );
 }
