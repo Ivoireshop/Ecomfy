@@ -339,11 +339,13 @@ export function ProductEditor({
   };
 
   const insertTable = () => {
-    const html = `<table style="width:100%;border-collapse:collapse;margin:12px 0;"><tbody>
-      <tr><td style="border:1px solid #ddd;padding:8px;">Cell 1</td><td style="border:1px solid #ddd;padding:8px;">Cell 2</td><td style="border:1px solid #ddd;padding:8px;">Cell 3</td></tr>
-      <tr><td style="border:1px solid #ddd;padding:8px;">Cell 4</td><td style="border:1px solid #ddd;padding:8px;">Cell 5</td><td style="border:1px solid #ddd;padding:8px;">Cell 6</td></tr>
-    </tbody></table>`;
-    execCmd("insertHTML", html);
+    const rows = Math.min(12, Math.max(1, tableRows || 1));
+    const cols = Math.min(8, Math.max(1, tableCols || 1));
+    const cells = Array.from({ length: rows }, (_, row) =>
+      `<tr>${Array.from({ length: cols }, (_, col) => `<td style="border:1px solid #ddd;padding:8px;min-width:72px;">Cellule ${row + 1}-${col + 1}</td>`).join("")}</tr>`
+    ).join("");
+    execCmd("insertHTML", `<table style="width:100%;border-collapse:collapse;margin:12px 0;"><tbody>${cells}</tbody></table><p><br></p>`);
+    setShowTablePicker(false);
   };
 
   const insertEmoji = (emoji: string) => {
@@ -363,9 +365,9 @@ export function ProductEditor({
     }
   };
 
-  const insertSpecialChar = () => {
-    const char = prompt("Entrez un caractère spécial (ex: Ω, ©, ™, €, £, ¥)");
-    if (char) execCmd("insertText", char);
+  const insertSpecialChar = (char: string) => {
+    execCmd("insertText", char);
+    setShowSymbol(false);
   };
 
   const handleEditorInput = () => {
