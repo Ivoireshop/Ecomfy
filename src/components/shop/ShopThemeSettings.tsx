@@ -366,6 +366,47 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
+function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode: string; speed: number; onModeChange: (v: string) => void; onSpeedChange: (v: number) => void }) {
+  const isScroll = mode === "scroll";
+  const isBlink = mode === "blink";
+  const min = isBlink ? 0.4 : 6;
+  const max = isBlink ? 4 : 60;
+  const step = isBlink ? 0.1 : 1;
+  // For scroll: slider goes left = lent (large duration), right = rapide (small duration). Invert visually.
+  const sliderValue = isBlink ? speed : max + min - speed;
+  const handleSlider = (v: number[]) => {
+    const val = v[0];
+    onSpeedChange(isBlink ? val : max + min - val);
+  };
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border rounded-xl p-4 bg-muted/10">
+      <div className="space-y-2">
+        <Label className="text-xs">Type d'animation</Label>
+        <Select value={mode} onValueChange={onModeChange}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="static">Statique (sans animation)</SelectItem>
+            <SelectItem value="scroll">Défilement linéaire (droite → gauche)</SelectItem>
+            <SelectItem value="blink">Scintillement</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {(isScroll || isBlink) && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Vitesse</Label>
+            <span className="text-xs text-muted-foreground">{isBlink ? `${speed.toFixed(1)}s / cycle` : `${speed}s / boucle`}</span>
+          </div>
+          <Slider min={min} max={max} step={step} value={[sliderValue]} onValueChange={handleSlider} />
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>Lent</span><span>Rapide</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant: "desktop" | "mobile" }) {
   const Icon = variant === "desktop" ? Monitor : Smartphone;
   const html = variant === "desktop"
