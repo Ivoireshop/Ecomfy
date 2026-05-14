@@ -16,6 +16,14 @@ const EMOJIS = [
   "❤️","💚","💙","💛","🧡","💜","🖤","🤍","👍","👏","🙏","💰",
   "🛒","📦","🎁","✨","⚡","🏷️","📣","🚀","💎","🌟","👑","🔔",
 ];
+const SYMBOLS = [
+  "•","◦","▪","▫","■","□","●","○","★","☆","✓","✔","✗","✘","→","←","↑","↓","↔","⇒","⇐","⇑","⇓",
+  "©","®","™","§","¶","†","‡","°","№","℃","℉","µ",
+  "±","×","÷","≠","≈","≤","≥","∞","∑","∏","√","∫","∂","∆","Ω","π","α","β","γ","θ","λ","φ","ψ",
+  "€","$","£","¥","¢","₣","₹","₽","₩","₺",
+  "«","»","“","”","‘","’","–","—","…","·","¿","¡",
+  "①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩",
+];
 
 interface RichTextEditorProps {
   value: string;
@@ -32,6 +40,8 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showSymbol, setShowSymbol] = useState(false);
+  const [activeFmt, setActiveFmt] = useState<{ b: boolean; i: boolean; u: boolean; s: boolean; ol: boolean; ul: boolean }>({ b: false, i: false, u: false, s: false, ol: false, ul: false });
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const [imgRect, setImgRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
 
@@ -107,14 +117,39 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   }, [value]);
 
   const closeAll = useCallback(() => {
-    setShowFontSize(false); setShowTextColor(false); setShowBgColor(false); setShowEmoji(false);
+    setShowFontSize(false); setShowTextColor(false); setShowBgColor(false); setShowEmoji(false); setShowSymbol(false);
   }, []);
 
   const exec = useCallback((cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
     editorRef.current?.focus();
     if (editorRef.current) onChange(editorRef.current.innerHTML);
+    refreshActive();
   }, [onChange]);
+
+  const refreshActive = useCallback(() => {
+    try {
+      setActiveFmt({
+        b: document.queryCommandState("bold"),
+        i: document.queryCommandState("italic"),
+        u: document.queryCommandState("underline"),
+        s: document.queryCommandState("strikeThrough"),
+        ol: document.queryCommandState("insertOrderedList"),
+        ul: document.queryCommandState("insertUnorderedList"),
+      });
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const onSel = () => {
+      const sel = window.getSelection();
+      if (sel && sel.anchorNode && editorRef.current?.contains(sel.anchorNode)) {
+        refreshActive();
+      }
+    };
+    document.addEventListener("selectionchange", onSel);
+    return () => document.removeEventListener("selectionchange", onSel);
+  }, [refreshActive]);
 
   const handleInput = () => {
     if (editorRef.current) onChange(editorRef.current.innerHTML);
@@ -154,10 +189,6 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   const insertTable = () => {
     exec("insertHTML", `<table style="width:100%;border-collapse:collapse;margin:8px 0;"><tbody><tr><td style="border:1px solid #ddd;padding:6px;">Cell</td><td style="border:1px solid #ddd;padding:6px;">Cell</td></tr><tr><td style="border:1px solid #ddd;padding:6px;">Cell</td><td style="border:1px solid #ddd;padding:6px;">Cell</td></tr></tbody></table>`);
   };
-  const insertSpecialChar = () => {
-    const c = prompt("Caractère spécial (ex: Ω, ©, ™, €)");
-    if (c) exec("insertText", c);
-  };
   const toggleCodeView = () => {
     if (!editorRef.current) return;
     const isCode = editorRef.current.getAttribute("data-code-view") === "true";
@@ -172,10 +203,10 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
       <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
         <TBtn icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
         <TDiv />
-        <TBtn icon={<Bold className="h-3.5 w-3.5" />} onClick={() => exec("bold")} title="Gras" />
-        <TBtn icon={<Italic className="h-3.5 w-3.5" />} onClick={() => exec("italic")} title="Italique" />
-        <TBtn icon={<Underline className="h-3.5 w-3.5" />} onClick={() => exec("underline")} title="Souligné" />
-        <TBtn icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => exec("strikethrough")} title="Barré" />
+        <TBtn icon={<Bold className="h-3.5 w-3.5" />} onClick={() => exec("bold")} title="Gras" active={activeFmt.b} />
+        <TBtn icon={<Italic className="h-3.5 w-3.5" />} onClick={() => exec("italic")} title="Italique" active={activeFmt.i} />
+        <TBtn icon={<Underline className="h-3.5 w-3.5" />} onClick={() => exec("underline")} title="Souligné" active={activeFmt.u} />
+        <TBtn icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => exec("strikethrough")} title="Barré" active={activeFmt.s} />
         <TDiv />
         <div className="relative">
           <TBtn icon={<span className="text-[10px] font-bold">12</span>} onClick={() => { closeAll(); setShowFontSize(s => !s); }} title="Taille" hasDropdown />
@@ -223,8 +254,8 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         <TBtn icon={<span className="text-[10px] font-bold">¶</span>} onClick={() => exec("formatBlock", "<p>")} title="Paragraphe" hasDropdown />
         <TBtn icon={<AlignLeft className="h-3.5 w-3.5" />} onClick={() => exec("justifyLeft")} title="Aligner à gauche" hasDropdown />
         <TDiv />
-        <TBtn icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => exec("insertOrderedList")} title="Liste numérotée" hasDropdown />
-        <TBtn icon={<List className="h-3.5 w-3.5" />} onClick={() => exec("insertUnorderedList")} title="Liste à puces" hasDropdown />
+        <TBtn icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => exec("insertOrderedList")} title="Liste numérotée" active={activeFmt.ol} />
+        <TBtn icon={<List className="h-3.5 w-3.5" />} onClick={() => exec("insertUnorderedList")} title="Liste à puces" active={activeFmt.ul} />
         <TDiv />
         <TBtn icon={<AlignCenter className="h-3.5 w-3.5" />} onClick={() => exec("justifyCenter")} title="Centrer" />
         <TBtn icon={<AlignRight className="h-3.5 w-3.5" />} onClick={() => exec("justifyRight")} title="Aligner à droite" />
@@ -247,7 +278,21 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
             </div>
           )}
         </div>
-        <TBtn icon={<span className="text-[11px] font-serif">Ω</span>} onClick={insertSpecialChar} title="Caractères spéciaux" />
+        <div className="relative">
+          <TBtn icon={<span className="text-[11px] font-serif">Ω</span>} onClick={() => { closeAll(); setShowSymbol(s => !s); }} title="Symboles & caractères spéciaux" />
+          {showSymbol && (
+            <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[280px] max-h-[260px] overflow-y-auto">
+              <div className="grid grid-cols-8 gap-1">
+                {SYMBOLS.map((sym, idx) => (
+                  <button key={sym + idx} className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-base"
+                    onMouseDown={(e) => { e.preventDefault(); exec("insertText", sym); setShowSymbol(false); }}>
+                    {sym}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Row 2 */}
@@ -295,13 +340,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   );
 }
 
-function TBtn({ icon, onClick, title, hasDropdown }: { icon: React.ReactNode; onClick: () => void; title: string; hasDropdown?: boolean }) {
+function TBtn({ icon, onClick, title, hasDropdown, active }: { icon: React.ReactNode; onClick: () => void; title: string; hasDropdown?: boolean; active?: boolean }) {
   return (
     <button
       type="button"
       onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       title={title}
-      className="h-7 min-w-[28px] px-0.5 flex items-center justify-center rounded hover:bg-muted transition-colors text-foreground/70 hover:text-foreground"
+      className={`h-7 min-w-[28px] px-0.5 flex items-center justify-center rounded transition-colors ${active ? "bg-primary/15 text-primary ring-1 ring-primary/30" : "text-foreground/70 hover:text-foreground hover:bg-muted"}`}
     >
       {icon}
       {hasDropdown && <ChevronDown className="h-2 w-2 ml-0.5 opacity-50" />}
