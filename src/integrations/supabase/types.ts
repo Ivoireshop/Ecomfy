@@ -1589,6 +1589,39 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          expense_date: string
+          id: string
+          shop_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          shop_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          shop_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shop_visits: {
         Row: {
           id: string
