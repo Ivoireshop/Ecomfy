@@ -228,7 +228,7 @@ export function VideoGenerator({
 
           if (row.status === "completed" && row.video_url) {
             if (progressInterval) clearInterval(progressInterval);
-            clearInterval(pollInterval);
+            if (pollInterval) clearInterval(pollInterval);
             setProgress({ step: "completed", percentage: 100 });
             setGeneratedVideo({
               videoUrl: row.video_url,
@@ -244,7 +244,7 @@ export function VideoGenerator({
             if (channel) supabase.removeChannel(channel);
           } else if (row.status === "failed") {
             if (progressInterval) clearInterval(progressInterval);
-            clearInterval(pollInterval);
+            if (pollInterval) clearInterval(pollInterval);
             toast.error("La génération de la vidéo a échoué");
             setProgress(null);
             setIsGenerating(false);
@@ -265,7 +265,7 @@ export function VideoGenerator({
           if (row && row.status !== "failed") {
             toast.message("La génération prend plus de temps que prévu. Elle continuera dans la bibliothèque.");
             if (progressInterval) clearInterval(progressInterval);
-            clearInterval(pollInterval);
+            if (pollInterval) clearInterval(pollInterval);
             setProgress(null);
             setIsGenerating(false);
             if (channel) supabase.removeChannel(channel);
@@ -274,6 +274,7 @@ export function VideoGenerator({
       }, 2 * 60 * 1000);
     } catch (err: any) {
       if (progressInterval) clearInterval(progressInterval);
+      if (pollInterval) clearInterval(pollInterval);
       if (channel) supabase.removeChannel(channel);
       console.error("Video generation error:", err);
       toast.error(err?.message || "Erreur lors de la génération");
