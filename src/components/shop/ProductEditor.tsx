@@ -809,13 +809,46 @@ export function ProductEditor({
               </div>
               {allImages.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                  {allImages.map((img) => (
+                  {allImages.map((img, idx) => (
                     <div key={img.id} className="relative group aspect-square rounded-lg overflow-hidden border bg-muted">
                       <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                      {isGifItem(img) && (
+                        <span className="absolute top-1 left-1 text-[9px] font-bold tracking-wide bg-primary text-primary-foreground px-1.5 py-0.5 rounded shadow">
+                          GIF
+                        </span>
+                      )}
+                      <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
+                        {idx + 1}
+                      </span>
+                      <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          title="Déplacer avant"
+                          onClick={() => moveImage(idx, -1)}
+                          disabled={idx === 0}
+                          className="h-6 w-6 bg-background/90 text-foreground border rounded flex items-center justify-center shadow disabled:opacity-30 disabled:cursor-not-allowed hover:bg-background"
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          title="Déplacer après"
+                          onClick={() => moveImage(idx, 1)}
+                          disabled={idx === allImages.length - 1}
+                          className="h-6 w-6 bg-background/90 text-foreground border rounded flex items-center justify-center shadow disabled:opacity-30 disabled:cursor-not-allowed hover:bg-background"
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </button>
+                      </div>
                       <button
+                        type="button"
+                        title="Supprimer"
                         onClick={() => {
-                          if (img.type === "existing" && onDeleteImage) onDeleteImage(img.id);
-                          else setNewImages(prev => prev.filter((_, i) => `new-${i}` !== img.id));
+                          if (img.type === "existing" && onDeleteImage) {
+                            if (confirm("Supprimer cette image définitivement ?")) onDeleteImage(img.id);
+                          } else {
+                            setNewImages(prev => prev.filter((_, i) => `new-${i}` !== img.id));
+                          }
                         }}
                         className="absolute top-1 right-1 h-6 w-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
                       >
