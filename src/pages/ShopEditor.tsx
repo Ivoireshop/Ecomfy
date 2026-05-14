@@ -89,7 +89,6 @@ const ShopEditor = () => {
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [activationPhone, setActivationPhone] = useState("");
   const [activationProvider, setActivationProvider] = useState("");
-  const [shopActivationPaid, setShopActivationPaid] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
@@ -104,11 +103,10 @@ const ShopEditor = () => {
   const fetchData = useCallback(async () => {
     if (!id) return;
     const { data: { session } } = await supabase.auth.getSession();
-    const [shopRes, productsRes, ordersRes, profileRes, visitsRes] = await Promise.all([
+    const [shopRes, productsRes, ordersRes, visitsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
       supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }) as any,
-      session ? supabase.from("profiles").select("shop_activation_paid").eq("id", session.user.id).single() as any : null,
       supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
     if (shopRes.data) setShop(shopRes.data);
@@ -117,7 +115,6 @@ const ShopEditor = () => {
       setOrders(ordersRes.data);
       setUnreadOrders(ordersRes.data.filter((o: Order) => !o.is_read).length);
     }
-    if (profileRes?.data) setShopActivationPaid(profileRes.data.shop_activation_paid || false);
     if (visitsRes?.data) setVisits(visitsRes.data as any);
     setLoading(false);
   }, [id]);
@@ -158,7 +155,7 @@ const ShopEditor = () => {
     };
   }, [id, fetchData]);
 
-  const isActivated = shopActivationPaid || shop?.is_activated;
+  const isActivated = !!shop?.is_activated;
 
   const handleActivateShop = async () => {
     if (!activationProvider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
@@ -169,7 +166,7 @@ const ShopEditor = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connecté");
       const { data, error } = await supabase.functions.invoke("process-payment", {
-        body: { amount: 1300, payment_method: "mobile_money", user_id: session.user.id, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation" },
+        body: { amount: 1300, payment_method: "mobile_money", user_id: session.user.id, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation", shop_id: shop.id },
       });
       if (error) throw error;
       const paymentUrl = data?.payment_url || data?.url || data?.checkout_url || data?.link;
@@ -277,7 +274,7 @@ const ShopEditor = () => {
     if (editingProduct) {
       result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
     } else {
-      result = await supabase.from("products").insert(productData) as any;
+      result = await supabase.from("products").insert(productData).select("id") as any;
     }
     if (result.error) {
       toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
@@ -315,7 +312,7 @@ const ShopEditor = () => {
     if (editingProduct) {
       result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
     } else {
-      result = await supabase.from("products").insert(productData) as any;
+      result = await supabase.from("products").insert(productData).select("id") as any;
     }
     if (result.error) {
       toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
