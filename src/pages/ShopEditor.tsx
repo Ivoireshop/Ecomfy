@@ -102,7 +102,6 @@ const ShopEditor = () => {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const { data: { session } } = await supabase.auth.getSession();
     const [shopRes, productsRes, ordersRes, visitsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
