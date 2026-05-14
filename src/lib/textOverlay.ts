@@ -35,8 +35,7 @@ export const createTextOverlay = async (
     canvasElement.height = height;
     
     const canvas = new FabricCanvas(canvasElement);
-    canvas.setWidth(width);
-    canvas.setHeight(height);
+    canvas.setDimensions({ width, height });
     
     // Load background image
     FabricImage.fromURL(backgroundImageUrl, { crossOrigin: "anonymous" })
