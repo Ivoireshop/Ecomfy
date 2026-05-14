@@ -105,7 +105,7 @@ const VideoCreator = () => {
             🎬 Exemples générés sur la plateforme
           </p>
         </div>
-        <div className="relative h-[15.5rem] md:h-[20.5rem] overflow-hidden">
+        <div className="relative h-[16.5rem] md:h-[20.5rem] overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-full max-w-3xl mx-auto">
             {demoVideos.map((v, i) => (
               <Card
