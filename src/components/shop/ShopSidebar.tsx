@@ -1,8 +1,8 @@
-import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush, Receipt, MessageSquare, Wallet } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush, Receipt, MessageSquare, Wallet, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export type ActiveSection = "overview" | "products" | "orders" | "appearance" | "statistics" | "theme" | "billing" | "finances" | "reviews" | "settings";
+export type ActiveSection = "overview" | "products" | "orders" | "appearance" | "statistics" | "theme" | "billing" | "finances" | "ai-optimizer" | "reviews" | "settings";
 
 interface ShopSidebarProps {
   shopName: string;
@@ -27,6 +27,7 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; }[
   { id: "products", label: "Produits", icon: Package },
   { id: "statistics", label: "Statistiques", icon: PieChart },
   { id: "finances", label: "Finances", icon: Wallet },
+  { id: "ai-optimizer", label: "Optimiseur IA", icon: Brain },
   { id: "appearance", label: "Boutique", icon: Palette },
   { id: "theme", label: "Thème", icon: Paintbrush },
   { id: "billing", label: "Facturation", icon: Receipt },
