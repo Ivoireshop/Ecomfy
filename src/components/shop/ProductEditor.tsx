@@ -135,6 +135,11 @@ export function ProductEditor({
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showSymbol, setShowSymbol] = useState(false);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [tableRows, setTableRows] = useState(2);
+  const [tableCols, setTableCols] = useState(2);
+  const [activeFmt, setActiveFmt] = useState({ bold: false, italic: false, underline: false, strike: false, ordered: false, unordered: false });
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [seoKeywords, setSeoKeywords] = useState("");
@@ -192,12 +197,29 @@ export function ProductEditor({
     setShowTextColor(false);
     setShowBgColor(false);
     setShowEmoji(false);
+    setShowSymbol(false);
+    setShowTablePicker(false);
+  }, []);
+
+  const refreshActiveFormats = useCallback(() => {
+    try {
+      setActiveFmt({
+        bold: document.queryCommandState("bold"),
+        italic: document.queryCommandState("italic"),
+        underline: document.queryCommandState("underline"),
+        strike: document.queryCommandState("strikeThrough"),
+        ordered: document.queryCommandState("insertOrderedList"),
+        unordered: document.queryCommandState("insertUnorderedList"),
+      });
+    } catch {}
   }, []);
 
   const execCmd = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
     editorRef.current?.focus();
-  }, []);
+    handleEditorInput();
+    refreshActiveFormats();
+  }, [refreshActiveFormats]);
 
   // Track the font size of the current text selection so the toolbar reflects reality
   useEffect(() => {
