@@ -96,7 +96,7 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
       img.src = src;
     });
 
-  const drawFrame = (img: HTMLImageElement, dim: number): ImageData => {
+  const drawFrame = (img: HTMLImageElement, dim: number): HTMLCanvasElement => {
     const canvas = document.createElement("canvas");
     canvas.width = dim;
     canvas.height = dim;
@@ -116,7 +116,7 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
     const dx = (dim - dw) / 2;
     const dy = (dim - dh) / 2;
     ctx.drawImage(img, dx, dy, dw, dh);
-    return ctx.getImageData(0, 0, dim, dim);
+    return canvas;
   };
 
   const handleGenerate = async () => {
