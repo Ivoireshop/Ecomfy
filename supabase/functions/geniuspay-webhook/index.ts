@@ -225,15 +225,20 @@ serve(async (req) => {
     }
 
     if (paymentType === "shop_activation") {
-      await supabase.from("profiles").update({ shop_activation_paid: true }).eq("id", userId);
-      await supabase.from("shops").update({ is_activated: true, is_published: true }).eq("user_id", userId);
+      const shopId = metadata?.shop_id;
+      if (!shopId) {
+        console.warn("shop_activation without shop_id metadata", { reference });
+        return ack({ success: false, error: "missing shop_id", reference }, true);
+      }
+      await supabase.from("shops")
+        .update({ is_activated: true, activation_fee_paid: true, is_published: true })
+        .eq("id", shopId)
+        .eq("user_id", userId);
       // Trace de facturation : enregistrer le paiement d'activation parmi les facturations de la boutique
       try {
-        const { data: shopRow } = await supabase
-          .from("shops").select("id").eq("user_id", userId).maybeSingle();
-        if (shopRow?.id) {
+        if (shopId) {
           await supabase.from("commission_payments").insert({
-            shop_id: shopRow.id,
+            shop_id: shopId,
             amount: amountPaid,
             payment_method: "geniuspay",
             transaction_reference: reference,
