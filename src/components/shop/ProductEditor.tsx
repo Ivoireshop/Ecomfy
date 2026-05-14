@@ -531,8 +531,8 @@ export function ProductEditor({
                   {showFontSize && (
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
                       {FONT_SIZES.map(size => (
-                        <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
-                          onClick={() => { execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; setCurrentFontSize(size); setShowFontSize(false); }}>
+                          <button key={size} type="button" className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
+                          onMouseDown={(e) => { e.preventDefault(); execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; handleEditorInput(); setCurrentFontSize(size); setShowFontSize(false); }}>
                           {size}px
                         </button>
                       ))}
@@ -549,7 +549,7 @@ export function ProductEditor({
                         {COLORS.map(color => (
                           <button key={color} className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
                             style={{ backgroundColor: color }}
-                            onClick={() => { execCmd("foreColor", color); setShowTextColor(false); }} />
+                            onMouseDown={(e) => { e.preventDefault(); execCmd("foreColor", color); setShowTextColor(false); }} />
                         ))}
                       </div>
                       <input type="color" className="w-full h-7 mt-2 cursor-pointer rounded" onChange={(e) => { execCmd("foreColor", e.target.value); setShowTextColor(false); }} />
@@ -566,7 +566,7 @@ export function ProductEditor({
                         {COLORS.map(color => (
                           <button key={color} className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
                             style={{ backgroundColor: color }}
-                            onClick={() => { execCmd("hiliteColor", color); setShowBgColor(false); }} />
+                            onMouseDown={(e) => { e.preventDefault(); execCmd("hiliteColor", color); setShowBgColor(false); }} />
                         ))}
                       </div>
                       <input type="color" className="w-full h-7 mt-2 cursor-pointer rounded" onChange={(e) => { execCmd("hiliteColor", e.target.value); setShowBgColor(false); }} />
