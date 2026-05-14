@@ -10,8 +10,22 @@ const sanitizeReviewHtml = (html: string) => DOMPurify.sanitize(html, {
   ALLOWED_ATTR: ["href", "src", "alt", "title", "target", "rel", "style", "class"],
 });
 
-function ReviewBarBlock({ html, textColor, bgColor, className }: { html?: string; textColor: string; bgColor: string; className: string }) {
+function ReviewBarBlock({ html, textColor, bgColor, className, scroll }: { html?: string; textColor: string; bgColor: string; className: string; scroll?: boolean }) {
   if (!html?.trim()) return null;
+
+  if (scroll) {
+    return (
+      <div className={className} style={{ color: textColor, backgroundColor: bgColor }}>
+        <div className="relative overflow-hidden py-2">
+          <div
+            className="whitespace-nowrap inline-block animate-[marquee_22s_linear_infinite] text-sm font-medium [&_*]:inline [&_p]:mr-10 [&_a]:underline [&_img]:hidden"
+            dangerouslySetInnerHTML={{ __html: sanitizeReviewHtml(html + html) }}
+          />
+        </div>
+        <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className={className} style={{ color: textColor, backgroundColor: bgColor }}>
@@ -37,6 +51,7 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           html={themeConfig.review_bar_desktop_content}
           textColor={themeConfig.review_desktop_text || "#FFFFFF"}
           bgColor={themeConfig.review_desktop_bg || "#803160"}
+          scroll={!!themeConfig.review_desktop_scroll}
         />
       )}
       {mobileActive && mobilePlacement === placement && (
@@ -45,6 +60,7 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           html={themeConfig.review_bar_mobile_content || themeConfig.review_bar_desktop_content}
           textColor={themeConfig.review_mobile_text || "#FFFFFF"}
           bgColor={themeConfig.review_mobile_bg || "#000000"}
+          scroll={!!themeConfig.review_mobile_scroll}
         />
       )}
     </>
