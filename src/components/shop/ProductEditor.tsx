@@ -50,6 +50,14 @@ const EMOJIS = [
   "⚠️","🆕","🔝","♻️","🌿","🍃","💊","🧴","🧪","💄","👗","👟",
 ];
 
+const SYMBOLS = [
+  "•","◦","▪","▫","■","□","●","○","★","☆","✓","✔","✗","✘","→","←","↑","↓","↔","⇒","⇐","⇑","⇓",
+  "©","®","™","§","¶","†","‡","°","№","℃","℉","µ",
+  "±","×","÷","≠","≈","≤","≥","∞","∑","∏","√","∫","∂","∆","Ω","π","α","β","γ","θ","λ","φ","ψ",
+  "€","$","£","¥","¢","₣","₹","₽","₩","₺","«","»","“","”","‘","’","–","—","…","·","¿","¡",
+  "①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩",
+];
+
 interface ProductImage {
   id: string;
   image_url: string;
@@ -127,6 +135,11 @@ export function ProductEditor({
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showSymbol, setShowSymbol] = useState(false);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [tableRows, setTableRows] = useState(2);
+  const [tableCols, setTableCols] = useState(2);
+  const [activeFmt, setActiveFmt] = useState({ bold: false, italic: false, underline: false, strike: false, ordered: false, unordered: false });
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [seoKeywords, setSeoKeywords] = useState("");
@@ -135,6 +148,7 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
+  const savedSelection = useRef<Range | null>(null);
   const { toast } = useToast();
 
   // AI image generation
@@ -184,12 +198,46 @@ export function ProductEditor({
     setShowTextColor(false);
     setShowBgColor(false);
     setShowEmoji(false);
+    setShowSymbol(false);
+    setShowTablePicker(false);
+  }, []);
+
+  const refreshActiveFormats = useCallback(() => {
+    try {
+      setActiveFmt({
+        bold: document.queryCommandState("bold"),
+        italic: document.queryCommandState("italic"),
+        underline: document.queryCommandState("underline"),
+        strike: document.queryCommandState("strikeThrough"),
+        ordered: document.queryCommandState("insertOrderedList"),
+        unordered: document.queryCommandState("insertUnorderedList"),
+      });
+    } catch {}
+  }, []);
+
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      savedSelection.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    editorRef.current?.focus();
+    if (!savedSelection.current) return;
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(savedSelection.current);
   }, []);
 
   const execCmd = useCallback((command: string, value?: string) => {
+    restoreSelection();
     document.execCommand(command, false, value);
     editorRef.current?.focus();
-  }, []);
+    handleEditorInput();
+    refreshActiveFormats();
+    saveSelection();
+  }, [refreshActiveFormats, restoreSelection, saveSelection]);
 
   // Track the font size of the current text selection so the toolbar reflects reality
   useEffect(() => {
@@ -199,19 +247,23 @@ export function ProductEditor({
       const node = sel.getRangeAt(0).startContainer;
       const el = (node.nodeType === 1 ? node : node.parentElement) as HTMLElement | null;
       if (!el || !editorRef.current?.contains(el)) return;
+      savedSelection.current = sel.getRangeAt(0).cloneRange();
       const px = window.getComputedStyle(el).fontSize;
       const n = parseFloat(px);
       if (!isNaN(n)) setCurrentFontSize(String(Math.round(n)));
+      refreshActiveFormats();
     };
     document.addEventListener("selectionchange", handler);
     return () => document.removeEventListener("selectionchange", handler);
-  }, []);
+  }, [refreshActiveFormats]);
 
   // Image resize/align controls
   const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
   const [imageToolbar, setImageToolbar] = useState<{ top: number; left: number } | null>(null);
 
   const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    saveSelection();
+    refreshActiveFormats();
     const target = e.target as HTMLElement;
     if (target.tagName === "IMG") {
       const img = target as HTMLImageElement;
@@ -231,7 +283,7 @@ export function ProductEditor({
       setSelectedEditorImage(null);
       setImageToolbar(null);
     }
-  }, [selectedEditorImage]);
+  }, [selectedEditorImage, saveSelection, refreshActiveFormats]);
 
   const resizeImage = (size: string) => {
     if (!selectedEditorImage) return;
@@ -309,11 +361,13 @@ export function ProductEditor({
   };
 
   const insertTable = () => {
-    const html = `<table style="width:100%;border-collapse:collapse;margin:12px 0;"><tbody>
-      <tr><td style="border:1px solid #ddd;padding:8px;">Cell 1</td><td style="border:1px solid #ddd;padding:8px;">Cell 2</td><td style="border:1px solid #ddd;padding:8px;">Cell 3</td></tr>
-      <tr><td style="border:1px solid #ddd;padding:8px;">Cell 4</td><td style="border:1px solid #ddd;padding:8px;">Cell 5</td><td style="border:1px solid #ddd;padding:8px;">Cell 6</td></tr>
-    </tbody></table>`;
-    execCmd("insertHTML", html);
+    const rows = Math.min(12, Math.max(1, tableRows || 1));
+    const cols = Math.min(8, Math.max(1, tableCols || 1));
+    const cells = Array.from({ length: rows }, (_, row) =>
+      `<tr>${Array.from({ length: cols }, (_, col) => `<td style="border:1px solid #ddd;padding:8px;min-width:72px;">Cellule ${row + 1}-${col + 1}</td>`).join("")}</tr>`
+    ).join("");
+    execCmd("insertHTML", `<table style="width:100%;border-collapse:collapse;margin:12px 0;"><tbody>${cells}</tbody></table><p><br></p>`);
+    setShowTablePicker(false);
   };
 
   const insertEmoji = (emoji: string) => {
@@ -333,14 +387,16 @@ export function ProductEditor({
     }
   };
 
-  const insertSpecialChar = () => {
-    const char = prompt("Entrez un caractère spécial (ex: Ω, ©, ™, €, £, ¥)");
-    if (char) execCmd("insertText", char);
+  const insertSpecialChar = (char: string) => {
+    execCmd("insertText", char);
+    setShowSymbol(false);
   };
 
   const handleEditorInput = () => {
     if (editorRef.current) {
       setProduct(prev => ({ ...prev, description: editorRef.current!.innerHTML }));
+      saveSelection();
+      refreshActiveFormats();
     }
   };
 
@@ -468,10 +524,10 @@ export function ProductEditor({
                 <ToolbarDivider />
 
                 {/* Text formatting */}
-                <ToolbarButton icon={<Bold className="h-3.5 w-3.5" />} onClick={() => execCmd("bold")} title="Gras" />
-                <ToolbarButton icon={<Italic className="h-3.5 w-3.5" />} onClick={() => execCmd("italic")} title="Italique" />
-                <ToolbarButton icon={<Underline className="h-3.5 w-3.5" />} onClick={() => execCmd("underline")} title="Souligné" />
-                <ToolbarButton icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => execCmd("strikethrough")} title="Barré" />
+                <ToolbarButton icon={<Bold className="h-3.5 w-3.5" />} onClick={() => execCmd("bold")} title="Gras" active={activeFmt.bold} />
+                <ToolbarButton icon={<Italic className="h-3.5 w-3.5" />} onClick={() => execCmd("italic")} title="Italique" active={activeFmt.italic} />
+                <ToolbarButton icon={<Underline className="h-3.5 w-3.5" />} onClick={() => execCmd("underline")} title="Souligné" active={activeFmt.underline} />
+                <ToolbarButton icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => execCmd("strikethrough")} title="Barré" active={activeFmt.strike} />
                 <ToolbarDivider />
 
                 {/* Font size */}
@@ -480,8 +536,8 @@ export function ProductEditor({
                   {showFontSize && (
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
                       {FONT_SIZES.map(size => (
-                        <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
-                          onClick={() => { execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; setCurrentFontSize(size); setShowFontSize(false); }}>
+                          <button key={size} type="button" className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
+                          onMouseDown={(e) => { e.preventDefault(); execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; handleEditorInput(); setCurrentFontSize(size); setShowFontSize(false); }}>
                           {size}px
                         </button>
                       ))}
@@ -498,7 +554,7 @@ export function ProductEditor({
                         {COLORS.map(color => (
                           <button key={color} className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
                             style={{ backgroundColor: color }}
-                            onClick={() => { execCmd("foreColor", color); setShowTextColor(false); }} />
+                            onMouseDown={(e) => { e.preventDefault(); execCmd("foreColor", color); setShowTextColor(false); }} />
                         ))}
                       </div>
                       <input type="color" className="w-full h-7 mt-2 cursor-pointer rounded" onChange={(e) => { execCmd("foreColor", e.target.value); setShowTextColor(false); }} />
@@ -515,7 +571,7 @@ export function ProductEditor({
                         {COLORS.map(color => (
                           <button key={color} className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
                             style={{ backgroundColor: color }}
-                            onClick={() => { execCmd("hiliteColor", color); setShowBgColor(false); }} />
+                            onMouseDown={(e) => { e.preventDefault(); execCmd("hiliteColor", color); setShowBgColor(false); }} />
                         ))}
                       </div>
                       <input type="color" className="w-full h-7 mt-2 cursor-pointer rounded" onChange={(e) => { execCmd("hiliteColor", e.target.value); setShowBgColor(false); }} />
@@ -535,8 +591,8 @@ export function ProductEditor({
                 <ToolbarDivider />
 
                 {/* Lists */}
-                <ToolbarButton icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => execCmd("insertOrderedList")} title="Liste numérotée" hasDropdown />
-                <ToolbarButton icon={<List className="h-3.5 w-3.5" />} onClick={() => execCmd("insertUnorderedList")} title="Liste à puces" hasDropdown />
+                <ToolbarButton icon={<ListOrdered className="h-3.5 w-3.5" />} onClick={() => execCmd("insertOrderedList")} title="Liste numérotée" active={activeFmt.ordered} />
+                <ToolbarButton icon={<List className="h-3.5 w-3.5" />} onClick={() => execCmd("insertUnorderedList")} title="Liste à puces" active={activeFmt.unordered} />
                 <ToolbarDivider />
 
                 {/* Alignment group */}
@@ -547,15 +603,32 @@ export function ProductEditor({
 
                 {/* Link, Table, Emoji, Special char */}
                 <ToolbarButton icon={<LinkIcon className="h-3.5 w-3.5" />} onClick={insertLink} title="Insérer un lien" />
-                <ToolbarButton icon={<Table className="h-3.5 w-3.5" />} onClick={insertTable} title="Insérer un tableau" />
+                <div className="relative">
+                  <ToolbarButton icon={<Table className="h-3.5 w-3.5" />} onClick={() => { closeAllDropdowns(); setShowTablePicker(!showTablePicker); }} title="Insérer un tableau" hasDropdown />
+                  {showTablePicker && (
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-3 w-[230px] space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Lignes</Label>
+                          <Input type="number" min={1} max={12} value={tableRows} onChange={(e) => setTableRows(Number(e.target.value))} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Colonnes</Label>
+                          <Input type="number" min={1} max={8} value={tableCols} onChange={(e) => setTableCols(Number(e.target.value))} className="h-8" />
+                        </div>
+                      </div>
+                      <Button type="button" size="sm" className="w-full" onMouseDown={(e) => e.preventDefault()} onClick={insertTable}>Insérer le tableau</Button>
+                    </div>
+                  )}
+                </div>
                 <div className="relative">
                   <ToolbarButton icon={<Smile className="h-3.5 w-3.5" />} onClick={() => { closeAllDropdowns(); setShowEmoji(!showEmoji); }} title="Émojis" />
                   {showEmoji && (
                     <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[260px]">
                       <div className="grid grid-cols-8 gap-1">
                         {EMOJIS.map(emoji => (
-                          <button key={emoji} className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-lg"
-                            onClick={() => insertEmoji(emoji)}>
+                          <button key={emoji} type="button" className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-lg"
+                            onMouseDown={(e) => { e.preventDefault(); insertEmoji(emoji); }}>
                             {emoji}
                           </button>
                         ))}
@@ -563,7 +636,21 @@ export function ProductEditor({
                     </div>
                   )}
                 </div>
-                <ToolbarButton icon={<span className="text-[11px] font-serif">Ω</span>} onClick={insertSpecialChar} title="Caractères spéciaux" />
+                <div className="relative">
+                  <ToolbarButton icon={<span className="text-[11px] font-serif">Ω</span>} onClick={() => { closeAllDropdowns(); setShowSymbol(!showSymbol); }} title="Symboles & caractères spéciaux" hasDropdown />
+                  {showSymbol && (
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[280px] max-h-[260px] overflow-y-auto">
+                      <div className="grid grid-cols-8 gap-1">
+                        {SYMBOLS.map((symbol, index) => (
+                          <button key={`${symbol}-${index}`} type="button" className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-base"
+                            onMouseDown={(e) => { e.preventDefault(); insertSpecialChar(symbol); }}>
+                            {symbol}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Toolbar Row 2 */}
@@ -1112,13 +1199,13 @@ export function ProductEditor({
 }
 
 /* ─── Toolbar Helpers ────────────────────────────────────── */
-function ToolbarButton({ icon, onClick, title, hasDropdown }: { icon: React.ReactNode; onClick: () => void; title: string; hasDropdown?: boolean }) {
+function ToolbarButton({ icon, onClick, title, hasDropdown, active }: { icon: React.ReactNode; onClick: () => void; title: string; hasDropdown?: boolean; active?: boolean }) {
   return (
     <button
       type="button"
-      onClick={(e) => { e.preventDefault(); onClick(); }}
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       title={title}
-      className="h-7 min-w-[28px] px-0.5 flex items-center justify-center rounded hover:bg-muted transition-colors text-foreground/70 hover:text-foreground"
+      className={`h-7 min-w-[28px] px-0.5 flex items-center justify-center rounded transition-colors ${active ? "bg-primary/15 text-primary ring-1 ring-primary/30" : "text-foreground/70 hover:text-foreground hover:bg-muted"}`}
     >
       {icon}
       {hasDropdown && <ChevronDown className="h-2 w-2 ml-0.5 opacity-50" />}
