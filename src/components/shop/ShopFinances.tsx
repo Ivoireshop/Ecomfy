@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, TrendingUp, TrendingDown, Wallet, Megaphone, Package, Truck, Users, Sparkles, MessageCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, TrendingUp, TrendingDown, Wallet, Megaphone, Package, Truck, Users, Sparkles, MessageCircle, Mail, Send } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface Order { id: string; total: number; order_status: string; payment_status: string; created_at: string; }
 interface Expense { id: string; shop_id: string; category: string; amount: number; description: string | null; expense_date: string; created_at: string; }
@@ -40,6 +41,10 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
   const [form, setForm] = useState({ category: "ads", amount: "", description: "", expense_date: new Date().toISOString().slice(0, 10) });
   const [aiAdvice, setAiAdvice] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [autoEmail, setAutoEmail] = useState<boolean>(!!shop?.weekly_finance_email_enabled);
+  const [emailRecipient, setEmailRecipient] = useState<string>(shop?.weekly_finance_email || "");
+  const [savingAuto, setSavingAuto] = useState(false);
+  const [sendingNow, setSendingNow] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -149,6 +154,25 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     window.open(url, "_blank");
   };
 
+  const saveAutoEmail = async (enabled: boolean, recipient?: string) => {
+    setSavingAuto(true);
+    const payload: any = { weekly_finance_email_enabled: enabled };
+    if (recipient !== undefined) payload.weekly_finance_email = recipient || null;
+    const { error } = await supabase.from("shops").update(payload).eq("id", shopId);
+    setSavingAuto(false);
+    if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
+    setAutoEmail(enabled);
+    toast({ title: enabled ? "Envoi automatique activé" : "Envoi automatique désactivé", description: enabled ? "Vous recevrez un résumé chaque lundi à 8h." : undefined });
+  };
+
+  const sendNow = async () => {
+    setSendingNow(true);
+    const { data, error } = await supabase.functions.invoke("send-weekly-finance-summary", { body: { shop_id: shopId } });
+    setSendingNow(false);
+    if (error || !data?.success) { toast({ title: "Échec de l'envoi", description: data?.errors?.[0] || error?.message, variant: "destructive" }); return; }
+    toast({ title: "Email envoyé", description: `Vérifiez votre boîte (${data.sent} envoi).` });
+  };
+
   if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
@@ -246,6 +270,34 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
         {aiAdvice && (
           <div className="bg-background rounded-lg p-4 text-sm whitespace-pre-wrap leading-relaxed border">{aiAdvice}</div>
         )}
+      </Card>
+
+      {/* Weekly auto email */}
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold flex items-center gap-2"><Mail className="h-4 w-4" /> Résumé hebdomadaire par email</h3>
+            <p className="text-xs text-muted-foreground">Envoi automatique chaque <b>lundi à 8h00</b> avec le bilan des 7 derniers jours.</p>
+          </div>
+          <Switch checked={autoEmail} disabled={savingAuto} onCheckedChange={(v) => saveAutoEmail(v, emailRecipient)} />
+        </div>
+        <div className="grid sm:grid-cols-[1fr_auto] gap-2 items-end">
+          <div>
+            <Label className="text-xs">Email de réception</Label>
+            <Input
+              type="email"
+              placeholder="vide = email du compte"
+              value={emailRecipient}
+              onChange={e => setEmailRecipient(e.target.value)}
+              onBlur={() => autoEmail && saveAutoEmail(true, emailRecipient)}
+            />
+          </div>
+          <Button variant="outline" onClick={sendNow} disabled={sendingNow}>
+            {sendingNow ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+            Envoyer un test
+          </Button>
+        </div>
+        {autoEmail && <p className="text-[11px] text-emerald-600 mt-2">✓ Activé — prochain envoi automatique lundi à 8h00.</p>}
       </Card>
 
       {/* Expenses list */}
