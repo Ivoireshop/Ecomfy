@@ -279,9 +279,9 @@ Le visuel doit être:
               videoUrl = typeof repData.output === "string" ? repData.output : repData.output[0] || null;
               console.log("Replicate video done immediately!");
             } else if (repData.id && (repData.status === "processing" || repData.status === "starting")) {
-              // Poll up to 4 minutes
+              // Poll briefly, then fall back so users are not left waiting beyond ~2 minutes.
               const predictionId = repData.id;
-              const pollEnd = Date.now() + 240000;
+              const pollEnd = Date.now() + 75000;
               while (Date.now() < pollEnd) {
                 await new Promise((r) => setTimeout(r, 5000));
                 const pollResp = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
@@ -333,7 +333,7 @@ Le visuel doit être:
           if (runwayResponse.ok) {
             const runwayData = await runwayResponse.json();
             const taskId = runwayData.id;
-            const pollEnd = Date.now() + 240000;
+            const pollEnd = Date.now() + 45000;
             while (Date.now() < pollEnd) {
               await new Promise((r) => setTimeout(r, 5000));
               const statusResp = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
