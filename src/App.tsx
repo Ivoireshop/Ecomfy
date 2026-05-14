@@ -55,6 +55,10 @@ const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
 const CoursesManager = lazy(() => import("./pages/CoursesManager"));
 const OrderConfirmed = lazy(() => import("./pages/OrderConfirmed"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
+const VisuelsPublicitaires = lazy(() => import("./pages/VisuelsPublicitaires"));
+const VideosPublicitaires = lazy(() => import("./pages/VideosPublicitaires"));
+const SitesVitrines = lazy(() => import("./pages/SitesVitrines"));
+const BoutiquesEcommerce = lazy(() => import("./pages/BoutiquesEcommerce"));
 
 const queryClient = new QueryClient();
 
@@ -88,6 +92,10 @@ const AppContent = () => {
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
+          <Route path="/visuels-publicitaires" element={<VisuelsPublicitaires />} />
+          <Route path="/videos-publicitaires" element={<VideosPublicitaires />} />
+          <Route path="/sites-vitrines" element={<SitesVitrines />} />
+          <Route path="/boutiques-ecommerce" element={<BoutiquesEcommerce />} />
           <Route
             path="/subscription" 
             element={
@@ -246,7 +254,7 @@ const AppContent = () => {
   );
 };
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/tutorial"];
 
 const AppWithSidebar = () => {
   const location = useLocation();
