@@ -1,0 +1,25 @@
+# VisualPro
+
+> Plateforme africaine de création de visuels et vidéos publicitaires par IA, boutiques en ligne, sites vitrines et formations.
+
+VisualPro permet aux entrepreneurs et créateurs africains de générer des visuels publicitaires professionnels en moins d'une minute, de créer des boutiques e-commerce avec paiement Mobile Money et Cash on Delivery, de publier des sites vitrines, et de vendre des formations en ligne.
+
+## Pages
+
+- [Accueil](/): Présentation de VisualPro et accès à toutes les fonctionnalités.
+- [Générateur IA](/generator): Création de visuels et vidéos publicitaires par IA.
+- [Bibliothèque](/library): Galerie des créations enregistrées.
+- [Démo](/demo): Démonstration interactive du générateur.
+- [Tutoriel](/tutorial): Guide d'utilisation pas à pas.
+- [Tarifs](/subscription): Plans, packs de tokens et abonnement Business (FCFA).
+- [Blog](/blog): Articles, conseils marketing et actualités.
+- [Documentation API](/api-documentation): Intégration via clés `vp_...`, N8N et Zapier.
+- [Connexion](/auth): Création de compte et connexion.
+- [Feedback](/feedback): Suggestions et retours utilisateurs.
+
+## Optional
+
+- [Politique de confidentialité](/privacy-policy)
+- [Conditions d'utilisation](/terms-of-service)
+- [Politique de cookies](/cookies-policy)
+- [Mentions légales](/legal-notice)
