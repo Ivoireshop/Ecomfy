@@ -27,7 +27,6 @@ import { VariationGenerator } from "@/components/VariationGenerator";
 import { AdvancedImageGenerator } from "@/components/AdvancedImageGenerator";
 import { Switch } from "@/components/ui/switch";
 import { VideoGenerator } from "@/components/VideoGenerator";
-import { Card } from "@/components/ui/card";
 import exampleHandbag from "@/assets/example-handbag-ad.jpg";
 import examplePhone from "@/assets/example-phone-ad.jpg";
 import exampleFood from "@/assets/example-food-ad.jpg";
