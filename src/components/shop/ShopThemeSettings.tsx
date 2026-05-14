@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
 import DOMPurify from "dompurify";
@@ -150,14 +152,13 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                         <Switch checked={themeConfig.review_desktop_active !== false} onCheckedChange={v => updateThemeConfig("review_desktop_active", v)} />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Défilement (droite → gauche)</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
-                        <Switch checked={!!themeConfig.review_desktop_scroll} onCheckedChange={v => updateThemeConfig("review_desktop_scroll", v)} />
-                      </div>
-                    </div>
                   </div>
+                  <AnimationControls
+                    mode={themeConfig.review_desktop_anim || (themeConfig.review_desktop_scroll ? "scroll" : "static")}
+                    speed={Number(themeConfig.review_desktop_speed) || (themeConfig.review_desktop_anim === "blink" ? 1.5 : 22)}
+                    onModeChange={v => updateThemeConfig("review_desktop_anim", v)}
+                    onSpeedChange={v => updateThemeConfig("review_desktop_speed", v)}
+                  />
                 </TabsContent>
 
                 <TabsContent value="review_mobile" className="mt-6 space-y-6">
@@ -183,14 +184,13 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                         <Switch checked={themeConfig.review_mobile_active !== false} onCheckedChange={v => updateThemeConfig("review_mobile_active", v)} />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Défilement (droite → gauche)</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
-                        <Switch checked={!!themeConfig.review_mobile_scroll} onCheckedChange={v => updateThemeConfig("review_mobile_scroll", v)} />
-                      </div>
-                    </div>
                   </div>
+                  <AnimationControls
+                    mode={themeConfig.review_mobile_anim || (themeConfig.review_mobile_scroll ? "scroll" : "static")}
+                    speed={Number(themeConfig.review_mobile_speed) || (themeConfig.review_mobile_anim === "blink" ? 1.5 : 22)}
+                    onModeChange={v => updateThemeConfig("review_mobile_anim", v)}
+                    onSpeedChange={v => updateThemeConfig("review_mobile_speed", v)}
+                  />
                 </TabsContent>
               </Tabs>
             </div>
@@ -362,6 +362,47 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input type="color" value={value.substring(0, 7)} onChange={e => onChange(e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0" />
         <Input value={value} onChange={e => onChange(e.target.value)} className="border-0 shadow-none h-8 text-xs font-mono p-0 focus-visible:ring-0" />
       </div>
+    </div>
+  );
+}
+
+function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode: string; speed: number; onModeChange: (v: string) => void; onSpeedChange: (v: number) => void }) {
+  const isScroll = mode === "scroll";
+  const isBlink = mode === "blink";
+  const min = isBlink ? 0.4 : 6;
+  const max = isBlink ? 4 : 60;
+  const step = isBlink ? 0.1 : 1;
+  // For scroll: slider goes left = lent (large duration), right = rapide (small duration). Invert visually.
+  const sliderValue = isBlink ? speed : max + min - speed;
+  const handleSlider = (v: number[]) => {
+    const val = v[0];
+    onSpeedChange(isBlink ? val : max + min - val);
+  };
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border rounded-xl p-4 bg-muted/10">
+      <div className="space-y-2">
+        <Label className="text-xs">Type d'animation</Label>
+        <Select value={mode} onValueChange={onModeChange}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="static">Statique (sans animation)</SelectItem>
+            <SelectItem value="scroll">Défilement linéaire (droite → gauche)</SelectItem>
+            <SelectItem value="blink">Scintillement</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {(isScroll || isBlink) && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Vitesse</Label>
+            <span className="text-xs text-muted-foreground">{isBlink ? `${speed.toFixed(1)}s / cycle` : `${speed}s / boucle`}</span>
+          </div>
+          <Slider min={min} max={max} step={step} value={[sliderValue]} onValueChange={handleSlider} />
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>Lent</span><span>Rapide</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
