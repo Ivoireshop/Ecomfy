@@ -110,7 +110,7 @@ const VideoCreator = () => {
             {demoVideos.map((v, i) => (
               <Card
                 key={i}
-                className="video-trio-card absolute left-1/2 top-0 w-34 md:w-44 overflow-hidden shadow-md"
+                className="video-trio-card absolute left-1/2 top-0 w-36 md:w-44 overflow-hidden shadow-md"
                 style={{ animationDelay: `${i * -8}s` }}
               >
                 <div className="aspect-[9/16] bg-black relative">
