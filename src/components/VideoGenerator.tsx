@@ -485,9 +485,9 @@ export function VideoGenerator({
                 />
               )}
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                className="flex-1"
+                className="w-full sm:flex-1"
                 onClick={() => {
                   const ext = generatedVideo.videoUrl.endsWith('.mp4') ? 'mp4' : 'png';
                   const link = document.createElement('a');
