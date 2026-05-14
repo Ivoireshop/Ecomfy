@@ -559,7 +559,20 @@ const ProductView = () => {
               const base = Number(shop.theme_config?.reviews_base_count ?? 128);
               const incr = shop.theme_config?.reviews_increment_with_orders !== false;
               const orders = Number((shop as any).total_orders || 0);
-              const count = base + (incr ? orders : 0);
+              let count = base + (incr ? orders : 0);
+              // Realistic mode: deterministic daily variation within [min, max]
+              if (shop.theme_config?.reviews_realistic_mode) {
+                const min = Math.max(0, Number(shop.theme_config?.reviews_min ?? base));
+                const max = Math.max(min, Number(shop.theme_config?.reviews_max ?? base + 50));
+                const today = new Date();
+                const dayKey = `${today.getUTCFullYear()}-${today.getUTCMonth()}-${today.getUTCDate()}`;
+                const seedStr = `${product.id}-${dayKey}`;
+                let h = 2166136261;
+                for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619); }
+                const r = ((h >>> 0) % 1000) / 1000;
+                const variation = Math.floor(r * (max - min + 1));
+                count = min + variation + (incr ? orders : 0);
+              }
               const rating = Math.min(5, Math.max(1, Number(shop.theme_config?.reviews_rating ?? 5)));
               return (
                 <div className="flex items-center gap-2">
