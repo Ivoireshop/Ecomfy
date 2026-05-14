@@ -235,7 +235,7 @@ const Index = () => {
   // Services cards for hub (logged-in)
   const hubServices = [
     { icon: ImageIcon, title: "Visuels Publicitaires", desc: "Créez des images IA professionnelles", color: "from-orange-500 to-pink-500", bgLight: "bg-orange-50 dark:bg-orange-950/30", route: "/generator", cta: "Créer un visuel" },
-    { icon: Video, title: "Vidéos Animées", desc: "Transformez vos visuels en vidéos", color: "from-blue-500 to-cyan-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", route: "/generator", cta: "Créer une vidéo" },
+    { icon: Video, title: "Vidéos Animées", desc: "Transformez vos visuels en vidéos", color: "from-blue-500 to-cyan-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", route: "/video-creator", cta: "Créer une vidéo" },
     { icon: Globe, title: "Sites Vitrine", desc: "Lancez votre site pro en minutes", color: "from-violet-500 to-purple-500", bgLight: "bg-violet-50 dark:bg-violet-950/30", route: "/showcase-manager", cta: "Créer un site" },
     { icon: Store, title: "Boutiques E-commerce", desc: "Vendez en ligne avec paiements intégrés", color: "from-emerald-500 to-teal-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/30", route: "/shop-manager", cta: "Créer une boutique" },
     { icon: GraduationCap, title: "Formations en Ligne", desc: "Créez et vendez vos cours avec certificats", color: "from-amber-500 to-yellow-500", bgLight: "bg-amber-50 dark:bg-amber-950/30", route: "/courses-manager", cta: "Créer une formation" },
@@ -373,7 +373,7 @@ const Index = () => {
               gradient="from-blue-500 to-cyan-500"
               reversed
               cta="Créer une vidéo"
-              onClick={() => navigate(session ? "/generator" : "/auth")}
+              onClick={() => navigate(session ? "/video-creator" : "/auth")}
             />
 
             <ServiceSection
