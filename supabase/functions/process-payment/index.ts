@@ -119,6 +119,35 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    if (payment_type === "shop_activation") {
+      if (!shop_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Sélectionnez la boutique à activer." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: shopToActivate } = await supabase
+        .from("shops")
+        .select("id, user_id, is_activated")
+        .eq("id", shop_id)
+        .maybeSingle();
+
+      if (!shopToActivate || shopToActivate.user_id !== user_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (shopToActivate.is_activated) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Cette boutique est déjà activée." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Validate and apply promo code if provided
     let finalAmount: number = amount;
     let discountPercentage = 0;

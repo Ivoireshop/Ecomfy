@@ -35,6 +35,14 @@ const COLORS = [
 const PRODUCT_TYPES = ["Physique", "Digital", "Service", "Abonnement"];
 const PRODUCT_LOCATIONS = ["Entrepôt principal", "Stock fournisseur", "Dropshipping", "Sur commande"];
 
+const toProductSlug = (value: string) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 const EMOJIS = [
   "😀","😂","😍","🥰","😎","🤩","🔥","✅","⭐","💯","🎉","💪",
   "❤️","💚","💙","💛","🧡","💜","🖤","🤍","👍","👏","🙏","💰",
@@ -338,9 +346,10 @@ export function ProductEditor({
   const cacheBust = () => `v=${Date.now()}`;
   const shopUrl = shopSlug ? `/shop/${shopSlug}` : null;
   const canViewInShop = shopActivated && shopPublished && shopUrl;
+  const shareableSlug = product.slug || toProductSlug(product.name);
   const liveProductUrl =
     shopSlug && productId && shopActivated && shopPublished && product.is_published
-      ? `/shop/${shopSlug}/product?product=${productId}`
+      ? `/shop/${shopSlug}/p/${shareableSlug}`
       : null;
 
   const previewImages = allImages.map((img) => ({ id: img.id, image_url: img.image_url }));

@@ -32,6 +32,7 @@ import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/l
 
 interface Product {
   id: string;
+  slug?: string | null;
   name: string;
   description: string | null;
   short_description: string | null;
@@ -72,6 +73,15 @@ const CATEGORIES = [
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
 ];
 
+const toSlug = (value: string) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+
 const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -89,7 +99,6 @@ const ShopEditor = () => {
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [activationPhone, setActivationPhone] = useState("");
   const [activationProvider, setActivationProvider] = useState("");
-  const [shopActivationPaid, setShopActivationPaid] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
@@ -103,12 +112,10 @@ const ShopEditor = () => {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    const [shopRes, productsRes, ordersRes, profileRes, visitsRes] = await Promise.all([
+    const [shopRes, productsRes, ordersRes, visitsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
       supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }) as any,
-      session ? supabase.from("profiles").select("shop_activation_paid").eq("id", session.user.id).single() as any : null,
       supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
     if (shopRes.data) setShop(shopRes.data);
@@ -117,7 +124,6 @@ const ShopEditor = () => {
       setOrders(ordersRes.data);
       setUnreadOrders(ordersRes.data.filter((o: Order) => !o.is_read).length);
     }
-    if (profileRes?.data) setShopActivationPaid(profileRes.data.shop_activation_paid || false);
     if (visitsRes?.data) setVisits(visitsRes.data as any);
     setLoading(false);
   }, [id]);
@@ -158,7 +164,7 @@ const ShopEditor = () => {
     };
   }, [id, fetchData]);
 
-  const isActivated = shopActivationPaid || shop?.is_activated;
+  const isActivated = !!shop?.is_activated;
 
   const handleActivateShop = async () => {
     if (!activationProvider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
@@ -169,7 +175,7 @@ const ShopEditor = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connecté");
       const { data, error } = await supabase.functions.invoke("process-payment", {
-        body: { amount: 1300, payment_method: "mobile_money", user_id: session.user.id, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation" },
+        body: { amount: 1300, payment_method: "mobile_money", user_id: session.user.id, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation", shop_id: shop.id },
       });
       if (error) throw error;
       const paymentUrl = data?.payment_url || data?.url || data?.checkout_url || data?.link;
@@ -264,20 +270,36 @@ const ShopEditor = () => {
     setProductImages([]);
   };
 
+  const getUniqueProductSlug = async (value: string, excludeProductId?: string) => {
+    if (!id) return toSlug(value) || "produit";
+    const base = toSlug(value) || "produit";
+    let candidate = base;
+    let suffix = 2;
+
+    while (true) {
+      let query = supabase.from("products").select("id").eq("shop_id", id).eq("slug", candidate).limit(1) as any;
+      if (excludeProductId) query = query.neq("id", excludeProductId);
+      const { data } = await query;
+      if (!data || data.length === 0) return candidate;
+      candidate = `${base}-${suffix++}`;
+    }
+  };
+
   const saveProduct = async () => {
     if (!id) return;
+    const productSlug = await getUniqueProductSlug((newProduct as any).slug || newProduct.name, editingProduct?.id);
     const productData = {
       name: newProduct.name, description: newProduct.description, short_description: newProduct.short_description,
       price: newProduct.price, compare_at_price: newProduct.compare_at_price || null, category: newProduct.category,
       stock_quantity: newProduct.stock_quantity, is_digital: newProduct.is_digital, is_published: newProduct.is_published,
       is_featured: newProduct.is_featured, sku: newProduct.sku || null, weight: newProduct.weight || null, shop_id: id,
-      slug: (newProduct as any).slug || null,
+      slug: productSlug,
     };
     let result;
     if (editingProduct) {
       result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
     } else {
-      result = await supabase.from("products").insert(productData) as any;
+      result = await supabase.from("products").insert(productData).select("id") as any;
     }
     if (result.error) {
       toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
@@ -297,12 +319,13 @@ const ShopEditor = () => {
   const handleProductEditorSave = async (data: any, newImgs: File[]) => {
     if (!id) return;
     setSaving(true);
+    const productSlug = await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
     const productData = {
       name: data.name, description: data.description, short_description: data.short_description,
       price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
       stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
       is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
-      slug: data.slug || null,
+      slug: productSlug,
       bundle_offers: Array.isArray(data.bundle_offers)
         ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
         : [],
@@ -315,7 +338,7 @@ const ShopEditor = () => {
     if (editingProduct) {
       result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
     } else {
-      result = await supabase.from("products").insert(productData) as any;
+      result = await supabase.from("products").insert(productData).select("id") as any;
     }
     if (result.error) {
       toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
@@ -439,7 +462,7 @@ const ShopEditor = () => {
                 <Zap className="h-5 w-5" />
                 <div>
                   <p className="font-semibold text-sm">Activez vos boutiques pour les rendre visibles</p>
-                  <p className="text-xs opacity-90">Paiement unique de 2$ · Toutes vos boutiques activées à vie</p>
+                  <p className="text-xs opacity-90">Paiement unique de 2$ · Activation valable pour cette boutique</p>
                 </div>
               </div>
               <Button size="sm" variant="secondary" className="font-semibold shadow-lg" onClick={() => setShowActivationModal(true)}>
@@ -463,7 +486,7 @@ const ShopEditor = () => {
                   <span className="text-sm text-muted-foreground">Frais d'activation</span>
                   <span className="font-bold text-lg">1 300 FCFA</span>
                 </div>
-                <p className="text-xs text-muted-foreground">≈ 2$ USD · Paiement unique · Toutes vos boutiques activées</p>
+                <p className="text-xs text-muted-foreground">≈ 2$ USD · Paiement unique · Cette boutique sera activée</p>
               </div>
               <div className="space-y-2">
                 <Label>Opérateur Mobile Money</Label>

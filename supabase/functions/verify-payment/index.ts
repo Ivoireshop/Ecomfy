@@ -110,23 +110,27 @@ serve(async (req) => {
     const paymentType = (meta.payment_type as string) || "subscription";
     const userId = payment.user_id;
     const creditsSize = Number(meta.credits_size || 0);
+    const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
 
     if (paymentType === "shop_activation") {
-      await supabase.from("profiles").update({ shop_activation_paid: true }).eq("id", userId);
+      if (!shopId) {
+        return new Response(JSON.stringify({ success: false, error: "Boutique manquante pour l'activation" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       await supabase.from("shops")
         .update({ is_activated: true, activation_fee_paid: true, is_published: true })
+        .eq("id", shopId)
         .eq("user_id", userId);
       // Trace de facturation
       try {
-        const { data: shopRow } = await supabase
-          .from("shops").select("id").eq("user_id", userId).maybeSingle();
-        if (shopRow?.id) {
+        if (shopId) {
           const { data: existingTrace } = await supabase
             .from("commission_payments").select("id")
             .eq("transaction_reference", reference).maybeSingle();
           if (!existingTrace) {
             await supabase.from("commission_payments").insert({
-              shop_id: shopRow.id,
+              shop_id: shopId,
               amount: Number(payment.amount) || 0,
               payment_method: "geniuspay",
               transaction_reference: reference,
