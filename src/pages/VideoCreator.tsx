@@ -4,7 +4,8 @@ import { Footer } from "@/components/Footer";
 import { VideoGenerator } from "@/components/VideoGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Film, Clapperboard, Wand2, Zap } from "lucide-react";
+import { Sparkles, Film, Clapperboard, Wand2, Zap, ArrowDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import videoModelCosmetics from "@/assets/video-model-cosmetics.mp4.asset.json";
 import videoModelHandbag from "@/assets/video-model-handbag-v2.mp4.asset.json";
@@ -57,57 +58,57 @@ const VideoCreator = () => {
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
 
-      {/* ===== HERO COLORÉ ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 text-white">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl animate-pulse" />
-        <div className="container relative mx-auto px-4 py-12 md:py-20">
-          <div className="max-w-3xl mx-auto text-center space-y-5">
-            <Badge className="bg-white/20 text-white border-white/30 backdrop-blur px-4 py-1.5 animate-fade-in">
-              <Clapperboard className="w-4 h-4 mr-2" />
+      {/* ===== HERO SOBRE ===== */}
+      <section className="relative overflow-hidden border-b bg-card">
+        <div className="container relative mx-auto px-4 py-8 md:py-12">
+          <div className="max-w-2xl mx-auto text-center space-y-3">
+            <Badge variant="secondary" className="px-3 py-1">
+              <Clapperboard className="w-3.5 h-3.5 mr-1.5" />
               Studio Vidéo IA
             </Badge>
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight animate-fade-in">
-              Transformez vos idées
-              <br />
-              <span className="bg-gradient-to-r from-yellow-300 via-pink-300 to-white bg-clip-text text-transparent">
-                en vidéos publicitaires
-              </span>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight">
+              Créez votre vidéo publicitaire
             </h1>
-            <p className="text-lg md:text-xl text-white/90 animate-fade-in">
-              Importez vos images, décrivez votre idée, et obtenez une vidéo HD prête pour TikTok, Instagram et Facebook en 1 à 2 minutes.
+            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
+              Importez vos images, décrivez votre idée, recevez une vidéo HD en 1 à 2 minutes.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               {[
                 { icon: Zap, label: "1-2 min" },
                 { icon: Film, label: "HD 5-10s" },
-                { icon: Wand2, label: "IA Premium" },
                 { icon: Sparkles, label: "Qualité Pro" },
               ].map((b, i) => (
-                <div key={i} className="flex items-center gap-2 bg-white/15 backdrop-blur px-4 py-2 rounded-full text-sm font-medium border border-white/20">
-                  <b.icon className="w-4 h-4" />
+                <div key={i} className="flex items-center gap-1.5 bg-muted px-3 py-1 rounded-full text-xs font-medium">
+                  <b.icon className="w-3.5 h-3.5" />
                   {b.label}
                 </div>
               ))}
+            </div>
+            <div className="pt-3">
+              <Button
+                size="lg"
+                onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
+                className="rounded-full"
+              >
+                Commencer la création
+                <ArrowDown className="w-4 h-4 ml-2" />
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== DEMO VIDEOS MARQUEE ===== */}
-      <section className="py-8 md:py-12 bg-gradient-to-b from-background to-muted/30 overflow-hidden">
-        <div className="container mx-auto px-4 mb-6">
-          <h2 className="text-xl md:text-2xl font-bold text-center">
-            🎬 Inspirez-vous de vidéos déjà créées
-          </h2>
-          <p className="text-center text-muted-foreground text-sm mt-1">
-            Quelques exemples de ce que vous pouvez générer
+      {/* ===== DEMO VIDEOS MARQUEE (compact) ===== */}
+      <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
+        <div className="container mx-auto px-4 mb-3">
+          <p className="text-center text-xs md:text-sm text-muted-foreground">
+            🎬 Exemples générés sur la plateforme
           </p>
         </div>
         <div className="relative">
-          <div className="flex gap-4 animate-marquee w-max">
+          <div className="flex gap-3 animate-marquee w-max">
             {[...demoVideos, ...demoVideos, ...demoVideos].map((v, i) => (
-              <Card key={i} className="w-72 md:w-80 flex-shrink-0 overflow-hidden shadow-xl hover:shadow-2xl transition-all hover:scale-105 border-2 border-transparent hover:border-primary/40">
+              <Card key={i} className="w-36 md:w-44 flex-shrink-0 overflow-hidden shadow-md">
                 <div className="aspect-[9/16] bg-black relative">
                   <video
                     src={v.url}
@@ -117,13 +118,8 @@ const VideoCreator = () => {
                     playsInline
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  <div className="absolute bottom-3 left-3 right-3 text-white">
-                    <Badge className="bg-white/20 backdrop-blur border-white/30 text-white text-xs mb-2">
-                      {v.style}
-                    </Badge>
-                    <p className="font-semibold text-sm">{v.title}</p>
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                  <p className="absolute bottom-2 left-2 right-2 text-white font-medium text-xs">{v.title}</p>
                 </div>
               </Card>
             ))}
@@ -132,7 +128,7 @@ const VideoCreator = () => {
       </section>
 
       {/* ===== GENERATOR ===== */}
-      <section className="py-10 md:py-16">
+      <section id="create" className="py-6 md:py-10 scroll-mt-20">
         <VideoGenerator
           hasActiveSubscription={hasActiveSubscription}
           isFounder={isFounder}
