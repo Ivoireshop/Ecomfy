@@ -130,13 +130,13 @@ export function VideoGenerator({
       // Start a smooth progress animation to avoid "stuck" feeling
       let currentProgress = 10;
       progressInterval = setInterval(() => {
-        // Slowly increment progress up to 85% max while waiting
-        if (currentProgress < 85) {
-          currentProgress += Math.random() * 2;
-          currentProgress = Math.min(currentProgress, 85);
+        // Keep moving gently while the backend works, without showing 100% before completion.
+        if (currentProgress < 94) {
+          currentProgress += Math.random() * 1.6;
+          currentProgress = Math.min(currentProgress, 94);
           setProgress(prev => prev ? { ...prev, percentage: Math.round(currentProgress) } : null);
         }
-      }, 2000);
+      }, 1500);
 
       // Call edge function (returns immediately with videoId; we poll via realtime)
       const { data, error } = await supabase.functions.invoke("generate-video", {
@@ -209,7 +209,48 @@ export function VideoGenerator({
         )
         .subscribe();
 
-      // Safety timeout: if no completion after 5 minutes, surface an error
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data: row } = await supabase
+            .from("generated_videos")
+            .select("status, video_url, progress_step, progress_percentage")
+            .eq("id", videoId)
+            .maybeSingle();
+
+          if (!row) return;
+
+          const pct = typeof row.progress_percentage === "number" ? row.progress_percentage : currentProgress;
+          if (pct > currentProgress) currentProgress = pct;
+          setProgress({ step: row.progress_step || "processing", percentage: Math.round(Math.max(currentProgress, pct)) });
+
+          if (row.status === "completed" && row.video_url) {
+            if (progressInterval) clearInterval(progressInterval);
+            clearInterval(pollInterval);
+            setProgress({ step: "completed", percentage: 100 });
+            setGeneratedVideo({
+              videoUrl: row.video_url,
+              videoId,
+              message: "Vidéo générée avec succès !",
+              isImage: row.video_url?.endsWith(".mp4") ? false : !row.video_url?.includes("/videos/"),
+            });
+            setTimeout(() => {
+              setProgress(null);
+              setIsGenerating(false);
+              onVideoGenerated?.();
+            }, 1000);
+            if (channel) supabase.removeChannel(channel);
+          } else if (row.status === "failed") {
+            if (progressInterval) clearInterval(progressInterval);
+            clearInterval(pollInterval);
+            toast.error("La génération de la vidéo a échoué");
+            setProgress(null);
+            setIsGenerating(false);
+            if (channel) supabase.removeChannel(channel);
+          }
+        } catch (_) { /* ignore polling hiccups */ }
+      }, 5000);
+
+      // Safety timeout: avoid leaving the UI blocked for minutes.
       setTimeout(async () => {
         try {
           const { data: row } = await supabase
@@ -217,18 +258,17 @@ export function VideoGenerator({
             .select("status, video_url, progress_step, progress_percentage")
             .eq("id", videoId)
             .maybeSingle();
-          if (row && row.status === "completed" && row.video_url) {
-            // Already done — no-op
-          } else if (row && row.status !== "failed") {
-            // Still processing after 5 min — leave it but stop the loader
-            toast.message("La génération prend plus de temps que prévu. Vous la retrouverez dans la bibliothèque dès qu'elle sera prête.");
+          if (row && row.status === "completed" && row.video_url) return;
+          if (row && row.status !== "failed") {
+            toast.message("La génération prend plus de temps que prévu. Elle continuera dans la bibliothèque.");
             if (progressInterval) clearInterval(progressInterval);
+            clearInterval(pollInterval);
             setProgress(null);
             setIsGenerating(false);
             if (channel) supabase.removeChannel(channel);
           }
         } catch (_) { /* ignore */ }
-      }, 5 * 60 * 1000);
+      }, 2 * 60 * 1000);
     } catch (err: any) {
       if (progressInterval) clearInterval(progressInterval);
       if (channel) supabase.removeChannel(channel);
