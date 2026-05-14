@@ -32,6 +32,7 @@ import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/l
 
 interface Product {
   id: string;
+  slug?: string | null;
   name: string;
   description: string | null;
   short_description: string | null;
@@ -71,6 +72,15 @@ const CATEGORIES = [
   "Mode & Vêtements", "Électronique", "Beauté & Soins", "Maison & Déco",
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
 ];
+
+const toSlug = (value: string) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
 
 const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
