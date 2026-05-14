@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
 import DOMPurify from "dompurify";
@@ -150,14 +152,13 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                         <Switch checked={themeConfig.review_desktop_active !== false} onCheckedChange={v => updateThemeConfig("review_desktop_active", v)} />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Défilement (droite → gauche)</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
-                        <Switch checked={!!themeConfig.review_desktop_scroll} onCheckedChange={v => updateThemeConfig("review_desktop_scroll", v)} />
-                      </div>
-                    </div>
                   </div>
+                  <AnimationControls
+                    mode={themeConfig.review_desktop_anim || (themeConfig.review_desktop_scroll ? "scroll" : "static")}
+                    speed={Number(themeConfig.review_desktop_speed) || (themeConfig.review_desktop_anim === "blink" ? 1.5 : 22)}
+                    onModeChange={v => updateThemeConfig("review_desktop_anim", v)}
+                    onSpeedChange={v => updateThemeConfig("review_desktop_speed", v)}
+                  />
                 </TabsContent>
 
                 <TabsContent value="review_mobile" className="mt-6 space-y-6">
@@ -183,14 +184,13 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                         <Switch checked={themeConfig.review_mobile_active !== false} onCheckedChange={v => updateThemeConfig("review_mobile_active", v)} />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Défilement (droite → gauche)</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
-                        <Switch checked={!!themeConfig.review_mobile_scroll} onCheckedChange={v => updateThemeConfig("review_mobile_scroll", v)} />
-                      </div>
-                    </div>
                   </div>
+                  <AnimationControls
+                    mode={themeConfig.review_mobile_anim || (themeConfig.review_mobile_scroll ? "scroll" : "static")}
+                    speed={Number(themeConfig.review_mobile_speed) || (themeConfig.review_mobile_anim === "blink" ? 1.5 : 22)}
+                    onModeChange={v => updateThemeConfig("review_mobile_anim", v)}
+                    onSpeedChange={v => updateThemeConfig("review_mobile_speed", v)}
+                  />
                 </TabsContent>
               </Tabs>
             </div>
