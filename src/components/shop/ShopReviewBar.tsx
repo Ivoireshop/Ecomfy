@@ -12,7 +12,7 @@ const sanitizeReviewHtml = (html: string) => DOMPurify.sanitize(html, {
 
 type AnimMode = "static" | "scroll" | "blink";
 
-function ReviewBarBlock({ html, textColor, bgColor, className, mode, speed }: { html?: string; textColor: string; bgColor: string; className: string; mode: AnimMode; speed: number }) {
+function ReviewBarBlock({ html, textColor, bgColor, className, mode, speed, blinkAlign = "center" }: { html?: string; textColor: string; bgColor: string; className: string; mode: AnimMode; speed: number; blinkAlign?: "center" | "left" | "right" }) {
   if (!html?.trim()) return null;
 
   if (mode === "scroll") {
@@ -32,10 +32,12 @@ function ReviewBarBlock({ html, textColor, bgColor, className, mode, speed }: { 
   }
 
   if (mode === "blink") {
+    const alignClass = blinkAlign === "left" ? "text-left" : blinkAlign === "right" ? "text-right" : "text-center";
+    const imgClass = blinkAlign === "left" ? "[&_img]:mx-0" : blinkAlign === "right" ? "[&_img]:ml-auto [&_img]:mr-0" : "[&_img]:mx-auto";
     return (
       <div className={className} style={{ color: textColor, backgroundColor: bgColor }}>
         <div
-          className="mx-auto max-w-7xl px-3 py-2 text-center text-sm font-medium leading-relaxed [&_a]:underline [&_img]:mx-auto [&_img]:max-h-28 [&_img]:max-w-full [&_img]:rounded-md [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+          className={`mx-auto max-w-7xl px-3 py-2 ${alignClass} text-sm font-medium leading-relaxed [&_a]:underline ${imgClass} [&_img]:max-h-28 [&_img]:max-w-full [&_img]:rounded-md [&_p]:mb-1.5 [&_p:last-child]:mb-0`}
           style={{ animation: `vp-review-blink ${speed}s ease-in-out infinite` }}
           dangerouslySetInnerHTML={{ __html: sanitizeReviewHtml(html) }}
         />
@@ -75,6 +77,8 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
   const mobilePlacement = themeConfig.review_mobile_above ? "above" : "below";
   const desktopMode = resolveMode(themeConfig, "review_desktop");
   const mobileMode = resolveMode(themeConfig, "review_mobile");
+  const desktopBlinkAlign = themeConfig.review_desktop_blink_align || "center";
+  const mobileBlinkAlign = themeConfig.review_mobile_blink_align || "center";
 
   const desktopHtml = buildContent(themeConfig, "desktop");
   const mobileHtml = buildContent(themeConfig, "mobile") || desktopHtml;
@@ -89,6 +93,7 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           bgColor={themeConfig.review_desktop_bg || "#803160"}
           mode={desktopMode}
           speed={resolveSpeed(themeConfig, "review_desktop", desktopMode)}
+          blinkAlign={desktopBlinkAlign}
         />
       )}
       {mobileActive && mobilePlacement === placement && (
@@ -99,6 +104,7 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
           bgColor={themeConfig.review_mobile_bg || "#000000"}
           mode={mobileMode}
           speed={resolveSpeed(themeConfig, "review_mobile", mobileMode)}
+          blinkAlign={mobileBlinkAlign}
         />
       )}
     </>

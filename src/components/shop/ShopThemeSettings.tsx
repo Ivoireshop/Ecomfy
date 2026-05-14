@@ -163,8 +163,10 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   <AnimationControls
                     mode={themeConfig.review_desktop_anim || (themeConfig.review_desktop_scroll ? "scroll" : "static")}
                     speed={Number(themeConfig.review_desktop_speed) || (themeConfig.review_desktop_anim === "blink" ? 1.5 : 22)}
+                    blinkAlign={themeConfig.review_desktop_blink_align || "center"}
                     onModeChange={v => updateThemeConfig("review_desktop_anim", v)}
                     onSpeedChange={v => updateThemeConfig("review_desktop_speed", v)}
+                    onBlinkAlignChange={v => updateThemeConfig("review_desktop_blink_align", v)}
                   />
                 </TabsContent>
 
@@ -201,8 +203,10 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   <AnimationControls
                     mode={themeConfig.review_mobile_anim || (themeConfig.review_mobile_scroll ? "scroll" : "static")}
                     speed={Number(themeConfig.review_mobile_speed) || (themeConfig.review_mobile_anim === "blink" ? 1.5 : 22)}
+                    blinkAlign={themeConfig.review_mobile_blink_align || "center"}
                     onModeChange={v => updateThemeConfig("review_mobile_anim", v)}
                     onSpeedChange={v => updateThemeConfig("review_mobile_speed", v)}
+                    onBlinkAlignChange={v => updateThemeConfig("review_mobile_blink_align", v)}
                   />
                 </TabsContent>
               </Tabs>
@@ -379,7 +383,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode: string; speed: number; onModeChange: (v: string) => void; onSpeedChange: (v: number) => void }) {
+function AnimationControls({ mode, speed, blinkAlign = "center", onModeChange, onSpeedChange, onBlinkAlignChange }: { mode: string; speed: number; blinkAlign?: string; onModeChange: (v: string) => void; onSpeedChange: (v: number) => void; onBlinkAlignChange?: (v: string) => void }) {
   const isScroll = mode === "scroll";
   const isBlink = mode === "blink";
   const min = isBlink ? 0.4 : 6;
@@ -392,7 +396,7 @@ function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode:
     onSpeedChange(isBlink ? val : max + min - val);
   };
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border rounded-xl p-4 bg-muted/10">
+    <div className={`grid grid-cols-1 gap-4 border rounded-xl p-4 bg-muted/10 ${isBlink ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
       <div className="space-y-2">
         <Label className="text-xs">Type d'animation</Label>
         <Select value={mode} onValueChange={onModeChange}>
@@ -416,6 +420,19 @@ function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode:
           </div>
         </div>
       )}
+      {isBlink && onBlinkAlignChange && (
+        <div className="space-y-2">
+          <Label className="text-xs">Position du message</Label>
+          <Select value={blinkAlign} onValueChange={onBlinkAlignChange}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="center">Centré</SelectItem>
+              <SelectItem value="left">À gauche</SelectItem>
+              <SelectItem value="right">À droite</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 }
@@ -433,6 +450,11 @@ function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant
   const bgColor = variant === "desktop"
     ? (themeConfig.review_desktop_bg || "#803160")
     : (themeConfig.review_mobile_bg || "#000000");
+  const blinkAlign = variant === "desktop"
+    ? (themeConfig.review_desktop_blink_align || "center")
+    : (themeConfig.review_mobile_blink_align || "center");
+  const alignClass = blinkAlign === "left" ? "text-left" : blinkAlign === "right" ? "text-right" : "text-center";
+  const imgClass = blinkAlign === "left" ? "[&_img]:mx-0" : blinkAlign === "right" ? "[&_img]:ml-auto [&_img]:mr-0" : "[&_img]:mx-auto";
 
   const sanitized = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "s", "span", "div", "img", "a", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "table", "thead", "tbody", "tr", "td", "th", "hr", "font"],
@@ -454,7 +476,7 @@ function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant
         {html.trim() ? (
           <div style={{ color: textColor, backgroundColor: bgColor }}>
             <div
-              className="mx-auto max-w-7xl px-3 py-2 text-center text-sm font-medium leading-relaxed [&_a]:underline [&_img]:mx-auto [&_img]:max-h-28 [&_img]:max-w-full [&_img]:rounded-md [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+              className={`mx-auto max-w-7xl px-3 py-2 ${alignClass} text-sm font-medium leading-relaxed [&_a]:underline ${imgClass} [&_img]:max-h-28 [&_img]:max-w-full [&_img]:rounded-md [&_p]:mb-1.5 [&_p:last-child]:mb-0`}
               dangerouslySetInnerHTML={{ __html: sanitized }}
             />
           </div>
