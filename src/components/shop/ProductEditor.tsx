@@ -232,10 +232,11 @@ export function ProductEditor({
       const px = window.getComputedStyle(el).fontSize;
       const n = parseFloat(px);
       if (!isNaN(n)) setCurrentFontSize(String(Math.round(n)));
+      refreshActiveFormats();
     };
     document.addEventListener("selectionchange", handler);
     return () => document.removeEventListener("selectionchange", handler);
-  }, []);
+  }, [refreshActiveFormats]);
 
   // Image resize/align controls
   const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
