@@ -266,11 +266,57 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </div>
                 {themeConfig.stock_urgency_enabled !== false && (
                   <div className="grid grid-cols-2 gap-4 pl-13">
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs">Style d'affichage du stock</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => updateThemeConfig("stock_display_style", "bar")}
+                          className={`p-3 rounded-lg border-2 text-sm text-left ${(!themeConfig.stock_display_style || themeConfig.stock_display_style === "bar") ? "border-primary bg-primary/5 font-semibold" : "border-muted"}`}>
+                          📊 Barre d'urgence
+                          <div className="text-[11px] text-muted-foreground font-normal">Diminue à chaque commande</div>
+                        </button>
+                        <button type="button" onClick={() => updateThemeConfig("stock_display_style", "text")}
+                          className={`p-3 rounded-lg border-2 text-sm text-left ${themeConfig.stock_display_style === "text" ? "border-primary bg-primary/5 font-semibold" : "border-muted"}`}>
+                          ✓ Étiquette « En stock »
+                          <div className="text-[11px] text-muted-foreground font-normal">Texte coloré avec quantité</div>
+                        </button>
+                      </div>
+                    </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Texte personnalisé</Label>
                       <Input value={themeConfig.stock_urgency_text || "🔥 Dépêchez-vous ! Seulement {stock} restant(s) en stock"} onChange={e => updateThemeConfig("stock_urgency_text", e.target.value)} placeholder="Utilisez {stock} pour le nombre" />
                     </div>
                     <ColorField label="Couleur barre" value={themeConfig.stock_urgency_color || "#ef4444"} onChange={v => updateThemeConfig("stock_urgency_color", v)} />
+                    <ColorField label="Couleur étiquette « En stock »" value={themeConfig.stock_text_color || "#16a34a"} onChange={v => updateThemeConfig("stock_text_color", v)} />
+                  </div>
+                )}
+              </Card>
+
+              {/* Reviews stars + count */}
+              <Card className="p-5 space-y-3 border-dashed">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">Avis & étoiles sur la fiche produit</p>
+                    <p className="text-xs text-muted-foreground">Affiche 5 étoiles + un nombre d'avis sous le nom du produit. Le compteur augmente automatiquement avec les commandes.</p>
+                  </div>
+                  <Switch checked={themeConfig.reviews_enabled !== false} onCheckedChange={v => updateThemeConfig("reviews_enabled", v)} />
+                </div>
+                {themeConfig.reviews_enabled !== false && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nombre d'avis de départ</Label>
+                      <Input type="number" min={0} value={themeConfig.reviews_base_count ?? 128} onChange={e => updateThemeConfig("reviews_base_count", Number(e.target.value) || 0)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Note (étoiles, 1-5)</Label>
+                      <Input type="number" min={1} max={5} value={themeConfig.reviews_rating ?? 5} onChange={e => updateThemeConfig("reviews_rating", Math.min(5, Math.max(1, Number(e.target.value) || 5)))} />
+                    </div>
+                    <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
+                      <div>
+                        <p className="text-sm font-medium">Augmenter automatiquement avec les commandes</p>
+                        <p className="text-[11px] text-muted-foreground">Ajoute +1 avis pour chaque commande passée sur la boutique.</p>
+                      </div>
+                      <Switch checked={themeConfig.reviews_increment_with_orders !== false} onCheckedChange={v => updateThemeConfig("reviews_increment_with_orders", v)} />
+                    </div>
                   </div>
                 )}
               </Card>
