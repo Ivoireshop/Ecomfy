@@ -270,14 +270,30 @@ const ShopEditor = () => {
     setProductImages([]);
   };
 
+  const getUniqueProductSlug = async (value: string, excludeProductId?: string) => {
+    if (!id) return toSlug(value) || "produit";
+    const base = toSlug(value) || "produit";
+    let candidate = base;
+    let suffix = 2;
+
+    while (true) {
+      let query = supabase.from("products").select("id").eq("shop_id", id).eq("slug", candidate).limit(1) as any;
+      if (excludeProductId) query = query.neq("id", excludeProductId);
+      const { data } = await query;
+      if (!data || data.length === 0) return candidate;
+      candidate = `${base}-${suffix++}`;
+    }
+  };
+
   const saveProduct = async () => {
     if (!id) return;
+    const productSlug = await getUniqueProductSlug((newProduct as any).slug || newProduct.name, editingProduct?.id);
     const productData = {
       name: newProduct.name, description: newProduct.description, short_description: newProduct.short_description,
       price: newProduct.price, compare_at_price: newProduct.compare_at_price || null, category: newProduct.category,
       stock_quantity: newProduct.stock_quantity, is_digital: newProduct.is_digital, is_published: newProduct.is_published,
       is_featured: newProduct.is_featured, sku: newProduct.sku || null, weight: newProduct.weight || null, shop_id: id,
-      slug: toSlug((newProduct as any).slug || newProduct.name) || null,
+      slug: productSlug,
     };
     let result;
     if (editingProduct) {
@@ -303,12 +319,13 @@ const ShopEditor = () => {
   const handleProductEditorSave = async (data: any, newImgs: File[]) => {
     if (!id) return;
     setSaving(true);
+    const productSlug = await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
     const productData = {
       name: data.name, description: data.description, short_description: data.short_description,
       price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
       stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
       is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
-      slug: toSlug(data.slug || data.name) || null,
+      slug: productSlug,
       bundle_offers: Array.isArray(data.bundle_offers)
         ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
         : [],
