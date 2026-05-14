@@ -4,14 +4,12 @@ import { Footer } from "@/components/Footer";
 import { VideoGenerator } from "@/components/VideoGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Film, Clapperboard, Wand2, Zap, ArrowDown } from "lucide-react";
+import { Film, Clapperboard, Zap, ArrowDown, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import videoModelCosmetics from "@/assets/video-model-cosmetics.mp4.asset.json";
 import videoModelHandbag from "@/assets/video-model-handbag-v2.mp4.asset.json";
 import videoModelHandbagV1 from "@/assets/video-model-handbag.mp4.asset.json";
-import videoPreview1 from "@/assets/video-preview-1.jpg";
-import videoPreview2 from "@/assets/video-preview-2.jpg";
 
 const demoVideos = [
   { url: videoModelCosmetics.url, title: "Cosmétiques Lumineux", style: "Beauté" },
@@ -59,28 +57,28 @@ const VideoCreator = () => {
       <Header />
 
       {/* ===== HERO DYNAMIQUE ===== */}
-      <section className="relative overflow-hidden border-b bg-gradient-to-br from-[#0a1628] to-[#1e3a5f]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(59,130,246,0.25),_transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(30,58,95,0.3),_transparent_50%)]" />
+      <section className="relative overflow-hidden border-b bg-[var(--gradient-video-hero)]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(var(--video-hero-glow)/0.34),_transparent_52%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(var(--primary)/0.18),_transparent_54%)]" />
         <div className="container relative mx-auto px-4 py-8 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
-            <Badge className="px-3 py-1 bg-white/90 text-blue-950 backdrop-blur-sm shadow-sm font-semibold">
-              <Clapperboard className="w-3.5 h-3.5 mr-1.5 text-blue-700" />
+            <Badge className="px-3 py-1 bg-background/90 text-primary backdrop-blur-sm shadow-sm font-semibold">
+              <Clapperboard className="w-3.5 h-3.5 mr-1.5 text-primary" />
               Studio Vidéo IA
             </Badge>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-foreground">
               Créez votre vidéo publicitaire
             </h1>
-            <p className="text-sm md:text-base text-blue-100 max-w-xl mx-auto">
+            <p className="text-sm md:text-base text-foreground/75 max-w-xl mx-auto">
               Importez vos images, décrivez votre idée, recevez une vidéo HD, 2K ou 4K en 1 à 2 minutes.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               {[
                 { icon: Zap, label: "1-2 min" },
                 { icon: Film, label: "HD / 2K / 4K" },
-                { icon: Sparkles, label: "Qualité Pro" },
+                { icon: BadgeCheck, label: "Qualité Pro" },
               ].map((b, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium text-white">
+                <div key={i} className="flex items-center gap-1.5 bg-background/30 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium text-foreground shadow-sm">
                   <b.icon className="w-3.5 h-3.5" />
                   {b.label}
                 </div>
@@ -90,7 +88,7 @@ const VideoCreator = () => {
               <Button
                 size="lg"
                 onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
-                className="rounded-full shadow-lg hover:shadow-xl transition-all bg-white text-blue-950 hover:bg-blue-50"
+                className="rounded-full shadow-lg hover:shadow-xl transition-all bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 Commencer la création
                 <ArrowDown className="w-4 h-4 ml-2" />
@@ -107,10 +105,14 @@ const VideoCreator = () => {
             🎬 Exemples générés sur la plateforme
           </p>
         </div>
-        <div className="relative">
-          <div className="flex gap-3 animate-marquee w-max">
+        <div className="relative h-[15.5rem] md:h-[20.5rem] overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-full max-w-3xl mx-auto">
             {demoVideos.map((v, i) => (
-              <Card key={i} className="w-36 md:w-44 flex-shrink-0 overflow-hidden shadow-md">
+              <Card
+                key={i}
+                className="video-trio-card absolute left-1/2 top-0 w-34 md:w-44 overflow-hidden shadow-md"
+                style={{ animationDelay: `${i * -8}s` }}
+              >
                 <div className="aspect-[9/16] bg-black relative">
                   <video
                     src={v.url}
