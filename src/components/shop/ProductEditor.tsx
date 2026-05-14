@@ -247,6 +247,7 @@ export function ProductEditor({
       const node = sel.getRangeAt(0).startContainer;
       const el = (node.nodeType === 1 ? node : node.parentElement) as HTMLElement | null;
       if (!el || !editorRef.current?.contains(el)) return;
+      savedSelection.current = sel.getRangeAt(0).cloneRange();
       const px = window.getComputedStyle(el).fontSize;
       const n = parseFloat(px);
       if (!isNaN(n)) setCurrentFontSize(String(Math.round(n)));
