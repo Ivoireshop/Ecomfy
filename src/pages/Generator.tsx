@@ -927,11 +927,13 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ===== HERO SOBRE ===== */}
-      <section className="relative overflow-hidden border-b bg-card">
+      {/* ===== HERO DYNAMIQUE ===== */}
+      <section className="relative overflow-hidden border-b bg-gradient-to-br from-primary/[0.08] via-background to-secondary/[0.08]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(var(--primary)/0.15),_transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(var(--secondary)/0.10),_transparent_50%)]" />
         <div className="container relative mx-auto px-4 py-8 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
-            <Badge variant="secondary" className="px-3 py-1">
+            <Badge variant="secondary" className="px-3 py-1 backdrop-blur-sm bg-background/80">
               <Wand2 className="w-3.5 h-3.5 mr-1.5" />
               Studio Visuels IA
             </Badge>
@@ -945,7 +947,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               <Button
                 size="lg"
                 onClick={() => document.getElementById("create")?.scrollIntoView({ behavior: "smooth" })}
-                className="rounded-full"
+                className="rounded-full shadow-lg hover:shadow-xl transition-all"
               >
                 Commencer la création
                 <ArrowDown className="w-4 h-4 ml-2" />
