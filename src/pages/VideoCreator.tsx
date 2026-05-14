@@ -105,31 +105,30 @@ const VideoCreator = () => {
         </div>
       </section>
 
-      {/* ===== DÉFILEMENT VIDÉOS ===== */}
-      <section className="relative overflow-hidden bg-background py-6 border-b">
-        <div
-          className="flex gap-4 animate-marquee w-max"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {[...demoVideos, ...demoVideos, ...demoVideos].map((v, i) => (
-            <div
-              key={i}
-              className="relative w-48 sm:w-56 md:w-64 aspect-[9/16] rounded-xl overflow-hidden shadow-lg flex-shrink-0 bg-muted"
-            >
-              <video
-                src={v.url}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                <p className="text-white text-xs font-semibold truncate">{v.title}</p>
-                <p className="text-white/80 text-[10px]">{v.style}</p>
+      {/* ===== VIDÉOS STATIQUES ===== */}
+      <section className="relative bg-background py-6 border-b">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {demoVideos.map((v, i) => (
+              <div
+                key={i}
+                className="relative aspect-[9/16] rounded-xl overflow-hidden shadow-lg bg-muted"
+              >
+                <video
+                  src={v.url}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                  <p className="text-white text-xs font-semibold truncate">{v.title}</p>
+                  <p className="text-white/80 text-[10px]">{v.style}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
