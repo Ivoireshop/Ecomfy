@@ -21,7 +21,7 @@ function ReviewBarBlock({ html, textColor, bgColor, className, mode, speed }: { 
       <div className={className} style={{ color: textColor, backgroundColor: bgColor }}>
         <div className="relative overflow-hidden py-2">
           <div
-            className="whitespace-nowrap inline-block text-sm font-medium [&_*]:inline [&_p]:mr-10 [&_a]:underline [&_img]:hidden"
+            className="whitespace-nowrap inline-block text-sm font-medium [&_*]:!inline [&_*]:!whitespace-nowrap [&_p]:!m-0 [&_p]:!mr-6 [&_div]:!m-0 [&_div]:!mr-6 [&_br]:!hidden [&_h1]:!text-sm [&_h2]:!text-sm [&_h3]:!text-sm [&_ul]:!hidden [&_ol]:!hidden [&_a]:underline [&_img]:hidden"
             style={{ animation: `vp-review-marquee ${speed}s linear infinite`, paddingLeft: "100%" }}
             dangerouslySetInnerHTML={{ __html: sanitizeReviewHtml(html) }}
           />
