@@ -379,7 +379,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode: string; speed: number; onModeChange: (v: string) => void; onSpeedChange: (v: number) => void }) {
+function AnimationControls({ mode, speed, blinkAlign = "center", onModeChange, onSpeedChange, onBlinkAlignChange }: { mode: string; speed: number; blinkAlign?: string; onModeChange: (v: string) => void; onSpeedChange: (v: number) => void; onBlinkAlignChange?: (v: string) => void }) {
   const isScroll = mode === "scroll";
   const isBlink = mode === "blink";
   const min = isBlink ? 0.4 : 6;
@@ -392,7 +392,7 @@ function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode:
     onSpeedChange(isBlink ? val : max + min - val);
   };
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border rounded-xl p-4 bg-muted/10">
+    <div className={`grid grid-cols-1 gap-4 border rounded-xl p-4 bg-muted/10 ${isBlink ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
       <div className="space-y-2">
         <Label className="text-xs">Type d'animation</Label>
         <Select value={mode} onValueChange={onModeChange}>
@@ -414,6 +414,19 @@ function AnimationControls({ mode, speed, onModeChange, onSpeedChange }: { mode:
           <div className="flex justify-between text-[10px] text-muted-foreground">
             <span>Lent</span><span>Rapide</span>
           </div>
+        </div>
+      )}
+      {isBlink && onBlinkAlignChange && (
+        <div className="space-y-2">
+          <Label className="text-xs">Position du message</Label>
+          <Select value={blinkAlign} onValueChange={onBlinkAlignChange}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="center">Centré</SelectItem>
+              <SelectItem value="left">À gauche</SelectItem>
+              <SelectItem value="right">À droite</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
     </div>
