@@ -103,6 +103,7 @@ export function VideoGenerator({
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let progressInterval: ReturnType<typeof setInterval> | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -211,7 +212,7 @@ export function VideoGenerator({
         )
         .subscribe();
 
-      const pollInterval = setInterval(async () => {
+      pollInterval = setInterval(async () => {
         try {
           const { data: row } = await supabase
             .from("generated_videos")
