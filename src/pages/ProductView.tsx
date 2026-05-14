@@ -553,7 +553,26 @@ const ProductView = () => {
           {/* Right: Product Info */}
           <div className="space-y-4">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">{product.name}</h1>
-            
+
+            {/* Reviews (rating + count) */}
+            {shop.theme_config?.reviews_enabled !== false && (() => {
+              const base = Number(shop.theme_config?.reviews_base_count ?? 128);
+              const incr = shop.theme_config?.reviews_increment_with_orders !== false;
+              const orders = Number((shop as any).total_orders || 0);
+              const count = base + (incr ? orders : 0);
+              const rating = Math.min(5, Math.max(1, Number(shop.theme_config?.reviews_rating ?? 5)));
+              return (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center">
+                    {[1,2,3,4,5].map(i => (
+                      <Star key={i} className={`h-4 w-4 ${i <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                    ))}
+                  </div>
+                  <span className="text-xs text-gray-600">({count.toLocaleString("fr-FR")} avis)</span>
+                </div>
+              );
+            })()}
+
             {/* Price */}
             <div className="flex items-baseline gap-3">
               <span className="text-2xl sm:text-3xl font-bold" style={{ color: primaryColor }}>
@@ -608,13 +627,20 @@ const ProductView = () => {
             )}
 
             {/* Stock urgency */}
-            {product.stock_quantity !== null && product.stock_quantity > 0 && product.stock_quantity < 20 && (
-              <StockUrgencyBarInline
-                stock={product.stock_quantity}
-                maxStock={20}
-                color={shop.theme_config?.stock_urgency_color || "#ef4444"}
-                text={shop.theme_config?.stock_urgency_text}
-              />
+            {product.stock_quantity !== null && product.stock_quantity > 0 && shop.theme_config?.stock_urgency_enabled !== false && (
+              shop.theme_config?.stock_display_style === "text" ? (
+                <div className="inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full" style={{ backgroundColor: (shop.theme_config?.stock_text_color || "#16a34a") + "15", color: shop.theme_config?.stock_text_color || "#16a34a" }}>
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: shop.theme_config?.stock_text_color || "#16a34a" }} />
+                  En stock ({product.stock_quantity} produit{product.stock_quantity > 1 ? "s" : ""} disponible{product.stock_quantity > 1 ? "s" : ""})
+                </div>
+              ) : product.stock_quantity < 20 ? (
+                <StockUrgencyBarInline
+                  stock={product.stock_quantity}
+                  maxStock={20}
+                  color={shop.theme_config?.stock_urgency_color || "#ef4444"}
+                  text={shop.theme_config?.stock_urgency_text}
+                />
+              ) : null
             )}
             {product.stock_quantity !== null && product.stock_quantity <= 0 && (
               <p className="text-sm text-red-600 font-medium">Rupture de stock</p>
