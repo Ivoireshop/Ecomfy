@@ -30,6 +30,11 @@
     --gradient-primary: linear-gradient(135deg, hsl(214 100% 50%), hsl(214 100% 40%));
     --gradient-hero: linear-gradient(135deg, hsl(214 100% 50%), hsl(38 100% 55%));
     --gradient-accent: linear-gradient(135deg, hsl(38 100% 55%), hsl(38 100% 65%));
+    --video-hero-start: 201 100% 92%;
+    --video-hero-mid: 198 92% 84%;
+    --video-hero-end: 214 96% 76%;
+    --video-hero-glow: 188 100% 74%;
+    --gradient-video-hero: linear-gradient(135deg, hsl(var(--video-hero-start)), hsl(var(--video-hero-mid)) 48%, hsl(var(--video-hero-end)));
     --shadow-elegant: 0 10px 40px -10px hsl(214 100% 50% / 0.2);
     
     --sidebar-background: 0 0% 98%;
@@ -277,6 +282,28 @@ p, .text-content {
 }
 
 .animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes video-trio-card {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(calc(var(--video-row-shift) * -1)); }
+}
+
+@media (max-width: 640px) {
+  @keyframes video-trio-card {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(calc(var(--video-row-shift-mobile) * -1)); }
+  }
+}
+
+.video-trio-row {
+  --video-row-shift: 2rem;
+  --video-row-shift-mobile: 1rem;
+  animation: video-trio-card 18s ease-in-out infinite;
+}
+
+.video-trio-row:hover {
   animation-play-state: paused;
 }
 
