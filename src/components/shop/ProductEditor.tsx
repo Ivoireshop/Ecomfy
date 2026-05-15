@@ -26,7 +26,13 @@ const CATEGORIES = [
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
 ];
 
-const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
+const FONT_SIZE_PRESETS = [
+  { size: "14", label: "Petit", hint: "Détails" },
+  { size: "16", label: "Normal", hint: "Lecture mobile" },
+  { size: "18", label: "Confort", hint: "Texte important" },
+  { size: "20", label: "Grand", hint: "Accroche" },
+  { size: "24", label: "Titre", hint: "Section" },
+];
 
 const COLORS = [
   "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF",
@@ -134,7 +140,7 @@ export function ProductEditor({
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
-  const [currentFontSize, setCurrentFontSize] = useState<string>("12");
+  const [currentFontSize, setCurrentFontSize] = useState<string>("16");
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -151,7 +157,7 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
-  const savedSelection = useRef<Range | null>(null);
+  const savedSelection = useRef<{ range: Range; capturedAt: number } | null>(null);
   const { toast } = useToast();
 
   // AI image generation
