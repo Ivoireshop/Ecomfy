@@ -157,15 +157,6 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     if (range) savedRangeRef.current = range.cloneRange();
   }, [getCurrentEditorRange]);
 
-  const restoreSelection = useCallback(() => {
-    const range = savedRangeRef.current;
-    if (!isRangeInsideEditor(range)) return false;
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-    return true;
-  }, [isRangeInsideEditor]);
-
   const cleanFontSizing = useCallback((root: DocumentFragment | HTMLElement) => {
     root.querySelectorAll<HTMLElement>("font,[style]").forEach((el) => {
       el.removeAttribute("size");
