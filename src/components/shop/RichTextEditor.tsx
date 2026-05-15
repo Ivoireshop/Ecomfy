@@ -204,7 +204,9 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   };
 
   return (
-    <div ref={wrapperRef} className="border rounded-lg overflow-hidden bg-background relative">
+    <div ref={wrapperRef} className="border rounded-lg bg-background relative flex flex-col" style={{ maxHeight: "70vh" }}>
+      {/* Toolbar sticky */}
+      <div className="sticky top-0 z-30 bg-background rounded-t-lg">
       {/* Row 1 */}
       <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
         <TBtn icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
@@ -326,12 +328,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         <TBtn icon={<ImageIcon className="h-3.5 w-3.5" />} onClick={insertImage} title="Image" />
         <TBtn icon={<Video className="h-3.5 w-3.5" />} onClick={insertVideo} title="Vidéo" />
       </div>
+      </div>
 
       <div
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
-        className="p-3 text-sm focus:outline-none [&>*]:mb-2"
+        className="p-3 text-sm focus:outline-none overflow-y-auto flex-1 [&>*]:mb-2"
         style={{ minHeight, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
         onInput={handleInput}
         data-code-view="false"
