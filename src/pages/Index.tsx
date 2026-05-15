@@ -219,6 +219,11 @@ const Index = () => {
     const { data: { session } } = await supabase.auth.getSession();
     setSession(session);
     if (session?.user) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+
+    if (session?.user) {
       const { data: profileData } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
       setProfile(profileData);
       if (profileData && !profileData.onboarding_completed) setShowOnboarding(true);
