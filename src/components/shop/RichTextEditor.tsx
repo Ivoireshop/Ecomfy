@@ -127,6 +127,19 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     setShowFontSize(false); setShowTextColor(false); setShowBgColor(false); setShowEmoji(false); setShowSymbol(false);
   }, []);
 
+  const refreshActive = useCallback(() => {
+    try {
+      setActiveFmt({
+        b: document.queryCommandState("bold"),
+        i: document.queryCommandState("italic"),
+        u: document.queryCommandState("underline"),
+        s: document.queryCommandState("strikeThrough"),
+        ol: document.queryCommandState("insertOrderedList"),
+        ul: document.queryCommandState("insertUnorderedList"),
+      });
+    } catch {}
+  }, []);
+
   const saveSelection = useCallback(() => {
     const sel = window.getSelection();
     if (sel?.rangeCount && editorRef.current?.contains(sel.anchorNode)) {
@@ -179,29 +192,17 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     refreshActive();
   }, [onChange]);
 
-  const refreshActive = useCallback(() => {
-    try {
-      setActiveFmt({
-        b: document.queryCommandState("bold"),
-        i: document.queryCommandState("italic"),
-        u: document.queryCommandState("underline"),
-        s: document.queryCommandState("strikeThrough"),
-        ol: document.queryCommandState("insertOrderedList"),
-        ul: document.queryCommandState("insertUnorderedList"),
-      });
-    } catch {}
-  }, []);
-
   useEffect(() => {
     const onSel = () => {
       const sel = window.getSelection();
       if (sel && sel.anchorNode && editorRef.current?.contains(sel.anchorNode)) {
+        saveSelection();
         refreshActive();
       }
     };
     document.addEventListener("selectionchange", onSel);
     return () => document.removeEventListener("selectionchange", onSel);
-  }, [refreshActive]);
+  }, [refreshActive, saveSelection]);
 
   const handleInput = () => {
     if (editorRef.current) onChange(editorRef.current.innerHTML);
