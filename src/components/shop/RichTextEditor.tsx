@@ -315,18 +315,22 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         <TBtn icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => exec("strikethrough")} title="Barré" active={activeFmt.s} />
         <TDiv />
         <div className="relative">
-          <TBtn icon={<span className="text-[10px] font-bold">12</span>} onClick={() => { closeAll(); setShowFontSize(s => !s); }} title="Taille" hasDropdown />
+          <TBtn icon={<span className="text-[10px] font-bold">{activeFontSize}</span>} onClick={() => { closeAll(); setShowFontSize(s => !s); }} title="Taille du texte" hasDropdown />
           {showFontSize && (
-            <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
-              {FONT_SIZES.map(size => (
-                <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
+            <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto">
+              {FONT_SIZE_PRESETS.map(({ size, label, hint }) => (
+                <button key={size} className={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeFontSize === size ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onPointerDown={(e) => e.preventDefault()}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     applyFontSize(size);
                     setShowFontSize(false);
                   }}>
-                  {size}px
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="font-medium text-sm">{label}</span>
+                    <span className="text-xs text-muted-foreground">{size}px</span>
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">{hint}</span>
                 </button>
               ))}
             </div>
