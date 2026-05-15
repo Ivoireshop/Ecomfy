@@ -53,23 +53,23 @@ const VideoCreator = () => {
   useEffect(() => { loadStatus(); }, []);
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0">
+    <div className="min-h-screen bg-background pb-16 md:pb-0 overflow-x-hidden">
       <Header />
 
       {/* ===== HERO DYNAMIQUE ===== */}
       <section className="relative overflow-hidden border-b bg-[var(--gradient-video-hero)]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(var(--video-hero-glow)/0.34),_transparent_52%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsl(var(--primary)/0.18),_transparent_54%)]" />
-        <div className="container relative mx-auto px-4 py-8 md:py-12">
+        <div className="container relative mx-auto px-4 py-6 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
             <Badge className="px-3 py-1 bg-background/90 text-primary backdrop-blur-sm shadow-sm font-semibold">
               <Clapperboard className="w-3.5 h-3.5 mr-1.5 text-primary" />
               Studio Vidéo IA
             </Badge>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-foreground">
+            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight tracking-tight text-foreground break-words">
               Créez votre vidéo publicitaire
             </h1>
-            <p className="text-sm md:text-base text-foreground/75 max-w-xl mx-auto">
+            <p className="text-xs sm:text-sm md:text-base text-foreground/75 max-w-xl mx-auto">
               Importez vos images, décrivez votre idée, recevez une vidéo HD, 2K ou 4K en 1 à 2 minutes.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -105,12 +105,12 @@ const VideoCreator = () => {
             🎬 Exemples générés sur la plateforme
           </p>
         </div>
-        <div className="relative h-[16.5rem] md:h-[20.5rem] overflow-hidden">
-          <div className="video-trio-row flex justify-center gap-3 md:gap-5 min-w-max px-4">
+        <div className="relative h-[14rem] sm:h-[16.5rem] md:h-[20.5rem] overflow-hidden">
+          <div className="video-trio-row flex justify-center gap-2 sm:gap-3 md:gap-5 px-2 sm:px-4">
             {demoVideos.map((v, i) => (
               <Card
                 key={i}
-                className="w-32 sm:w-36 md:w-44 flex-shrink-0 overflow-hidden shadow-md"
+                className="w-[28%] sm:w-36 md:w-44 max-w-[10rem] flex-shrink-0 overflow-hidden shadow-md"
               >
                 <div className="aspect-[9/16] bg-black relative">
                   <video
