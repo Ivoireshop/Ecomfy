@@ -60,6 +60,7 @@ const VideosPublicitaires = lazy(() => import("./pages/VideosPublicitaires"));
 const SitesVitrines = lazy(() => import("./pages/SitesVitrines"));
 const BoutiquesEcommerce = lazy(() => import("./pages/BoutiquesEcommerce"));
 const VideoCreator = lazy(() => import("./pages/VideoCreator"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,14 @@ const AppContent = () => {
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/visuels-publicitaires" element={<VisuelsPublicitaires />} />
