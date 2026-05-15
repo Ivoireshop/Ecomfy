@@ -687,11 +687,16 @@ export function ProductEditor({
                 <div className="relative">
                   <ToolbarButton icon={<span className="text-[10px] font-bold">{currentFontSize}</span>} onClick={() => { closeAllDropdowns(); setShowFontSize(!showFontSize); }} title="Taille du texte" hasDropdown />
                   {showFontSize && (
-                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
-                      {FONT_SIZES.map(size => (
-                          <button key={size} type="button" className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
-                          onMouseDown={(e) => { e.preventDefault(); execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; handleEditorInput(); setCurrentFontSize(size); setShowFontSize(false); }}>
-                          {size}px
+                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto">
+                      {FONT_SIZE_PRESETS.map(({ size, label, hint }) => (
+                          <button key={size} type="button" className={`w-full text-left px-3 py-2 rounded-md transition-colors ${currentFontSize === size ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
+                          onPointerDown={(e) => e.preventDefault()}
+                          onMouseDown={(e) => { e.preventDefault(); applyFontSize(size); setShowFontSize(false); }}>
+                          <span className="flex items-center justify-between gap-3">
+                            <span className="font-medium text-sm">{label}</span>
+                            <span className="text-xs text-muted-foreground">{size}px</span>
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground">{hint}</span>
                         </button>
                       ))}
                     </div>
