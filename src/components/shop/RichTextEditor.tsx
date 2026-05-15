@@ -5,7 +5,7 @@ import {
   Minus, Code, Smile, Table, Image as ImageIcon,
 } from "lucide-react";
 
-const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
+const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24"];
 const COLORS = [
   "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF",
   "#FF0000", "#FF6600", "#FFCC00", "#00CC00", "#0066FF", "#9933FF",
@@ -36,6 +36,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   const editorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+  const savedRangeRef = useRef<Range | null>(null);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
