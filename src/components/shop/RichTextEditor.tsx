@@ -79,12 +79,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     };
   }, [selectedImg, updateRect]);
 
-  const startResize = (e: React.MouseEvent, dir: "right" | "left") => {
+  const startResize = (e: React.MouseEvent | React.TouchEvent, dir: "right" | "left") => {
     e.preventDefault();
     e.stopPropagation();
     if (!selectedImg) return;
     const img = selectedImg;
-    const startX = e.clientX;
+    const isTouch = "touches" in e;
+    const startX = isTouch ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX;
     const startW = img.getBoundingClientRect().width;
     const ratio = img.naturalWidth && img.naturalHeight
       ? img.naturalHeight / img.naturalWidth
@@ -92,8 +93,9 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     const containerW = editorRef.current
       ? editorRef.current.clientWidth - 24 // padding p-3 = 12px each side
       : startW;
-    const onMove = (ev: MouseEvent) => {
-      const delta = dir === "right" ? ev.clientX - startX : startX - ev.clientX;
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      const cx = "touches" in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
+      const delta = dir === "right" ? cx - startX : startX - cx;
       const newW = Math.min(containerW, Math.max(40, startW + delta));
       img.style.width = newW + "px";
       img.style.height = newW * ratio + "px";
@@ -103,10 +105,14 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
       if (editorRef.current) onChange(editorRef.current.innerHTML);
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onUp);
   };
 
   useEffect(() => {
