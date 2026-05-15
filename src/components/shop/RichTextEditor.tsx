@@ -127,6 +127,51 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     setShowFontSize(false); setShowTextColor(false); setShowBgColor(false); setShowEmoji(false); setShowSymbol(false);
   }, []);
 
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel?.rangeCount && editorRef.current?.contains(sel.anchorNode)) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    const range = savedRangeRef.current;
+    if (!range || !editorRef.current) return false;
+    if (!editorRef.current.contains(range.commonAncestorContainer)) return false;
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    return true;
+  }, []);
+
+  const applyFontSize = useCallback((size: string) => {
+    editorRef.current?.focus();
+    restoreSelection();
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !editorRef.current?.contains(sel.anchorNode)) return;
+
+    const range = sel.getRangeAt(0);
+    const span = document.createElement("span");
+    span.style.fontSize = `${size}px`;
+
+    if (range.collapsed) {
+      span.appendChild(document.createTextNode("\u200B"));
+      range.insertNode(span);
+      range.setStart(span.firstChild || span, 1);
+      range.collapse(true);
+    } else {
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      range.selectNodeContents(span);
+    }
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+    savedRangeRef.current = range.cloneRange();
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+    refreshActive();
+  }, [onChange, refreshActive, restoreSelection]);
+
   const exec = useCallback((cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
     editorRef.current?.focus();
