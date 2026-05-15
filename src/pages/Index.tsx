@@ -222,14 +222,6 @@ const Index = () => {
       navigate("/dashboard", { replace: true });
       return;
     }
-
-    if (session?.user) {
-      const { data: profileData } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-      setProfile(profileData);
-      if (profileData && !profileData.onboarding_completed) setShowOnboarding(true);
-      const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).eq("status", "active").maybeSingle();
-      setSubscription(subData);
-    }
   };
 
   const loadPublishedFeedback = async () => {
