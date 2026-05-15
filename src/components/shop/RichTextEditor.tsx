@@ -5,7 +5,13 @@ import {
   Minus, Code, Smile, Table, Image as ImageIcon,
 } from "lucide-react";
 
-const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24"];
+const FONT_SIZE_PRESETS = [
+  { size: "14", label: "Petit", hint: "Détails" },
+  { size: "16", label: "Normal", hint: "Lecture mobile" },
+  { size: "18", label: "Confort", hint: "Texte important" },
+  { size: "20", label: "Grand", hint: "Accroche" },
+  { size: "24", label: "Titre", hint: "Section" },
+];
 const COLORS = [
   "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF",
   "#FF0000", "#FF6600", "#FFCC00", "#00CC00", "#0066FF", "#9933FF",
@@ -36,12 +42,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   const editorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
-  const savedRangeRef = useRef<Range | null>(null);
+  const selectionSnapshotRef = useRef<{ range: Range; capturedAt: number } | null>(null);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showSymbol, setShowSymbol] = useState(false);
+  const [activeFontSize, setActiveFontSize] = useState("16");
   const [activeFmt, setActiveFmt] = useState<{ b: boolean; i: boolean; u: boolean; s: boolean; ol: boolean; ul: boolean }>({ b: false, i: false, u: false, s: false, ol: false, ul: false });
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const [imgRect, setImgRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
@@ -127,6 +134,35 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     setShowFontSize(false); setShowTextColor(false); setShowBgColor(false); setShowEmoji(false); setShowSymbol(false);
   }, []);
 
+  const isRangeInsideEditor = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return false;
+    return editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer);
+  }, []);
+
+  const getCurrentEditorRange = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    return isRangeInsideEditor(range) ? range : null;
+  }, [isRangeInsideEditor]);
+
+  const getElementFromNode = useCallback((node: Node | null) => {
+    if (!node) return null;
+    return node.nodeType === Node.ELEMENT_NODE ? node as HTMLElement : node.parentElement;
+  }, []);
+
+  const readFontSizeFromRange = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return "16";
+    let el = getElementFromNode(range.startContainer);
+    while (el && el !== editorRef.current) {
+      const raw = el.style.fontSize || window.getComputedStyle(el).fontSize;
+      const px = Number.parseInt(raw, 10);
+      if (Number.isFinite(px)) return String(px);
+      el = el.parentElement;
+    }
+    return "16";
+  }, [getElementFromNode]);
+
   const refreshActive = useCallback(() => {
     try {
       setActiveFmt({
@@ -137,25 +173,16 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         ol: document.queryCommandState("insertOrderedList"),
         ul: document.queryCommandState("insertUnorderedList"),
       });
+      setActiveFontSize(readFontSizeFromRange(getCurrentEditorRange()));
     } catch {}
-  }, []);
-
-  const isRangeInsideEditor = useCallback((range: Range | null) => {
-    if (!range || !editorRef.current) return false;
-    return editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer);
-  }, []);
-
-  const getCurrentEditorRange = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel?.rangeCount || !editorRef.current) return null;
-    const range = sel.getRangeAt(0);
-    return isRangeInsideEditor(range) ? range : null;
-  }, [isRangeInsideEditor]);
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
 
   const saveSelection = useCallback(() => {
     const range = getCurrentEditorRange();
-    if (range) savedRangeRef.current = range.cloneRange();
-  }, [getCurrentEditorRange]);
+    if (!range) return;
+    selectionSnapshotRef.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setActiveFontSize(readFontSizeFromRange(range));
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
 
   const cleanFontSizing = useCallback((root: DocumentFragment | HTMLElement) => {
     root.querySelectorAll<HTMLElement>("font,[style]").forEach((el) => {
@@ -165,40 +192,49 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     });
   }, []);
 
+  const getRangeForToolbarAction = useCallback(() => {
+    const liveRange = getCurrentEditorRange();
+    if (liveRange) return liveRange.cloneRange();
+    const snapshot = selectionSnapshotRef.current;
+    if (!snapshot || Date.now() - snapshot.capturedAt > 30000) return null;
+    return isRangeInsideEditor(snapshot.range) ? snapshot.range.cloneRange() : null;
+  }, [getCurrentEditorRange, isRangeInsideEditor]);
+
   const applyFontSize = useCallback((size: string) => {
-    const activeRange = getCurrentEditorRange()?.cloneRange();
-    const rangeToApply = activeRange || savedRangeRef.current?.cloneRange() || null;
-    if (!isRangeInsideEditor(rangeToApply)) return;
-    editorRef.current?.focus({ preventScroll: true });
+    const rangeToApply = getRangeForToolbarAction();
+    if (!rangeToApply || !editorRef.current) return;
+
     const sel = window.getSelection();
     if (!sel) return;
+    editorRef.current.focus({ preventScroll: true });
     sel.removeAllRanges();
     sel.addRange(rangeToApply);
-    if (!sel.rangeCount || !editorRef.current?.contains(sel.anchorNode)) return;
 
     const range = sel.getRangeAt(0);
-    const span = document.createElement("span");
-    span.style.fontSize = `${size}px`;
+    const wrapper = document.createElement("span");
+    wrapper.style.fontSize = `${size}px`;
+    wrapper.setAttribute("data-vp-font-size", size);
 
     if (range.collapsed) {
-      span.appendChild(document.createTextNode("\u200B"));
-      range.insertNode(span);
-      range.setStart(span.firstChild || span, 1);
+      wrapper.appendChild(document.createTextNode("\u200B"));
+      range.insertNode(wrapper);
+      range.setStart(wrapper.firstChild || wrapper, 1);
       range.collapse(true);
     } else {
       const fragment = range.extractContents();
       cleanFontSizing(fragment);
-      span.appendChild(fragment);
-      range.insertNode(span);
-      range.selectNodeContents(span);
+      wrapper.appendChild(fragment);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
     }
 
     sel.removeAllRanges();
     sel.addRange(range);
-    savedRangeRef.current = range.cloneRange();
-    if (editorRef.current) onChange(editorRef.current.innerHTML);
+    selectionSnapshotRef.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setActiveFontSize(size);
+    onChange(editorRef.current.innerHTML);
     refreshActive();
-  }, [cleanFontSizing, getCurrentEditorRange, isRangeInsideEditor, onChange, refreshActive]);
+  }, [cleanFontSizing, getRangeForToolbarAction, onChange, refreshActive]);
 
   const exec = useCallback((cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
@@ -279,18 +315,22 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         <TBtn icon={<Strikethrough className="h-3.5 w-3.5" />} onClick={() => exec("strikethrough")} title="Barré" active={activeFmt.s} />
         <TDiv />
         <div className="relative">
-          <TBtn icon={<span className="text-[10px] font-bold">12</span>} onClick={() => { closeAll(); setShowFontSize(s => !s); }} title="Taille" hasDropdown />
+          <TBtn icon={<span className="text-[10px] font-bold">{activeFontSize}</span>} onClick={() => { closeAll(); setShowFontSize(s => !s); }} title="Taille du texte" hasDropdown />
           {showFontSize && (
-            <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
-              {FONT_SIZES.map(size => (
-                <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
+            <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto">
+              {FONT_SIZE_PRESETS.map(({ size, label, hint }) => (
+                <button key={size} className={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeFontSize === size ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onPointerDown={(e) => e.preventDefault()}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     applyFontSize(size);
                     setShowFontSize(false);
                   }}>
-                  {size}px
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="font-medium text-sm">{label}</span>
+                    <span className="text-xs text-muted-foreground">{size}px</span>
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">{hint}</span>
                 </button>
               ))}
             </div>

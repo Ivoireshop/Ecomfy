@@ -26,7 +26,13 @@ const CATEGORIES = [
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
 ];
 
-const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
+const FONT_SIZE_PRESETS = [
+  { size: "14", label: "Petit", hint: "Détails" },
+  { size: "16", label: "Normal", hint: "Lecture mobile" },
+  { size: "18", label: "Confort", hint: "Texte important" },
+  { size: "20", label: "Grand", hint: "Accroche" },
+  { size: "24", label: "Titre", hint: "Section" },
+];
 
 const COLORS = [
   "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF",
@@ -134,7 +140,7 @@ export function ProductEditor({
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
-  const [currentFontSize, setCurrentFontSize] = useState<string>("12");
+  const [currentFontSize, setCurrentFontSize] = useState<string>("16");
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -151,7 +157,7 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
-  const savedSelection = useRef<Range | null>(null);
+  const savedSelection = useRef<{ range: Range; capturedAt: number } | null>(null);
   const { toast } = useToast();
 
   // AI image generation
@@ -236,6 +242,30 @@ export function ProductEditor({
     setShowTablePicker(false);
   }, []);
 
+  const isRangeInsideEditor = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return false;
+    return editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer);
+  }, []);
+
+  const getCurrentEditorRange = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    return isRangeInsideEditor(range) ? range : null;
+  }, [isRangeInsideEditor]);
+
+  const readFontSizeFromRange = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return "16";
+    const node = range.startContainer;
+    let el = (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement) as HTMLElement | null;
+    while (el && el !== editorRef.current) {
+      const px = Number.parseInt(el.style.fontSize || window.getComputedStyle(el).fontSize, 10);
+      if (Number.isFinite(px)) return String(px);
+      el = el.parentElement;
+    }
+    return "16";
+  }, []);
+
   const refreshActiveFormats = useCallback(() => {
     try {
       setActiveFmt({
@@ -246,50 +276,99 @@ export function ProductEditor({
         ordered: document.queryCommandState("insertOrderedList"),
         unordered: document.queryCommandState("insertUnorderedList"),
       });
+      setCurrentFontSize(readFontSizeFromRange(getCurrentEditorRange()));
     } catch {}
-  }, []);
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
 
   const saveSelection = useCallback(() => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) {
-      savedSelection.current = sel.getRangeAt(0).cloneRange();
-    }
-  }, []);
+    const range = getCurrentEditorRange();
+    if (!range) return;
+    savedSelection.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setCurrentFontSize(readFontSizeFromRange(range));
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
+
+  const getRangeForToolbarAction = useCallback(() => {
+    const liveRange = getCurrentEditorRange();
+    if (liveRange) return liveRange.cloneRange();
+    const snapshot = savedSelection.current;
+    if (!snapshot || Date.now() - snapshot.capturedAt > 30000) return null;
+    return isRangeInsideEditor(snapshot.range) ? snapshot.range.cloneRange() : null;
+  }, [getCurrentEditorRange, isRangeInsideEditor]);
 
   const restoreSelection = useCallback(() => {
-    editorRef.current?.focus();
-    if (!savedSelection.current) return;
+    editorRef.current?.focus({ preventScroll: true });
+    const range = getRangeForToolbarAction();
+    if (!range) return;
     const sel = window.getSelection();
     sel?.removeAllRanges();
-    sel?.addRange(savedSelection.current);
-  }, []);
+    sel?.addRange(range);
+  }, [getRangeForToolbarAction]);
 
   const execCmd = useCallback((command: string, value?: string) => {
     restoreSelection();
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
+    editorRef.current?.focus({ preventScroll: true });
     handleEditorInput();
     refreshActiveFormats();
     saveSelection();
   }, [refreshActiveFormats, restoreSelection, saveSelection]);
 
+  const cleanFontSizing = useCallback((root: DocumentFragment | HTMLElement) => {
+    root.querySelectorAll<HTMLElement>("font,[style]").forEach((el) => {
+      el.removeAttribute("size");
+      el.style.fontSize = "";
+      if (!el.getAttribute("style")) el.removeAttribute("style");
+    });
+  }, []);
+
+  const applyFontSize = useCallback((size: string) => {
+    const rangeToApply = getRangeForToolbarAction();
+    if (!rangeToApply || !editorRef.current) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    editorRef.current.focus({ preventScroll: true });
+    sel.removeAllRanges();
+    sel.addRange(rangeToApply);
+
+    const range = sel.getRangeAt(0);
+    const wrapper = document.createElement("span");
+    wrapper.style.fontSize = `${size}px`;
+    wrapper.setAttribute("data-vp-font-size", size);
+
+    if (range.collapsed) {
+      wrapper.appendChild(document.createTextNode("\u200B"));
+      range.insertNode(wrapper);
+      range.setStart(wrapper.firstChild || wrapper, 1);
+      range.collapse(true);
+    } else {
+      const fragment = range.extractContents();
+      cleanFontSizing(fragment);
+      wrapper.appendChild(fragment);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+    }
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+    savedSelection.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setCurrentFontSize(size);
+    setProduct(prev => ({ ...prev, description: editorRef.current!.innerHTML }));
+    refreshActiveFormats();
+  }, [cleanFontSizing, getRangeForToolbarAction, refreshActiveFormats]);
+
   // Track the font size of the current text selection so the toolbar reflects reality
   useEffect(() => {
     const handler = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const node = sel.getRangeAt(0).startContainer;
-      const el = (node.nodeType === 1 ? node : node.parentElement) as HTMLElement | null;
-      if (!el || !editorRef.current?.contains(el)) return;
-      savedSelection.current = sel.getRangeAt(0).cloneRange();
-      const px = window.getComputedStyle(el).fontSize;
-      const n = parseFloat(px);
-      if (!isNaN(n)) setCurrentFontSize(String(Math.round(n)));
+      const range = getCurrentEditorRange();
+      if (!range) return;
+      savedSelection.current = { range: range.cloneRange(), capturedAt: Date.now() };
+      setCurrentFontSize(readFontSizeFromRange(range));
       refreshActiveFormats();
     };
     document.addEventListener("selectionchange", handler);
     return () => document.removeEventListener("selectionchange", handler);
-  }, [refreshActiveFormats]);
+  }, [getCurrentEditorRange, readFontSizeFromRange, refreshActiveFormats]);
 
   // Image resize/align controls
   const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
@@ -608,11 +687,16 @@ export function ProductEditor({
                 <div className="relative">
                   <ToolbarButton icon={<span className="text-[10px] font-bold">{currentFontSize}</span>} onClick={() => { closeAllDropdowns(); setShowFontSize(!showFontSize); }} title="Taille du texte" hasDropdown />
                   {showFontSize && (
-                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
-                      {FONT_SIZES.map(size => (
-                          <button key={size} type="button" className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
-                          onMouseDown={(e) => { e.preventDefault(); execCmd("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; handleEditorInput(); setCurrentFontSize(size); setShowFontSize(false); }}>
-                          {size}px
+                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto">
+                      {FONT_SIZE_PRESETS.map(({ size, label, hint }) => (
+                          <button key={size} type="button" className={`w-full text-left px-3 py-2 rounded-md transition-colors ${currentFontSize === size ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
+                          onPointerDown={(e) => e.preventDefault()}
+                          onMouseDown={(e) => { e.preventDefault(); applyFontSize(size); setShowFontSize(false); }}>
+                          <span className="flex items-center justify-between gap-3">
+                            <span className="font-medium text-sm">{label}</span>
+                            <span className="text-xs text-muted-foreground">{size}px</span>
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground">{hint}</span>
                         </button>
                       ))}
                     </div>
