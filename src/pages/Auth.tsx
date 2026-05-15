@@ -91,7 +91,7 @@ const Auth = () => {
       }
     }
 
-    navigate("/", { replace: true });
+    navigate("/dashboard", { replace: true });
   }, [navigate, toast]);
 
   useEffect(() => {
@@ -267,7 +267,7 @@ const Auth = () => {
 
       toast({
         title: "Connexion réussie",
-        description: "Redirection vers l'accueil…",
+        description: "Redirection vers votre espace…",
       });
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
@@ -301,7 +301,7 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const { error } = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: `${window.location.origin}/`,
+        redirect_uri: `${window.location.origin}/dashboard`,
       });
       if (error) throw error;
     } catch (error) {
