@@ -134,6 +134,35 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     setShowFontSize(false); setShowTextColor(false); setShowBgColor(false); setShowEmoji(false); setShowSymbol(false);
   }, []);
 
+  const isRangeInsideEditor = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return false;
+    return editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer);
+  }, []);
+
+  const getCurrentEditorRange = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    return isRangeInsideEditor(range) ? range : null;
+  }, [isRangeInsideEditor]);
+
+  const getElementFromNode = useCallback((node: Node | null) => {
+    if (!node) return null;
+    return node.nodeType === Node.ELEMENT_NODE ? node as HTMLElement : node.parentElement;
+  }, []);
+
+  const readFontSizeFromRange = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return "16";
+    let el = getElementFromNode(range.startContainer);
+    while (el && el !== editorRef.current) {
+      const raw = el.style.fontSize || window.getComputedStyle(el).fontSize;
+      const px = Number.parseInt(raw, 10);
+      if (Number.isFinite(px)) return String(px);
+      el = el.parentElement;
+    }
+    return "16";
+  }, [getElementFromNode]);
+
   const refreshActive = useCallback(() => {
     try {
       setActiveFmt({
@@ -144,25 +173,16 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         ol: document.queryCommandState("insertOrderedList"),
         ul: document.queryCommandState("insertUnorderedList"),
       });
+      setActiveFontSize(readFontSizeFromRange(getCurrentEditorRange()));
     } catch {}
-  }, []);
-
-  const isRangeInsideEditor = useCallback((range: Range | null) => {
-    if (!range || !editorRef.current) return false;
-    return editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer);
-  }, []);
-
-  const getCurrentEditorRange = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel?.rangeCount || !editorRef.current) return null;
-    const range = sel.getRangeAt(0);
-    return isRangeInsideEditor(range) ? range : null;
-  }, [isRangeInsideEditor]);
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
 
   const saveSelection = useCallback(() => {
     const range = getCurrentEditorRange();
-    if (range) savedRangeRef.current = range.cloneRange();
-  }, [getCurrentEditorRange]);
+    if (!range) return;
+    selectionSnapshotRef.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setActiveFontSize(readFontSizeFromRange(range));
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
 
   const cleanFontSizing = useCallback((root: DocumentFragment | HTMLElement) => {
     root.querySelectorAll<HTMLElement>("font,[style]").forEach((el) => {
@@ -172,40 +192,49 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     });
   }, []);
 
+  const getRangeForToolbarAction = useCallback(() => {
+    const liveRange = getCurrentEditorRange();
+    if (liveRange) return liveRange.cloneRange();
+    const snapshot = selectionSnapshotRef.current;
+    if (!snapshot || Date.now() - snapshot.capturedAt > 30000) return null;
+    return isRangeInsideEditor(snapshot.range) ? snapshot.range.cloneRange() : null;
+  }, [getCurrentEditorRange, isRangeInsideEditor]);
+
   const applyFontSize = useCallback((size: string) => {
-    const activeRange = getCurrentEditorRange()?.cloneRange();
-    const rangeToApply = activeRange || savedRangeRef.current?.cloneRange() || null;
-    if (!isRangeInsideEditor(rangeToApply)) return;
-    editorRef.current?.focus({ preventScroll: true });
+    const rangeToApply = getRangeForToolbarAction();
+    if (!rangeToApply || !editorRef.current) return;
+
     const sel = window.getSelection();
     if (!sel) return;
+    editorRef.current.focus({ preventScroll: true });
     sel.removeAllRanges();
     sel.addRange(rangeToApply);
-    if (!sel.rangeCount || !editorRef.current?.contains(sel.anchorNode)) return;
 
     const range = sel.getRangeAt(0);
-    const span = document.createElement("span");
-    span.style.fontSize = `${size}px`;
+    const wrapper = document.createElement("span");
+    wrapper.style.fontSize = `${size}px`;
+    wrapper.setAttribute("data-vp-font-size", size);
 
     if (range.collapsed) {
-      span.appendChild(document.createTextNode("\u200B"));
-      range.insertNode(span);
-      range.setStart(span.firstChild || span, 1);
+      wrapper.appendChild(document.createTextNode("\u200B"));
+      range.insertNode(wrapper);
+      range.setStart(wrapper.firstChild || wrapper, 1);
       range.collapse(true);
     } else {
       const fragment = range.extractContents();
       cleanFontSizing(fragment);
-      span.appendChild(fragment);
-      range.insertNode(span);
-      range.selectNodeContents(span);
+      wrapper.appendChild(fragment);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
     }
 
     sel.removeAllRanges();
     sel.addRange(range);
-    savedRangeRef.current = range.cloneRange();
-    if (editorRef.current) onChange(editorRef.current.innerHTML);
+    selectionSnapshotRef.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setActiveFontSize(size);
+    onChange(editorRef.current.innerHTML);
     refreshActive();
-  }, [cleanFontSizing, getCurrentEditorRange, isRangeInsideEditor, onChange, refreshActive]);
+  }, [cleanFontSizing, getRangeForToolbarAction, onChange, refreshActive]);
 
   const exec = useCallback((cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
