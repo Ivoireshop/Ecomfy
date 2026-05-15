@@ -313,23 +313,62 @@ export function ProductEditor({
     saveSelection();
   }, [refreshActiveFormats, restoreSelection, saveSelection]);
 
+  const cleanFontSizing = useCallback((root: DocumentFragment | HTMLElement) => {
+    root.querySelectorAll<HTMLElement>("font,[style]").forEach((el) => {
+      el.removeAttribute("size");
+      el.style.fontSize = "";
+      if (!el.getAttribute("style")) el.removeAttribute("style");
+    });
+  }, []);
+
+  const applyFontSize = useCallback((size: string) => {
+    const rangeToApply = getRangeForToolbarAction();
+    if (!rangeToApply || !editorRef.current) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    editorRef.current.focus({ preventScroll: true });
+    sel.removeAllRanges();
+    sel.addRange(rangeToApply);
+
+    const range = sel.getRangeAt(0);
+    const wrapper = document.createElement("span");
+    wrapper.style.fontSize = `${size}px`;
+    wrapper.setAttribute("data-vp-font-size", size);
+
+    if (range.collapsed) {
+      wrapper.appendChild(document.createTextNode("\u200B"));
+      range.insertNode(wrapper);
+      range.setStart(wrapper.firstChild || wrapper, 1);
+      range.collapse(true);
+    } else {
+      const fragment = range.extractContents();
+      cleanFontSizing(fragment);
+      wrapper.appendChild(fragment);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+    }
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+    savedSelection.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setCurrentFontSize(size);
+    setProduct(prev => ({ ...prev, description: editorRef.current!.innerHTML }));
+    refreshActiveFormats();
+  }, [cleanFontSizing, getRangeForToolbarAction, refreshActiveFormats]);
+
   // Track the font size of the current text selection so the toolbar reflects reality
   useEffect(() => {
     const handler = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const node = sel.getRangeAt(0).startContainer;
-      const el = (node.nodeType === 1 ? node : node.parentElement) as HTMLElement | null;
-      if (!el || !editorRef.current?.contains(el)) return;
-      savedSelection.current = sel.getRangeAt(0).cloneRange();
-      const px = window.getComputedStyle(el).fontSize;
-      const n = parseFloat(px);
-      if (!isNaN(n)) setCurrentFontSize(String(Math.round(n)));
+      const range = getCurrentEditorRange();
+      if (!range) return;
+      savedSelection.current = { range: range.cloneRange(), capturedAt: Date.now() };
+      setCurrentFontSize(readFontSizeFromRange(range));
       refreshActiveFormats();
     };
     document.addEventListener("selectionchange", handler);
     return () => document.removeEventListener("selectionchange", handler);
-  }, [refreshActiveFormats]);
+  }, [getCurrentEditorRange, readFontSizeFromRange, refreshActiveFormats]);
 
   // Image resize/align controls
   const [selectedEditorImage, setSelectedEditorImage] = useState<HTMLImageElement | null>(null);
