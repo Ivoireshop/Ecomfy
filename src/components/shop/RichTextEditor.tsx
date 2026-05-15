@@ -79,12 +79,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     };
   }, [selectedImg, updateRect]);
 
-  const startResize = (e: React.MouseEvent, dir: "right" | "left") => {
+  const startResize = (e: React.MouseEvent | React.TouchEvent, dir: "right" | "left") => {
     e.preventDefault();
     e.stopPropagation();
     if (!selectedImg) return;
     const img = selectedImg;
-    const startX = e.clientX;
+    const isTouch = "touches" in e;
+    const startX = isTouch ? (e as React.TouchEvent).touches[0].clientX : (e as React.MouseEvent).clientX;
     const startW = img.getBoundingClientRect().width;
     const ratio = img.naturalWidth && img.naturalHeight
       ? img.naturalHeight / img.naturalWidth
@@ -92,8 +93,9 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     const containerW = editorRef.current
       ? editorRef.current.clientWidth - 24 // padding p-3 = 12px each side
       : startW;
-    const onMove = (ev: MouseEvent) => {
-      const delta = dir === "right" ? ev.clientX - startX : startX - ev.clientX;
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      const cx = "touches" in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
+      const delta = dir === "right" ? cx - startX : startX - cx;
       const newW = Math.min(containerW, Math.max(40, startW + delta));
       img.style.width = newW + "px";
       img.style.height = newW * ratio + "px";
@@ -103,10 +105,14 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
       if (editorRef.current) onChange(editorRef.current.innerHTML);
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onUp);
   };
 
   useEffect(() => {
@@ -198,7 +204,9 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   };
 
   return (
-    <div ref={wrapperRef} className="border rounded-lg overflow-hidden bg-background relative">
+    <div ref={wrapperRef} className="border rounded-lg bg-background relative flex flex-col" style={{ maxHeight: "70vh" }}>
+      {/* Toolbar sticky */}
+      <div className="sticky top-0 z-30 bg-background rounded-t-lg">
       {/* Row 1 */}
       <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
         <TBtn icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
@@ -214,7 +222,22 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
             <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[80px] max-h-[200px] overflow-y-auto">
               {FONT_SIZES.map(size => (
                 <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
-                  onMouseDown={(e) => { e.preventDefault(); exec("fontSize", "7"); const el = editorRef.current?.querySelector('font[size="7"]'); if (el) (el as HTMLElement).style.fontSize = size + "px"; setShowFontSize(false); }}>
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    document.execCommand("fontSize", false, "7");
+                    // Cible UNIQUEMENT les <font size="7"> nouvellement créés (sans style fontSize déjà appliqué)
+                    const fonts = editorRef.current?.querySelectorAll('font[size="7"]');
+                    fonts?.forEach((el) => {
+                      const f = el as HTMLElement;
+                      if (!f.style.fontSize) {
+                        f.style.fontSize = size + "px";
+                        f.removeAttribute("size");
+                      }
+                    });
+                    if (editorRef.current) onChange(editorRef.current.innerHTML);
+                    editorRef.current?.focus();
+                    setShowFontSize(false);
+                  }}>
                   {size}px
                 </button>
               ))}
@@ -305,12 +328,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         <TBtn icon={<ImageIcon className="h-3.5 w-3.5" />} onClick={insertImage} title="Image" />
         <TBtn icon={<Video className="h-3.5 w-3.5" />} onClick={insertVideo} title="Vidéo" />
       </div>
+      </div>
 
       <div
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
-        className="p-3 text-sm focus:outline-none [&>*]:mb-2"
+        className="p-3 text-sm focus:outline-none overflow-y-auto flex-1 [&>*]:mb-2"
         style={{ minHeight, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
         onInput={handleInput}
         data-code-view="false"
