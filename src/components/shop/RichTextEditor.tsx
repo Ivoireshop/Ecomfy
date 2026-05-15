@@ -147,10 +147,18 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     }
   }, []);
 
+  const getCurrentEditorRange = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !editorRef.current) return null;
+    const range = sel.getRangeAt(0);
+    if (!editorRef.current.contains(range.startContainer) || !editorRef.current.contains(range.endContainer)) return null;
+    return range;
+  }, []);
+
   const restoreSelection = useCallback(() => {
     const range = savedRangeRef.current;
     if (!range || !editorRef.current) return false;
-    if (!editorRef.current.contains(range.commonAncestorContainer)) return false;
+    if (!editorRef.current.contains(range.startContainer) || !editorRef.current.contains(range.endContainer)) return false;
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(range);
@@ -158,8 +166,9 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   }, []);
 
   const applyFontSize = useCallback((size: string) => {
-    editorRef.current?.focus();
-    restoreSelection();
+    const activeRange = getCurrentEditorRange();
+    if (!activeRange && !restoreSelection()) return;
+    editorRef.current?.focus({ preventScroll: true });
     const sel = window.getSelection();
     if (!sel?.rangeCount || !editorRef.current?.contains(sel.anchorNode)) return;
 
@@ -183,7 +192,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     savedRangeRef.current = range.cloneRange();
     if (editorRef.current) onChange(editorRef.current.innerHTML);
     refreshActive();
-  }, [onChange, refreshActive, restoreSelection]);
+  }, [getCurrentEditorRange, onChange, refreshActive, restoreSelection]);
 
   const exec = useCallback((cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
