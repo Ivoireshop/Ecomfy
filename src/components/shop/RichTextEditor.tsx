@@ -5,7 +5,13 @@ import {
   Minus, Code, Smile, Table, Image as ImageIcon,
 } from "lucide-react";
 
-const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24"];
+const FONT_SIZE_PRESETS = [
+  { size: "14", label: "Petit", hint: "Détails" },
+  { size: "16", label: "Normal", hint: "Lecture mobile" },
+  { size: "18", label: "Confort", hint: "Texte important" },
+  { size: "20", label: "Grand", hint: "Accroche" },
+  { size: "24", label: "Titre", hint: "Section" },
+];
 const COLORS = [
   "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF",
   "#FF0000", "#FF6600", "#FFCC00", "#00CC00", "#0066FF", "#9933FF",
@@ -36,12 +42,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   const editorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
-  const savedRangeRef = useRef<Range | null>(null);
+  const selectionSnapshotRef = useRef<{ range: Range; capturedAt: number } | null>(null);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showSymbol, setShowSymbol] = useState(false);
+  const [activeFontSize, setActiveFontSize] = useState("16");
   const [activeFmt, setActiveFmt] = useState<{ b: boolean; i: boolean; u: boolean; s: boolean; ol: boolean; ul: boolean }>({ b: false, i: false, u: false, s: false, ol: false, ul: false });
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const [imgRect, setImgRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
