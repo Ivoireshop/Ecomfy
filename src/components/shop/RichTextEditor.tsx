@@ -271,18 +271,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
                 <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    document.execCommand("fontSize", false, "7");
-                    // Cible UNIQUEMENT les <font size="7"> nouvellement créés (sans style fontSize déjà appliqué)
-                    const fonts = editorRef.current?.querySelectorAll('font[size="7"]');
-                    fonts?.forEach((el) => {
-                      const f = el as HTMLElement;
-                      if (!f.style.fontSize) {
-                        f.style.fontSize = size + "px";
-                        f.removeAttribute("size");
-                      }
-                    });
-                    if (editorRef.current) onChange(editorRef.current.innerHTML);
-                    editorRef.current?.focus();
+                    applyFontSize(size);
                     setShowFontSize(false);
                   }}>
                   {size}px
