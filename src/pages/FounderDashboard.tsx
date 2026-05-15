@@ -13,7 +13,10 @@ import {
   DollarSign, 
   Calendar,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Store,
+  GraduationCap,
+  Globe
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import {
@@ -82,6 +85,47 @@ interface UserProfile {
   free_generations_remaining: number;
 }
 
+interface ShopItem {
+  id: string;
+  business_name: string;
+  slug: string | null;
+  city: string | null;
+  country: string | null;
+  whatsapp_number: string | null;
+  is_published: boolean | null;
+  is_activated: boolean | null;
+  total_orders: number | null;
+  total_sales: number | null;
+  created_at: string;
+  user_id: string;
+  owner_email?: string;
+}
+
+interface CourseItem {
+  id: string;
+  title: string;
+  category: string | null;
+  price: number | null;
+  currency: string | null;
+  is_published: boolean | null;
+  created_at: string;
+  user_id: string | null;
+  owner_email?: string;
+}
+
+interface ShowcaseItem {
+  id: string;
+  business_name: string;
+  subdomain: string | null;
+  custom_domain: string | null;
+  whatsapp_number: string | null;
+  phone_number: string | null;
+  is_published: boolean | null;
+  created_at: string;
+  user_id: string;
+  owner_email?: string;
+}
+
 interface ChartDataPoint {
   date: string;
   value: number;
@@ -117,6 +161,9 @@ const FounderDashboard = () => {
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const [allFeedback, setAllFeedback] = useState<FeedbackItem[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [allShops, setAllShops] = useState<ShopItem[]>([]);
+  const [allCourses, setAllCourses] = useState<CourseItem[]>([]);
+  const [allShowcases, setAllShowcases] = useState<ShowcaseItem[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -222,6 +269,9 @@ const FounderDashboard = () => {
         loadChartData(),
         loadAllFeedback(),
         loadAllUsers(),
+        loadAllShops(),
+        loadAllCourses(),
+        loadAllShowcases(),
       ]);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
@@ -247,6 +297,50 @@ const FounderDashboard = () => {
     } catch (error) {
       console.error("Error loading all users:", error);
     }
+  };
+
+  const attachOwnerEmails = async <T extends { user_id: string | null }>(items: T[]): Promise<(T & { owner_email?: string })[]> => {
+    const ids = Array.from(new Set(items.map(i => i.user_id).filter(Boolean))) as string[];
+    if (ids.length === 0) return items;
+    const { data: profs } = await supabase.from("profiles").select("id, email").in("id", ids);
+    const map = new Map((profs || []).map(p => [p.id, p.email]));
+    return items.map(i => ({ ...i, owner_email: i.user_id ? map.get(i.user_id) || undefined : undefined }));
+  };
+
+  const loadAllShops = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("shops")
+        .select("id, business_name, slug, city, country, whatsapp_number, is_published, is_activated, total_orders, total_sales, created_at, user_id")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const enriched = await attachOwnerEmails((data || []) as any);
+      setAllShops(enriched as ShopItem[]);
+    } catch (e) { console.error("Error loading shops:", e); }
+  };
+
+  const loadAllCourses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, title, category, price, currency, is_published, created_at, user_id")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const enriched = await attachOwnerEmails((data || []) as any);
+      setAllCourses(enriched as CourseItem[]);
+    } catch (e) { console.error("Error loading courses:", e); }
+  };
+
+  const loadAllShowcases = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("showcase_sites")
+        .select("id, business_name, subdomain, custom_domain, whatsapp_number, phone_number, is_published, created_at, user_id")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const enriched = await attachOwnerEmails((data || []) as any);
+      setAllShowcases(enriched as ShowcaseItem[]);
+    } catch (e) { console.error("Error loading showcases:", e); }
   };
 
   const loadUserStats = async () => {
@@ -532,10 +626,10 @@ const FounderDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Tableau de Bord Fondateurs</h1>
+          <h1 className="text-2xl md:text-4xl font-bold mb-2">Tableau de Bord Fondateurs</h1>
           <p className="text-muted-foreground">
             Statistiques et performance de VisualPro
           </p>
