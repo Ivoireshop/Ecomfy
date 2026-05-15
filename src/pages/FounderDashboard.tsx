@@ -13,7 +13,10 @@ import {
   DollarSign, 
   Calendar,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Store,
+  GraduationCap,
+  Globe
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import {
@@ -82,6 +85,47 @@ interface UserProfile {
   free_generations_remaining: number;
 }
 
+interface ShopItem {
+  id: string;
+  business_name: string;
+  slug: string | null;
+  city: string | null;
+  country: string | null;
+  whatsapp_number: string | null;
+  is_published: boolean | null;
+  is_activated: boolean | null;
+  total_orders: number | null;
+  total_sales: number | null;
+  created_at: string;
+  user_id: string;
+  owner_email?: string;
+}
+
+interface CourseItem {
+  id: string;
+  title: string;
+  category: string | null;
+  price: number | null;
+  currency: string | null;
+  is_published: boolean | null;
+  created_at: string;
+  user_id: string | null;
+  owner_email?: string;
+}
+
+interface ShowcaseItem {
+  id: string;
+  business_name: string;
+  subdomain: string | null;
+  custom_domain: string | null;
+  whatsapp_number: string | null;
+  phone_number: string | null;
+  is_published: boolean | null;
+  created_at: string;
+  user_id: string;
+  owner_email?: string;
+}
+
 interface ChartDataPoint {
   date: string;
   value: number;
@@ -117,6 +161,9 @@ const FounderDashboard = () => {
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const [allFeedback, setAllFeedback] = useState<FeedbackItem[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [allShops, setAllShops] = useState<ShopItem[]>([]);
+  const [allCourses, setAllCourses] = useState<CourseItem[]>([]);
+  const [allShowcases, setAllShowcases] = useState<ShowcaseItem[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -222,6 +269,9 @@ const FounderDashboard = () => {
         loadChartData(),
         loadAllFeedback(),
         loadAllUsers(),
+        loadAllShops(),
+        loadAllCourses(),
+        loadAllShowcases(),
       ]);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
@@ -247,6 +297,50 @@ const FounderDashboard = () => {
     } catch (error) {
       console.error("Error loading all users:", error);
     }
+  };
+
+  const attachOwnerEmails = async <T extends { user_id: string | null }>(items: T[]): Promise<(T & { owner_email?: string })[]> => {
+    const ids = Array.from(new Set(items.map(i => i.user_id).filter(Boolean))) as string[];
+    if (ids.length === 0) return items;
+    const { data: profs } = await supabase.from("profiles").select("id, email").in("id", ids);
+    const map = new Map((profs || []).map(p => [p.id, p.email]));
+    return items.map(i => ({ ...i, owner_email: i.user_id ? map.get(i.user_id) || undefined : undefined }));
+  };
+
+  const loadAllShops = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("shops")
+        .select("id, business_name, slug, city, country, whatsapp_number, is_published, is_activated, total_orders, total_sales, created_at, user_id")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const enriched = await attachOwnerEmails((data || []) as any);
+      setAllShops(enriched as ShopItem[]);
+    } catch (e) { console.error("Error loading shops:", e); }
+  };
+
+  const loadAllCourses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, title, category, price, currency, is_published, created_at, user_id")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const enriched = await attachOwnerEmails((data || []) as any);
+      setAllCourses(enriched as CourseItem[]);
+    } catch (e) { console.error("Error loading courses:", e); }
+  };
+
+  const loadAllShowcases = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("showcase_sites")
+        .select("id, business_name, subdomain, custom_domain, whatsapp_number, phone_number, is_published, created_at, user_id")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const enriched = await attachOwnerEmails((data || []) as any);
+      setAllShowcases(enriched as ShowcaseItem[]);
+    } catch (e) { console.error("Error loading showcases:", e); }
   };
 
   const loadUserStats = async () => {
@@ -532,10 +626,10 @@ const FounderDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Tableau de Bord Fondateurs</h1>
+          <h1 className="text-2xl md:text-4xl font-bold mb-2">Tableau de Bord Fondateurs</h1>
           <p className="text-muted-foreground">
             Statistiques et performance de VisualPro
           </p>
@@ -859,6 +953,177 @@ const FounderDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* User Creations: Shops, Courses, Showcase Sites */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Créations des utilisateurs</CardTitle>
+            <CardDescription>
+              Toutes les boutiques, cours en ligne et sites vitrines créés sur la plateforme
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="shops" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="shops" className="gap-1.5">
+                  <Store className="h-4 w-4" />
+                  <span className="hidden sm:inline">Boutiques</span>
+                  <span className="sm:hidden">Shops</span>
+                  <span className="ml-1 text-xs opacity-70">({allShops.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="courses" className="gap-1.5">
+                  <GraduationCap className="h-4 w-4" />
+                  <span className="hidden sm:inline">Cours</span>
+                  <span className="sm:hidden">Cours</span>
+                  <span className="ml-1 text-xs opacity-70">({allCourses.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="showcases" className="gap-1.5">
+                  <Globe className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sites vitrines</span>
+                  <span className="sm:hidden">Sites</span>
+                  <span className="ml-1 text-xs opacity-70">({allShowcases.length})</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="shops" className="mt-4">
+                <div className="space-y-3 max-h-[480px] overflow-y-auto">
+                  {allShops.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Aucune boutique créée</p>
+                  ) : (
+                    allShops.map((s) => (
+                      <div key={s.id} className="border rounded-lg p-3 bg-muted/40 hover:bg-muted/60 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold truncate">{s.business_name || "Sans nom"}</p>
+                              {s.is_published ? (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-800">Publiée</span>
+                              ) : (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">Brouillon</span>
+                              )}
+                              {s.is_activated && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800">Activée</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              👤 {s.owner_email || "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              📍 {[s.city, s.country].filter(Boolean).join(", ") || "—"}
+                              {s.whatsapp_number && <> • 📱 {s.whatsapp_number}</>}
+                            </p>
+                            {s.slug && (
+                              <a
+                                href={`https://${s.slug}.visuelpro.cloud`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-primary hover:underline truncate inline-block"
+                              >
+                                {s.slug}.visuelpro.cloud ↗
+                              </a>
+                            )}
+                          </div>
+                          <div className="text-right text-xs">
+                            <p className="font-semibold">{(s.total_orders || 0)} commandes</p>
+                            <p className="text-muted-foreground">{(s.total_sales || 0).toLocaleString()} FCFA</p>
+                            <p className="text-muted-foreground">
+                              {new Date(s.created_at).toLocaleDateString("fr-FR")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="courses" className="mt-4">
+                <div className="space-y-3 max-h-[480px] overflow-y-auto">
+                  {allCourses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Aucun cours créé</p>
+                  ) : (
+                    allCourses.map((c) => (
+                      <div key={c.id} className="border rounded-lg p-3 bg-muted/40 hover:bg-muted/60 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold truncate">{c.title || "Sans titre"}</p>
+                              {c.is_published ? (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-800">Publié</span>
+                              ) : (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">Brouillon</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              👤 {c.owner_email || "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              🏷️ {c.category || "—"}
+                            </p>
+                          </div>
+                          <div className="text-right text-xs">
+                            <p className="font-semibold">
+                              {(c.price || 0).toLocaleString()} {c.currency || "XOF"}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {new Date(c.created_at).toLocaleDateString("fr-FR")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="showcases" className="mt-4">
+                <div className="space-y-3 max-h-[480px] overflow-y-auto">
+                  {allShowcases.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Aucun site vitrine créé</p>
+                  ) : (
+                    allShowcases.map((w) => (
+                      <div key={w.id} className="border rounded-lg p-3 bg-muted/40 hover:bg-muted/60 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold truncate">{w.business_name || "Sans nom"}</p>
+                              {w.is_published ? (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-800">Publié</span>
+                              ) : (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">Brouillon</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              👤 {w.owner_email || "—"}
+                            </p>
+                            {(w.subdomain || w.custom_domain) && (
+                              <a
+                                href={`https://${w.custom_domain || `${w.subdomain}.visuelpro.cloud`}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-primary hover:underline truncate inline-block"
+                              >
+                                {w.custom_domain || `${w.subdomain}.visuelpro.cloud`} ↗
+                              </a>
+                            )}
+                            {(w.whatsapp_number || w.phone_number) && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                📱 {w.whatsapp_number || w.phone_number}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right text-xs text-muted-foreground">
+                            {new Date(w.created_at).toLocaleDateString("fr-FR")}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         {/* All Users List */}
         <Card className="mb-8">

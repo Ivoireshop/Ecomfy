@@ -926,21 +926,21 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* ===== HERO DYNAMIQUE ===== */}
       <section className="relative overflow-hidden border-b bg-gradient-to-br from-rose-100 via-pink-50 to-orange-50">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(251,113,133,0.2),_transparent_50%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(251,146,60,0.15),_transparent_50%)]" />
-        <div className="container relative mx-auto px-4 py-8 md:py-12">
+        <div className="container relative mx-auto px-4 py-6 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
             <Badge className="px-3 py-1 bg-white/90 text-rose-700 backdrop-blur-sm shadow-sm font-semibold">
               <Wand2 className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
               Studio Visuels IA
             </Badge>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900">
+            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900 break-words">
               Créez votre visuel publicitaire
             </h1>
-            <p className="text-sm md:text-base text-slate-600 max-w-xl mx-auto">
+            <p className="text-xs sm:text-sm md:text-base text-slate-600 max-w-xl mx-auto">
               Remplissez le formulaire ci-dessous, l'IA génère votre image prête pour Instagram, Facebook et TikTok.
             </p>
             <div className="pt-2">
@@ -977,11 +977,11 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      <div id="create" className="container mx-auto px-4 py-8 scroll-mt-20">
+      <div id="create" className="container mx-auto px-4 py-6 md:py-8 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 md:mb-12">
             <div className="flex flex-col items-center gap-3 mb-4">
-              <h1 className="text-4xl md:text-5xl font-bold">
+              <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold break-words">
                 Créez votre contenu publicitaire
               </h1>
               {!isFounder && !hasActiveSubscription && (freeGenerationsRemaining !== null || purchasedCredits > 0) && (
