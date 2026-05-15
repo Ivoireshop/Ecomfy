@@ -5,7 +5,7 @@ import {
   Minus, Code, Smile, Table, Image as ImageIcon,
 } from "lucide-react";
 
-const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48"];
+const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24"];
 const COLORS = [
   "#000000", "#333333", "#666666", "#999999", "#CCCCCC", "#FFFFFF",
   "#FF0000", "#FF6600", "#FFCC00", "#00CC00", "#0066FF", "#9933FF",
@@ -36,6 +36,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   const editorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+  const savedRangeRef = useRef<Range | null>(null);
   const [showFontSize, setShowFontSize] = useState(false);
   const [showTextColor, setShowTextColor] = useState(false);
   const [showBgColor, setShowBgColor] = useState(false);
@@ -126,13 +127,6 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     setShowFontSize(false); setShowTextColor(false); setShowBgColor(false); setShowEmoji(false); setShowSymbol(false);
   }, []);
 
-  const exec = useCallback((cmd: string, val?: string) => {
-    document.execCommand(cmd, false, val);
-    editorRef.current?.focus();
-    if (editorRef.current) onChange(editorRef.current.innerHTML);
-    refreshActive();
-  }, [onChange]);
-
   const refreshActive = useCallback(() => {
     try {
       setActiveFmt({
@@ -146,16 +140,69 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     } catch {}
   }, []);
 
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel?.rangeCount && editorRef.current?.contains(sel.anchorNode)) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    const range = savedRangeRef.current;
+    if (!range || !editorRef.current) return false;
+    if (!editorRef.current.contains(range.commonAncestorContainer)) return false;
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    return true;
+  }, []);
+
+  const applyFontSize = useCallback((size: string) => {
+    editorRef.current?.focus();
+    restoreSelection();
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !editorRef.current?.contains(sel.anchorNode)) return;
+
+    const range = sel.getRangeAt(0);
+    const span = document.createElement("span");
+    span.style.fontSize = `${size}px`;
+
+    if (range.collapsed) {
+      span.appendChild(document.createTextNode("\u200B"));
+      range.insertNode(span);
+      range.setStart(span.firstChild || span, 1);
+      range.collapse(true);
+    } else {
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      range.selectNodeContents(span);
+    }
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+    savedRangeRef.current = range.cloneRange();
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+    refreshActive();
+  }, [onChange, refreshActive, restoreSelection]);
+
+  const exec = useCallback((cmd: string, val?: string) => {
+    document.execCommand(cmd, false, val);
+    editorRef.current?.focus();
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+    refreshActive();
+  }, [onChange]);
+
   useEffect(() => {
     const onSel = () => {
       const sel = window.getSelection();
       if (sel && sel.anchorNode && editorRef.current?.contains(sel.anchorNode)) {
+        saveSelection();
         refreshActive();
       }
     };
     document.addEventListener("selectionchange", onSel);
     return () => document.removeEventListener("selectionchange", onSel);
-  }, [refreshActive]);
+  }, [refreshActive, saveSelection]);
 
   const handleInput = () => {
     if (editorRef.current) onChange(editorRef.current.innerHTML);
@@ -224,18 +271,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
                 <button key={size} className="block w-full text-left px-3 py-1 text-sm hover:bg-muted rounded"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    document.execCommand("fontSize", false, "7");
-                    // Cible UNIQUEMENT les <font size="7"> nouvellement créés (sans style fontSize déjà appliqué)
-                    const fonts = editorRef.current?.querySelectorAll('font[size="7"]');
-                    fonts?.forEach((el) => {
-                      const f = el as HTMLElement;
-                      if (!f.style.fontSize) {
-                        f.style.fontSize = size + "px";
-                        f.removeAttribute("size");
-                      }
-                    });
-                    if (editorRef.current) onChange(editorRef.current.innerHTML);
-                    editorRef.current?.focus();
+                    applyFontSize(size);
                     setShowFontSize(false);
                   }}>
                   {size}px
