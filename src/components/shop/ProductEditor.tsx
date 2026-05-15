@@ -242,6 +242,30 @@ export function ProductEditor({
     setShowTablePicker(false);
   }, []);
 
+  const isRangeInsideEditor = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return false;
+    return editorRef.current.contains(range.startContainer) && editorRef.current.contains(range.endContainer);
+  }, []);
+
+  const getCurrentEditorRange = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    return isRangeInsideEditor(range) ? range : null;
+  }, [isRangeInsideEditor]);
+
+  const readFontSizeFromRange = useCallback((range: Range | null) => {
+    if (!range || !editorRef.current) return "16";
+    const node = range.startContainer;
+    let el = (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement) as HTMLElement | null;
+    while (el && el !== editorRef.current) {
+      const px = Number.parseInt(el.style.fontSize || window.getComputedStyle(el).fontSize, 10);
+      if (Number.isFinite(px)) return String(px);
+      el = el.parentElement;
+    }
+    return "16";
+  }, []);
+
   const refreshActiveFormats = useCallback(() => {
     try {
       setActiveFmt({
@@ -252,28 +276,38 @@ export function ProductEditor({
         ordered: document.queryCommandState("insertOrderedList"),
         unordered: document.queryCommandState("insertUnorderedList"),
       });
+      setCurrentFontSize(readFontSizeFromRange(getCurrentEditorRange()));
     } catch {}
-  }, []);
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
 
   const saveSelection = useCallback(() => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) {
-      savedSelection.current = sel.getRangeAt(0).cloneRange();
-    }
-  }, []);
+    const range = getCurrentEditorRange();
+    if (!range) return;
+    savedSelection.current = { range: range.cloneRange(), capturedAt: Date.now() };
+    setCurrentFontSize(readFontSizeFromRange(range));
+  }, [getCurrentEditorRange, readFontSizeFromRange]);
+
+  const getRangeForToolbarAction = useCallback(() => {
+    const liveRange = getCurrentEditorRange();
+    if (liveRange) return liveRange.cloneRange();
+    const snapshot = savedSelection.current;
+    if (!snapshot || Date.now() - snapshot.capturedAt > 30000) return null;
+    return isRangeInsideEditor(snapshot.range) ? snapshot.range.cloneRange() : null;
+  }, [getCurrentEditorRange, isRangeInsideEditor]);
 
   const restoreSelection = useCallback(() => {
-    editorRef.current?.focus();
-    if (!savedSelection.current) return;
+    editorRef.current?.focus({ preventScroll: true });
+    const range = getRangeForToolbarAction();
+    if (!range) return;
     const sel = window.getSelection();
     sel?.removeAllRanges();
-    sel?.addRange(savedSelection.current);
-  }, []);
+    sel?.addRange(range);
+  }, [getRangeForToolbarAction]);
 
   const execCmd = useCallback((command: string, value?: string) => {
     restoreSelection();
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
+    editorRef.current?.focus({ preventScroll: true });
     handleEditorInput();
     refreshActiveFormats();
     saveSelection();
