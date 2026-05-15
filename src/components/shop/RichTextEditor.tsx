@@ -320,8 +320,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
             <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto">
               {FONT_SIZE_PRESETS.map(({ size, label, hint }) => (
                 <button key={size} className={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeFontSize === size ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
-                  onPointerDown={(e) => e.preventDefault()}
-                  onMouseDown={(e) => {
+                  onPointerDown={(e) => {
                     e.preventDefault();
                     applyFontSize(size);
                     setShowFontSize(false);

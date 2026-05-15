@@ -690,8 +690,7 @@ export function ProductEditor({
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto">
                       {FONT_SIZE_PRESETS.map(({ size, label, hint }) => (
                           <button key={size} type="button" className={`w-full text-left px-3 py-2 rounded-md transition-colors ${currentFontSize === size ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
-                          onPointerDown={(e) => e.preventDefault()}
-                          onMouseDown={(e) => { e.preventDefault(); applyFontSize(size); setShowFontSize(false); }}>
+                          onPointerDown={(e) => { e.preventDefault(); applyFontSize(size); setShowFontSize(false); }}>
                           <span className="flex items-center justify-between gap-3">
                             <span className="font-medium text-sm">{label}</span>
                             <span className="text-xs text-muted-foreground">{size}px</span>
