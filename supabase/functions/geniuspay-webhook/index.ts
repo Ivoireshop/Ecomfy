@@ -151,7 +151,9 @@ serve(async (req) => {
           // 1) Déjà completed → ne pas recréditer
           if (paymentToUpdate.status === "completed") {
             const existingMeta = (paymentToUpdate.metadata || {}) as Record<string, unknown>;
-            if (existingMeta.payment_type !== "shop_activation") {
+            const exemptType = existingMeta.payment_type === "shop_activation"
+              || existingMeta.payment_type === "commission_payment";
+            if (!exemptType) {
               console.log("Payment already completed, skipping re-credit:", reference);
               return ack({ success: true, alreadyCompleted: true, reference }, true);
             }
