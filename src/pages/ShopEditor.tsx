@@ -169,6 +169,21 @@ const ShopEditor = () => {
   const isActivated = !!shop?.is_activated;
 
   const handleActivateShop = async () => {
+    // Guard: re-check current activation status before charging anything
+    try {
+      const { data: fresh } = await supabase
+        .from('shops')
+        .select('is_activated')
+        .eq('id', shop.id)
+        .maybeSingle();
+      if (fresh?.is_activated) {
+        await fetchData();
+        setShowActivationModal(false);
+        toast({ title: "Boutique déjà activée", description: "Aucun paiement nécessaire." });
+        return;
+      }
+    } catch {}
+
     if (!activationProvider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
     if (activationProvider !== "wave" && !activationPhone) { toast({ title: "Entrez votre numéro", variant: "destructive" }); return; }
     setActivating(true);
