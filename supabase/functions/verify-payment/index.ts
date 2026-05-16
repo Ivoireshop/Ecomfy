@@ -75,7 +75,7 @@ serve(async (req) => {
     const paymentType = (meta.payment_type as string) || "subscription";
     const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
 
-    if (payment.status === "completed" && paymentType !== "shop_activation") {
+    if (payment.status === "completed" && paymentType !== "shop_activation" && paymentType !== "commission_payment") {
       return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -88,6 +88,20 @@ serve(async (req) => {
         p_amount: Number(payment.amount) || 0,
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: "geniuspay",
+      });
+      return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (payment.status === "completed" && paymentType === "commission_payment" && shopId) {
+      await supabase.rpc("apply_commission_payment", {
+        p_shop_id: shopId,
+        p_amount: Number(payment.amount) || 0,
+        p_transaction_reference: payment.transaction_id || reference,
+        p_created_by: payment.user_id,
+        p_payment_method: payment.payment_method || "geniuspay",
+        p_notes: "Paiement en ligne via GeniusPay",
       });
       return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
