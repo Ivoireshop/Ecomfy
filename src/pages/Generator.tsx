@@ -966,13 +966,15 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
         <div className="relative">
           <div className="flex gap-3 animate-marquee w-max">
-            {[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
-              <Card key={i} className="w-28 md:w-36 flex-shrink-0 overflow-hidden shadow-md">
-                <div className="aspect-square bg-muted">
-                  <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
-                </div>
-              </Card>
-            ))}
+            {[...Array(2)].flatMap((_, dup) =>
+              [exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
+                <Card key={`${dup}-${i}`} className="w-28 md:w-36 flex-shrink-0 overflow-hidden shadow-md">
+                  <div className="aspect-square bg-muted">
+                    <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </section>
