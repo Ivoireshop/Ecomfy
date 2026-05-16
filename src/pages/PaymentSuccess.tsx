@@ -14,20 +14,24 @@ export default function PaymentSuccess() {
   const [courseName, setCourseName] = useState<string>("");
   const enrollmentId = searchParams.get("enrollment_id");
   const paymentRef = searchParams.get("ref");
+  const shopId = searchParams.get("shop_id");
 
   useEffect(() => {
     // Filet de sécurité : si on revient de GeniusPay avec une référence,
     // on vérifie le statut côté serveur et on crédite si nécessaire.
     if (paymentRef) {
       verifyPayment(paymentRef).finally(() => {
+        if (shopId) navigate(`/shop-editor/${shopId}`, { replace: true });
         if (!enrollmentId) setLoading(false);
       });
     } else if (enrollmentId) {
       loadEnrollmentDetails();
+    } else if (shopId) {
+      navigate(`/shop-editor/${shopId}`, { replace: true });
     } else {
       setLoading(false);
     }
-  }, [enrollmentId, paymentRef]);
+  }, [enrollmentId, paymentRef, shopId, navigate]);
 
   const verifyPayment = async (reference: string) => {
     try {

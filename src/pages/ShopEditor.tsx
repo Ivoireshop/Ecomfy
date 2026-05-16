@@ -166,36 +166,53 @@ const ShopEditor = () => {
     };
   }, [id, fetchData]);
 
-  const isActivated = !!shop?.is_activated;
+  const isActivated = !!(shop?.is_activated || shop?.activation_fee_paid);
 
   const handleActivateShop = async () => {
+    if (!shop) return;
+
+    let sessionUserId = "";
+
     // Guard: re-check current activation status before charging anything
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non connecté");
+      sessionUserId = session.user.id;
+
       const { data: fresh } = await supabase
         .from('shops')
-        .select('is_activated')
+        .select('is_activated, activation_fee_paid')
         .eq('id', shop.id)
         .maybeSingle();
-      if (fresh?.is_activated) {
+
+      if (fresh?.is_activated || fresh?.activation_fee_paid) {
+        if (!fresh?.is_activated) {
+          await supabase
+            .from("shops")
+            .update({ is_activated: true, activation_fee_paid: true, is_published: true })
+            .eq("id", shop.id);
+        }
         await fetchData();
         setShowActivationModal(false);
-        toast({ title: "Boutique déjà activée", description: "Aucun paiement nécessaire." });
+        toast({ title: "Boutique activée", description: "Aucun nouveau paiement n'est nécessaire." });
         return;
       }
-    } catch {}
+    } catch (err) {
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Vérification impossible", variant: "destructive" });
+      return;
+    }
 
     if (!activationProvider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
     if (activationProvider !== "wave" && !activationPhone) { toast({ title: "Entrez votre numéro", variant: "destructive" }); return; }
     setActivating(true);
     const paymentWindow = openPaymentWindow();
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Non connecté");
       const { data, error } = await supabase.functions.invoke("process-payment", {
-        body: { amount: 1300, payment_method: "mobile_money", user_id: session.user.id, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation", shop_id: shop.id },
+        body: { amount: 1300, payment_method: "mobile_money", user_id: sessionUserId, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation", shop_id: shop.id },
       });
       if (error) throw error;
       if (data?.already_activated) {
+        closePaymentWindow(paymentWindow);
         await fetchData();
         setShowActivationModal(false);
         toast({ title: "Boutique déjà activée", description: "Vous pouvez continuer vos paramètres et publier votre boutique." });

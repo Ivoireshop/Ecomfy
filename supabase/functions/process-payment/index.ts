@@ -32,6 +32,10 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     // Extract and verify authenticated user from JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -50,14 +54,11 @@ serve(async (req) => {
     let authUserId: string;
     try {
       const token = authHeader.replace("Bearer ", "");
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      authUserId = payload?.sub;
-      
-      if (!authUserId) {
-        throw new Error("Invalid token payload");
-      }
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !userData.user?.id) throw userError || new Error("Invalid token");
+      authUserId = userData.user.id;
     } catch (e) {
-      console.error("JWT parsing error:", e);
+      console.error("JWT verification error:", e);
       return new Response(
         JSON.stringify({ 
           success: false,
@@ -114,11 +115,6 @@ serve(async (req) => {
 
     const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id } = validatedData;
 
-    // Initialize Supabase client for promo code validation
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     if (payment_type === "shop_activation") {
       if (!shop_id) {
         return new Response(
@@ -129,7 +125,7 @@ serve(async (req) => {
 
       const { data: shopToActivate } = await supabase
         .from("shops")
-        .select("id, user_id, is_activated")
+        .select("id, user_id, is_activated, activation_fee_paid")
         .eq("id", shop_id)
         .maybeSingle();
 
@@ -140,7 +136,16 @@ serve(async (req) => {
         );
       }
 
-      if (shopToActivate.is_activated) {
+      if (shopToActivate.is_activated || shopToActivate.activation_fee_paid) {
+        if (!shopToActivate.is_activated) {
+          await supabase.rpc("apply_shop_activation", {
+            p_shop_id: shop_id,
+            p_user_id: user_id,
+            p_amount: 0,
+            p_transaction_reference: null,
+            p_payment_method: "already_paid",
+          });
+        }
         return new Response(
           JSON.stringify({ success: true, already_activated: true, shop_id }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -283,7 +288,9 @@ serve(async (req) => {
       description,
       customer,
       metadata,
-      success_url: `${baseReturnUrl}/payment-success?ref=${orderId}`,
+      success_url: payment_type === "shop_activation" && shop_id
+        ? `${baseReturnUrl}/payment-success?ref=${orderId}&shop_id=${shop_id}&type=shop_activation`
+        : `${baseReturnUrl}/payment-success?ref=${orderId}`,
       error_url: `${baseReturnUrl}/subscription?payment=failed`,
     };
 

@@ -82,10 +82,13 @@ serve(async (req) => {
     }
 
     if (payment.status === "completed" && paymentType === "shop_activation" && shopId) {
-      await supabase.from("shops")
-        .update({ is_activated: true, activation_fee_paid: true, is_published: true })
-        .eq("id", shopId)
-        .eq("user_id", payment.user_id);
+      await supabase.rpc("apply_shop_activation", {
+        p_shop_id: shopId,
+        p_user_id: payment.user_id,
+        p_amount: Number(payment.amount) || 0,
+        p_transaction_reference: payment.transaction_id || reference,
+        p_payment_method: "geniuspay",
+      });
       return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -138,30 +141,18 @@ serve(async (req) => {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      await supabase.from("shops")
-        .update({ is_activated: true, activation_fee_paid: true, is_published: true })
-        .eq("id", shopId)
-        .eq("user_id", userId);
-      // Trace de facturation
-      try {
-        if (shopId) {
-          const { data: existingTrace } = await supabase
-            .from("commission_payments").select("id")
-            .eq("transaction_reference", reference).maybeSingle();
-          if (!existingTrace) {
-            await supabase.from("commission_payments").insert({
-              shop_id: shopId,
-              amount: Number(payment.amount) || 0,
-              payment_method: "geniuspay",
-              transaction_reference: reference,
-              status: "paid",
-              created_by: userId,
-              notes: "Activation de la boutique",
-            });
-          }
-        }
-      } catch (e) {
-        console.warn("verify-payment activation trace failed:", e);
+      const { data: activationResult, error: activationError } = await supabase.rpc("apply_shop_activation", {
+        p_shop_id: shopId,
+        p_user_id: userId,
+        p_amount: Number(payment.amount) || 0,
+        p_transaction_reference: payment.transaction_id || reference,
+        p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
+      });
+      if (activationError || activationResult?.success === false) {
+        console.error("verify-payment activation failed:", { activationError, activationResult });
+        return new Response(JSON.stringify({ success: false, error: "Activation échouée" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     } else if (paymentType === "credits" && creditsSize > 0) {
       const { data: profile } = await supabase

@@ -2850,6 +2850,16 @@ export type Database = {
       }
     }
     Functions: {
+      apply_shop_activation: {
+        Args: {
+          p_amount?: number
+          p_payment_method?: string
+          p_shop_id: string
+          p_transaction_reference?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       cleanup_expired_trash: { Args: never; Returns: undefined }
       cleanup_old_image_cache: { Args: never; Returns: undefined }
       count_processing_generations: { Args: never; Returns: number }
