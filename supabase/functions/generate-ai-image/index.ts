@@ -82,7 +82,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    let imageUrl: string;
+    let imageUrl: string = "";
 
     // Build enhanced prompt based on mode
     let enhancedPrompt = "";
