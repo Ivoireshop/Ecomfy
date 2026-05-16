@@ -141,7 +141,7 @@ serve(async (req) => {
       shop_id
     } = paymentData;
 
-    if (status === "success" || status === "completed") {
+    if (status === "completed" || status === "paid") {
       const isCreditsPayment = payment_type === 'credits';
       const isShopActivation = payment_type === 'shop_activation';
       const creditsAmount = credits_size ? parseInt(credits_size) : 0;
