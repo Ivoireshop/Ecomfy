@@ -123,31 +123,44 @@ serve(async (req) => {
         );
       }
 
-      const { data: shopToActivate } = await supabase
-        .from("shops")
-        .select("id, user_id, is_activated, activation_fee_paid")
-        .eq("id", shop_id)
-        .maybeSingle();
+      const { data: activationGate, error: activationGateError } = await supabase.rpc(
+        "prepare_shop_activation_payment",
+        {
+          p_shop_id: shop_id,
+          p_user_id: user_id,
+        },
+      );
 
-      if (!shopToActivate || shopToActivate.user_id !== user_id) {
+      if (activationGateError) {
+        console.error("Activation payment gate failed:", activationGateError);
         return new Response(
-          JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
+          JSON.stringify({ success: false, error: "Vérification d'activation impossible. Réessayez." }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      if (shopToActivate.is_activated || shopToActivate.activation_fee_paid) {
-        if (!shopToActivate.is_activated) {
-          await supabase.rpc("apply_shop_activation", {
-            p_shop_id: shop_id,
-            p_user_id: user_id,
-            p_amount: 0,
-            p_transaction_reference: null,
-            p_payment_method: "already_paid",
-          });
-        }
+      if (!activationGate?.success) {
         return new Response(
-          JSON.stringify({ success: true, already_activated: true, shop_id }),
+          JSON.stringify({ success: false, error: activationGate?.error || "Boutique introuvable pour ce compte." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (activationGate.should_charge === false) {
+        console.log("GeniusPay charge blocked for shop activation:", {
+          shop_id,
+          user_id,
+          already_activated: activationGate.already_activated,
+          already_paid: activationGate.already_paid,
+        });
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_activated: true,
+            already_paid: !!activationGate.already_paid,
+            applied: !!activationGate.applied,
+            shop_id,
+          }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -281,6 +294,29 @@ serve(async (req) => {
     if (promoCodeId) metadata.promo_code_id = promoCodeId;
     if (discountPercentage) metadata.discount_percentage = discountPercentage;
 
+    let pendingPaymentId: string | null = null;
+    const { data: pendingPayment, error: pendingPaymentError } = await supabase.from("payments").insert({
+      user_id,
+      payment_method: "geniuspay",
+      amount: finalAmount,
+      currency: "XOF",
+      transaction_id: orderId,
+      status: "pending",
+      metadata,
+    }).select("id").maybeSingle();
+
+    if (pendingPaymentError || !pendingPayment?.id) {
+      console.error("Could not initialize local payment before GeniusPay:", pendingPaymentError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Paiement non initialisé. Aucun prélèvement n'a été lancé, veuillez réessayer."
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    pendingPaymentId = pendingPayment.id;
+
     // Hosted checkout (no payment_method) -> client picks Wave/Orange/MTN/Moov/Card
     const geniusPayload: Record<string, unknown> = {
       amount: finalAmount,
@@ -317,6 +353,10 @@ serve(async (req) => {
       if (!resp.ok || json?.success === false) {
         const errMsg = json?.error?.message || json?.message || `HTTP ${resp.status}`;
         console.error("GeniusPay API error:", resp.status, json);
+        await supabase.from("payments").update({
+          status: "failed",
+          metadata: { ...metadata, gateway_error: errMsg },
+        }).eq("id", pendingPaymentId);
         return new Response(
           JSON.stringify({ success: false, error: `Erreur passerelle de paiement: ${errMsg}` }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -327,6 +367,10 @@ serve(async (req) => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("GeniusPay request failed:", msg);
+      await supabase.from("payments").update({
+        status: "failed",
+        metadata: { ...metadata, gateway_error: msg },
+      }).eq("id", pendingPaymentId);
       return new Response(
         JSON.stringify({
           success: false,
@@ -336,22 +380,13 @@ serve(async (req) => {
       );
     }
 
-    // Pre-record a pending payment so the webhook can mark it completed by reference
-    try {
-      const { error: paymentInsertError } = await supabase.from("payments").insert({
-        user_id,
-        payment_method: "geniuspay",
-        amount: finalAmount,
-        currency: "XOF",
-        transaction_id: paymentData.reference,
-        status: "pending",
-        metadata,
-      });
-      if (paymentInsertError && paymentInsertError.code !== "23505") {
-        console.warn("Could not pre-record payment:", paymentInsertError);
-      }
-    } catch (e) {
-      console.warn("Could not pre-record payment:", e);
+    const gatewayReference = paymentData.reference || orderId;
+    const { error: paymentUpdateError } = await supabase.from("payments").update({
+      transaction_id: gatewayReference,
+      metadata: { ...metadata, order_id: orderId, gateway_reference: gatewayReference },
+    }).eq("id", pendingPaymentId);
+    if (paymentUpdateError) {
+      console.warn("Could not attach GeniusPay reference to pending payment:", paymentUpdateError);
     }
 
     // Send notification email to founders if promo code was used
@@ -380,8 +415,8 @@ serve(async (req) => {
         success: true,
         payment_url: paymentData.checkout_url || paymentData.payment_url,
         checkout_url: paymentData.checkout_url || paymentData.payment_url,
-        transaction_id: paymentData.reference || orderId,
-        reference: paymentData.reference,
+        transaction_id: gatewayReference,
+        reference: gatewayReference,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

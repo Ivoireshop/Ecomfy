@@ -2903,6 +2903,10 @@ export type Database = {
         }
         Returns: number
       }
+      prepare_shop_activation_payment: {
+        Args: { p_shop_id: string; p_user_id: string }
+        Returns: Json
+      }
       process_referral_signup: {
         Args: { referral_code_input: string; referred_user_id: string }
         Returns: boolean
