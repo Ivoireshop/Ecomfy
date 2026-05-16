@@ -378,8 +378,14 @@ const Subscription = () => {
                   <Zap className="mr-2 h-5 w-5" />
                   Créer un visuel
                 </Button>
-                <Button variant="outline" className="w-full" size="lg" onClick={() => navigate("/showcase-manager")}>
-                  <TrendingUp className="mr-2 h-5 w-5" />
+                <Button variant="outline" className="w-full" size="lg" onClick={() => navigate("/video-creator")}>
+                  <Film className="mr-2 h-5 w-5" />
+                  Créer une vidéo animée
+                </Button>
+              </div>
+              <div className="mt-3">
+                <Button variant="ghost" className="w-full" size="sm" onClick={() => navigate("/showcase-manager")}>
+                  <TrendingUp className="mr-2 h-4 w-4" />
                   Mes sites vitrine
                 </Button>
               </div>
