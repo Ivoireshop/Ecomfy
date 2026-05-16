@@ -294,6 +294,29 @@ serve(async (req) => {
     if (promoCodeId) metadata.promo_code_id = promoCodeId;
     if (discountPercentage) metadata.discount_percentage = discountPercentage;
 
+    let pendingPaymentId: string | null = null;
+    const { data: pendingPayment, error: pendingPaymentError } = await supabase.from("payments").insert({
+      user_id,
+      payment_method: "geniuspay",
+      amount: finalAmount,
+      currency: "XOF",
+      transaction_id: orderId,
+      status: "pending",
+      metadata,
+    }).select("id").maybeSingle();
+
+    if (pendingPaymentError || !pendingPayment?.id) {
+      console.error("Could not initialize local payment before GeniusPay:", pendingPaymentError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Paiement non initialisé. Aucun prélèvement n'a été lancé, veuillez réessayer."
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    pendingPaymentId = pendingPayment.id;
+
     // Hosted checkout (no payment_method) -> client picks Wave/Orange/MTN/Moov/Card
     const geniusPayload: Record<string, unknown> = {
       amount: finalAmount,
