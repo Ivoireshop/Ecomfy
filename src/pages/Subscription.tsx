@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut, Receipt, Zap, Star, X, Check, Sparkles, TrendingUp, Users } from "lucide-react";
+import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut, Receipt, Zap, Star, X, Check, Sparkles, TrendingUp, Users, Film } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
@@ -378,8 +378,14 @@ const Subscription = () => {
                   <Zap className="mr-2 h-5 w-5" />
                   Créer un visuel
                 </Button>
-                <Button variant="outline" className="w-full" size="lg" onClick={() => navigate("/showcase-manager")}>
-                  <TrendingUp className="mr-2 h-5 w-5" />
+                <Button variant="outline" className="w-full" size="lg" onClick={() => navigate("/video-creator")}>
+                  <Film className="mr-2 h-5 w-5" />
+                  Créer une vidéo animée
+                </Button>
+              </div>
+              <div className="mt-3">
+                <Button variant="ghost" className="w-full" size="sm" onClick={() => navigate("/showcase-manager")}>
+                  <TrendingUp className="mr-2 h-4 w-4" />
                   Mes sites vitrine
                 </Button>
               </div>
