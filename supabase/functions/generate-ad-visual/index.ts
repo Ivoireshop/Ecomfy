@@ -689,7 +689,6 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
               
               console.log(`Generated ${format.name} format`);
             }
-          }
         } catch (formatError) {
           console.error(`Error generating ${format.name}:`, formatError);
           // Continue with other formats even if one fails
