@@ -123,31 +123,44 @@ serve(async (req) => {
         );
       }
 
-      const { data: shopToActivate } = await supabase
-        .from("shops")
-        .select("id, user_id, is_activated, activation_fee_paid")
-        .eq("id", shop_id)
-        .maybeSingle();
+      const { data: activationGate, error: activationGateError } = await supabase.rpc(
+        "prepare_shop_activation_payment",
+        {
+          p_shop_id: shop_id,
+          p_user_id: user_id,
+        },
+      );
 
-      if (!shopToActivate || shopToActivate.user_id !== user_id) {
+      if (activationGateError) {
+        console.error("Activation payment gate failed:", activationGateError);
         return new Response(
-          JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
+          JSON.stringify({ success: false, error: "Vérification d'activation impossible. Réessayez." }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      if (shopToActivate.is_activated || shopToActivate.activation_fee_paid) {
-        if (!shopToActivate.is_activated) {
-          await supabase.rpc("apply_shop_activation", {
-            p_shop_id: shop_id,
-            p_user_id: user_id,
-            p_amount: 0,
-            p_transaction_reference: null,
-            p_payment_method: "already_paid",
-          });
-        }
+      if (!activationGate?.success) {
         return new Response(
-          JSON.stringify({ success: true, already_activated: true, shop_id }),
+          JSON.stringify({ success: false, error: activationGate?.error || "Boutique introuvable pour ce compte." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (activationGate.should_charge === false) {
+        console.log("GeniusPay charge blocked for shop activation:", {
+          shop_id,
+          user_id,
+          already_activated: activationGate.already_activated,
+          already_paid: activationGate.already_paid,
+        });
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_activated: true,
+            already_paid: !!activationGate.already_paid,
+            applied: !!activationGate.applied,
+            shop_id,
+          }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
