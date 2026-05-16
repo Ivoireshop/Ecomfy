@@ -136,11 +136,21 @@ serve(async (req) => {
           .eq("transaction_id", reference)
           .maybeSingle();
 
+        let paymentToUpdate = existing;
+        if (!paymentToUpdate && metadata?.order_id) {
+          const { data: existingByOrderId } = await supabase
+            .from("payments")
+            .select("id, status, amount, currency, user_id, metadata")
+            .contains("metadata", { order_id: metadata.order_id })
+            .maybeSingle();
+          paymentToUpdate = existingByOrderId;
+        }
+
         // ───── ANTI-FRAUDE: vérifier la cohérence avec le paiement initial ─────
-        if (existing) {
+        if (paymentToUpdate) {
           // 1) Déjà completed → ne pas recréditer
-          if (existing.status === "completed") {
-            const existingMeta = (existing.metadata || {}) as Record<string, unknown>;
+          if (paymentToUpdate.status === "completed") {
+            const existingMeta = (paymentToUpdate.metadata || {}) as Record<string, unknown>;
             if (existingMeta.payment_type !== "shop_activation") {
               console.log("Payment already completed, skipping re-credit:", reference);
               return ack({ success: true, alreadyCompleted: true, reference }, true);
@@ -149,24 +159,24 @@ serve(async (req) => {
           // 2) Montant doit correspondre (tolérance 1 unité pour arrondi)
           if (
             (event === "payment.success" || status === "completed" || status === "success") &&
-            existing.amount != null &&
-            Math.abs(Number(existing.amount) - amountPaid) > 1
+            paymentToUpdate.amount != null &&
+            Math.abs(Number(paymentToUpdate.amount) - amountPaid) > 1
           ) {
             console.error("Amount mismatch — possible fraud:", {
               reference,
-              expected: existing.amount,
+              expected: paymentToUpdate.amount,
               received: amountPaid,
             });
             return ack({ success: false, error: "Amount mismatch", reference }, true);
           }
           // 3) Devise doit correspondre
           if (
-            existing.currency &&
-            existing.currency.toUpperCase() !== currency
+            paymentToUpdate.currency &&
+            paymentToUpdate.currency.toUpperCase() !== currency
           ) {
             console.error("Currency mismatch — possible fraud:", {
               reference,
-              expected: existing.currency,
+              expected: paymentToUpdate.currency,
               received: currency,
             });
             return ack({ success: false, error: "Currency mismatch", reference }, true);
@@ -174,12 +184,12 @@ serve(async (req) => {
           // 4) user_id metadata doit correspondre au paiement initial
           if (
             metadata?.user_id &&
-            existing.user_id &&
-            existing.user_id !== metadata.user_id
+            paymentToUpdate.user_id &&
+            paymentToUpdate.user_id !== metadata.user_id
           ) {
             console.error("User mismatch — possible fraud:", {
               reference,
-              expected: existing.user_id,
+              expected: paymentToUpdate.user_id,
               received: metadata.user_id,
             });
             return ack({ success: false, error: "User mismatch", reference }, true);
@@ -200,8 +210,8 @@ serve(async (req) => {
           metadata,
         };
 
-        if (existing) {
-          await supabase.from("payments").update(paymentRow).eq("id", existing.id);
+        if (paymentToUpdate) {
+          await supabase.from("payments").update(paymentRow).eq("id", paymentToUpdate.id);
         } else if (paymentRow.user_id) {
           await supabase.from("payments").insert(paymentRow);
         }
