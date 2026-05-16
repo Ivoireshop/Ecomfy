@@ -40,6 +40,9 @@ export default function PaymentSuccess() {
       if (data?.applied) {
         toast.success("Paiement confirmé et compte mis à jour !");
       }
+      if (data?.shop_id) {
+        navigate(`/shop-editor/${data.shop_id}`, { replace: true });
+      }
     } catch (e) {
       console.warn("verify-payment failed:", e);
     }
