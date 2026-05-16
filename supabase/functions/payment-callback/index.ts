@@ -254,23 +254,25 @@ serve(async (req) => {
         console.log("Subscription activated");
       }
 
-      const { error: paymentError } = await supabase
-        .from("payments")
-        .insert({
-          user_id: user_id,
-          payment_method: payment_method || "mobile_money",
-          amount: parseFloat(amount),
-          currency: "XOF",
-          transaction_id: transaction_id,
-          status: "completed",
-          metadata: promo_code_id ? {
-            promo_code_id,
-            discount_percentage: discount_percentage ? parseInt(discount_percentage) : 0
-          } : null
-        });
+      if (!isShopActivation) {
+        const { error: paymentError } = await supabase
+          .from("payments")
+          .insert({
+            user_id: user_id,
+            payment_method: payment_method || "mobile_money",
+            amount: parseFloat(amount),
+            currency: "XOF",
+            transaction_id: transaction_id,
+            status: "completed",
+            metadata: promo_code_id ? {
+              promo_code_id,
+              discount_percentage: discount_percentage ? parseInt(discount_percentage) : 0
+            } : null
+          });
 
-      if (paymentError) {
-        console.error("Error recording payment:", paymentError);
+        if (paymentError) {
+          console.error("Error recording payment:", paymentError);
+        }
       }
 
       // Increment promo code usage if a promo code was used
