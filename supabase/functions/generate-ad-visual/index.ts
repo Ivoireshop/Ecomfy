@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -415,6 +416,18 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
 
     // Retry logic with exponential backoff for GPT-image-1 (latest OpenAI model)
     let imageUrl: string | null = null;
+
+    // PRIMARY: OpenRouter (auto-routes to best image model)
+    const openRouterKey = getOpenRouterKey();
+    if (openRouterKey) {
+      try {
+        console.log("Trying OpenRouter as primary image provider...");
+        imageUrl = await generateImageWithOpenRouter(openRouterKey, { prompt });
+      } catch (e) {
+        console.warn("OpenRouter primary failed, falling back to GPT-image-1:", e);
+      }
+    }
+
     const maxRetries = 3;
     const retryDelayMs = 2000; // Start with 2 seconds
     
