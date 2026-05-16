@@ -627,8 +627,22 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       for (const format of formats) {
         try {
           const resizePrompt = `Resize and adapt this advertising visual to ${format.size} pixels for ${format.name}. Maintain all text readability and ensure the product is prominently displayed. Optimize the layout for the aspect ratio without losing important information.`;
-          
-          const resizeResponse = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
+
+          // Primary: OpenRouter
+          let formatImageUrl: string | null = null;
+          if (openRouterKey) {
+            try {
+              formatImageUrl = await generateImageWithOpenRouter(openRouterKey, {
+                prompt: resizePrompt,
+                referenceImages: [imageUrl],
+                timeoutMs: 25000,
+              });
+            } catch (e) {
+              console.warn(`OpenRouter format ${format.name} failed, fallback:`, e);
+            }
+          }
+
+          const resizeResponse = formatImageUrl ? null : await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -650,11 +664,12 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
             timeoutMs: 20000,
           });
 
-          if (resizeResponse.ok) {
+          if (!formatImageUrl && resizeResponse && resizeResponse.ok) {
             const resizeData = await resizeResponse.json();
-            const formatImageUrl = resizeData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-            
-            if (formatImageUrl) {
+            formatImageUrl = resizeData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          }
+
+          if (formatImageUrl) {
               // Save format to database
               await supabaseClient
                 .from("image_formats")
