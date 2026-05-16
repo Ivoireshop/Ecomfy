@@ -148,7 +148,7 @@ serve(async (req) => {
           }
           // 2) Montant doit correspondre (tolérance 1 unité pour arrondi)
           if (
-            (event === "payment.success" || status === "completed") &&
+            (event === "payment.success" || status === "completed" || status === "success") &&
             existing.amount != null &&
             Math.abs(Number(existing.amount) - amountPaid) > 1
           ) {
@@ -192,7 +192,7 @@ serve(async (req) => {
           amount: amountPaid,
           currency,
           transaction_id: reference,
-          status: event === "payment.success" || status === "completed" ? "completed" :
+          status: event === "payment.success" || status === "completed" || status === "success" ? "completed" :
                   event === "payment.failed" ? "failed" :
                   event === "payment.cancelled" ? "cancelled" :
                   event === "payment.expired" ? "expired" :
@@ -211,7 +211,7 @@ serve(async (req) => {
     }
 
     // Only credit on success
-    if (event !== "payment.success" && status !== "completed") {
+    if (event !== "payment.success" && status !== "completed" && status !== "success") {
       return ack({ success: true, ignored: true, event, status }, true);
     }
 
