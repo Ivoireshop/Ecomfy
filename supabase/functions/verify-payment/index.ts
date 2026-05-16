@@ -187,7 +187,7 @@ serve(async (req) => {
       }).eq("user_id", userId);
     }
 
-    return new Response(JSON.stringify({ success: true, status: "completed", applied: true }), {
+    return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
