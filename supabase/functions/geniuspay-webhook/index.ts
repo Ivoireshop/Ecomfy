@@ -196,13 +196,14 @@ serve(async (req) => {
           }
         }
 
+        const isConfirmedPayment = event === "payment.success" || status === "completed" || status === "paid";
         const paymentRow = {
           user_id: metadata.user_id || null,
           payment_method: data?.payment_method || data?.provider || "geniuspay",
           amount: amountPaid,
           currency,
           transaction_id: reference,
-          status: event === "payment.success" || status === "completed" || status === "success" ? "completed" :
+          status: isConfirmedPayment ? "completed" :
                   event === "payment.failed" ? "failed" :
                   event === "payment.cancelled" ? "cancelled" :
                   event === "payment.expired" ? "expired" :
@@ -221,7 +222,7 @@ serve(async (req) => {
     }
 
     // Only credit on success
-    if (event !== "payment.success" && status !== "completed" && status !== "success") {
+    if (event !== "payment.success" && status !== "completed" && status !== "paid") {
       return ack({ success: true, ignored: true, event, status }, true);
     }
 
