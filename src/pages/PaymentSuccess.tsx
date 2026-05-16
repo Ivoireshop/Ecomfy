@@ -26,6 +26,8 @@ export default function PaymentSuccess() {
       });
     } else if (enrollmentId) {
       loadEnrollmentDetails();
+    } else if (shopId) {
+      navigate(`/shop-editor/${shopId}`, { replace: true });
     } else {
       setLoading(false);
     }
