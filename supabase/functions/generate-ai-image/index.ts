@@ -151,8 +151,29 @@ serve(async (req) => {
 
       console.log("Using image editing with GPT vision + image generation");
 
-      // Use the Lovable AI gateway for image generation with editing
-      const editResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      // Primary: OpenRouter
+      const openRouterKey = getOpenRouterKey();
+      const refImages: string[] = [];
+      if (mode === "image-edit" && sourceImage) refImages.push(sourceImage);
+      else if (mode === "banner" && sourceImage) refImages.push(sourceImage);
+      else if (mode === "banner-replace") {
+        if (bannerImage) refImages.push(bannerImage);
+        if (replacementPhoto) refImages.push(replacementPhoto);
+      }
+
+      if (openRouterKey) {
+        try {
+          imageUrl = await generateImageWithOpenRouter(openRouterKey, {
+            prompt: enhancedPrompt,
+            referenceImages: refImages,
+          });
+        } catch (e) {
+          console.warn("OpenRouter edit failed, falling back to Lovable Gateway:", e);
+        }
+      }
+
+      // Fallback: Lovable AI gateway
+      const editResponse = imageUrl ? null : await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -165,21 +186,20 @@ serve(async (req) => {
         }),
       });
 
-      if (!editResponse.ok) {
-        const errorText = await editResponse.text();
-        console.error("Edit API error:", errorText);
-        throw new Error(`Erreur de l'API d'édition: ${editResponse.status}`);
-      }
-
-      const editData = await editResponse.json();
-      const generatedImageData = editData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-      if (!generatedImageData) {
-        // Fallback to pure generation
-        console.log("No image returned from edit API, falling back to generation");
-        imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
-      } else {
-        imageUrl = generatedImageData;
+      if (!imageUrl && editResponse) {
+        if (!editResponse.ok) {
+          const errorText = await editResponse.text();
+          console.error("Edit API error:", errorText);
+          throw new Error(`Erreur de l'API d'édition: ${editResponse.status}`);
+        }
+        const editData = await editResponse.json();
+        const generatedImageData = editData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (!generatedImageData) {
+          console.log("No image returned from edit API, falling back to generation");
+          imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
+        } else {
+          imageUrl = generatedImageData;
+        }
       }
     } else {
       // Pure text-to-image generation
