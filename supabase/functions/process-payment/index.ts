@@ -153,6 +153,38 @@ serve(async (req) => {
           already_activated: activationGate.already_activated,
           already_paid: activationGate.already_paid,
         });
+        // Notification email (best-effort) : informer l'utilisateur qu'aucun nouveau prélèvement n'a été fait
+        try {
+          const { data: shopRow } = await supabase
+            .from("shops")
+            .select("name, slug")
+            .eq("id", shop_id)
+            .maybeSingle();
+          const { data: profileRow } = await supabase
+            .from("profiles")
+            .select("email")
+            .eq("id", user_id)
+            .maybeSingle();
+          if (profileRow?.email) {
+            const shopUrl = shopRow?.slug
+              ? `https://visuelpro.cloud/shop/${shopRow.slug}`
+              : undefined;
+            await supabase.functions.invoke("send-transactional-email", {
+              body: {
+                templateName: "shop-activation",
+                recipientEmail: profileRow.email,
+                idempotencyKey: `shop-activation-blocked-${shop_id}-${Date.now().toString().slice(0, -4)}`,
+                templateData: {
+                  mode: "already_activated",
+                  shopName: shopRow?.name || "votre boutique",
+                  shopUrl,
+                },
+              },
+            });
+          }
+        } catch (e) {
+          console.warn("shop-activation already_activated email failed:", e);
+        }
         return new Response(
           JSON.stringify({
             success: true,
