@@ -120,7 +120,7 @@ serve(async (req) => {
     const remoteStatus = remote?.status;
     console.log("verify-payment", { reference, gatewayReference, remoteStatus });
 
-    if (remoteStatus !== "completed" && remoteStatus !== "success") {
+    if (remoteStatus !== "completed" && remoteStatus !== "paid") {
       return new Response(JSON.stringify({ success: true, status: remoteStatus || payment.status }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

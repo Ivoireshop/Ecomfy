@@ -141,7 +141,7 @@ serve(async (req) => {
       shop_id
     } = paymentData;
 
-    if (status === "success" || status === "completed") {
+    if (status === "completed" || status === "paid") {
       const isCreditsPayment = payment_type === 'credits';
       const isShopActivation = payment_type === 'shop_activation';
       const creditsAmount = credits_size ? parseInt(credits_size) : 0;
@@ -157,6 +157,18 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+
+        await supabase
+          .from("payments")
+          .upsert({
+            user_id: user_id,
+            payment_method: payment_method || provider || "mobile_money",
+            amount: parseFloat(amount) || 0,
+            currency: "XOF",
+            transaction_id: transaction_id,
+            status: "completed",
+            metadata: { payment_type: "shop_activation", shop_id, user_id },
+          }, { onConflict: "transaction_id" });
 
         const { data: activationResult, error: activationError } = await supabase.rpc("apply_shop_activation", {
           p_shop_id: shop_id,
@@ -242,23 +254,25 @@ serve(async (req) => {
         console.log("Subscription activated");
       }
 
-      const { error: paymentError } = await supabase
-        .from("payments")
-        .insert({
-          user_id: user_id,
-          payment_method: payment_method || "mobile_money",
-          amount: parseFloat(amount),
-          currency: "XOF",
-          transaction_id: transaction_id,
-          status: "completed",
-          metadata: promo_code_id ? {
-            promo_code_id,
-            discount_percentage: discount_percentage ? parseInt(discount_percentage) : 0
-          } : null
-        });
+      if (!isShopActivation) {
+        const { error: paymentError } = await supabase
+          .from("payments")
+          .insert({
+            user_id: user_id,
+            payment_method: payment_method || "mobile_money",
+            amount: parseFloat(amount),
+            currency: "XOF",
+            transaction_id: transaction_id,
+            status: "completed",
+            metadata: promo_code_id ? {
+              promo_code_id,
+              discount_percentage: discount_percentage ? parseInt(discount_percentage) : 0
+            } : null
+          });
 
-      if (paymentError) {
-        console.error("Error recording payment:", paymentError);
+        if (paymentError) {
+          console.error("Error recording payment:", paymentError);
+        }
       }
 
       // Increment promo code usage if a promo code was used
