@@ -290,33 +290,19 @@ serve(async (req) => {
     } else if (paymentType === "commission_payment") {
       const shopId = metadata?.shop_id;
       if (shopId) {
-        const { data: shopRow } = await supabase
-          .from("shops")
-          .select("commission_balance_due, commission_threshold")
-          .eq("id", shopId)
-          .single();
-        const currentBalance = Number(shopRow?.commission_balance_due) || 0;
-        const threshold = Number(shopRow?.commission_threshold) || 12000;
-        const newBalance = Math.max(0, currentBalance - amountPaid);
-        const updates: Record<string, unknown> = {
-          commission_balance_due: newBalance,
-          updated_at: new Date().toISOString(),
-        };
-        if (newBalance < threshold) {
-          updates.payment_deadline = null;
-          updates.is_suspended = false;
-        }
-        await supabase.from("shops").update(updates).eq("id", shopId);
-        await supabase.from("commission_payments").insert({
-          shop_id: shopId,
-          amount: amountPaid,
-          payment_method: "geniuspay",
-          transaction_reference: reference,
-          status: "paid",
-          created_by: userId,
-          notes: "Paiement en ligne via GeniusPay",
+        const { data: commissionResult, error: commissionError } = await supabase.rpc("apply_commission_payment", {
+          p_shop_id: shopId,
+          p_amount: amountPaid,
+          p_transaction_reference: reference || null,
+          p_created_by: userId,
+          p_payment_method: data?.payment_method || data?.provider || "geniuspay",
+          p_notes: "Paiement en ligne via GeniusPay",
         });
-        console.log(`Commission paid ${amountPaid} for shop ${shopId}, new balance ${newBalance}`);
+        if (commissionError) {
+          console.error("apply_commission_payment failed:", commissionError);
+        } else {
+          console.log(`Commission paid ${amountPaid} for shop ${shopId}`, commissionResult);
+        }
       } else {
         console.warn("commission_payment without shop_id metadata", { reference });
       }
