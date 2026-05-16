@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -158,14 +158,16 @@ serve(async (req) => {
           });
         }
 
-        const { error: shopsError } = await supabase
-          .from("shops")
-          .update({ is_activated: true, activation_fee_paid: true, is_published: true })
-          .eq("id", shop_id)
-          .eq("user_id", user_id);
-        
-        if (shopsError) {
-          console.error("Error activating user shops:", shopsError);
+        const { data: activationResult, error: activationError } = await supabase.rpc("apply_shop_activation", {
+          p_shop_id: shop_id,
+          p_user_id: user_id,
+          p_amount: parseFloat(amount) || 0,
+          p_transaction_reference: transaction_id || null,
+          p_payment_method: payment_method || provider || "mobile_money",
+        });
+
+        if (activationError || activationResult?.success === false) {
+          console.error("Error activating user shop:", { activationError, activationResult });
         }
         
         console.log("Shop activation completed");
@@ -320,11 +322,14 @@ serve(async (req) => {
 
       // Toujours rediriger vers visuelpro.cloud
       const finalReturnUrl = "https://visuelpro.cloud";
+      const successTarget = isShopActivation && shop_id
+        ? `${finalReturnUrl}/shop-editor/${shop_id}`
+        : `${finalReturnUrl}/?payment=success`;
       return new Response(null, {
         status: 302,
         headers: {
           ...corsHeaders,
-          "Location": `${finalReturnUrl}/?payment=success`,
+          "Location": successTarget,
         },
       });
     } else {
