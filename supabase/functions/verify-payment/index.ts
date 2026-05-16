@@ -62,8 +62,22 @@ serve(async (req) => {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (payment.status === "completed") {
+    const meta = (payment.metadata || {}) as Record<string, unknown>;
+    const paymentType = (meta.payment_type as string) || "subscription";
+    const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
+
+    if (payment.status === "completed" && paymentType !== "shop_activation") {
       return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (payment.status === "completed" && paymentType === "shop_activation" && shopId) {
+      await supabase.from("shops")
+        .update({ is_activated: true, activation_fee_paid: true, is_published: true })
+        .eq("id", shopId)
+        .eq("user_id", payment.user_id);
+      return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -103,14 +117,10 @@ serve(async (req) => {
     await supabase.from("payments").update({
       status: "completed",
       payment_method: remote?.payment_method || remote?.provider || "geniuspay",
-      provider: remote?.provider || remote?.payment_method || "geniuspay",
     }).eq("id", payment.id);
 
-    const meta = (payment.metadata || {}) as Record<string, unknown>;
-    const paymentType = (meta.payment_type as string) || "subscription";
     const userId = payment.user_id;
     const creditsSize = Number(meta.credits_size || 0);
-    const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
 
     if (paymentType === "shop_activation") {
       if (!shopId) {
