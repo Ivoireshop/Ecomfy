@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut, Receipt, Zap, Star, X, Check, Sparkles, TrendingUp, Users } from "lucide-react";
+import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut, Receipt, Zap, Star, X, Check, Sparkles, TrendingUp, Users, Film } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
