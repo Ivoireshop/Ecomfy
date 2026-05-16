@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -237,7 +238,17 @@ serve(async (req) => {
 });
 
 async function generatePureImage(lovableApiKey: string, prompt: string): Promise<string> {
-  console.log("Generating image via Lovable AI Gateway");
+  // Primary: OpenRouter (auto-routes to best image model)
+  const openRouterKey = getOpenRouterKey();
+  if (openRouterKey) {
+    try {
+      return await generateImageWithOpenRouter(openRouterKey, { prompt });
+    } catch (e) {
+      console.warn("OpenRouter failed, falling back to Lovable AI Gateway:", e);
+    }
+  }
+
+  console.log("Generating image via Lovable AI Gateway (fallback)");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
