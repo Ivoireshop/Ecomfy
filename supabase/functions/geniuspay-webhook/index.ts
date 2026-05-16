@@ -254,6 +254,38 @@ serve(async (req) => {
         return ack({ success: false, error: "activation_failed", reference }, true);
       }
       console.log("Shop activated for", userId, activationResult);
+      // Notification email (best-effort)
+      try {
+        const { data: shopRow } = await supabase
+          .from("shops")
+          .select("name, slug")
+          .eq("id", shopId)
+          .maybeSingle();
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", userId)
+          .maybeSingle();
+        if (profileRow?.email) {
+          const shopUrl = shopRow?.slug
+            ? `https://visuelpro.cloud/shop/${shopRow.slug}`
+            : undefined;
+          await supabase.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "shop-activation",
+              recipientEmail: profileRow.email,
+              idempotencyKey: `shop-activation-success-${shopId}`,
+              templateData: {
+                mode: "activated",
+                shopName: shopRow?.name || "votre boutique",
+                shopUrl,
+              },
+            },
+          });
+        }
+      } catch (e) {
+        console.warn("shop-activation success email failed:", e);
+      }
     } else if (paymentType === "commission_payment") {
       const shopId = metadata?.shop_id;
       if (shopId) {

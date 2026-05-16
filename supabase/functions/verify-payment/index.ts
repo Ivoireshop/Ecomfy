@@ -154,6 +154,26 @@ serve(async (req) => {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Notification email (best-effort, idempotent par shop)
+      try {
+        const { data: shopRow } = await supabase
+          .from("shops").select("name, slug").eq("id", shopId).maybeSingle();
+        const { data: profileRow } = await supabase
+          .from("profiles").select("email").eq("id", userId).maybeSingle();
+        if (profileRow?.email) {
+          const shopUrl = shopRow?.slug ? `https://visuelpro.cloud/shop/${shopRow.slug}` : undefined;
+          await supabase.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "shop-activation",
+              recipientEmail: profileRow.email,
+              idempotencyKey: `shop-activation-success-${shopId}`,
+              templateData: { mode: "activated", shopName: shopRow?.name || "votre boutique", shopUrl },
+            },
+          });
+        }
+      } catch (e) {
+        console.warn("shop-activation email (verify-payment) failed:", e);
+      }
     } else if (paymentType === "credits" && creditsSize > 0) {
       const { data: profile } = await supabase
         .from("profiles").select("purchased_credits, has_showcase_access").eq("id", userId).single();

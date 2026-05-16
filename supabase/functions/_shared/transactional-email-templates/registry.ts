@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as financeWeeklySummary } from './finance-weekly-summary.tsx'
+import { template as shopActivation } from './shop-activation.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'finance-weekly-summary': financeWeeklySummary,
+  'shop-activation': shopActivation,
 }
