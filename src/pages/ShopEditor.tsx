@@ -497,7 +497,7 @@ const ShopEditor = () => {
         )}
 
         {/* Activation Modal */}
-        <Dialog open={showActivationModal} onOpenChange={setShowActivationModal}>
+        <Dialog open={showActivationModal && !isActivated} onOpenChange={(o) => setShowActivationModal(o && !isActivated)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
