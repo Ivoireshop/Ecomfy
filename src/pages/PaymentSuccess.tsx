@@ -19,9 +19,10 @@ export default function PaymentSuccess() {
     // Filet de sécurité : si on revient de GeniusPay avec une référence,
     // on vérifie le statut côté serveur et on crédite si nécessaire.
     if (paymentRef) {
-      verifyPayment(paymentRef);
-    }
-    if (enrollmentId) {
+      verifyPayment(paymentRef).finally(() => {
+        if (!enrollmentId) setLoading(false);
+      });
+    } else if (enrollmentId) {
       loadEnrollmentDetails();
     } else {
       setLoading(false);
@@ -39,6 +40,9 @@ export default function PaymentSuccess() {
       }
       if (data?.applied) {
         toast.success("Paiement confirmé et compte mis à jour !");
+      }
+      if (data?.shop_id) {
+        navigate(`/shop-editor/${data.shop_id}`, { replace: true });
       }
     } catch (e) {
       console.warn("verify-payment failed:", e);
@@ -90,7 +94,7 @@ export default function PaymentSuccess() {
           </div>
           <CardTitle className="text-3xl">Paiement confirmé avec succès !</CardTitle>
           <p className="text-muted-foreground mt-2">
-            Merci pour votre inscription{courseName && ` à "${courseName}"`}
+            {courseName ? `Merci pour votre inscription à "${courseName}"` : "Merci, votre paiement a été traité."}
           </p>
         </CardHeader>
         <CardContent className="space-y-6">

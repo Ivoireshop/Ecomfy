@@ -247,7 +247,6 @@ serve(async (req) => {
           payment_method: payment_method || "mobile_money",
           amount: parseFloat(amount),
           currency: "XOF",
-          provider: provider || null,
           transaction_id: transaction_id,
           status: "completed",
           metadata: promo_code_id ? {

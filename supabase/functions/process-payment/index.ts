@@ -142,7 +142,7 @@ serve(async (req) => {
 
       if (shopToActivate.is_activated) {
         return new Response(
-          JSON.stringify({ success: false, error: "Cette boutique est déjà activée." }),
+          JSON.stringify({ success: true, already_activated: true, shop_id }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -331,16 +331,18 @@ serve(async (req) => {
 
     // Pre-record a pending payment so the webhook can mark it completed by reference
     try {
-      await supabase.from("payments").insert({
+      const { error: paymentInsertError } = await supabase.from("payments").insert({
         user_id,
         payment_method: "geniuspay",
         amount: finalAmount,
         currency: "XOF",
-        provider: "geniuspay",
         transaction_id: paymentData.reference,
         status: "pending",
         metadata,
       });
+      if (paymentInsertError && paymentInsertError.code !== "23505") {
+        console.warn("Could not pre-record payment:", paymentInsertError);
+      }
     } catch (e) {
       console.warn("Could not pre-record payment:", e);
     }

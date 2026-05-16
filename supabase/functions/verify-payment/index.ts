@@ -46,11 +46,20 @@ serve(async (req) => {
     );
 
     // Retrouver le paiement local
-    const { data: payment } = await supabase
+    let { data: payment } = await supabase
       .from("payments")
-      .select("id, user_id, status, amount, currency, metadata")
+      .select("id, user_id, status, amount, currency, transaction_id, metadata")
       .eq("transaction_id", reference)
       .maybeSingle();
+
+    if (!payment) {
+      const { data: paymentByOrderId } = await supabase
+        .from("payments")
+        .select("id, user_id, status, amount, currency, transaction_id, metadata")
+        .contains("metadata", { order_id: reference })
+        .maybeSingle();
+      payment = paymentByOrderId;
+    }
 
     if (!payment) {
       return new Response(JSON.stringify({ success: false, error: "Paiement introuvable" }), {
@@ -62,8 +71,22 @@ serve(async (req) => {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (payment.status === "completed") {
+    const meta = (payment.metadata || {}) as Record<string, unknown>;
+    const paymentType = (meta.payment_type as string) || "subscription";
+    const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
+
+    if (payment.status === "completed" && paymentType !== "shop_activation") {
       return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (payment.status === "completed" && paymentType === "shop_activation" && shopId) {
+      await supabase.from("shops")
+        .update({ is_activated: true, activation_fee_paid: true, is_published: true })
+        .eq("id", shopId)
+        .eq("user_id", payment.user_id);
+      return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -77,7 +100,8 @@ serve(async (req) => {
       });
     }
 
-    const resp = await fetch(`https://pay.genius.ci/api/v1/merchant/payments/${reference}`, {
+    const gatewayReference = payment.transaction_id || reference;
+    const resp = await fetch(`https://pay.genius.ci/api/v1/merchant/payments/${gatewayReference}`, {
       method: "GET",
       headers: { "X-API-Key": apiKey, "X-API-Secret": apiSecret },
     });
@@ -91,7 +115,7 @@ serve(async (req) => {
 
     const remote = json.data || json;
     const remoteStatus = remote?.status;
-    console.log("verify-payment", { reference, remoteStatus });
+    console.log("verify-payment", { reference, gatewayReference, remoteStatus });
 
     if (remoteStatus !== "completed" && remoteStatus !== "success") {
       return new Response(JSON.stringify({ success: true, status: remoteStatus || payment.status }), {
@@ -103,14 +127,10 @@ serve(async (req) => {
     await supabase.from("payments").update({
       status: "completed",
       payment_method: remote?.payment_method || remote?.provider || "geniuspay",
-      provider: remote?.provider || remote?.payment_method || "geniuspay",
     }).eq("id", payment.id);
 
-    const meta = (payment.metadata || {}) as Record<string, unknown>;
-    const paymentType = (meta.payment_type as string) || "subscription";
     const userId = payment.user_id;
     const creditsSize = Number(meta.credits_size || 0);
-    const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
 
     if (paymentType === "shop_activation") {
       if (!shopId) {
@@ -167,7 +187,7 @@ serve(async (req) => {
       }).eq("user_id", userId);
     }
 
-    return new Response(JSON.stringify({ success: true, status: "completed", applied: true }), {
+    return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

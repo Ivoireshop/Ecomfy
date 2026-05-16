@@ -180,6 +180,13 @@ const ShopEditor = () => {
         body: { amount: 1300, payment_method: "mobile_money", user_id: session.user.id, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation", shop_id: shop.id },
       });
       if (error) throw error;
+      if (data?.already_activated) {
+        await fetchData();
+        setShowActivationModal(false);
+        toast({ title: "Boutique déjà activée", description: "Vous pouvez continuer vos paramètres et publier votre boutique." });
+        return;
+      }
+      if (data?.success === false) throw new Error(data?.error || "Erreur de paiement");
       const paymentUrl = data?.payment_url || data?.url || data?.checkout_url || data?.link;
       if (paymentUrl && typeof paymentUrl === "string") { redirectToPaymentUrl(paymentUrl, paymentWindow); return; }
       throw new Error("Impossible d'ouvrir la page de paiement");
