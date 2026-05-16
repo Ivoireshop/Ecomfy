@@ -166,7 +166,7 @@ const ShopEditor = () => {
     };
   }, [id, fetchData]);
 
-  const isActivated = !!(shop?.is_activated || shop?.activation_fee_paid);
+  const isActivated = !!shop?.is_activated;
 
   const handleActivateShop = async () => {
     if (!shop) return;
@@ -185,16 +185,10 @@ const ShopEditor = () => {
         .eq('id', shop.id)
         .maybeSingle();
 
-      if (fresh?.is_activated || fresh?.activation_fee_paid) {
-        if (!fresh?.is_activated) {
-          await supabase
-            .from("shops")
-            .update({ is_activated: true, activation_fee_paid: true, is_published: true })
-            .eq("id", shop.id);
-        }
+      if (fresh?.is_activated) {
         await fetchData();
         setShowActivationModal(false);
-        toast({ title: "Boutique activée", description: "Aucun nouveau paiement n'est nécessaire." });
+        toast({ title: "Boutique déjà activée", description: "Aucun nouveau paiement n'est nécessaire." });
         return;
       }
     } catch (err) {
