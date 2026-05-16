@@ -132,7 +132,7 @@ serve(async (req) => {
       try {
         const { data: existing } = await supabase
           .from("payments")
-          .select("id, status, amount, currency, user_id")
+          .select("id, status, amount, currency, user_id, metadata")
           .eq("transaction_id", reference)
           .maybeSingle();
 
@@ -140,8 +140,11 @@ serve(async (req) => {
         if (existing) {
           // 1) Déjà completed → ne pas recréditer
           if (existing.status === "completed") {
-            console.log("Payment already completed, skipping re-credit:", reference);
-            return ack({ success: true, alreadyCompleted: true, reference }, true);
+            const existingMeta = (existing.metadata || {}) as Record<string, unknown>;
+            if (existingMeta.payment_type !== "shop_activation") {
+              console.log("Payment already completed, skipping re-credit:", reference);
+              return ack({ success: true, alreadyCompleted: true, reference }, true);
+            }
           }
           // 2) Montant doit correspondre (tolérance 1 unité pour arrondi)
           if (
@@ -188,7 +191,6 @@ serve(async (req) => {
           payment_method: data?.payment_method || data?.provider || "geniuspay",
           amount: amountPaid,
           currency,
-          provider: data?.provider || data?.payment_method || "geniuspay",
           transaction_id: reference,
           status: event === "payment.success" || status === "completed" ? "completed" :
                   event === "payment.failed" ? "failed" :
