@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -415,6 +416,18 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
 
     // Retry logic with exponential backoff for GPT-image-1 (latest OpenAI model)
     let imageUrl: string | null = null;
+
+    // PRIMARY: OpenRouter (auto-routes to best image model)
+    const openRouterKey = getOpenRouterKey();
+    if (openRouterKey) {
+      try {
+        console.log("Trying OpenRouter as primary image provider...");
+        imageUrl = await generateImageWithOpenRouter(openRouterKey, { prompt });
+      } catch (e) {
+        console.warn("OpenRouter primary failed, falling back to GPT-image-1:", e);
+      }
+    }
+
     const maxRetries = 3;
     const retryDelayMs = 2000; // Start with 2 seconds
     
@@ -614,8 +627,22 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       for (const format of formats) {
         try {
           const resizePrompt = `Resize and adapt this advertising visual to ${format.size} pixels for ${format.name}. Maintain all text readability and ensure the product is prominently displayed. Optimize the layout for the aspect ratio without losing important information.`;
-          
-          const resizeResponse = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
+
+          // Primary: OpenRouter
+          let formatImageUrl: string | null = null;
+          if (openRouterKey) {
+            try {
+              formatImageUrl = await generateImageWithOpenRouter(openRouterKey, {
+                prompt: resizePrompt,
+                referenceImages: [imageUrl],
+                timeoutMs: 25000,
+              });
+            } catch (e) {
+              console.warn(`OpenRouter format ${format.name} failed, fallback:`, e);
+            }
+          }
+
+          const resizeResponse = formatImageUrl ? null : await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -637,11 +664,12 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
             timeoutMs: 20000,
           });
 
-          if (resizeResponse.ok) {
+          if (!formatImageUrl && resizeResponse && resizeResponse.ok) {
             const resizeData = await resizeResponse.json();
-            const formatImageUrl = resizeData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-            
-            if (formatImageUrl) {
+            formatImageUrl = resizeData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          }
+
+          if (formatImageUrl) {
               // Save format to database
               await supabaseClient
                 .from("image_formats")
@@ -661,7 +689,6 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
               
               console.log(`Generated ${format.name} format`);
             }
-          }
         } catch (formatError) {
           console.error(`Error generating ${format.name}:`, formatError);
           // Continue with other formats even if one fails

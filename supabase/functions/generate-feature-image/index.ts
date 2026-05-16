@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -289,8 +290,22 @@ Create a stunning Facebook advertising visual that looks like a professional mar
     // Use GPT-image-1 as primary model
     let imageUrl: string | null = null;
     let usedFallback = false;
-    
-    try {
+
+    // PRIMARY: OpenRouter (auto-routes to best image model with new API key)
+    const openRouterKey = getOpenRouterKey();
+    if (openRouterKey) {
+      try {
+        console.log("Trying OpenRouter as primary image provider...");
+        imageUrl = await generateImageWithOpenRouter(openRouterKey, {
+          prompt: finalPrompt,
+          referenceImages: productImage ? [productImage] : [],
+        });
+      } catch (e) {
+        console.warn("OpenRouter primary failed, falling back to GPT-image-1:", e);
+      }
+    }
+
+    if (!imageUrl) try {
       const openaiResp = await fetchWithTimeout('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: {

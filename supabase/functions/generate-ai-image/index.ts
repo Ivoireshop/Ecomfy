@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,7 +82,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    let imageUrl: string;
+    let imageUrl: string = "";
 
     // Build enhanced prompt based on mode
     let enhancedPrompt = "";
@@ -150,8 +151,29 @@ serve(async (req) => {
 
       console.log("Using image editing with GPT vision + image generation");
 
-      // Use the Lovable AI gateway for image generation with editing
-      const editResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      // Primary: OpenRouter
+      const openRouterKey = getOpenRouterKey();
+      const refImages: string[] = [];
+      if (mode === "image-edit" && sourceImage) refImages.push(sourceImage);
+      else if (mode === "banner" && sourceImage) refImages.push(sourceImage);
+      else if (mode === "banner-replace") {
+        if (bannerImage) refImages.push(bannerImage);
+        if (replacementPhoto) refImages.push(replacementPhoto);
+      }
+
+      if (openRouterKey) {
+        try {
+          imageUrl = await generateImageWithOpenRouter(openRouterKey, {
+            prompt: enhancedPrompt,
+            referenceImages: refImages,
+          });
+        } catch (e) {
+          console.warn("OpenRouter edit failed, falling back to Lovable Gateway:", e);
+        }
+      }
+
+      // Fallback: Lovable AI gateway
+      const editResponse = imageUrl ? null : await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -164,21 +186,20 @@ serve(async (req) => {
         }),
       });
 
-      if (!editResponse.ok) {
-        const errorText = await editResponse.text();
-        console.error("Edit API error:", errorText);
-        throw new Error(`Erreur de l'API d'édition: ${editResponse.status}`);
-      }
-
-      const editData = await editResponse.json();
-      const generatedImageData = editData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-      if (!generatedImageData) {
-        // Fallback to pure generation
-        console.log("No image returned from edit API, falling back to generation");
-        imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
-      } else {
-        imageUrl = generatedImageData;
+      if (!imageUrl && editResponse) {
+        if (!editResponse.ok) {
+          const errorText = await editResponse.text();
+          console.error("Edit API error:", errorText);
+          throw new Error(`Erreur de l'API d'édition: ${editResponse.status}`);
+        }
+        const editData = await editResponse.json();
+        const generatedImageData = editData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (!generatedImageData) {
+          console.log("No image returned from edit API, falling back to generation");
+          imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
+        } else {
+          imageUrl = generatedImageData;
+        }
       }
     } else {
       // Pure text-to-image generation
@@ -237,7 +258,17 @@ serve(async (req) => {
 });
 
 async function generatePureImage(lovableApiKey: string, prompt: string): Promise<string> {
-  console.log("Generating image via Lovable AI Gateway");
+  // Primary: OpenRouter (auto-routes to best image model)
+  const openRouterKey = getOpenRouterKey();
+  if (openRouterKey) {
+    try {
+      return await generateImageWithOpenRouter(openRouterKey, { prompt });
+    } catch (e) {
+      console.warn("OpenRouter failed, falling back to Lovable AI Gateway:", e);
+    }
+  }
+
+  console.log("Generating image via Lovable AI Gateway (fallback)");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
