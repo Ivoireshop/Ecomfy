@@ -158,6 +158,18 @@ serve(async (req) => {
           });
         }
 
+        await supabase
+          .from("payments")
+          .upsert({
+            user_id: user_id,
+            payment_method: payment_method || provider || "mobile_money",
+            amount: parseFloat(amount) || 0,
+            currency: "XOF",
+            transaction_id: transaction_id,
+            status: "completed",
+            metadata: { payment_type: "shop_activation", shop_id, user_id },
+          }, { onConflict: "transaction_id" });
+
         const { data: activationResult, error: activationError } = await supabase.rpc("apply_shop_activation", {
           p_shop_id: shop_id,
           p_user_id: user_id,
