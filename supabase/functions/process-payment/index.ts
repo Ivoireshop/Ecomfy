@@ -353,6 +353,10 @@ serve(async (req) => {
       if (!resp.ok || json?.success === false) {
         const errMsg = json?.error?.message || json?.message || `HTTP ${resp.status}`;
         console.error("GeniusPay API error:", resp.status, json);
+        await supabase.from("payments").update({
+          status: "failed",
+          metadata: { ...metadata, gateway_error: errMsg },
+        }).eq("id", pendingPaymentId);
         return new Response(
           JSON.stringify({ success: false, error: `Erreur passerelle de paiement: ${errMsg}` }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -363,6 +367,10 @@ serve(async (req) => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("GeniusPay request failed:", msg);
+      await supabase.from("payments").update({
+        status: "failed",
+        metadata: { ...metadata, gateway_error: msg },
+      }).eq("id", pendingPaymentId);
       return new Response(
         JSON.stringify({
           success: false,
@@ -372,22 +380,13 @@ serve(async (req) => {
       );
     }
 
-    // Pre-record a pending payment so the webhook can mark it completed by reference
-    try {
-      const { error: paymentInsertError } = await supabase.from("payments").insert({
-        user_id,
-        payment_method: "geniuspay",
-        amount: finalAmount,
-        currency: "XOF",
-        transaction_id: paymentData.reference,
-        status: "pending",
-        metadata,
-      });
-      if (paymentInsertError && paymentInsertError.code !== "23505") {
-        console.warn("Could not pre-record payment:", paymentInsertError);
-      }
-    } catch (e) {
-      console.warn("Could not pre-record payment:", e);
+    const gatewayReference = paymentData.reference || orderId;
+    const { error: paymentUpdateError } = await supabase.from("payments").update({
+      transaction_id: gatewayReference,
+      metadata: { ...metadata, order_id: orderId, gateway_reference: gatewayReference },
+    }).eq("id", pendingPaymentId);
+    if (paymentUpdateError) {
+      console.warn("Could not attach GeniusPay reference to pending payment:", paymentUpdateError);
     }
 
     // Send notification email to founders if promo code was used
@@ -416,8 +415,8 @@ serve(async (req) => {
         success: true,
         payment_url: paymentData.checkout_url || paymentData.payment_url,
         checkout_url: paymentData.checkout_url || paymentData.payment_url,
-        transaction_id: paymentData.reference || orderId,
-        reference: paymentData.reference,
+        transaction_id: gatewayReference,
+        reference: gatewayReference,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
