@@ -232,27 +232,18 @@ serve(async (req) => {
         console.warn("shop_activation without shop_id metadata", { reference });
         return ack({ success: false, error: "missing shop_id", reference }, true);
       }
-      await supabase.from("shops")
-        .update({ is_activated: true, activation_fee_paid: true, is_published: true })
-        .eq("id", shopId)
-        .eq("user_id", userId);
-      // Trace de facturation : enregistrer le paiement d'activation parmi les facturations de la boutique
-      try {
-        if (shopId) {
-          await supabase.from("commission_payments").insert({
-            shop_id: shopId,
-            amount: amountPaid,
-            payment_method: "geniuspay",
-            transaction_reference: reference,
-            status: "paid",
-            created_by: userId,
-            notes: "Activation de la boutique",
-          });
-        }
-      } catch (e) {
-        console.warn("Could not log activation payment:", e);
+      const { data: activationResult, error: activationError } = await supabase.rpc("apply_shop_activation", {
+        p_shop_id: shopId,
+        p_user_id: userId,
+        p_amount: amountPaid,
+        p_transaction_reference: reference || null,
+        p_payment_method: data?.payment_method || data?.provider || "geniuspay",
+      });
+      if (activationError || activationResult?.success === false) {
+        console.error("Shop activation failed", { activationError, activationResult, shopId, userId, reference });
+        return ack({ success: false, error: "activation_failed", reference }, true);
       }
-      console.log("Shop activated for", userId);
+      console.log("Shop activated for", userId, activationResult);
     } else if (paymentType === "commission_payment") {
       const shopId = metadata?.shop_id;
       if (shopId) {
