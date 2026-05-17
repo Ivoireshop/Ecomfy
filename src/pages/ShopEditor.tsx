@@ -623,14 +623,15 @@ const ShopEditor = () => {
               onUploadImage={uploadProductImage}
               onPreviewProduct={
                 shop?.is_activated && shop?.is_published
-                  ? (product) => window.open(
-                      withCacheBust(
+                  ? (product) => {
+                      const href = withCacheBust(
                         (product as any).slug
                           ? `/shop/${shop.slug}/p/${(product as any).slug}`
                           : `/shop/${shop.slug}/product?product=${product.id}`
-                      ),
-                      "_blank"
-                    )
+                      );
+                      const opened = window.open(href, "_blank", "noopener,noreferrer");
+                      if (!opened) window.location.href = href;
+                    }
                   : undefined
               }
               primaryColor={primaryColor}
