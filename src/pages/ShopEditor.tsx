@@ -84,6 +84,8 @@ const toSlug = (value: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 
+const withCacheBust = (url: string) => `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+
 const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -622,9 +624,11 @@ const ShopEditor = () => {
               onPreviewProduct={
                 shop?.is_activated && shop?.is_published
                   ? (product) => window.open(
-                      (product as any).slug
-                        ? `/shop/${shop.slug}/p/${(product as any).slug}`
-                        : `/shop/${shop.slug}/product?product=${product.id}`,
+                      withCacheBust(
+                        (product as any).slug
+                          ? `/shop/${shop.slug}/p/${(product as any).slug}`
+                          : `/shop/${shop.slug}/product?product=${product.id}`
+                      ),
                       "_blank"
                     )
                   : undefined
