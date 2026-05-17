@@ -570,12 +570,16 @@ export function ProductEditor({
   // Append a cache-busting timestamp so the new tab always loads the freshest
   // shop / product data right after a save+publish.
   const cacheBust = () => `v=${Date.now()}`;
+  const withCacheBust = (url: string) => `${url}${url.includes("?") ? "&" : "?"}${cacheBust()}`;
   const shopUrl = shopSlug ? `/shop/${shopSlug}` : null;
   const canViewInShop = shopActivated && shopPublished && shopUrl;
-  const shareableSlug = product.slug || toProductSlug(product.name);
+  const savedProductSlug = initialData?.slug ? toProductSlug(initialData.slug) : "";
+  const shareableSlug = toProductSlug(product.slug || product.name);
   const liveProductUrl =
     shopSlug && productId && shopActivated && shopPublished && product.is_published
-      ? `/shop/${shopSlug}/p/${shareableSlug}`
+      ? savedProductSlug
+        ? `/shop/${shopSlug}/p/${savedProductSlug}`
+        : `/shop/${shopSlug}/product?product=${productId}`
       : null;
 
   const previewImages = allImages.map((img) => ({ id: img.id, image_url: img.image_url }));
@@ -1224,7 +1228,7 @@ export function ProductEditor({
                   {shopSlug && (
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs text-muted-foreground truncate">
-                        visuelpro.cloud/shop/{shopSlug}/p/{product.slug || (product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "mon-produit")}
+                        visuelpro.cloud/shop/{shopSlug}/p/{shareableSlug || "mon-produit"}
                       </p>
                       <Button
                         type="button"
@@ -1232,8 +1236,9 @@ export function ProductEditor({
                         size="sm"
                         className="h-6 px-2 text-xs"
                         onClick={() => {
-                          const s = product.slug || (product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "");
-                          const url = `https://visuelpro.cloud/shop/${shopSlug}/p/${s}`;
+                          const url = productId
+                            ? `https://visuelpro.cloud/shop/${shopSlug}/${savedProductSlug ? `p/${savedProductSlug}` : `product?product=${productId}`}`
+                            : `https://visuelpro.cloud/shop/${shopSlug}/p/${shareableSlug}`;
                           navigator.clipboard.writeText(url);
                           toast({ title: "Lien copié ✓", description: url });
                         }}
@@ -1326,7 +1331,7 @@ export function ProductEditor({
           </span>
           <div className="flex items-center gap-2 ml-auto">
             {canViewInShop && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(`${shopUrl}?${cacheBust()}`, "_blank")}>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(withCacheBust(shopUrl), "_blank")}>
                 <Store className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Voir en magasin</span>
               </Button>
@@ -1344,7 +1349,7 @@ export function ProductEditor({
                 variant="outline"
                 size="sm"
                 className="gap-1.5 border-green-500 text-green-700 hover:bg-green-50"
-                onClick={() => window.open(`${liveProductUrl}?${cacheBust()}`, "_blank")}
+                onClick={() => window.open(withCacheBust(liveProductUrl), "_blank")}
                 title="Ouvrir le lien public partageable"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
