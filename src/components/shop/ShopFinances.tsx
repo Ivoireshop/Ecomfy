@@ -264,6 +264,9 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
         </Card>
       </div>
 
+      {/* Comptes publicitaires synchronisés */}
+      <AdAccountsManager shopId={shopId} userId={shop?.user_id} onTotalsChanged={reloadAll} />
+
       {/* AI + WhatsApp actions */}
       <Card className="p-5 bg-gradient-to-br from-primary/5 to-transparent">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
