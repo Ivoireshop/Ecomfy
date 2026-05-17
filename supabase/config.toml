@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.get-vapid-key]
 verify_jwt = false
+
+[functions.sync-ad-spend]
+verify_jwt = false
