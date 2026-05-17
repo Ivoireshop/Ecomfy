@@ -166,7 +166,7 @@ const ProductView = () => {
       const { data } = await supabase.from("shops").select("*").eq("id", id).maybeSingle() as any;
       if (data) shopData = { ...data, _isPreview: true };
     } else if (slug) {
-      const { data: rows } = await supabase.from("shops_public" as any).select("*").eq("slug", slug).limit(1) as any;
+      const { data: rows } = await supabase.rpc("get_public_shop_by_slug" as any, { p_slug: slug }) as any;
       const live = rows?.[0];
       if (live) shopData = live;
       else {
