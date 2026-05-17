@@ -3007,6 +3007,57 @@ export type Database = {
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
       get_next_queue_item: { Args: never; Returns: string }
+      get_public_shop_by_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          address: string | null
+          banner_url: string | null
+          business_description: string | null
+          business_name: string | null
+          chatbot_enabled: boolean | null
+          chatbot_welcome_message: string | null
+          checkout_fields: Json | null
+          city: string | null
+          cod_delivery_rate: number | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          delivery_advisor_phone: string | null
+          email: string | null
+          facebook_pixels: string[] | null
+          favicon_url: string | null
+          google_analytics_code: string | null
+          google_analytics_ids: string[] | null
+          id: string | null
+          is_activated: boolean | null
+          is_published: boolean | null
+          is_suspended: boolean | null
+          logo_url: string | null
+          order_confirmation_message: string | null
+          payment_methods: string[] | null
+          phone_number: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string | null
+          snapchat_pixels: string[] | null
+          social_proof_enabled: boolean | null
+          theme: string | null
+          theme_config: Json | null
+          tiktok_pixels: string[] | null
+          tracking_enabled: boolean | null
+          updated_at: string | null
+          user_id: string | null
+          whatsapp_number: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shops_public"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_shop_social_proof_orders: {
         Args: { _limit?: number; _shop_id: string }
         Returns: {
