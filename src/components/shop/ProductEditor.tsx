@@ -1344,7 +1344,7 @@ export function ProductEditor({
                 variant="outline"
                 size="sm"
                 className="gap-1.5 border-green-500 text-green-700 hover:bg-green-50"
-                onClick={() => window.open(`${liveProductUrl}&${cacheBust()}`, "_blank")}
+                onClick={() => window.open(`${liveProductUrl}?${cacheBust()}`, "_blank")}
                 title="Ouvrir le lien public partageable"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
