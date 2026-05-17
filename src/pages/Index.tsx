@@ -9,7 +9,7 @@ import {
   GraduationCap, Sparkles, Layers, Rocket, Eye,
   Play, ChevronRight, Star
 } from "lucide-react";
-import { useEffect, useState, useRef, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -18,23 +18,9 @@ import featureRapide from "@/assets/feature-rapide.jpg";
 import featureAfrique from "@/assets/feature-afrique.jpg";
 import featureIA from "@/assets/feature-ia.jpg";
 const LandingMediaSections = lazy(() => import("@/components/LandingMediaSections"));
-
-/* ── Scroll-reveal hook ── */
-const useReveal = (threshold = 0.15) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.unobserve(el); } },
-      { threshold, rootMargin: "0px 0px -60px 0px" }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return { ref, visible };
-};
+const LandingTeamSection = lazy(() =>
+  import("@/components/LandingMediaSections").then((module) => ({ default: module.LandingTeamSection }))
+);
 
 /* ── Ticker / scrolling banner ── */
 const TickerBanner = () => {
@@ -86,6 +72,14 @@ const Index = () => {
     setPublishedFeedback(data || []);
   };
 
+  const hubServices = [
+    { icon: ImageIcon, title: "Visuels Publicitaires", desc: "Créez des images IA professionnelles", color: "from-orange-500 to-pink-500", bgLight: "bg-orange-50 dark:bg-orange-950/30", route: "/generator", cta: "Créer un visuel" },
+    { icon: Video, title: "Vidéos Animées", desc: "Transformez vos visuels en vidéos", color: "from-blue-500 to-cyan-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", route: "/video-creator", cta: "Créer une vidéo" },
+    { icon: Globe, title: "Sites Vitrine", desc: "Lancez votre site pro en minutes", color: "from-violet-500 to-purple-500", bgLight: "bg-violet-50 dark:bg-violet-950/30", route: "/showcase-manager", cta: "Créer un site" },
+    { icon: Store, title: "Boutiques E-commerce", desc: "Vendez en ligne avec paiements intégrés", color: "from-emerald-500 to-teal-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/30", route: "/shop-manager", cta: "Créer une boutique" },
+    { icon: GraduationCap, title: "Formations en Ligne", desc: "Créez et vendez vos cours avec certificats", color: "from-amber-500 to-yellow-500", bgLight: "bg-amber-50 dark:bg-amber-950/30", route: "/courses-manager", cta: "Créer une formation" },
+    { icon: Code, title: "API & Intégrations", desc: "Connectez VisualPro à vos outils", color: "from-slate-500 to-gray-500", bgLight: "bg-slate-50 dark:bg-slate-950/30", route: "/api-documentation", cta: "Voir la doc API" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -185,82 +179,9 @@ const Index = () => {
       )}
 
       {/* ===== ANIMATED SERVICE SECTIONS ===== */}
-      <section id="services" className="py-16 md:py-24 space-y-20 md:space-y-32">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">
-              Une plateforme, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">toutes les solutions</span>
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Chaque outil dont vous avez besoin pour lancer et développer votre activité en ligne
-            </p>
-          </div>
-
-          <div className="space-y-20 md:space-y-32 max-w-6xl mx-auto">
-            <ServiceSection
-              title="Visuels Publicitaires IA"
-              subtitle="Création de visuels"
-              description="Générez des images publicitaires professionnelles en quelques secondes grâce à l'intelligence artificielle. Parfait pour vos campagnes marketing sur les réseaux sociaux."
-              images={[exampleHandbag, examplePhone, exampleFood]}
-              icon={ImageIcon}
-              gradient="from-orange-500 to-pink-500"
-              cta="Créer un visuel"
-              onClick={() => navigate(session ? "/generator" : "/auth")}
-            />
-
-            <ServiceSection
-              title="Vidéos Animées Pro"
-              subtitle="Vidéo & Animation"
-              description="Transformez n'importe quel visuel en vidéo captivante avec des animations fluides et des effets professionnels. Idéal pour capturer l'attention sur TikTok, Instagram et Facebook."
-              images={[videoPreview1, videoPreview2]}
-              videos={[videoModelCosmetics.url, videoModelHandbag.url]}
-              icon={Video}
-              gradient="from-blue-500 to-cyan-500"
-              reversed
-              cta="Créer une vidéo"
-              onClick={() => navigate(session ? "/video-creator" : "/auth")}
-            />
-
-            <ServiceSection
-              title="Sites Vitrine Professionnels"
-              subtitle="Site vitrine"
-              description="Lancez votre site web professionnel en quelques minutes. Présentez vos services, votre portfolio et recevez des réservations — sans aucune compétence technique."
-              images={[featureRapide, showcaseSitePreview, showcaseDevPreview]}
-              icon={Globe}
-              gradient="from-violet-500 to-purple-500"
-              cta="Créer un site vitrine"
-              onClick={() => navigate(session ? "/showcase-manager" : "/auth")}
-            />
-
-            <ServiceSection
-              title="Boutiques E-commerce"
-              subtitle="E-commerce"
-              description="Vendez vos produits en ligne avec une boutique complète : gestion des stocks, paiements Mobile Money, suivi des commandes et livraisons intégrées."
-              images={[ecommerceDashboard, ecommerceProductPage, ecommerceShopping]}
-              icon={Store}
-              gradient="from-emerald-500 to-teal-500"
-              reversed
-              cta="Créer une boutique"
-              onClick={() => navigate(session ? "/shop-manager" : "/auth")}
-            />
-
-            <ServiceSection
-              title="Formations en Ligne"
-              subtitle="E-learning"
-              description="Créez et vendez vos formations avec des modules structurés, un espace étudiant dédié, des certificats automatiques et des liens de paiement intégrés."
-              images={[formationClassroom, formationOnline]}
-              icon={GraduationCap}
-              gradient="from-amber-500 to-yellow-500"
-              reversed
-              cta="Créer une formation"
-              onClick={() => navigate(session ? "/courses-manager" : "/auth")}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ===== STATS ===== */}
-      {!session && <StatsSection />}
+      <Suspense fallback={<section id="services" className="py-16 md:py-24" />} >
+        <LandingMediaSections session={session} />
+      </Suspense>
 
       {/* ===== COMMENT CA MARCHE ===== */}
       {!session && (
@@ -374,30 +295,9 @@ const Index = () => {
 
       {/* ===== ÉQUIPE ===== */}
       {!session && (
-        <section className="py-16 md:py-24 bg-muted/30">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">Notre équipe</h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Des passionnés dévoués à démocratiser la création digitale en Afrique</p>
-            </div>
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <Card className="p-8 text-center hover:shadow-xl transition-all">
-                <img src={founderImage} alt="Ulrich DJATÉ" className="w-28 h-28 rounded-full mx-auto mb-4 object-cover ring-4 ring-primary/20" />
-                <h3 className="text-xl font-bold mb-1">Ulrich DJATÉ</h3>
-                <p className="text-primary font-semibold text-sm mb-3">Fondateur, CEO & Architecte</p>
-                <p className="text-muted-foreground text-sm mb-4">Expert en IA, développement et vibe coding</p>
-                <blockquote className="italic text-xs text-primary border-l-4 border-primary pl-3 py-1 text-left">"L'innovation en Afrique commence par croire en nos propres capacités."</blockquote>
-              </Card>
-              <Card className="p-8 text-center hover:shadow-xl transition-all">
-                <img src={cofounderImage} alt="Regnis AGNISSAN" className="w-28 h-28 rounded-full mx-auto mb-4 object-cover ring-4 ring-secondary/20" />
-                <h3 className="text-xl font-bold mb-1">Regnis AGNISSAN</h3>
-                <p className="text-secondary font-semibold text-sm mb-3">Co-fondateur</p>
-                <p className="text-muted-foreground text-sm mb-4">Entrepreneur digital et expert en e-commerce</p>
-                <blockquote className="italic text-xs text-secondary border-l-4 border-secondary pl-3 py-1 text-left">"Ensemble, bâtissons l'avenir du commerce en ligne en Afrique."</blockquote>
-              </Card>
-            </div>
-          </div>
-        </section>
+        <Suspense fallback={<section className="py-16 md:py-24 bg-muted/30" />} >
+          <LandingTeamSection />
+        </Suspense>
       )}
 
       {/* ===== CTA FINAL ===== */}
