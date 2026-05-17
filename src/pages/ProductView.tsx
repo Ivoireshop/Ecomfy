@@ -420,8 +420,15 @@ const ProductView = () => {
   if (!shop || !product) return (
     <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-white">
       <Store className="h-20 w-20 text-gray-300" />
-      <h1 className="text-2xl font-bold text-gray-800">Produit introuvable</h1>
-      <p className="text-gray-500">Ce produit n'existe pas ou n'est plus disponible</p>
+      <h1 className="text-2xl font-bold text-gray-800">{fetchError ? "Chargement impossible" : "Produit introuvable"}</h1>
+      <p className="text-gray-500 text-center px-4">
+        {fetchError || "Ce produit n'existe pas ou n'est plus disponible"}
+      </p>
+      {fetchError && (
+        <Button onClick={fetchData} className="mt-2">
+          Réessayer
+        </Button>
+      )}
     </div>
   );
 
