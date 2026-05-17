@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, TrendingUp, TrendingDown, Wallet, Megaphone, Package, Truck, Users, Sparkles, MessageCircle, Mail, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { AdAccountsManager } from "@/components/shop/AdAccountsManager";
 
 interface Order { id: string; total: number; order_status: string; payment_status: string; created_at: string; }
 interface Expense { id: string; shop_id: string; category: string; amount: number; description: string | null; expense_date: string; created_at: string; }
@@ -34,6 +35,7 @@ interface Props {
 export function ShopFinances({ shopId, shop, orders }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [adSpend, setAdSpend] = useState<{ spend_date: string; amount: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<"week" | "month" | "all">("month");
   const [addOpen, setAddOpen] = useState(false);
@@ -46,17 +48,18 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
   const [savingAuto, setSavingAuto] = useState(false);
   const [sendingNow, setSendingNow] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const [exp, pay] = await Promise.all([
-        supabase.from("shop_expenses" as any).select("*").eq("shop_id", shopId).order("expense_date", { ascending: false }),
-        supabase.from("commission_payments").select("*").eq("shop_id", shopId).eq("status", "paid"),
-      ]);
-      setExpenses(((exp.data as any[]) || []) as Expense[]);
-      setPayments((pay.data as any[]) || []);
-      setLoading(false);
-    })();
-  }, [shopId]);
+  const reloadAll = async () => {
+    const [exp, pay, ads] = await Promise.all([
+      supabase.from("shop_expenses" as any).select("*").eq("shop_id", shopId).order("expense_date", { ascending: false }),
+      supabase.from("commission_payments").select("*").eq("shop_id", shopId).eq("status", "paid"),
+      (supabase as any).from("ad_spend_daily").select("spend_date, amount").eq("shop_id", shopId),
+    ]);
+    setExpenses(((exp.data as any[]) || []) as Expense[]);
+    setPayments((pay.data as any[]) || []);
+    setAdSpend(((ads.data as any[]) || []).map((r: any) => ({ spend_date: r.spend_date, amount: Number(r.amount || 0) })));
+    setLoading(false);
+  };
+  useEffect(() => { reloadAll(); }, [shopId]);
 
   const filtered = useMemo(() => {
     const now = new Date();
@@ -68,8 +71,9 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       orders: orders.filter(o => inRange(o.created_at)),
       expenses: expenses.filter(e => inRange(e.expense_date)),
       platformPayments: payments.filter(p => inRange(p.created_at)),
+      adSpend: adSpend.filter(a => inRange(a.spend_date)),
     };
-  }, [orders, expenses, payments, period]);
+  }, [orders, expenses, payments, adSpend, period]);
 
   const stats = useMemo(() => {
     const confirmed = filtered.orders.filter(o => ["confirmed","processing","shipped","delivered"].includes(o.order_status));
@@ -78,7 +82,12 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     const revenue = confirmed.reduce((s, o) => s + Number(o.total || 0), 0);
     const expByCat: Record<string, number> = {};
     filtered.expenses.forEach(e => { expByCat[e.category] = (expByCat[e.category] || 0) + Number(e.amount); });
-    const totalExpenses = filtered.expenses.reduce((s, e) => s + Number(e.amount), 0);
+    const adSpendTotal = filtered.adSpend.reduce((s, a) => s + Number(a.amount || 0), 0);
+    if (adSpendTotal > 0) {
+      expByCat["ads"] = (expByCat["ads"] || 0) + adSpendTotal;
+    }
+    const manualExpenses = filtered.expenses.reduce((s, e) => s + Number(e.amount), 0);
+    const totalExpenses = manualExpenses + adSpendTotal;
     const platformFees = filtered.platformPayments.reduce((s, p) => s + Number(p.amount), 0);
     const commissionDue = Number(shop?.commission_balance_due) || 0;
     const profit = cashIn - totalExpenses - platformFees;
@@ -86,7 +95,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       ordersCount: filtered.orders.length,
       confirmedCount: confirmed.length,
       deliveredCount: delivered.length,
-      revenue, cashIn, totalExpenses, platformFees, commissionDue, profit, expByCat,
+      revenue, cashIn, totalExpenses, platformFees, commissionDue, profit, expByCat, adSpendTotal,
     };
   }, [filtered, shop]);
 
