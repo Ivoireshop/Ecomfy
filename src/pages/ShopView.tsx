@@ -104,12 +104,7 @@ const ShopView = () => {
       if (previewById) shopData = { ...previewById, _isPreview: true };
     } else if (slug) {
       const { data: liveRows, error: liveErr } = await fetchWithRetry(() =>
-        supabase
-          .from("shops_public" as any)
-          .select("*")
-          .eq("slug", slug)
-          .order("created_at", { ascending: false })
-          .limit(1)
+        supabase.rpc("get_public_shop_by_slug" as any, { p_slug: slug })
       );
 
       const liveData = (liveRows as any)?.[0];
