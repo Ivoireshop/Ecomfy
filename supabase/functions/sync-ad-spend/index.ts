@@ -33,6 +33,19 @@ async function syncMeta(accountId: string, token: string) {
   }));
 }
 
+async function debugMetaToken(token: string): Promise<string | null> {
+  try {
+    const url = `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const expSec = json?.data?.data_access_expires_at ?? json?.data?.expires_at;
+    if (!expSec || Number(expSec) === 0) return null;
+    return new Date(Number(expSec) * 1000).toISOString();
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -69,9 +82,11 @@ Deno.serve(async (req) => {
 
     let daily: Array<{ spend_date: string; amount: number; currency: string; raw: any }> = [];
     let currency = "XOF";
+    let tokenExpiresAt: string | null = null;
     try {
       if (acc.provider === "meta") {
         daily = await syncMeta(acc.account_id, acc.access_token);
+        tokenExpiresAt = await debugMetaToken(acc.access_token);
       } else {
         throw new Error(`Provider ${acc.provider} non supporté pour le moment`);
       }
@@ -114,10 +129,12 @@ Deno.serve(async (req) => {
         last_synced_at: new Date().toISOString(),
         last_sync_status: "success",
         last_sync_error: null,
+        token_expires_at: tokenExpiresAt,
+        token_expiry_notified_at: null,
       })
       .eq("id", acc.id);
 
-    return ok({ success: true, days: daily.length, total, currency });
+    return ok({ success: true, days: daily.length, total, currency, token_expires_at: tokenExpiresAt });
   } catch (e) {
     return ok({ success: false, error: (e as Error).message });
   }

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, RefreshCw, Trash2, Megaphone, ExternalLink, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Trash2, Megaphone, ExternalLink, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 
 interface AdAccount {
   id: string;
@@ -20,6 +20,7 @@ interface AdAccount {
   last_synced_at: string | null;
   last_sync_status: string | null;
   last_sync_error: string | null;
+  token_expires_at: string | null;
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(Number(n) || 0));
@@ -41,7 +42,7 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
   const load = async () => {
     const { data } = await (supabase as any)
       .from("ad_accounts")
-      .select("id, provider, account_id, account_label, currency, total_spend, last_synced_at, last_sync_status, last_sync_error")
+      .select("id, provider, account_id, account_label, currency, total_spend, last_synced_at, last_sync_status, last_sync_error, token_expires_at")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
     setAccounts((data as AdAccount[]) || []);
@@ -49,6 +50,26 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
   };
 
   useEffect(() => { load(); }, [shopId]);
+
+  // Avertir l'utilisateur si un token est sur le point d'expirer
+  useEffect(() => {
+    if (loading || accounts.length === 0) return;
+    const now = Date.now();
+    const expiring = accounts.filter(a => {
+      if (!a.token_expires_at) return false;
+      const diff = new Date(a.token_expires_at).getTime() - now;
+      return diff < 7 * 86400000;
+    });
+    if (expiring.length > 0) {
+      const first = expiring[0];
+      const days = Math.ceil((new Date(first.token_expires_at!).getTime() - now) / 86400000);
+      toast({
+        title: days <= 0 ? "Token Meta expiré" : `Token Meta expire dans ${days} jour${days > 1 ? 's' : ''}`,
+        description: "Renouvelez votre token pour continuer la synchronisation des dépenses publicitaires.",
+        variant: "destructive",
+      });
+    }
+  }, [loading, accounts]);
 
   const add = async () => {
     if (!form.account_id.trim() || !form.access_token.trim()) {
@@ -128,11 +149,24 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="uppercase text-[10px]">{acc.provider}</Badge>
                   <span className="text-sm font-medium truncate">{acc.account_label || `act_${acc.account_id}`}</span>
+                  {acc.token_expires_at && (() => {
+                    const days = Math.ceil((new Date(acc.token_expires_at).getTime() - Date.now()) / 86400000);
+                    if (days > 7) return null;
+                    return (
+                      <Badge variant="destructive" className="text-[10px] gap-1">
+                        <Clock className="h-3 w-3" />
+                        {days <= 0 ? "Token expiré" : `Expire dans ${days}j`}
+                      </Badge>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                   <span>ID: {acc.account_id}</span>
                   {acc.last_sync_status === "success" && <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 className="h-3 w-3" /> {acc.last_synced_at ? new Date(acc.last_synced_at).toLocaleString("fr-FR") : ""}</span>}
                   {acc.last_sync_status === "error" && <span className="flex items-center gap-1 text-red-600" title={acc.last_sync_error || ""}><AlertCircle className="h-3 w-3" /> Erreur</span>}
+                  {acc.token_expires_at && (
+                    <span className="text-muted-foreground">Token: {new Date(acc.token_expires_at).toLocaleDateString("fr-FR")}</span>
+                  )}
                 </div>
               </div>
               <div className="text-right">

@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.sync-ad-spend]
 verify_jwt = false
+
+[functions.check-ad-token-expiry]
+verify_jwt = false

@@ -28,6 +28,8 @@ export type Database = {
           last_synced_at: string | null
           provider: string
           shop_id: string
+          token_expires_at: string | null
+          token_expiry_notified_at: string | null
           total_spend: number | null
           updated_at: string
           user_id: string
@@ -45,6 +47,8 @@ export type Database = {
           last_synced_at?: string | null
           provider: string
           shop_id: string
+          token_expires_at?: string | null
+          token_expiry_notified_at?: string | null
           total_spend?: number | null
           updated_at?: string
           user_id: string
@@ -62,6 +66,8 @@ export type Database = {
           last_synced_at?: string | null
           provider?: string
           shop_id?: string
+          token_expires_at?: string | null
+          token_expiry_notified_at?: string | null
           total_spend?: number | null
           updated_at?: string
           user_id?: string
