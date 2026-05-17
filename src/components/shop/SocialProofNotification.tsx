@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ShoppingBag, X } from "lucide-react";
 
@@ -11,15 +11,20 @@ interface RecentOrder {
 interface SocialProofNotificationProps {
   shopId: string;
   enabled: boolean;
+  /** When set, all notifications display this product name (product page context). */
+  productName?: string;
+  /** When set, notifications display "a commandé chez {shopName}" (shop home context). */
+  shopName?: string;
 }
 
-const DEMO_ORDERS: RecentOrder[] = [
-  { customer_name: "Kouadio", product_name: "un article", created_at: new Date(Date.now() - 3 * 60000).toISOString() },
-  { customer_name: "Aminata", product_name: "un produit", created_at: new Date(Date.now() - 12 * 60000).toISOString() },
-  { customer_name: "Ibrahim", product_name: "un article", created_at: new Date(Date.now() - 45 * 60000).toISOString() },
-];
+const DEMO_NAMES = ["Kouadio", "Aminata", "Ibrahim", "Fatou", "Yao", "Mariam"];
+const buildDemoOrders = (): RecentOrder[] => DEMO_NAMES.slice(0, 3).map((n, i) => ({
+  customer_name: n,
+  product_name: "",
+  created_at: new Date(Date.now() - (3 + i * 12) * 60000).toISOString(),
+}));
 
-export function SocialProofNotification({ shopId, enabled }: SocialProofNotificationProps) {
+export function SocialProofNotification({ shopId, enabled, productName, shopName }: SocialProofNotificationProps) {
   const [orders, setOrders] = useState<RecentOrder[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visible, setVisible] = useState(false);
@@ -33,8 +38,7 @@ export function SocialProofNotification({ shopId, enabled }: SocialProofNotifica
     });
 
     if (error || !ordersData?.length) {
-      // No public orders yet: use demo data so the activation is immediately visible.
-      setOrders(DEMO_ORDERS);
+      setOrders(buildDemoOrders());
       return;
     }
 
@@ -85,6 +89,19 @@ export function SocialProofNotification({ shopId, enabled }: SocialProofNotifica
   const order = orders[currentIndex];
   const timeAgo = getTimeAgo(order.created_at);
 
+  // Contextual message:
+  // - product page → always show the current product name
+  // - shop home → "a commandé chez {shopName}"
+  // - fallback → use order.product_name
+  let message: ReactNode;
+  if (productName) {
+    message = <>{order.customer_name} a commandé <span className="font-semibold">{productName}</span></>;
+  } else if (shopName) {
+    message = <>{order.customer_name} a commandé chez <span className="font-semibold">{shopName}</span></>;
+  } else {
+    message = <>{order.customer_name} a commandé <span className="font-semibold">{order.product_name || "un article"}</span></>;
+  }
+
   return (
     <div className="fixed bottom-24 left-4 right-4 sm:right-auto sm:bottom-4 z-[10000] animate-in slide-in-from-bottom-4 fade-in duration-500">
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 max-w-xs flex items-start gap-3">
@@ -93,7 +110,7 @@ export function SocialProofNotification({ shopId, enabled }: SocialProofNotifica
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 dark:text-white">
-            {order.customer_name} a commandé <span className="font-semibold">{order.product_name}</span>
+            {message}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             {timeAgo}

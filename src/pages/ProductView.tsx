@@ -1308,7 +1308,11 @@ const ProductView = () => {
         </div>
       )}
 
-      <SocialProofNotification shopId={shop.id} enabled={shop.social_proof_enabled || false} />
+      <SocialProofNotification
+        shopId={shop.id}
+        enabled={shop.social_proof_enabled || false}
+        productName={product?.name}
+      />
     </div>
   );
 };

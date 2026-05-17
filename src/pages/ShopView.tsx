@@ -916,7 +916,11 @@ const ShopView = () => {
       )}
 
       {/* Social Proof Notifications */}
-      <SocialProofNotification shopId={shop.id} enabled={shop.social_proof_enabled || false} />
+      <SocialProofNotification
+        shopId={shop.id}
+        enabled={shop.social_proof_enabled || false}
+        shopName={shop.business_name}
+      />
     </div>
   );
 };
