@@ -14,6 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_accounts: {
+        Row: {
+          access_token: string
+          account_id: string
+          account_label: string | null
+          created_at: string
+          currency: string | null
+          id: string
+          is_active: boolean | null
+          last_sync_error: string | null
+          last_sync_status: string | null
+          last_synced_at: string | null
+          provider: string
+          shop_id: string
+          total_spend: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          account_id: string
+          account_label?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          last_synced_at?: string | null
+          provider: string
+          shop_id: string
+          total_spend?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          account_id?: string
+          account_label?: string | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          shop_id?: string
+          total_spend?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_accounts_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_accounts_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_spend_daily: {
+        Row: {
+          ad_account_id: string
+          amount: number
+          created_at: string
+          currency: string | null
+          id: string
+          raw: Json | null
+          shop_id: string
+          spend_date: string
+          updated_at: string
+        }
+        Insert: {
+          ad_account_id: string
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          id?: string
+          raw?: Json | null
+          shop_id: string
+          spend_date: string
+          updated_at?: string
+        }
+        Update: {
+          ad_account_id?: string
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          id?: string
+          raw?: Json | null
+          shop_id?: string
+          spend_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_spend_daily_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "ad_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_templates: {
         Row: {
           animation_preset: string
