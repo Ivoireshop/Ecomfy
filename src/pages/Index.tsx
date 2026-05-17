@@ -47,10 +47,28 @@ const Index = () => {
   const [profile, setProfile] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [loadDeferredSections, setLoadDeferredSections] = useState(false);
 
   useEffect(() => {
-    loadPublishedFeedback();
     checkSession();
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const idleId = idleWindow.requestIdleCallback?.(() => {
+      setLoadDeferredSections(true);
+      void loadPublishedFeedback();
+    }, { timeout: 1200 });
+    const timeoutId = idleId ? undefined : window.setTimeout(() => {
+      setLoadDeferredSections(true);
+      void loadPublishedFeedback();
+    }, 700);
+
+    return () => {
+      if (idleId) idleWindow.cancelIdleCallback?.(idleId);
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
   }, []);
 
   const checkSession = async () => {
@@ -174,9 +192,22 @@ const Index = () => {
       )}
 
       {/* ===== ANIMATED SERVICE SECTIONS ===== */}
-      <Suspense fallback={<section id="services" className="py-16 md:py-24" />} >
-        <LandingMediaSections session={session} />
-      </Suspense>
+      {loadDeferredSections ? (
+        <Suspense fallback={<section id="services" className="py-16 md:py-24" />}>
+          <LandingMediaSections session={session} />
+        </Suspense>
+      ) : (
+        <section id="services" className="py-16 md:py-24">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">
+              Une plateforme, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">toutes les solutions</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Chaque outil dont vous avez besoin pour lancer et développer votre activité en ligne
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* ===== COMMENT CA MARCHE ===== */}
       {!session && (
