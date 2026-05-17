@@ -4,19 +4,14 @@ import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { 
   Video, Image as ImageIcon, Globe, Zap, 
-  Shield, Users, Code, BookOpen, FileText, Lock,
-  CheckCircle2, ArrowRight, TrendingUp, Wand2, Store,
-  GraduationCap, Sparkles, Layers, Rocket, Eye,
-  Play, ChevronRight, Star
+  Code, CheckCircle2, ArrowRight, Wand2, Store,
+  GraduationCap, Rocket, ChevronRight, Star
 } from "lucide-react";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
-import featureRapide from "@/assets/feature-rapide.jpg";
-import featureAfrique from "@/assets/feature-afrique.jpg";
-import featureIA from "@/assets/feature-ia.jpg";
 const LandingMediaSections = lazy(() => import("@/components/LandingMediaSections"));
 const LandingTeamSection = lazy(() =>
   import("@/components/LandingMediaSections").then((module) => ({ default: module.LandingTeamSection }))
