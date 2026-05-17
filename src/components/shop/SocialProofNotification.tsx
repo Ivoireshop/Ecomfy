@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ShoppingBag, X } from "lucide-react";
 
@@ -93,7 +93,7 @@ export function SocialProofNotification({ shopId, enabled, productName, shopName
   // - product page → always show the current product name
   // - shop home → "a commandé chez {shopName}"
   // - fallback → use order.product_name
-  let message: React.ReactNode;
+  let message: ReactNode;
   if (productName) {
     message = <>{order.customer_name} a commandé <span className="font-semibold">{productName}</span></>;
   } else if (shopName) {
