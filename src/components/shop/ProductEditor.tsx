@@ -1331,9 +1331,11 @@ export function ProductEditor({
           </span>
           <div className="flex items-center gap-2 ml-auto">
             {canViewInShop && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(withCacheBust(shopUrl), "_blank")}>
-                <Store className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Voir en magasin</span>
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                <a href={withCacheBust(shopUrl)} target="_blank" rel="noopener noreferrer">
+                  <Store className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Voir en magasin</span>
+                </a>
               </Button>
             )}
             <PreviewSheet
@@ -1349,11 +1351,13 @@ export function ProductEditor({
                 variant="outline"
                 size="sm"
                 className="gap-1.5 border-green-500 text-green-700 hover:bg-green-50"
-                onClick={() => window.open(withCacheBust(liveProductUrl), "_blank")}
+                asChild
                 title="Ouvrir le lien public partageable"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Voir en live</span>
+                <a href={withCacheBust(liveProductUrl)} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Voir en live</span>
+                </a>
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={onCancel}>

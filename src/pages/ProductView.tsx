@@ -107,6 +107,7 @@ const ProductView = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedBundleIdx, setSelectedBundleIdx] = useState<number | null>(null);
@@ -158,104 +159,134 @@ const ProductView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, id, productId, productSlug]);
 
+  const fetchWithRetry = async (fn: () => any, attempts = 3): Promise<any> => {
+    let lastErr: any = null;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await Promise.race([
+          Promise.resolve(fn()),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 9000)),
+        ]) as any;
+        if (!res?.error) return res;
+        lastErr = res.error;
+      } catch (e) {
+        lastErr = e;
+      }
+      await new Promise((r) => setTimeout(r, 350 * Math.pow(2, i)));
+    }
+    return { data: null, error: lastErr };
+  };
+
   const fetchData = async () => {
     if ((!slug && !id) || (!productId && !productSlug)) { setLoading(false); return; }
-    let shopData: any = null;
+    setFetchError(null);
+    setLoading(true);
+    try {
+      let shopData: any = null;
 
-    if (id) {
-      const { data } = await supabase.from("shops").select("*").eq("id", id).maybeSingle() as any;
-      if (data) shopData = { ...data, _isPreview: true };
-    } else if (slug) {
-      const { data: rows } = await supabase.rpc("get_public_shop_by_slug" as any, { p_slug: slug }) as any;
-      const live = rows?.[0];
-      if (live) shopData = live;
-      else {
-        // Owner-only fallback (RLS will filter to the owner)
-        const { data: pRows } = await supabase.from("shops").select("*").eq("slug", slug).limit(1) as any;
-        if (pRows?.[0]) shopData = { ...pRows[0], _isPreview: true };
-      }
-    }
-
-    if (!shopData) { setLoading(false); return; }
-    setShop(shopData);
-
-    // Fetch product
-    let productQuery = supabase
-      .from("products")
-      .select("*, product_images(*)")
-      .eq("shop_id", shopData.id);
-    if (productSlug) {
-      productQuery = productQuery.eq("slug", productSlug);
-    } else if (productId) {
-      productQuery = productQuery.eq("id", productId);
-    }
-    const { data: productData } = await productQuery.maybeSingle() as any;
-
-    if (productData) {
-      // Sort images by display_order
-      if (productData.product_images) {
-        productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
-      }
-      setProduct(productData);
-
-      // Fetch related products
-      const { data: related } = await supabase
-        .from("products")
-        .select("*, product_images(*)")
-        .eq("shop_id", shopData.id)
-        .neq("id", productData.id)
-        .eq("is_published", true)
-        .limit(4) as any;
-      setRelatedProducts(related || []);
-    }
-
-    // Track product visit (skip preview)
-    if (productData && !shopData._isPreview) {
-      try {
-        let sid = sessionStorage.getItem("vp_visit_session");
-        if (!sid) {
-          sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-          sessionStorage.setItem("vp_visit_session", sid);
+      if (id) {
+        const { data } = await fetchWithRetry(() => supabase.from("shops").select("*").eq("id", id).maybeSingle()) as any;
+        if (data) shopData = { ...data, _isPreview: true };
+      } else if (slug) {
+        const { data: rows, error: shopErr } = await fetchWithRetry(() => supabase.rpc("get_public_shop_by_slug" as any, { p_slug: slug })) as any;
+        const live = rows?.[0];
+        if (live) shopData = live;
+        else {
+          const { data: pRows } = await fetchWithRetry(() => supabase.from("shops").select("*").eq("slug", slug).limit(1)) as any;
+          if (pRows?.[0]) shopData = { ...pRows[0], _isPreview: true };
+          else if (shopErr) setFetchError("Connexion lente : impossible de charger cette boutique pour le moment.");
         }
-        await supabase.from("shop_visits" as any).insert({
-          shop_id: shopData.id,
-          product_id: productData.id,
-          session_id: sid,
-        } as any);
+      }
+
+      if (!shopData) return;
+      setShop(shopData);
+
+      const loadProduct = (field: "slug" | "id", value: string) => {
+        let query = supabase
+          .from("products")
+          .select("*, product_images(*)")
+          .eq("shop_id", shopData.id)
+          .eq(field, value);
+        if (!shopData._isPreview) query = query.eq("is_published", true);
+        return query.maybeSingle();
+      };
+
+      let productData: any = null;
+      if (productSlug) {
+        const bySlug = await fetchWithRetry(() => loadProduct("slug", productSlug));
+        productData = bySlug.data;
+      }
+      if (!productData && productId) {
+        const byId = await fetchWithRetry(() => loadProduct("id", productId));
+        productData = byId.data;
+      }
+
+      if (productData) {
+        if (productData.product_images) {
+          productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+        }
+        setProduct(productData);
+
+        const { data: related } = await fetchWithRetry(() => supabase
+          .from("products")
+          .select("*, product_images(*)")
+          .eq("shop_id", shopData.id)
+          .neq("id", productData.id)
+          .eq("is_published", true)
+          .limit(4)) as any;
+        setRelatedProducts(related || []);
+      }
+
+      if (productData && !shopData._isPreview) {
+        try {
+          let sid = sessionStorage.getItem("vp_visit_session");
+          if (!sid) {
+            sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            sessionStorage.setItem("vp_visit_session", sid);
+          }
+          await supabase.from("shop_visits" as any).insert({ shop_id: shopData.id, product_id: productData.id, session_id: sid } as any);
+        } catch {}
+      }
+
+      try {
+        document.title = productData?.name || shopData.business_name || "Produit";
+        const iconHref = String(shopData.favicon_url || shopData.logo_url || "/favicon.png");
+        document.head
+          .querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']")
+          .forEach((el) => el.parentNode?.removeChild(el));
+        (["icon", "shortcut icon", "apple-touch-icon"] as const).forEach((rel) => {
+          const l = document.createElement("link");
+          l.rel = rel;
+          l.type = "image/png";
+          l.href = `${iconHref}${iconHref.includes("?") ? "&" : "?"}v=${Date.now()}`;
+          document.head.appendChild(l);
+        });
       } catch {}
-    }
 
-    // Set page title & favicon — remove ALL existing icon links so the
-    // default VisualPro favicon doesn't remain in tabs / Google search.
-    document.title = productData?.name || shopData.business_name || "Produit";
-    const iconHref = shopData.favicon_url || shopData.logo_url || "/favicon.png";
-    document.head
-      .querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']")
-      .forEach((el) => el.parentNode?.removeChild(el));
-    (["icon", "shortcut icon", "apple-touch-icon"] as const).forEach((rel) => {
-      const l = document.createElement("link");
-      l.rel = rel;
-      l.type = "image/png";
-      l.href = `${iconHref}${iconHref.includes("?") ? "&" : "?"}v=${Date.now()}`;
-      document.head.appendChild(l);
-    });
+      if (shopData.chatbot_enabled) {
+        setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
+      }
 
-    if (shopData.chatbot_enabled) {
-      setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
-    }
-
-    setLoading(false);
-
-    if (!shopData._isPreview && productData) {
-      initShopPixels(shopData);
-      trackEvent(shopData, "PageView");
-      trackEvent(shopData, "ViewContent", {
-        value: productData.price,
-        content_ids: [productData.id],
-        content_name: productData.name,
-        content_type: "product",
-        contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
-      });
+      if (!shopData._isPreview && productData) {
+        try {
+          initShopPixels(shopData);
+          trackEvent(shopData, "PageView");
+          trackEvent(shopData, "ViewContent", {
+            value: productData.price,
+            content_ids: [productData.id],
+            content_name: productData.name,
+            content_type: "product",
+            contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
+          });
+        } catch (e) {
+          console.warn("[tracking] product page init failed", e);
+        }
+      }
+    } catch (error) {
+      console.warn("[ProductView] load failed", error);
+      setFetchError("Connexion lente : impossible de charger cette fiche produit pour le moment.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -389,8 +420,15 @@ const ProductView = () => {
   if (!shop || !product) return (
     <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-white">
       <Store className="h-20 w-20 text-gray-300" />
-      <h1 className="text-2xl font-bold text-gray-800">Produit introuvable</h1>
-      <p className="text-gray-500">Ce produit n'existe pas ou n'est plus disponible</p>
+      <h1 className="text-2xl font-bold text-gray-800">{fetchError ? "Chargement impossible" : "Produit introuvable"}</h1>
+      <p className="text-gray-500 text-center px-4">
+        {fetchError || "Ce produit n'existe pas ou n'est plus disponible"}
+      </p>
+      {fetchError && (
+        <Button onClick={fetchData} className="mt-2">
+          Réessayer
+        </Button>
+      )}
     </div>
   );
 
