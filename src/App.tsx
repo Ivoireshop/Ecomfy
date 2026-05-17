@@ -12,11 +12,11 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
 
-// Eager load: landing + auth (critical path)
+// Eager load: landing only (critical path)
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
 
 // Lazy load all other pages
+const Auth = lazy(() => import("./pages/Auth"));
 const Generator = lazy(() => import("./pages/Generator"));
 const Library = lazy(() => import("./pages/Library"));
 const Subscription = lazy(() => import("./pages/Subscription"));
