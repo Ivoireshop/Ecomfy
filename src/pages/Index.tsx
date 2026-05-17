@@ -320,7 +320,7 @@ const Index = () => {
       )}
 
       {/* ===== ÉQUIPE ===== */}
-      {!session && (
+      {!session && loadDeferredSections && (
         <Suspense fallback={<section className="py-16 md:py-24 bg-muted/30" />} >
           <LandingTeamSection />
         </Suspense>
