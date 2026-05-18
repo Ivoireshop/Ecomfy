@@ -322,7 +322,7 @@ const ShopEditor = () => {
 
   const saveProduct = async () => {
     if (!id) return;
-    const productSlug = await getUniqueProductSlug((newProduct as any).slug || newProduct.name, editingProduct?.id);
+    const productSlug = editingProduct?.slug || await getUniqueProductSlug((newProduct as any).slug || newProduct.name, editingProduct?.id);
     const productData = {
       name: newProduct.name, description: newProduct.description, short_description: newProduct.short_description,
       price: newProduct.price, compare_at_price: newProduct.compare_at_price || null, category: newProduct.category,
