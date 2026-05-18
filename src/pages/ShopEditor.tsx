@@ -84,8 +84,6 @@ const toSlug = (value: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 
-const withCacheBust = (url: string) => `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
-
 const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -324,7 +322,7 @@ const ShopEditor = () => {
 
   const saveProduct = async () => {
     if (!id) return;
-    const productSlug = await getUniqueProductSlug((newProduct as any).slug || newProduct.name, editingProduct?.id);
+    const productSlug = editingProduct?.slug || await getUniqueProductSlug((newProduct as any).slug || newProduct.name, editingProduct?.id);
     const productData = {
       name: newProduct.name, description: newProduct.description, short_description: newProduct.short_description,
       price: newProduct.price, compare_at_price: newProduct.compare_at_price || null, category: newProduct.category,
@@ -356,7 +354,7 @@ const ShopEditor = () => {
   const handleProductEditorSave = async (data: any, newImgs: File[]) => {
     if (!id) return;
     setSaving(true);
-    const productSlug = await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
+    const productSlug = editingProduct?.slug || await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
     const productData = {
       name: data.name, description: data.description, short_description: data.short_description,
       price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
@@ -624,11 +622,7 @@ const ShopEditor = () => {
               onPreviewProduct={
                 shop?.is_activated && shop?.is_published
                   ? (product) => {
-                      const href = withCacheBust(
-                        (product as any).slug
-                          ? `/shop/${shop.slug}/p/${(product as any).slug}`
-                          : `/shop/${shop.slug}/product?product=${product.id}`
-                      );
+                      const href = `/shop/${shop.slug}/product?product=${product.id}`;
                       const opened = window.open(href, "_blank", "noopener,noreferrer");
                       if (!opened) window.location.href = href;
                     }

@@ -567,19 +567,13 @@ export function ProductEditor({
     });
   };
 
-  // Append a cache-busting timestamp so the new tab always loads the freshest
-  // shop / product data right after a save+publish.
-  const cacheBust = () => `v=${Date.now()}`;
-  const withCacheBust = (url: string) => `${url}${url.includes("?") ? "&" : "?"}${cacheBust()}`;
   const shopUrl = shopSlug ? `/shop/${shopSlug}` : null;
   const canViewInShop = shopActivated && shopPublished && shopUrl;
   const savedProductSlug = initialData?.slug ? toProductSlug(initialData.slug) : "";
   const shareableSlug = toProductSlug(product.slug || product.name);
   const liveProductUrl =
     shopSlug && productId && shopActivated && shopPublished && product.is_published
-      ? savedProductSlug
-        ? `/shop/${shopSlug}/p/${savedProductSlug}`
-        : `/shop/${shopSlug}/product?product=${productId}`
+      ? `/shop/${shopSlug}/product?product=${productId}`
       : null;
 
   const previewImages = allImages.map((img) => ({ id: img.id, image_url: img.image_url }));
@@ -1237,7 +1231,7 @@ export function ProductEditor({
                         className="h-6 px-2 text-xs"
                         onClick={() => {
                           const url = productId
-                            ? `https://visuelpro.cloud/shop/${shopSlug}/${savedProductSlug ? `p/${savedProductSlug}` : `product?product=${productId}`}`
+                            ? `https://visuelpro.cloud/shop/${shopSlug}/product?product=${productId}`
                             : `https://visuelpro.cloud/shop/${shopSlug}/p/${shareableSlug}`;
                           navigator.clipboard.writeText(url);
                           toast({ title: "Lien copié ✓", description: url });
@@ -1332,7 +1326,7 @@ export function ProductEditor({
           <div className="flex items-center gap-2 ml-auto">
             {canViewInShop && (
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                <a href={withCacheBust(shopUrl)} target="_blank" rel="noopener noreferrer">
+                <a href={shopUrl} target="_blank" rel="noopener noreferrer">
                   <Store className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Voir en magasin</span>
                 </a>
@@ -1354,7 +1348,7 @@ export function ProductEditor({
                 asChild
                 title="Ouvrir le lien public partageable"
               >
-                <a href={withCacheBust(liveProductUrl)} target="_blank" rel="noopener noreferrer">
+                <a href={liveProductUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Voir en live</span>
                 </a>
