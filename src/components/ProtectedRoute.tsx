@@ -9,6 +9,14 @@ interface ProtectedRouteProps {
   requireActiveSubscription?: boolean;
 }
 
+const SUBSCRIPTION_CHECK_TIMEOUT_MS = 5000;
+
+const withTimeout = async <T,>(promise: PromiseLike<T>, timeoutMs: number): Promise<T | null> =>
+  Promise.race([
+    Promise.resolve(promise),
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+
 const ProtectedRoute = ({ children, requireActiveSubscription = false }: ProtectedRouteProps) => {
   const { session, user, isReady } = useAuthReady();
   const [isLoading, setIsLoading] = useState(true);
@@ -18,12 +26,16 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
 
   const checkSubscription = useCallback(async (userId: string) => {
     try {
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        // @ts-ignore - Role types will be updated after migration
-        .in("role", ["founder", "co_founder"]);
+      const roleRes = await withTimeout(
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          // @ts-ignore - Role types will be updated after migration
+          .in("role", ["founder", "co_founder"]),
+        SUBSCRIPTION_CHECK_TIMEOUT_MS,
+      );
+      const roleData = roleRes?.data;
 
       const isFounderOrCofounder = !!roleData?.length;
       setIsFounder(isFounderOrCofounder);
@@ -34,11 +46,16 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
         return;
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("free_generations_remaining")
-        .eq("id", userId)
-        .single();
+      const profileRes = await withTimeout(
+        supabase
+          .from("profiles")
+          .select("free_generations_remaining")
+          .eq("id", userId)
+          .single(),
+        SUBSCRIPTION_CHECK_TIMEOUT_MS,
+      );
+      const profileData = profileRes?.data;
+      const profileError = profileRes?.error;
 
       if (profileError) {
         console.error("Error loading profile:", profileError);
@@ -47,11 +64,16 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
         setFreeGenerationsRemaining(profileData?.free_generations_remaining || 0);
       }
 
-      const { data: subData, error: subError } = await supabase
-        .from("subscriptions")
-        .select("status")
-        .eq("user_id", userId)
-        .single();
+      const subRes = await withTimeout(
+        supabase
+          .from("subscriptions")
+          .select("status")
+          .eq("user_id", userId)
+          .single(),
+        SUBSCRIPTION_CHECK_TIMEOUT_MS,
+      );
+      const subData = subRes?.data;
+      const subError = subRes?.error;
 
       if (subError) {
         console.error("Error loading subscription:", subError);
