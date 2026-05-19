@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -111,14 +111,17 @@ const ShopEditor = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [unreadOrders, setUnreadOrders] = useState(0);
   const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null }[]>([]);
+  const lastPassiveRefreshRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
+    const visitsStartDate = new Date();
+    visitsStartDate.setDate(visitsStartDate.getDate() - 30);
     const [shopRes, productsRes, ordersRes, visitsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
-      supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }) as any,
-      supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).order("visited_at", { ascending: false }).limit(5000) as any,
+      supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(300) as any,
+      supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(1200) as any,
     ]);
     if (shopRes.data) setShop(shopRes.data);
     if (productsRes.data) setProducts(productsRes.data);
@@ -156,7 +159,12 @@ const ShopEditor = () => {
   // Refresh orders when the tab becomes visible or window regains focus
   useEffect(() => {
     if (!id) return;
-    const refresh = () => { fetchData(); };
+    const refresh = () => {
+      const now = Date.now();
+      if (now - lastPassiveRefreshRef.current < 30000) return;
+      lastPassiveRefreshRef.current = now;
+      fetchData();
+    };
     const onVis = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", refresh);

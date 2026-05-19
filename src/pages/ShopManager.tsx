@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
+import { useAuthReady } from "@/hooks/useAuthReady";
 
 interface Shop {
   id: string;
@@ -35,24 +36,23 @@ const ShopManager = () => {
   const [deleteTarget, setDeleteTarget] = useState<Shop | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const { user, isReady } = useAuthReady();
 
   // Global notifications: realtime in-app + push FCM for ALL the user's shops.
   // Realtime is filtered server-side by RLS (only this user's shops are returned).
   useOrderNotifications();
   useFCM();
 
-  useEffect(() => {
-    fetchShops();
-  }, []);
-
-  const fetchShops = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+  const fetchShops = useCallback(async (userId?: string) => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("shops")
       .select("*")
-      .eq("user_id", session.user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -61,7 +61,11 @@ const ShopManager = () => {
       setShops((data as any[]) || []);
     }
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isReady) fetchShops(user?.id);
+  }, [fetchShops, isReady, user?.id]);
 
   const handleDeleteShop = async () => {
     if (!deleteTarget || deleteConfirmText !== deleteTarget.business_name) return;

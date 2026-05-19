@@ -8,7 +8,9 @@ import { getNotificationDeviceKey, shouldHandleOrderNotification } from "@/lib/n
 const FCM_SW_URL = "/firebase-messaging-sw.js?v=4";
 const TOKEN_STORAGE_KEY = "vp_fcm_token";
 const TOKEN_DATE_STORAGE_KEY = "vp_fcm_registered_at";
+const TOKEN_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 let foregroundUnsubscribe: (() => void) | null = null;
+let registrationPromise: Promise<string | null> | null = null;
 
 let cachedVapid: string | null = null;
 async function fetchVapidKey(): Promise<string | null> {
@@ -32,6 +34,9 @@ export function useFCM(shopId?: string) {
   });
 
   const register = useCallback(async () => {
+    if (registrationPromise) return registrationPromise;
+
+    registrationPromise = (async () => {
     setStatus("registering");
     try {
       if (Capacitor.isNativePlatform()) {
@@ -127,13 +132,25 @@ export function useFCM(shopId?: string) {
       console.error("[FCM]", e);
       setStatus("error");
       return null;
+    } finally {
+      registrationPromise = null;
     }
+    })();
+
+    return registrationPromise;
   }, [shopId]);
 
   // Auto-register if perm already granted
   useEffect(() => {
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      register();
+      const registeredAt = Date.parse(localStorage.getItem(TOKEN_DATE_STORAGE_KEY) || "");
+      const hasFreshToken = !!localStorage.getItem(TOKEN_STORAGE_KEY)
+        && Number.isFinite(registeredAt)
+        && Date.now() - registeredAt < TOKEN_REFRESH_INTERVAL_MS;
+
+      if (!hasFreshToken) {
+        register();
+      }
     }
   }, [register, shopId]);
 

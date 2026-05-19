@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 
 import {
   Sidebar,
@@ -116,24 +117,26 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isFounder, setIsFounder] = useState(false);
+  const { user, isReady } = useAuthReady();
 
   useEffect(() => {
     const checkFounderStatus = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
+      if (user?.id) {
         const { data } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", session.user.id)
+          .eq("user_id", user.id)
           // @ts-ignore
           .in("role", ["founder", "co_founder"]);
         
         setIsFounder(data && data.length > 0);
+      } else {
+        setIsFounder(false);
       }
     };
     
-    checkFounderStatus();
-  }, []);
+    if (isReady) checkFounderStatus();
+  }, [isReady, user?.id]);
 
   const founderItems = [
     { title: "Tableau de Bord", url: "/founder-dashboard", icon: BarChart },
