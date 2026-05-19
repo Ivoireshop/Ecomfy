@@ -1,39 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import logo from "@/assets/visualpro-logo.svg";
 
 export function Header() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setIsAuthenticated(!!session?.user);
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        setIsAuthenticated(!!session?.user);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { session } = useAuthReady();
+  const isAuthenticated = !!session?.user;
 
   const menuItems = [
     { label: "Accueil", href: "/" },
