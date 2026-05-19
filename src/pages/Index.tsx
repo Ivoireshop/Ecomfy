@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
+import { useAuthReady } from "@/hooks/useAuthReady";
 const LandingMediaSections = lazy(() => import("@/components/LandingMediaSections"));
 const LandingTeamSection = lazy(() =>
   import("@/components/LandingMediaSections").then((module) => ({ default: module.LandingTeamSection }))
@@ -43,15 +44,11 @@ const TickerBanner = () => {
 const Index = () => {
   const navigate = useNavigate();
   const [publishedFeedback, setPublishedFeedback] = useState<any[]>([]);
-  const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [subscription, setSubscription] = useState<any>(null);
+  const { session, isReady } = useAuthReady();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [loadDeferredSections, setLoadDeferredSections] = useState(false);
 
   useEffect(() => {
-    checkSession();
-
     const idleWindow = window as Window & {
       requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;
@@ -71,14 +68,11 @@ const Index = () => {
     };
   }, []);
 
-  const checkSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setSession(session);
-    if (session?.user) {
+  useEffect(() => {
+    if (isReady && session?.user) {
       navigate("/dashboard", { replace: true });
-      return;
     }
-  };
+  }, [isReady, navigate, session]);
 
   const loadPublishedFeedback = async () => {
     const { data } = await supabase.from("feedback").select("*").eq("status", "published").order("created_at", { ascending: false });
@@ -113,11 +107,11 @@ const Index = () => {
 
         <div className="container relative mx-auto px-4 py-16 md:py-28">
           <div className="max-w-5xl mx-auto text-center">
-            {session && profile ? (
+            {session?.user ? (
               <>
                 <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in tracking-tight">
                   <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" style={{ fontFamily: "'Georgia', serif" }}>
-                    {new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} {profile.full_name?.split(' ')[0]}, Bienvenue
+                    {new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} {session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0]}, Bienvenue
                   </span>
                   <span className="inline-block animate-wiggle text-4xl sm:text-5xl md:text-6xl ml-2">👋</span>
                 </h1>
