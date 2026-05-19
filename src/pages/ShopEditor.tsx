@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,7 @@ const ShopEditor = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [unreadOrders, setUnreadOrders] = useState(0);
   const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null }[]>([]);
+  const lastPassiveRefreshRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -158,7 +159,12 @@ const ShopEditor = () => {
   // Refresh orders when the tab becomes visible or window regains focus
   useEffect(() => {
     if (!id) return;
-    const refresh = () => { fetchData(); };
+    const refresh = () => {
+      const now = Date.now();
+      if (now - lastPassiveRefreshRef.current < 30000) return;
+      lastPassiveRefreshRef.current = now;
+      fetchData();
+    };
     const onVis = () => { if (document.visibilityState === "visible") refresh(); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", refresh);
