@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -43,11 +43,7 @@ const ShopManager = () => {
   useOrderNotifications();
   useFCM();
 
-  useEffect(() => {
-    if (isReady) fetchShops(user?.id);
-  }, [isReady, user?.id]);
-
-  const fetchShops = async (userId?: string) => {
+  const fetchShops = useCallback(async (userId?: string) => {
     if (!userId) {
       setLoading(false);
       return;
@@ -65,7 +61,11 @@ const ShopManager = () => {
       setShops((data as any[]) || []);
     }
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isReady) fetchShops(user?.id);
+  }, [fetchShops, isReady, user?.id]);
 
   const handleDeleteShop = async () => {
     if (!deleteTarget || deleteConfirmText !== deleteTarget.business_name) return;
