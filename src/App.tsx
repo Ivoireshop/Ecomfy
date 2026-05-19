@@ -204,19 +204,11 @@ const AppContent = () => {
           />
           <Route 
             path="/tutorial" 
-            element={
-              <ProtectedRoute>
-                <Tutorial />
-              </ProtectedRoute>
-            } 
+            element={<Tutorial />} 
           />
           <Route 
             path="/demo" 
-            element={
-              <ProtectedRoute>
-                <Demo />
-              </ProtectedRoute>
-            } 
+            element={<Demo />} 
           />
           <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
           <Route path="/showcase/:subdomain/:page" element={<ShowcaseView />} />
