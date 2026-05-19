@@ -30,8 +30,8 @@ const demoVideos = [
       "Choisissez un style publicitaire",
       "Générez et téléchargez votre visuel"
     ],
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Placeholder - à remplacer
-    thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&h=450&fit=crop"
+    videoUrl: "https://www.youtube.com/embed/zGCI8dms0FU",
+    thumbnail: "https://img.youtube.com/vi/zGCI8dms0FU/maxresdefault.jpg"
   },
   {
     id: "videos",
