@@ -78,8 +78,8 @@ const demoVideos = [
       "Activez Mobile Money & Cash à la livraison",
       "Partagez le lien et suivez vos commandes en temps réel"
     ],
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    thumbnail: "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?w=800&h=450&fit=crop"
+    videoUrl: "https://www.youtube.com/embed/H82hoLhNMCw",
+    thumbnail: "https://img.youtube.com/vi/H82hoLhNMCw/maxresdefault.jpg"
   },
   {
     id: "credits",
