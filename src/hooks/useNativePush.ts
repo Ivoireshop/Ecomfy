@@ -70,11 +70,8 @@ export function useNativePush(shopId?: string) {
             if (!user) return;
             const platform = Capacitor.getPlatform();
             const deviceKey = getNotificationDeviceKey("native", platform);
-            await supabase
-              .from("device_tokens")
-              .delete()
-              .eq("user_id", user.id)
-              .neq("fcm_token", token.value);
+            // Do NOT wipe other tokens of the same user — phone + desktop
+            // must coexist. Stale tokens are pruned server-side on FCM error.
 
             await supabase.from("device_tokens").upsert(
               {

@@ -8,7 +8,7 @@ import { getNotificationDeviceKey, shouldHandleOrderNotification } from "@/lib/n
 const FCM_SW_URL = "/firebase-messaging-sw.js?v=4";
 const TOKEN_STORAGE_KEY = "vp_fcm_token";
 const TOKEN_DATE_STORAGE_KEY = "vp_fcm_registered_at";
-const TOKEN_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const TOKEN_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 let foregroundUnsubscribe: (() => void) | null = null;
 let registrationPromise: Promise<string | null> | null = null;
 
@@ -75,11 +75,10 @@ export function useFCM(shopId?: string) {
       }
 
       const deviceKey = getNotificationDeviceKey("web");
-      await supabase
-        .from("device_tokens")
-        .delete()
-        .eq("user_id", user.id)
-        .neq("fcm_token", fcmToken);
+      // NOTE: do NOT delete other tokens of the same user — a user can be
+      // logged in on multiple devices (phone PWA + desktop browser) and
+      // each device must keep receiving order notifications independently.
+      // Stale tokens are pruned server-side when FCM returns "unregistered".
 
       const { error: upsertErr } = await supabase.from("device_tokens").upsert(
         {
