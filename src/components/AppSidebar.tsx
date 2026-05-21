@@ -1,6 +1,6 @@
 import { 
   Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, 
-  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt, BookOpen
+  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt, BookOpen, Activity
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -140,6 +140,7 @@ export function AppSidebar() {
 
   const founderItems = [
     { title: "Tableau de Bord", url: "/founder-dashboard", icon: BarChart },
+    { title: "Diagnostic Commandes", url: "/orders-diagnostic", icon: Activity },
     { title: "Codes Promo", url: "/promo-codes", icon: Tag },
   ];
 
