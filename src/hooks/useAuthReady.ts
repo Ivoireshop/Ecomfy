@@ -69,6 +69,25 @@ const initializeAuthState = () => {
     });
 
   window.addEventListener("beforeunload", () => subscription.unsubscribe(), { once: true });
+
+  // Mobile/PWA: when device wakes up from sleep, force a session refresh
+  // so the user isn't kicked back to /auth on iOS/Android home-screen apps.
+  const handleResume = () => {
+    if (document.visibilityState !== "visible") return;
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        if (s) {
+          // Proactively refresh tokens near expiry to avoid silent sign-outs.
+          void supabase.auth.refreshSession().catch(() => undefined);
+          emitAuthState({ session: s, user: s.user, isReady: true });
+        }
+      })
+      .catch(() => undefined);
+  };
+  document.addEventListener("visibilitychange", handleResume);
+  window.addEventListener("focus", handleResume);
+  window.addEventListener("pageshow", handleResume);
 };
 
 export function useAuthReady() {
