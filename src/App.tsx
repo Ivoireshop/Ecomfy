@@ -62,6 +62,7 @@ const BoutiquesEcommerce = lazy(() => import("./pages/BoutiquesEcommerce"));
 const VideoCreator = lazy(() => import("./pages/VideoCreator"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const OrdersDiagnostic = lazy(() => import("./pages/OrdersDiagnostic"));
+const AcceptShopInvite = lazy(() => import("./pages/AcceptShopInvite"));
 
 const queryClient = new QueryClient();
 
@@ -266,6 +267,7 @@ const AppContent = () => {
           <Route path="/shop-preview/:id/p/:productSlug" element={<ProtectedRoute><ProductView /></ProtectedRoute>} />
           <Route path="/shop/:slug/p/:productSlug" element={<ProductView /> } />
           <Route path="/order-confirmed" element={<OrderConfirmed />} />
+          <Route path="/accept-shop-invite" element={<AcceptShopInvite />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

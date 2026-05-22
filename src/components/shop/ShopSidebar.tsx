@@ -1,8 +1,8 @@
-import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush, Receipt, MessageSquare, Wallet, Brain, ShoppingBag } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush, Receipt, MessageSquare, Wallet, Brain, ShoppingBag, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export type ActiveSection = "overview" | "products" | "orders" | "abandoned" | "appearance" | "statistics" | "theme" | "billing" | "finances" | "ai-optimizer" | "reviews" | "settings";
+export type ActiveSection = "overview" | "products" | "orders" | "abandoned" | "appearance" | "statistics" | "theme" | "billing" | "finances" | "ai-optimizer" | "reviews" | "collaborators" | "settings";
 
 interface ShopSidebarProps {
   shopName: string;
@@ -19,12 +19,14 @@ interface ShopSidebarProps {
   saving: boolean;
   onPreview: () => void;
   isPublished: boolean;
+  allowedSections?: ActiveSection[];
+  isOwner?: boolean;
 }
 
-const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; isNew?: boolean }[] = [
+const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; isBeta?: boolean; ownerOnly?: boolean }[] = [
   { id: "overview", label: "Tableau de bord", icon: BarChart3 },
   { id: "orders", label: "Commandes", icon: ShoppingCart },
-  { id: "abandoned", label: "Paniers abandonnés", icon: ShoppingBag, isNew: true },
+  { id: "abandoned", label: "Paniers abandonnés", icon: ShoppingBag, isBeta: true },
   { id: "products", label: "Produits", icon: Package },
   { id: "statistics", label: "Statistiques", icon: PieChart },
   { id: "finances", label: "Finances", icon: Wallet },
@@ -33,13 +35,20 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; is
   { id: "theme", label: "Thème", icon: Paintbrush },
   { id: "billing", label: "Facturation", icon: Receipt },
   { id: "reviews", label: "Avis", icon: MessageSquare },
+  { id: "collaborators", label: "Collaborateurs", icon: UserPlus, isBeta: true, ownerOnly: true },
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
 
 export function ShopSidebar({
   shopName, slug, primaryColor, logoUrl, activeSection, onSectionChange,
   unreadOrders, productCount, isActivated, onBack, onSave, saving, onPreview, isPublished,
+  allowedSections, isOwner = true,
 }: ShopSidebarProps) {
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.ownerOnly && !isOwner) return false;
+    if (allowedSections && !allowedSections.includes(item.id)) return false;
+    return true;
+  });
   return (
     <aside className="w-[240px] shrink-0 bg-[#1a1d2e] text-white flex flex-col min-h-screen sticky top-0">
       {/* Header */}
@@ -63,7 +72,7 @@ export function ShopSidebar({
 
       {/* Navigation */}
       <nav className="flex-1 py-3 px-2 space-y-0.5">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const isActive = activeSection === item.id;
           const count = item.id === "orders" ? unreadOrders : item.id === "products" ? productCount : 0;
           return (
@@ -78,8 +87,8 @@ export function ShopSidebar({
             >
               <item.icon className="h-[18px] w-[18px] shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
-              {item.isNew && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-500 text-white">NEW</span>
+              {item.isBeta && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">BETA</span>
               )}
               {count > 0 && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${

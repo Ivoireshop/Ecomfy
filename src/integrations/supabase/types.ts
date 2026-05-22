@@ -1829,6 +1829,63 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_collaborators: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invitation_token: string
+          invited_by: string
+          invited_email: string
+          roles: Database["public"]["Enums"]["shop_collab_role"][]
+          shop_id: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invitation_token: string
+          invited_by: string
+          invited_email: string
+          roles?: Database["public"]["Enums"]["shop_collab_role"][]
+          shop_id: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invitation_token?: string
+          invited_by?: string
+          invited_email?: string
+          roles?: Database["public"]["Enums"]["shop_collab_role"][]
+          shop_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_collaborators_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_collaborators_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_expenses: {
         Row: {
           amount: number
@@ -3023,6 +3080,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_shop_invitation: { Args: { _token: string }; Returns: Json }
       apply_commission_payment: {
         Args: {
           p_amount: number
@@ -3127,7 +3185,23 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_shop_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["shop_collab_role"]
+          _shop_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       increment_promo_usage: { Args: { promo_code: string }; Returns: boolean }
+      is_shop_collaborator: {
+        Args: { _shop_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_shop_owner: {
+        Args: { _shop_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_shop_publicly_visible: { Args: { _shop_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
@@ -3177,6 +3251,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "founder" | "co_founder"
+      shop_collab_role:
+        | "view_orders"
+        | "edit_shop"
+        | "manage_expenses"
+        | "manage_delivered_orders"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3305,6 +3384,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "founder", "co_founder"],
+      shop_collab_role: [
+        "view_orders",
+        "edit_shop",
+        "manage_expenses",
+        "manage_delivered_orders",
+      ],
     },
   },
 } as const

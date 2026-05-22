@@ -1,9 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -41,6 +42,22 @@ interface OrdersListProps {
 export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const normalized = (v: string | null | undefined) =>
+    (v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const filteredOrders = useMemo(() => {
+    const q = normalized(search).trim();
+    if (!q) return orders;
+    return orders.filter((o) => {
+      const hay = [
+        o.order_number, o.customer_name, o.customer_phone, o.customer_email,
+        o.customer_city, o.customer_address,
+      ].map(normalized).join(" | ");
+      return hay.includes(q);
+    });
+  }, [orders, search]);
 
   const buildOrderText = (order: Order, sequence: number) => {
     const lines: string[] = [];
@@ -96,7 +113,7 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
   };
 
   // Sequential numbering: oldest = #1, newest = #N (orders are passed in desc order)
-  const sortedAsc = [...orders].sort(
+  const sortedAsc = [...filteredOrders].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
   const sequenceById: Record<string, number> = {};
@@ -104,16 +121,29 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Commandes ({orders.length})</h2>
-      {orders.length === 0 ? (
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-xl font-bold">Commandes ({filteredOrders.length}{search ? ` / ${orders.length}` : ""})</h2>
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher (n°, nom, téléphone, ville…)"
+            className="pl-9 h-9"
+          />
+        </div>
+      </div>
+      {filteredOrders.length === 0 ? (
         <Card className="p-12 text-center">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-1">Aucune commande</h3>
-          <p className="text-sm text-muted-foreground">Les commandes apparaîtront ici en temps réel</p>
+          <h3 className="font-semibold mb-1">{search ? "Aucun résultat" : "Aucune commande"}</h3>
+          <p className="text-sm text-muted-foreground">
+            {search ? "Essayez d'autres mots-clés (commune, ville, numéro…)." : "Les commandes apparaîtront ici en temps réel"}
+          </p>
         </Card>
       ) : (
         <div className="space-y-3">
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <Card key={order.id} className={`overflow-hidden ${!order.is_read ? 'ring-1 ring-primary' : ''}`} onClick={() => !order.is_read && onMarkRead(order.id)}>
               <div className="p-5">
                 <div className="flex items-start justify-between mb-3">
