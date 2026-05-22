@@ -23,10 +23,10 @@ interface ShopSidebarProps {
   isOwner?: boolean;
 }
 
-const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; isBeta?: boolean; ownerOnly?: boolean }[] = [
+const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; isNew?: boolean; ownerOnly?: boolean }[] = [
   { id: "overview", label: "Tableau de bord", icon: BarChart3 },
   { id: "orders", label: "Commandes", icon: ShoppingCart },
-  { id: "abandoned", label: "Paniers abandonnés", icon: ShoppingBag, isBeta: true },
+  { id: "abandoned", label: "Paniers abandonnés", icon: ShoppingBag, isNew: true },
   { id: "products", label: "Produits", icon: Package },
   { id: "statistics", label: "Statistiques", icon: PieChart },
   { id: "finances", label: "Finances", icon: Wallet },
@@ -35,7 +35,7 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; is
   { id: "theme", label: "Thème", icon: Paintbrush },
   { id: "billing", label: "Facturation", icon: Receipt },
   { id: "reviews", label: "Avis", icon: MessageSquare },
-  { id: "collaborators", label: "Collaborateurs", icon: UserPlus, isBeta: true, ownerOnly: true },
+  { id: "collaborators", label: "Collaborateurs", icon: UserPlus, isNew: true, ownerOnly: true },
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
 
@@ -87,8 +87,8 @@ export function ShopSidebar({
             >
               <item.icon className="h-[18px] w-[18px] shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
-              {item.isBeta && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">BETA</span>
+              {item.isNew && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">NEW</span>
               )}
               {count > 0 && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
