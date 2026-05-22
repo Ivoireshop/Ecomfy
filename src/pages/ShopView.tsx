@@ -57,6 +57,60 @@ const ShopView = () => {
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
   });
 
+  // Abandoned cart tracking: stable session id per shop, kept in localStorage
+  const sessionIdRef = useRef<string>("");
+  const abandonedSavedRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (!shop?.id) return;
+    const key = `vp_abandon_session_${shop.id}`;
+    let sid = localStorage.getItem(key);
+    if (!sid) {
+      sid = (crypto as any).randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random()}`;
+      localStorage.setItem(key, sid);
+    }
+    sessionIdRef.current = sid;
+  }, [shop?.id]);
+
+  // Debounced upsert when visitor enters checkout info without finalising
+  useEffect(() => {
+    if (!shop?.id || shop?._isPreview) return;
+    if (!sessionIdRef.current) return;
+    // Only track when there is at least a phone OR a name AND items in cart
+    if (cart.length === 0) return;
+    if (!customerInfo.phone && !customerInfo.name) return;
+
+    const t = setTimeout(async () => {
+      try {
+        const items = cart.map(i => ({
+          product_id: i.product.id,
+          name: i.product.name,
+          quantity: i.quantity,
+          price: i.product.price,
+        }));
+        const itemsCount = cart.reduce((s, i) => s + i.quantity, 0);
+        const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
+        await (supabase as any).from("abandoned_carts").upsert({
+          shop_id: shop.id,
+          session_id: sessionIdRef.current,
+          customer_name: customerInfo.name || null,
+          customer_phone: customerInfo.phone || null,
+          customer_email: customerInfo.email || null,
+          customer_city: customerInfo.city || null,
+          customer_address: customerInfo.address || null,
+          payment_method: customerInfo.paymentMethod || null,
+          items,
+          items_count: itemsCount,
+          total,
+          converted: false,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "shop_id,session_id" });
+        abandonedSavedRef.current = true;
+      } catch (_) { /* silent */ }
+    }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shop?.id, customerInfo.name, customerInfo.phone, customerInfo.email, customerInfo.city, customerInfo.address, customerInfo.paymentMethod, cart]);
+
   useEffect(() => { fetchShop(); }, [slug, id]);
 
   // Refetch when the tab regains focus / becomes visible so any change
@@ -282,6 +336,15 @@ const ShopView = () => {
         total_price: item.product.price * item.quantity,
       }));
       await supabase.from("order_items").insert(orderItems) as any;
+      // Mark abandoned cart as converted (if any was tracked)
+      if (sessionIdRef.current && shop?.id) {
+        try {
+          await (supabase as any).from("abandoned_carts")
+            .update({ converted: true })
+            .eq("shop_id", shop.id)
+            .eq("session_id", sessionIdRef.current);
+        } catch (_) {}
+      }
       trackEvent(shop, "Purchase", {
         value: cartTotal,
         order_id: order.order_number,

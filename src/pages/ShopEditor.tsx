@@ -16,6 +16,7 @@ import { ShopSidebar, type ActiveSection } from "@/components/shop/ShopSidebar";
 import { ProductsTable } from "@/components/shop/ProductsTable";
 import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
+import { AbandonedCartsList } from "@/components/shop/AbandonedCartsList";
 import { ShopSettings } from "@/components/shop/ShopSettings";
 import { ProductEditor } from "@/components/shop/ProductEditor";
 import { ShopStatistics } from "@/components/shop/ShopStatistics";
@@ -644,6 +645,10 @@ const ShopEditor = () => {
 
           {activeSection === "orders" && (
             <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />
+          )}
+
+          {activeSection === "abandoned" && shop?.id && (
+            <AbandonedCartsList shopId={shop.id} />
           )}
 
           {activeSection === "appearance" && (
