@@ -1,8 +1,8 @@
-import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush, Receipt, MessageSquare, Wallet, Brain } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, TrendingUp, Zap, Eye, Save, Loader2, ArrowLeft, PieChart, Paintbrush, Receipt, MessageSquare, Wallet, Brain, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export type ActiveSection = "overview" | "products" | "orders" | "appearance" | "statistics" | "theme" | "billing" | "finances" | "ai-optimizer" | "reviews" | "settings";
+export type ActiveSection = "overview" | "products" | "orders" | "abandoned" | "appearance" | "statistics" | "theme" | "billing" | "finances" | "ai-optimizer" | "reviews" | "settings";
 
 interface ShopSidebarProps {
   shopName: string;
@@ -21,9 +21,10 @@ interface ShopSidebarProps {
   isPublished: boolean;
 }
 
-const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; }[] = [
+const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; isNew?: boolean }[] = [
   { id: "overview", label: "Tableau de bord", icon: BarChart3 },
   { id: "orders", label: "Commandes", icon: ShoppingCart },
+  { id: "abandoned", label: "Paniers abandonnés", icon: ShoppingBag, isNew: true },
   { id: "products", label: "Produits", icon: Package },
   { id: "statistics", label: "Statistiques", icon: PieChart },
   { id: "finances", label: "Finances", icon: Wallet },
@@ -77,6 +78,9 @@ export function ShopSidebar({
             >
               <item.icon className="h-[18px] w-[18px] shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
+              {item.isNew && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-500 text-white">NEW</span>
+              )}
               {count > 0 && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                   item.id === "orders" ? "bg-blue-500 text-white" : "bg-white/20 text-white/80"
