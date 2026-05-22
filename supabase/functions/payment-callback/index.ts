@@ -151,7 +151,7 @@ serve(async (req) => {
         console.log("Processing shop activation");
 
         if (!shop_id) {
-          console.warn("shop_activation without shop_id, refusing global activation", { transaction_id, user_id });
+          console.warn("shop_activation without shop_id, refusing global activation", { transaction_id });
           return new Response(JSON.stringify({ success: false, error: "Boutique manquante pour l'activation" }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
