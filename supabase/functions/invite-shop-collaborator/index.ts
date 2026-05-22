@@ -64,20 +64,32 @@ Deno.serve(async (req) => {
     const origin = req.headers.get('origin') || 'https://visuelpro.cloud'
     const acceptUrl = `${origin}/accept-shop-invite?token=${encodeURIComponent(finalToken)}`
 
-    // Send via existing transactional email pipeline
-    await admin.functions.invoke('send-transactional-email', {
+    // Send via existing app email pipeline. Keep field names aligned with the
+    // shared sender so invitation failures are visible instead of silently ignored.
+    const { data: emailData, error: emailError } = await admin.functions.invoke('send-transactional-email', {
       body: {
-        template: 'shop-collaborator-invite',
-        to: emailRaw,
-        data: {
+        templateName: 'shop-collaborator-invite',
+        recipientEmail: emailRaw,
+        templateData: {
           shopName: shop.business_name || shopName,
           acceptUrl,
           roles,
         },
-        purpose: 'transactional',
-        idempotency_key: `shop-collab-${shopId}-${emailRaw}-${Date.now()}`,
+        idempotencyKey: `shop-collab-${shopId}-${emailRaw}`,
       },
-    }).catch(() => null)
+    })
+
+    if (emailError || !emailData?.success) {
+      console.error('Collaborator invite email failed', {
+        shopId,
+        error: emailError?.message || emailData?.error || emailData?.reason || 'unknown_error',
+      })
+      return json({
+        success: false,
+        error: 'email_not_sent',
+        details: emailError?.message || emailData?.error || emailData?.reason || 'Impossible d’envoyer le mail d’invitation',
+      })
+    }
 
     return json({ success: true })
   } catch (e: any) {
