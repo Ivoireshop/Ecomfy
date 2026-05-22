@@ -26,6 +26,7 @@ import { BillingHistory } from "@/components/shop/BillingHistory";
 import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
 import { ShopFinances } from "@/components/shop/ShopFinances";
 import { ProductAIOptimizer } from "@/components/shop/ProductAIOptimizer";
+import { ShopCollaboratorsManager } from "@/components/shop/ShopCollaboratorsManager";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { useNativePush } from "@/hooks/useNativePush";
@@ -112,6 +113,8 @@ const ShopEditor = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [unreadOrders, setUnreadOrders] = useState(0);
   const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null }[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [collabRoles, setCollabRoles] = useState<string[] | null>(null);
   const lastPassiveRefreshRef = useRef(0);
 
   const fetchData = useCallback(async () => {
@@ -135,6 +138,17 @@ const ShopEditor = () => {
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !id) return;
+      setCurrentUserId(user.id);
+      const { data: collab } = await (supabase.from("shop_collaborators" as any) as any)
+        .select("roles, status").eq("shop_id", id).eq("user_id", user.id).eq("status", "active").maybeSingle();
+      if (collab?.roles) setCollabRoles(collab.roles as string[]);
+    })();
+  }, [id]);
 
   // Native browser/PWA notifications + sound for new orders
   useOrderNotifications(id);
@@ -445,6 +459,18 @@ const ShopEditor = () => {
 
   const openPreview = () => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank");
 
+  const isOwner = !!currentUserId && shop?.user_id === currentUserId;
+  const allowedSections: ActiveSection[] | undefined = isOwner ? undefined : (() => {
+    const r = collabRoles || [];
+    const allowed: ActiveSection[] = ["overview"];
+    if (r.includes("view_orders") || r.includes("manage_delivered_orders") || r.includes("edit_shop")) {
+      allowed.push("orders", "abandoned", "statistics");
+    }
+    if (r.includes("edit_shop")) allowed.push("products", "appearance", "theme", "ai-optimizer", "reviews");
+    if (r.includes("manage_expenses")) allowed.push("finances", "billing");
+    return allowed;
+  })();
+
   const sidebarProps = {
     shopName: shop.business_name,
     slug: shop.slug,
@@ -460,6 +486,8 @@ const ShopEditor = () => {
     saving,
     onPreview: openPreview,
     isPublished: shop.is_published,
+    allowedSections,
+    isOwner,
   };
 
   return (
@@ -749,6 +777,10 @@ const ShopEditor = () => {
 
           {activeSection === "reviews" && (
             <ReviewsModeration shopId={shop.id} />
+          )}
+
+          {activeSection === "collaborators" && isOwner && (
+            <ShopCollaboratorsManager shopId={shop.id} shopName={shop.business_name} />
           )}
 
           {activeSection === "finances" && (
