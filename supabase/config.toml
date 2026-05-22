@@ -1,112 +1,79 @@
 project_id = "dqlbmtkaamjohgbcjwtw"
 
-[functions.send-transactional-email]
-verify_jwt = true
-
-[functions.preview-transactional-email]
-verify_jwt = false
-
-[functions.handle-email-unsubscribe]
-verify_jwt = false
-
-[functions.handle-email-suppression]
-verify_jwt = false
-
-[functions.send-weekly-finance-summary]
-verify_jwt = false
-
-[functions.generate-ad-visual]
-verify_jwt = true
-
-[functions.generate-video]
-verify_jwt = false
-
-[functions.generate-ai-image]
-verify_jwt = true
-
-[functions.generate-voiceover]
-verify_jwt = false
-
-[functions.create-video-from-image]
-verify_jwt = false
-
-[functions.process-payment]
-verify_jwt = false
-
-[functions.payment-callback]
-verify_jwt = false
-
-[functions.showcase-chat]
-verify_jwt = false
-
-[functions.send-contact-notification]
-verify_jwt = false
-
-[functions.send-subscription-email]
-verify_jwt = false
-
-[functions.generate-showcase-site]
-verify_jwt = true
-
-[functions.generate-feature-image]
-verify_jwt = true
-
-[functions.send-promo-notification]
-verify_jwt = false
-
-[functions.process-queue]
-verify_jwt = false
-
-[functions.send-generation-reminder]
-verify_jwt = false
-
-[functions.send-24h-reminder]
-verify_jwt = false
-
-[functions.send-email]
-verify_jwt = false
-
-[functions.extract-brand]
-verify_jwt = true
-
-[functions.cancel-queue-item]
-verify_jwt = true
-
-[functions.correct-text]
-verify_jwt = true
-
-[functions.generate-certificate]
-verify_jwt = true
-
-[functions.verify-domain-dns]
-verify_jwt = false
-
-[functions.send-domain-ready-notification]
-verify_jwt = false
-
-[functions.create-student-account]
-verify_jwt = true
-
-[functions.send-booking-notification]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = true
-
-[functions.geniuspay-webhook]
-verify_jwt = false
-
-[functions.track-conversion]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = false
-
-[functions.get-vapid-key]
-verify_jwt = false
-
-[functions.sync-ad-spend]
-verify_jwt = false
-
-[functions.check-ad-token-expiry]
-verify_jwt = false
+[functions]
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.cancel-queue-item]
+    verify_jwt = true
+  [functions.check-ad-token-expiry]
+    verify_jwt = false
+  [functions.correct-text]
+    verify_jwt = true
+  [functions.create-student-account]
+    verify_jwt = true
+  [functions.create-video-from-image]
+    verify_jwt = false
+  [functions.extract-brand]
+    verify_jwt = true
+  [functions.generate-ad-visual]
+    verify_jwt = true
+  [functions.generate-ai-image]
+    verify_jwt = true
+  [functions.generate-certificate]
+    verify_jwt = true
+  [functions.generate-feature-image]
+    verify_jwt = true
+  [functions.generate-showcase-site]
+    verify_jwt = true
+  [functions.generate-video]
+    verify_jwt = false
+  [functions.generate-voiceover]
+    verify_jwt = false
+  [functions.geniuspay-webhook]
+    verify_jwt = false
+  [functions.get-vapid-key]
+    verify_jwt = false
+  [functions.handle-email-suppression]
+    verify_jwt = false
+  [functions.handle-email-unsubscribe]
+    verify_jwt = false
+  [functions.payment-callback]
+    verify_jwt = false
+  [functions.preview-transactional-email]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.process-payment]
+    verify_jwt = false
+  [functions.process-queue]
+    verify_jwt = false
+  [functions.send-24h-reminder]
+    verify_jwt = false
+  [functions.send-booking-notification]
+    verify_jwt = false
+  [functions.send-contact-notification]
+    verify_jwt = false
+  [functions.send-domain-ready-notification]
+    verify_jwt = false
+  [functions.send-email]
+    verify_jwt = false
+  [functions.send-generation-reminder]
+    verify_jwt = false
+  [functions.send-promo-notification]
+    verify_jwt = false
+  [functions.send-push-notification]
+    verify_jwt = false
+  [functions.send-subscription-email]
+    verify_jwt = false
+  [functions.send-transactional-email]
+    verify_jwt = true
+  [functions.send-weekly-finance-summary]
+    verify_jwt = false
+  [functions.showcase-chat]
+    verify_jwt = false
+  [functions.sync-ad-spend]
+    verify_jwt = false
+  [functions.track-conversion]
+    verify_jwt = false
+  [functions.verify-domain-dns]
+    verify_jwt = false
