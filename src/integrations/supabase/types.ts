@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      abandoned_carts: {
+        Row: {
+          converted: boolean
+          created_at: string
+          customer_address: string | null
+          customer_city: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          items: Json
+          items_count: number
+          payment_method: string | null
+          session_id: string
+          shop_id: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          converted?: boolean
+          created_at?: string
+          customer_address?: string | null
+          customer_city?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          items_count?: number
+          payment_method?: string | null
+          session_id: string
+          shop_id: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          converted?: boolean
+          created_at?: string
+          customer_address?: string | null
+          customer_city?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          items_count?: number
+          payment_method?: string | null
+          session_id?: string
+          shop_id?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ad_accounts: {
         Row: {
           access_token: string
