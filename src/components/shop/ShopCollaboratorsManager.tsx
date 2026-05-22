@@ -103,7 +103,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-bold">Collaborateurs</h2>
-        <Badge className="bg-amber-500 hover:bg-amber-500 text-white">BETA</Badge>
+        <Badge className="bg-amber-500 hover:bg-amber-500 text-white">NEW</Badge>
       </div>
       <p className="text-sm text-muted-foreground -mt-3">
         Invitez des collaborateurs par email et choisissez précisément ce qu'ils peuvent faire sur la boutique. Ils accèdent à la boutique après avoir accepté l'invitation depuis leur compte VisualPro.
