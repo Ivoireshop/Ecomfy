@@ -330,10 +330,12 @@ const Index = () => {
                 <Rocket className="w-12 h-12 mx-auto mb-6 opacity-90" />
                 <h2 className="text-3xl md:text-5xl font-extrabold mb-4">Prêt à transformer votre business ?</h2>
                 <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl mx-auto">Rejoignez les centaines d'entrepreneurs africains qui utilisent VisualPro pour réussir en ligne.</p>
-                <Button size="lg" className="text-lg px-10 py-7 bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl font-bold text-center" onClick={() => navigate("/auth")}>
-                  <Wand2 className="mr-2 h-5 w-5" />
-                  Commencer gratuitement
-                </Button>
+                <div className="flex justify-center w-full">
+                  <Button size="lg" className="text-lg px-10 py-7 bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl font-bold" onClick={() => navigate("/auth")}>
+                    <Wand2 className="mr-2 h-5 w-5" />
+                    Commencer gratuitement
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
