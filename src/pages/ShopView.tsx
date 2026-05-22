@@ -336,6 +336,15 @@ const ShopView = () => {
         total_price: item.product.price * item.quantity,
       }));
       await supabase.from("order_items").insert(orderItems) as any;
+      // Mark abandoned cart as converted (if any was tracked)
+      if (sessionIdRef.current && shop?.id) {
+        try {
+          await (supabase as any).from("abandoned_carts")
+            .update({ converted: true })
+            .eq("shop_id", shop.id)
+            .eq("session_id", sessionIdRef.current);
+        } catch (_) {}
+      }
       trackEvent(shop, "Purchase", {
         value: cartTotal,
         order_id: order.order_number,
