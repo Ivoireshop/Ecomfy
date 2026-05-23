@@ -150,9 +150,15 @@ Deno.serve(async (req) => {
       }
     );
 
-    const { showcaseId, domain, verificationCode } = await req.json();
+    const body = await req.json();
+    const { domain, verificationCode } = body;
+    // Back-compat: showcaseId / new: resourceId + resourceType ('showcase' | 'shop')
+    const resourceType: 'showcase' | 'shop' = body.resourceType || (body.shopId ? 'shop' : 'showcase');
+    const resourceId: string | undefined = body.resourceId || body.showcaseId || body.shopId;
+    const tableName = resourceType === 'shop' ? 'shops' : 'showcase_sites';
+    const showcaseId = resourceId; // keep local variable name to minimize diff
 
-    if (!showcaseId || !domain || !verificationCode) {
+    if (!resourceId || !domain || !verificationCode) {
       return new Response(
         JSON.stringify({ error: 'Missing required parameters' }),
         { 
@@ -165,10 +171,13 @@ Deno.serve(async (req) => {
     console.log(`Verifying domain configuration for ${domain}...`);
 
     // Get current domain status before verification
+    const selectColumns = resourceType === 'shop'
+      ? 'domain_status, ssl_status, business_name, user_id'
+      : 'domain_status, ssl_status, business_name, owner_name, user_id';
     const { data: currentSite } = await supabaseClient
-      .from('showcase_sites')
-      .select('domain_status, ssl_status, business_name, owner_name, user_id')
-      .eq('id', showcaseId)
+      .from(tableName)
+      .select(selectColumns)
+      .eq('id', resourceId)
       .single();
 
     const previousStatus = currentSite?.domain_status;
@@ -177,22 +186,22 @@ Deno.serve(async (req) => {
     // Perform DNS verification
     const verification = await verifyDomainConfiguration(domain, verificationCode);
 
-    // Update showcase_sites with verification results
+    // Update target table with verification results
     const newStatus = verification.status === 'verified' ? 'active' : verification.status;
     const newSslStatus = verification.sslReady ? 'active' : 'pending';
 
     const { error: updateError } = await supabaseClient
-      .from('showcase_sites')
+      .from(tableName)
       .update({
         domain_status: newStatus,
         dns_propagation_percentage: verification.propagationPercentage,
         ssl_status: newSslStatus,
         domain_last_check: new Date().toISOString(),
       })
-      .eq('id', showcaseId);
+      .eq('id', resourceId);
 
     if (updateError) {
-      console.error('Error updating showcase:', updateError);
+      console.error(`Error updating ${tableName}:`, updateError);
       throw updateError;
     }
 
@@ -204,7 +213,7 @@ Deno.serve(async (req) => {
       newSslStatus === 'active' &&
       (previousStatus !== 'active' || previousSslStatus !== 'active');
 
-    if (domainJustBecameActive && currentSite?.user_id) {
+    if (domainJustBecameActive && currentSite?.user_id && resourceType === 'showcase') {
       console.log('Domain just became active, sending notification email...');
       
       // Get user email from profiles
