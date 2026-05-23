@@ -15,8 +15,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CheckoutMobilePreview } from "./CheckoutMobilePreview";
+import { DnsConfigurationAssistant } from "@/components/DnsConfigurationAssistant";
 
-type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "danger";
+type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "domain" | "danger";
 
 interface CheckoutField {
   id: string;
@@ -37,6 +38,7 @@ const SETTINGS_NAV: { id: SettingsTab; label: string; icon: React.ElementType }[
   { id: "payment", label: "Paiement", icon: CreditCard },
   { id: "checkout", label: "Check-out", icon: ShoppingCart },
   { id: "analytics", label: "Analytiques et Pixels", icon: BarChart3 },
+  { id: "domain", label: "Domaine personnalisé", icon: Globe },
   { id: "danger", label: "Zone de danger", icon: Trash2 },
 ];
 
