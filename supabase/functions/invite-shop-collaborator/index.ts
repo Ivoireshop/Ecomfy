@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'VisualPro Cloud <onboarding@resend.dev>',
+        from: 'VisualPro Cloud <noreply@visuelpro.cloud>',
         to: [emailRaw],
         reply_to: 'contact@visuelpro.cloud',
         subject: `Invitation à collaborer sur ${displayShop}`,
