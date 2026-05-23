@@ -64,30 +64,60 @@ Deno.serve(async (req) => {
     const origin = req.headers.get('origin') || 'https://visuelpro.cloud'
     const acceptUrl = `${origin}/accept-shop-invite?token=${encodeURIComponent(finalToken)}`
 
-    // Send via existing app email pipeline. Keep field names aligned with the
-    // shared sender so invitation failures are visible instead of silently ignored.
-    const { data: emailData, error: emailError } = await admin.functions.invoke('send-transactional-email', {
-      body: {
-        templateName: 'shop-collaborator-invite',
-        recipientEmail: emailRaw,
-        templateData: {
-          shopName: shop.business_name || shopName,
-          acceptUrl,
-          roles,
-        },
-        idempotencyKey: `shop-collab-${shopId}-${emailRaw}`,
-      },
-    })
+    // Direct send via Resend (no DNS setup required, uses onboarding@resend.dev)
+    const resendKey = Deno.env.get('RESEND_API_KEY')
+    if (!resendKey) {
+      return json({ success: false, error: 'email_not_sent', details: 'RESEND_API_KEY missing' })
+    }
+    const displayShop = shop.business_name || shopName
+    const rolesLabels: Record<string, string> = {
+      view_orders: 'Voir les commandes',
+      edit_shop: 'Modifier la boutique',
+      manage_expenses: 'Gérer les dépenses',
+      manage_delivered_orders: 'Gérer les commandes livrées',
+    }
+    const rolesHtml = roles.map((r: string) => `<li>${rolesLabels[r] || r}</li>`).join('')
+    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#fff;padding:24px;color:#0f172a">
+      <div style="max-width:560px;margin:0 auto">
+        <h1 style="font-size:22px;margin:0 0 16px">Invitation à collaborer 🤝</h1>
+        <p style="font-size:15px;line-height:1.6;color:#334155">
+          Vous avez été invité(e) à rejoindre la boutique <strong>${displayShop}</strong> sur VisualPro Cloud.
+        </p>
+        ${rolesHtml ? `<p style="font-size:15px;color:#334155;margin-bottom:6px">Rôles attribués :</p><ul style="color:#334155;font-size:14px">${rolesHtml}</ul>` : ''}
+        <p style="font-size:15px;line-height:1.6;color:#334155">
+          Pour accepter, cliquez sur le bouton ci-dessous puis connectez-vous (ou créez votre compte) avec cette adresse email.
+        </p>
+        <p style="text-align:center;margin:28px 0">
+          <a href="${acceptUrl}" style="background:#0f172a;color:#fff;padding:12px 24px;border-radius:8px;font-weight:600;text-decoration:none;display:inline-block">Accepter l'invitation</a>
+        </p>
+        <p style="font-size:12px;color:#94a3b8;margin-top:32px">
+          Si vous n'attendiez pas cette invitation, vous pouvez ignorer cet email.<br/>
+          Ou copiez ce lien : ${acceptUrl}
+        </p>
+      </div>
+    </body></html>`
 
-    if (emailError || !emailData?.success) {
-      console.error('Collaborator invite email failed', {
-        shopId,
-        error: emailError?.message || emailData?.error || emailData?.reason || 'unknown_error',
-      })
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'VisualPro Cloud <onboarding@resend.dev>',
+        to: [emailRaw],
+        reply_to: 'contact@visuelpro.cloud',
+        subject: `Invitation à collaborer sur ${displayShop}`,
+        html,
+      }),
+    })
+    const resendData = await resendRes.json().catch(() => ({}))
+    if (!resendRes.ok) {
+      console.error('Resend invite failed', resendRes.status, resendData)
       return json({
         success: false,
         error: 'email_not_sent',
-        details: emailError?.message || emailData?.error || emailData?.reason || 'Impossible d’envoyer le mail d’invitation',
+        details: resendData?.message || `Resend HTTP ${resendRes.status}`,
       })
     }
 
