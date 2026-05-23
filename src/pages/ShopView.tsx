@@ -143,7 +143,13 @@ const ShopView = () => {
   };
 
   const fetchShop = async () => {
-    if (!slug && !id) return;
+    // Custom-domain mode: when no slug/id in the URL, try resolving the shop
+    // from the current hostname (e.g. https://maboutique.com → shop with
+    // custom_domain = 'maboutique.com').
+    const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase().replace(/^www\./, "") : "";
+    const KNOWN_HOSTS = ["visuelpro.cloud", "www.visuelpro.cloud", "localhost", "visualpro-african-ai-creations.lovable.app"];
+    const isCustomHost = host && !KNOWN_HOSTS.includes(host) && !host.endsWith(".lovable.app") && !host.endsWith(".lovable.dev");
+    if (!slug && !id && !isCustomHost) return;
     setFetchError(null);
     setLoading(true);
     let shopData: any = null;
@@ -156,7 +162,28 @@ const ShopView = () => {
       );
       if (error && !previewById) networkError = true;
       if (previewById) shopData = { ...previewById, _isPreview: true };
-    } else if (slug) {
+    } else if (slug || isCustomHost) {
+      // If we are on a custom domain, look up the shop by its custom_domain first
+      if (!slug && isCustomHost) {
+        const { data: byDomain, error: domainErr } = await fetchWithRetry(() =>
+          supabase
+            .from("shops")
+            .select("*")
+            .ilike("custom_domain", host)
+            .eq("is_published", true)
+            .eq("is_activated", true)
+            .limit(1)
+        );
+        if (domainErr) networkError = true;
+        const matched = (byDomain as any)?.[0];
+        if (matched) {
+          shopData = matched;
+        } else {
+          setFetchError("Aucune boutique n'est connectée à ce nom de domaine.");
+          setLoading(false);
+          return;
+        }
+      } else {
       const { data: liveRows, error: liveErr } = await fetchWithRetry(() =>
         supabase.rpc("get_public_shop_by_slug" as any, { p_slug: slug })
       );
@@ -188,6 +215,7 @@ const ShopView = () => {
             inactiveShop = previewData;
           }
         } else if (prevErr) networkError = true;
+      }
       }
     }
 
