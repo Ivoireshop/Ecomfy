@@ -90,7 +90,7 @@ const PageLoader = () => (
 const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
   const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
@@ -292,7 +292,7 @@ const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/term
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
 
