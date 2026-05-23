@@ -64,6 +64,18 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const OrdersDiagnostic = lazy(() => import("./pages/OrdersDiagnostic"));
 const AcceptShopInvite = lazy(() => import("./pages/AcceptShopInvite"));
 
+// Detect when the visitor arrives via a custom shop domain. In that case the
+// root path "/" should render the shop (resolved by hostname inside ShopView)
+// instead of the marketing landing page.
+const isCustomShopHost = (() => {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
+  const KNOWN = ["visuelpro.cloud", "localhost", "visualpro-african-ai-creations.lovable.app"];
+  if (KNOWN.includes(host)) return false;
+  if (host.endsWith(".lovable.app") || host.endsWith(".lovable.dev")) return false;
+  return true;
+})();
+
 const queryClient = new QueryClient();
 
 const PageLoader = () => (
@@ -78,7 +90,7 @@ const PageLoader = () => (
 const AppContent = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
   const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
@@ -92,7 +104,7 @@ const AppContent = () => {
       {!isOrderConfirmed && <MobileBottomNav />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={isCustomShopHost ? <ShopView /> : <Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route
             path="/dashboard"
@@ -280,7 +292,7 @@ const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/term
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
+  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
 

@@ -15,8 +15,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CheckoutMobilePreview } from "./CheckoutMobilePreview";
+import { DnsConfigurationAssistant } from "@/components/DnsConfigurationAssistant";
 
-type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "danger";
+type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "domain" | "danger";
 
 interface CheckoutField {
   id: string;
@@ -37,6 +38,7 @@ const SETTINGS_NAV: { id: SettingsTab; label: string; icon: React.ElementType }[
   { id: "payment", label: "Paiement", icon: CreditCard },
   { id: "checkout", label: "Check-out", icon: ShoppingCart },
   { id: "analytics", label: "Analytiques et Pixels", icon: BarChart3 },
+  { id: "domain", label: "Domaine personnalisé", icon: Globe },
   { id: "danger", label: "Zone de danger", icon: Trash2 },
 ];
 
@@ -577,6 +579,36 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                 </p>
               </div>
             </Card>
+          </>
+        )}
+
+        {activeTab === "domain" && (
+          <>
+            <h2 className="text-xl font-bold">Domaine personnalisé</h2>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Connectez votre propre nom de domaine (acheté sur OVH, Hostinger, Namecheap, Cloudflare, Lovable…) à votre boutique. Vos clients verront votre adresse personnalisée à la place de visuelpro.cloud.
+            </p>
+            <DnsConfigurationAssistant
+              resourceId={shop.id}
+              resourceType="shop"
+              currentBaseUrl={`visuelpro.cloud/shop/${shop.slug || ""}`}
+              currentDomain={shop.custom_domain || ""}
+              verificationCode={shop.domain_verification_code || ""}
+              domainStatus={shop.domain_status || "not_configured"}
+              propagationPercentage={shop.dns_propagation_percentage || 0}
+              sslStatus={shop.ssl_status || "pending"}
+              onDomainSave={async (domain) => {
+                const cleaned = domain.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+                const { data, error } = await supabase
+                  .from("shops")
+                  .update({ custom_domain: cleaned })
+                  .eq("id", shop.id)
+                  .select()
+                  .single();
+                if (error) throw error;
+                if (data) setShop({ ...shop, ...data });
+              }}
+            />
           </>
         )}
 
