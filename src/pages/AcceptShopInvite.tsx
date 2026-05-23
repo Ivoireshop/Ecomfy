@@ -12,12 +12,19 @@ const AcceptShopInvite = () => {
   const [status, setStatus] = useState<"loading" | "ok" | "auth" | "error">("loading");
   const [message, setMessage] = useState("");
   const [shopId, setShopId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState<string>("");
 
   useEffect(() => {
     (async () => {
       if (!token) { setStatus("error"); setMessage("Lien d'invitation invalide."); return; }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        const { data: inv } = await (supabase as any)
+          .from("shop_collaborators")
+          .select("invited_email")
+          .eq("invitation_token", token)
+          .maybeSingle();
+        if (inv?.invited_email) setInviteEmail(inv.invited_email);
         setStatus("auth");
         return;
       }
@@ -34,8 +41,15 @@ const AcceptShopInvite = () => {
       }
       setShopId(data.shop_id);
       setStatus("ok");
+      setTimeout(() => navigate(`/shop-editor/${data.shop_id}`, { replace: true }), 800);
     })();
-  }, [token]);
+  }, [token, navigate]);
+
+  const goToAuth = () => {
+    const redirect = encodeURIComponent(`/accept-shop-invite?token=${token}`);
+    const emailParam = inviteEmail ? `&email=${encodeURIComponent(inviteEmail)}&invite=1` : "";
+    navigate(`/auth?redirect=${redirect}${emailParam}`);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-muted/30">
@@ -46,10 +60,14 @@ const AcceptShopInvite = () => {
         {status === "auth" && (
           <>
             <LogIn className="h-10 w-10 mx-auto text-primary" />
-            <h2 className="text-xl font-bold">Connexion requise</h2>
-            <p className="text-sm text-muted-foreground">Connectez-vous avec l'adresse email qui a reçu l'invitation pour accepter et accéder à la boutique.</p>
-            <Button className="w-full" onClick={() => navigate(`/auth?redirect=${encodeURIComponent(`/accept-shop-invite?token=${token}`)}`)}>
-              Se connecter
+            <h2 className="text-xl font-bold">Une dernière étape</h2>
+            <p className="text-sm text-muted-foreground">
+              {inviteEmail
+                ? <>Connectez-vous (ou créez votre compte) avec <strong>{inviteEmail}</strong>. Vous serez redirigé(e) automatiquement vers la boutique.</>
+                : "Connectez-vous avec l'adresse email qui a reçu l'invitation pour accéder à la boutique."}
+            </p>
+            <Button className="w-full" onClick={goToAuth}>
+              Continuer
             </Button>
           </>
         )}
@@ -57,7 +75,7 @@ const AcceptShopInvite = () => {
           <>
             <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-500" />
             <h2 className="text-xl font-bold">Invitation acceptée 🎉</h2>
-            <p className="text-sm text-muted-foreground">Vous avez maintenant accès à la boutique.</p>
+            <p className="text-sm text-muted-foreground">Redirection vers la boutique…</p>
             <Button className="w-full" onClick={() => shopId ? navigate(`/shop-editor/${shopId}`) : navigate("/shop-manager")}>
               Accéder à la boutique
             </Button>

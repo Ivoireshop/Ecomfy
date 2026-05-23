@@ -34,6 +34,22 @@ const Auth = () => {
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
+  const redirectPath = searchParams.get("redirect") || "";
+  const prefillEmail = searchParams.get("email") || "";
+  const isInvite = searchParams.get("invite") === "1";
+  const [activeTab, setActiveTab] = useState<string>("signin");
+
+  useEffect(() => {
+    if (prefillEmail) {
+      setSignInEmail(prefillEmail);
+      setSignUpEmail(prefillEmail);
+    }
+    if (isInvite) {
+      // Default to signup so the invitee can quickly create their account if needed
+      setActiveTab("signup");
+    }
+  }, [prefillEmail, isInvite]);
+
   useEffect(() => {
     const refCode = searchParams.get("ref");
     if (refCode) {
@@ -91,8 +107,12 @@ const Auth = () => {
       }
     }
 
-    navigate("/dashboard", { replace: true });
-  }, [navigate, toast]);
+    if (redirectPath && redirectPath.startsWith("/")) {
+      navigate(redirectPath, { replace: true });
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate, toast, redirectPath]);
 
   useEffect(() => {
     if (!isReady) {
@@ -342,7 +362,12 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
+            {isInvite && prefillEmail && (
+              <div className="mb-4 rounded-md border bg-primary/5 p-3 text-sm">
+                Vous êtes invité(e) à rejoindre une boutique avec <strong>{prefillEmail}</strong>. Connectez-vous ou créez votre compte pour y accéder.
+              </div>
+            )}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Connexion</TabsTrigger>
                 <TabsTrigger value="signup">Inscription</TabsTrigger>
