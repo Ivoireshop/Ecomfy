@@ -25,8 +25,11 @@ interface DnsRecord {
 }
 
 interface DnsConfigurationAssistantProps {
-  showcaseId: string;
-  subdomain: string;
+  showcaseId?: string;
+  resourceId?: string;
+  resourceType?: 'showcase' | 'shop';
+  subdomain?: string;
+  currentBaseUrl?: string;
   currentDomain?: string;
   verificationCode?: string;
   domainStatus?: string;
@@ -37,7 +40,10 @@ interface DnsConfigurationAssistantProps {
 
 export const DnsConfigurationAssistant = ({
   showcaseId,
+  resourceId,
+  resourceType = 'showcase',
   subdomain,
+  currentBaseUrl,
   currentDomain = "",
   verificationCode = "",
   domainStatus = "not_configured",
@@ -45,6 +51,9 @@ export const DnsConfigurationAssistant = ({
   sslStatus = "pending",
   onDomainSave,
 }: DnsConfigurationAssistantProps) => {
+  const effectiveResourceId = resourceId || showcaseId!;
+  const effectiveResourceType = resourceType;
+  const resourceLabel = effectiveResourceType === 'shop' ? 'boutique' : 'site vitrine';
   const [customDomain, setCustomDomain] = useState(currentDomain);
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
@@ -53,7 +62,7 @@ export const DnsConfigurationAssistant = ({
   const [localStatus, setLocalStatus] = useState(domainStatus);
   const [localSslStatus, setLocalSslStatus] = useState(sslStatus);
 
-  const lovableSubdomain = `${subdomain}.lovable.app`;
+  const lovableSubdomain = currentBaseUrl || (subdomain ? `${subdomain}.lovable.app` : '');
 
   // Auto-check DNS every 30 seconds when domain is configured
   useEffect(() => {
@@ -83,7 +92,10 @@ export const DnsConfigurationAssistant = ({
     try {
       const { data, error } = await supabase.functions.invoke('verify-domain-dns', {
         body: {
-          showcaseId,
+          resourceId: effectiveResourceId,
+          resourceType: effectiveResourceType,
+          showcaseId: effectiveResourceType === 'showcase' ? effectiveResourceId : undefined,
+          shopId: effectiveResourceType === 'shop' ? effectiveResourceId : undefined,
           domain: customDomain,
           verificationCode,
         },
