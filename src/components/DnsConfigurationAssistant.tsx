@@ -217,7 +217,7 @@ export const DnsConfigurationAssistant = ({
         <CardHeader>
           <CardTitle>Domaine VisualPro actuel</CardTitle>
           <CardDescription>
-            Votre site vitrine est actuellement accessible via ce sous-domaine
+            Votre {resourceLabel} est actuellement accessible via cette adresse
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -250,7 +250,7 @@ export const DnsConfigurationAssistant = ({
         <CardHeader>
           <CardTitle>Domaine Personnalisé</CardTitle>
           <CardDescription>
-            Connectez votre propre nom de domaine à votre site vitrine
+            Connectez votre propre nom de domaine à votre {resourceLabel}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
