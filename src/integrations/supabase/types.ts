@@ -1963,7 +1963,12 @@ export type Database = {
           country: string | null
           created_at: string
           currency: string | null
+          custom_domain: string | null
           delivery_advisor_phone: string | null
+          dns_propagation_percentage: number | null
+          domain_last_check: string | null
+          domain_status: string | null
+          domain_verification_code: string | null
           email: string | null
           facebook_access_token: string | null
           facebook_pixels: string[] | null
@@ -1992,6 +1997,7 @@ export type Database = {
           snapchat_access_token: string | null
           snapchat_pixels: string[] | null
           social_proof_enabled: boolean | null
+          ssl_status: string | null
           theme: string | null
           theme_config: Json | null
           tiktok_access_token: string | null
@@ -2024,7 +2030,12 @@ export type Database = {
           country?: string | null
           created_at?: string
           currency?: string | null
+          custom_domain?: string | null
           delivery_advisor_phone?: string | null
+          dns_propagation_percentage?: number | null
+          domain_last_check?: string | null
+          domain_status?: string | null
+          domain_verification_code?: string | null
           email?: string | null
           facebook_access_token?: string | null
           facebook_pixels?: string[] | null
@@ -2053,6 +2064,7 @@ export type Database = {
           snapchat_access_token?: string | null
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
+          ssl_status?: string | null
           theme?: string | null
           theme_config?: Json | null
           tiktok_access_token?: string | null
@@ -2085,7 +2097,12 @@ export type Database = {
           country?: string | null
           created_at?: string
           currency?: string | null
+          custom_domain?: string | null
           delivery_advisor_phone?: string | null
+          dns_propagation_percentage?: number | null
+          domain_last_check?: string | null
+          domain_status?: string | null
+          domain_verification_code?: string | null
           email?: string | null
           facebook_access_token?: string | null
           facebook_pixels?: string[] | null
@@ -2114,6 +2131,7 @@ export type Database = {
           snapchat_access_token?: string | null
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
+          ssl_status?: string | null
           theme?: string | null
           theme_config?: Json | null
           tiktok_access_token?: string | null
@@ -3118,6 +3136,7 @@ export type Database = {
       generate_domain_verification_code: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
+      generate_shop_domain_verification_code: { Args: never; Returns: string }
       get_next_queue_item: { Args: never; Returns: string }
       get_public_shop_by_slug: {
         Args: { p_slug: string }
