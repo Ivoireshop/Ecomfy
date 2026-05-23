@@ -166,13 +166,7 @@ const ShopView = () => {
       // If we are on a custom domain, look up the shop by its custom_domain first
       if (!slug && isCustomHost) {
         const { data: byDomain, error: domainErr } = await fetchWithRetry(() =>
-          supabase
-            .from("shops")
-            .select("*")
-            .ilike("custom_domain", host)
-            .eq("is_published", true)
-            .eq("is_activated", true)
-            .limit(1)
+          supabase.rpc("get_public_shop_by_custom_domain" as any, { p_domain: host })
         );
         if (domainErr) networkError = true;
         const matched = (byDomain as any)?.[0];
