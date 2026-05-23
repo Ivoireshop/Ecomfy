@@ -582,12 +582,6 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
           </>
         )}
 
-        {activeTab === "danger" && (
-          <>
-            <h2 className="text-xl font-bold text-destructive">Zone de danger</h2>
-          </>
-        )}
-
         {activeTab === "domain" && (
           <>
             <h2 className="text-xl font-bold">Domaine personnalisé</h2>
@@ -618,7 +612,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
           </>
         )}
 
-        {activeTab === "_danger_placeholder" && (
+        {activeTab === "danger" && (
           <>
             <h2 className="text-xl font-bold text-destructive">Zone de danger</h2>
             <Card className="p-6 border-destructive/30 space-y-4">
