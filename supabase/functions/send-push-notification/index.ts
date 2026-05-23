@@ -91,7 +91,19 @@ Deno.serve(async (req) => {
     const { data: tokens } = await supabase
       .from("device_tokens")
       .select("fcm_token, user_agent, last_used_at")
-      .eq("user_id", shop.user_id)
+      .in("user_id", await (async () => {
+        const ids: string[] = [shop.user_id];
+        const { data: collabs } = await supabase
+          .from("shop_collaborators")
+          .select("user_id")
+          .eq("shop_id", shop_id)
+          .eq("status", "active")
+          .not("user_id", "is", null);
+        for (const c of (collabs || []) as Array<{ user_id: string | null }>) {
+          if (c.user_id && !ids.includes(c.user_id)) ids.push(c.user_id);
+        }
+        return ids;
+      })())
       .order("last_used_at", { ascending: false });
 
     if (!tokens || tokens.length === 0) {
@@ -109,7 +121,7 @@ Deno.serve(async (req) => {
       seenTokens.add(t.fcm_token);
       seenDevices.add(deviceKey);
       return true;
-    }).slice(0, 1);
+    });
 
     const saJson = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
     if (!saJson) {
