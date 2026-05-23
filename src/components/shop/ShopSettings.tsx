@@ -585,6 +585,42 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
         {activeTab === "danger" && (
           <>
             <h2 className="text-xl font-bold text-destructive">Zone de danger</h2>
+          </>
+        )}
+
+        {activeTab === "domain" && (
+          <>
+            <h2 className="text-xl font-bold">Domaine personnalisé</h2>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Connectez votre propre nom de domaine (acheté sur OVH, Hostinger, Namecheap, Cloudflare, Lovable…) à votre boutique. Vos clients verront votre adresse personnalisée à la place de visuelpro.cloud.
+            </p>
+            <DnsConfigurationAssistant
+              resourceId={shop.id}
+              resourceType="shop"
+              currentBaseUrl={`visuelpro.cloud/shop/${shop.slug || ""}`}
+              currentDomain={shop.custom_domain || ""}
+              verificationCode={shop.domain_verification_code || ""}
+              domainStatus={shop.domain_status || "not_configured"}
+              propagationPercentage={shop.dns_propagation_percentage || 0}
+              sslStatus={shop.ssl_status || "pending"}
+              onDomainSave={async (domain) => {
+                const cleaned = domain.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+                const { data, error } = await supabase
+                  .from("shops")
+                  .update({ custom_domain: cleaned })
+                  .eq("id", shop.id)
+                  .select()
+                  .single();
+                if (error) throw error;
+                if (data) setShop({ ...shop, ...data });
+              }}
+            />
+          </>
+        )}
+
+        {activeTab === "_danger_placeholder" && (
+          <>
+            <h2 className="text-xl font-bold text-destructive">Zone de danger</h2>
             <Card className="p-6 border-destructive/30 space-y-4">
               <div>
                 <h3 className="font-bold text-lg">Supprimer la boutique</h3>
