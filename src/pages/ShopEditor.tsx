@@ -320,16 +320,24 @@ const ShopEditor = () => {
       social_proof_enabled: shop.social_proof_enabled,
       delivery_advisor_phone: shop.delivery_advisor_phone,
       order_confirmation_message: shop.order_confirmation_message,
-      facebook_access_token: shop.facebook_access_token,
       facebook_test_event_code: shop.facebook_test_event_code,
-      tiktok_access_token: shop.tiktok_access_token,
-      snapchat_access_token: shop.snapchat_access_token,
       ga4_measurement_id: shop.ga4_measurement_id,
-      ga4_api_secret: shop.ga4_api_secret,
-      google_ads_conversion_id: shop.google_ads_conversion_id,
-      google_ads_conversion_label: shop.google_ads_conversion_label,
     }).eq("id", shop.id) as any;
-    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
+
+    // Upsert sensitive credentials into the private shop_secrets table.
+    const { error: secretsError } = await (supabase as any)
+      .from("shop_secrets")
+      .upsert({
+        shop_id: shop.id,
+        facebook_access_token: shop.facebook_access_token ?? null,
+        tiktok_access_token: shop.tiktok_access_token ?? null,
+        snapchat_access_token: shop.snapchat_access_token ?? null,
+        ga4_api_secret: shop.ga4_api_secret ?? null,
+        google_ads_conversion_id: shop.google_ads_conversion_id ?? null,
+        google_ads_conversion_label: shop.google_ads_conversion_label ?? null,
+      }, { onConflict: "shop_id" });
+
+    if (error || secretsError) toast({ title: "Erreur", description: (error || secretsError)?.message, variant: "destructive" });
     else {
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
       toast({ title: "✓ Sauvegardé" });
