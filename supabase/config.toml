@@ -23,6 +23,8 @@ project_id = "dqlbmtkaamjohgbcjwtw"
     verify_jwt = true
   [functions.generate-feature-image]
     verify_jwt = true
+  [functions.generate-product-sheet]
+    verify_jwt = false
   [functions.generate-showcase-site]
     verify_jwt = true
   [functions.generate-video]
