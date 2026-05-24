@@ -357,6 +357,14 @@ const ShopView = () => {
       const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
       const orderId = (crypto as any).randomUUID();
       const orderNumber = orderNumData || `VP-${Date.now()}`;
+      const productsSummary = cart
+        .map(item => {
+          const v = item.selectedVariants && Object.keys(item.selectedVariants).length > 0
+            ? ` (${Object.entries(item.selectedVariants).map(([k, val]) => `${k}: ${val}`).join(", ")})`
+            : "";
+          return `${item.quantity}× ${item.product.name}${v}`;
+        })
+        .join(" ; ");
       const { error } = await supabase.from("orders").insert({
         id: orderId,
         shop_id: shop.id, order_number: orderNumber,
@@ -365,6 +373,7 @@ const ShopView = () => {
         customer_city: customerInfo.city, subtotal: cartTotal,
         commission_amount: commissionAmount, total: cartTotal,
         payment_method: customerInfo.paymentMethod,
+        products_summary: productsSummary,
       }) as any;
       if (error) throw error;
       const order = { id: orderId, order_number: orderNumber };
@@ -375,7 +384,8 @@ const ShopView = () => {
         total_price: item.product.price * item.quantity,
         selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
       }));
-      await supabase.from("order_items").insert(orderItems) as any;
+      const { error: itemsError } = await supabase.from("order_items").insert(orderItems) as any;
+      if (itemsError) console.error("[ShopView] order_items insert failed", itemsError);
       // Mark abandoned cart as converted (if any was tracked)
       if (sessionIdRef.current && shop?.id) {
         try {

@@ -1320,6 +1320,7 @@ export type Database = {
           order_status: string
           payment_method: string
           payment_status: string
+          products_summary: string | null
           shop_id: string
           subtotal: number
           total: number
@@ -1341,6 +1342,7 @@ export type Database = {
           order_status?: string
           payment_method?: string
           payment_status?: string
+          products_summary?: string | null
           shop_id: string
           subtotal?: number
           total?: number
@@ -1362,6 +1364,7 @@ export type Database = {
           order_status?: string
           payment_method?: string
           payment_status?: string
+          products_summary?: string | null
           shop_id?: string
           subtotal?: number
           total?: number
