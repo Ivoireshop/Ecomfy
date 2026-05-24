@@ -152,7 +152,8 @@ serve(async (req) => {
           if (paymentToUpdate.status === "completed") {
             const existingMeta = (paymentToUpdate.metadata || {}) as Record<string, unknown>;
             const exemptType = existingMeta.payment_type === "shop_activation"
-              || existingMeta.payment_type === "commission_payment";
+              || existingMeta.payment_type === "commission_payment"
+              || existingMeta.payment_type === "shop_subscription";
             if (!exemptType) {
               console.log("Payment already completed, skipping re-credit:", reference);
               return ack({ success: true, alreadyCompleted: true, reference }, true);
@@ -308,6 +309,26 @@ serve(async (req) => {
       } else {
         console.warn("commission_payment without shop_id metadata", { reference });
       }
+    } else if (paymentType === "shop_subscription") {
+      const shopId = metadata?.shop_id;
+      const plan = (metadata?.plan as string) || "starter";
+      if (!shopId) {
+        console.warn("shop_subscription without shop_id metadata", { reference });
+        return ack({ success: false, error: "missing shop_id", reference }, true);
+      }
+      const { data: subResult, error: subError } = await supabase.rpc("apply_shop_subscription", {
+        p_shop_id: shopId,
+        p_user_id: userId,
+        p_plan: plan,
+        p_amount: amountPaid,
+        p_transaction_reference: reference || null,
+        p_payment_method: data?.payment_method || data?.provider || "geniuspay",
+      });
+      if (subError || subResult?.success === false) {
+        console.error("apply_shop_subscription failed:", { subError, subResult });
+        return ack({ success: false, error: "subscription_failed", reference }, true);
+      }
+      console.log(`Shop subscription ${plan} activated for shop ${shopId}`, subResult);
     } else if (paymentType === "credits" && creditsSize > 0) {
       const { data: profile } = await supabase
         .from("profiles")
