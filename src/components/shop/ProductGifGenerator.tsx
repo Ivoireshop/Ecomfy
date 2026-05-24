@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Image as ImageIcon, Loader2, Plus, X, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
 import { encode } from "modern-gif";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface Frame {
   id: string;
@@ -14,10 +16,19 @@ interface Frame {
   name: string;
 }
 
+type ShopInfo = {
+  id: string;
+  subscription_plan?: string | null;
+  subscription_active_until?: string | null;
+  gifs_generated_count?: number | null;
+  gifs_period_start?: string | null;
+};
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onGenerated: (file: File) => void;
+  shop?: ShopInfo;
 }
 
 const SIZE_OPTIONS = [
@@ -35,13 +46,36 @@ const MIN_FRAMES = 2;
  * The output GIF is delivered as a File via onGenerated, ready to be
  * dropped into the product gallery alongside regular images.
  */
-export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) {
+function resolvePlan(shop?: ShopInfo): "free" | "starter" | "business" {
+  if (!shop) return "free";
+  const active = shop.subscription_active_until && new Date(shop.subscription_active_until).getTime() > Date.now();
+  if (!active) return "free";
+  const p = (shop.subscription_plan || "free").toLowerCase();
+  if (p === "business" || p === "premium") return "business";
+  if (p === "starter") return "starter";
+  return "free";
+}
+
+const PLAN_LIMIT: Record<string, number> = { free: 10, starter: 30, business: Infinity };
+
+export function ProductGifGenerator({ open, onOpenChange, onGenerated, shop }: Props) {
   const [frames, setFrames] = useState<Frame[]>([]);
   const [delayMs, setDelayMs] = useState(700);
   const [size, setSize] = useState("640");
   const [fit, setFit] = useState<"cover" | "contain">("cover");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Fenêtre 30j : reset visuel si la période a expiré
+  const plan = resolvePlan(shop);
+  const limit = PLAN_LIMIT[plan];
+  const periodStart = shop?.gifs_period_start ? new Date(shop.gifs_period_start).getTime() : 0;
+  const periodValid = periodStart > Date.now() - 30 * 24 * 3600 * 1000;
+  const baseUsed = periodValid ? Number(shop?.gifs_generated_count || 0) : 0;
+  const [usedLocal, setUsedLocal] = useState(0);
+  const used = baseUsed + usedLocal;
+  const quotaReached = used >= limit;
 
   const reset = () => {
     setFrames([]);
@@ -139,6 +173,15 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
       });
       const blob = new Blob([output], { type: "image/gif" });
       const file = new File([blob], `produit-anime-${Date.now()}.gif`, { type: "image/gif" });
+      // Incrémente le compteur côté DB (sauf plan illimité)
+      if (shop?.id && Number.isFinite(limit)) {
+        try {
+          await supabase.rpc("increment_shop_gif_count" as any, { _shop_id: shop.id });
+          setUsedLocal((n) => n + 1);
+        } catch (err) {
+          console.warn("increment_shop_gif_count failed", err);
+        }
+      }
       onGenerated(file);
       toast({ title: "✓ GIF créé", description: "Ajouté à la galerie. Pensez à enregistrer." });
       reset();
@@ -165,9 +208,18 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
           <p className="text-xs text-muted-foreground">
             Importez 2 à {MAX_FRAMES} photos de votre produit (différents angles, couleurs ou usages). Notre moteur les assemble en un GIF prêt pour votre fiche produit.
           </p>
-          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-            ✓ Génération illimitée et gratuite — aucun crédit consommé
-          </p>
+          {/* Quota par plan */}
+          <div className={`text-[12px] rounded-md px-3 py-2 border ${quotaReached ? "bg-destructive/10 border-destructive/30 text-destructive" : "bg-muted/40 border-border text-muted-foreground"}`}>
+            {plan === "business" ? (
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">✓ Plan Business — GIFs illimités</span>
+            ) : (
+              <>
+                <span className="font-semibold">{used} / {limit}</span> GIFs générés ces 30 derniers jours
+                {plan === "free" && <> · <button type="button" className="underline" onClick={() => { onOpenChange(false); navigate("/shop-manager"); }}>Passer au plan Starter</button> pour 30 GIFs/mois</>}
+                {plan === "starter" && quotaReached && <> · Passez au plan Business pour des GIFs illimités</>}
+              </>
+            )}
+          </div>
 
           {/* Frames list */}
           {frames.length > 0 && (
@@ -255,7 +307,7 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Annuler</Button>
-          <Button onClick={handleGenerate} disabled={loading || frames.length < MIN_FRAMES} className="gap-2">
+          <Button onClick={handleGenerate} disabled={loading || frames.length < MIN_FRAMES || quotaReached} className="gap-2">
             {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Création…</> : <><ImageIcon className="h-4 w-4" /> Générer le GIF</>}
           </Button>
         </DialogFooter>
