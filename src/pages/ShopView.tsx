@@ -27,9 +27,10 @@ interface Product {
   is_featured: boolean;
   is_digital: boolean;
   product_images: { id: string; image_url: string; is_primary: boolean }[];
+  variants?: { name: string; options: string[] }[] | null;
 }
 
-interface CartItem { product: Product; quantity: number; }
+interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string> | null; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const ShopView = () => {
