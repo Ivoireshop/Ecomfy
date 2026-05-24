@@ -537,14 +537,21 @@ const ShopEditor = () => {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 mt-[52px] md:mt-0">
-        {/* Billing balance banner */}
-        <BillingBanner
-          balanceDue={Number(shop.commission_balance_due) || 0}
-          threshold={Number(shop.commission_threshold) || 12000}
-          paymentDeadline={shop.payment_deadline}
-          isSuspended={!!shop.is_suspended}
-          shopId={shop.id}
-        />
+        {/* Billing balance banner — masquée pour les abonnés actifs */}
+        {(() => {
+          const sub = (shop as any).subscription_active_until;
+          const isSubscribed = sub && new Date(sub).getTime() > Date.now();
+          if (isSubscribed) return null;
+          return (
+            <BillingBanner
+              balanceDue={Number(shop.commission_balance_due) || 0}
+              threshold={Number(shop.commission_threshold) || 12000}
+              paymentDeadline={shop.payment_deadline}
+              isSuspended={!!shop.is_suspended}
+              shopId={shop.id}
+            />
+          );
+        })()}
         <div className="px-4 md:px-6 pt-4">
           <EnableNotificationsBanner />
         </div>
