@@ -737,15 +737,57 @@ const ShopView = () => {
                 </div>
                 {selectedProduct.description && <p className="text-muted-foreground leading-relaxed">{selectedProduct.description}</p>}
                 {selectedProduct.short_description && !selectedProduct.description && <p className="text-muted-foreground">{selectedProduct.short_description}</p>}
+                {Array.isArray(selectedProduct.variants) && selectedProduct.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0).length > 0 && (
+                  <div className="space-y-3 pt-1">
+                    {selectedProduct.variants
+                      .filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0)
+                      .map((group: any, gi: number) => (
+                        <div key={gi} className="space-y-1.5">
+                          <Label className="text-xs font-semibold">
+                            {group.name} <span className="text-destructive">*</span>
+                          </Label>
+                          <div className="flex flex-wrap gap-2">
+                            {group.options.map((opt: string) => {
+                              const active = variantChoice[group.name] === opt;
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => setVariantChoice({ ...variantChoice, [group.name]: opt })}
+                                  className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${active ? "text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                  style={active ? { backgroundColor: primaryColor, borderColor: primaryColor } : { borderColor: "hsl(var(--border))" }}
+                                >
+                                  {opt}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
                 <div className="flex gap-3 pt-2">
                   {shop._isPreview ? (
                     <div className="flex-1 rounded-xl border-2 border-dashed px-4 py-3 text-center text-xs text-muted-foreground" style={{ borderColor: primaryColor + "40" }}>
                       🔒 Commande disponible après activation de la boutique
                     </div>
                   ) : (
-                    <Button className="flex-1 rounded-xl gap-2 h-12 text-base" style={{ backgroundColor: primaryColor }} onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }}>
-                      <ShoppingCart className="h-5 w-5" /> Ajouter au panier
-                    </Button>
+                    (() => {
+                      const groups = Array.isArray(selectedProduct.variants) ? selectedProduct.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0) : [];
+                      const missing = groups.filter((g: any) => !variantChoice[g.name]);
+                      const ready = missing.length === 0;
+                      return (
+                        <Button
+                          className="flex-1 rounded-xl gap-2 h-12 text-base"
+                          style={{ backgroundColor: primaryColor, opacity: ready ? 1 : 0.6 }}
+                          disabled={!ready}
+                          onClick={() => { addToCart(selectedProduct, groups.length > 0 ? variantChoice : null); setSelectedProduct(null); setVariantChoice({}); }}
+                        >
+                          <ShoppingCart className="h-5 w-5" />
+                          {ready ? "Ajouter au panier" : `Choisir : ${missing.map((m: any) => m.name).join(", ")}`}
+                        </Button>
+                      );
+                    })()
                   )}
                 </div>
               </div>
