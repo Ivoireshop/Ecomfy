@@ -1442,6 +1442,7 @@ export function ProductEditor({
         open={gifOpen}
         onOpenChange={setGifOpen}
         onGenerated={(file) => setNewImages((prev) => [...prev, file])}
+        shop={shop}
       />
     </div>
   );
