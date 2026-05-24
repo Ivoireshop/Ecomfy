@@ -141,6 +141,32 @@ Deno.serve(async (req) => {
           .eq("id", order_id)
           .maybeSingle()
       : { data: null } as any;
+
+    // Fetch ordered items to mention the product(s) in the notification
+    const { data: itemRows } = order_id
+      ? await supabase
+          .from("order_items")
+          .select("product_name, quantity")
+          .eq("order_id", order_id)
+          .order("created_at", { ascending: true })
+      : { data: null } as any;
+    const items = (itemRows || []) as Array<{ product_name: string | null; quantity: number | null }>;
+    let productLine = "";
+    let firstProductName = "";
+    if (items.length > 0) {
+      firstProductName = String(items[0].product_name || "").trim();
+      if (items.length === 1) {
+        const q = Number(items[0].quantity || 1);
+        productLine = `📦 ${q}× ${firstProductName || "produit"}`;
+      } else {
+        const head = items.slice(0, 2).map((it) => {
+          const q = Number(it.quantity || 1);
+          return `${q}× ${String(it.product_name || "produit").trim()}`;
+        }).join(", ");
+        const extra = items.length - 2;
+        productLine = `📦 ${head}${extra > 0 ? ` +${extra} autre${extra > 1 ? "s" : ""}` : ""}`;
+      }
+    }
     const oName = String(orderDetails?.customer_name || customer_name || "").trim();
     const oPhone = String(orderDetails?.customer_phone || "").trim();
     const oCity = String(orderDetails?.customer_city || "").trim();
@@ -151,6 +177,7 @@ Deno.serve(async (req) => {
       : "";
     const bodyLines: string[] = [];
     if (oName) bodyLines.push(`👤 ${oName}`);
+    if (productLine) bodyLines.push(productLine);
     if (oPhone) bodyLines.push(`📞 ${oPhone}`);
     if (oPlace) bodyLines.push(`📍 ${oPlace}`);
     if (oTotal) bodyLines.push(`💰 ${oTotal}`);
@@ -226,6 +253,8 @@ Deno.serve(async (req) => {
             customer_country: String(orderDetails?.customer_country || ""),
             total: String(orderDetails?.total ?? total ?? ""),
             order_number: String(orderDetails?.order_number || order_number || ""),
+            product_name: String(firstProductName || ""),
+            product_line: String(productLine || ""),
             url: clickUrl,
           },
         },
