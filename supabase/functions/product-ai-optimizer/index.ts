@@ -43,7 +43,6 @@ Deno.serve(async (req) => {
       .eq("id", shop_id)
       .maybeSingle();
     if (!shop || shop.user_id !== userId) return json({ success: false, error: "Boutique introuvable" });
-    if (!shop.ai_optimizer_enabled) return json({ success: false, error: "Optimiseur IA désactivé" });
 
     const { data: product } = await admin
       .from("products")
