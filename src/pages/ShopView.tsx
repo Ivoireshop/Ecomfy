@@ -51,6 +51,7 @@ const ShopView = () => {
   const [orderLoading, setOrderLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [variantChoice, setVariantChoice] = useState<Record<string, string>>({});
   const [orderSuccess, setOrderSuccess] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
