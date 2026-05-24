@@ -813,19 +813,24 @@ const ShopView = () => {
                   ) : (
                     <div className="space-y-3">
                       {cart.map(item => (
-                        <div key={item.product.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                        <div key={cartKey(item.product.id, item.selectedVariants)} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
                           <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
                             {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" className="h-full w-full object-cover" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{item.product.name}</p>
+                            {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                              </p>
+                            )}
                             <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(cartKey(item.product.id, item.selectedVariants), -1)}><Minus className="h-3 w-3" /></Button>
                             <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(cartKey(item.product.id, item.selectedVariants), 1)}><Plus className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(cartKey(item.product.id, item.selectedVariants))}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                           </div>
                         </div>
                       ))}
@@ -870,8 +875,14 @@ const ShopView = () => {
                   {/* Résumé compact */}
                   <div className="bg-muted/30 rounded-xl p-3 space-y-1 text-xs">
                     {cart.map(item => (
-                      <div key={item.product.id} className="flex justify-between">
-                        <span className="text-muted-foreground">{item.product.name} × {item.quantity}</span>
+                      <div key={cartKey(item.product.id, item.selectedVariants)} className="flex justify-between gap-2">
+                        <span className="text-muted-foreground truncate">
+                          {item.product.name}
+                          {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                            <span className="opacity-70"> ({Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
+                          )}
+                          {" × "}{item.quantity}
+                        </span>
                         <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
                       </div>
                     ))}
