@@ -18,8 +18,9 @@ const PaymentSchema = z.object({
   provider: z.string().optional(),
   phone: z.string().optional(),
   promo_code: z.string().optional(),
-  payment_type: z.enum(["subscription", "credits", "shop_activation", "commission_payment"]).default("subscription"),
+  payment_type: z.enum(["subscription", "credits", "shop_activation", "commission_payment", "shop_subscription"]).default("subscription"),
   shop_id: z.string().uuid().optional(),
+  plan: z.enum(["starter", "business", "premium"]).optional(),
   credits_pack: z.object({
     size: z.number(),
     price: z.number()
@@ -113,7 +114,31 @@ serve(async (req) => {
       );
     }
 
-    const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id } = validatedData;
+    const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id, plan } = validatedData;
+
+    if (payment_type === "shop_subscription") {
+      if (!shop_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Sélectionnez la boutique à abonner." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (!plan) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Plan d'abonnement manquant." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Verify ownership
+      const { data: ownedShop } = await supabase
+        .from("shops").select("id").eq("id", shop_id).eq("user_id", user_id).maybeSingle();
+      if (!ownedShop) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     if (payment_type === "shop_activation") {
       if (!shop_id) {
@@ -282,6 +307,7 @@ serve(async (req) => {
     const typePrefix = payment_type === 'credits' ? 'credits'
       : payment_type === 'shop_activation' ? 'shop'
       : payment_type === 'commission_payment' ? 'commission'
+      : payment_type === 'shop_subscription' ? 'shopsub'
       : 'sub';
     const orderId = `${typePrefix}_${user_id}_${Date.now()}`;
 
@@ -289,9 +315,11 @@ serve(async (req) => {
       ? "Activation Boutique E-commerce - Visuel Pro"
       : payment_type === 'commission_payment'
         ? "Règlement commission VisualPro"
-        : payment_type === 'credits' && credits_pack
-          ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
-          : "Abonnement Visuel Pro";
+        : payment_type === 'shop_subscription'
+          ? `Abonnement Boutique ${plan === 'business' ? 'Business' : plan === 'premium' ? 'Premium' : 'Starter'} - Visuel Pro`
+          : payment_type === 'credits' && credits_pack
+            ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
+            : "Abonnement Visuel Pro";
 
     // Fetch user profile (name, email, phone) for the customer object
     const { data: userProfile } = await supabase
@@ -323,6 +351,7 @@ serve(async (req) => {
     };
     if (credits_pack?.size) metadata.credits_size = credits_pack.size;
     if (shop_id) metadata.shop_id = shop_id;
+    if (plan) metadata.plan = plan;
     if (promoCodeId) metadata.promo_code_id = promoCodeId;
     if (discountPercentage) metadata.discount_percentage = discountPercentage;
 
@@ -358,7 +387,9 @@ serve(async (req) => {
       metadata,
       success_url: payment_type === "shop_activation" && shop_id
         ? `${baseReturnUrl}/payment-success?ref=${orderId}&shop_id=${shop_id}&type=shop_activation`
-        : `${baseReturnUrl}/payment-success?ref=${orderId}`,
+        : payment_type === "shop_subscription" && shop_id
+          ? `${baseReturnUrl}/payment-success?ref=${orderId}&shop_id=${shop_id}&type=shop_subscription`
+          : `${baseReturnUrl}/payment-success?ref=${orderId}`,
       error_url: `${baseReturnUrl}/subscription?payment=failed`,
     };
 
