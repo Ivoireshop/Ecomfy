@@ -298,15 +298,31 @@ const ShopView = () => {
   });
   const featuredProducts = products.filter(p => p.is_featured);
 
-  const addToCart = (product: Product) => {
+  const cartKey = (productId: string, sv?: Record<string, string> | null) =>
+    `${productId}::${sv && Object.keys(sv).length ? JSON.stringify(sv) : ""}`;
+
+  const addToCart = (product: Product, selectedVariants?: Record<string, string> | null) => {
     if (shop?._isPreview) {
       toast({ title: "🔒 Aperçu", description: "Activez la boutique pour recevoir des commandes." });
       return;
     }
+    const variantGroups = Array.isArray(product.variants) ? product.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0) : [];
+    if (variantGroups.length > 0) {
+      const sv = selectedVariants || {};
+      const missing = variantGroups.filter((g: any) => !sv[g.name]);
+      if (missing.length > 0) {
+        setVariantChoice({});
+        setSelectedProduct(product);
+        toast({ title: "Sélection requise", description: `Choisissez : ${missing.map((m: any) => m.name).join(", ")}`, variant: "destructive" });
+        return;
+      }
+    }
+    const sv = selectedVariants && Object.keys(selectedVariants).length > 0 ? selectedVariants : null;
+    const key = cartKey(product.id, sv);
     setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...prev, { product, quantity: 1 }];
+      const existing = prev.find(item => cartKey(item.product.id, item.selectedVariants) === key);
+      if (existing) return prev.map(item => cartKey(item.product.id, item.selectedVariants) === key ? { ...item, quantity: item.quantity + 1 } : item);
+      return [...prev, { product, quantity: 1, selectedVariants: sv }];
     });
     toast({ title: "✓ Ajouté au panier", description: product.name });
     trackEvent(shop, "AddToCart", {
@@ -319,15 +335,15 @@ const ShopView = () => {
     });
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = (key: string, delta: number) => {
     setCart(prev => prev.map(item => {
-      if (item.product.id !== productId) return item;
+      if (cartKey(item.product.id, item.selectedVariants) !== key) return item;
       const newQty = item.quantity + delta;
       return newQty <= 0 ? item : { ...item, quantity: newQty };
     }).filter(item => item.quantity > 0));
   };
 
-  const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.product.id !== productId));
+  const removeFromCart = (key: string) => setCart(prev => prev.filter(item => cartKey(item.product.id, item.selectedVariants) !== key));
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
