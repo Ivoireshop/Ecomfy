@@ -384,7 +384,8 @@ const ShopView = () => {
         total_price: item.product.price * item.quantity,
         selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
       }));
-      await supabase.from("order_items").insert(orderItems) as any;
+      const { error: itemsError } = await supabase.from("order_items").insert(orderItems) as any;
+      if (itemsError) console.error("[ShopView] order_items insert failed", itemsError);
       // Mark abandoned cart as converted (if any was tracked)
       if (sessionIdRef.current && shop?.id) {
         try {
