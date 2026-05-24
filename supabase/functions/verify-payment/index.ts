@@ -108,6 +108,21 @@ serve(async (req) => {
       });
     }
 
+    if (payment.status === "completed" && paymentType === "shop_subscription" && shopId) {
+      const plan = (meta.plan as string) || "starter";
+      await supabase.rpc("apply_shop_subscription", {
+        p_shop_id: shopId,
+        p_user_id: payment.user_id,
+        p_plan: plan,
+        p_amount: Number(payment.amount) || 0,
+        p_transaction_reference: payment.transaction_id || reference,
+        p_payment_method: payment.payment_method || "geniuspay",
+      });
+      return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Interroger GeniusPay
     const apiKey = Deno.env.get("GENIUSPAY_API_KEY");
     const apiSecret = Deno.env.get("GENIUSPAY_API_SECRET");
@@ -196,6 +211,16 @@ serve(async (req) => {
         p_created_by: userId,
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
         p_notes: "Paiement en ligne via GeniusPay",
+      });
+    } else if (paymentType === "shop_subscription" && shopId) {
+      const plan = (meta.plan as string) || "starter";
+      await supabase.rpc("apply_shop_subscription", {
+        p_shop_id: shopId,
+        p_user_id: userId,
+        p_plan: plan,
+        p_amount: Number(payment.amount) || 0,
+        p_transaction_reference: payment.transaction_id || reference,
+        p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
       });
     } else if (paymentType === "credits" && creditsSize > 0) {
       const { data: profile } = await supabase
