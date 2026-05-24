@@ -655,6 +655,7 @@ const ShopEditor = () => {
               shopActivated={!!isActivated}
               shopPublished={shop.is_published}
               productId={editingProduct?.id}
+              shop={shop as any}
             />
           </div>
         )}
