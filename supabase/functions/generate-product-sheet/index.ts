@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       image_base64,
       image_mime,
       generate_images = true,
-      image_count = 3,
+      image_count = 5,
     } = body || {};
 
     if (!name || typeof name !== "string") return json({ success: false, error: "Nom du produit requis" });
@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       aida: "Utilise AIDA (Attention → Intérêt → Désir → Action).",
     };
 
-    const systemPrompt = `Tu es un copywriter e-commerce africain (FCFA) expert en conversion.
+    const systemPrompt = `Tu es un copywriter e-commerce africain (FCFA) expert en conversion ET directeur artistique photo.
 ${frameworkPrompts[framework] || frameworkPrompts.hormozi}
 Tu rédiges une fiche produit COMPLÈTE, prête à copier-coller dans une boutique en ligne.
 Réponds en JSON STRICT sans texte hors JSON :
@@ -74,10 +74,19 @@ Réponds en JSON STRICT sans texte hors JSON :
   "seo_title": "titre SEO 50-60 caractères",
   "seo_description": "meta description 140-155 caractères",
   "image_prompts": [
-    {"title": "Photo principale produit", "prompt": "prompt détaillé en anglais pour une IA générative d'image, fond neutre, lumière studio, qualité commerciale", "why": "Pourquoi cette image convertit"}
+    {"title": "Court titre FR", "prompt": "Prompt en anglais ULTRA-DÉTAILLÉ pour photo PHOTORÉALISTE (jamais un rendu IA générique). Mentionner systématiquement: shot on Canon EOS R5 85mm f/1.4 OR iPhone 15 Pro, natural soft lighting, photorealistic, real human skin texture with pores, candid documentary photography, 35mm grain", "why": "Pourquoi cette image convertit"}
   ]
 }
-Génère exactement ${image_count} entrées dans image_prompts, variées (packshot, lifestyle, détail, contexte d'usage).`;
+
+RÈGLES STRICTES — génère EXACTEMENT ${image_count} entrées image_prompts :
+1) Privilégie des HUMAINS RÉELS qui utilisent / portent / tiennent le produit (peau réelle, pores, micro-expressions, imperfections authentiques). JAMAIS de rendu 3D / visage symétrique parfait / esthétique IA.
+2) Représentation par défaut : personnes Afro-descendantes / Africaines (carnations variées). Indiquer dans le prompt : "Black African person, real skin texture, natural pores, authentic expression".
+3) Si SANTÉ / BEAUTÉ / COSMÉTIQUE / BIEN-ÊTRE : inclure 1 image AVANT/APRÈS (split-screen diptyque réaliste), 1 personne visiblement SATISFAITE (sourire authentique type témoignage), 1 application/usage du produit, 1 packshot épuré, 1 lifestyle.
+4) Si MODE / ACCESSOIRES : porté par une personne réelle, contexte urbain africain (Abidjan, Dakar, Lagos), plusieurs angles et distances.
+5) Si TECH / OBJET : main qui tient, scène d'usage réelle, macro détail, packshot, contexte de vie.
+6) Si ALIMENTAIRE : main qui sert/verse, dégustation expressive, mise en scène conviviale.
+7) Varie distances (gros plan, plan américain, plan large) et lumières (jour naturel, golden hour, intérieur chaleureux).
+8) Chaque prompt DOIT inclure cette mention en fin : "ultra-realistic photography, photojournalism style, real human skin, candid, depth of field, --no AI look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no generic stock".`;
 
     const userPrompt = `Produit: ${name}
 Prix: ${price ?? "(non spécifié)"} ${currency}
@@ -141,9 +150,14 @@ Rédige une fiche produit complète, persuasive, adaptée au marché ouest-afric
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash-image",
+              model: "google/gemini-3.1-flash-image-preview",
               messages: [
-                { role: "user", content: p.prompt + ", professional product photography, studio lighting, high resolution, commercial quality, clean composition" },
+                {
+                  role: "user",
+                  content:
+                    p.prompt +
+                    ". STYLE: ultra-realistic photography, photojournalism, real human skin with natural pores and texture, authentic candid moment, shot on professional camera 85mm lens, natural soft lighting, shallow depth of field, 4k, subtle photographic film grain, editorial magazine quality. NEGATIVE PROMPT: no AI generated look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no waxy skin, no generic stock photo, no uncanny valley.",
+                },
               ],
               modalities: ["image", "text"],
             }),

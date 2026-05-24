@@ -311,7 +311,7 @@ function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) =>
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [generateImages, setGenerateImages] = useState(true);
-  const [imageCount, setImageCount] = useState(3);
+  const [imageCount, setImageCount] = useState(5);
   const [loading, setLoading] = useState(false);
   const [sheet, setSheet] = useState<GeneratedSheet | null>(null);
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -485,9 +485,9 @@ function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) =>
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">Aucune (texte seulement)</SelectItem>
-                  <SelectItem value="2">2 images</SelectItem>
                   <SelectItem value="3">3 images</SelectItem>
                   <SelectItem value="4">4 images</SelectItem>
+                  <SelectItem value="5">5 images (recommandé)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
