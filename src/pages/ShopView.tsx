@@ -704,7 +704,7 @@ const ShopView = () => {
       </footer>
 
       {/* Product Detail Dialog */}
-      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
+      <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) { setSelectedProduct(null); setVariantChoice({}); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedProduct && (
             <>
