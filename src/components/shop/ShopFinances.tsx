@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, TrendingUp, TrendingDown, Wallet, Megaphone, Package, Truck, Users, Sparkles, MessageCircle, Mail, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { AdAccountsManager } from "@/components/shop/AdAccountsManager";
+import { SubscriptionCard } from "@/components/shop/SubscriptionCard";
 
 interface Order { id: string; total: number; order_status: string; payment_status: string; created_at: string; }
 interface Expense { id: string; shop_id: string; category: string; amount: number; description: string | null; expense_date: string; created_at: string; }
@@ -235,8 +236,24 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span>Activation boutique payée</span><Badge variant={shop?.activation_fee_paid ? "default" : "secondary"}>{shop?.activation_fee_paid ? "Oui" : "Non"}</Badge></div>
             <div className="flex justify-between"><span>Frais déjà payés</span><span className="font-semibold">{fmt(stats.platformFees)} FCFA</span></div>
-            <div className="flex justify-between"><span>Commission due</span><span className="font-semibold text-orange-600">{fmt(stats.commissionDue)} FCFA</span></div>
-            <div className="flex justify-between text-xs text-muted-foreground"><span>Seuil de paiement</span><span>{fmt(Number(shop?.commission_threshold) || 12000)} FCFA</span></div>
+            {(() => {
+              const until = (shop as any)?.subscription_active_until ? new Date((shop as any).subscription_active_until) : null;
+              const isSubActive = !!until && until.getTime() > Date.now();
+              if (isSubActive) {
+                return (
+                  <>
+                    <div className="flex justify-between"><span>Commission par commande</span><span className="font-semibold text-emerald-600">0 FCFA</span></div>
+                    <div className="flex justify-between text-xs text-muted-foreground"><span>Abonnement actif jusqu'au</span><span>{until!.toLocaleDateString("fr-FR")}</span></div>
+                  </>
+                );
+              }
+              return (
+                <>
+                  <div className="flex justify-between"><span>Commission due</span><span className="font-semibold text-orange-600">{fmt(stats.commissionDue)} FCFA</span></div>
+                  <div className="flex justify-between text-xs text-muted-foreground"><span>Seuil de paiement</span><span>{fmt(Number(shop?.commission_threshold) || 12000)} FCFA</span></div>
+                </>
+              );
+            })()}
           </div>
         </Card>
 
@@ -266,6 +283,9 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
 
       {/* Comptes publicitaires synchronisés */}
       <AdAccountsManager shopId={shopId} userId={shop?.user_id} onTotalsChanged={reloadAll} />
+
+      {/* Abonnement boutique */}
+      <SubscriptionCard shopId={shopId} shop={shop} />
 
       {/* AI + WhatsApp actions */}
       <Card className="p-5 bg-gradient-to-br from-primary/5 to-transparent">

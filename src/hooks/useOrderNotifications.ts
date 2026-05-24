@@ -33,9 +33,19 @@ function getOrderPlace(order: any): string {
   return String(order?.customer_city || order?.customer_country || "").trim();
 }
 
+function getFirstProductName(order: any): string {
+  const items = Array.isArray(order?.order_items) ? order.order_items : [];
+  const first = items[0]?.product_name;
+  return String(first || "").trim();
+}
+
 export function getOrderAnnouncement(order: any): string {
   const place = getOrderPlace(order);
-  return place ? `Tu as une nouvelle commande de ${place}.` : `Tu as une nouvelle commande.`;
+  const product = getFirstProductName(order);
+  if (product && place) return `Tu as une nouvelle commande de ${product} à ${place}.`;
+  if (product) return `Tu as une nouvelle commande de ${product}.`;
+  if (place) return `Tu as une nouvelle commande de ${place}.`;
+  return `Tu as une nouvelle commande.`;
 }
 
 /**
@@ -53,6 +63,13 @@ export function getOrderNotificationBody(order: any): string {
 
   const lines: string[] = [];
   if (name) lines.push(`👤 ${name}`);
+  const product = getFirstProductName(order);
+  if (product) {
+    const items = Array.isArray(order?.order_items) ? order.order_items : [];
+    const q = Number(items[0]?.quantity || 1);
+    const extra = Math.max(0, items.length - 1);
+    lines.push(`📦 ${q}× ${product}${extra > 0 ? ` +${extra} autre${extra > 1 ? "s" : ""}` : ""}`);
+  }
   if (phone) lines.push(`📞 ${phone}`);
   if (place) lines.push(`📍 ${place}`);
   if (total) lines.push(`💰 ${total}`);

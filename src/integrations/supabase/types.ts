@@ -1998,6 +1998,9 @@ export type Database = {
           snapchat_pixels: string[] | null
           social_proof_enabled: boolean | null
           ssl_status: string | null
+          subscription_active_until: string | null
+          subscription_plan: string
+          subscription_started_at: string | null
           theme: string | null
           theme_config: Json | null
           tiktok_access_token: string | null
@@ -2065,6 +2068,9 @@ export type Database = {
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
           ssl_status?: string | null
+          subscription_active_until?: string | null
+          subscription_plan?: string
+          subscription_started_at?: string | null
           theme?: string | null
           theme_config?: Json | null
           tiktok_access_token?: string | null
@@ -2132,6 +2138,9 @@ export type Database = {
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
           ssl_status?: string | null
+          subscription_active_until?: string | null
+          subscription_plan?: string
+          subscription_started_at?: string | null
           theme?: string | null
           theme_config?: Json | null
           tiktok_access_token?: string | null
@@ -3119,6 +3128,17 @@ export type Database = {
           p_payment_method?: string
           p_shop_id: string
           p_transaction_reference?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      apply_shop_subscription: {
+        Args: {
+          p_amount: number
+          p_payment_method?: string
+          p_plan: string
+          p_shop_id: string
+          p_transaction_reference: string
           p_user_id: string
         }
         Returns: Json
