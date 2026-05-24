@@ -121,13 +121,27 @@ const ShopEditor = () => {
     if (!id) return;
     const visitsStartDate = new Date();
     visitsStartDate.setDate(visitsStartDate.getDate() - 30);
-    const [shopRes, productsRes, ordersRes, visitsRes] = await Promise.all([
+    const [shopRes, secretsRes, productsRes, ordersRes, visitsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
+      (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
       supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any,
       supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
-    if (shopRes.data) setShop(shopRes.data);
+    if (shopRes.data) {
+      const secrets = (secretsRes as any)?.data || {};
+      setShop({
+        ...shopRes.data,
+        facebook_access_token: secrets.facebook_access_token ?? null,
+        tiktok_access_token: secrets.tiktok_access_token ?? null,
+        snapchat_access_token: secrets.snapchat_access_token ?? null,
+        ga4_api_secret: secrets.ga4_api_secret ?? null,
+        google_ads_conversion_id: secrets.google_ads_conversion_id ?? null,
+        google_ads_conversion_label: secrets.google_ads_conversion_label ?? null,
+        weekly_finance_email: secrets.weekly_finance_email ?? null,
+        weekly_finance_email_enabled: secrets.weekly_finance_email_enabled ?? false,
+      });
+    }
     if (productsRes.data) setProducts(productsRes.data);
     if (ordersRes.data) {
       setOrders(ordersRes.data);
@@ -306,16 +320,24 @@ const ShopEditor = () => {
       social_proof_enabled: shop.social_proof_enabled,
       delivery_advisor_phone: shop.delivery_advisor_phone,
       order_confirmation_message: shop.order_confirmation_message,
-      facebook_access_token: shop.facebook_access_token,
       facebook_test_event_code: shop.facebook_test_event_code,
-      tiktok_access_token: shop.tiktok_access_token,
-      snapchat_access_token: shop.snapchat_access_token,
       ga4_measurement_id: shop.ga4_measurement_id,
-      ga4_api_secret: shop.ga4_api_secret,
-      google_ads_conversion_id: shop.google_ads_conversion_id,
-      google_ads_conversion_label: shop.google_ads_conversion_label,
     }).eq("id", shop.id) as any;
-    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
+
+    // Upsert sensitive credentials into the private shop_secrets table.
+    const { error: secretsError } = await (supabase as any)
+      .from("shop_secrets")
+      .upsert({
+        shop_id: shop.id,
+        facebook_access_token: shop.facebook_access_token ?? null,
+        tiktok_access_token: shop.tiktok_access_token ?? null,
+        snapchat_access_token: shop.snapchat_access_token ?? null,
+        ga4_api_secret: shop.ga4_api_secret ?? null,
+        google_ads_conversion_id: shop.google_ads_conversion_id ?? null,
+        google_ads_conversion_label: shop.google_ads_conversion_label ?? null,
+      }, { onConflict: "shop_id" });
+
+    if (error || secretsError) toast({ title: "Erreur", description: (error || secretsError)?.message, variant: "destructive" });
     else {
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
       toast({ title: "✓ Sauvegardé" });

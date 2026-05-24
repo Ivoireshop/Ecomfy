@@ -1919,6 +1919,63 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_secrets: {
+        Row: {
+          created_at: string
+          facebook_access_token: string | null
+          ga4_api_secret: string | null
+          google_ads_conversion_id: string | null
+          google_ads_conversion_label: string | null
+          shop_id: string
+          snapchat_access_token: string | null
+          tiktok_access_token: string | null
+          updated_at: string
+          weekly_finance_email: string | null
+          weekly_finance_email_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          facebook_access_token?: string | null
+          ga4_api_secret?: string | null
+          google_ads_conversion_id?: string | null
+          google_ads_conversion_label?: string | null
+          shop_id: string
+          snapchat_access_token?: string | null
+          tiktok_access_token?: string | null
+          updated_at?: string
+          weekly_finance_email?: string | null
+          weekly_finance_email_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          facebook_access_token?: string | null
+          ga4_api_secret?: string | null
+          google_ads_conversion_id?: string | null
+          google_ads_conversion_label?: string | null
+          shop_id?: string
+          snapchat_access_token?: string | null
+          tiktok_access_token?: string | null
+          updated_at?: string
+          weekly_finance_email?: string | null
+          weekly_finance_email_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_secrets_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: true
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_secrets_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: true
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_visits: {
         Row: {
           id: string
@@ -1970,14 +2027,10 @@ export type Database = {
           domain_status: string | null
           domain_verification_code: string | null
           email: string | null
-          facebook_access_token: string | null
           facebook_pixels: string[] | null
           facebook_test_event_code: string | null
           favicon_url: string | null
-          ga4_api_secret: string | null
           ga4_measurement_id: string | null
-          google_ads_conversion_id: string | null
-          google_ads_conversion_label: string | null
           google_analytics_code: string | null
           google_analytics_ids: string[] | null
           id: string
@@ -1994,7 +2047,6 @@ export type Database = {
           seo_description: string | null
           seo_title: string | null
           slug: string
-          snapchat_access_token: string | null
           snapchat_pixels: string[] | null
           social_proof_enabled: boolean | null
           ssl_status: string | null
@@ -2003,15 +2055,12 @@ export type Database = {
           subscription_started_at: string | null
           theme: string | null
           theme_config: Json | null
-          tiktok_access_token: string | null
           tiktok_pixels: string[] | null
           total_orders: number | null
           total_sales: number | null
           tracking_enabled: boolean | null
           updated_at: string
           user_id: string
-          weekly_finance_email: string | null
-          weekly_finance_email_enabled: boolean
           whatsapp_number: string | null
         }
         Insert: {
@@ -2040,14 +2089,10 @@ export type Database = {
           domain_status?: string | null
           domain_verification_code?: string | null
           email?: string | null
-          facebook_access_token?: string | null
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
-          ga4_api_secret?: string | null
           ga4_measurement_id?: string | null
-          google_ads_conversion_id?: string | null
-          google_ads_conversion_label?: string | null
           google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string
@@ -2064,7 +2109,6 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           slug: string
-          snapchat_access_token?: string | null
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
           ssl_status?: string | null
@@ -2073,15 +2117,12 @@ export type Database = {
           subscription_started_at?: string | null
           theme?: string | null
           theme_config?: Json | null
-          tiktok_access_token?: string | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
           tracking_enabled?: boolean | null
           updated_at?: string
           user_id: string
-          weekly_finance_email?: string | null
-          weekly_finance_email_enabled?: boolean
           whatsapp_number?: string | null
         }
         Update: {
@@ -2110,14 +2151,10 @@ export type Database = {
           domain_status?: string | null
           domain_verification_code?: string | null
           email?: string | null
-          facebook_access_token?: string | null
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
-          ga4_api_secret?: string | null
           ga4_measurement_id?: string | null
-          google_ads_conversion_id?: string | null
-          google_ads_conversion_label?: string | null
           google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string
@@ -2134,7 +2171,6 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           slug?: string
-          snapchat_access_token?: string | null
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
           ssl_status?: string | null
@@ -2143,15 +2179,12 @@ export type Database = {
           subscription_started_at?: string | null
           theme?: string | null
           theme_config?: Json | null
-          tiktok_access_token?: string | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
           tracking_enabled?: boolean | null
           updated_at?: string
           user_id?: string
-          weekly_finance_email?: string | null
-          weekly_finance_email_enabled?: boolean
           whatsapp_number?: string | null
         }
         Relationships: []

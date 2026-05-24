@@ -62,13 +62,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: shop, error } = await supabase
-      .from("shops")
-      .select("id, tracking_enabled, facebook_pixels, facebook_access_token, facebook_test_event_code, tiktok_pixels, tiktok_access_token, snapchat_pixels, snapchat_access_token, ga4_measurement_id, ga4_api_secret, google_ads_conversion_id, google_ads_conversion_label")
-      .eq("id", shop_id)
-      .maybeSingle();
-
-    if (error || !shop) return fail("shop_not_found");
+    const [shopRes, secretsRes] = await Promise.all([
+      supabase
+        .from("shops")
+        .select("id, tracking_enabled, facebook_pixels, facebook_test_event_code, tiktok_pixels, snapchat_pixels, ga4_measurement_id")
+        .eq("id", shop_id)
+        .maybeSingle(),
+      supabase
+        .from("shop_secrets")
+        .select("facebook_access_token, tiktok_access_token, snapchat_access_token, ga4_api_secret, google_ads_conversion_id, google_ads_conversion_label")
+        .eq("shop_id", shop_id)
+        .maybeSingle(),
+    ]);
+    if (shopRes.error || !shopRes.data) return fail("shop_not_found");
+    const shop: any = { ...shopRes.data, ...(secretsRes.data || {}) };
     if (shop.tracking_enabled === false) return ok({ skipped: "tracking_disabled" });
 
     const ip = pickIp(req);

@@ -166,9 +166,11 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
 
   const saveAutoEmail = async (enabled: boolean, recipient?: string) => {
     setSavingAuto(true);
-    const payload: any = { weekly_finance_email_enabled: enabled };
+    const payload: any = { shop_id: shopId, weekly_finance_email_enabled: enabled };
     if (recipient !== undefined) payload.weekly_finance_email = recipient || null;
-    const { error } = await supabase.from("shops").update(payload).eq("id", shopId);
+    const { error } = await (supabase as any)
+      .from("shop_secrets")
+      .upsert(payload, { onConflict: "shop_id" });
     setSavingAuto(false);
     if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
     setAutoEmail(enabled);

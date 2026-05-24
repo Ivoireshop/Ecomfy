@@ -30,13 +30,31 @@ Deno.serve(async (req) => {
 
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  let query = supabase
-    .from("shops")
-    .select("id,business_name,user_id,weekly_finance_email,weekly_finance_email_enabled,commission_balance_due,slug")
+  let secretsQuery = supabase
+    .from("shop_secrets")
+    .select("shop_id,weekly_finance_email,weekly_finance_email_enabled")
     .eq("weekly_finance_email_enabled", true);
-  if (singleShopId) query = query.eq("id", singleShopId);
+  if (singleShopId) secretsQuery = secretsQuery.eq("shop_id", singleShopId);
+  const { data: secretsRows, error: secretsError } = await secretsQuery;
+  if (secretsError) {
+    return new Response(JSON.stringify({ success: false, error: secretsError.message }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const enabledShopIds = (secretsRows || []).map((s: any) => s.shop_id);
+  const secretsByShop: Record<string, any> = {};
+  (secretsRows || []).forEach((s: any) => { secretsByShop[s.shop_id] = s; });
 
-  const { data: shops, error } = await query;
+  if (enabledShopIds.length === 0) {
+    return new Response(JSON.stringify({ success: true, sent: 0, errors: [] }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: shops, error } = await supabase
+    .from("shops")
+    .select("id,business_name,user_id,commission_balance_due,slug")
+    .in("id", enabledShopIds);
   if (error) {
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -49,7 +67,8 @@ Deno.serve(async (req) => {
   for (const shop of shops || []) {
     try {
       // Resolve recipient
-      let recipient = shop.weekly_finance_email as string | null;
+      const shopSecrets = secretsByShop[shop.id] || {};
+      let recipient = (shopSecrets.weekly_finance_email as string | null) || null;
       if (!recipient) {
         const { data: prof } = await supabase
           .from("profiles").select("email").eq("id", shop.user_id).maybeSingle();
