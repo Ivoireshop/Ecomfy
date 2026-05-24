@@ -313,7 +313,6 @@ const ShopView = () => {
       if (missing.length > 0) {
         setVariantChoice({});
         setSelectedProduct(product);
-        toast({ title: "Sélection requise", description: `Choisissez : ${missing.map((m: any) => m.name).join(", ")}`, variant: "destructive" });
         return;
       }
     }
