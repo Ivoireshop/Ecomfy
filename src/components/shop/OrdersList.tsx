@@ -30,6 +30,7 @@ interface Order {
   order_status: string;
   is_read: boolean;
   created_at: string;
+  products_summary?: string | null;
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; selected_variants?: Record<string, string> | null }[];
 }
 
@@ -82,6 +83,8 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
         line += ` — ${fmt(item.total_price)} FCFA`;
         lines.push(line);
       });
+    } else if (order.products_summary) {
+      order.products_summary.split(" ; ").forEach((p) => lines.push(`• ${p}`));
     }
     lines.push("");
     lines.push(`💰 TOTAL : ${fmt(order.total)} FCFA`);
@@ -176,7 +179,7 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                     </p>
                   </div>
                 </div>
-                {order.order_items && order.order_items.length > 0 && (
+                {order.order_items && order.order_items.length > 0 ? (
                   <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
                     {order.order_items.map((item) => (
                       <div key={item.id} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 text-xs whitespace-nowrap">
@@ -191,7 +194,15 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                       </div>
                     ))}
                   </div>
-                )}
+                ) : order.products_summary ? (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {order.products_summary.split(" ; ").map((p, i) => (
+                      <div key={i} className="bg-muted/50 rounded-lg px-3 py-1.5 text-xs font-medium">
+                        {p}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="flex items-center gap-3">
                   <Select value={order.order_status} onValueChange={(v) => onUpdateStatus(order.id, v)}>
                     <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
