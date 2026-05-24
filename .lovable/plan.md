@@ -1,53 +1,46 @@
-# Plan : noms de produits dans les notifications + abonnement Starter
+## Objectif
 
-## 1. Précision du produit commandé dans les notifications (rapide)
+Faire en sorte que le plan d'abonnement (Free / Starter / Business) modifie réellement l'expérience :
 
-Aujourd'hui la liste des commandes affiche déjà bien chaque produit. Ce qui manque, c'est :
-- la **notification push** (FCM) qui dit juste « Nouvelle commande » sans préciser quel produit,
-- l'**annonce vocale** qui dit « Tu as une nouvelle commande de [ville] » sans le produit.
+1. **Bannière "Montant dû"** masquée pour les abonnés actifs (Starter, Business).
+2. **Génération de GIFs animés** plafonnée selon le plan :
+   - Free : 10 GIFs / mois
+   - Starter : 30 GIFs / mois
+   - Business : illimité
+3. **Optimiseur IA fiche produit** (Hormozi / PAS / AIDA) activé automatiquement pour Starter et Business — verrouillé pour Free avec un encart "Passez au plan Starter".
 
-### Changements
-- `supabase/functions/send-push-notification/index.ts` : récupérer les `order_items(product_name, quantity)` de la commande et ajouter une ligne `📦 {qte}x {produit}` (ou « 2 produits » si plusieurs lignes, en listant les 2 premiers max) dans le corps de la notif (web + Android + iOS + payload `data`).
-- `src/hooks/useOrderNotifications.ts` : adapter `getOrderAnnouncement` pour inclure le nom du premier produit dans la phrase vocale (« Nouvelle commande de [produit] à [ville] »).
-- `src/components/shop/OrdersList.tsx` : déjà OK, on ne touche pas.
+La génération d'images IA classique du produit reste gratuite pour tous (inchangée).
 
-## 2. Abonnement boutique « Starter » 12 000 FCFA/mois (sans commission)
+## Changements
 
-### Logique métier
-- Les boutiques restent par défaut en plan **Free** : commission de 50 FCFA/commande, paiement obligatoire quand le solde atteint 12 000 FCFA (comportement actuel inchangé).
-- Nouvelle option **Starter** à 12 000 FCFA/mois : tant que l'abonnement est actif, **aucune commission** n'est ajoutée sur les nouvelles commandes, peu importe le volume.
-- À l'expiration (30 jours après paiement), retour automatique en Free, et les nouvelles commandes recommencent à générer la commission de 50 FCFA.
-- Les futurs paliers **Business (24 000)** et **Premium (60 000)** sont préparés dans la structure mais désactivés dans l'UI (« Bientôt disponible »).
+### 1. Base de données (1 migration)
 
-### Base de données (migration)
-Sur `shops` :
-- `subscription_plan text not null default 'free'` (`'free' | 'starter' | 'business' | 'premium'`)
-- `subscription_active_until timestamptz null`
-- `subscription_started_at timestamptz null`
+Ajouter sur `shops` :
+- `gifs_generated_count` (int, default 0)
+- `gifs_period_start` (timestamptz, default now()) — fenêtre glissante de 30 jours
+- RPC `increment_shop_gif_count(_shop_id uuid)` : reset si > 30 jours, incrémente, renvoie le nouveau compteur.
 
-Mise à jour du trigger `sync_shop_order_stats` : ne **plus incrémenter** `commission_balance_due` ni armer `payment_deadline` si la boutique a `subscription_active_until > now()`.
+### 2. `BillingBanner` masquée pour abonnés
 
-Nouvelle RPC `apply_shop_subscription(p_shop_id, p_user_id, p_plan, p_amount, p_transaction_reference, p_payment_method)` :
-- vérifie le paiement, prolonge `subscription_active_until` de 30 jours (en cumulant si déjà actif),
-- pose `subscription_plan = p_plan`, `subscription_started_at = coalesce(existing, now())`,
-- trace dans `commission_payments` avec note « Abonnement Starter mensuel ».
+Dans `src/pages/ShopEditor.tsx`, ne rendre `<BillingBanner />` que si `shop.subscription_active_until` est nul ou expiré.
 
-### Paiement (edge functions)
-- `process-payment/index.ts` : accepter un nouveau `payment_type = 'shop_subscription'` avec `plan` et `shop_id` dans la metadata. Montant 12 000 FCFA pour `starter`.
-- `geniuspay-webhook/index.ts` et `verify-payment/index.ts` : brancher `apply_shop_subscription` quand `payment_type === 'shop_subscription'`.
+### 3. Quota GIF
 
-### UI
-Dans `src/components/shop/ShopFinances.tsx`, section « Frais plateforme VisualPro », ajouter une carte **Abonnement** :
-- affiche le plan actuel + date d'expiration si actif,
-- bouton « Activer Starter — 12 000 FCFA/mois » qui appelle `process-payment` puis ouvre la page de paiement GeniusPay,
-- mention « Business 24 000 / Premium 60 000 — bientôt disponibles » en désactivé,
-- petit encart explicatif : « Avec Starter, aucune commission par commande ».
+- `ProductEditor.tsx` : transmettre `shop` (plan + compteur) à `ProductGifGenerator`.
+- `ProductGifGenerator.tsx` :
+  - Calcule la limite à partir du plan : `Free=10`, `Starter=30`, `Business=Infinity`.
+  - Affiche "X / N GIFs utilisés ce mois".
+  - Bloque le bouton "Générer" si quota atteint avec CTA "Passer au plan Starter / Business".
+  - Après génération réussie, appelle `increment_shop_gif_count` puis met à jour l'état local.
 
-### Affichage condition
-- Dans le bloc commission, si abonnement actif : remplacer « Commission due » par « ✓ Abonnement Starter actif — aucune commission » et masquer le seuil.
-- `BillingBanner` : ne pas alerter pour suspension/seuil quand l'abonnement est actif.
+### 4. Optimiseur IA gating par plan
 
-## Hors scope (à confirmer plus tard)
-- Renouvellement automatique (carte sauvegardée) — pour l'instant l'utilisateur repaye manuellement chaque mois.
-- Annulation/remboursement prorata.
-- Plans Business et Premium fonctionnels.
+`ProductAIOptimizer.tsx` :
+- Recevoir `subscription_plan` via `shop`.
+- Si plan = `free` : afficher un encart bloquant "Réservé aux plans Starter et Business" + bouton vers `ShopFinances` (abonnement).
+- Si plan = `starter` ou `business` : activer automatiquement (plus de toggle manuel obligatoire, l'option reste pour désactiver).
+
+## Hors-scope
+
+- Pas de changement aux fonctions de paiement, à la table `shop_secrets`, ni à la logique de commission.
+- Le plan Business reste affiché comme « bientôt disponible » côté abonnement ; le gating IA & GIF Business est néanmoins prêt pour quand il sera activé.

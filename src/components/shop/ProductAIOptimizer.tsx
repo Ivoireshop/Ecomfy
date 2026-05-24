@@ -7,10 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy } from "lucide-react";
+import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy, Lock } from "lucide-react";
 
 type Product = { id: string; name: string; price: number; is_published: boolean };
-type Shop = { id: string; ai_optimizer_enabled?: boolean; currency?: string };
+type Shop = { id: string; ai_optimizer_enabled?: boolean; currency?: string; subscription_plan?: string | null; subscription_active_until?: string | null };
 
 interface Props {
   shop: Shop;
@@ -46,7 +46,11 @@ const IMPACT_COLORS: Record<string, string> = {
 };
 
 export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
-  const [enabled, setEnabled] = useState<boolean>(!!shop.ai_optimizer_enabled);
+  const subActive = !!(shop.subscription_active_until && new Date(shop.subscription_active_until).getTime() > Date.now());
+  const plan = (shop.subscription_plan || "free").toLowerCase();
+  const planAllowed = subActive && (plan === "starter" || plan === "business" || plan === "premium");
+  // Pour Starter/Business : activé automatiquement (toggle masqué). Pour Free : verrouillé.
+  const [enabled, setEnabled] = useState<boolean>(planAllowed ? true : !!shop.ai_optimizer_enabled);
   const [savingToggle, setSavingToggle] = useState(false);
   const [productId, setProductId] = useState<string>(products[0]?.id ?? "");
   const [framework, setFramework] = useState<string>("hormozi");
@@ -56,7 +60,9 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
 
   const product = useMemo(() => products.find((p) => p.id === productId), [products, productId]);
 
-  useEffect(() => { setEnabled(!!shop.ai_optimizer_enabled); }, [shop.ai_optimizer_enabled]);
+  useEffect(() => {
+    setEnabled(planAllowed ? true : !!shop.ai_optimizer_enabled);
+  }, [shop.ai_optimizer_enabled, planAllowed]);
 
   useEffect(() => {
     if (!productId) return;
@@ -119,8 +125,28 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
         </p>
       </div>
 
-      {/* Activation */}
-      <Card className="p-5">
+      {/* Gating plan */}
+      {!planAllowed && (
+        <Card className="p-6 border-2 border-dashed border-primary/30 bg-primary/5">
+          <div className="flex items-start gap-4">
+            <Lock className="h-6 w-6 text-primary shrink-0 mt-1" />
+            <div className="flex-1">
+              <h3 className="font-bold text-lg">Réservé aux plans Starter et Business</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                L'optimiseur IA rédige vos fiches produits (méthodes Hormozi, PAS, AIDA) et suggère les types d'images / GIFs qui convertissent le mieux.
+                Activez le plan Starter (12 000 FCFA / mois) pour en bénéficier.
+              </p>
+              <Button className="mt-4" onClick={() => { window.location.hash = ""; document.querySelector('[data-section="finances"]')?.scrollIntoView({ behavior: "smooth" }); }}>
+                Voir les plans d'abonnement
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Activation (uniquement Free pour conserver le réglage existant) */}
+      {!planAllowed && (
+      <Card className="p-5 opacity-60 pointer-events-none">
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label className="text-base font-semibold">Activer l'équipe d'agents IA</Label>
@@ -128,9 +154,10 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
               Analyse automatique du trafic vs commandes, détection des freins à l'achat et propositions d'amélioration.
             </p>
           </div>
-          <Switch checked={enabled} disabled={savingToggle} onCheckedChange={toggleEnabled} />
+          <Switch checked={false} disabled />
         </div>
       </Card>
+      )}
 
       {enabled && (
         <>

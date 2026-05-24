@@ -2031,6 +2031,8 @@ export type Database = {
           facebook_test_event_code: string | null
           favicon_url: string | null
           ga4_measurement_id: string | null
+          gifs_generated_count: number
+          gifs_period_start: string
           google_analytics_code: string | null
           google_analytics_ids: string[] | null
           id: string
@@ -2093,6 +2095,8 @@ export type Database = {
           facebook_test_event_code?: string | null
           favicon_url?: string | null
           ga4_measurement_id?: string | null
+          gifs_generated_count?: number
+          gifs_period_start?: string
           google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string
@@ -2155,6 +2159,8 @@ export type Database = {
           facebook_test_event_code?: string | null
           favicon_url?: string | null
           ga4_measurement_id?: string | null
+          gifs_generated_count?: number
+          gifs_period_start?: string
           google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string
@@ -3322,6 +3328,7 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_usage: { Args: { promo_code: string }; Returns: boolean }
+      increment_shop_gif_count: { Args: { _shop_id: string }; Returns: number }
       is_shop_collaborator: {
         Args: { _shop_id: string; _user_id: string }
         Returns: boolean

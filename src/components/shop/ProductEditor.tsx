@@ -125,11 +125,12 @@ interface ProductEditorProps {
   shopActivated?: boolean;
   shopPublished?: boolean;
   productId?: string;
+  shop?: { id: string; subscription_plan?: string | null; subscription_active_until?: string | null; gifs_generated_count?: number | null; gifs_period_start?: string | null };
 }
 
 export function ProductEditor({
   initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
-  shopSlug, shopActivated, shopPublished, productId,
+  shopSlug, shopActivated, shopPublished, productId, shop,
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
@@ -1441,6 +1442,7 @@ export function ProductEditor({
         open={gifOpen}
         onOpenChange={setGifOpen}
         onGenerated={(file) => setNewImages((prev) => [...prev, file])}
+        shop={shop}
       />
     </div>
   );
