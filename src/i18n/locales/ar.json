@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "جارٍ التحميل...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "create": "إنشاء",
+    "search": "بحث",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "confirm": "تأكيد",
+    "close": "إغلاق",
+    "yes": "نعم",
+    "no": "لا",
+    "language": "اللغة",
+    "theme": "السمة",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج",
+    "login": "تسجيل الدخول",
+    "signup": "إنشاء حساب",
+    "start": "ابدأ",
+    "myAccount": "مساحتي"
+  },
+  "header": {
+    "home": "الرئيسية",
+    "features": "الميزات",
+    "pricing": "الأسعار",
+    "tutorial": "الدليل",
+    "demo": "عرض توضيحي",
+    "openMenu": "فتح القائمة"
+  },
+  "sidebar": {
+    "sections": {
+      "creation": "إنشاء",
+      "business": "الأعمال",
+      "learn": "تعلّم",
+      "account": "الحساب",
+      "admin": "الإدارة"
+    },
+    "items": {
+      "home": "الرئيسية",
+      "generator": "المولّد",
+      "library": "المكتبة",
+      "showcases": "مواقع العرض",
+      "courses": "الدورات",
+      "shops": "المتاجر",
+      "studentSpace": "فضاء الطالب",
+      "tutorial": "الدليل",
+      "videoDemo": "فيديو توضيحي",
+      "subscription": "الاشتراك",
+      "history": "السجل",
+      "referral": "الإحالة",
+      "feedback": "الملاحظات",
+      "api": "واجهة API",
+      "dashboard": "لوحة التحكم",
+      "ordersDiag": "تشخيص الطلبات",
+      "promoCodes": "أكواد العروض"
+    }
+  },
+  "language": {
+    "title": "لغة التطبيق",
+    "description": "اختر لغة واجهة VisualPro."
+  }
+}
