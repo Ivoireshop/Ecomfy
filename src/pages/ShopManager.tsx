@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, Zap, Trash2, Loader2, Copy } from "lucide-react";
+import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, Zap, Trash2, Loader2, Copy, Users, LogIn } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
@@ -29,9 +29,20 @@ interface Shop {
   created_at: string;
 }
 
+interface CollabShop {
+  id: string;
+  business_name: string;
+  slug: string;
+  logo_url: string | null;
+  banner_url: string | null;
+  primary_color: string | null;
+  roles: string[];
+}
+
 const ShopManager = () => {
   const navigate = useNavigate();
   const [shops, setShops] = useState<Shop[]>([]);
+  const [collabShops, setCollabShops] = useState<CollabShop[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Shop | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -60,6 +71,20 @@ const ShopManager = () => {
     } else {
       setShops((data as any[]) || []);
     }
+
+    // Fetch shops where the user is an active collaborator (invited)
+    const { data: collabs } = await (supabase as any)
+      .from("shop_collaborators")
+      .select("roles, shop:shops(id, business_name, slug, logo_url, banner_url, primary_color)")
+      .eq("user_id", userId)
+      .eq("status", "active");
+    if (collabs) {
+      const list: CollabShop[] = (collabs as any[])
+        .filter((c) => c.shop)
+        .map((c) => ({ ...c.shop, roles: c.roles || [] }));
+      setCollabShops(list);
+    }
+
     setLoading(false);
   }, []);
 
@@ -171,6 +196,46 @@ const ShopManager = () => {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         <EnableNotificationsBanner />
+        {/* Shops the user has been invited to collaborate on */}
+        {collabShops.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold">Boutiques où vous collaborez</h2>
+              <Badge variant="secondary" className="ml-1">{collabShops.length}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Accédez directement aux boutiques qui vous ont invité(e) à collaborer, sans repasser par l'email.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {collabShops.map((cs) => {
+                const color = cs.primary_color || "#2563eb";
+                return (
+                  <Card key={cs.id} className="overflow-hidden hover:shadow-lg transition-all">
+                    <div className="h-24 relative" style={{ background: `linear-gradient(135deg, ${color}, ${color}dd)` }}>
+                      {cs.banner_url && (
+                        <img src={cs.banner_url} alt="" className="w-full h-full object-cover" />
+                      )}
+                      {cs.logo_url && (
+                        <img src={cs.logo_url} alt="" className="absolute bottom-2 left-3 h-10 w-10 rounded-lg object-cover border-2 border-background shadow" />
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold truncate">{cs.business_name}</h3>
+                      <p className="text-xs text-muted-foreground mb-3">Collaborateur · {cs.roles.length} rôle{cs.roles.length > 1 ? "s" : ""}</p>
+                      <Button className="w-full gap-2" onClick={() => navigate(`/shop-editor/${cs.id}`)}>
+                        <LogIn className="h-4 w-4" />
+                        Se connecter à {cs.business_name}
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+            <div className="border-b mt-8" />
+          </div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
