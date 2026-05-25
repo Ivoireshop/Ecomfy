@@ -7,6 +7,7 @@ import en from "./locales/en.json";
 import es from "./locales/es.json";
 import pt from "./locales/pt.json";
 import ar from "./locales/ar.json";
+import { setAutoTranslateLanguage } from "@/lib/autoTranslateDOM";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
@@ -49,5 +50,17 @@ const applyDir = (lng: string) => {
 
 applyDir(i18n.language);
 i18n.on("languageChanged", applyDir);
+
+// Auto-translate the entire UI for any language ≠ French.
+const applyAutoTranslate = (lng: string) => {
+  if (typeof window === "undefined") return;
+  setAutoTranslateLanguage(lng);
+};
+
+if (typeof window !== "undefined") {
+  // Activate after initial render
+  setTimeout(() => applyAutoTranslate(i18n.language), 300);
+}
+i18n.on("languageChanged", applyAutoTranslate);
 
 export default i18n;
