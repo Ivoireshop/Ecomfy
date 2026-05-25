@@ -593,6 +593,15 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
         {activeTab === "domain" && (
           <>
             <h2 className="text-xl font-bold">Domaine personnalisé</h2>
+            </>
+        )}
+
+        {activeTab === "languages" && (
+          <LanguageSettings shop={shop} setShop={setShop} />
+        )}
+
+        {activeTab === "domain" && false && (
+          <>
             <p className="text-sm text-muted-foreground -mt-2">
               Connectez votre propre nom de domaine (acheté sur OVH, Hostinger, Namecheap, Cloudflare, Lovable…) à votre boutique. Vos clients verront votre adresse personnalisée à la place de visuelpro.cloud.
             </p>
