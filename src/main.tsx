@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import "./i18n";
 
 // SEO: consolidate public traffic on the canonical brand domain visuelpro.cloud.
 // Do not redirect Lovable preview/editor hosts: inside the builder this can create

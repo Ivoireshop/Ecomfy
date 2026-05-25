@@ -6,19 +6,22 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import logo from "@/assets/visualpro-logo.svg";
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 export function Header() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const { session } = useAuthReady();
   const isAuthenticated = !!session?.user;
+  const { t } = useTranslation();
 
   const menuItems = [
-    { label: "Accueil", href: "/" },
-    { label: "Fonctionnalités", href: "/#features" },
-    { label: "Tarifs", href: "/subscription" },
-    { label: "Tutoriel", href: "/tutorial" },
-    { label: "Démo", href: "/demo" },
+    { label: t("header.home"), href: "/" },
+    { label: t("header.features"), href: "/#features" },
+    { label: t("header.pricing"), href: "/subscription" },
+    { label: t("header.tutorial"), href: "/tutorial" },
+    { label: t("header.demo"), href: "/demo" },
   ];
 
   return (
@@ -59,13 +62,14 @@ export function Header() {
 
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
+            <LanguageSelector />
             {!isAuthenticated && (
               <Button variant="ghost" onClick={() => navigate("/auth")}>
-                Connexion
+                {t("common.login")}
               </Button>
             )}
             <Button onClick={() => navigate(isAuthenticated ? "/" : "/auth")}>
-              {isAuthenticated ? "Mon espace" : "Commencer"}
+              {isAuthenticated ? t("common.myAccount") : t("common.start")}
             </Button>
           </div>
 
@@ -73,7 +77,7 @@ export function Header() {
             <SheetTrigger asChild className="md:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
-                <span className="sr-only">Ouvrir le menu</span>
+                <span className="sr-only">{t("header.openMenu")}</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
@@ -109,8 +113,12 @@ export function Header() {
 
                 <div className="flex flex-col gap-3 mt-6 pt-6 border-t">
                   <div className="flex items-center justify-between px-2 mb-2">
-                    <span className="text-sm text-muted-foreground">Thème</span>
+                    <span className="text-sm text-muted-foreground">{t("common.theme")}</span>
                     <ThemeToggle />
+                  </div>
+                  <div className="flex items-center justify-between px-2 mb-2">
+                    <span className="text-sm text-muted-foreground">{t("common.language")}</span>
+                    <LanguageSelector showLabel />
                   </div>
                   {!isAuthenticated && (
                     <Button
@@ -121,7 +129,7 @@ export function Header() {
                         setIsOpen(false);
                       }}
                     >
-                      Connexion
+                      {t("common.login")}
                     </Button>
                   )}
                   <Button
@@ -131,7 +139,7 @@ export function Header() {
                       setIsOpen(false);
                     }}
                   >
-                    {isAuthenticated ? "Mon espace" : "Commencer"}
+                    {isAuthenticated ? t("common.myAccount") : t("common.start")}
                   </Button>
                 </div>
               </div>

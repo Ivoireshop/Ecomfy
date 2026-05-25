@@ -1724,6 +1724,7 @@ export type Database = {
           id: string
           onboarding_completed: boolean
           phone: string | null
+          preferred_language: string | null
           purchased_credits: number | null
           shop_activation_paid: boolean | null
           updated_at: string | null
@@ -1739,6 +1740,7 @@ export type Database = {
           id: string
           onboarding_completed?: boolean
           phone?: string | null
+          preferred_language?: string | null
           purchased_credits?: number | null
           shop_activation_paid?: boolean | null
           updated_at?: string | null
@@ -1754,6 +1756,7 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean
           phone?: string | null
+          preferred_language?: string | null
           purchased_credits?: number | null
           shop_activation_paid?: boolean | null
           updated_at?: string | null

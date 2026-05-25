@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "create": "Criar",
+    "search": "Pesquisar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "confirm": "Confirmar",
+    "close": "Fechar",
+    "yes": "Sim",
+    "no": "Não",
+    "language": "Idioma",
+    "theme": "Tema",
+    "settings": "Configurações",
+    "logout": "Sair",
+    "login": "Entrar",
+    "signup": "Cadastrar",
+    "start": "Começar",
+    "myAccount": "Meu espaço"
+  },
+  "header": {
+    "home": "Início",
+    "features": "Recursos",
+    "pricing": "Preços",
+    "tutorial": "Tutorial",
+    "demo": "Demo",
+    "openMenu": "Abrir menu"
+  },
+  "sidebar": {
+    "sections": {
+      "creation": "Criar",
+      "business": "Negócio",
+      "learn": "Aprender",
+      "account": "Conta",
+      "admin": "Administração"
+    },
+    "items": {
+      "home": "Início",
+      "generator": "Gerador",
+      "library": "Biblioteca",
+      "showcases": "Sites vitrine",
+      "courses": "Cursos",
+      "shops": "Lojas",
+      "studentSpace": "Área do aluno",
+      "tutorial": "Tutorial",
+      "videoDemo": "Demo em vídeo",
+      "subscription": "Assinatura",
+      "history": "Histórico",
+      "referral": "Indicação",
+      "feedback": "Feedback",
+      "api": "API",
+      "dashboard": "Painel",
+      "ordersDiag": "Diagnóstico pedidos",
+      "promoCodes": "Códigos promo"
+    }
+  },
+  "language": {
+    "title": "Idioma do aplicativo",
+    "description": "Escolha o idioma da interface VisualPro."
+  }
+}

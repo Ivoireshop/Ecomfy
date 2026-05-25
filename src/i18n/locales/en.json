@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "confirm": "Confirm",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "language": "Language",
+    "theme": "Theme",
+    "settings": "Settings",
+    "logout": "Sign out",
+    "login": "Sign in",
+    "signup": "Sign up",
+    "start": "Get started",
+    "myAccount": "My space"
+  },
+  "header": {
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing",
+    "tutorial": "Tutorial",
+    "demo": "Demo",
+    "openMenu": "Open menu"
+  },
+  "sidebar": {
+    "sections": {
+      "creation": "Create",
+      "business": "Business",
+      "learn": "Learn",
+      "account": "Account",
+      "admin": "Admin"
+    },
+    "items": {
+      "home": "Home",
+      "generator": "Generator",
+      "library": "Library",
+      "showcases": "Showcase sites",
+      "courses": "Courses",
+      "shops": "Shops",
+      "studentSpace": "Student space",
+      "tutorial": "Tutorial",
+      "videoDemo": "Video demo",
+      "subscription": "Subscription",
+      "history": "History",
+      "referral": "Referral",
+      "feedback": "Feedback",
+      "api": "API",
+      "dashboard": "Dashboard",
+      "ordersDiag": "Orders diagnostic",
+      "promoCodes": "Promo codes"
+    }
+  },
+  "language": {
+    "title": "App language",
+    "description": "Choose the language for the VisualPro interface."
+  }
+}

@@ -8,6 +8,8 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 import {
   Sidebar,
@@ -28,32 +30,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-const mainItems = [
-  { title: "Accueil", url: "/", icon: Home },
-  { title: "Générateur", url: "/generator", icon: Image },
-  { title: "Bibliothèque", url: "/library", icon: Video },
-];
-
-const businessItems = [
-  { title: "Sites Vitrines", url: "/showcase-manager", icon: Globe },
-  { title: "Formations", url: "/courses-manager", icon: BookOpen },
-  { title: "Boutiques", url: "/shop-manager", icon: Store },
-];
-
-const learningItems = [
-  { title: "Espace Étudiant", url: "/student", icon: GraduationCap },
-  { title: "Tutoriel", url: "/tutorial", icon: HelpCircle },
-  { title: "Démo Vidéo", url: "/demo", icon: PlayCircle },
-];
-
-const accountItems = [
-  { title: "Abonnement", url: "/subscription", icon: CreditCard },
-  { title: "Historique", url: "/payment-history", icon: Receipt },
-  { title: "Parrainage", url: "/referral", icon: Gift },
-  { title: "Avis", url: "/feedback", icon: MessageSquare },
-  { title: "API", url: "/api-documentation", icon: Code2 },
-];
 
 interface NavItemProps {
   item: { title: string; url: string; icon: React.ElementType };
@@ -118,6 +94,30 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const [isFounder, setIsFounder] = useState(false);
   const { user, isReady } = useAuthReady();
+  const { t } = useTranslation();
+
+  const mainItems = [
+    { title: t("sidebar.items.home"), url: "/", icon: Home },
+    { title: t("sidebar.items.generator"), url: "/generator", icon: Image },
+    { title: t("sidebar.items.library"), url: "/library", icon: Video },
+  ];
+  const businessItems = [
+    { title: t("sidebar.items.showcases"), url: "/showcase-manager", icon: Globe },
+    { title: t("sidebar.items.courses"), url: "/courses-manager", icon: BookOpen },
+    { title: t("sidebar.items.shops"), url: "/shop-manager", icon: Store },
+  ];
+  const learningItems = [
+    { title: t("sidebar.items.studentSpace"), url: "/student", icon: GraduationCap },
+    { title: t("sidebar.items.tutorial"), url: "/tutorial", icon: HelpCircle },
+    { title: t("sidebar.items.videoDemo"), url: "/demo", icon: PlayCircle },
+  ];
+  const accountItems = [
+    { title: t("sidebar.items.subscription"), url: "/subscription", icon: CreditCard },
+    { title: t("sidebar.items.history"), url: "/payment-history", icon: Receipt },
+    { title: t("sidebar.items.referral"), url: "/referral", icon: Gift },
+    { title: t("sidebar.items.feedback"), url: "/feedback", icon: MessageSquare },
+    { title: t("sidebar.items.api"), url: "/api-documentation", icon: Code2 },
+  ];
 
   useEffect(() => {
     const checkFounderStatus = async () => {
@@ -139,9 +139,9 @@ export function AppSidebar() {
   }, [isReady, user?.id]);
 
   const founderItems = [
-    { title: "Tableau de Bord", url: "/founder-dashboard", icon: BarChart },
-    { title: "Diagnostic Commandes", url: "/orders-diagnostic", icon: Activity },
-    { title: "Codes Promo", url: "/promo-codes", icon: Tag },
+    { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart },
+    { title: t("sidebar.items.ordersDiag"), url: "/orders-diagnostic", icon: Activity },
+    { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },
   ];
 
   return (
@@ -171,21 +171,24 @@ export function AppSidebar() {
 
           {/* Navigation groups */}
           <div className="flex-1 overflow-y-auto space-y-2 pt-1">
-            <NavSection label="Création" items={mainItems} isCollapsed={isCollapsed} />
-            <NavSection label="Business" items={businessItems} isCollapsed={isCollapsed} />
-            <NavSection label="Apprendre" items={learningItems} isCollapsed={isCollapsed} />
-            <NavSection label="Compte" items={accountItems} isCollapsed={isCollapsed} />
+            <NavSection label={t("sidebar.sections.creation")} items={mainItems} isCollapsed={isCollapsed} />
+            <NavSection label={t("sidebar.sections.business")} items={businessItems} isCollapsed={isCollapsed} />
+            <NavSection label={t("sidebar.sections.learn")} items={learningItems} isCollapsed={isCollapsed} />
+            <NavSection label={t("sidebar.sections.account")} items={accountItems} isCollapsed={isCollapsed} />
             {isFounder && (
-              <NavSection label="Administration" items={founderItems} isCollapsed={isCollapsed} />
+              <NavSection label={t("sidebar.sections.admin")} items={founderItems} isCollapsed={isCollapsed} />
             )}
           </div>
 
           {/* Footer */}
           <SidebarGroup className="mt-auto pb-4">
             <SidebarGroupContent>
-              <div className={isCollapsed ? "flex justify-center" : "flex items-center gap-2 px-3"}>
-                <ThemeToggle />
-                {!isCollapsed && <span className="text-sm text-muted-foreground">Thème</span>}
+              <div className={isCollapsed ? "flex flex-col items-center gap-2" : "flex items-center justify-between gap-2 px-3"}>
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  {!isCollapsed && <span className="text-sm text-muted-foreground">{t("common.theme")}</span>}
+                </div>
+                <LanguageSelector />
               </div>
             </SidebarGroupContent>
           </SidebarGroup>
