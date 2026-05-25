@@ -373,6 +373,10 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
           </>
         )}
 
+        {activeTab === "notifications" && (
+          <NotificationSettings shop={shop} setShop={setShop} />
+        )}
+
         {activeTab === "analytics" && (
           <>
             <h2 className="text-xl font-bold">Analytiques et Pixels</h2>
