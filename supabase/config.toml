@@ -79,3 +79,6 @@ project_id = "dqlbmtkaamjohgbcjwtw"
     verify_jwt = false
   [functions.verify-domain-dns]
     verify_jwt = false
+
+[functions.translate-product]
+verify_jwt = false
