@@ -10,15 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   User, Settings2, BarChart3, CreditCard, ShoppingCart,
-  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck, Link2, Copy, Check, Bell,
+  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck, Link2, Copy, Check, Bell, Languages,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CheckoutMobilePreview } from "./CheckoutMobilePreview";
 import { DnsConfigurationAssistant } from "@/components/DnsConfigurationAssistant";
 import { NotificationSettings } from "./NotificationSettings";
+import { LanguageSettings } from "./LanguageSettings";
 
-type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "notifications" | "domain" | "danger";
+type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "notifications" | "languages" | "domain" | "danger";
 
 interface CheckoutField {
   id: string;
@@ -39,6 +40,7 @@ const SETTINGS_NAV: { id: SettingsTab; label: string; icon: React.ElementType }[
   { id: "payment", label: "Paiement", icon: CreditCard },
   { id: "checkout", label: "Check-out", icon: ShoppingCart },
   { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "languages", label: "Langues", icon: Languages },
   { id: "analytics", label: "Analytiques et Pixels", icon: BarChart3 },
   { id: "domain", label: "Domaine personnalisé", icon: Globe },
   { id: "danger", label: "Zone de danger", icon: Trash2 },
@@ -375,6 +377,10 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
 
         {activeTab === "notifications" && (
           <NotificationSettings shop={shop} setShop={setShop} />
+        )}
+
+        {activeTab === "languages" && (
+          <LanguageSettings shop={shop} setShop={setShop} />
         )}
 
         {activeTab === "analytics" && (

@@ -14,6 +14,9 @@ import { toast } from "@/hooks/use-toast";
 import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard } from "lucide-react";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
+import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
+import { useShopTranslations } from "@/hooks/useShopTranslation";
+import { isRtlLang } from "@/lib/shopLanguages";
 
 interface Product {
   id: string;
@@ -58,6 +61,42 @@ const ShopView = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
   });
+
+  // ----- Shop language (auto-detected from browser, override via selector) -----
+  const [shopLang, setShopLang] = useState<string>(() => {
+    if (typeof window === "undefined") return "fr";
+    const stored = localStorage.getItem("vp_shop_lang");
+    if (stored) return stored;
+    const nav = (navigator.language || "fr").slice(0, 2).toLowerCase();
+    return ["fr", "en", "es", "pt", "ar"].includes(nav) ? nav : "fr";
+  });
+  const enabledLanguages: string[] = Array.isArray(shop?.enabled_languages) && shop.enabled_languages.length > 0
+    ? shop.enabled_languages
+    : ["fr"];
+  // Clamp current lang to enabled set
+  useEffect(() => {
+    if (!shop) return;
+    if (!enabledLanguages.includes(shopLang)) {
+      setShopLang(enabledLanguages[0] || "fr");
+    }
+  }, [shop, enabledLanguages.join("|")]); // eslint-disable-line
+  const handleLangChange = (l: string) => {
+    setShopLang(l);
+    try { localStorage.setItem("vp_shop_lang", l); } catch {}
+  };
+  const { mergeShop, mergeProduct, translateShopOnDemand, translateProductOnDemand } =
+    useShopTranslations(shop?.id, shopLang, "fr");
+
+  // Trigger shop & visible-products translation when language changes
+  useEffect(() => {
+    if (!shop || shopLang === "fr") return;
+    translateShopOnDemand({
+      business_name: shop.business_name,
+      business_description: shop.business_description,
+    });
+    products.forEach((p) => translateProductOnDemand(p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shop?.id, shopLang, products.length]);
 
   // Abandoned cart tracking: stable session id per shop, kept in localStorage
   const sessionIdRef = useRef<string>("");
@@ -290,13 +329,17 @@ const ShopView = () => {
     }
   };
 
-  const categories = ["all", ...new Set(products.map(p => p.category))];
-  const filteredProducts = products.filter(p => {
+  // Apply translation overlay on shop + products
+  const tShop = shop ? mergeShop(shop) : shop;
+  const tProducts = products.map((p) => mergeProduct(p as any));
+
+  const categories = ["all", ...new Set(tProducts.map(p => p.category))];
+  const filteredProducts = tProducts.filter(p => {
     const matchCat = selectedCategory === "all" || p.category === selectedCategory;
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCat && matchSearch;
   });
-  const featuredProducts = products.filter(p => p.is_featured);
+  const featuredProducts = tProducts.filter(p => p.is_featured);
 
   const cartKey = (productId: string, sv?: Record<string, string> | null) =>
     `${productId}::${sv && Object.keys(sv).length ? JSON.stringify(sv) : ""}`;
@@ -516,7 +559,7 @@ const ShopView = () => {
                 <Store className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: primaryColor }} />
               </div>
             )}
-            <span className="font-bold text-base sm:text-lg truncate">{shop.business_name}</span>
+            <span className="font-bold text-base sm:text-lg truncate">{tShop.business_name}</span>
           </div>
           
           {/* Search - Desktop */}
@@ -531,6 +574,9 @@ const ShopView = () => {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            {enabledLanguages.length > 1 && (
+              <ShopLanguageSelector value={shopLang} onChange={handleLangChange} enabled={enabledLanguages} />
+            )}
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
                 <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9">
@@ -577,11 +623,11 @@ const ShopView = () => {
         )}
         <div className="relative max-w-7xl mx-auto px-4 py-12 sm:py-16 md:py-24 text-center text-primary-foreground">
           {shop.logo_url && (
-            <img src={shop.logo_url} alt={shop.business_name} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
+            <img src={shop.logo_url} alt={tShop.business_name} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
           )}
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-4 tracking-tight">{shop.business_name}</h1>
-          {shop.business_description && (
-            <p className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{shop.business_description}</p>
+          <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-3xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-4 tracking-tight">{tShop.business_name}</h1>
+          {tShop.business_description && (
+            <p dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{tShop.business_description}</p>
           )}
           <div className="flex gap-3 justify-center mt-6 sm:mt-8 flex-wrap">
             <Button size="lg" variant="secondary" className="rounded-xl gap-2 font-semibold shadow-lg h-11 sm:h-12 text-sm sm:text-base" onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>
@@ -703,7 +749,7 @@ const ShopView = () => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-6 w-6 rounded" /> : <Store className="h-4 w-4" style={{ color: primaryColor }} />}
-            <span>© {new Date().getFullYear()} {shop.business_name}</span>
+            <span>© {new Date().getFullYear()} {tShop.business_name}</span>
           </div>
           <div className="flex items-center gap-1">
             {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
