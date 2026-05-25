@@ -329,13 +329,17 @@ const ShopView = () => {
     }
   };
 
-  const categories = ["all", ...new Set(products.map(p => p.category))];
-  const filteredProducts = products.filter(p => {
+  // Apply translation overlay on shop + products
+  const tShop = shop ? mergeShop(shop) : shop;
+  const tProducts = products.map((p) => mergeProduct(p as any));
+
+  const categories = ["all", ...new Set(tProducts.map(p => p.category))];
+  const filteredProducts = tProducts.filter(p => {
     const matchCat = selectedCategory === "all" || p.category === selectedCategory;
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCat && matchSearch;
   });
-  const featuredProducts = products.filter(p => p.is_featured);
+  const featuredProducts = tProducts.filter(p => p.is_featured);
 
   const cartKey = (productId: string, sv?: Record<string, string> | null) =>
     `${productId}::${sv && Object.keys(sv).length ? JSON.stringify(sv) : ""}`;
