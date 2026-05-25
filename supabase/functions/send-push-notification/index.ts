@@ -80,10 +80,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Find shop owner + tokens
-    const { data: shop } = await supabase.from("shops").select("user_id, business_name").eq("id", shop_id).maybeSingle();
+    // Find shop owner + tokens + notification preferences
+    const { data: shop } = await supabase
+      .from("shops")
+      .select("user_id, business_name, notification_settings")
+      .eq("id", shop_id)
+      .maybeSingle();
     if (!shop) {
       return new Response(JSON.stringify({ success: false, error: "shop_not_found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+
+    // Allow merchants to fully disable push notifications per shop.
+    const notifSettings = (shop as any).notification_settings || {};
+    if (notifSettings && notifSettings.enabled === false) {
+      return new Response(JSON.stringify({ success: true, sent: 0, info: "notifications_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
@@ -133,7 +145,6 @@ Deno.serve(async (req) => {
     const accessToken = await getAccessToken(sa);
     const projectId = sa.project_id;
 
-    const titleText = "💰 Nouvelle commande VisualPro";
     const { data: orderDetails } = order_id
       ? await supabase
           .from("orders")
@@ -151,37 +162,25 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: true })
       : { data: null } as any;
     const items = (itemRows || []) as Array<{ product_name: string | null; quantity: number | null }>;
-    let productLine = "";
-    let firstProductName = "";
-    if (items.length > 0) {
-      firstProductName = String(items[0].product_name || "").trim();
-      if (items.length === 1) {
-        const q = Number(items[0].quantity || 1);
-        productLine = `📦 ${q}× ${firstProductName || "produit"}`;
-      } else {
-        const head = items.slice(0, 2).map((it) => {
-          const q = Number(it.quantity || 1);
-          return `${q}× ${String(it.product_name || "produit").trim()}`;
-        }).join(", ");
-        const extra = items.length - 2;
-        productLine = `📦 ${head}${extra > 0 ? ` +${extra} autre${extra > 1 ? "s" : ""}` : ""}`;
-      }
-    }
-    const oName = String(orderDetails?.customer_name || customer_name || "").trim();
-    const oPhone = String(orderDetails?.customer_phone || "").trim();
-    const oCity = String(orderDetails?.customer_city || "").trim();
-    const oCountry = String(orderDetails?.customer_country || "").trim();
-    const oPlace = [oCity, oCountry].filter(Boolean).join(", ");
-    const oTotal = (orderDetails?.total ?? total) != null
-      ? `${Number(orderDetails?.total ?? total).toLocaleString("fr-FR")} FCFA`
-      : "";
-    const bodyLines: string[] = [];
-    if (oName) bodyLines.push(`👤 ${oName}`);
-    if (productLine) bodyLines.push(productLine);
-    if (oPhone) bodyLines.push(`📞 ${oPhone}`);
-    if (oPlace) bodyLines.push(`📍 ${oPlace}`);
-    if (oTotal) bodyLines.push(`💰 ${oTotal}`);
-    const bodyText = bodyLines.length ? bodyLines.join("\n") : "Tu as une nouvelle commande.";
+
+    // Build title + body using shop-specific notification settings.
+    // This mirrors src/lib/notificationFormat.ts (keep in sync).
+    const built = buildOrderNotification(
+      {
+        customer_name: orderDetails?.customer_name ?? customer_name,
+        customer_phone: orderDetails?.customer_phone,
+        customer_city: orderDetails?.customer_city,
+        customer_country: orderDetails?.customer_country,
+        total: orderDetails?.total ?? total,
+        items,
+      },
+      String(shop.business_name || ""),
+      notifSettings,
+    );
+    const titleText = built.title || "💰 Nouvelle commande";
+    const bodyText = built.body;
+    const productLine = built.productLine;
+    const firstProductName = built.firstProductName;
     const clickUrl = `/shop-editor/${shop_id}`;
     const notificationTag = `visualpro-order-${order_id || Date.now()}`;
 
