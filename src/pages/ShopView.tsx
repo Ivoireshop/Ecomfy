@@ -559,7 +559,7 @@ const ShopView = () => {
                 <Store className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: primaryColor }} />
               </div>
             )}
-            <span className="font-bold text-base sm:text-lg truncate">{shop.business_name}</span>
+            <span className="font-bold text-base sm:text-lg truncate">{tShop.business_name}</span>
           </div>
           
           {/* Search - Desktop */}
@@ -574,6 +574,9 @@ const ShopView = () => {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            {enabledLanguages.length > 1 && (
+              <ShopLanguageSelector value={shopLang} onChange={handleLangChange} enabled={enabledLanguages} />
+            )}
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
                 <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9">
@@ -620,11 +623,11 @@ const ShopView = () => {
         )}
         <div className="relative max-w-7xl mx-auto px-4 py-12 sm:py-16 md:py-24 text-center text-primary-foreground">
           {shop.logo_url && (
-            <img src={shop.logo_url} alt={shop.business_name} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
+            <img src={shop.logo_url} alt={tShop.business_name} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
           )}
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-4 tracking-tight">{shop.business_name}</h1>
-          {shop.business_description && (
-            <p className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{shop.business_description}</p>
+          <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-3xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-4 tracking-tight">{tShop.business_name}</h1>
+          {tShop.business_description && (
+            <p dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{tShop.business_description}</p>
           )}
           <div className="flex gap-3 justify-center mt-6 sm:mt-8 flex-wrap">
             <Button size="lg" variant="secondary" className="rounded-xl gap-2 font-semibold shadow-lg h-11 sm:h-12 text-sm sm:text-base" onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>
@@ -746,7 +749,7 @@ const ShopView = () => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-6 w-6 rounded" /> : <Store className="h-4 w-4" style={{ color: primaryColor }} />}
-            <span>© {new Date().getFullYear()} {shop.business_name}</span>
+            <span>© {new Date().getFullYear()} {tShop.business_name}</span>
           </div>
           <div className="flex items-center gap-1">
             {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
