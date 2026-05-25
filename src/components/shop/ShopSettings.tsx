@@ -10,14 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   User, Settings2, BarChart3, CreditCard, ShoppingCart,
-  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck, Link2, Copy, Check,
+  Trash2, Plus, X, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck, Link2, Copy, Check, Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CheckoutMobilePreview } from "./CheckoutMobilePreview";
 import { DnsConfigurationAssistant } from "@/components/DnsConfigurationAssistant";
+import { NotificationSettings } from "./NotificationSettings";
 
-type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "domain" | "danger";
+type SettingsTab = "general" | "payment" | "analytics" | "checkout" | "notifications" | "domain" | "danger";
 
 interface CheckoutField {
   id: string;
@@ -37,6 +38,7 @@ const SETTINGS_NAV: { id: SettingsTab; label: string; icon: React.ElementType }[
   { id: "general", label: "Général", icon: Settings2 },
   { id: "payment", label: "Paiement", icon: CreditCard },
   { id: "checkout", label: "Check-out", icon: ShoppingCart },
+  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "analytics", label: "Analytiques et Pixels", icon: BarChart3 },
   { id: "domain", label: "Domaine personnalisé", icon: Globe },
   { id: "danger", label: "Zone de danger", icon: Trash2 },
