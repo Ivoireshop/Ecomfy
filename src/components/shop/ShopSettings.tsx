@@ -379,6 +379,10 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
           <NotificationSettings shop={shop} setShop={setShop} />
         )}
 
+        {activeTab === "languages" && (
+          <LanguageSettings shop={shop} setShop={setShop} />
+        )}
+
         {activeTab === "analytics" && (
           <>
             <h2 className="text-xl font-bold">Analytiques et Pixels</h2>
