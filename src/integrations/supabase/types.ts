@@ -1619,6 +1619,70 @@ export type Database = {
         }
         Relationships: []
       }
+      product_translations: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          language: string
+          name: string | null
+          product_id: string
+          shop_id: string
+          short_description: string | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          language: string
+          name?: string | null
+          product_id: string
+          shop_id: string
+          short_description?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          language?: string
+          name?: string | null
+          product_id?: string
+          shop_id?: string
+          short_description?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_translations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_translations_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_translations_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           bundle_offers: Json
@@ -1982,6 +2046,60 @@ export type Database = {
           },
         ]
       }
+      shop_translations: {
+        Row: {
+          business_description: string | null
+          business_name: string | null
+          created_at: string
+          id: string
+          language: string
+          seo_description: string | null
+          seo_title: string | null
+          shop_id: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          business_description?: string | null
+          business_name?: string | null
+          created_at?: string
+          id?: string
+          language: string
+          seo_description?: string | null
+          seo_title?: string | null
+          shop_id: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          business_description?: string | null
+          business_name?: string | null
+          created_at?: string
+          id?: string
+          language?: string
+          seo_description?: string | null
+          seo_title?: string | null
+          shop_id?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_translations_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_translations_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_visits: {
         Row: {
           id: string
@@ -2033,6 +2151,7 @@ export type Database = {
           domain_status: string | null
           domain_verification_code: string | null
           email: string | null
+          enabled_languages: string[]
           facebook_pixels: string[] | null
           facebook_test_event_code: string | null
           favicon_url: string | null
@@ -2098,6 +2217,7 @@ export type Database = {
           domain_status?: string | null
           domain_verification_code?: string | null
           email?: string | null
+          enabled_languages?: string[]
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
@@ -2163,6 +2283,7 @@ export type Database = {
           domain_status?: string | null
           domain_verification_code?: string | null
           email?: string | null
+          enabled_languages?: string[]
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
