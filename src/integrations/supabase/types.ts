@@ -2043,6 +2043,7 @@ export type Database = {
           is_published: boolean | null
           is_suspended: boolean
           logo_url: string | null
+          notification_settings: Json
           order_confirmation_message: string | null
           payment_deadline: string | null
           payment_methods: string[] | null
@@ -2107,6 +2108,7 @@ export type Database = {
           is_published?: boolean | null
           is_suspended?: boolean
           logo_url?: string | null
+          notification_settings?: Json
           order_confirmation_message?: string | null
           payment_deadline?: string | null
           payment_methods?: string[] | null
@@ -2171,6 +2173,7 @@ export type Database = {
           is_published?: boolean | null
           is_suspended?: boolean
           logo_url?: string | null
+          notification_settings?: Json
           order_confirmation_message?: string | null
           payment_deadline?: string | null
           payment_methods?: string[] | null
