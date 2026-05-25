@@ -322,6 +322,7 @@ const ShopEditor = () => {
       order_confirmation_message: shop.order_confirmation_message,
       facebook_test_event_code: shop.facebook_test_event_code,
       ga4_measurement_id: shop.ga4_measurement_id,
+      notification_settings: shop.notification_settings ?? {},
     }).eq("id", shop.id) as any;
 
     // Upsert sensitive credentials into the private shop_secrets table.

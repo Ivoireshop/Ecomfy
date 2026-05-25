@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { buildOrderNotification } from "@/lib/notificationFormat";
 
 export const NOTIFICATION_SOUNDS = [
   { id: "cash", label: "💰 Caisse enregistreuse (Ka-ching)", file: "/sounds/visualpro-cash.mp3" },
@@ -54,26 +55,19 @@ export function getOrderAnnouncement(order: any): string {
  * voie toutes les infos sans devoir ouvrir l'app.
  */
 export function getOrderNotificationBody(order: any): string {
-  const name = String(order?.customer_name || "").trim();
-  const phone = String(order?.customer_phone || "").trim();
-  const city = String(order?.customer_city || "").trim();
-  const country = String(order?.customer_country || "").trim();
-  const place = [city, country].filter(Boolean).join(", ");
-  const total = order?.total != null ? `${Number(order.total).toLocaleString("fr-FR")} FCFA` : "";
-
-  const lines: string[] = [];
-  if (name) lines.push(`👤 ${name}`);
-  const product = getFirstProductName(order);
-  if (product) {
-    const items = Array.isArray(order?.order_items) ? order.order_items : [];
-    const q = Number(items[0]?.quantity || 1);
-    const extra = Math.max(0, items.length - 1);
-    lines.push(`📦 ${q}× ${product}${extra > 0 ? ` +${extra} autre${extra > 1 ? "s" : ""}` : ""}`);
-  }
-  if (phone) lines.push(`📞 ${phone}`);
-  if (place) lines.push(`📍 ${place}`);
-  if (total) lines.push(`💰 ${total}`);
-  return lines.length ? lines.join("\n") : "Tu as une nouvelle commande.";
+  const items = Array.isArray(order?.order_items) ? order.order_items : [];
+  return buildOrderNotification(
+    {
+      customer_name: order?.customer_name,
+      customer_phone: order?.customer_phone,
+      customer_city: order?.customer_city,
+      customer_country: order?.customer_country,
+      total: order?.total,
+      items,
+    },
+    order?.shop_name || "",
+    order?.notification_settings || {},
+  ).body;
 }
 
 export function playNotificationSound() {

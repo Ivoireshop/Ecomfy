@@ -1,46 +1,60 @@
-## Objectif
+Voici le plan pour livrer les 3 chantiers dans l'ordre demandé. Je propose de les exécuter en 3 itérations distinctes (1 message = 1 chantier livré) pour pouvoir tester chaque brique avant de passer à la suivante.
 
-Faire en sorte que le plan d'abonnement (Free / Starter / Business) modifie réellement l'expérience :
+## Chantier 1 — Notifications de commande configurables
 
-1. **Bannière "Montant dû"** masquée pour les abonnés actifs (Starter, Business).
-2. **Génération de GIFs animés** plafonnée selon le plan :
-   - Free : 10 GIFs / mois
-   - Starter : 30 GIFs / mois
-   - Business : illimité
-3. **Optimiseur IA fiche produit** (Hormozi / PAS / AIDA) activé automatiquement pour Starter et Business — verrouillé pour Free avec un encart "Passez au plan Starter".
+Pour chaque boutique, le propriétaire pourra personnaliser depuis `ShopSettings` :
+- **Titre** de la notification (ex: « 💰 Nouvelle commande {shop} »)
+- **Texte/format** : champs à inclure (nom client, téléphone, ville, total, nombre de produits, liste des produits)
+- **Nombre max de produits** affichés dans la notif (1 à 5)
+- **Langue** de la notification (FR, EN, ES, PT, AR)
+- **Modèle** : choix entre 3 templates prédéfinis ou mode personnalisé
 
-La génération d'images IA classique du produit reste gratuite pour tous (inchangée).
+Implémentation :
+- Migration : ajout colonnes `notification_settings jsonb` sur `shops` (template, language, max_products, custom_title, custom_body_fields, etc.)
+- Mise à jour `send-push-notification/index.ts` pour lire ces réglages et formater le titre/corps selon la langue + template choisi
+- Mise à jour `useOrderNotifications.ts` (`getOrderNotificationBody`) pour respecter les mêmes règles côté foreground sound/voice
+- Nouvelle section "Notifications" dans `ShopSettings.tsx` avec aperçu live de la notification
 
-## Changements
+## Chantier 2 — Langue de l'application (i18n globale)
 
-### 1. Base de données (1 migration)
+Ajout d'un système i18n pour toute l'app VisualPro :
+- Librairie : `i18next` + `react-i18next` (légère, sans dépendance lourde)
+- Langues : FR (défaut), EN, ES, PT, AR (RTL pris en charge)
+- Sélecteur de langue dans le `Header` (icône globe) — visible aussi avant connexion
+- Persistance : `localStorage` + colonne `preferred_language` sur `profiles` pour suivre l'utilisateur connecté
+- Fichiers de traduction : `src/i18n/locales/{fr,en,es,pt,ar}.json`
 
-Ajouter sur `shops` :
-- `gifs_generated_count` (int, default 0)
-- `gifs_period_start` (timestamptz, default now()) — fenêtre glissante de 30 jours
-- RPC `increment_shop_gif_count(_shop_id uuid)` : reset si > 30 jours, incrémente, renvoie le nouveau compteur.
+Périmètre traduit (priorité) : Header, Sidebar, Dashboard, ShopManager, ShopEditor (onglets principaux), Auth. Le contenu user-generated (produits, commandes) n'est PAS retraduit ici — c'est le chantier 3.
 
-### 2. `BillingBanner` masquée pour abonnés
+## Chantier 3 — Traduction auto des boutiques & fiches produits
 
-Dans `src/pages/ShopEditor.tsx`, ne rendre `<BillingBanner />` que si `shop.subscription_active_until` est nul ou expiré.
+Deux modes combinés :
 
-### 3. Quota GIF
+**a) Pré-traduction à la création (marchand)**
+- Bouton "Traduire en…" dans `ProductEditor` (multi-select langues)
+- Edge function `translate-product` (Lovable AI — google/gemini-3-flash-preview pour internationales, google/gemini-2.5-pro pour langues ivoiriennes plus exigeantes)
+- Nouvelle table `product_translations` (product_id, language_code, name, description, short_description, meta, source: 'manual'|'ai', created_at)
+- Idem pour la boutique : table `shop_translations` (nom, tagline, description, announcement)
 
-- `ProductEditor.tsx` : transmettre `shop` (plan + compteur) à `ProductGifGenerator`.
-- `ProductGifGenerator.tsx` :
-  - Calcule la limite à partir du plan : `Free=10`, `Starter=30`, `Business=Infinity`.
-  - Affiche "X / N GIFs utilisés ce mois".
-  - Bloque le bouton "Générer" si quota atteint avec CTA "Passer au plan Starter / Business".
-  - Après génération réussie, appelle `increment_shop_gif_count` puis met à jour l'état local.
+**b) Traduction à la volée pour le visiteur (fallback)**
+- Sélecteur de langue dans le header de `ShopView` / `ProductView` (drapeaux)
+- Si traduction pré-générée existe → l'utiliser
+- Sinon : appel edge function `translate-product` avec mise en cache instantanée dans `product_translations` (source: 'ai_auto')
+- Langue détectée du navigateur en première visite, persistée en cookie/localStorage
 
-### 4. Optimiseur IA gating par plan
+**Langues supportées** : EN, ES, PT, AR, Dioula, Baoulé, Bété, Attié (note : qualité IA limitée sur les langues ivoiriennes, mention affichée au marchand)
 
-`ProductAIOptimizer.tsx` :
-- Recevoir `subscription_plan` via `shop`.
-- Si plan = `free` : afficher un encart bloquant "Réservé aux plans Starter et Business" + bouton vers `ShopFinances` (abonnement).
-- Si plan = `starter` ou `business` : activer automatiquement (plus de toggle manuel obligatoire, l'option reste pour désactiver).
+---
 
-## Hors-scope
+## Détails techniques transverses
 
-- Pas de changement aux fonctions de paiement, à la table `shop_secrets`, ni à la logique de commission.
-- Le plan Business reste affiché comme « bientôt disponible » côté abonnement ; le gating IA & GIF Business est néanmoins prêt pour quand il sera activé.
+- **Edge function `translate-product`** : prend `{texts: {field: value}, target_lang, source_lang}`, retourne `{translations: {field: value}}`. Cache 90j dans `product_translations` ou nouvelle table `translation_cache` keyée sur hash(text+lang).
+- **Cache** : éviter de re-traduire ce qui n'a pas changé (hash sur le contenu source stocké à côté de la traduction).
+- **RLS** : `product_translations` & `shop_translations` lisibles publiquement si boutique publiée ; écriture réservée au propriétaire + service role (pour fallback à la volée via edge).
+- **RTL pour arabe** : `dir="rtl"` sur `<html>` quand la langue est `ar`.
+
+---
+
+## Découpage par messages
+
+Je propose de livrer **Chantier 1 maintenant** (le plus petit, indépendant), puis tu valides, puis on enchaîne 2 puis 3. Confirme et je commence.

@@ -5,6 +5,80 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ---------------------------------------------------------------------------
+// Shop-configurable order notification formatter.
+// Mirror of src/lib/notificationFormat.ts — keep both in sync.
+// ---------------------------------------------------------------------------
+type NotifLang = "fr" | "en" | "es" | "pt" | "ar";
+const DEFAULT_NOTIF = {
+  enabled: true,
+  language: "fr" as NotifLang,
+  template: "detailed" as "detailed" | "compact" | "minimal" | "custom",
+  max_products: 2,
+  custom_title: "",
+  include_customer_name: true,
+  include_phone: true,
+  include_place: true,
+  include_total: true,
+  include_products: true,
+};
+const NOTIF_DICT: Record<NotifLang, any> = {
+  fr: { default_title: "💰 Nouvelle commande {shop}", fallback_body: "Tu as une nouvelle commande.", other_singular: "autre", other_plural: "autres", product_default: "produit", currency_locale: "fr-FR", fcfa: "FCFA" },
+  en: { default_title: "💰 New order — {shop}", fallback_body: "You have a new order.", other_singular: "more", other_plural: "more", product_default: "item", currency_locale: "en-US", fcfa: "XOF" },
+  es: { default_title: "💰 Nuevo pedido — {shop}", fallback_body: "Tienes un nuevo pedido.", other_singular: "más", other_plural: "más", product_default: "producto", currency_locale: "es-ES", fcfa: "FCFA" },
+  pt: { default_title: "💰 Novo pedido — {shop}", fallback_body: "Você recebeu um novo pedido.", other_singular: "outro", other_plural: "outros", product_default: "produto", currency_locale: "pt-BR", fcfa: "FCFA" },
+  ar: { default_title: "💰 طلب جديد — {shop}", fallback_body: "لديك طلب جديد.", other_singular: "آخر", other_plural: "آخرين", product_default: "منتج", currency_locale: "ar", fcfa: "FCFA" },
+};
+function buildOrderNotification(order: any, shopName: string, rawSettings: any) {
+  const s = { ...DEFAULT_NOTIF, ...(rawSettings && typeof rawSettings === "object" ? rawSettings : {}) };
+  const lang = (s.language && NOTIF_DICT[s.language as NotifLang]) ? s.language as NotifLang : "fr";
+  const dict = NOTIF_DICT[lang];
+  const items = Array.isArray(order.items) ? order.items : [];
+  const maxN = Math.max(1, Math.min(5, Number(s.max_products) || 2));
+  const firstProductName = String(items[0]?.product_name || "").trim();
+  let productLine = "";
+  if (items.length > 0 && s.include_products) {
+    if (items.length === 1 || maxN === 1) {
+      const q = Number(items[0]?.quantity || 1);
+      productLine = `📦 ${q}× ${firstProductName || dict.product_default}`;
+      const extra = Math.max(0, items.length - 1);
+      if (extra > 0) productLine += ` +${extra} ${extra > 1 ? dict.other_plural : dict.other_singular}`;
+    } else {
+      const head = items.slice(0, maxN).map((it: any) => {
+        const q = Number(it?.quantity || 1);
+        const n = String(it?.product_name || dict.product_default).trim();
+        return `${q}× ${n}`;
+      }).join(", ");
+      const extra = Math.max(0, items.length - maxN);
+      productLine = `📦 ${head}${extra > 0 ? ` +${extra} ${extra > 1 ? dict.other_plural : dict.other_singular}` : ""}`;
+    }
+  }
+  const name = String(order.customer_name || "").trim();
+  const phone = String(order.customer_phone || "").trim();
+  const city = String(order.customer_city || "").trim();
+  const country = String(order.customer_country || "").trim();
+  const place = [city, country].filter(Boolean).join(", ");
+  const totalNum = order.total != null && order.total !== "" ? Number(order.total) : NaN;
+  const total = Number.isFinite(totalNum) ? `${totalNum.toLocaleString(dict.currency_locale)} ${dict.fcfa}` : "";
+  const rawTitle = (s.template === "custom" && s.custom_title?.trim()) ? s.custom_title.trim() : dict.default_title;
+  const title = rawTitle.replace(/\{shop\}/g, shopName || "").trim().replace(/\s+—\s*$/, "");
+  const want = {
+    name: s.include_customer_name && s.template !== "minimal",
+    phone: s.include_phone && (s.template === "detailed" || s.template === "custom"),
+    place: s.include_place && s.template !== "minimal",
+    total: s.include_total,
+    products: s.include_products,
+  };
+  const lines: string[] = [];
+  if (want.name && name) lines.push(`👤 ${name}`);
+  if (want.products && productLine) lines.push(productLine);
+  if (want.phone && phone) lines.push(`📞 ${phone}`);
+  if (want.place && place) lines.push(`📍 ${place}`);
+  if (want.total && total) lines.push(`💰 ${total}`);
+  const body = lines.length ? lines.join("\n") : dict.fallback_body;
+  return { title, body, productLine, firstProductName };
+}
+
 // Build a Google OAuth2 access token from the service account JSON, using JWT Bearer flow.
 async function getAccessToken(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
@@ -80,10 +154,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Find shop owner + tokens
-    const { data: shop } = await supabase.from("shops").select("user_id, business_name").eq("id", shop_id).maybeSingle();
+    // Find shop owner + tokens + notification preferences
+    const { data: shop } = await supabase
+      .from("shops")
+      .select("user_id, business_name, notification_settings")
+      .eq("id", shop_id)
+      .maybeSingle();
     if (!shop) {
       return new Response(JSON.stringify({ success: false, error: "shop_not_found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+
+    // Allow merchants to fully disable push notifications per shop.
+    const notifSettings = (shop as any).notification_settings || {};
+    if (notifSettings && notifSettings.enabled === false) {
+      return new Response(JSON.stringify({ success: true, sent: 0, info: "notifications_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
@@ -133,7 +219,6 @@ Deno.serve(async (req) => {
     const accessToken = await getAccessToken(sa);
     const projectId = sa.project_id;
 
-    const titleText = "💰 Nouvelle commande VisualPro";
     const { data: orderDetails } = order_id
       ? await supabase
           .from("orders")
@@ -151,37 +236,25 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: true })
       : { data: null } as any;
     const items = (itemRows || []) as Array<{ product_name: string | null; quantity: number | null }>;
-    let productLine = "";
-    let firstProductName = "";
-    if (items.length > 0) {
-      firstProductName = String(items[0].product_name || "").trim();
-      if (items.length === 1) {
-        const q = Number(items[0].quantity || 1);
-        productLine = `📦 ${q}× ${firstProductName || "produit"}`;
-      } else {
-        const head = items.slice(0, 2).map((it) => {
-          const q = Number(it.quantity || 1);
-          return `${q}× ${String(it.product_name || "produit").trim()}`;
-        }).join(", ");
-        const extra = items.length - 2;
-        productLine = `📦 ${head}${extra > 0 ? ` +${extra} autre${extra > 1 ? "s" : ""}` : ""}`;
-      }
-    }
-    const oName = String(orderDetails?.customer_name || customer_name || "").trim();
-    const oPhone = String(orderDetails?.customer_phone || "").trim();
-    const oCity = String(orderDetails?.customer_city || "").trim();
-    const oCountry = String(orderDetails?.customer_country || "").trim();
-    const oPlace = [oCity, oCountry].filter(Boolean).join(", ");
-    const oTotal = (orderDetails?.total ?? total) != null
-      ? `${Number(orderDetails?.total ?? total).toLocaleString("fr-FR")} FCFA`
-      : "";
-    const bodyLines: string[] = [];
-    if (oName) bodyLines.push(`👤 ${oName}`);
-    if (productLine) bodyLines.push(productLine);
-    if (oPhone) bodyLines.push(`📞 ${oPhone}`);
-    if (oPlace) bodyLines.push(`📍 ${oPlace}`);
-    if (oTotal) bodyLines.push(`💰 ${oTotal}`);
-    const bodyText = bodyLines.length ? bodyLines.join("\n") : "Tu as une nouvelle commande.";
+
+    // Build title + body using shop-specific notification settings.
+    // This mirrors src/lib/notificationFormat.ts (keep in sync).
+    const built = buildOrderNotification(
+      {
+        customer_name: orderDetails?.customer_name ?? customer_name,
+        customer_phone: orderDetails?.customer_phone,
+        customer_city: orderDetails?.customer_city,
+        customer_country: orderDetails?.customer_country,
+        total: orderDetails?.total ?? total,
+        items,
+      },
+      String(shop.business_name || ""),
+      notifSettings,
+    );
+    const titleText = built.title || "💰 Nouvelle commande";
+    const bodyText = built.body;
+    const productLine = built.productLine;
+    const firstProductName = built.firstProductName;
     const clickUrl = `/shop-editor/${shop_id}`;
     const notificationTag = `visualpro-order-${order_id || Date.now()}`;
 
