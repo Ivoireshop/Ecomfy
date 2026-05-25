@@ -14,6 +14,9 @@ import { toast } from "@/hooks/use-toast";
 import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard } from "lucide-react";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
+import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
+import { useShopTranslations } from "@/hooks/useShopTranslation";
+import { isRtlLang } from "@/lib/shopLanguages";
 
 interface Product {
   id: string;
@@ -58,6 +61,42 @@ const ShopView = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
   });
+
+  // ----- Shop language (auto-detected from browser, override via selector) -----
+  const [shopLang, setShopLang] = useState<string>(() => {
+    if (typeof window === "undefined") return "fr";
+    const stored = localStorage.getItem("vp_shop_lang");
+    if (stored) return stored;
+    const nav = (navigator.language || "fr").slice(0, 2).toLowerCase();
+    return ["fr", "en", "es", "pt", "ar"].includes(nav) ? nav : "fr";
+  });
+  const enabledLanguages: string[] = Array.isArray(shop?.enabled_languages) && shop.enabled_languages.length > 0
+    ? shop.enabled_languages
+    : ["fr"];
+  // Clamp current lang to enabled set
+  useEffect(() => {
+    if (!shop) return;
+    if (!enabledLanguages.includes(shopLang)) {
+      setShopLang(enabledLanguages[0] || "fr");
+    }
+  }, [shop, enabledLanguages.join("|")]); // eslint-disable-line
+  const handleLangChange = (l: string) => {
+    setShopLang(l);
+    try { localStorage.setItem("vp_shop_lang", l); } catch {}
+  };
+  const { mergeShop, mergeProduct, translateShopOnDemand, translateProductOnDemand } =
+    useShopTranslations(shop?.id, shopLang, "fr");
+
+  // Trigger shop & visible-products translation when language changes
+  useEffect(() => {
+    if (!shop || shopLang === "fr") return;
+    translateShopOnDemand({
+      business_name: shop.business_name,
+      business_description: shop.business_description,
+    });
+    products.forEach((p) => translateProductOnDemand(p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shop?.id, shopLang, products.length]);
 
   // Abandoned cart tracking: stable session id per shop, kept in localStorage
   const sessionIdRef = useRef<string>("");
