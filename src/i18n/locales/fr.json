@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "search": "Rechercher",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "yes": "Oui",
+    "no": "Non",
+    "language": "Langue",
+    "theme": "Thème",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "login": "Connexion",
+    "signup": "S'inscrire",
+    "start": "Commencer",
+    "myAccount": "Mon espace"
+  },
+  "header": {
+    "home": "Accueil",
+    "features": "Fonctionnalités",
+    "pricing": "Tarifs",
+    "tutorial": "Tutoriel",
+    "demo": "Démo",
+    "openMenu": "Ouvrir le menu"
+  },
+  "sidebar": {
+    "sections": {
+      "creation": "Création",
+      "business": "Business",
+      "learn": "Apprendre",
+      "account": "Compte",
+      "admin": "Administration"
+    },
+    "items": {
+      "home": "Accueil",
+      "generator": "Générateur",
+      "library": "Bibliothèque",
+      "showcases": "Sites Vitrines",
+      "courses": "Formations",
+      "shops": "Boutiques",
+      "studentSpace": "Espace Étudiant",
+      "tutorial": "Tutoriel",
+      "videoDemo": "Démo Vidéo",
+      "subscription": "Abonnement",
+      "history": "Historique",
+      "referral": "Parrainage",
+      "feedback": "Avis",
+      "api": "API",
+      "dashboard": "Tableau de Bord",
+      "ordersDiag": "Diagnostic Commandes",
+      "promoCodes": "Codes Promo"
+    }
+  },
+  "language": {
+    "title": "Langue de l'application",
+    "description": "Choisissez la langue dans laquelle s'affiche l'interface VisualPro."
+  }
+}
