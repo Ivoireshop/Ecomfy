@@ -826,6 +826,10 @@ const ShopEditor = () => {
               onShopUpdate={(patch) => setShop((s: any) => ({ ...s, ...patch }))}
             />
           )}
+
+          {activeSection === "assistant" && (
+            <ShopAssistantSettings shopId={shop.id} isActivated={!!shop.is_activated} />
+          )}
         </div>
       </main>
     </div>
