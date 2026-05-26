@@ -1,60 +1,83 @@
-Voici le plan pour livrer les 3 chantiers dans l'ordre demandé. Je propose de les exécuter en 3 itérations distinctes (1 message = 1 chantier livré) pour pouvoir tester chaque brique avant de passer à la suivante.
+# Assistant IA Vocal & Textuel pour Boutiques
 
-## Chantier 1 — Notifications de commande configurables
+## Objectif
+Ajouter un assistant IA premium (vocal + texte) sur chaque fiche produit des boutiques en ligne. L'assistant accueille les visiteurs automatiquement, parle plusieurs langues (Français, Anglais, Dioula, Baoulé), et est configurable par le propriétaire de la boutique.
 
-Pour chaque boutique, le propriétaire pourra personnaliser depuis `ShopSettings` :
-- **Titre** de la notification (ex: « 💰 Nouvelle commande {shop} »)
-- **Texte/format** : champs à inclure (nom client, téléphone, ville, total, nombre de produits, liste des produits)
-- **Nombre max de produits** affichés dans la notif (1 à 5)
-- **Langue** de la notification (FR, EN, ES, PT, AR)
-- **Modèle** : choix entre 3 templates prédéfinis ou mode personnalisé
+## Fonctionnalités clés
 
-Implémentation :
-- Migration : ajout colonnes `notification_settings jsonb` sur `shops` (template, language, max_products, custom_title, custom_body_fields, etc.)
-- Mise à jour `send-push-notification/index.ts` pour lire ces réglages et formater le titre/corps selon la langue + template choisi
-- Mise à jour `useOrderNotifications.ts` (`getOrderNotificationBody`) pour respecter les mêmes règles côté foreground sound/voice
-- Nouvelle section "Notifications" dans `ShopSettings.tsx` avec aperçu live de la notification
+### 1. Configuration par le propriétaire (dans ShopEditor)
+Nouvel onglet **"Assistant IA"** dans le ShopSidebar :
+- **Activer/désactiver** l'assistant (réservé aux boutiques activées/payées)
+- **Nom de l'assistant** (ex: "Ramina")
+- **Personnalité / ton** (Amical, Professionnel, Énergique, Luxe)
+- **Source des informations** :
+  - ☐ Saisie manuelle (textarea : présentation, offres recommandées, best-sellers, FAQ)
+  - ☑ S'inspirer automatiquement des fiches produits (par défaut)
+- **Langues d'accueil multi-salutation** (cases à cocher) :
+  - 🇫🇷 Français, 🇬🇧 Anglais, 🇨🇮 Dioula, 🇨🇮 Baoulé
+- **Langue de conversation** :
+  - Auto (laisse l'IA détecter selon le visiteur)
+  - Ou langue fixe imposée
+- **Voix de l'agent vocal** (preview) : Féminine douce / Féminine énergique / Masculine pro
+- **Déclenchement** : Auto à l'ouverture / Au clic sur le bouton flottant
+- **Message d'accueil personnalisé** (optionnel, sinon généré par IA)
 
-## Chantier 2 — Langue de l'application (i18n globale)
+### 2. Affichage sur la fiche produit (ShopView / ProductView)
+- Bouton flottant premium en bas à droite (avatar animé + halo pulsant)
+- Bulle d'accueil multilingue auto au bout de 2s : "Bonjour 👋 Good morning · Anni sɔrɔma · Akwaba"
+- Modal/Drawer élégant à l'ouverture avec :
+  - Avatar animé (pulse quand parle)
+  - **Mode Vocal** : bouton micro pour parler à l'agent, l'agent répond en voix
+  - **Mode Texte** : chat classique avec markdown
+  - Toggle vocal/texte
+  - Indicateur "en train de parler" / "en écoute"
+- Design haut de gamme : glassmorphism, animations Framer Motion, gradient adapté au thème de la boutique
 
-Ajout d'un système i18n pour toute l'app VisualPro :
-- Librairie : `i18next` + `react-i18next` (légère, sans dépendance lourde)
-- Langues : FR (défaut), EN, ES, PT, AR (RTL pris en charge)
-- Sélecteur de langue dans le `Header` (icône globe) — visible aussi avant connexion
-- Persistance : `localStorage` + colonne `preferred_language` sur `profiles` pour suivre l'utilisateur connecté
-- Fichiers de traduction : `src/i18n/locales/{fr,en,es,pt,ar}.json`
+### 3. Backend
 
-Périmètre traduit (priorité) : Header, Sidebar, Dashboard, ShopManager, ShopEditor (onglets principaux), Auth. Le contenu user-generated (produits, commandes) n'est PAS retraduit ici — c'est le chantier 3.
+**Tables (migration)** :
+- `shop_ai_assistants` : `shop_id`, `enabled`, `name`, `personality`, `source_mode` ('manual' | 'auto_products' | 'hybrid'), `manual_context`, `greeting_languages[]`, `conversation_language`, `voice_id`, `auto_open`, `custom_greeting`
 
-## Chantier 3 — Traduction auto des boutiques & fiches produits
+**Edge functions** :
+- `shop-ai-assistant-chat` (existante `shop-chatbot` à étendre) :
+  - Charge la config + les produits de la boutique
+  - Construit un system prompt riche multilingue
+  - Streaming SSE via Lovable AI (`google/gemini-3-flash-preview`)
+  - Détecte la langue du visiteur si "auto"
+- `shop-ai-assistant-tts` : Text-to-speech via ElevenLabs (multilingual v2 supporte FR/EN, fallback texte pour Dioula/Baoulé)
+- `shop-ai-assistant-stt` : Speech-to-text (Web Speech API côté client en priorité, fallback edge function si besoin)
 
-Deux modes combinés :
+**Sécurité** : RLS — propriétaire/collaborateurs gèrent la config, lecture publique de la config quand `enabled=true` (pour la fiche produit publique).
 
-**a) Pré-traduction à la création (marchand)**
-- Bouton "Traduire en…" dans `ProductEditor` (multi-select langues)
-- Edge function `translate-product` (Lovable AI — google/gemini-3-flash-preview pour internationales, google/gemini-2.5-pro pour langues ivoiriennes plus exigeantes)
-- Nouvelle table `product_translations` (product_id, language_code, name, description, short_description, meta, source: 'manual'|'ai', created_at)
-- Idem pour la boutique : table `shop_translations` (nom, tagline, description, announcement)
+### 4. Tarification
+- L'assistant IA vocal est **réservé aux boutiques avec activation payée** (cohérent avec la mémoire e-commerce existante)
+- Si non-payée : afficher un teaser "Activez votre boutique pour débloquer l'Assistant IA Vocal"
 
-**b) Traduction à la volée pour le visiteur (fallback)**
-- Sélecteur de langue dans le header de `ShopView` / `ProductView` (drapeaux)
-- Si traduction pré-générée existe → l'utiliser
-- Sinon : appel edge function `translate-product` avec mise en cache instantanée dans `product_translations` (source: 'ai_auto')
-- Langue détectée du navigateur en première visite, persistée en cookie/localStorage
+## Détails techniques
 
-**Langues supportées** : EN, ES, PT, AR, Dioula, Baoulé, Bété, Attié (note : qualité IA limitée sur les langues ivoiriennes, mention affichée au marchand)
+**Stack** :
+- Frontend : nouveau composant `ShopAIAssistant.tsx` (widget flottant) + `ShopAssistantSettings.tsx` (onglet config)
+- TTS : ElevenLabs (clé via secret `ELEVENLABS_API_KEY` à demander si non présente) — voix recommandée : Sarah (EXAVITQu4vr4xnSDxMaL) féminine douce, multilingual_v2
+- STT : Web Speech API navigateur (gratuit, instantané) avec fallback
+- LLM : Lovable AI Gateway (déjà configuré, `LOVABLE_API_KEY`)
+- Streaming chat : SSE pattern déjà utilisé dans `ShowcaseAIChat`
 
----
+**Intégration** :
+- Widget monté dans `ShopView.tsx` (page boutique) ET `ProductView.tsx` (fiche produit)
+- Charge la config via une RPC publique, n'affiche rien si désactivé
 
-## Détails techniques transverses
+**Fallback langues locales** (Dioula/Baoulé) : ElevenLabs ne supporte pas nativement, donc :
+- Salutations pré-enregistrées (audio statique court) en Dioula/Baoulé
+- Conversation continue en FR/EN avec TTS pleine voix
 
-- **Edge function `translate-product`** : prend `{texts: {field: value}, target_lang, source_lang}`, retourne `{translations: {field: value}}`. Cache 90j dans `product_translations` ou nouvelle table `translation_cache` keyée sur hash(text+lang).
-- **Cache** : éviter de re-traduire ce qui n'a pas changé (hash sur le contenu source stocké à côté de la traduction).
-- **RLS** : `product_translations` & `shop_translations` lisibles publiquement si boutique publiée ; écriture réservée au propriétaire + service role (pour fallback à la volée via edge).
-- **RTL pour arabe** : `dir="rtl"` sur `<html>` quand la langue est `ar`.
+## Étapes
+1. Migration DB : table `shop_ai_assistants` + RLS + RPC publique de lecture
+2. Edge function `shop-ai-assistant-chat` (streaming + multilingue + contexte produits)
+3. Edge function `shop-ai-assistant-tts` (ElevenLabs)
+4. Composant `ShopAIAssistant.tsx` (widget flottant premium vocal+texte)
+5. Composant `ShopAssistantSettings.tsx` + ajout dans `ShopSidebar` et `ShopEditor`
+6. Intégration du widget dans `ShopView.tsx` et `ProductView.tsx` (conditionné à `enabled` et boutique payée)
+7. Audio statique des salutations Dioula/Baoulé (upload storage)
 
----
-
-## Découpage par messages
-
-Je propose de livrer **Chantier 1 maintenant** (le plus petit, indépendant), puis tu valides, puis on enchaîne 2 puis 3. Confirme et je commence.
+## Question préalable
+**Avez-vous une clé ElevenLabs** (pour la voix premium TTS) ? Sinon je vous guiderai pour l'obtenir avant de poursuivre. Sans voix, on peut démarrer avec la Web Speech API du navigateur (qualité standard, gratuite) et ajouter ElevenLabs ensuite.
