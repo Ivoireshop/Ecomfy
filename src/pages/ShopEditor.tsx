@@ -19,6 +19,7 @@ import { OrdersList } from "@/components/shop/OrdersList";
 import { AbandonedCartsList } from "@/components/shop/AbandonedCartsList";
 import { ShopSettings } from "@/components/shop/ShopSettings";
 import { ProductEditor } from "@/components/shop/ProductEditor";
+import { ShopAssistantSettings } from "@/components/shop/ShopAssistantSettings";
 import { ShopStatistics } from "@/components/shop/ShopStatistics";
 import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
@@ -824,6 +825,10 @@ const ShopEditor = () => {
               products={products as any}
               onShopUpdate={(patch) => setShop((s: any) => ({ ...s, ...patch }))}
             />
+          )}
+
+          {activeSection === "assistant" && (
+            <ShopAssistantSettings shopId={shop.id} isActivated={!!shop.is_activated} />
           )}
         </div>
       </main>

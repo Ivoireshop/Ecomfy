@@ -17,6 +17,7 @@ import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
+import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 
 interface Product {
   id: string;
@@ -1127,6 +1128,13 @@ const ShopView = () => {
         shopId={shop.id}
         enabled={shop.social_proof_enabled || false}
         shopName={shop.business_name}
+      />
+
+      <ShopAIAssistant
+        shopId={shop.id}
+        shopName={shop.business_name}
+        primaryColor={shop.primary_color}
+        secondaryColor={shop.secondary_color}
       />
     </div>
   );
