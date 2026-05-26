@@ -17,6 +17,7 @@ import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
+import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 
 interface Product {
   id: string;
