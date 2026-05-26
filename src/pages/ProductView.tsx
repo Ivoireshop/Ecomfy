@@ -1362,6 +1362,13 @@ const ProductView = () => {
         enabled={shop.social_proof_enabled || false}
         productName={product?.name}
       />
+
+      <ShopAIAssistant
+        shopId={shop.id}
+        shopName={shop.business_name}
+        primaryColor={shop.primary_color}
+        secondaryColor={shop.secondary_color}
+      />
     </div>
   );
 };
