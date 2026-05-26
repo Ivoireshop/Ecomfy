@@ -62,5 +62,59 @@
   "language": {
     "title": "Langue de l'application",
     "description": "Choisissez la langue dans laquelle s'affiche l'interface VisualPro."
+  },
+  "dashboard": {
+    "greetingMorning": "Bonjour",
+    "greetingEvening": "Bonsoir",
+    "welcome": "bienvenue",
+    "subtitle": "Votre espace de travail est prêt. Choisissez votre outil."
+  },
+  "hub": {
+    "heading": "Choisissez votre outil",
+    "subheading": "Sélectionnez l'action que vous souhaitez effectuer",
+    "services": {
+      "ads": { "title": "Visuels Publicitaires", "desc": "Créez des images IA professionnelles", "cta": "Créer un visuel" },
+      "videos": { "title": "Vidéos Animées", "desc": "Transformez vos visuels en vidéos", "cta": "Créer une vidéo" },
+      "sites": { "title": "Sites Vitrine", "desc": "Lancez votre site pro en minutes", "cta": "Créer un site" },
+      "shops": { "title": "Boutiques E-commerce", "desc": "Vendez en ligne avec paiements intégrés", "cta": "Créer une boutique" },
+      "courses": { "title": "Formations en Ligne", "desc": "Créez et vendez vos cours avec certificats", "cta": "Créer une formation" },
+      "api": { "title": "API & Intégrations", "desc": "Connectez VisualPro à vos outils", "cta": "Voir la doc API" }
+    }
+  },
+  "landing": {
+    "ticker": {
+      "ads": "🎨 Création de visuels IA",
+      "videos": "🎬 Vidéos animées professionnelles",
+      "sites": "🌐 Sites vitrine en quelques minutes",
+      "shops": "🛒 Boutiques e-commerce complètes",
+      "courses": "🎓 Formations en ligne avec certificats",
+      "platform": "🚀 La plateforme tout-en-un pour entrepreneurs africains",
+      "instant": "⚡ Résultats professionnels instantanés"
+    },
+    "hero": {
+      "badge": "La plateforme tout-en-un pour les entrepreneurs africains",
+      "titleA": "Créez. Vendez.",
+      "titleB": "Développez votre business.",
+      "subtitle": "Visuels IA, vidéos animées, sites vitrine, boutiques e-commerce et formations en ligne — tout ce qu'il faut pour réussir en ligne, depuis une seule plateforme.",
+      "ctaStart": "Commencer gratuitement",
+      "ctaDiscover": "Découvrir la plateforme"
+    },
+    "sections": {
+      "platformTitleA": "Une plateforme,",
+      "platformTitleB": "toutes les solutions",
+      "platformSub": "Chaque outil dont vous avez besoin pour lancer et développer votre activité en ligne",
+      "stepsTitle": "3 étapes pour démarrer",
+      "stepsSub": "Une expérience simplifiée pour créer du contenu de qualité pro",
+      "step1Title": "Créez votre compte",
+      "step1Desc": "Inscription gratuite en 30 secondes.",
+      "step2Title": "Choisissez votre outil",
+      "step2Desc": "Visuels IA, boutique, site vitrine ou formation.",
+      "step3Title": "Lancez-vous !",
+      "step3Desc": "Publiez, vendez et développez votre activité.",
+      "trustTitle": "Ils nous font",
+      "trustTitleB": "confiance",
+      "ctaTitle": "Prêt à transformer votre business ?",
+      "ctaSub": "Rejoignez les centaines d'entrepreneurs africains qui utilisent VisualPro pour réussir en ligne."
+    }
   }
 }

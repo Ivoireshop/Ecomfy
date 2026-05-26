@@ -13,6 +13,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { useTranslation } from "react-i18next";
 const LandingMediaSections = lazy(() => import("@/components/LandingMediaSections"));
 const LandingTeamSection = lazy(() =>
   import("@/components/LandingMediaSections").then((module) => ({ default: module.LandingTeamSection }))
@@ -20,14 +21,15 @@ const LandingTeamSection = lazy(() =>
 
 /* ── Ticker / scrolling banner ── */
 const TickerBanner = () => {
+  const { t } = useTranslation();
   const items = [
-    "🎨 Création de visuels IA",
-    "🎬 Vidéos animées professionnelles",
-    "🌐 Sites vitrine en quelques minutes",
-    "🛒 Boutiques e-commerce complètes",
-    "🎓 Formations en ligne avec certificats",
-    "🚀 La plateforme tout-en-un pour entrepreneurs africains",
-    "⚡ Résultats professionnels instantanés",
+    t("landing.ticker.ads"),
+    t("landing.ticker.videos"),
+    t("landing.ticker.sites"),
+    t("landing.ticker.shops"),
+    t("landing.ticker.courses"),
+    t("landing.ticker.platform"),
+    t("landing.ticker.instant"),
   ];
   const repeated = [...items, ...items];
   return (
@@ -47,6 +49,7 @@ const Index = () => {
   const { session, isReady } = useAuthReady();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [loadDeferredSections, setLoadDeferredSections] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const idleWindow = window as Window & {
@@ -80,13 +83,13 @@ const Index = () => {
   };
 
   const hubServices = [
-    { icon: ImageIcon, title: "Visuels Publicitaires", desc: "Créez des images IA professionnelles", color: "from-orange-500 to-pink-500", bgLight: "bg-orange-50 dark:bg-orange-950/30", route: "/generator", cta: "Créer un visuel" },
-    { icon: Video, title: "Vidéos Animées", desc: "Transformez vos visuels en vidéos", color: "from-blue-500 to-cyan-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", route: "/video-creator", cta: "Créer une vidéo" },
-    { icon: Globe, title: "Sites Vitrine", desc: "Lancez votre site pro en minutes", color: "from-violet-500 to-purple-500", bgLight: "bg-violet-50 dark:bg-violet-950/30", route: "/showcase-manager", cta: "Créer un site" },
-    { icon: Store, title: "Boutiques E-commerce", desc: "Vendez en ligne avec paiements intégrés", color: "from-emerald-500 to-teal-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/30", route: "/shop-manager", cta: "Créer une boutique" },
-    { icon: GraduationCap, title: "Formations en Ligne", desc: "Créez et vendez vos cours avec certificats", color: "from-amber-500 to-yellow-500", bgLight: "bg-amber-50 dark:bg-amber-950/30", route: "/courses-manager", cta: "Créer une formation" },
-    { icon: Code, title: "API & Intégrations", desc: "Connectez VisualPro à vos outils", color: "from-slate-500 to-gray-500", bgLight: "bg-slate-50 dark:bg-slate-950/30", route: "/api-documentation", cta: "Voir la doc API" },
-  ];
+    { icon: ImageIcon, key: "ads", color: "from-orange-500 to-pink-500", bgLight: "bg-orange-50 dark:bg-orange-950/30", route: "/generator" },
+    { icon: Video, key: "videos", color: "from-blue-500 to-cyan-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", route: "/video-creator" },
+    { icon: Globe, key: "sites", color: "from-violet-500 to-purple-500", bgLight: "bg-violet-50 dark:bg-violet-950/30", route: "/showcase-manager" },
+    { icon: Store, key: "shops", color: "from-emerald-500 to-teal-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/30", route: "/shop-manager" },
+    { icon: GraduationCap, key: "courses", color: "from-amber-500 to-yellow-500", bgLight: "bg-amber-50 dark:bg-amber-950/30", route: "/courses-manager" },
+    { icon: Code, key: "api", color: "from-slate-500 to-gray-500", bgLight: "bg-slate-50 dark:bg-slate-950/30", route: "/api-documentation" },
+  ] as const;
 
   return (
     <div className="min-h-screen bg-background">
@@ -111,37 +114,37 @@ const Index = () => {
               <>
                 <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in tracking-tight">
                   <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" style={{ fontFamily: "'Georgia', serif" }}>
-                    {new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} {session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0]}, Bienvenue
+                    {new Date().getHours() < 18 ? t("dashboard.greetingMorning") : t("dashboard.greetingEvening")} {session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0]}, {t("dashboard.welcome")}
                   </span>
                   <span className="inline-block animate-wiggle text-4xl sm:text-5xl md:text-6xl ml-2">👋</span>
                 </h1>
                 <p className="text-base md:text-lg text-muted-foreground mb-10 animate-fade-in tracking-wide font-medium">
-                  Votre espace de travail est prêt.
+                  {t("dashboard.subtitle")}
                 </p>
               </>
             ) : (
               <>
                 <Badge className="mb-6 px-4 py-1.5 text-sm animate-fade-in bg-primary/10 text-primary border-primary/20">
                   <Zap className="w-4 h-4 mr-2" />
-                  La plateforme tout-en-un pour les entrepreneurs africains
+                  {t("landing.hero.badge")}
                 </Badge>
                 <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in">
-                  <span className="text-foreground">Créez. Vendez.</span>
+                  <span className="text-foreground">{t("landing.hero.titleA")}</span>
                   <br />
                   <span className="bg-gradient-to-r from-primary via-purple-500 to-secondary bg-clip-text text-transparent">
-                    Développez votre business.
+                    {t("landing.hero.titleB")}
                   </span>
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto animate-fade-in leading-relaxed">
-                  Visuels IA, vidéos animées, sites vitrine, boutiques e-commerce et formations en ligne — tout ce qu'il faut pour réussir en ligne, depuis une seule plateforme.
+                  {t("landing.hero.subtitle")}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
                   <Button size="lg" className="text-lg px-10 py-7 shadow-xl hover:shadow-2xl transition-all hover:scale-105 bg-gradient-to-r from-primary to-primary/90" onClick={() => navigate("/auth")}>
                     <Rocket className="mr-2 h-5 w-5" />
-                    Commencer gratuitement
+                    {t("landing.hero.ctaStart")}
                   </Button>
                   <Button size="lg" variant="outline" className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
-                    Découvrir la plateforme
+                    {t("landing.hero.ctaDiscover")}
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </div>
@@ -156,8 +159,8 @@ const Index = () => {
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <div className="text-center mb-10">
-              <h2 className="text-2xl md:text-3xl font-bold mb-2">Choisissez votre outil</h2>
-              <p className="text-muted-foreground">Sélectionnez l'action que vous souhaitez effectuer</p>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2">{t("hub.heading")}</h2>
+              <p className="text-muted-foreground">{t("hub.subheading")}</p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
               {hubServices.map((s, idx) => (
@@ -171,10 +174,10 @@ const Index = () => {
                     <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
                       <s.icon className="w-7 h-7 text-white" />
                     </div>
-                    <h3 className="text-xl font-bold mb-2 text-foreground">{s.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed mb-5">{s.desc}</p>
+                    <h3 className="text-xl font-bold mb-2 text-foreground">{t(`hub.services.${s.key}.title`)}</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed mb-5">{t(`hub.services.${s.key}.desc`)}</p>
                     <div className="flex items-center gap-2 text-sm font-semibold text-primary group-hover:gap-3 transition-all">
-                      {s.cta}
+                      {t(`hub.services.${s.key}.cta`)}
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -194,10 +197,10 @@ const Index = () => {
         <section id="services" className="py-16 md:py-24">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl md:text-5xl font-bold mb-4">
-              Une plateforme, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">toutes les solutions</span>
+              {t("landing.sections.platformTitleA")} <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{t("landing.sections.platformTitleB")}</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Chaque outil dont vous avez besoin pour lancer et développer votre activité en ligne
+              {t("landing.sections.platformSub")}
             </p>
           </div>
         </section>
@@ -208,14 +211,14 @@ const Index = () => {
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">3 étapes pour démarrer</h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Une expérience simplifiée pour créer du contenu de qualité pro</p>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">{t("landing.sections.stepsTitle")}</h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{t("landing.sections.stepsSub")}</p>
             </div>
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
               {[
-                { step: "1", title: "Créez votre compte", desc: "Inscription gratuite en 30 secondes.", color: "bg-primary" },
-                { step: "2", title: "Choisissez votre outil", desc: "Visuels IA, boutique, site vitrine ou formation.", color: "bg-secondary" },
-                { step: "3", title: "Lancez-vous !", desc: "Publiez, vendez et développez votre activité.", color: "bg-gradient-to-r from-primary to-secondary" },
+                { step: "1", title: t("landing.sections.step1Title"), desc: t("landing.sections.step1Desc"), color: "bg-primary" },
+                { step: "2", title: t("landing.sections.step2Title"), desc: t("landing.sections.step2Desc"), color: "bg-secondary" },
+                { step: "3", title: t("landing.sections.step3Title"), desc: t("landing.sections.step3Desc"), color: "bg-gradient-to-r from-primary to-secondary" },
               ].map((item, idx) => (
                 <div key={idx} className="text-center group animate-fade-in" style={{ animationDelay: `${idx * 150}ms` }}>
                   <div className={`w-16 h-16 ${item.color} rounded-2xl flex items-center justify-center mx-auto mb-5 text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform`}>
@@ -287,7 +290,7 @@ const Index = () => {
           <div className="container mx-auto px-4">
             <div className="text-center mb-14">
               <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                Ils nous font <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">confiance</span>
+                {t("landing.sections.trustTitle")} <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{t("landing.sections.trustTitleB")}</span>
               </h2>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
@@ -328,12 +331,12 @@ const Index = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-primary via-purple-600 to-secondary opacity-90" />
               <div className="relative p-10 md:p-16 text-center text-white">
                 <Rocket className="w-12 h-12 mx-auto mb-6 opacity-90" />
-                <h2 className="text-3xl md:text-5xl font-extrabold mb-4">Prêt à transformer votre business ?</h2>
-                <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl mx-auto">Rejoignez les centaines d'entrepreneurs africains qui utilisent VisualPro pour réussir en ligne.</p>
+                <h2 className="text-3xl md:text-5xl font-extrabold mb-4">{t("landing.sections.ctaTitle")}</h2>
+                <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl mx-auto">{t("landing.sections.ctaSub")}</p>
                 <div className="flex justify-center w-full">
                   <Button size="lg" className="text-lg px-10 py-7 bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl font-bold" onClick={() => navigate("/auth")}>
                     <Wand2 className="mr-2 h-5 w-5" />
-                    Commencer gratuitement
+                    {t("landing.hero.ctaStart")}
                   </Button>
                 </div>
               </div>

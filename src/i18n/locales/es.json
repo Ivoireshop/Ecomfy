@@ -62,5 +62,59 @@
   "language": {
     "title": "Idioma de la aplicación",
     "description": "Elige el idioma de la interfaz de VisualPro."
+  },
+  "dashboard": {
+    "greetingMorning": "Buenos días",
+    "greetingEvening": "Buenas tardes",
+    "welcome": "bienvenido",
+    "subtitle": "Tu espacio de trabajo está listo. Elige tu herramienta."
+  },
+  "hub": {
+    "heading": "Elige tu herramienta",
+    "subheading": "Selecciona la acción que quieres realizar",
+    "services": {
+      "ads": { "title": "Visuales Publicitarios", "desc": "Crea imágenes IA profesionales", "cta": "Crear un visual" },
+      "videos": { "title": "Videos Animados", "desc": "Convierte tus visuales en videos", "cta": "Crear un video" },
+      "sites": { "title": "Sitios Vitrina", "desc": "Lanza tu sitio pro en minutos", "cta": "Crear un sitio" },
+      "shops": { "title": "Tiendas E-commerce", "desc": "Vende en línea con pagos integrados", "cta": "Crear una tienda" },
+      "courses": { "title": "Cursos en Línea", "desc": "Crea y vende cursos con certificados", "cta": "Crear un curso" },
+      "api": { "title": "API e Integraciones", "desc": "Conecta VisualPro a tus herramientas", "cta": "Ver la documentación API" }
+    }
+  },
+  "landing": {
+    "ticker": {
+      "ads": "🎨 Visuales publicitarios con IA",
+      "videos": "🎬 Videos animados profesionales",
+      "sites": "🌐 Sitios vitrina en minutos",
+      "shops": "🛒 Tiendas e-commerce completas",
+      "courses": "🎓 Cursos en línea con certificados",
+      "platform": "🚀 La plataforma todo-en-uno para emprendedores africanos",
+      "instant": "⚡ Resultados profesionales instantáneos"
+    },
+    "hero": {
+      "badge": "La plataforma todo-en-uno para emprendedores africanos",
+      "titleA": "Crea. Vende.",
+      "titleB": "Haz crecer tu negocio.",
+      "subtitle": "Visuales IA, videos animados, sitios vitrina, tiendas e-commerce y cursos en línea — todo lo que necesitas para triunfar en línea, desde una sola plataforma.",
+      "ctaStart": "Empezar gratis",
+      "ctaDiscover": "Descubrir la plataforma"
+    },
+    "sections": {
+      "platformTitleA": "Una plataforma,",
+      "platformTitleB": "todas las soluciones",
+      "platformSub": "Cada herramienta que necesitas para lanzar y hacer crecer tu negocio en línea",
+      "stepsTitle": "3 pasos para empezar",
+      "stepsSub": "Una experiencia simplificada para crear contenido de calidad pro",
+      "step1Title": "Crea tu cuenta",
+      "step1Desc": "Registro gratuito en 30 segundos.",
+      "step2Title": "Elige tu herramienta",
+      "step2Desc": "Visuales IA, tienda, sitio vitrina o curso.",
+      "step3Title": "¡Lánzate!",
+      "step3Desc": "Publica, vende y haz crecer tu actividad.",
+      "trustTitle": "Confían",
+      "trustTitleB": "en nosotros",
+      "ctaTitle": "¿Listo para transformar tu negocio?",
+      "ctaSub": "Únete a los cientos de emprendedores africanos que usan VisualPro para triunfar en línea."
+    }
   }
 }

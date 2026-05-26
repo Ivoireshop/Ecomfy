@@ -62,5 +62,59 @@
   "language": {
     "title": "App language",
     "description": "Choose the language for the VisualPro interface."
+  },
+  "dashboard": {
+    "greetingMorning": "Good morning",
+    "greetingEvening": "Good evening",
+    "welcome": "welcome",
+    "subtitle": "Your workspace is ready. Pick a tool to get started."
+  },
+  "hub": {
+    "heading": "Pick your tool",
+    "subheading": "Choose what you want to do next",
+    "services": {
+      "ads": { "title": "Ad Visuals", "desc": "Create professional AI images", "cta": "Create a visual" },
+      "videos": { "title": "Animated Videos", "desc": "Turn your visuals into videos", "cta": "Create a video" },
+      "sites": { "title": "Showcase Sites", "desc": "Launch a pro site in minutes", "cta": "Create a site" },
+      "shops": { "title": "E-commerce Shops", "desc": "Sell online with built-in payments", "cta": "Create a shop" },
+      "courses": { "title": "Online Courses", "desc": "Create and sell courses with certificates", "cta": "Create a course" },
+      "api": { "title": "API & Integrations", "desc": "Connect VisualPro to your tools", "cta": "View API docs" }
+    }
+  },
+  "landing": {
+    "ticker": {
+      "ads": "🎨 AI ad visuals",
+      "videos": "🎬 Professional animated videos",
+      "sites": "🌐 Showcase sites in minutes",
+      "shops": "🛒 Full e-commerce shops",
+      "courses": "🎓 Online courses with certificates",
+      "platform": "🚀 The all-in-one platform for African entrepreneurs",
+      "instant": "⚡ Instant professional results"
+    },
+    "hero": {
+      "badge": "The all-in-one platform for African entrepreneurs",
+      "titleA": "Create. Sell.",
+      "titleB": "Grow your business.",
+      "subtitle": "AI visuals, animated videos, showcase sites, e-commerce shops and online courses — everything you need to succeed online, from one platform.",
+      "ctaStart": "Start for free",
+      "ctaDiscover": "Explore the platform"
+    },
+    "sections": {
+      "platformTitleA": "One platform,",
+      "platformTitleB": "every solution",
+      "platformSub": "Every tool you need to launch and grow your business online",
+      "stepsTitle": "3 steps to get started",
+      "stepsSub": "A streamlined experience to create pro-quality content",
+      "step1Title": "Create your account",
+      "step1Desc": "Free signup in 30 seconds.",
+      "step2Title": "Pick your tool",
+      "step2Desc": "AI visuals, shop, showcase site or course.",
+      "step3Title": "Launch!",
+      "step3Desc": "Publish, sell and grow your business.",
+      "trustTitle": "They",
+      "trustTitleB": "trust us",
+      "ctaTitle": "Ready to transform your business?",
+      "ctaSub": "Join the hundreds of African entrepreneurs using VisualPro to succeed online."
+    }
   }
 }
