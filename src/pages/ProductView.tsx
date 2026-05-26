@@ -20,6 +20,7 @@ import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { ProductReviews } from "@/components/shop/ProductReviews";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
+import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 
 // Countdown Timer Component
 const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; days: number; hours: number; minutes: number }) => {
