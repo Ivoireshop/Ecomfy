@@ -1899,6 +1899,78 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_ai_assistants: {
+        Row: {
+          auto_open: boolean
+          conversation_language: string
+          created_at: string
+          custom_greeting: string | null
+          enabled: boolean
+          greeting_languages: string[]
+          id: string
+          manual_context: string | null
+          name: string
+          personality: string
+          shop_id: string
+          source_mode: string
+          updated_at: string
+          voice_enabled: boolean
+          voice_id: string
+          welcome_bubble: string | null
+        }
+        Insert: {
+          auto_open?: boolean
+          conversation_language?: string
+          created_at?: string
+          custom_greeting?: string | null
+          enabled?: boolean
+          greeting_languages?: string[]
+          id?: string
+          manual_context?: string | null
+          name?: string
+          personality?: string
+          shop_id: string
+          source_mode?: string
+          updated_at?: string
+          voice_enabled?: boolean
+          voice_id?: string
+          welcome_bubble?: string | null
+        }
+        Update: {
+          auto_open?: boolean
+          conversation_language?: string
+          created_at?: string
+          custom_greeting?: string | null
+          enabled?: boolean
+          greeting_languages?: string[]
+          id?: string
+          manual_context?: string | null
+          name?: string
+          personality?: string
+          shop_id?: string
+          source_mode?: string
+          updated_at?: string
+          voice_enabled?: boolean
+          voice_id?: string
+          welcome_bubble?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_ai_assistants_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: true
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_ai_assistants_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: true
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_collaborators: {
         Row: {
           accepted_at: string | null
