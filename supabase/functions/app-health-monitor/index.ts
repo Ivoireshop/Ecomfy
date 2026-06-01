@@ -147,6 +147,98 @@ Deno.serve(async (req) => {
     });
   } catch { /* table optional */ }
 
+  // 8) Sites vitrines (showcase) reachable
+  try {
+    const { error } = await admin.from("showcase_sites").select("id", { count: "exact", head: true }).limit(1);
+    probes.push({
+      key: "db.showcase.read",
+      category: "showcase",
+      title: "Lecture sites vitrines",
+      ok: !error,
+      severity: "critical",
+      description: error?.message,
+    });
+  } catch (e) {
+    probes.push({ key: "db.showcase.read", category: "showcase", title: "Lecture sites vitrines", ok: false, severity: "critical", description: String(e) });
+  }
+
+  // 9) Formations en ligne (courses) reachable + inscriptions actives
+  try {
+    const { error: cErr, count: courses } = await admin.from("courses").select("id", { count: "exact", head: true });
+    probes.push({
+      key: "db.courses.read",
+      category: "courses",
+      title: "Lecture formations en ligne",
+      ok: !cErr,
+      severity: "critical",
+      description: cErr?.message,
+      metadata: { total_courses: courses },
+    });
+    const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    const { count: enrollments } = await admin.from("enrollments").select("id", { count: "exact", head: true }).gte("created_at", since);
+    probes.push({
+      key: "courses.enrollments.7d",
+      category: "courses",
+      title: "Inscriptions formations (7j)",
+      ok: true, // informational only
+      severity: "info",
+      metadata: { enrollments_7d: enrollments },
+    });
+  } catch (e) {
+    probes.push({ key: "db.courses.read", category: "courses", title: "Lecture formations en ligne", ok: false, severity: "warning", description: String(e) });
+  }
+
+  // 10) Visuels publicitaires (image generation)
+  try {
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count: images24h } = await admin.from("generated_images").select("id", { count: "exact", head: true }).gte("created_at", since);
+    probes.push({
+      key: "generation.images.24h",
+      category: "visuals",
+      title: "Génération de visuels (24h)",
+      ok: true,
+      severity: "info",
+      metadata: { images_24h: images24h },
+    });
+  } catch (e) {
+    probes.push({ key: "generation.images.24h", category: "visuals", title: "Génération de visuels (24h)", ok: false, severity: "info", description: String(e) });
+  }
+
+  // 11) Vidéos publicitaires
+  try {
+    const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    const { count: videos7d } = await admin.from("generated_videos").select("id", { count: "exact", head: true }).gte("created_at", since);
+    probes.push({
+      key: "generation.videos.7d",
+      category: "videos",
+      title: "Génération de vidéos (7j)",
+      ok: true,
+      severity: "info",
+      metadata: { videos_7d: videos7d },
+    });
+  } catch (e) {
+    probes.push({ key: "generation.videos.7d", category: "videos", title: "Génération de vidéos (7j)", ok: false, severity: "info", description: String(e) });
+  }
+
+  // 12) Comptes publicitaires connectés (Meta token expiry monitoring)
+  try {
+    const soon = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    const { count: expiring } = await admin
+      .from("ad_accounts")
+      .select("id", { count: "exact", head: true })
+      .not("token_expires_at", "is", null)
+      .lt("token_expires_at", soon);
+    probes.push({
+      key: "ads.tokens.expiring",
+      category: "ads",
+      title: "Tokens publicitaires expirant <7j",
+      ok: (expiring ?? 0) === 0,
+      severity: "warning",
+      description: (expiring ?? 0) > 0 ? `${expiring} compte(s) publicitaire(s) avec un token qui expire bientôt.` : undefined,
+      metadata: { expiring_count: expiring },
+    });
+  } catch { /* optional */ }
+
   // Persist incidents (record failures, resolve recoveries)
   const newIncidents: Array<{ title: string; category: string; severity: string; description?: string; occurrence_count?: number }> = [];
 
