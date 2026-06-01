@@ -731,6 +731,49 @@ export default function FounderTroubleshooting() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <History className="h-5 w-5" /> Journal d'audit des interventions
+                  <Badge variant="outline" className="ml-auto">{auditEntries.length} entrée(s)</Badge>
+                </CardTitle>
+                <CardDescription>
+                  Chaque correctif appliqué est enregistré côté serveur avec l'auteur, la date et le résultat. Lecture réservée aux fondateurs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {auditEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Aucune intervention enregistrée pour l'instant.</p>
+                ) : (
+                  <div className="space-y-2 max-h-[460px] overflow-y-auto">
+                    {auditEntries.map((entry) => (
+                      <div key={entry.id} className={`rounded-md border p-3 text-sm ${entry.success ? "" : "border-destructive/40 bg-destructive/5"}`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={entry.success ? "default" : "destructive"} className="text-[10px] uppercase">
+                            {entry.success ? "OK" : "Échec"}
+                          </Badge>
+                          <code className="text-xs font-mono">{entry.action}</code>
+                          {entry.duration_ms != null && (
+                            <span className="text-[11px] text-muted-foreground">{entry.duration_ms} ms</span>
+                          )}
+                          <span className="text-[11px] text-muted-foreground ml-auto">{formatDate(entry.created_at)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          par <span className="font-medium text-foreground">{entry.actor_email ?? "inconnu"}</span>
+                          {entry.params && Object.keys(entry.params).length > 0 && (
+                            <> · params : <code className="font-mono">{JSON.stringify(entry.params)}</code></>
+                          )}
+                        </p>
+                        {entry.error && (
+                          <p className="text-xs text-destructive mt-1 break-words"><strong>Erreur :</strong> {entry.error}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
