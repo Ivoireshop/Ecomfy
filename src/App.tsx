@@ -64,6 +64,7 @@ const VideoCreator = lazy(() => import("./pages/VideoCreator"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const OrdersDiagnostic = lazy(() => import("./pages/OrdersDiagnostic"));
 const AcceptShopInvite = lazy(() => import("./pages/AcceptShopInvite"));
+const Documentation = lazy(() => import("./pages/Documentation"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
@@ -289,6 +290,7 @@ const AppContent = () => {
           <Route path="/shop/:slug/p/:productSlug" element={<ProductView /> } />
           <Route path="/order-confirmed" element={<OrderConfirmed />} />
           <Route path="/accept-shop-invite" element={<AcceptShopInvite />} />
+          <Route path="/docs" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

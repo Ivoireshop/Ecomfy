@@ -1,6 +1,6 @@
 import { 
   Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, 
-  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt, BookOpen, Activity, Bug
+  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt, BookOpen, Activity, Bug, Book
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -142,6 +142,7 @@ export function AppSidebar() {
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
     { title: t("sidebar.items.ordersDiag"), url: "/orders-diagnostic", icon: Activity },
+    { title: "Documentation", url: "/docs", icon: Book },
     { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },
   ];
 
