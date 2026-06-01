@@ -70,11 +70,13 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
   const onSubmit = async (values: BookingFormValues) => {
     setIsSubmitting(true);
     try {
+      const { normalizeToE164 } = await import("@/lib/phoneCountries");
+      const normalizedPhone = values.phone ? (normalizeToE164(values.phone) || values.phone) : values.phone;
       const bookingData = {
         showcase_site_id: showcaseSiteId,
         full_name: values.full_name,
         email: values.email,
-        phone: values.phone,
+        phone: normalizedPhone,
         booking_date: format(values.booking_date, "yyyy-MM-dd"),
         booking_time: values.booking_time,
         service_type: values.service_type,
@@ -102,7 +104,7 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
         showcase_site_id: showcaseSiteId,
         full_name: values.full_name,
         email: values.email,
-        phone: values.phone,
+        phone: normalizedPhone,
         message: notificationMessage,
         status: "new",
       });
@@ -115,7 +117,7 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
             bookingDetails: {
               full_name: values.full_name,
               email: values.email,
-              phone: values.phone,
+              phone: normalizedPhone,
               booking_date: format(values.booking_date, "yyyy-MM-dd"),
               booking_time: values.booking_time,
               service_type: values.service_type,

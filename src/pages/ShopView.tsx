@@ -19,7 +19,7 @@ import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
-import { isValidFullPhone } from "@/lib/phoneCountries";
+import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 
 interface Product {
   id: string;
@@ -137,7 +137,7 @@ const ShopView = () => {
           shop_id: shop.id,
           session_id: sessionIdRef.current,
           customer_name: customerInfo.name || null,
-          customer_phone: customerInfo.phone || null,
+          customer_phone: customerInfo.phone ? (normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone) : null,
           customer_email: customerInfo.email || null,
           customer_city: customerInfo.city || null,
           customer_address: customerInfo.address || null,
@@ -407,6 +407,7 @@ const ShopView = () => {
     }
     setOrderLoading(true);
     try {
+      const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
       const commissionAmount = cartTotal * (shop.commission_rate || 0.025);
       const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
       const orderId = (crypto as any).randomUUID();
@@ -423,7 +424,7 @@ const ShopView = () => {
         id: orderId,
         shop_id: shop.id, order_number: orderNumber,
         customer_name: customerInfo.name, customer_email: customerInfo.email,
-        customer_phone: customerInfo.phone, customer_address: customerInfo.address,
+        customer_phone: normalizedPhone, customer_address: customerInfo.address,
         customer_city: customerInfo.city, subtotal: cartTotal,
         commission_amount: commissionAmount, total: cartTotal,
         payment_method: customerInfo.paymentMethod,
@@ -456,7 +457,7 @@ const ShopView = () => {
         contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
         num_items: cart.reduce((s, c) => s + c.quantity, 0),
         email: customerInfo.email,
-        phone: customerInfo.phone,
+        phone: normalizedPhone,
         first_name: customerInfo.name,
         city: customerInfo.city,
       });
