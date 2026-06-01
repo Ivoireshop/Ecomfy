@@ -9,7 +9,13 @@ type Action =
   | "retry_stuck_payments"
   | "release_stuck_queue"
   | "purge_translation_cache_table"
-  | "test_email_alert";
+  | "test_email_alert"
+  | "purge_resolved_incidents"
+  | "rebuild_shop_order_stats"
+  | "requeue_failed_emails"
+  | "reset_email_rate_limit"
+  | "clear_expired_unsubscribe_tokens"
+  | "vacuum_image_cache";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -125,6 +131,81 @@ Deno.serve(async (req) => {
           },
         });
         return jsonOk({ success: !error, error: error?.message });
+      }
+
+      case "purge_resolved_incidents": {
+        // Delete incidents resolved more than 30 days ago to keep the table lean
+        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await admin
+          .from("app_incidents")
+          .delete()
+          .eq("status", "resolved")
+          .lt("resolved_at", cutoff)
+          .select("id");
+        return jsonOk({ success: !error, deleted: data?.length ?? 0, error: error?.message });
+      }
+
+      case "rebuild_shop_order_stats": {
+        // Recompute total_orders on shops from the orders table (best-effort)
+        const { data: agg, error: aggErr } = await admin
+          .from("orders")
+          .select("shop_id");
+        if (aggErr) return jsonOk({ success: false, error: aggErr.message });
+        const counts = new Map<string, number>();
+        for (const row of agg ?? []) {
+          const sid = (row as any).shop_id as string | null;
+          if (!sid) continue;
+          counts.set(sid, (counts.get(sid) ?? 0) + 1);
+        }
+        let updated = 0;
+        for (const [shop_id, total_orders] of counts) {
+          const { error } = await admin.from("shops").update({ total_orders }).eq("id", shop_id);
+          if (!error) updated++;
+        }
+        return jsonOk({ success: true, updated });
+      }
+
+      case "requeue_failed_emails": {
+        // Move recently failed (last 24h) email log entries back to pending so the queue retries them
+        const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await admin
+          .from("email_send_log")
+          .update({ status: "pending", retry_count: 0, next_retry_at: new Date().toISOString() })
+          .in("status", ["failed", "dlq"])
+          .gte("created_at", cutoff)
+          .select("id");
+        return jsonOk({ success: !error, requeued: data?.length ?? 0, error: error?.message });
+      }
+
+      case "reset_email_rate_limit": {
+        // Clear any rate-limit hold so the dispatcher resumes immediately
+        const { error } = await admin
+          .from("email_send_state")
+          .update({ rate_limit_until: null, last_rate_limit_seconds: null, updated_at: new Date().toISOString() })
+          .eq("id", 1);
+        return jsonOk({ success: !error, error: error?.message });
+      }
+
+      case "clear_expired_unsubscribe_tokens": {
+        // Best-effort: token table is small; purge entries older than 1 year
+        const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await admin
+          .from("email_unsubscribe_tokens")
+          .delete()
+          .lt("created_at", cutoff)
+          .select("id");
+        return jsonOk({ success: !error, deleted: data?.length ?? 0, error: error?.message });
+      }
+
+      case "vacuum_image_cache": {
+        // Delete cache entries not accessed in 60 days
+        const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await admin
+          .from("image_cache")
+          .delete()
+          .lt("last_accessed_at", cutoff)
+          .select("id");
+        return jsonOk({ success: !error, deleted: data?.length ?? 0, error: error?.message });
       }
 
       default:
