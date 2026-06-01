@@ -18,6 +18,8 @@ import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
+import { PhoneInput } from "@/components/shop/PhoneInput";
+import { isValidFullPhone } from "@/lib/phoneCountries";
 
 interface Product {
   id: string;
