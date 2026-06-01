@@ -137,7 +137,7 @@ const ShopView = () => {
           shop_id: shop.id,
           session_id: sessionIdRef.current,
           customer_name: customerInfo.name || null,
-          customer_phone: customerInfo.phone || null,
+          customer_phone: customerInfo.phone ? (normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone) : null,
           customer_email: customerInfo.email || null,
           customer_city: customerInfo.city || null,
           customer_address: customerInfo.address || null,
