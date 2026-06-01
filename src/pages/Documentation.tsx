@@ -632,6 +632,183 @@ CREATE POLICY ... ;` },
   },
 ];
 
+/* -------------------- Banque de prompts & payloads IA -------------------- */
+SECTIONS.push(
+  {
+    id: "ai-prompts-bank",
+    title: "Banque de prompts IA — bonnes pratiques",
+    icon: Boxes,
+    category: "Prompts IA",
+    summary: "Principes de rédaction des prompts pour images, vidéos, slogans et formats.",
+    body: [
+      { type: "p", text: "Cette banque regroupe les prompts et payloads de référence utilisés par la plateforme. Les prompts vivent côté backend (edge functions) — jamais côté client — et sont versionnés ici pour cohérence visuelle et qualité." },
+      { type: "h", text: "Anatomie d'un bon prompt" },
+      { type: "ul", items: [
+        "Sujet : qui/quoi est dans l'image (produit, modèle, scène).",
+        "Contexte : lieu, ambiance, saison, moment de la journée.",
+        "Style : photoréaliste, illustration plate, 3D, éditorial mode...",
+        "Composition : cadrage (plan large, gros plan), angle, règle des tiers.",
+        "Lumière : naturelle, studio softbox, contre-jour, néon.",
+        "Palette : couleurs dominantes en HEX ou nom (terracotta, sage).",
+        "Contraintes négatives : ce qu'il faut éviter (texte parasite, watermark, déformations).",
+        "Format de sortie : ratio (1:1, 9:16, 16:9), résolution, transparence.",
+      ]},
+      { type: "callout", tone: "info", text: "Règle d'or : un prompt clair en 4–6 phrases > un mur de tags. Toujours préciser ratio + style + lumière." },
+      { type: "h", text: "Formats recommandés par usage" },
+      { type: "table", head: ["Usage", "Ratio", "Résolution", "Modèle conseillé"], rows: [
+        ["Post Instagram / Facebook feed", "1:1", "1024×1024", "openai/gpt-image-1"],
+        ["Story / Reels / TikTok", "9:16", "1024×1820", "google/gemini-2.5-flash-image"],
+        ["Bannière site / cover Facebook", "16:9", "1820×1024", "openai/gpt-image-1"],
+        ["Vignette produit e-commerce", "1:1 fond uni", "1024×1024", "openai/gpt-image-1 (quality high)"],
+        ["Carrousel publicitaire", "4:5", "1024×1280", "google/gemini-2.5-flash-image"],
+        ["Vidéo publicitaire courte", "9:16 ou 1:1", "720p, 5–10s", "minimax (Replicate)"],
+      ]},
+      { type: "h", text: "Choix du modèle" },
+      { type: "ul", items: [
+        "openai/gpt-image-1 : meilleure fidélité texte/produit, lent, coûteux. Défaut pour produit e-commerce.",
+        "google/gemini-2.5-flash-image (Nano Banana) : rapide, bon édition d'image existante, idéal social media.",
+        "minimax (Replicate) : génération vidéo image-to-video, 5–10 secondes, fallback Cloudinary zoompan.",
+        "openai/gpt-5-mini : rédaction de slogans, descriptions produit, légendes social.",
+      ]},
+    ],
+  },
+  {
+    id: "ai-prompts-image",
+    title: "Exemples — Génération d'image (produit & ad)",
+    icon: ImageIcon,
+    category: "Prompts IA",
+    summary: "Prompts et payloads concrets pour visuels produit et publicités.",
+    body: [
+      { type: "h", text: "Visuel produit (fond blanc studio)" },
+      { type: "code", lang: "text", text:
+`Photo studio professionnelle d'un sac à main en cuir camel posé sur fond
+blanc pur, vue de trois-quarts, lumière softbox douce sans ombre dure,
+mise au point nette sur la couture, style packshot e-commerce premium.
+Format carré 1:1. Aucun texte, aucun watermark, aucune main visible.` },
+      { type: "h", text: "Publicité lifestyle — modèle africain" },
+      { type: "code", lang: "text", text:
+`Jeune femme africaine souriante, peau ébène, tenant une bouteille de
+sérum capillaire devant un mur en terracotta baigné de soleil dorée
+de fin d'après-midi. Cadrage portrait 4:5, style éditorial mode,
+grain photo subtil, palette warm sand. Espace négatif en haut à
+droite pour insertion de texte.` },
+      { type: "h", text: "Payload — appel via edge function generate-ai-image" },
+      { type: "code", lang: "json", text:
+`{
+  "prompt": "<prompt ci-dessus>",
+  "model": "openai/gpt-image-1",
+  "size": "1024x1024",
+  "quality": "high",
+  "n": 1,
+  "user_id": "<uuid>",
+  "mode": "simple"
+}` },
+      { type: "h", text: "Payload — édition / remplacement (mode Replacement)" },
+      { type: "code", lang: "json", text:
+`{
+  "mode": "replacement",
+  "source_image_url": "https://.../produit.jpg",
+  "prompt": "Remplace le fond par un décor de plage ivoirienne au coucher du soleil, garde le produit identique.",
+  "model": "google/gemini-2.5-flash-image"
+}` },
+      { type: "callout", tone: "warn", text: "Toujours inclure « aucun texte, aucun watermark » pour éviter texte parasite inventé. Préciser le ratio dans le prompt ET dans size." },
+    ],
+  },
+  {
+    id: "ai-prompts-video",
+    title: "Exemples — Génération vidéo publicitaire",
+    icon: Video,
+    category: "Prompts IA",
+    summary: "Prompts image-to-video pour Minimax + fallback Cloudinary.",
+    body: [
+      { type: "p", text: "La génération vidéo prend une image source + un prompt de mouvement. Durée 5–10s. Le pipeline est : generate-video → Replicate (minimax) → polling → fallback create-video-from-image (Cloudinary zoompan) si échec." },
+      { type: "h", text: "Prompts de mouvement — bibliothèque" },
+      { type: "table", head: ["Intention", "Prompt mouvement"], rows: [
+        ["Zoom produit doux", "Slow cinematic zoom-in on the product, subtle parallax, soft handheld feel."],
+        ["Rotation 360 produit", "Smooth 360 turntable rotation of the product on its axis, constant lighting."],
+        ["Modèle qui sourit", "The model slowly turns head toward camera and smiles softly, natural blink."],
+        ["Ambiance lifestyle", "Gentle camera dolly forward, leaves swaying in background, golden hour light shift."],
+        ["Réveil produit", "Product appears from soft light burst, slow reveal, premium unboxing vibe."],
+      ]},
+      { type: "h", text: "Payload — generate-video" },
+      { type: "code", lang: "json", text:
+`{
+  "image_url": "https://.../source.jpg",
+  "prompt": "Slow cinematic zoom-in on the product, subtle parallax, soft handheld feel.",
+  "duration": 6,
+  "aspect_ratio": "9:16",
+  "user_id": "<uuid>"
+}` },
+      { type: "callout", tone: "info", text: "Rédiger les prompts vidéo en anglais : Minimax interprète mieux. Garder court (1–2 phrases) et focaliser sur LE mouvement principal." },
+      { type: "callout", tone: "warn", text: "Éviter les changements de scène ou de personnage dans un même prompt vidéo — le modèle hallucine. Une seule intention par génération." },
+    ],
+  },
+  {
+    id: "ai-prompts-copy",
+    title: "Exemples — Slogans, descriptions, légendes",
+    icon: FileText,
+    category: "Prompts IA",
+    summary: "Prompts texte pour copywriting publicitaire (FCFA, marché ivoirien).",
+    body: [
+      { type: "h", text: "Slogans publicitaires courts" },
+      { type: "code", lang: "text", text:
+`Génère 5 slogans publicitaires en français pour {{nom_produit}},
+un {{categorie}} vendu en Côte d'Ivoire au prix de {{prix}} FCFA.
+Contraintes :
+- Maximum 8 mots par slogan
+- Ton {{ton}} (chaleureux | premium | urgent | décalé)
+- Inclure un bénéfice client concret
+- Adapté au marché ivoirien (références locales bienvenues)
+- Pas d'emoji, pas de hashtag
+Retourne uniquement la liste numérotée.` },
+      { type: "h", text: "Description produit e-commerce" },
+      { type: "code", lang: "text", text:
+`Rédige une fiche produit en français pour {{nom_produit}}.
+Structure :
+1. Accroche émotionnelle (1 phrase)
+2. 3 bénéfices clés (puces)
+3. Caractéristiques techniques (puces)
+4. Appel à l'action mentionnant le prix {{prix}} FCFA et la livraison à Abidjan
+Ton : confiant, chaleureux. 150 mots maximum. Pas de superlatifs creux.` },
+      { type: "h", text: "Légende Instagram / TikTok" },
+      { type: "code", lang: "text", text:
+`Légende courte (max 200 caractères) en français pour un post {{plateforme}}
+présentant {{nom_produit}}. Inclure 1 question d'engagement et 3 hashtags
+locaux pertinents (Côte d'Ivoire, Abidjan, secteur {{categorie}}).` },
+      { type: "h", text: "Payload — appel chat completions via AI Gateway" },
+      { type: "code", lang: "json", text:
+`{
+  "model": "openai/gpt-5-mini",
+  "messages": [
+    { "role": "system", "content": "Tu es un copywriter publicitaire ivoirien. Tu écris court, concret, sans superlatifs creux. Devise FCFA." },
+    { "role": "user", "content": "<prompt ci-dessus avec variables remplies>" }
+  ],
+  "temperature": 0.8
+}` },
+    ],
+  },
+  {
+    id: "ai-prompts-checklist",
+    title: "Checklist qualité avant génération",
+    icon: ShieldCheck,
+    category: "Prompts IA",
+    summary: "À vérifier systématiquement avant de lancer une génération coûteuse.",
+    body: [
+      { type: "ul", items: [
+        "Le prompt précise-t-il le ratio (1:1, 9:16, 16:9) ?",
+        "Le style est-il explicite (photoréaliste, illustration, éditorial) ?",
+        "La lumière est-elle décrite (softbox, golden hour, néon) ?",
+        "Y a-t-il des contraintes négatives (« aucun texte, aucun watermark ») ?",
+        "Le modèle choisi correspond-il à l'usage (produit → gpt-image-1, social rapide → Gemini) ?",
+        "Pour la vidéo : une seule intention de mouvement ? Prompt en anglais ?",
+        "Pour le texte : devise FCFA mentionnée ? Ton et longueur cadrés ?",
+        "Le cache SHA-256 va-t-il s'appliquer (mêmes paramètres → résultat réutilisé 30j) ?",
+      ]},
+      { type: "callout", tone: "danger", text: "Ne jamais exposer un prompt système côté client. Toujours injecter les variables dans l'edge function pour éviter prompt injection." },
+    ],
+  },
+);
+
 const CATEGORIES = Array.from(new Set(SECTIONS.map((s) => s.category)));
 
 /* ------------------------------------------------------------------ */
