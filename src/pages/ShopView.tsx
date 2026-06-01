@@ -1015,7 +1015,12 @@ const ShopView = () => {
                       {enabled("phone") && (
                         <div className="space-y-0.5 col-span-2">
                           <Label className="text-[11px] text-muted-foreground">Téléphone {required("phone") && "*"}</Label>
-                          <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-lg h-10 text-sm" />
+                          <PhoneInput
+                            value={customerInfo.phone}
+                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                            defaultCountryHint={shop?.country}
+                            required={required("phone")}
+                          />
                         </div>
                       )}
                       {enabled("email") && (
