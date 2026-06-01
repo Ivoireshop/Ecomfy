@@ -871,7 +871,13 @@ const ProductView = () => {
                           {isEnabled("phone") && (
                             <div className="space-y-1">
                               <Label className="text-xs text-gray-500">Téléphone {isRequired("phone") && "*"}</Label>
-                              <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-xl h-11" />
+                              <PhoneInput
+                                value={customerInfo.phone}
+                                onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                                defaultCountryHint={shop?.country}
+                                required={isRequired("phone")}
+                                inputClassName="h-11"
+                              />
                             </div>
                           )}
                           {isEnabled("email") && (
@@ -951,7 +957,7 @@ const ProductView = () => {
                     };
                     const canSubmit =
                       (!isEnabled("first_name") || !isRequired("first_name") || !!customerInfo.name) &&
-                      (!isEnabled("phone") || !isRequired("phone") || !!customerInfo.phone) &&
+                      (!isEnabled("phone") || (!isRequired("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                       (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
                       (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
                       (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
@@ -1188,7 +1194,7 @@ const ProductView = () => {
                 const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
                 const canSubmit =
                   (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
-                  (!enabled("phone") || !required("phone") || !!customerInfo.phone) &&
+                  (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                   (!enabled("city") || !required("city") || !!customerInfo.city) &&
                   (!enabled("address") || !required("address") || !!customerInfo.address);
                 const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
@@ -1230,7 +1236,12 @@ const ProductView = () => {
                       {enabled("phone") && (
                         <div className="space-y-0.5 col-span-2">
                           <Label className="text-[11px] text-gray-500">Téléphone {required("phone") && "*"}</Label>
-                          <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-lg h-10 text-sm" />
+                          <PhoneInput
+                            value={customerInfo.phone}
+                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                            defaultCountryHint={shop?.country}
+                            required={required("phone")}
+                          />
                         </div>
                       )}
                       {enabled("email") && (
