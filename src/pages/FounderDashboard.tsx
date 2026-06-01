@@ -16,7 +16,8 @@ import {
   XCircle,
   Store,
   GraduationCap,
-  Globe
+  Globe,
+  Bug
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import {
@@ -1291,6 +1292,14 @@ const FounderDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => navigate("/founder-troubleshooting")}
+              >
+                <Bug className="h-6 w-6" />
+                <span>Centre de Dépannage</span>
+              </Button>
               <Button
                 variant="outline"
                 className="h-auto py-4 flex flex-col items-center gap-2"
