@@ -32,6 +32,10 @@ import {
   Image as ImageIcon,
   Video,
   Megaphone,
+  Code2,
+  Github,
+  Download,
+  ShieldAlert,
 } from "lucide-react";
 
 type CheckStatus = "ok" | "warn" | "error";
@@ -417,7 +421,7 @@ export default function FounderTroubleshooting() {
         </div>
 
         <Tabs defaultValue="checks" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
             <TabsTrigger value="global" className="gap-1">
               <Heart className="h-3.5 w-3.5" /> Santé globale
               {openIncidents.length > 0 && (
@@ -429,6 +433,9 @@ export default function FounderTroubleshooting() {
             <TabsTrigger value="checks">État app</TabsTrigger>
             <TabsTrigger value="modules">Modules</TabsTrigger>
             <TabsTrigger value="commerce">Commerce</TabsTrigger>
+            <TabsTrigger value="interventions" className="gap-1">
+              <Code2 className="h-3.5 w-3.5" /> Interventions
+            </TabsTrigger>
             <TabsTrigger value="links">Liens</TabsTrigger>
           </TabsList>
 
@@ -652,6 +659,56 @@ export default function FounderTroubleshooting() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="interventions" className="mt-4 space-y-4">
+            <Card className="border-amber-500/40 bg-amber-500/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldAlert className="h-5 w-5 text-amber-600" /> Interventions techniques avancées
+                </CardTitle>
+                <CardDescription>
+                  Catalogue de correctifs open-source applicables sans passer par l'éditeur. Chaque action est exécutée côté serveur avec vos droits de fondateur et journalisée. À utiliser uniquement si une fonctionnalité est cassée pour tous les utilisateurs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {TECH_PATCHES.map((p) => (
+                  <PatchCard
+                    key={p.action}
+                    patch={p}
+                    busy={runningAction === p.action}
+                    onApply={() => runRemediation(p.action, {}, p.successLabel)}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Github className="h-5 w-5" /> Escalade & ressources externes
+                </CardTitle>
+                <CardDescription>
+                  Quand un correctif majeur requiert du code, exportez un bundle de diagnostic et partagez-le avec votre équipe technique.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                <Button variant="outline" onClick={() => downloadDiagnosticBundle({ checks, incidents, shops, orders, payments, modules })} className="gap-2 w-full sm:w-auto">
+                  <Download className="h-4 w-4" /> Télécharger le bundle de diagnostic (.json)
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Contient l'état des sondes, les 50 derniers incidents, et un échantillon de boutiques / commandes / paiements. Aucune donnée sensible (mots de passe, tokens) n'est incluse.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button variant="outline" asChild>
+                    <a href="https://wa.me/2250758151527" target="_blank" rel="noreferrer">Contact technique WhatsApp</a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link to="/api-documentation">Documentation interne</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -752,6 +809,125 @@ function ModuleCard({ icon, title, stats, href }: { icon: React.ReactNode; title
       </CardContent>
     </Card>
   );
+}
+
+type TechPatch = {
+  action: string;
+  title: string;
+  description: string;
+  category: "data" | "email" | "queue" | "maintenance";
+  destructive?: boolean;
+  successLabel: string;
+};
+
+const TECH_PATCHES: TechPatch[] = [
+  {
+    action: "rebuild_shop_order_stats",
+    title: "Recalculer les statistiques boutiques",
+    description: "Reconstruit le compteur total_orders de chaque boutique à partir de la table commandes. Corrige les chiffres faux après un import ou une suppression.",
+    category: "data",
+    successLabel: "Statistiques boutiques recalculées",
+  },
+  {
+    action: "requeue_failed_emails",
+    title: "Renvoyer les emails en échec (24h)",
+    description: "Repasse en file d'attente les emails échoués ou en dead-letter sur les dernières 24h. Utile après une panne du fournisseur d'email.",
+    category: "email",
+    successLabel: "Emails remis en file",
+  },
+  {
+    action: "reset_email_rate_limit",
+    title: "Lever le blocage de débit emails",
+    description: "Efface la fenêtre de rate-limit côté serveur pour que la file recommence à envoyer immédiatement.",
+    category: "email",
+    successLabel: "Rate-limit emails levé",
+  },
+  {
+    action: "release_stuck_queue",
+    title: "Libérer la file de génération bloquée",
+    description: "Réinitialise à 'pending' les générations bloquées en cours depuis plus de 15 minutes.",
+    category: "queue",
+    successLabel: "File de génération libérée",
+  },
+  {
+    action: "retry_stuck_payments",
+    title: "Marquer les paiements pendants (>1h) comme échoués",
+    description: "Permet aux clients de relancer un nouveau paiement. N'effectue aucun mouvement d'argent.",
+    category: "data",
+    destructive: true,
+    successLabel: "Paiements bloqués nettoyés",
+  },
+  {
+    action: "purge_resolved_incidents",
+    title: "Purger les incidents résolus (>30j)",
+    description: "Allège la table des incidents en supprimant ceux résolus il y a plus de 30 jours.",
+    category: "maintenance",
+    successLabel: "Incidents archivés purgés",
+  },
+  {
+    action: "vacuum_image_cache",
+    title: "Vider le cache d'images inutilisé (>60j)",
+    description: "Supprime du cache les entrées non consultées depuis 60 jours pour libérer de l'espace.",
+    category: "maintenance",
+    successLabel: "Cache images nettoyé",
+  },
+  {
+    action: "clear_expired_unsubscribe_tokens",
+    title: "Purger les jetons de désinscription anciens (>1 an)",
+    description: "Maintenance de la table des tokens d'unsubscribe email.",
+    category: "maintenance",
+    successLabel: "Jetons anciens supprimés",
+  },
+];
+
+function PatchCard({ patch, busy, onApply }: { patch: TechPatch; busy: boolean; onApply: () => void }) {
+  const catColor: Record<TechPatch["category"], string> = {
+    data: "border-primary/30 bg-primary/5 text-primary",
+    email: "border-blue-500/30 bg-blue-500/5 text-blue-600",
+    queue: "border-violet-500/30 bg-violet-500/5 text-violet-600",
+    maintenance: "border-muted-foreground/30 bg-muted text-muted-foreground",
+  };
+  return (
+    <div className="rounded-md border p-3 flex flex-col gap-2 bg-background">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge variant="outline" className={`text-[10px] uppercase ${catColor[patch.category]}`}>{patch.category}</Badge>
+        {patch.destructive && <Badge variant="destructive" className="text-[10px]">destructif</Badge>}
+      </div>
+      <p className="font-medium text-sm">{patch.title}</p>
+      <p className="text-xs text-muted-foreground flex-1">{patch.description}</p>
+      <Button
+        size="sm"
+        variant={patch.destructive ? "destructive" : "outline"}
+        onClick={() => {
+          if (patch.destructive && !window.confirm(`Confirmer : ${patch.title} ?\nCette action est irréversible.`)) return;
+          onApply();
+        }}
+        disabled={busy}
+        className="gap-2 mt-1"
+      >
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wrench className="h-3.5 w-3.5" />}
+        Appliquer le correctif
+      </Button>
+    </div>
+  );
+}
+
+function downloadDiagnosticBundle(payload: Record<string, unknown>) {
+  const bundle = {
+    generated_at: new Date().toISOString(),
+    app: "visualpro",
+    version: 1,
+    ...payload,
+  };
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `visualpro-diagnostic-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function IncidentRow({ incident, onResolve, busy }: { incident: Incident; onResolve: () => void; busy: boolean }) {
