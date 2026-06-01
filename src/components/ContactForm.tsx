@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
+import { normalizeToE164 } from "@/lib/phoneCountries";
 
 interface ContactFormProps {
   showcaseSiteId: string;
@@ -31,11 +32,14 @@ export function ContactForm({ showcaseSiteId, businessName, theme }: ContactForm
     setIsSubmitting(true);
 
     try {
+      const normalizedPhone = formData.phone
+        ? (normalizeToE164(formData.phone) || formData.phone)
+        : null;
       const { error } = await supabase.from("contact_submissions").insert({
         showcase_site_id: showcaseSiteId,
         full_name: formData.fullName,
         email: formData.email,
-        phone: formData.phone || null,
+        phone: normalizedPhone,
         message: formData.message,
       });
 
@@ -48,7 +52,7 @@ export function ContactForm({ showcaseSiteId, businessName, theme }: ContactForm
             showcaseSiteId,
             contactName: formData.fullName,
             contactEmail: formData.email,
-            contactPhone: formData.phone,
+            contactPhone: normalizedPhone,
             message: formData.message,
           },
         });
