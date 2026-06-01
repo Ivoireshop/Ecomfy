@@ -724,6 +724,36 @@ function GlobalAction({ title, description, onClick, busy }: { title: string; de
   );
 }
 
+function ModuleCard({ icon, title, stats, href }: { icon: React.ReactNode; title: string; stats: { label: string; value: number; warn?: boolean }[]; href: string }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <span className="rounded-md bg-primary/10 text-primary p-1.5">{icon}</span>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {stats.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Chargement…</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {stats.map((s) => (
+              <div key={s.label} className={`rounded-md border p-2 ${s.warn ? "border-destructive/40 bg-destructive/5" : ""}`}>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className={`text-lg font-semibold ${s.warn ? "text-destructive" : ""}`}>{s.value.toLocaleString("fr-FR")}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <Button asChild size="sm" variant="outline" className="w-full">
+          <Link to={href}>Ouvrir le module</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function IncidentRow({ incident, onResolve, busy }: { incident: Incident; onResolve: () => void; busy: boolean }) {
   const sevClass = incident.severity === "critical"
     ? "border-destructive/40 bg-destructive/10 text-destructive"
