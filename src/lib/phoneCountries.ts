@@ -94,3 +94,38 @@ export function parseFullPhone(full: string): { country: PhoneCountry; national:
   }
   return { country: DEFAULT_COUNTRY, national: onlyDigits(cleaned) };
 }
+
+/**
+ * Normalise un numéro au format E.164 ("+225XXXXXXXXXX").
+ * - Retire espaces, tirets, points, parenthèses
+ * - Convertit "00CC..." en "+CC..."
+ * - Si pas d'indicatif détecté, utilise le pays par défaut (ou hint fourni)
+ * - Retourne "" si vide ou si la longueur nationale est invalide pour le pays détecté
+ */
+export function normalizeToE164(raw: string, defaultCountryHint?: string | null): string {
+  if (!raw) return "";
+  let s = String(raw).trim().replace(/[\s\-().]/g, "");
+  if (!s) return "";
+  if (s.startsWith("00")) s = "+" + s.slice(2);
+  // Si commence par +, tenter de matcher un indicatif connu
+  if (s.startsWith("+")) {
+    const sorted = [...PHONE_COUNTRIES].sort((a, b) => b.dial.length - a.dial.length);
+    for (const c of sorted) {
+      if (s.startsWith(c.dial)) {
+        const national = onlyDigits(s.slice(c.dial.length));
+        if (!national) return "";
+        if (!isValidNationalNumber(national, c)) return "";
+        return `${c.dial}${national}`;
+      }
+    }
+    // Indicatif inconnu : on garde tel quel en ne laissant que + et chiffres
+    const digits = onlyDigits(s);
+    return digits ? `+${digits}` : "";
+  }
+  // Pas de + : on suppose le pays par défaut
+  const country = detectCountry(defaultCountryHint);
+  const national = onlyDigits(s);
+  if (!national) return "";
+  if (!isValidNationalNumber(national, country)) return "";
+  return `${country.dial}${national}`;
+}
