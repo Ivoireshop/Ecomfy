@@ -58,8 +58,31 @@ Deno.serve(async (req) => {
   const action = payload.action;
   const params = payload.params ?? {};
 
+  const startedAt = Date.now();
+  const ip = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || null;
+  const userAgent = req.headers.get("user-agent") || null;
+  const writeAudit = async (success: boolean, result: unknown, errorMsg?: string | null) => {
+    try {
+      await admin.from("app_remediation_audit").insert({
+        actor_id: user.id,
+        actor_email: user.email ?? null,
+        action,
+        params,
+        success,
+        result: result ?? null,
+        error: errorMsg ?? null,
+        duration_ms: Date.now() - startedAt,
+        ip,
+        user_agent: userAgent,
+      });
+    } catch (e) {
+      console.error("audit insert failed", e);
+    }
+  };
+
   try {
-    switch (action) {
+    const response = await (async (): Promise<Response> => {
+      switch (action) {
       case "run_health_check": {
         const r = await fetch(`${url}/functions/v1/app-health-monitor`, {
           method: "POST",
@@ -210,8 +233,19 @@ Deno.serve(async (req) => {
 
       default:
         return jsonOk({ success: false, error: "unknown_action" });
+      }
+    })();
+    // Audit log based on response body
+    try {
+      const cloned = response.clone();
+      const body = await cloned.json().catch(() => ({}));
+      await writeAudit(body?.success === true, body, body?.success === true ? null : (body?.error ?? "unknown_error"));
+    } catch {
+      await writeAudit(true, null, null);
     }
+    return response;
   } catch (e) {
+    await writeAudit(false, null, String(e));
     return jsonOk({ success: false, error: String(e) });
   }
 });

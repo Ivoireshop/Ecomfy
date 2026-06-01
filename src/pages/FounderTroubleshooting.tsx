@@ -36,6 +36,7 @@ import {
   Github,
   Download,
   ShieldAlert,
+  History,
 } from "lucide-react";
 
 type CheckStatus = "ok" | "warn" | "error";
@@ -89,6 +90,17 @@ type ModuleStats = {
   errors: string[];
 };
 
+type AuditEntry = {
+  id: string;
+  actor_email: string | null;
+  action: string;
+  params: Record<string, unknown> | null;
+  success: boolean;
+  error: string | null;
+  duration_ms: number | null;
+  created_at: string;
+};
+
 type Incident = {
   id: string;
   dedupe_key: string;
@@ -139,6 +151,7 @@ export default function FounderTroubleshooting() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [modules, setModules] = useState<ModuleStats | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
 
   const publicShopUrl = useMemo(() => {
     const slug = linkSlug.trim().replace(/^https?:\/\//, "").replace(/\.visuelpro\.cloud\/?$/, "").replace(/\/$/, "");
@@ -182,6 +195,16 @@ export default function FounderTroubleshooting() {
         .order("last_seen_at", { ascending: false })
         .limit(50);
       setIncidents(((incData ?? []) as unknown) as Incident[]);
+
+      // Audit log — last 50 entries
+      try {
+        const { data: auditData } = await supabase
+          .from("app_remediation_audit" as any)
+          .select("id, actor_email, action, params, success, error, duration_ms, created_at")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        setAuditEntries(((auditData ?? []) as unknown) as AuditEntry[]);
+      } catch { /* table may not exist on older envs */ }
 
       // Per-module stats — best-effort, errors collected for display
       const moduleErrors: string[] = [];
@@ -706,6 +729,49 @@ export default function FounderTroubleshooting() {
                     <Link to="/api-documentation">Documentation interne</Link>
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <History className="h-5 w-5" /> Journal d'audit des interventions
+                  <Badge variant="outline" className="ml-auto">{auditEntries.length} entrée(s)</Badge>
+                </CardTitle>
+                <CardDescription>
+                  Chaque correctif appliqué est enregistré côté serveur avec l'auteur, la date et le résultat. Lecture réservée aux fondateurs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {auditEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Aucune intervention enregistrée pour l'instant.</p>
+                ) : (
+                  <div className="space-y-2 max-h-[460px] overflow-y-auto">
+                    {auditEntries.map((entry) => (
+                      <div key={entry.id} className={`rounded-md border p-3 text-sm ${entry.success ? "" : "border-destructive/40 bg-destructive/5"}`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={entry.success ? "default" : "destructive"} className="text-[10px] uppercase">
+                            {entry.success ? "OK" : "Échec"}
+                          </Badge>
+                          <code className="text-xs font-mono">{entry.action}</code>
+                          {entry.duration_ms != null && (
+                            <span className="text-[11px] text-muted-foreground">{entry.duration_ms} ms</span>
+                          )}
+                          <span className="text-[11px] text-muted-foreground ml-auto">{formatDate(entry.created_at)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          par <span className="font-medium text-foreground">{entry.actor_email ?? "inconnu"}</span>
+                          {entry.params && Object.keys(entry.params).length > 0 && (
+                            <> · params : <code className="font-mono">{JSON.stringify(entry.params)}</code></>
+                          )}
+                        </p>
+                        {entry.error && (
+                          <p className="text-xs text-destructive mt-1 break-words"><strong>Erreur :</strong> {entry.error}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
