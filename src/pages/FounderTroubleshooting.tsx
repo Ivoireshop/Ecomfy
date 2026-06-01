@@ -36,6 +36,7 @@ import {
   Github,
   Download,
   ShieldAlert,
+  History,
 } from "lucide-react";
 
 type CheckStatus = "ok" | "warn" | "error";
@@ -89,6 +90,17 @@ type ModuleStats = {
   errors: string[];
 };
 
+type AuditEntry = {
+  id: string;
+  actor_email: string | null;
+  action: string;
+  params: Record<string, unknown> | null;
+  success: boolean;
+  error: string | null;
+  duration_ms: number | null;
+  created_at: string;
+};
+
 type Incident = {
   id: string;
   dedupe_key: string;
@@ -139,6 +151,7 @@ export default function FounderTroubleshooting() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [modules, setModules] = useState<ModuleStats | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
 
   const publicShopUrl = useMemo(() => {
     const slug = linkSlug.trim().replace(/^https?:\/\//, "").replace(/\.visuelpro\.cloud\/?$/, "").replace(/\/$/, "");
@@ -182,6 +195,16 @@ export default function FounderTroubleshooting() {
         .order("last_seen_at", { ascending: false })
         .limit(50);
       setIncidents(((incData ?? []) as unknown) as Incident[]);
+
+      // Audit log — last 50 entries
+      try {
+        const { data: auditData } = await supabase
+          .from("app_remediation_audit" as any)
+          .select("id, actor_email, action, params, success, error, duration_ms, created_at")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        setAuditEntries(((auditData ?? []) as unknown) as AuditEntry[]);
+      } catch { /* table may not exist on older envs */ }
 
       // Per-module stats — best-effort, errors collected for display
       const moduleErrors: string[] = [];
