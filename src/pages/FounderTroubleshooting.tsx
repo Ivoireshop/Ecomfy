@@ -32,6 +32,10 @@ import {
   Image as ImageIcon,
   Video,
   Megaphone,
+  Code2,
+  Github,
+  Download,
+  ShieldAlert,
 } from "lucide-react";
 
 type CheckStatus = "ok" | "warn" | "error";
@@ -417,7 +421,7 @@ export default function FounderTroubleshooting() {
         </div>
 
         <Tabs defaultValue="checks" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
             <TabsTrigger value="global" className="gap-1">
               <Heart className="h-3.5 w-3.5" /> Santé globale
               {openIncidents.length > 0 && (
@@ -429,6 +433,9 @@ export default function FounderTroubleshooting() {
             <TabsTrigger value="checks">État app</TabsTrigger>
             <TabsTrigger value="modules">Modules</TabsTrigger>
             <TabsTrigger value="commerce">Commerce</TabsTrigger>
+            <TabsTrigger value="interventions" className="gap-1">
+              <Code2 className="h-3.5 w-3.5" /> Interventions
+            </TabsTrigger>
             <TabsTrigger value="links">Liens</TabsTrigger>
           </TabsList>
 
