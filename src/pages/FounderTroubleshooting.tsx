@@ -557,3 +557,49 @@ function DataList({ title, icon, empty, children }: { title: string; icon: React
     </Card>
   );
 }
+
+function GlobalAction({ title, description, onClick, busy }: { title: string; description: string; onClick: () => void; busy: boolean }) {
+  return (
+    <div className="rounded-md border p-3 flex flex-col gap-2">
+      <p className="font-medium text-sm">{title}</p>
+      <p className="text-xs text-muted-foreground flex-1">{description}</p>
+      <Button size="sm" variant="outline" onClick={onClick} disabled={busy} className="gap-2 mt-1">
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wrench className="h-3.5 w-3.5" />}
+        Exécuter
+      </Button>
+    </div>
+  );
+}
+
+function IncidentRow({ incident, onResolve, busy }: { incident: Incident; onResolve: () => void; busy: boolean }) {
+  const sevClass = incident.severity === "critical"
+    ? "border-destructive/40 bg-destructive/10 text-destructive"
+    : incident.severity === "warning"
+    ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+    : "border-primary/30 bg-primary/10 text-primary";
+  const isResolved = incident.status === "resolved";
+  return (
+    <div className={`rounded-md border p-3 ${isResolved ? "opacity-60" : ""}`}>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className={sevClass + " uppercase text-[10px]"}>{incident.severity}</Badge>
+            <Badge variant="outline" className="text-[10px]">{incident.category}</Badge>
+            {isResolved && <Badge variant="secondary" className="text-[10px]">Résolu</Badge>}
+            <p className="font-medium text-sm">{incident.title}</p>
+          </div>
+          {incident.description && <p className="text-xs text-muted-foreground mt-1">{incident.description}</p>}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {incident.occurrence_count} occurrence(s) · détecté {formatDate(incident.detected_at)} · vu {formatDate(incident.last_seen_at)}
+          </p>
+        </div>
+        {!isResolved && (
+          <Button size="sm" variant="outline" onClick={onResolve} disabled={busy} className="gap-1 shrink-0">
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            Résoudre
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
