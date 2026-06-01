@@ -972,7 +972,7 @@ const ShopView = () => {
                 const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
                 const canSubmit =
                   (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
-                  (!enabled("phone") || !required("phone") || !!customerInfo.phone) &&
+                  (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                   (!enabled("city") || !required("city") || !!customerInfo.city) &&
                   (!enabled("address") || !required("address") || !!customerInfo.address);
                 return (
