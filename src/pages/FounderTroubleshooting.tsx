@@ -27,6 +27,11 @@ import {
   Mail,
   Wrench,
   Heart,
+  Globe,
+  GraduationCap,
+  Image as ImageIcon,
+  Video,
+  Megaphone,
 } from "lucide-react";
 
 type CheckStatus = "ok" | "warn" | "error";
@@ -62,6 +67,22 @@ type PaymentRow = {
   amount: number | null;
   payment_method: string | null;
   created_at: string;
+};
+
+type ModuleStats = {
+  showcaseTotal: number;
+  showcasePublished: number;
+  coursesTotal: number;
+  coursesPublished: number;
+  enrollments7d: number;
+  images24h: number;
+  videos7d: number;
+  queueProcessing: number;
+  queueFailed24h: number;
+  adAccounts: number;
+  adTokensExpiring: number;
+  studentsActive: number;
+  errors: string[];
 };
 
 type Incident = {
@@ -113,6 +134,7 @@ export default function FounderTroubleshooting() {
   const [linkSlug, setLinkSlug] = useState("");
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [runningAction, setRunningAction] = useState<string | null>(null);
+  const [modules, setModules] = useState<ModuleStats | null>(null);
 
   const publicShopUrl = useMemo(() => {
     const slug = linkSlug.trim().replace(/^https?:\/\//, "").replace(/\.visuelpro\.cloud\/?$/, "").replace(/\/$/, "");
@@ -156,6 +178,54 @@ export default function FounderTroubleshooting() {
         .order("last_seen_at", { ascending: false })
         .limit(50);
       setIncidents(((incData ?? []) as unknown) as Incident[]);
+
+      // Per-module stats — best-effort, errors collected for display
+      const moduleErrors: string[] = [];
+      const safeCount = async (table: string, build?: (q: any) => any) => {
+        try {
+          let q: any = supabase.from(table as any).select("id", { count: "exact", head: true });
+          if (build) q = build(q);
+          const { count, error } = await q;
+          if (error) { moduleErrors.push(`${table}: ${error.message}`); return 0; }
+          return count ?? 0;
+        } catch (e: any) {
+          moduleErrors.push(`${table}: ${e?.message || e}`);
+          return 0;
+        }
+      };
+      const since7 = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+      const since1 = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const soon = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+      const [
+        showcaseTotal, showcasePublished,
+        coursesTotal, coursesPublished, enrollments7d,
+        images24h, videos7d,
+        queueProcessing, queueFailed24h,
+        adAccounts, adTokensExpiring,
+        studentsActive,
+      ] = await Promise.all([
+        safeCount("showcase_sites"),
+        safeCount("showcase_sites", (q) => q.eq("is_published", true)),
+        safeCount("courses"),
+        safeCount("courses", (q) => q.eq("is_published", true)),
+        safeCount("enrollments", (q) => q.gte("created_at", since7)),
+        safeCount("generated_images", (q) => q.gte("created_at", since1)),
+        safeCount("generated_videos", (q) => q.gte("created_at", since7)),
+        safeCount("generation_queue", (q) => q.eq("status", "processing")),
+        safeCount("generation_queue", (q) => q.eq("status", "failed").gte("created_at", since1)),
+        safeCount("ad_accounts"),
+        safeCount("ad_accounts", (q) => q.not("token_expires_at", "is", null).lt("token_expires_at", soon)),
+        safeCount("student_access", (q) => q.eq("is_active", true)),
+      ]);
+      setModules({
+        showcaseTotal, showcasePublished,
+        coursesTotal, coursesPublished, enrollments7d,
+        images24h, videos7d,
+        queueProcessing, queueFailed24h,
+        adAccounts, adTokensExpiring,
+        studentsActive,
+        errors: moduleErrors,
+      });
 
       const lang = localStorage.getItem(APP_LANGUAGE_KEY) || "fr";
       const translatedKeys = Object.keys(localStorage).filter((key) => key.startsWith("vp_tr_")).length;
@@ -347,7 +417,7 @@ export default function FounderTroubleshooting() {
         </div>
 
         <Tabs defaultValue="checks" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
             <TabsTrigger value="global" className="gap-1">
               <Heart className="h-3.5 w-3.5" /> Santé globale
               {openIncidents.length > 0 && (
@@ -357,6 +427,7 @@ export default function FounderTroubleshooting() {
               )}
             </TabsTrigger>
             <TabsTrigger value="checks">État app</TabsTrigger>
+            <TabsTrigger value="modules">Modules</TabsTrigger>
             <TabsTrigger value="commerce">Commerce</TabsTrigger>
             <TabsTrigger value="links">Liens</TabsTrigger>
           </TabsList>
@@ -432,6 +503,88 @@ export default function FounderTroubleshooting() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               {checks.map((check) => <CheckCard key={check.label} check={check} />)}
             </div>
+          </TabsContent>
+
+          <TabsContent value="modules" className="mt-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Vue d'ensemble de toutes les fonctionnalités de la plateforme. Chaque carte montre l'état actuel et un accès rapide au module.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+              <ModuleCard
+                icon={<Globe className="h-5 w-5" />}
+                title="Sites vitrines"
+                stats={modules ? [
+                  { label: "Total", value: modules.showcaseTotal },
+                  { label: "Publiés", value: modules.showcasePublished },
+                ] : []}
+                href="/showcase-manager"
+              />
+              <ModuleCard
+                icon={<GraduationCap className="h-5 w-5" />}
+                title="Formations en ligne"
+                stats={modules ? [
+                  { label: "Formations", value: modules.coursesTotal },
+                  { label: "Publiées", value: modules.coursesPublished },
+                  { label: "Inscrits 7j", value: modules.enrollments7d },
+                  { label: "Étudiants actifs", value: modules.studentsActive },
+                ] : []}
+                href="/courses-manager"
+              />
+              <ModuleCard
+                icon={<ImageIcon className="h-5 w-5" />}
+                title="Visuels publicitaires"
+                stats={modules ? [
+                  { label: "Générés 24h", value: modules.images24h },
+                  { label: "File en cours", value: modules.queueProcessing },
+                  { label: "Échecs 24h", value: modules.queueFailed24h, warn: modules.queueFailed24h > 10 },
+                ] : []}
+                href="/generator"
+              />
+              <ModuleCard
+                icon={<Video className="h-5 w-5" />}
+                title="Vidéos publicitaires"
+                stats={modules ? [
+                  { label: "Vidéos 7j", value: modules.videos7d },
+                ] : []}
+                href="/video-creator"
+              />
+              <ModuleCard
+                icon={<Database className="h-5 w-5" />}
+                title="Boutiques e-commerce"
+                stats={[
+                  { label: "Boutiques", value: shops.length },
+                  { label: "Commandes récentes", value: orders.length },
+                  { label: "Paiements récents", value: payments.length },
+                ]}
+                href="/shop-manager"
+              />
+              <ModuleCard
+                icon={<Megaphone className="h-5 w-5" />}
+                title="Comptes publicitaires"
+                stats={modules ? [
+                  { label: "Connectés", value: modules.adAccounts },
+                  { label: "Tokens <7j", value: modules.adTokensExpiring, warn: modules.adTokensExpiring > 0 },
+                ] : []}
+                href="/shop-manager"
+              />
+            </div>
+            {modules?.errors.length ? (
+              <Card className="border-destructive/30">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-4 w-4" /> Erreurs de lecture détectées
+                  </CardTitle>
+                  <CardDescription>
+                    Ces tables n'ont pas pu être lues. Vérifiez les politiques RLS ou les permissions GRANT.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="text-xs font-mono space-y-1 text-muted-foreground">
+                    {modules.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                  </ul>
+                </CardContent>
+              </Card>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="commerce" className="mt-4">
@@ -568,6 +721,36 @@ function GlobalAction({ title, description, onClick, busy }: { title: string; de
         Exécuter
       </Button>
     </div>
+  );
+}
+
+function ModuleCard({ icon, title, stats, href }: { icon: React.ReactNode; title: string; stats: { label: string; value: number; warn?: boolean }[]; href: string }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <span className="rounded-md bg-primary/10 text-primary p-1.5">{icon}</span>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {stats.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Chargement…</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {stats.map((s) => (
+              <div key={s.label} className={`rounded-md border p-2 ${s.warn ? "border-destructive/40 bg-destructive/5" : ""}`}>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className={`text-lg font-semibold ${s.warn ? "text-destructive" : ""}`}>{s.value.toLocaleString("fr-FR")}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <Button asChild size="sm" variant="outline" className="w-full">
+          <Link to={href}>Ouvrir le module</Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
