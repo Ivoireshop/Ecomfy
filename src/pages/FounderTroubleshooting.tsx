@@ -23,6 +23,10 @@ import {
   ShieldCheck,
   Wifi,
   XCircle,
+  Activity,
+  Mail,
+  Wrench,
+  Heart,
 } from "lucide-react";
 
 type CheckStatus = "ok" | "warn" | "error";
@@ -60,6 +64,20 @@ type PaymentRow = {
   created_at: string;
 };
 
+type Incident = {
+  id: string;
+  dedupe_key: string;
+  category: string;
+  severity: "info" | "warning" | "critical";
+  title: string;
+  description: string | null;
+  status: "open" | "acknowledged" | "resolved";
+  occurrence_count: number;
+  detected_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+};
+
 const CACHE_PREFIXES = ["vp_tr_"];
 const APP_LANGUAGE_KEY = "visualpro_lang";
 
@@ -93,6 +111,8 @@ export default function FounderTroubleshooting() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [linkSlug, setLinkSlug] = useState("");
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [runningAction, setRunningAction] = useState<string | null>(null);
 
   const publicShopUrl = useMemo(() => {
     const slug = linkSlug.trim().replace(/^https?:\/\//, "").replace(/\.visuelpro\.cloud\/?$/, "").replace(/\/$/, "");
@@ -128,6 +148,14 @@ export default function FounderTroubleshooting() {
       if (!shopsRes.error) setShops((shopsRes.data ?? []) as ShopRow[]);
       if (!ordersRes.error) setOrders((ordersRes.data ?? []) as OrderRow[]);
       if (!paymentsRes.error) setPayments((paymentsRes.data ?? []) as PaymentRow[]);
+
+      const { data: incData } = await supabase
+        .from("app_incidents" as any)
+        .select("*")
+        .order("status", { ascending: true })
+        .order("last_seen_at", { ascending: false })
+        .limit(50);
+      setIncidents(((incData ?? []) as unknown) as Incident[]);
 
       const lang = localStorage.getItem(APP_LANGUAGE_KEY) || "fr";
       const translatedKeys = Object.keys(localStorage).filter((key) => key.startsWith("vp_tr_")).length;
@@ -231,11 +259,28 @@ export default function FounderTroubleshooting() {
       time: new Date().toISOString(),
       user: currentSession?.user.email ?? null,
       checks,
+      incidents: incidents.slice(0, 20),
       recentOrders: orders.slice(0, 5),
       recentPayments: payments.slice(0, 5),
     };
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     toast({ title: "Diagnostic copié", description: "Le rapport local est prêt à être collé dans un ticket ou une note interne." });
+  };
+
+  const runRemediation = async (action: string, params?: Record<string, unknown>, successLabel = "Action exécutée") => {
+    setRunningAction(action + (params?.incident_id ? `:${params.incident_id}` : ""));
+    try {
+      const { data, error } = await supabase.functions.invoke("app-remediation", { body: { action, params } });
+      const ok = !error && (data as any)?.success !== false;
+      toast({
+        title: ok ? successLabel : "Action échouée",
+        description: ok ? "Le serveur a confirmé l'opération." : (error?.message || (data as any)?.error || "Erreur inconnue"),
+        variant: ok ? "default" : "destructive",
+      });
+      await runDiagnostics();
+    } finally {
+      setRunningAction(null);
+    }
   };
 
   if (!isReady || loading || isFounder === null) {
@@ -248,6 +293,9 @@ export default function FounderTroubleshooting() {
 
   if (!user) return <Navigate to="/auth" replace />;
   if (!isFounder) return <Navigate to="/" replace />;
+
+  const openIncidents = incidents.filter((i) => i.status !== "resolved");
+  const criticalCount = openIncidents.filter((i) => i.severity === "critical").length;
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-10">
@@ -299,11 +347,86 @@ export default function FounderTroubleshooting() {
         </div>
 
         <Tabs defaultValue="checks" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-xl">
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+            <TabsTrigger value="global" className="gap-1">
+              <Heart className="h-3.5 w-3.5" /> Santé globale
+              {openIncidents.length > 0 && (
+                <Badge variant={criticalCount > 0 ? "destructive" : "secondary"} className="ml-1 h-4 px-1 text-[10px]">
+                  {openIncidents.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="checks">État app</TabsTrigger>
             <TabsTrigger value="commerce">Commerce</TabsTrigger>
             <TabsTrigger value="links">Liens</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="global" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5" /> Actions de remédiation globales</CardTitle>
+                <CardDescription>Ces actions s'exécutent côté serveur et affectent tous les utilisateurs. À utiliser avec précaution.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <GlobalAction
+                  title="Lancer un contrôle de santé maintenant"
+                  description="Force une vérification complète : DB, auth, paiements, commandes, emails."
+                  busy={runningAction === "run_health_check"}
+                  onClick={() => runRemediation("run_health_check", {}, "Contrôle de santé lancé")}
+                />
+                <GlobalAction
+                  title="Débloquer les paiements en attente (>1h)"
+                  description="Marque les paiements pendants depuis plus d'1h comme échoués pour que les clients puissent réessayer."
+                  busy={runningAction === "retry_stuck_payments"}
+                  onClick={() => runRemediation("retry_stuck_payments", {}, "Paiements bloqués traités")}
+                />
+                <GlobalAction
+                  title="Relancer la file de génération bloquée"
+                  description="Remet en attente les générations IA coincées en 'processing' depuis >15 min."
+                  busy={runningAction === "release_stuck_queue"}
+                  onClick={() => runRemediation("release_stuck_queue", {}, "File de génération relancée")}
+                />
+                <GlobalAction
+                  title="Envoyer un email de test"
+                  description="Envoie une alerte de test à votre adresse pour vérifier les notifications."
+                  busy={runningAction === "test_email_alert"}
+                  onClick={() => runRemediation("test_email_alert", {}, "Email de test envoyé")}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" /> Incidents détectés
+                  <Badge variant="outline" className="ml-auto">{openIncidents.length} ouvert(s)</Badge>
+                </CardTitle>
+                <CardDescription>
+                  Le monitoring tourne automatiquement toutes les 5 minutes. Vous recevez un email à chaque nouvel incident critique.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {incidents.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-primary" />
+                    <p className="font-medium">Aucun incident enregistré</p>
+                    <p className="text-xs">L'application fonctionne normalement.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {incidents.map((inc) => (
+                      <IncidentRow
+                        key={inc.id}
+                        incident={inc}
+                        busy={runningAction === `resolve_incident:${inc.id}`}
+                        onResolve={() => runRemediation("resolve_incident", { incident_id: inc.id }, "Incident résolu")}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="checks" className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
@@ -432,5 +555,51 @@ function DataList({ title, icon, empty, children }: { title: string; icon: React
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function GlobalAction({ title, description, onClick, busy }: { title: string; description: string; onClick: () => void; busy: boolean }) {
+  return (
+    <div className="rounded-md border p-3 flex flex-col gap-2">
+      <p className="font-medium text-sm">{title}</p>
+      <p className="text-xs text-muted-foreground flex-1">{description}</p>
+      <Button size="sm" variant="outline" onClick={onClick} disabled={busy} className="gap-2 mt-1">
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wrench className="h-3.5 w-3.5" />}
+        Exécuter
+      </Button>
+    </div>
+  );
+}
+
+function IncidentRow({ incident, onResolve, busy }: { incident: Incident; onResolve: () => void; busy: boolean }) {
+  const sevClass = incident.severity === "critical"
+    ? "border-destructive/40 bg-destructive/10 text-destructive"
+    : incident.severity === "warning"
+    ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+    : "border-primary/30 bg-primary/10 text-primary";
+  const isResolved = incident.status === "resolved";
+  return (
+    <div className={`rounded-md border p-3 ${isResolved ? "opacity-60" : ""}`}>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className={sevClass + " uppercase text-[10px]"}>{incident.severity}</Badge>
+            <Badge variant="outline" className="text-[10px]">{incident.category}</Badge>
+            {isResolved && <Badge variant="secondary" className="text-[10px]">Résolu</Badge>}
+            <p className="font-medium text-sm">{incident.title}</p>
+          </div>
+          {incident.description && <p className="text-xs text-muted-foreground mt-1">{incident.description}</p>}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {incident.occurrence_count} occurrence(s) · détecté {formatDate(incident.detected_at)} · vu {formatDate(incident.last_seen_at)}
+          </p>
+        </div>
+        {!isResolved && (
+          <Button size="sm" variant="outline" onClick={onResolve} disabled={busy} className="gap-1 shrink-0">
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            Résoudre
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

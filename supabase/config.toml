@@ -88,3 +88,9 @@ verify_jwt = false
 
 [functions.shop-ai-assistant-tts]
 verify_jwt = false
+
+[functions.app-health-monitor]
+verify_jwt = false
+
+[functions.app-remediation]
+verify_jwt = false
