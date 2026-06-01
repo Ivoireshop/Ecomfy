@@ -18,6 +18,8 @@ import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
+import { PhoneInput } from "@/components/shop/PhoneInput";
+import { isValidFullPhone } from "@/lib/phoneCountries";
 
 interface Product {
   id: string;
@@ -393,6 +395,14 @@ const ShopView = () => {
   const placeOrder = async () => {
     if (!shop || !customerInfo.name || !customerInfo.phone || cart.length === 0) {
       toast({ title: "Erreur", description: "Remplissez tous les champs obligatoires", variant: "destructive" });
+      return;
+    }
+    if (!isValidFullPhone(customerInfo.phone)) {
+      toast({
+        title: "Numéro invalide",
+        description: "Veuillez saisir un numéro de téléphone valide pour votre pays.",
+        variant: "destructive",
+      });
       return;
     }
     setOrderLoading(true);
@@ -962,7 +972,7 @@ const ShopView = () => {
                 const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
                 const canSubmit =
                   (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
-                  (!enabled("phone") || !required("phone") || !!customerInfo.phone) &&
+                  (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                   (!enabled("city") || !required("city") || !!customerInfo.city) &&
                   (!enabled("address") || !required("address") || !!customerInfo.address);
                 return (
@@ -1005,7 +1015,12 @@ const ShopView = () => {
                       {enabled("phone") && (
                         <div className="space-y-0.5 col-span-2">
                           <Label className="text-[11px] text-muted-foreground">Téléphone {required("phone") && "*"}</Label>
-                          <Input value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} placeholder="+225 07 00 00 00" className="rounded-lg h-10 text-sm" />
+                          <PhoneInput
+                            value={customerInfo.phone}
+                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                            defaultCountryHint={shop?.country}
+                            required={required("phone")}
+                          />
                         </div>
                       )}
                       {enabled("email") && (
