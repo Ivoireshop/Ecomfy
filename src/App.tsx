@@ -31,6 +31,7 @@ const ShowcaseEditor = lazy(() => import("./pages/ShowcaseEditor"));
 const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
 const PromoCodeManager = lazy(() => import("./pages/PromoCodeManager"));
 const FounderDashboard = lazy(() => import("./pages/FounderDashboard"));
+const FounderTroubleshooting = lazy(() => import("./pages/FounderTroubleshooting"));
 const Referral = lazy(() => import("./pages/Referral"));
 const Tutorial = lazy(() => import("./pages/Tutorial"));
 const Demo = lazy(() => import("./pages/Demo"));
@@ -213,6 +214,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <OrdersDiagnostic />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/founder-troubleshooting"
+            element={
+              <ProtectedRoute>
+                <FounderTroubleshooting />
               </ProtectedRoute>
             }
           />

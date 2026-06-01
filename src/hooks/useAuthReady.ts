@@ -13,6 +13,7 @@ const AUTH_READY_TIMEOUT_MS = 3500;
 let authState: AuthReadyState = { session: null, user: null, isReady: false };
 let authInitialized = false;
 const authListeners = new Set<() => void>();
+let lastRefreshAttemptAt = 0;
 
 const emitAuthState = (next: AuthReadyState) => {
   authState = next;
@@ -78,8 +79,17 @@ const initializeAuthState = () => {
       .getSession()
       .then(({ data: { session: s } }) => {
         if (s) {
-          // Proactively refresh tokens near expiry to avoid silent sign-outs.
-          void supabase.auth.refreshSession().catch(() => undefined);
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const expiresInSeconds = typeof s.expires_at === "number" ? s.expires_at - nowSeconds : 0;
+          const nowMs = Date.now();
+
+          // Proactively refresh only when the token is close to expiry. Refreshing
+          // on every focus/pageshow can create concurrent refreshes that revoke
+          // each other's token and make login look unstable on web/mobile.
+          if (expiresInSeconds < 300 && nowMs - lastRefreshAttemptAt > 60_000) {
+            lastRefreshAttemptAt = nowMs;
+            void supabase.auth.refreshSession().catch(() => undefined);
+          }
           emitAuthState({ session: s, user: s.user, isReady: true });
         }
       })
