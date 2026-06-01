@@ -280,6 +280,66 @@ export type Database = {
         }
         Relationships: []
       }
+      app_incidents: {
+        Row: {
+          category: string
+          created_at: string
+          dedupe_key: string
+          description: string | null
+          detected_at: string
+          id: string
+          last_seen_at: string
+          metadata: Json
+          notified_at: string | null
+          occurrence_count: number
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          dedupe_key: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          last_seen_at?: string
+          metadata?: Json
+          notified_at?: string | null
+          occurrence_count?: number
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          dedupe_key?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          last_seen_at?: string
+          metadata?: Json
+          notified_at?: string | null
+          occurrence_count?: number
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       blog_posts: {
         Row: {
           author_name: string
@@ -3564,6 +3624,41 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      record_app_incident: {
+        Args: {
+          _category: string
+          _dedupe_key: string
+          _description?: string
+          _metadata?: Json
+          _severity: string
+          _title: string
+        }
+        Returns: {
+          category: string
+          created_at: string
+          dedupe_key: string
+          description: string | null
+          detected_at: string
+          id: string
+          last_seen_at: string
+          metadata: Json
+          notified_at: string | null
+          occurrence_count: number
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "app_incidents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       slugify: { Args: { _value: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
