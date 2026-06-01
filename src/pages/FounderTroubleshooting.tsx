@@ -659,6 +659,56 @@ export default function FounderTroubleshooting() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="interventions" className="mt-4 space-y-4">
+            <Card className="border-amber-500/40 bg-amber-500/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldAlert className="h-5 w-5 text-amber-600" /> Interventions techniques avancées
+                </CardTitle>
+                <CardDescription>
+                  Catalogue de correctifs open-source applicables sans passer par l'éditeur. Chaque action est exécutée côté serveur avec vos droits de fondateur et journalisée. À utiliser uniquement si une fonctionnalité est cassée pour tous les utilisateurs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {TECH_PATCHES.map((p) => (
+                  <PatchCard
+                    key={p.action}
+                    patch={p}
+                    busy={runningAction === p.action}
+                    onApply={() => runRemediation(p.action, {}, p.successLabel)}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Github className="h-5 w-5" /> Escalade & ressources externes
+                </CardTitle>
+                <CardDescription>
+                  Quand un correctif majeur requiert du code, exportez un bundle de diagnostic et partagez-le avec votre équipe technique.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                <Button variant="outline" onClick={() => downloadDiagnosticBundle({ checks, incidents, shops, orders, payments, modules })} className="gap-2 w-full sm:w-auto">
+                  <Download className="h-4 w-4" /> Télécharger le bundle de diagnostic (.json)
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Contient l'état des sondes, les 50 derniers incidents, et un échantillon de boutiques / commandes / paiements. Aucune donnée sensible (mots de passe, tokens) n'est incluse.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button variant="outline" asChild>
+                    <a href="https://wa.me/2250758151527" target="_blank" rel="noreferrer">Contact technique WhatsApp</a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link to="/api-documentation">Documentation interne</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
