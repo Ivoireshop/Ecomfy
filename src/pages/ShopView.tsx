@@ -397,6 +397,14 @@ const ShopView = () => {
       toast({ title: "Erreur", description: "Remplissez tous les champs obligatoires", variant: "destructive" });
       return;
     }
+    if (!isValidFullPhone(customerInfo.phone)) {
+      toast({
+        title: "Numéro invalide",
+        description: "Veuillez saisir un numéro de téléphone valide pour votre pays.",
+        variant: "destructive",
+      });
+      return;
+    }
     setOrderLoading(true);
     try {
       const commissionAmount = cartTotal * (shop.commission_rate || 0.025);
