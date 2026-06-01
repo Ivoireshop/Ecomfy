@@ -19,7 +19,7 @@ import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
-import { isValidFullPhone } from "@/lib/phoneCountries";
+import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 
 interface Product {
   id: string;
