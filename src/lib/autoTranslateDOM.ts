@@ -66,6 +66,7 @@ let currentLang = "fr";
 let observer: MutationObserver | null = null;
 let pending = new Map<string, Entry[]>(); // original -> entries waiting
 let flushTimer: number | null = null;
+let isApplyingTranslation = false;
 
 function cacheKey(lang: string, src: string) {
   return `${STORAGE_PREFIX}${lang}__${src}`;
@@ -90,11 +91,14 @@ function setCached(lang: string, src: string, dst: string) {
 }
 
 function applyTranslation(entry: Entry, translated: string) {
+  if (!translated.trim()) return;
+  isApplyingTranslation = true;
   if ("el" in entry.node) {
     try { entry.node.el.setAttribute(entry.node.attr, translated); } catch { /* ignore */ }
   } else {
     try { entry.node.nodeValue = translated; } catch { /* ignore */ }
   }
+  window.setTimeout(() => { isApplyingTranslation = false; }, 0);
 }
 
 function queueEntry(original: string, entry: Entry) {
@@ -201,6 +205,7 @@ function walk(root: Node) {
 function startObserver() {
   if (observer) observer.disconnect();
   observer = new MutationObserver((mutations) => {
+    if (isApplyingTranslation) return;
     for (const m of mutations) {
       if (m.type === "characterData" && m.target.nodeType === Node.TEXT_NODE) {
         const t = m.target as Text;
