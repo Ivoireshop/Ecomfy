@@ -88,6 +88,12 @@ export function PhoneInput({
   const valid = national.length === 0 ? !required : isValidNationalNumber(national, country);
   const showError = national.length > 0 && !isValidNationalNumber(national, country);
   const expected = country.lengths.join(" ou ");
+  const hasLengthOk = country.lengths.includes(national.length);
+  const prefixInvalid =
+    hasLengthOk &&
+    !!country.prefixes &&
+    country.prefixes.length > 0 &&
+    !country.prefixes.some((p) => national.startsWith(p));
 
   // Sur mobile, on utilise un <select> natif pour déclencher le picker iOS/Android
   const countrySelector = isMobile ? (
@@ -166,12 +172,26 @@ export function PhoneInput({
         <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-destructive/10 border border-destructive/20 px-2 py-1.5">
           <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
           <p className="text-xs text-destructive leading-snug">
-            Le numéro doit contenir <strong>{expected}</strong> chiffres pour <strong>{country.name}</strong>.
+            {prefixInvalid ? (
+              <>
+                Un numéro <strong>{country.name}</strong> doit commencer par{" "}
+                <strong>{country.prefixes!.join(", ")}</strong> (Orange 07, MTN 05, Moov 01).
+              </>
+            ) : (
+              <>
+                Le numéro doit contenir <strong>{expected}</strong> chiffres pour{" "}
+                <strong>{country.name}</strong>.
+              </>
+            )}
           </p>
         </div>
       ) : (
         <p className="mt-1.5 text-xs text-muted-foreground leading-snug">
-          Format attendu : <strong>{expected}</strong> chiffres ({country.name}).
+          Format attendu : <strong>{expected}</strong> chiffres ({country.name})
+          {country.prefixes && country.prefixes.length > 0
+            ? `, commençant par ${country.prefixes.join(", ")}`
+            : ""}
+          .
         </p>
       )}
     </div>
