@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
 import { normalizeToE164 } from "@/lib/phoneCountries";
+import { PhoneInput } from "@/components/shop/PhoneInput";
 
 interface ContactFormProps {
   showcaseSiteId: string;
@@ -111,12 +112,9 @@ export function ContactForm({ showcaseSiteId, businessName, theme }: ContactForm
 
           <div className="space-y-2">
             <Label htmlFor="phone">Téléphone</Label>
-            <Input
-              id="phone"
-              type="tel"
+            <PhoneInput
               value={formData.phone}
-              onChange={(e) => handleChange("phone", e.target.value)}
-              placeholder="+237 6XX XXX XXX"
+              onChange={(v) => handleChange("phone", v)}
             />
           </div>
 

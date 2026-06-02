@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Upload, CreditCard } from "lucide-react";
 import { useEffect } from "react";
+import { PhoneInput } from "@/components/shop/PhoneInput";
+import { normalizeToE164 } from "@/lib/phoneCountries";
 
 interface Course {
   id: string;
@@ -134,7 +136,9 @@ export default function EnrollmentCheckout() {
             showcase_site_id: course.showcase_site_id,
             student_name: enrollmentForm.student_name,
             student_email: enrollmentForm.student_email,
-            student_phone: enrollmentForm.student_phone,
+            student_phone: enrollmentForm.student_phone
+              ? (normalizeToE164(enrollmentForm.student_phone) || enrollmentForm.student_phone)
+              : null,
             payment_method: enrollmentForm.payment_method,
             transaction_reference: enrollmentForm.transaction_reference,
             amount_paid: course.price,
@@ -261,12 +265,10 @@ export default function EnrollmentCheckout() {
 
               <div className="space-y-2">
                 <Label htmlFor="student_phone">Téléphone</Label>
-                <Input
-                  id="student_phone"
-                  type="tel"
+                <PhoneInput
                   value={enrollmentForm.student_phone}
-                  onChange={(e) =>
-                    setEnrollmentForm({ ...enrollmentForm, student_phone: e.target.value })
+                  onChange={(v) =>
+                    setEnrollmentForm({ ...enrollmentForm, student_phone: v })
                   }
                 />
               </div>
