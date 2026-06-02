@@ -261,12 +261,10 @@ export default function EnrollmentCheckout() {
 
               <div className="space-y-2">
                 <Label htmlFor="student_phone">Téléphone</Label>
-                <Input
-                  id="student_phone"
-                  type="tel"
+                <PhoneInput
                   value={enrollmentForm.student_phone}
-                  onChange={(e) =>
-                    setEnrollmentForm({ ...enrollmentForm, student_phone: e.target.value })
+                  onChange={(v) =>
+                    setEnrollmentForm({ ...enrollmentForm, student_phone: v })
                   }
                 />
               </div>
