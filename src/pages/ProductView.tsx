@@ -348,6 +348,10 @@ const ProductView = () => {
       });
       return;
     }
+    if (customerInfo.city && containsDigits(customerInfo.city)) {
+      toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
+      return;
+    }
     setOrderLoading(true);
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
