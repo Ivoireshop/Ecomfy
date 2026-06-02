@@ -23,6 +23,7 @@ import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
+import { normalizeSectionOrder, type ProductSectionKey } from "@/lib/productSections";
 import { containsDigits, stripDigits } from "@/lib/utils";
 
 // Countdown Timer Component
