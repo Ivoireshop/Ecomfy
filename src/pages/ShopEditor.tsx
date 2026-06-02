@@ -422,6 +422,7 @@ const ShopEditor = () => {
       variants: Array.isArray(data.variants)
         ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
         : [],
+      section_order: data.section_order ?? null,
     };
     let result;
     if (editingProduct) {
