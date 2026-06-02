@@ -1805,6 +1805,7 @@ export type Database = {
           is_published: boolean | null
           name: string
           price: number
+          section_order: Json | null
           shop_id: string
           short_description: string | null
           sku: string | null
@@ -1830,6 +1831,7 @@ export type Database = {
           is_published?: boolean | null
           name: string
           price?: number
+          section_order?: Json | null
           shop_id: string
           short_description?: string | null
           sku?: string | null
@@ -1855,6 +1857,7 @@ export type Database = {
           is_published?: boolean | null
           name?: string
           price?: number
+          section_order?: Json | null
           shop_id?: string
           short_description?: string | null
           sku?: string | null
