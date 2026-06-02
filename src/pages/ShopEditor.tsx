@@ -28,6 +28,7 @@ import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
 import { ShopFinances } from "@/components/shop/ShopFinances";
 import { ProductAIOptimizer } from "@/components/shop/ProductAIOptimizer";
 import { ShopCollaboratorsManager } from "@/components/shop/ShopCollaboratorsManager";
+import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { useNativePush } from "@/hooks/useNativePush";
