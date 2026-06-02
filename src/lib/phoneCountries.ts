@@ -8,10 +8,12 @@ export interface PhoneCountry {
   flag: string; // emoji
   lengths: number[]; // longueurs nationales valides
   example: string; // exemple national
+  /** Préfixes nationaux valides (ex: ["01","05","07"] pour la Côte d'Ivoire) */
+  prefixes?: string[];
 }
 
 export const PHONE_COUNTRIES: PhoneCountry[] = [
-  { code: "CI", name: "Côte d'Ivoire", dial: "+225", flag: "🇨🇮", lengths: [10], example: "07 00 00 00 00" },
+  { code: "CI", name: "Côte d'Ivoire", dial: "+225", flag: "🇨🇮", lengths: [10], example: "07 00 00 00 00", prefixes: ["01", "05", "07"] },
   { code: "BF", name: "Burkina Faso", dial: "+226", flag: "🇧🇫", lengths: [8], example: "70 00 00 00" },
   { code: "BJ", name: "Bénin", dial: "+229", flag: "🇧🇯", lengths: [8, 10], example: "01 90 00 00 00" },
   { code: "TG", name: "Togo", dial: "+228", flag: "🇹🇬", lengths: [8], example: "90 00 00 00" },
@@ -44,7 +46,11 @@ export const onlyDigits = (v: string) => (v || "").replace(/\D+/g, "");
 /** Vérifie qu'un numéro national correspond aux longueurs autorisées pour ce pays */
 export function isValidNationalNumber(national: string, country: PhoneCountry): boolean {
   const digits = onlyDigits(national);
-  return country.lengths.includes(digits.length);
+  if (!country.lengths.includes(digits.length)) return false;
+  if (country.prefixes && country.prefixes.length > 0) {
+    return country.prefixes.some((p) => digits.startsWith(p));
+  }
+  return true;
 }
 
 /** Vérifie un numéro complet (E.164 ou +CCC + national) */
