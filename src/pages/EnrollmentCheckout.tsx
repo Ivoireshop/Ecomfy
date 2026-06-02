@@ -136,7 +136,9 @@ export default function EnrollmentCheckout() {
             showcase_site_id: course.showcase_site_id,
             student_name: enrollmentForm.student_name,
             student_email: enrollmentForm.student_email,
-            student_phone: enrollmentForm.student_phone,
+            student_phone: enrollmentForm.student_phone
+              ? (normalizeToE164(enrollmentForm.student_phone) || enrollmentForm.student_phone)
+              : null,
             payment_method: enrollmentForm.payment_method,
             transaction_reference: enrollmentForm.transaction_reference,
             amount_paid: course.price,
