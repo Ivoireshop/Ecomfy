@@ -469,6 +469,7 @@ const ShopView = () => {
       });
       setCart([]);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
+      setCityError("");
       setCheckoutOpen(false);
       navigate("/order-confirmed", {
         state: {
