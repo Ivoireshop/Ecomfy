@@ -975,6 +975,7 @@ const ProductView = () => {
                       (!isEnabled("phone") || (!isRequired("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                       (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
                       (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
+                      (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
                       (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
                     return (
                   <Button 
