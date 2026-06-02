@@ -127,6 +127,7 @@ const ProductView = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery",
   });
+  const [cityError, setCityError] = useState("");
 
   // Chat
   const [chatOpen, setChatOpen] = useState(false);
