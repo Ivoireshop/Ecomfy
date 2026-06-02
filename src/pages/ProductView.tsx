@@ -403,6 +403,7 @@ const ProductView = () => {
       setShowInlineCheckout(false);
       setCheckoutOpen(false);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery" });
+      setCityError("");
       navigate("/order-confirmed", {
         state: {
           shopName: shop.business_name,
