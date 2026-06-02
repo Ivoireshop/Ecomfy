@@ -441,6 +441,9 @@ const ShopEditor = () => {
       setEditingProduct(null);
       resetProductForm();
       fetchData();
+      if (data.is_published && shop?.slug) {
+        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
+      }
     }
     setSaving(false);
   };
