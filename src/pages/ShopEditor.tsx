@@ -344,6 +344,9 @@ const ShopEditor = () => {
     else {
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
       toast({ title: "✓ Sauvegardé" });
+      if (shop.is_published && shop.is_activated) {
+        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${nextSlug}`);
+      }
     }
     setSaving(false);
   };
@@ -396,6 +399,9 @@ const ShopEditor = () => {
       setEditingProduct(null);
       resetProductForm();
       fetchData();
+      if (newProduct.is_published && shop?.slug) {
+        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
+      }
     }
   };
 
