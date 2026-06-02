@@ -1041,7 +1041,14 @@ const ShopView = () => {
                       {enabled("city") && (
                         <div className="space-y-0.5 col-span-2 sm:col-span-1">
                           <Label className="text-[11px] text-muted-foreground">Ville {required("city") && "*"}</Label>
-                          <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-lg h-10 text-sm" />
+                          <Input value={customerInfo.city} onChange={(e) => {
+                            const raw = e.target.value;
+                            const cleaned = stripDigits(raw);
+                            setCustomerInfo({ ...customerInfo, city: cleaned });
+                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                            else if (cityError) setCityError("");
+                          }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                          {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
                         </div>
                       )}
                       {enabled("address") && (
