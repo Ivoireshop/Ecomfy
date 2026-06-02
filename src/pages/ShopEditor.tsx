@@ -648,6 +648,7 @@ const ShopEditor = () => {
                 bundle_offers: (editingProduct as any).bundle_offers || [],
                 bundle_position: (editingProduct as any).bundle_position || "after_countdown",
                 variants: (editingProduct as any).variants || [],
+                section_order: (editingProduct as any).section_order || undefined,
               } : undefined}
               existingImages={editingProduct?.product_images || []}
               isEditing={!!editingProduct}
