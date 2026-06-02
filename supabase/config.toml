@@ -94,3 +94,9 @@ verify_jwt = false
 
 [functions.app-remediation]
 verify_jwt = false
+
+[functions.dynamic-sitemap]
+verify_jwt = false
+
+[functions.seo-auto-index]
+verify_jwt = false

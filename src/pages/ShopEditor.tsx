@@ -28,6 +28,7 @@ import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
 import { ShopFinances } from "@/components/shop/ShopFinances";
 import { ProductAIOptimizer } from "@/components/shop/ProductAIOptimizer";
 import { ShopCollaboratorsManager } from "@/components/shop/ShopCollaboratorsManager";
+import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { useNativePush } from "@/hooks/useNativePush";
@@ -343,6 +344,9 @@ const ShopEditor = () => {
     else {
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
       toast({ title: "✓ Sauvegardé" });
+      if (shop.is_published && shop.is_activated) {
+        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${nextSlug}`);
+      }
     }
     setSaving(false);
   };
@@ -395,6 +399,9 @@ const ShopEditor = () => {
       setEditingProduct(null);
       resetProductForm();
       fetchData();
+      if (newProduct.is_published && shop?.slug) {
+        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
+      }
     }
   };
 
@@ -434,6 +441,9 @@ const ShopEditor = () => {
       setEditingProduct(null);
       resetProductForm();
       fetchData();
+      if (data.is_published && shop?.slug) {
+        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
+      }
     }
     setSaving(false);
   };

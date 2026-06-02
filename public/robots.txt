@@ -14,4 +14,5 @@ User-agent: *
 Allow: /
 
 Sitemap: https://visuelpro.cloud/sitemap.xml
+Sitemap: https://dqlbmtkaamjohgbcjwtw.supabase.co/functions/v1/dynamic-sitemap
 Host: visuelpro.cloud
