@@ -23,6 +23,7 @@ import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
+import { containsDigits, stripDigits } from "@/lib/utils";
 
 // Countdown Timer Component
 const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; days: number; hours: number; minutes: number }) => {
@@ -126,6 +127,7 @@ const ProductView = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery",
   });
+  const [cityError, setCityError] = useState("");
 
   // Chat
   const [chatOpen, setChatOpen] = useState(false);
@@ -346,6 +348,10 @@ const ProductView = () => {
       });
       return;
     }
+    if (customerInfo.city && containsDigits(customerInfo.city)) {
+      toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
+      return;
+    }
     setOrderLoading(true);
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
@@ -397,6 +403,7 @@ const ProductView = () => {
       setShowInlineCheckout(false);
       setCheckoutOpen(false);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery" });
+      setCityError("");
       navigate("/order-confirmed", {
         state: {
           shopName: shop.business_name,
@@ -890,7 +897,14 @@ const ProductView = () => {
                           {isEnabled("city") && (
                             <div className="space-y-1">
                               <Label className="text-xs text-gray-500">Ville {isRequired("city") && "*"}</Label>
-                              <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-xl h-11" />
+                              <Input value={customerInfo.city} onChange={(e) => {
+                                const raw = e.target.value;
+                                const cleaned = stripDigits(raw);
+                                setCustomerInfo({ ...customerInfo, city: cleaned });
+                                if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                                else if (cityError) setCityError("");
+                              }} placeholder="Abidjan" className={`rounded-xl h-11 ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                              {cityError && <p className="text-xs text-red-500">{cityError}</p>}
                             </div>
                           )}
                           {isEnabled("address") && (
@@ -961,6 +975,7 @@ const ProductView = () => {
                       (!isEnabled("phone") || (!isRequired("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                       (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
                       (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
+                      (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
                       (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
                     return (
                   <Button 
@@ -1197,6 +1212,7 @@ const ProductView = () => {
                   (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
                   (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                   (!enabled("city") || !required("city") || !!customerInfo.city) &&
+                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
                   (!enabled("address") || !required("address") || !!customerInfo.address);
                 const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
                 const methods = isInterior
@@ -1254,7 +1270,14 @@ const ProductView = () => {
                       {enabled("city") && (
                         <div className="space-y-0.5 col-span-2 sm:col-span-1">
                           <Label className="text-[11px] text-gray-500">Ville {required("city") && "*"}</Label>
-                          <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-lg h-10 text-sm" />
+                          <Input value={customerInfo.city} onChange={(e) => {
+                            const raw = e.target.value;
+                            const cleaned = stripDigits(raw);
+                            setCustomerInfo({ ...customerInfo, city: cleaned });
+                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                            else if (cityError) setCityError("");
+                          }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                          {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
                         </div>
                       )}
                       {enabled("address") && (

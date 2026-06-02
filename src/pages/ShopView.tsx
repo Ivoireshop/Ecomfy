@@ -20,6 +20,7 @@ import { isRtlLang } from "@/lib/shopLanguages";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
+import { containsDigits, stripDigits } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -64,6 +65,7 @@ const ShopView = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
   });
+  const [cityError, setCityError] = useState("");
 
   // ----- Shop language (auto-detected from browser, override via selector) -----
   const [shopLang, setShopLang] = useState<string>(() => {
@@ -405,6 +407,10 @@ const ShopView = () => {
       });
       return;
     }
+    if (customerInfo.city && containsDigits(customerInfo.city)) {
+      toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
+      return;
+    }
     setOrderLoading(true);
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
@@ -463,6 +469,7 @@ const ShopView = () => {
       });
       setCart([]);
       setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
+      setCityError("");
       setCheckoutOpen(false);
       navigate("/order-confirmed", {
         state: {
@@ -975,6 +982,7 @@ const ShopView = () => {
                   (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
                   (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                   (!enabled("city") || !required("city") || !!customerInfo.city) &&
+                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
                   (!enabled("address") || !required("address") || !!customerInfo.address);
                 return (
                 <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
@@ -1033,7 +1041,14 @@ const ShopView = () => {
                       {enabled("city") && (
                         <div className="space-y-0.5 col-span-2 sm:col-span-1">
                           <Label className="text-[11px] text-muted-foreground">Ville {required("city") && "*"}</Label>
-                          <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-lg h-10 text-sm" />
+                          <Input value={customerInfo.city} onChange={(e) => {
+                            const raw = e.target.value;
+                            const cleaned = stripDigits(raw);
+                            setCustomerInfo({ ...customerInfo, city: cleaned });
+                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                            else if (cityError) setCityError("");
+                          }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                          {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
                         </div>
                       )}
                       {enabled("address") && (

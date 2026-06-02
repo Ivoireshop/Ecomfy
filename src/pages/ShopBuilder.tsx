@@ -351,11 +351,14 @@ const ShopBuilder = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Ville</Label>
-                <Input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Abidjan" />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Ville</Label>
+                  <Input value={formData.city} onChange={(e) => {
+                    const val = e.target.value.replace(/\d/g, "");
+                    setFormData({ ...formData, city: val });
+                  }} placeholder="Abidjan" />
+                </div>
               <div className="space-y-2">
                 <Label>Pays</Label>
                 <Input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} />
