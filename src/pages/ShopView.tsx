@@ -982,6 +982,7 @@ const ShopView = () => {
                   (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
                   (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                   (!enabled("city") || !required("city") || !!customerInfo.city) &&
+                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
                   (!enabled("address") || !required("address") || !!customerInfo.address);
                 return (
                 <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
