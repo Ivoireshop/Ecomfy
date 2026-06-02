@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { PhoneInput } from "@/components/shop/PhoneInput";
 
 const bookingSchema = z.object({
   full_name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
@@ -204,7 +205,7 @@ export const BookingForm = ({ showcaseSiteId, site, onSuccess }: BookingFormProp
                 <FormItem>
                   <FormLabel>Téléphone</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="+225 XX XX XX XX XX" {...field} />
+                    <PhoneInput value={field.value || ""} onChange={field.onChange} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
