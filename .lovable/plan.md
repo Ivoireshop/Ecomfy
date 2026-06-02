@@ -1,83 +1,46 @@
-# Assistant IA Vocal & Textuel pour Boutiques
+# Réordonnancement des sections de la fiche produit
 
 ## Objectif
-Ajouter un assistant IA premium (vocal + texte) sur chaque fiche produit des boutiques en ligne. L'assistant accueille les visiteurs automatiquement, parle plusieurs langues (Français, Anglais, Dioula, Baoulé), et est configurable par le propriétaire de la boutique.
+Permettre au vendeur de déplacer librement (drag & drop) les blocs d'une fiche produit : image, titre/prix, description courte, description longue, compte à rebours, barre d'urgence stock, options/variantes, quantité, bouton commander, etc.
 
-## Fonctionnalités clés
+## Sections déplaçables
+1. **Galerie image** (`gallery`)
+2. **Titre + prix** (`title_price`)
+3. **Compte à rebours** (`countdown`)
+4. **Barre d'urgence stock** (`stock_urgency`)
+5. **Description courte** (`short_description`)
+6. **Variantes / options** (`variants`)
+7. **Quantité** (`quantity`)
+8. **Bouton commander** (`order_button`)
+9. **Description longue** (`long_description`)
+10. **Preuve sociale / avis** (`social_proof`) si activée
 
-### 1. Configuration par le propriétaire (dans ShopEditor)
-Nouvel onglet **"Assistant IA"** dans le ShopSidebar :
-- **Activer/désactiver** l'assistant (réservé aux boutiques activées/payées)
-- **Nom de l'assistant** (ex: "Ramina")
-- **Personnalité / ton** (Amical, Professionnel, Énergique, Luxe)
-- **Source des informations** :
-  - ☐ Saisie manuelle (textarea : présentation, offres recommandées, best-sellers, FAQ)
-  - ☑ S'inspirer automatiquement des fiches produits (par défaut)
-- **Langues d'accueil multi-salutation** (cases à cocher) :
-  - 🇫🇷 Français, 🇬🇧 Anglais, 🇨🇮 Dioula, 🇨🇮 Baoulé
-- **Langue de conversation** :
-  - Auto (laisse l'IA détecter selon le visiteur)
-  - Ou langue fixe imposée
-- **Voix de l'agent vocal** (preview) : Féminine douce / Féminine énergique / Masculine pro
-- **Déclenchement** : Auto à l'ouverture / Au clic sur le bouton flottant
-- **Message d'accueil personnalisé** (optionnel, sinon généré par IA)
+## Données
+Ajout d'un champ `section_order: string[]` dans `products.theme_config` (jsonb existant) ou dans une nouvelle colonne `section_order jsonb` sur la table `products`.
+- Valeur par défaut = ordre actuel.
+- Stocké par produit (override) avec fallback sur l'ordre boutique (`shops.theme_config.product_section_order`) pour appliquer à toutes les fiches.
 
-### 2. Affichage sur la fiche produit (ShopView / ProductView)
-- Bouton flottant premium en bas à droite (avatar animé + halo pulsant)
-- Bulle d'accueil multilingue auto au bout de 2s : "Bonjour 👋 Good morning · Anni sɔrɔma · Akwaba"
-- Modal/Drawer élégant à l'ouverture avec :
-  - Avatar animé (pulse quand parle)
-  - **Mode Vocal** : bouton micro pour parler à l'agent, l'agent répond en voix
-  - **Mode Texte** : chat classique avec markdown
-  - Toggle vocal/texte
-  - Indicateur "en train de parler" / "en écoute"
-- Design haut de gamme : glassmorphism, animations Framer Motion, gradient adapté au thème de la boutique
+## UI éditeur
+Dans **ProductEditor** (onglet "Mise en page") :
+- Liste verticale des sections avec poignée de glisser-déposer (`@dnd-kit/sortable` déjà disponible côté shop).
+- Bouton "Réinitialiser l'ordre par défaut".
+- Toggle "Appliquer à tous mes produits" → écrit dans `shops.theme_config.product_section_order`.
+- Aperçu live dans la prévisualisation.
 
-### 3. Backend
+Dans **ShopEditor → Thème** : même contrôle pour définir l'ordre par défaut de la boutique.
 
-**Tables (migration)** :
-- `shop_ai_assistants` : `shop_id`, `enabled`, `name`, `personality`, `source_mode` ('manual' | 'auto_products' | 'hybrid'), `manual_context`, `greeting_languages[]`, `conversation_language`, `voice_id`, `auto_open`, `custom_greeting`
-
-**Edge functions** :
-- `shop-ai-assistant-chat` (existante `shop-chatbot` à étendre) :
-  - Charge la config + les produits de la boutique
-  - Construit un system prompt riche multilingue
-  - Streaming SSE via Lovable AI (`google/gemini-3-flash-preview`)
-  - Détecte la langue du visiteur si "auto"
-- `shop-ai-assistant-tts` : Text-to-speech via ElevenLabs (multilingual v2 supporte FR/EN, fallback texte pour Dioula/Baoulé)
-- `shop-ai-assistant-stt` : Speech-to-text (Web Speech API côté client en priorité, fallback edge function si besoin)
-
-**Sécurité** : RLS — propriétaire/collaborateurs gèrent la config, lecture publique de la config quand `enabled=true` (pour la fiche produit publique).
-
-### 4. Tarification
-- L'assistant IA vocal est **réservé aux boutiques avec activation payée** (cohérent avec la mémoire e-commerce existante)
-- Si non-payée : afficher un teaser "Activez votre boutique pour débloquer l'Assistant IA Vocal"
+## Rendu (ProductView.tsx)
+- Refactor : extraire chaque bloc en composant/fonction `renderSection(key)`.
+- Construire la liste finale : `product.section_order ?? shop.theme_config.product_section_order ?? DEFAULT_ORDER`.
+- Boucler et rendre dans l'ordre, sur desktop (colonne droite + image à gauche) et mobile (colonne unique).
+- Les sections désactivées (countdown_enabled=false, etc.) sont ignorées.
 
 ## Détails techniques
+- Migration SQL : `ALTER TABLE products ADD COLUMN section_order jsonb;` + GRANTs.
+- Hook `useProductSectionOrder(product, shop)` qui retourne l'ordre effectif et filtre les sections désactivées.
+- Le layout desktop a deux colonnes : on permet de réordonner uniquement la colonne droite (infos) ; la galerie reste à gauche. **Option** : ajouter un mode "1 colonne" pour permettre image dans le flux.
+- Mobile : tout est en une colonne → ordre intégral respecté.
 
-**Stack** :
-- Frontend : nouveau composant `ShopAIAssistant.tsx` (widget flottant) + `ShopAssistantSettings.tsx` (onglet config)
-- TTS : ElevenLabs (clé via secret `ELEVENLABS_API_KEY` à demander si non présente) — voix recommandée : Sarah (EXAVITQu4vr4xnSDxMaL) féminine douce, multilingual_v2
-- STT : Web Speech API navigateur (gratuit, instantané) avec fallback
-- LLM : Lovable AI Gateway (déjà configuré, `LOVABLE_API_KEY`)
-- Streaming chat : SSE pattern déjà utilisé dans `ShowcaseAIChat`
-
-**Intégration** :
-- Widget monté dans `ShopView.tsx` (page boutique) ET `ProductView.tsx` (fiche produit)
-- Charge la config via une RPC publique, n'affiche rien si désactivé
-
-**Fallback langues locales** (Dioula/Baoulé) : ElevenLabs ne supporte pas nativement, donc :
-- Salutations pré-enregistrées (audio statique court) en Dioula/Baoulé
-- Conversation continue en FR/EN avec TTS pleine voix
-
-## Étapes
-1. Migration DB : table `shop_ai_assistants` + RLS + RPC publique de lecture
-2. Edge function `shop-ai-assistant-chat` (streaming + multilingue + contexte produits)
-3. Edge function `shop-ai-assistant-tts` (ElevenLabs)
-4. Composant `ShopAIAssistant.tsx` (widget flottant premium vocal+texte)
-5. Composant `ShopAssistantSettings.tsx` + ajout dans `ShopSidebar` et `ShopEditor`
-6. Intégration du widget dans `ShopView.tsx` et `ProductView.tsx` (conditionné à `enabled` et boutique payée)
-7. Audio statique des salutations Dioula/Baoulé (upload storage)
-
-## Question préalable
-**Avez-vous une clé ElevenLabs** (pour la voix premium TTS) ? Sinon je vous guiderai pour l'obtenir avant de poursuivre. Sans voix, on peut démarrer avec la Web Speech API du navigateur (qualité standard, gratuite) et ajouter ElevenLabs ensuite.
+## Hors périmètre
+- Drag & drop direct sur la fiche publique (l'édition se fait dans l'éditeur).
+- Sections personnalisées créées par l'utilisateur (uniquement les blocs existants).
