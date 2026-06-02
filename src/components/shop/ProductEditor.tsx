@@ -1138,6 +1138,104 @@ export function ProductEditor({
             </div>
           </CollapsibleSection>
 
+          {/* Mise en page de la fiche */}
+          <CollapsibleSection title="Mise en page de la fiche" icon={<Layers className="h-4 w-4" />}>
+            {(() => {
+              const order = normalizeSectionOrder(product.section_order);
+              const move = (idx: number, delta: number) => {
+                const next = [...order.blocks];
+                const j = idx + delta;
+                if (j < 0 || j >= next.length) return;
+                [next[idx], next[j]] = [next[j], next[idx]];
+                setProduct({ ...product, section_order: { ...order, blocks: next } });
+              };
+              const setLayout = (layout: "image_left" | "image_right") => {
+                setProduct({ ...product, section_order: { ...order, layout } });
+              };
+              return (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Position de l'image (desktop)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={order.layout === "image_left" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setLayout("image_left")}
+                        className="h-9"
+                      >
+                        Image à gauche
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={order.layout === "image_right" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setLayout("image_right")}
+                        className="h-9"
+                      >
+                        Image à droite
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Sur mobile, l'image reste toujours en premier.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Ordre des blocs d'informations</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Déplacez chaque bloc avec les flèches pour personnaliser l'ordre d'affichage.
+                    </p>
+                    <div className="space-y-1.5">
+                      {order.blocks.map((key, idx) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between gap-2 p-2.5 rounded-lg border bg-muted/30"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background text-xs font-bold border">
+                              {idx + 1}
+                            </span>
+                            <span className="text-sm font-medium truncate">
+                              {PRODUCT_SECTION_LABELS[key]}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button" variant="ghost" size="icon"
+                              className="h-7 w-7" disabled={idx === 0}
+                              onClick={() => move(idx, -1)}
+                              aria-label="Monter"
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button" variant="ghost" size="icon"
+                              className="h-7 w-7" disabled={idx === order.blocks.length - 1}
+                              onClick={() => move(idx, 1)}
+                              aria-label="Descendre"
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      type="button" variant="outline" size="sm" className="w-full"
+                      onClick={() =>
+                        setProduct({
+                          ...product,
+                          section_order: { layout: order.layout, blocks: [...DEFAULT_PRODUCT_BLOCKS] },
+                        })
+                      }
+                    >
+                      Réinitialiser l'ordre par défaut
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
+          </CollapsibleSection>
+
           {/* Checkout */}
           <CollapsibleSection title="Checkout" icon={<ShoppingCart className="h-4 w-4" />}>
             <div className="text-center py-6 text-muted-foreground">
