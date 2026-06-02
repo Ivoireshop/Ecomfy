@@ -174,13 +174,15 @@ export function PhoneInput({
           <p className="text-xs text-destructive leading-snug">
             {prefixInvalid ? (
               <>
-                Un numéro <strong>{country.name}</strong> doit commencer par{" "}
-                <strong>{country.prefixes!.join(", ")}</strong> (Orange 07, MTN 05, Moov 01).
+                En <strong>{country.name}</strong>, un numéro valide commence par{" "}
+                <strong>{country.prefixes!.join(", ")}</strong>&nbsp;: Orange = 07, MTN = 05, Moov = 01.
+                <br />
+                Exemple correct&nbsp;: <strong>{country.example}</strong>.
               </>
             ) : (
               <>
                 Le numéro doit contenir <strong>{expected}</strong> chiffres pour{" "}
-                <strong>{country.name}</strong>.
+                <strong>{country.name}</strong>. Exemple&nbsp;: <strong>{country.example}</strong>.
               </>
             )}
           </p>
@@ -189,9 +191,9 @@ export function PhoneInput({
         <p className="mt-1.5 text-xs text-muted-foreground leading-snug">
           Format attendu : <strong>{expected}</strong> chiffres ({country.name})
           {country.prefixes && country.prefixes.length > 0
-            ? `, commençant par ${country.prefixes.join(", ")}`
+            ? `, commençant par ${country.prefixes.join(", ")} (Orange 07, MTN 05, Moov 01)`
             : ""}
-          .
+          . Exemple&nbsp;: <strong>{country.example}</strong>.
         </p>
       )}
     </div>
