@@ -65,6 +65,7 @@ const ShopView = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
   });
+  const [cityError, setCityError] = useState("");
 
   // ----- Shop language (auto-detected from browser, override via selector) -----
   const [shopLang, setShopLang] = useState<string>(() => {
