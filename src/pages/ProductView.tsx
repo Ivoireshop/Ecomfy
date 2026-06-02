@@ -671,16 +671,6 @@ const ProductView = () => {
               )}
             </div>
 
-            {/* Countdown Timer */}
-            {shop.theme_config?.countdown_enabled && (
-              <CountdownTimerInline
-                color={shop.theme_config?.countdown_color || "#dc2626"}
-                days={shop.theme_config?.countdown_days || 0}
-                hours={shop.theme_config?.countdown_hours || 12}
-                minutes={shop.theme_config?.countdown_minutes || 0}
-              />
-            )}
-
             {/* Offres en lot (bundles) */}
             {Array.isArray(product.bundle_offers) && product.bundle_offers.length > 0 && (
               <div className="space-y-2 rounded-xl border-2 p-3" style={{ borderColor: primaryColor + "30" }}>
@@ -712,63 +702,97 @@ const ProductView = () => {
               </div>
             )}
 
-            {/* Stock urgency */}
-            {product.stock_quantity !== null && product.stock_quantity > 0 && shop.theme_config?.stock_urgency_enabled !== false && (
-              shop.theme_config?.stock_display_style === "text" ? (
-                <div className="inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full" style={{ backgroundColor: (shop.theme_config?.stock_text_color || "#16a34a") + "15", color: shop.theme_config?.stock_text_color || "#16a34a" }}>
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: shop.theme_config?.stock_text_color || "#16a34a" }} />
-                  En stock ({product.stock_quantity} produit{product.stock_quantity > 1 ? "s" : ""} disponible{product.stock_quantity > 1 ? "s" : ""})
-                </div>
-              ) : product.stock_quantity < 20 ? (
-                <StockUrgencyBarInline
-                  stock={product.stock_quantity}
-                  maxStock={20}
-                  color={shop.theme_config?.stock_urgency_color || "#ef4444"}
-                  text={shop.theme_config?.stock_urgency_text}
-                />
-              ) : null
-            )}
-            {product.stock_quantity !== null && product.stock_quantity <= 0 && (
-              <p className="text-sm text-red-600 font-medium">Rupture de stock</p>
-            )}
-
-            {product.short_description && (
-              <p className="text-gray-600 text-sm leading-relaxed">{product.short_description}</p>
-            )}
-
-            {/* Variantes (taille, couleur, ...) */}
-            {Array.isArray(product.variants) && product.variants.length > 0 && (
-              <div className="space-y-3">
-                {product.variants.map((group, gi) => (
-                  group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
-                    <div key={gi} className="space-y-1.5">
-                      <Label className="text-sm font-medium text-gray-700">
-                        {group.name}
-                        {selectedVariants[group.name] && (
-                          <span className="ml-2 text-gray-500 font-normal">: {selectedVariants[group.name]}</span>
-                        )}
-                      </Label>
-                      <div className="flex flex-wrap gap-2">
-                        {group.options.map((opt, oi) => {
-                          const active = selectedVariants[group.name] === opt;
-                          return (
-                            <button
-                              key={oi}
-                              type="button"
-                              onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
-                              className={`px-3 h-9 rounded-lg border-2 text-sm font-medium transition ${active ? "shadow-sm" : "border-gray-200 hover:border-gray-400"}`}
-                              style={active ? { borderColor: primaryColor, background: primaryColor + "15", color: primaryColor } : undefined}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null
-                ))}
-              </div>
-            )}
+            {/* Ordered movable blocks (countdown / stock / short_description / variants / long_description) */}
+            {sectionOrder.blocks.map((key: ProductSectionKey) => {
+              if (key === "countdown") {
+                return shop.theme_config?.countdown_enabled ? (
+                  <CountdownTimerInline
+                    key="countdown"
+                    color={shop.theme_config?.countdown_color || "#dc2626"}
+                    days={shop.theme_config?.countdown_days || 0}
+                    hours={shop.theme_config?.countdown_hours || 12}
+                    minutes={shop.theme_config?.countdown_minutes || 0}
+                  />
+                ) : null;
+              }
+              if (key === "stock") {
+                return (
+                  <div key="stock" className="space-y-2">
+                    {product.stock_quantity !== null && product.stock_quantity > 0 && shop.theme_config?.stock_urgency_enabled !== false && (
+                      shop.theme_config?.stock_display_style === "text" ? (
+                        <div className="inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full" style={{ backgroundColor: (shop.theme_config?.stock_text_color || "#16a34a") + "15", color: shop.theme_config?.stock_text_color || "#16a34a" }}>
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: shop.theme_config?.stock_text_color || "#16a34a" }} />
+                          En stock ({product.stock_quantity} produit{product.stock_quantity > 1 ? "s" : ""} disponible{product.stock_quantity > 1 ? "s" : ""})
+                        </div>
+                      ) : product.stock_quantity < 20 ? (
+                        <StockUrgencyBarInline
+                          stock={product.stock_quantity}
+                          maxStock={20}
+                          color={shop.theme_config?.stock_urgency_color || "#ef4444"}
+                          text={shop.theme_config?.stock_urgency_text}
+                        />
+                      ) : null
+                    )}
+                    {product.stock_quantity !== null && product.stock_quantity <= 0 && (
+                      <p className="text-sm text-red-600 font-medium">Rupture de stock</p>
+                    )}
+                  </div>
+                );
+              }
+              if (key === "short_description") {
+                return product.short_description ? (
+                  <p key="short_description" className="text-gray-600 text-sm leading-relaxed">{product.short_description}</p>
+                ) : null;
+              }
+              if (key === "variants") {
+                return Array.isArray(product.variants) && product.variants.length > 0 ? (
+                  <div key="variants" className="space-y-3">
+                    {product.variants.map((group, gi) => (
+                      group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
+                        <div key={gi} className="space-y-1.5">
+                          <Label className="text-sm font-medium text-gray-700">
+                            {group.name}
+                            {selectedVariants[group.name] && (
+                              <span className="ml-2 text-gray-500 font-normal">: {selectedVariants[group.name]}</span>
+                            )}
+                          </Label>
+                          <div className="flex flex-wrap gap-2">
+                            {group.options.map((opt, oi) => {
+                              const active = selectedVariants[group.name] === opt;
+                              return (
+                                <button
+                                  key={oi}
+                                  type="button"
+                                  onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
+                                  className={`px-3 h-9 rounded-lg border-2 text-sm font-medium transition ${active ? "shadow-sm" : "border-gray-200 hover:border-gray-400"}`}
+                                  style={active ? { borderColor: primaryColor, background: primaryColor + "15", color: primaryColor } : undefined}
+                                >
+                                  {opt}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null
+                    ))}
+                  </div>
+                ) : null;
+              }
+              if (key === "long_description") {
+                return product.description ? (
+                  <div
+                    key="long_description"
+                    className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-img:rounded-xl prose-img:mx-auto prose-img:shadow-sm prose-a:text-blue-600 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description, {
+                      ALLOWED_TAGS: ['p','br','strong','b','em','i','u','s','ul','ol','li','h1','h2','h3','h4','h5','h6','blockquote','code','pre','img','a','span','div','hr','table','thead','tbody','tr','th','td'],
+                      ALLOWED_ATTR: ['href','src','alt','title','class','style','target','rel','width','height']
+                    }) }}
+                    style={{ whiteSpace: "pre-wrap" }}
+                  />
+                ) : null;
+              }
+              return null;
+            })}
 
             {/* Quantity + Add to Cart */}
             <div className="pt-2 space-y-3">
