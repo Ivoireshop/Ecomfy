@@ -564,9 +564,13 @@ const ProductView = () => {
 
       {/* ====== PRODUCT HERO SECTION ====== */}
       <section className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
+        {(() => {
+          const sectionOrder = normalizeSectionOrder((product as any).section_order);
+          const imageRight = sectionOrder.layout === "image_right";
+          return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-          {/* Left: Images */}
-          <div>
+          {/* Left/Right: Images */}
+          <div className={imageRight ? "md:order-2" : ""}>
             {/* Main Image */}
             <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 mb-3 relative group">
               {images.length > 0 ? (
