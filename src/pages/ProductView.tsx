@@ -1212,6 +1212,7 @@ const ProductView = () => {
                   (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
                   (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
                   (!enabled("city") || !required("city") || !!customerInfo.city) &&
+                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
                   (!enabled("address") || !required("address") || !!customerInfo.address);
                 const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
                 const methods = isInterior
