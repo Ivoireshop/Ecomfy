@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Upload, CreditCard } from "lucide-react";
 import { useEffect } from "react";
+import { PhoneInput } from "@/components/shop/PhoneInput";
+import { normalizeToE164 } from "@/lib/phoneCountries";
 
 interface Course {
   id: string;
