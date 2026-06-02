@@ -897,7 +897,14 @@ const ProductView = () => {
                           {isEnabled("city") && (
                             <div className="space-y-1">
                               <Label className="text-xs text-gray-500">Ville {isRequired("city") && "*"}</Label>
-                              <Input value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} placeholder="Abidjan" className="rounded-xl h-11" />
+                              <Input value={customerInfo.city} onChange={(e) => {
+                                const raw = e.target.value;
+                                const cleaned = stripDigits(raw);
+                                setCustomerInfo({ ...customerInfo, city: cleaned });
+                                if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                                else if (cityError) setCityError("");
+                              }} placeholder="Abidjan" className={`rounded-xl h-11 ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                              {cityError && <p className="text-xs text-red-500">{cityError}</p>}
                             </div>
                           )}
                           {isEnabled("address") && (
