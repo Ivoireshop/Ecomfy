@@ -13,6 +13,13 @@ import { ProductGifGenerator } from "./ProductGifGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
+  DEFAULT_PRODUCT_BLOCKS,
+  PRODUCT_SECTION_LABELS,
+  normalizeSectionOrder,
+  type ProductSectionKey,
+  type ProductSectionOrder,
+} from "@/lib/productSections";
+import {
   ArrowLeft, Save, Plus, X, Upload, Image as ImageIcon, DollarSign,
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
@@ -90,6 +97,7 @@ interface ProductData {
   bundle_offers?: BundleOffer[];
   bundle_position?: string;
   variants?: VariantGroup[];
+  section_order?: ProductSectionOrder;
 }
 
 export interface BundleOffer {
@@ -138,6 +146,7 @@ export function ProductEditor({
     sku: "", weight: 0, is_featured: false, slug: "",
     bundle_offers: [], bundle_position: "after_countdown",
     variants: [],
+    section_order: { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [showFontSize, setShowFontSize] = useState(false);
