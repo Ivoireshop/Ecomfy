@@ -20,6 +20,7 @@ import { isRtlLang } from "@/lib/shopLanguages";
 import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
+import { containsDigits, stripDigits } from "@/lib/utils";
 
 interface Product {
   id: string;
