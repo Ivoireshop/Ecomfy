@@ -258,7 +258,7 @@ html {
 
 /* Auth page glass tint */
 .auth-glass-bg {
-  background: linear-gradient(160deg, hsl(265 55% 32%), hsl(280 60% 22%));
+  background: linear-gradient(160deg, hsl(214 90% 22%), hsl(214 100% 14%));
 }
 
 /* Text formatting - aligned left with proper line breaks */
