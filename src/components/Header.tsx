@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -11,6 +11,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 
 export function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { session } = useAuthReady();
   const isAuthenticated = !!session?.user;
@@ -18,11 +19,38 @@ export function Header() {
 
   const menuItems = [
     { label: t("header.home"), href: "/" },
-    { label: t("header.features"), href: "/#features" },
+    { label: t("header.features"), href: "/#services" },
     { label: t("header.pricing"), href: "/subscription" },
     { label: t("header.tutorial"), href: "/tutorial" },
     { label: t("header.demo"), href: "/demo" },
   ];
+
+  const scrollToHash = (hash: string) => {
+    const id = hash.replace(/^#/, "");
+    const tryScroll = (attempt = 0) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else if (attempt < 20) {
+        setTimeout(() => tryScroll(attempt + 1), 100);
+      }
+    };
+    tryScroll();
+  };
+
+  const handleNavClick = (href: string) => {
+    if (href.startsWith("/#")) {
+      const hash = href.substring(1);
+      if (location.pathname !== "/") {
+        navigate("/");
+        setTimeout(() => scrollToHash(hash), 150);
+      } else {
+        scrollToHash(hash);
+      }
+    } else {
+      navigate(href);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -44,14 +72,8 @@ export function Header() {
                 key={item.href}
                 href={item.href}
                 onClick={(e) => {
-                  if (item.href.startsWith("/#")) {
-                    e.preventDefault();
-                    const element = document.querySelector(item.href.substring(1));
-                    element?.scrollIntoView({ behavior: "smooth" });
-                  } else {
-                    e.preventDefault();
-                    navigate(item.href);
-                  }
+                  e.preventDefault();
+                  handleNavClick(item.href);
                 }}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -97,12 +119,7 @@ export function Header() {
                       className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors"
                       onClick={(e) => {
                         e.preventDefault();
-                        if (item.href.startsWith("/#")) {
-                          const element = document.querySelector(item.href.substring(1));
-                          element?.scrollIntoView({ behavior: "smooth" });
-                        } else {
-                          navigate(item.href);
-                        }
+                        handleNavClick(item.href);
                         setIsOpen(false);
                       }}
                     >
