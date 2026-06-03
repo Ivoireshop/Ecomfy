@@ -123,18 +123,96 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
   const sequenceById: Record<string, number> = {};
   sortedAsc.forEach((o, i) => { sequenceById[o.id] = i + 1; });
 
+  const buildExportRows = () => {
+    return filteredOrders.map((o) => {
+      const items = o.order_items && o.order_items.length > 0
+        ? o.order_items.map((it) => {
+            const variants = it.selected_variants && Object.keys(it.selected_variants).length > 0
+              ? ` (${Object.entries(it.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ")})`
+              : "";
+            return `${it.quantity}x ${it.product_name}${variants}`;
+          }).join(" ; ")
+        : (o.products_summary || "");
+      return {
+        "N°": sequenceById[o.id],
+        "Référence": o.order_number,
+        "Date": new Date(o.created_at).toLocaleString("fr-FR"),
+        "Client": o.customer_name,
+        "Téléphone": o.customer_phone,
+        "Email": o.customer_email || "",
+        "Ville": o.customer_city || "",
+        "Adresse": o.customer_address || "",
+        "Produits": items,
+        "Total (FCFA)": o.total,
+        "Paiement": o.payment_method === "mobile_money" ? "Mobile Money" : "À la livraison",
+        "Statut paiement": o.payment_status,
+        "Statut commande": STATUS_MAP[o.order_status]?.label || o.order_status,
+      };
+    });
+  };
+
+  const handleExportExcel = () => {
+    if (filteredOrders.length === 0) { toast.error("Aucune commande à exporter"); return; }
+    try {
+      const rows = buildExportRows();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Commandes");
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `commandes-${stamp}.xlsx`);
+      toast.success("Export Excel téléchargé");
+    } catch {
+      toast.error("Erreur lors de l'export Excel");
+    }
+  };
+
+  const handlePrint = () => {
+    if (filteredOrders.length === 0) { toast.error("Aucune commande à imprimer"); return; }
+    const rows = buildExportRows();
+    const headers = Object.keys(rows[0]);
+    const now = new Date().toLocaleString("fr-FR");
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Commandes</title>
+      <style>
+        *{box-sizing:border-box} body{font-family:Arial,sans-serif;color:#111;margin:24px}
+        h1{font-size:20px;margin:0 0 4px} .meta{color:#555;font-size:12px;margin-bottom:16px}
+        table{width:100%;border-collapse:collapse;font-size:11px}
+        th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}
+        th{background:#f3f4f6} tr:nth-child(even) td{background:#fafafa}
+        @media print{ @page{ size:A4 landscape; margin:12mm } }
+      </style></head><body>
+      <h1>Fiche des commandes</h1>
+      <div class="meta">${filteredOrders.length} commande(s) · Généré le ${now}</div>
+      <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${headers.map(h => `<td>${String((r as any)[h] ?? "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] as string))}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table>
+      <script>window.onload=()=>{setTimeout(()=>{window.print();},300)}<\/script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Activez les pop-ups pour imprimer"); return; }
+    w.document.write(html);
+    w.document.close();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-xl font-bold">Commandes ({filteredOrders.length}{search ? ` / ${orders.length}` : ""})</h2>
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher (n°, nom, téléphone, ville…)"
-            className="pl-9 h-9"
-          />
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher (n°, nom, téléphone, ville…)"
+              className="pl-9 h-9"
+            />
+          </div>
+          <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel}>
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" className="h-9" onClick={handlePrint}>
+            <Printer className="h-4 w-4 mr-1" /> Imprimer
+          </Button>
         </div>
       </div>
       {filteredOrders.length === 0 ? (
