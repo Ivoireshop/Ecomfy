@@ -671,39 +671,39 @@ const ProductView = () => {
               )}
             </div>
 
-            {/* Offres en lot (bundles) */}
-            {Array.isArray(product.bundle_offers) && product.bundle_offers.length > 0 && (
-              <div className="space-y-2 rounded-xl border-2 p-3" style={{ borderColor: primaryColor + "30" }}>
-                <p className="text-sm font-bold" style={{ color: primaryColor }}>🎁 Offres en lot</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {product.bundle_offers.map((b, i) => {
-                    const active = selectedBundleIdx === i;
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          setSelectedBundleIdx(active ? null : i);
-                          setQuantity(active ? 1 : Math.max(1, Number(b.quantity) || 1));
-                        }}
-                        className={`text-left p-3 rounded-lg border-2 transition ${active ? "shadow-md" : "border-gray-200 hover:border-gray-400"}`}
-                        style={active ? { borderColor: primaryColor, background: primaryColor + "10" } : undefined}
-                      >
-                        <div className="font-bold text-sm">
-                          {b.label || `${b.quantity} unité${b.quantity > 1 ? "s" : ""}`}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {b.quantity} × produit · <span className="font-bold" style={{ color: primaryColor }}>{formatPrice(b.price)} FCFA</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Ordered movable blocks (countdown / stock / short_description / variants / long_description) */}
+            {/* Ordered movable blocks */}
             {sectionOrder.blocks.map((key: ProductSectionKey) => {
+              if (key === "bundle_offers") {
+                return Array.isArray(product.bundle_offers) && product.bundle_offers.length > 0 ? (
+                  <div key="bundle_offers" className="space-y-2 rounded-xl border-2 p-3" style={{ borderColor: primaryColor + "30" }}>
+                    <p className="text-sm font-bold" style={{ color: primaryColor }}>🎁 Offres en lot</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {product.bundle_offers.map((b, i) => {
+                        const active = selectedBundleIdx === i;
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              setSelectedBundleIdx(active ? null : i);
+                              setQuantity(active ? 1 : Math.max(1, Number(b.quantity) || 1));
+                            }}
+                            className={`text-left p-3 rounded-lg border-2 transition ${active ? "shadow-md" : "border-gray-200 hover:border-gray-400"}`}
+                            style={active ? { borderColor: primaryColor, background: primaryColor + "10" } : undefined}
+                          >
+                            <div className="font-bold text-sm">
+                              {b.label || `${b.quantity} unité${b.quantity > 1 ? "s" : ""}`}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {b.quantity} × produit · <span className="font-bold" style={{ color: primaryColor }}>{formatPrice(b.price)} FCFA</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null;
+              }
               if (key === "countdown") {
                 return shop.theme_config?.countdown_enabled ? (
                   <CountdownTimerInline
