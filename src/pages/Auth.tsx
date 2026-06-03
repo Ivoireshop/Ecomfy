@@ -646,7 +646,7 @@ const Auth = () => {
         <img
           src={authHeroV5}
           alt="Créateur africain utilisant VisualPro"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover object-[70%_center] md:object-center"
           width={1024}
           height={1024}
         />
