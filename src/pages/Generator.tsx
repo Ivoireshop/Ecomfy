@@ -957,27 +957,10 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      {/* ===== GALERIE DÉFILANTE (compacte) ===== */}
-      <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
-        <div className="container mx-auto px-4 mb-3">
-          <p className="text-center text-xs md:text-sm text-muted-foreground">
-            ✨ Visuels déjà créés sur la plateforme
-          </p>
-        </div>
-        <div className="relative">
-          <div className="flex gap-3 animate-marquee w-max">
-            {[...Array(2)].flatMap((_, dup) =>
-              [exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
-                <Card key={`${dup}-${i}`} className="w-28 md:w-36 flex-shrink-0 overflow-hidden shadow-md">
-                  <div className="aspect-square bg-muted">
-                    <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
+      {/* ===== GALERIE DÉFILANTE (une image à la fois) ===== */}
+      <ExampleSlideshow
+        images={[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate]}
+      />
 
       <div id="create" className="container mx-auto px-4 py-6 md:py-8 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
@@ -1854,3 +1837,54 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 };
 
 export default Generator;
+
+function ExampleSlideshow({ images }: { images: string[] }) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % images.length);
+    }, 3500);
+    return () => clearInterval(id);
+  }, [images.length]);
+
+  return (
+    <section className="py-4 md:py-6 bg-muted/30 border-b">
+      <div className="container mx-auto px-4 mb-3">
+        <p className="text-center text-xs md:text-sm text-muted-foreground">
+          ✨ Visuels déjà créés sur la plateforme
+        </p>
+      </div>
+      <div className="container mx-auto px-4">
+        <div className="relative mx-auto w-full max-w-[260px] sm:max-w-xs md:max-w-sm">
+          <Card className="overflow-hidden shadow-md">
+            <div className="aspect-square bg-muted relative">
+              {images.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt="Visuel publicitaire"
+                  loading="lazy"
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                    i === index ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              ))}
+            </div>
+          </Card>
+          <div className="mt-3 flex justify-center gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIndex(i)}
+                aria-label={`Voir visuel ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? "w-5 bg-rose-600" : "w-1.5 bg-muted-foreground/30"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
