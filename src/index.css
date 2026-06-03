@@ -258,9 +258,14 @@ html {
 
 /* Auth page glass tint */
 .auth-glass-bg {
-  background: linear-gradient(160deg, hsl(214 90% 22% / 0.72), hsl(214 100% 14% / 0.78));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: transparent;
+}
+@media (min-width: 768px) {
+  .auth-glass-bg {
+    background: linear-gradient(160deg, hsl(214 90% 22% / 0.72), hsl(214 100% 14% / 0.78));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
 }
 
 /* Text formatting - aligned left with proper line breaks */
