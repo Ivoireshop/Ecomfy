@@ -934,7 +934,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         <div className="container relative mx-auto px-4 py-6 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
             <Badge className="px-3 py-1 bg-white/90 text-rose-700 backdrop-blur-sm shadow-sm font-semibold">
-              <Wand2 className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
+              <Atom className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
               Studio Visuels IA
             </Badge>
             <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900 break-words">
