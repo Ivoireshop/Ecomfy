@@ -339,7 +339,7 @@ const Auth = () => {
 
   return (
     <div className="relative min-h-svh overflow-x-hidden bg-background md:grid md:min-h-screen md:grid-cols-2">
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 hidden md:block">
         <img
           src={authHeroV5}
           alt="Créateur africain utilisant VisualPro"
@@ -347,7 +347,6 @@ const Auth = () => {
           width={1024}
           height={1024}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/82 via-background/64 to-background/92 md:hidden" />
       </div>
 
       {/* Left: form column */}
