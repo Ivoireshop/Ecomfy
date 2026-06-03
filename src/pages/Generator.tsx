@@ -1443,7 +1443,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                   "Quota épuisé - Prenez un abonnement"
                 ) : (
                   <>
-                    <Wand2 className="mr-2 h-5 w-5" />
+                    <Atom className="mr-2 h-5 w-5 text-blue-600" />
                     Prévisualiser et générer
                     {!hasActiveSubscription && freeGenerationsRemaining !== null && freeGenerationsRemaining > 0 && (
                       <span className="ml-2 text-xs opacity-80">
