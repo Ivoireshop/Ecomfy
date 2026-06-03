@@ -100,8 +100,8 @@ export function ShopReviewBar({ themeConfig = {}, placement }: ShopReviewBarProp
         <ReviewBarBlock
           className="block md:hidden"
           html={mobileHtml}
-          textColor={themeConfig.review_mobile_text || "#FFFFFF"}
-          bgColor={themeConfig.review_mobile_bg || "#000000"}
+          textColor={themeConfig.review_mobile_text || themeConfig.review_desktop_text || "#FFFFFF"}
+          bgColor={themeConfig.review_mobile_bg || themeConfig.review_desktop_bg || "#803160"}
           mode={mobileMode}
           speed={resolveSpeed(themeConfig, "review_mobile", mobileMode)}
           blinkAlign={mobileBlinkAlign}
