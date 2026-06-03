@@ -1053,15 +1053,15 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           <Tabs value={generationType === "video" ? "image" : generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
             <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
               <TabsTrigger value="image">
-                <ImageIcon className="mr-2 h-4 w-4" />
+                <ImageIcon className="mr-2 h-4 w-4 text-red-800" />
                 Classique
               </TabsTrigger>
               <TabsTrigger value="advanced">
-                <Wand2 className="mr-2 h-4 w-4" />
+                <Atom className="mr-2 h-4 w-4 text-blue-600" />
                 Avancé
               </TabsTrigger>
               <TabsTrigger value="pro">
-                <Zap className="mr-2 h-4 w-4" />
+                <Aperture className="mr-2 h-4 w-4 text-yellow-600" />
                 Mode Pro
               </TabsTrigger>
             </TabsList>
