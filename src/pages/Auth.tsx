@@ -364,7 +364,7 @@ const Auth = () => {
             </div>
           </div>
 
-        <Card className="border-border/60 shadow-lg">
+        <Card className="border-white/30 shadow-lg bg-white/60 backdrop-blur-xl">
           <CardHeader>
             <CardTitle>Bienvenue</CardTitle>
             <CardDescription>
