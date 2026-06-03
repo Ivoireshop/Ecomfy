@@ -678,7 +678,7 @@ const Auth = () => {
 
         <div className="absolute top-4 right-4 md:top-6 md:right-6">
           <div className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-medium text-white">
-            ✨ Propulsé par l'IA · 100% africain
+            v5
           </div>
         </div>
 
