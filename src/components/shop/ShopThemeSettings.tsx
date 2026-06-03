@@ -511,10 +511,10 @@ function ReviewLivePreview({ themeConfig, variant }: { themeConfig: any; variant
   const html = joinMessages(messages, separator);
   const textColor = variant === "desktop"
     ? (themeConfig.review_desktop_text || "#FFFFFF")
-    : (themeConfig.review_mobile_text || "#FFFFFF");
+    : (themeConfig.review_mobile_text || themeConfig.review_desktop_text || "#FFFFFF");
   const bgColor = variant === "desktop"
     ? (themeConfig.review_desktop_bg || "#803160")
-    : (themeConfig.review_mobile_bg || "#000000");
+    : (themeConfig.review_mobile_bg || themeConfig.review_desktop_bg || "#803160");
   const blinkAlign = variant === "desktop"
     ? (themeConfig.review_desktop_blink_align || "center")
     : (themeConfig.review_mobile_blink_align || "center");
