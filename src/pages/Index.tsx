@@ -327,9 +327,9 @@ const Index = () => {
       {!session && (
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
-            <div className="relative max-w-4xl mx-auto rounded-3xl overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary via-purple-600 to-secondary opacity-90" />
-              <div className="relative p-10 md:p-16 text-center text-white">
+            <div className="relative max-w-4xl mx-auto rounded-3xl overflow-hidden shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary to-secondary" />
+              <div className="relative p-10 md:p-16 text-center text-primary-foreground">
                 <Rocket className="w-12 h-12 mx-auto mb-6 opacity-90" />
                 <h2 className="text-3xl md:text-5xl font-extrabold mb-4">{t("landing.sections.ctaTitle")}</h2>
                 <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl mx-auto">{t("landing.sections.ctaSub")}</p>

@@ -29,6 +29,7 @@
     "pricing": "Precios",
     "tutorial": "Tutorial",
     "demo": "Demo",
+    "blog": "Blog",
     "openMenu": "Abrir menú"
   },
   "sidebar": {
@@ -114,8 +115,8 @@
       "step3Desc": "Publica, vende y haz crecer tu actividad.",
       "trustTitle": "Confían",
       "trustTitleB": "en nosotros",
-      "ctaTitle": "¿Listo para transformar tu negocio?",
-      "ctaSub": "Únete a los cientos de emprendedores africanos que usan VisualPro para triunfar en línea."
+      "ctaTitle": "Empieza a vender ahora con VisualPro",
+      "ctaSub": "Prueba VisualPro ahora y lanza tu negocio en línea en minutos."
     }
   }
 }
