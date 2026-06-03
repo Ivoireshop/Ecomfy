@@ -338,7 +338,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="relative min-h-svh overflow-hidden bg-background md:grid md:min-h-screen md:grid-cols-2">
+    <div className="relative min-h-svh overflow-x-hidden bg-background md:grid md:min-h-screen md:grid-cols-2">
       <div className="absolute inset-0 md:hidden">
         <img
           src={authHeroV5}
