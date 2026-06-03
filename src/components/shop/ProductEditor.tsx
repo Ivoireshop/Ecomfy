@@ -1251,85 +1251,24 @@ export function ProductEditor({
 
           {/* Mise en page de la fiche */}
           <CollapsibleSection title="Mise en page de la fiche" icon={<Layers className="h-4 w-4" />}>
-            {(() => {
-              const order = normalizeSectionOrder(product.section_order);
-              const setLayout = (layout: "image_left" | "image_right") => {
-                setProduct({ ...product, section_order: { ...order, layout } });
-              };
-              const sensors = useSensors(
-                useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-                useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-              );
-              const onDragEnd = (event: DragEndEvent) => {
-                const { active, over } = event;
-                if (!over || active.id === over.id) return;
-                const oldIdx = order.blocks.indexOf(active.id as ProductSectionKey);
-                const newIdx = order.blocks.indexOf(over.id as ProductSectionKey);
-                if (oldIdx < 0 || newIdx < 0) return;
-                const next = arrayMove(order.blocks, oldIdx, newIdx);
-                setProduct({ ...product, section_order: { ...order, blocks: next } });
-              };
-              return (
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Position de l'image (desktop)</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant={order.layout === "image_left" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setLayout("image_left")}
-                        className="h-9"
-                      >
-                        Image à gauche
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={order.layout === "image_right" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setLayout("image_right")}
-                        className="h-9"
-                      >
-                        Image à droite
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Sur mobile, l'image reste toujours en premier.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm">Ordre des blocs d'informations</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Glissez-déposez chaque bloc avec la poignée pour le repositionner librement.
-                    </p>
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                      <SortableContext items={order.blocks} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-1.5">
-                          {order.blocks.map((key, idx) => (
-                            <SortableSectionRow
-                              key={key}
-                              id={key}
-                              idx={idx}
-                              label={PRODUCT_SECTION_LABELS[key]}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
-                    <Button
-                      type="button" variant="outline" size="sm" className="w-full"
-                      onClick={() =>
-                        setProduct({
-                          ...product,
-                          section_order: { layout: order.layout, blocks: [...DEFAULT_PRODUCT_BLOCKS] },
-                        })
-                      }
-                    >
-                      Réinitialiser l'ordre par défaut
-                    </Button>
-                  </div>
-                </div>
-              );
-            })()}
+            <div className="space-y-3">
+              <SectionLayoutPanel
+                order={normalizeSectionOrder(product.section_order)}
+                onChange={(next) => setProduct({ ...product, section_order: next })}
+              />
+              <Button
+                type="button" variant="outline" size="sm" className="w-full"
+                onClick={() => {
+                  const current = normalizeSectionOrder(product.section_order);
+                  setProduct({
+                    ...product,
+                    section_order: { layout: current.layout, blocks: [...DEFAULT_PRODUCT_BLOCKS] },
+                  });
+                }}
+              >
+                Réinitialiser l'ordre par défaut
+              </Button>
+            </div>
           </CollapsibleSection>
 
           {/* Checkout */}
