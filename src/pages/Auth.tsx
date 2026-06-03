@@ -338,25 +338,50 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background grid grid-cols-2">
+    <div className="relative min-h-svh overflow-hidden bg-background md:grid md:min-h-screen md:grid-cols-2">
+      <div className="absolute inset-0 md:hidden">
+        <img
+          src={authHeroV5}
+          alt="Créateur africain utilisant VisualPro"
+          className="h-full w-full object-cover object-[68%_center]"
+          width={1024}
+          height={1024}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-foreground/85 via-foreground/55 to-foreground/90" />
+      </div>
+
       {/* Left: form column */}
-      <div className="flex flex-col justify-center px-3 py-6 sm:px-8 md:px-10 lg:px-16 auth-glass-bg">
+      <div className="relative z-10 flex min-h-svh flex-col justify-center px-4 py-6 sm:px-8 md:min-h-screen md:px-10 lg:px-16 auth-glass-bg">
         <div className="w-full max-w-md mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               VisualPro
             </h1>
-            <Badge variant="secondary" className="rounded-full border border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold tracking-wider">
+            <Badge variant="secondary" className="rounded-full border border-primary/30 bg-background/80 text-primary text-[10px] font-semibold tracking-wider backdrop-blur-md md:bg-primary/10">
               V5 · Nouvelle version
             </Badge>
           </div>
 
           <div className="mb-6">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">Bienvenue</h2>
-            <p className="text-muted-foreground">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-primary-foreground md:text-foreground">Bienvenue</h2>
+            <div className="mb-4 space-y-2 md:hidden">
+              <div className="flex items-center gap-3">
+                <span className="h-px w-8 bg-primary" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                  VisualPro V5
+                </span>
+              </div>
+              <p className="text-lg font-bold leading-tight text-primary-foreground">
+                Créez des visuels publicitaires et vendez. Lancez votre boutique.
+              </p>
+              <p className="text-sm leading-relaxed text-primary-foreground/85">
+                Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
+              </p>
+            </div>
+            <p className="text-primary-foreground/85 md:text-muted-foreground">
               Créez un compte ou connectez-vous pour commencer
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-md md:bg-primary/10 md:backdrop-blur-none">
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-xs font-medium text-primary">
                 🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
@@ -364,7 +389,7 @@ const Auth = () => {
             </div>
           </div>
 
-        <Card className="border-white/30 shadow-lg bg-white/60 backdrop-blur-xl">
+        <Card className="border-primary-foreground/25 bg-background/88 shadow-2xl backdrop-blur-xl md:border-white/30 md:bg-white/60 md:shadow-lg">
           <CardHeader>
             <CardTitle>Bienvenue</CardTitle>
             <CardDescription>
@@ -641,8 +666,8 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* Right: hero image column (visible on all sizes; banner on mobile, full column on desktop) */}
-      <div className="relative block overflow-hidden min-h-screen">
+      {/* Right: hero image column */}
+      <div className="relative hidden overflow-hidden md:block md:min-h-screen">
         <img
           src={authHeroV5}
           alt="Créateur africain utilisant VisualPro"
