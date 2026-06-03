@@ -338,7 +338,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background grid md:grid-cols-2">
+    <div className="min-h-screen bg-background flex flex-col-reverse md:grid md:grid-cols-2">
       {/* Left: form column */}
       <div className="flex flex-col justify-center px-5 py-8 sm:px-8 md:px-10 lg:px-16 auth-glass-bg">
         <div className="w-full max-w-md mx-auto">
@@ -641,8 +641,8 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* Right: hero image column (tablet & desktop) */}
-      <div className="relative hidden md:block overflow-hidden min-h-screen">
+      {/* Right: hero image column (visible on all sizes; banner on mobile, full column on desktop) */}
+      <div className="relative block overflow-hidden min-h-[280px] sm:min-h-[360px] md:min-h-screen">
         <img
           src={authHeroV5}
           alt="Créateur africain utilisant VisualPro"
@@ -652,26 +652,26 @@ const Auth = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
 
-        <div className="absolute top-6 right-6">
-          <div className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 text-xs font-medium text-white">
+        <div className="absolute top-4 right-4 md:top-6 md:right-6">
+          <div className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-medium text-white">
             ✨ Propulsé par l'IA · 100% africain
           </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-10 text-white">
-          <div className="mb-3 flex items-center gap-3">
-            <span className="h-px w-10 bg-primary" />
-            <span className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-10 text-white">
+          <div className="mb-2 md:mb-3 flex items-center gap-3">
+            <span className="h-px w-8 md:w-10 bg-primary" />
+            <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] text-primary uppercase">
               VisualPro V5
             </span>
           </div>
-          <h2 className="text-4xl xl:text-5xl font-bold leading-tight mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl xl:text-5xl font-bold leading-tight mb-2 md:mb-4">
             Créez des visuels publicitaires.<br />
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Vendez, lancez votre boutique.
             </span>
           </h2>
-          <p className="text-base xl:text-lg text-white/80 max-w-md">
+          <p className="text-sm md:text-base xl:text-lg text-white/80 max-w-md">
             Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
           </p>
         </div>
