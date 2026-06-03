@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Video, Volume2, Play, Pause, Download, Wand2, ImageIcon, Zap, ArrowDown } from "lucide-react";
+import { Loader2, Video, Volume2, Play, Pause, Download, ImageIcon, Aperture, Atom, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -934,7 +934,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         <div className="container relative mx-auto px-4 py-6 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
             <Badge className="px-3 py-1 bg-white/90 text-rose-700 backdrop-blur-sm shadow-sm font-semibold">
-              <Wand2 className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
+              <Atom className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
               Studio Visuels IA
             </Badge>
             <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900 break-words">
@@ -1053,15 +1053,15 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           <Tabs value={generationType === "video" ? "image" : generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
             <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
               <TabsTrigger value="image">
-                <ImageIcon className="mr-2 h-4 w-4" />
+                <ImageIcon className="mr-2 h-4 w-4 text-red-800" />
                 Classique
               </TabsTrigger>
               <TabsTrigger value="advanced">
-                <Wand2 className="mr-2 h-4 w-4" />
+                <Atom className="mr-2 h-4 w-4 text-blue-600" />
                 Avancé
               </TabsTrigger>
               <TabsTrigger value="pro">
-                <Zap className="mr-2 h-4 w-4" />
+                <Aperture className="mr-2 h-4 w-4 text-yellow-600" />
                 Mode Pro
               </TabsTrigger>
             </TabsList>
@@ -1075,7 +1075,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 <Card className="border-primary/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-primary" />
+                      <Aperture className="h-5 w-5 text-primary" />
                       Mode Pro - Abonnement Requis
                     </CardTitle>
                     <CardDescription>
@@ -1443,7 +1443,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                   "Quota épuisé - Prenez un abonnement"
                 ) : (
                   <>
-                    <Wand2 className="mr-2 h-5 w-5" />
+                    <Atom className="mr-2 h-5 w-5 text-blue-600" />
                     Prévisualiser et générer
                     {!hasActiveSubscription && freeGenerationsRemaining !== null && freeGenerationsRemaining > 0 && (
                       <span className="ml-2 text-xs opacity-80">
@@ -1501,7 +1501,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         </>
                       ) : (
                         <>
-                          <Wand2 className="mr-2 h-4 w-4" />
+                          <Atom className="mr-2 h-4 w-4 text-blue-600" />
                           Corriger et régénérer l'image
                         </>
                       )}
@@ -1820,7 +1820,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                           </>
                         ) : (
                           <>
-                            <Wand2 className="mr-2 h-4 w-4" />
+                            <Atom className="mr-2 h-4 w-4 text-blue-600" />
                             Confirmer et générer
                           </>
                         )}
