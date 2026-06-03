@@ -957,27 +957,10 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      {/* ===== GALERIE DÉFILANTE (compacte) ===== */}
-      <section className="py-4 md:py-6 bg-muted/30 overflow-hidden border-b">
-        <div className="container mx-auto px-4 mb-3">
-          <p className="text-center text-xs md:text-sm text-muted-foreground">
-            ✨ Visuels déjà créés sur la plateforme
-          </p>
-        </div>
-        <div className="relative">
-          <div className="flex gap-3 animate-marquee w-max">
-            {[...Array(2)].flatMap((_, dup) =>
-              [exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate].map((src, i) => (
-                <Card key={`${dup}-${i}`} className="w-28 md:w-36 flex-shrink-0 overflow-hidden shadow-md">
-                  <div className="aspect-square bg-muted">
-                    <img src={src} alt="Visuel publicitaire" loading="lazy" className="w-full h-full object-cover" />
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
+      {/* ===== GALERIE DÉFILANTE (une image à la fois) ===== */}
+      <ExampleSlideshow
+        images={[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate]}
+      />
 
       <div id="create" className="container mx-auto px-4 py-6 md:py-8 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
