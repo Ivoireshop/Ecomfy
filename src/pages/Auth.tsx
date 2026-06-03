@@ -13,6 +13,7 @@ import { Loader2, Sparkles, Gift, Eye, EyeOff } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import authHeroV5 from "@/assets/auth-hero-v5.jpg";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -337,24 +338,33 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-6 lg:p-8">
-      <div className="w-full max-w-md mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            VisualPro
-          </h1>
-          <p className="text-muted-foreground">
-            Créez vos visuels publicitaires avec l'IA
-          </p>
-          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-primary">
-              🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
-            </span>
+    <div className="min-h-screen bg-background grid lg:grid-cols-2">
+      {/* Left: form column */}
+      <div className="flex flex-col justify-center px-5 py-8 sm:px-8 md:px-12 lg:px-16">
+        <div className="w-full max-w-md mx-auto">
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              VisualPro
+            </h1>
+            <Badge variant="secondary" className="rounded-full border border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold tracking-wider">
+              V5 · Nouvelle version
+            </Badge>
           </div>
-        </div>
 
-        <Card>
+          <div className="mb-6">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">Bienvenue</h2>
+            <p className="text-muted-foreground">
+              Créez un compte ou connectez-vous pour commencer
+            </p>
+            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-xs font-medium text-primary">
+                🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
+              </span>
+            </div>
+          </div>
+
+        <Card className="border-border/60 shadow-lg">
           <CardHeader>
             <CardTitle>Bienvenue</CardTitle>
             <CardDescription>
@@ -623,10 +633,47 @@ const Auth = () => {
           </CardContent>
         </Card>
 
-        <div className="mt-4 text-center">
-          <Button variant="link" onClick={() => navigate("/")}>
-            Retour à l'accueil
-          </Button>
+          <div className="mt-4 text-center">
+            <Button variant="link" onClick={() => navigate("/")}>
+              ← Retour à l'accueil
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: hero image column (desktop only) */}
+      <div className="relative hidden lg:block overflow-hidden">
+        <img
+          src={authHeroV5}
+          alt="Créateur africain utilisant VisualPro"
+          className="absolute inset-0 h-full w-full object-cover"
+          width={1024}
+          height={1024}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+
+        <div className="absolute top-6 right-6">
+          <div className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 text-xs font-medium text-white">
+            ✨ Propulsé par l'IA · 100% africain
+          </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 p-10 text-white">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="h-px w-10 bg-primary" />
+            <span className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+              VisualPro V5
+            </span>
+          </div>
+          <h2 className="text-4xl xl:text-5xl font-bold leading-tight mb-4">
+            Créez des visuels publicitaires.<br />
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Vendez, lancez votre boutique.
+            </span>
+          </h2>
+          <p className="text-base xl:text-lg text-white/80 max-w-md">
+            Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
+          </p>
         </div>
       </div>
     </div>
