@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Gift, Eye, EyeOff } from "lucide-react";
+import { Loader2, Sparkles, Gift, Eye, EyeOff, GitPullRequestCreate } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -381,7 +381,7 @@ const Auth = () => {
               Créez un compte ou connectez-vous pour commencer
             </p>
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-md md:border md:border-white/30 md:bg-white/15 md:backdrop-blur-md">
-              <Sparkles className="h-4 w-4 text-primary md:text-white" />
+              <GitPullRequestCreate className="h-4 w-4 text-primary md:text-white text-slate-500" />
               <span className="text-xs font-medium text-primary md:text-white">
                 🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
               </span>
