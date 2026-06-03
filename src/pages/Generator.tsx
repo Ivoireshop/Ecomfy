@@ -1820,7 +1820,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                           </>
                         ) : (
                           <>
-                            <Wand2 className="mr-2 h-4 w-4" />
+                            <Atom className="mr-2 h-4 w-4 text-blue-600" />
                             Confirmer et générer
                           </>
                         )}
