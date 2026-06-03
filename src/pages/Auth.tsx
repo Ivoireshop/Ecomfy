@@ -347,7 +347,7 @@ const Auth = () => {
           width={1024}
           height={1024}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-foreground/85 via-foreground/55 to-foreground/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/82 via-background/64 to-background/92" />
       </div>
 
       {/* Left: form column */}
@@ -363,22 +363,22 @@ const Auth = () => {
           </div>
 
           <div className="mb-6">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-primary-foreground md:text-foreground">Bienvenue</h2>
-            <div className="mb-4 space-y-2 md:hidden">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-foreground">Bienvenue</h2>
+            <div className="mb-4 space-y-2 rounded-2xl border border-primary/20 bg-background/70 p-4 shadow-lg backdrop-blur-md md:hidden">
               <div className="flex items-center gap-3">
                 <span className="h-px w-8 bg-primary" />
                 <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
                   VisualPro V5
                 </span>
               </div>
-              <p className="text-lg font-bold leading-tight text-primary-foreground">
+              <p className="text-lg font-bold leading-tight text-foreground">
                 Créez des visuels publicitaires et vendez. Lancez votre boutique.
               </p>
-              <p className="text-sm leading-relaxed text-primary-foreground/85">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
               </p>
             </div>
-            <p className="text-primary-foreground/85 md:text-muted-foreground">
+            <p className="text-muted-foreground">
               Créez un compte ou connectez-vous pour commencer
             </p>
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-md md:bg-primary/10 md:backdrop-blur-none">
