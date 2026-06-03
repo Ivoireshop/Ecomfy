@@ -338,9 +338,9 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col-reverse md:grid md:grid-cols-2">
+    <div className="min-h-screen bg-background grid grid-cols-2">
       {/* Left: form column */}
-      <div className="flex flex-col justify-center px-5 py-8 sm:px-8 md:px-10 lg:px-16 auth-glass-bg">
+      <div className="flex flex-col justify-center px-3 py-6 sm:px-8 md:px-10 lg:px-16 auth-glass-bg">
         <div className="w-full max-w-md mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -642,7 +642,7 @@ const Auth = () => {
       </div>
 
       {/* Right: hero image column (visible on all sizes; banner on mobile, full column on desktop) */}
-      <div className="relative block overflow-hidden min-h-[280px] sm:min-h-[360px] md:min-h-screen">
+      <div className="relative block overflow-hidden min-h-screen">
         <img
           src={authHeroV5}
           alt="Créateur africain utilisant VisualPro"
