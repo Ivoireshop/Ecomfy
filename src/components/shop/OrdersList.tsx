@@ -1,11 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
