@@ -3,6 +3,7 @@ export type ProductSectionKey =
   | "stock"
   | "short_description"
   | "variants"
+  | "bundle_offers"
   | "long_description";
 
 export type ProductImageLayout = "image_left" | "image_right";
@@ -16,6 +17,7 @@ export const DEFAULT_PRODUCT_BLOCKS: ProductSectionKey[] = [
   "countdown",
   "stock",
   "short_description",
+  "bundle_offers",
   "variants",
   "long_description",
 ];
@@ -25,6 +27,7 @@ export const PRODUCT_SECTION_LABELS: Record<ProductSectionKey, string> = {
   stock: "Barre d'urgence stock",
   short_description: "Description courte",
   variants: "Variantes (taille, couleur…)",
+  bundle_offers: "Offres en lot (variantes de prix)",
   long_description: "Description détaillée",
 };
 
