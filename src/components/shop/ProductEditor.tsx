@@ -68,6 +68,77 @@ function SortableSectionRow({ id, idx, label }: { id: string; idx: number; label
   );
 }
 
+function SectionLayoutPanel({
+  order,
+  onChange,
+}: {
+  order: ProductSectionOrder;
+  onChange: (next: ProductSectionOrder) => void;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const setLayout = (layout: "image_left" | "image_right") => onChange({ ...order, layout });
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = order.blocks.indexOf(active.id as ProductSectionKey);
+    const newIdx = order.blocks.indexOf(over.id as ProductSectionKey);
+    if (oldIdx < 0 || newIdx < 0) return;
+    onChange({ ...order, blocks: arrayMove(order.blocks, oldIdx, newIdx) });
+  };
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Label className="text-sm">Position de l'image (desktop)</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={order.layout === "image_left" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLayout("image_left")}
+            className="h-9"
+          >
+            Image à gauche
+          </Button>
+          <Button
+            type="button"
+            variant={order.layout === "image_right" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLayout("image_right")}
+            className="h-9"
+          >
+            Image à droite
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Sur mobile, l'image reste toujours en premier.</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm">Ordre des blocs d'informations</Label>
+        <p className="text-xs text-muted-foreground">
+          Glissez-déposez chaque bloc avec la poignée pour le repositionner librement.
+        </p>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={order.blocks} strategy={verticalListSortingStrategy}>
+            <div className="space-y-1.5">
+              {order.blocks.map((key, idx) => (
+                <SortableSectionRow
+                  key={key}
+                  id={key}
+                  idx={idx}
+                  label={PRODUCT_SECTION_LABELS[key]}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
+    </div>
+  );
+}
+
 const CATEGORIES = [
   "Mode & Vêtements", "Électronique", "Beauté & Soins", "Maison & Déco",
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
