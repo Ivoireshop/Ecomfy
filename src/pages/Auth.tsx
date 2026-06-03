@@ -340,7 +340,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background grid md:grid-cols-2">
       {/* Left: form column */}
-      <div className="flex flex-col justify-center px-5 py-8 sm:px-8 md:px-10 lg:px-16">
+      <div className="flex flex-col justify-center px-5 py-8 sm:px-8 md:px-10 lg:px-16 auth-glass-bg">
         <div className="w-full max-w-md mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -364,7 +364,7 @@ const Auth = () => {
             </div>
           </div>
 
-        <Card className="border-border/60 shadow-lg">
+        <Card className="border-white/30 shadow-lg bg-white/60 backdrop-blur-xl">
           <CardHeader>
             <CardTitle>Bienvenue</CardTitle>
             <CardDescription>
@@ -442,7 +442,7 @@ const Auth = () => {
 
                   <div className="relative my-4">
                     <Separator />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-transparent px-2 text-xs text-muted-foreground">
                       ou continuer avec
                     </span>
                   </div>
@@ -593,7 +593,7 @@ const Auth = () => {
 
                   <div className="relative my-4">
                     <Separator />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-transparent px-2 text-xs text-muted-foreground">
                       ou s'inscrire avec
                     </span>
                   </div>
