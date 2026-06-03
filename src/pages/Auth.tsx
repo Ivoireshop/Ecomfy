@@ -357,13 +357,13 @@ const Auth = () => {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               VisualPro
             </h1>
-            <Badge variant="secondary" className="rounded-full border border-primary/30 bg-background/80 text-primary text-[10px] font-semibold tracking-wider backdrop-blur-md md:bg-primary/10">
+            <Badge variant="secondary" className="rounded-full border border-primary/30 bg-background/80 text-primary text-[10px] font-semibold tracking-wider backdrop-blur-md md:border-white/40 md:bg-white/15 md:text-white">
               V5 · Nouvelle version
             </Badge>
           </div>
 
           <div className="mb-6">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-foreground">Bienvenue</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-foreground md:text-white">Bienvenue</h2>
             <div className="mb-4 space-y-2 rounded-2xl border border-primary/20 bg-background/70 p-4 shadow-lg backdrop-blur-md md:hidden">
               <div className="flex items-center gap-3">
                 <span className="h-px w-8 bg-primary" />
@@ -378,18 +378,18 @@ const Auth = () => {
                 Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
               </p>
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground md:text-white/80">
               Créez un compte ou connectez-vous pour commencer
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-md md:bg-primary/10 md:backdrop-blur-none">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-xs font-medium text-primary">
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-md md:border md:border-white/30 md:bg-white/15 md:backdrop-blur-md">
+              <Sparkles className="h-4 w-4 text-primary md:text-white" />
+              <span className="text-xs font-medium text-primary md:text-white">
                 🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
               </span>
             </div>
           </div>
 
-        <Card className="border-primary-foreground/25 bg-background/88 shadow-2xl backdrop-blur-xl md:border-white/30 md:bg-white/60 md:shadow-lg">
+        <Card className="border-primary-foreground/25 bg-background/88 shadow-2xl backdrop-blur-xl md:border-white/20 md:bg-white/90 md:shadow-2xl">
           <CardHeader>
             <CardTitle>Bienvenue</CardTitle>
             <CardDescription>
