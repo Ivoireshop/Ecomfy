@@ -1075,7 +1075,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 <Card className="border-primary/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-primary" />
+                      <Aperture className="h-5 w-5 text-primary" />
                       Mode Pro - Abonnement Requis
                     </CardTitle>
                     <CardDescription>
