@@ -25,8 +25,48 @@ import {
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
   ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3,
   Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2, Film,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, GripVertical
 } from "lucide-react";
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+function SortableSectionRow({ id, idx, label }: { id: string; idx: number; label: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between gap-2 p-2.5 rounded-lg border bg-muted/30"
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-background text-xs font-bold border">
+          {idx + 1}
+        </span>
+        <span className="text-sm font-medium truncate">{label}</span>
+      </div>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted touch-none cursor-grab active:cursor-grabbing"
+        aria-label="Glisser pour réordonner"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 const CATEGORIES = [
   "Mode & Vêtements", "Électronique", "Beauté & Soins", "Maison & Déco",
