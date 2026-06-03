@@ -1837,3 +1837,54 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 };
 
 export default Generator;
+
+function ExampleSlideshow({ images }: { images: string[] }) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % images.length);
+    }, 3500);
+    return () => clearInterval(id);
+  }, [images.length]);
+
+  return (
+    <section className="py-4 md:py-6 bg-muted/30 border-b">
+      <div className="container mx-auto px-4 mb-3">
+        <p className="text-center text-xs md:text-sm text-muted-foreground">
+          ✨ Visuels déjà créés sur la plateforme
+        </p>
+      </div>
+      <div className="container mx-auto px-4">
+        <div className="relative mx-auto w-full max-w-[260px] sm:max-w-xs md:max-w-sm">
+          <Card className="overflow-hidden shadow-md">
+            <div className="aspect-square bg-muted relative">
+              {images.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt="Visuel publicitaire"
+                  loading="lazy"
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                    i === index ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              ))}
+            </div>
+          </Card>
+          <div className="mt-3 flex justify-center gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIndex(i)}
+                aria-label={`Voir visuel ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? "w-5 bg-rose-600" : "w-1.5 bg-muted-foreground/30"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
