@@ -1053,6 +1053,37 @@ export function ProductEditor({
                         >
                           <ArrowDown className="h-3 w-3" />
                         </button>
+                        <button
+                          type="button"
+                          title="Télécharger"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(img.image_url, { mode: "cors" });
+                              const blob = await res.blob();
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              const ext = (blob.type.split("/")[1] || "png").split(";")[0];
+                              a.href = url;
+                              a.download = `image-${idx + 1}-${Date.now()}.${ext}`;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              setTimeout(() => URL.revokeObjectURL(url), 1000);
+                            } catch {
+                              const a = document.createElement("a");
+                              a.href = img.image_url;
+                              a.download = `image-${idx + 1}.png`;
+                              a.target = "_blank";
+                              a.rel = "noopener";
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                            }
+                          }}
+                          className="h-6 w-6 bg-background/90 text-foreground border rounded flex items-center justify-center shadow hover:bg-background"
+                        >
+                          <Download className="h-3 w-3" />
+                        </button>
                       </div>
                       <button
                         type="button"
