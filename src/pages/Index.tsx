@@ -102,7 +102,9 @@ const Index = () => {
       <Header />
 
       {showOnboarding && session?.user && (
-        <OnboardingTutorial userId={session.user.id} onComplete={() => setShowOnboarding(false)} />
+        <Suspense fallback={null}>
+          <OnboardingTutorial userId={session.user.id} onComplete={() => setShowOnboarding(false)} />
+        </Suspense>
       )}
 
       {/* ===== SCROLLING TICKER ===== */}
