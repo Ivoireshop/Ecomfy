@@ -23,7 +23,7 @@ export function Header() {
     { label: t("header.pricing"), href: "/subscription" },
     { label: t("header.blog"), href: "/blog" },
     { label: t("header.tutorial"), href: "/tutorial" },
-    { label: t("header.demo"), href: "/demo" },
+    { label: t("header.demo"), href: "/academy" },
   ];
 
   const scrollToHash = (hash: string) => {
