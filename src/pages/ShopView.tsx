@@ -1187,6 +1187,7 @@ const ShopView = () => {
         secondaryColor={shop.secondary_color}
       />
     </div>
+    </>
   );
 };
 
