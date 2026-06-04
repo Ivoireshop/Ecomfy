@@ -552,18 +552,12 @@ function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) =>
               {sheet.subheadline && <Block label="Sous-titre" value={sheet.subheadline} onCopy={onCopy} />}
               {sheet.short_description && <Block label="Description courte" value={sheet.short_description} onCopy={onCopy} multiline />}
               {sheet.long_description && (
-                <div className="space-y-2">
-                  <Block label="Description longue (HTML à copier)" value={sheet.long_description} onCopy={onCopy} multiline />
-                  <div className="border rounded-lg p-4 bg-background">
-                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                      Aperçu visuel (avec emplacements d'images suggérés)
-                    </div>
-                    <div
-                      className="prose prose-sm max-w-none dark:prose-invert"
-                      dangerouslySetInnerHTML={{ __html: sheet.long_description }}
-                    />
-                  </div>
-                </div>
+                <Block
+                  label="Description longue (texte à copier-coller)"
+                  value={sheet.long_description.replace(/<[^>]+>/g, "")}
+                  onCopy={onCopy}
+                  multiline
+                />
               )}
               {Array.isArray(sheet.bullets) && sheet.bullets.length > 0 && (
                 <Block label="Bénéfices" value={sheet.bullets.map((b) => `• ${b}`).join("\n")} onCopy={onCopy} multiline />
