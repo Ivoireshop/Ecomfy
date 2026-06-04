@@ -21,6 +21,7 @@ import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { containsDigits, stripDigits } from "@/lib/utils";
+import { Helmet } from "react-helmet";
 
 interface Product {
   id: string;
@@ -320,8 +321,7 @@ const ShopView = () => {
     addIcon("shortcut icon");
     addIcon("apple-touch-icon");
 
-    // Set page title to shop name
-    document.title = shopData.seo_title || shopData.business_name || "Boutique";
+    // Page title and social meta are handled by <Helmet> in the main render
 
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
