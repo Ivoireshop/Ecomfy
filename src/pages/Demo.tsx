@@ -130,7 +130,7 @@ const Demo = () => {
       <div className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Démonstrations Vidéo
+            VisualPro Academy
           </h1>
         </div>
       </div>
@@ -140,15 +140,15 @@ const Demo = () => {
         <div className="text-center mb-12 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
             <PlayCircle className="h-4 w-4" />
-            <span className="text-sm font-medium">Tutoriels Vidéo</span>
+            <span className="text-sm font-medium">Formations & Tutoriels</span>
           </div>
           
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Apprenez en regardant
+            Apprenez à maîtriser VisualPro
           </h2>
           
           <p className="text-lg text-muted-foreground mb-8">
-            Découvrez comment utiliser chaque fonctionnalité de VisualPro à travers nos vidéos de démonstration détaillées
+            Suivez nos formations pas à pas pour créer votre compte, générer vos visuels, monter vos vidéos, lancer votre site vitrine ou votre boutique — et utiliser VisualPro sans aucune difficulté.
           </p>
         </div>
 
