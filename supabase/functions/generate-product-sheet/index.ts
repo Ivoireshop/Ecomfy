@@ -64,7 +64,7 @@ Réponds en JSON STRICT sans texte hors JSON :
   "headline": "titre accrocheur (max 70 caractères)",
   "subheadline": "promesse en une phrase",
   "short_description": "description courte 2-3 phrases pour fiche/aperçu",
-  "long_description": "description longue HTML simple (paragraphes <p>, listes <ul><li>, 250-400 mots, persuasive, bénéfices clairs)",
+  "long_description": "description longue HTML simple (paragraphes <p>, listes <ul><li>, 300-500 mots, persuasive, bénéfices clairs). IMPORTANT : INSÈRE entre les paragraphes des emplacements d'images sous la forme d'un bloc HTML <div class='image-suggestion' style='border:2px dashed #94a3b8;background:#f8fafc;padding:12px;margin:16px 0;border-radius:8px;color:#475569;font-size:14px;'>📸 <strong>Image suggérée ici :</strong> [type d'image — ex: gros plan macro du produit / avant-après / personne qui utilise / packshot fond blanc / ambiance lifestyle] — <em>Description détaillée de ce que doit montrer la photo, l'angle, la lumière, le contexte, l'émotion à transmettre, et POURQUOI cette image augmente la conversion à cet endroit précis du texte.</em></div>. Place 3 à 5 de ces blocs aux moments stratégiques (après l'accroche, après la liste de bénéfices, près de la garantie, avant le CTA final).",
   "bullets": ["bénéfice 1", "bénéfice 2", "bénéfice 3", "bénéfice 4", "bénéfice 5"],
   "features": ["caractéristique technique 1", "caractéristique 2", "caractéristique 3"],
   "guarantee": "garantie / réducteur de risque",
