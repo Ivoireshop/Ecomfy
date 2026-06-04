@@ -14,11 +14,11 @@ type DemoVideo = {
 const DEMOS: DemoVideo[] = [
   {
     id: "intro",
-    title: "Découvrez VisualPro en 2 minutes",
-    description: "Un aperçu rapide de tout ce que vous pouvez créer avec VisualPro.",
-    youtubeId: "dQw4w9WgXcQ",
+    title: "Formation complète VisualPro",
+    description: "Maîtrisez toutes les fonctionnalités de VisualPro en une seule formation.",
+    youtubeId: "z4Lko-oFNsY",
     category: "Présentation",
-    duration: "2:15",
+    duration: "1:20:00",
   },
 ];
 
