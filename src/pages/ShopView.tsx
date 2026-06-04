@@ -195,7 +195,7 @@ const ShopView = () => {
     // custom_domain = 'maboutique.com').
     const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase().replace(/^www\./, "") : "";
     const KNOWN_HOSTS = ["visuelpro.cloud", "www.visuelpro.cloud", "localhost", "visualpro-african-ai-creations.lovable.app"];
-    const isCustomHost = host && !KNOWN_HOSTS.includes(host) && !host.endsWith(".lovable.app") && !host.endsWith(".lovable.dev");
+    const isCustomHost = host && !KNOWN_HOSTS.includes(host) && !host.endsWith(".lovable.app") && !host.endsWith(".lovable.dev") && !host.endsWith(".lovableproject.com");
     if (!slug && !id && !isCustomHost) return;
     setFetchError(null);
     setLoading(true);
