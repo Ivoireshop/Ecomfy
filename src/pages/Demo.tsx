@@ -30,7 +30,7 @@ const Demo = () => {
           <Badge variant="secondary" className="mb-4">Démo Vidéo</Badge>
           <h1 className="text-3xl md:text-5xl font-bold mb-3">Découvrez VisualPro en vidéo</h1>
           <p className="text-base md:text-lg text-muted-foreground">
-            Quelques démonstrations rapides pour voir la plateforme en action.
+            Suivez la formation complète pour maîtriser VisualPro de A à Z.
           </p>
         </div>
 
