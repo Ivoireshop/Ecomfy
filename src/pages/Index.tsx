@@ -94,6 +94,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <link rel="canonical" href="https://visuelpro.cloud/" />
+      </Helmet>
       <Header />
 
       {showOnboarding && session?.user && (
