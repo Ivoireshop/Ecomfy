@@ -1,299 +1,236 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Sparkles, 
-  Image, 
-  Video, 
-  Globe, 
-  CreditCard, 
-  Users, 
-  PlayCircle,
-  CheckCircle2,
-  ShoppingBag
-} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PlayCircle, Settings, GraduationCap, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-const demoVideos = [
-  {
-    id: "images",
-    title: "Créer des Visuels Publicitaires",
-    description: "Apprenez à générer des images professionnelles pour vos campagnes marketing en quelques clics.",
-    icon: Image,
-    color: "bg-blue-500",
-    duration: "3:24",
-    steps: [
-      "Accédez à l'outil de génération d'images",
-      "Décrivez votre produit et votre message",
-      "Choisissez un style publicitaire",
-      "Générez et téléchargez votre visuel"
-    ],
-    videoUrl: "https://www.youtube.com/embed/zGCI8dms0FU",
-    thumbnail: "https://img.youtube.com/vi/zGCI8dms0FU/maxresdefault.jpg"
-  },
-  {
-    id: "videos",
-    title: "Créer des Vidéos Publicitaires",
-    description: "Découvrez comment transformer vos idées en vidéos captivantes avec voix-off professionnelle.",
-    icon: Video,
-    color: "bg-purple-500",
-    duration: "4:12",
-    steps: [
-      "Sélectionnez le format vidéo souhaité",
-      "Décrivez votre message et votre cible",
-      "Choisissez le style de voix-off",
-      "Téléchargez votre vidéo prête à publier"
-    ],
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Placeholder - à remplacer
-    thumbnail: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&h=450&fit=crop"
-  },
-  {
-    id: "showcase",
-    title: "Créer un Site Vitrine",
-    description: "Créez un site web professionnel pour présenter vos produits ou services sans coder.",
-    icon: Globe,
-    color: "bg-green-500",
-    duration: "5:45",
-    steps: [
-      "Choisissez un template adapté à votre secteur",
-      "Personnalisez les couleurs et le contenu",
-      "Ajoutez vos images et témoignages",
-      "Publiez votre site en un clic"
-    ],
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Placeholder - à remplacer
-    thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=450&fit=crop"
-  },
-  {
-    id: "shop",
-    title: "Créer une Boutique E-commerce",
-    description: "Lancez votre boutique en ligne complète avec catalogue, paiements Mobile Money et gestion des commandes.",
-    icon: ShoppingBag,
-    color: "bg-emerald-500",
-    duration: "6:10",
-    steps: [
-      "Créez votre boutique et personnalisez le thème",
-      "Ajoutez vos produits (photos, prix FCFA, stock)",
-      "Activez Mobile Money & Cash à la livraison",
-      "Partagez le lien et suivez vos commandes en temps réel"
-    ],
-    videoUrl: "https://www.youtube.com/embed/H82hoLhNMCw",
-    thumbnail: "https://img.youtube.com/vi/H82hoLhNMCw/maxresdefault.jpg"
-  },
-  {
-    id: "credits",
-    title: "Gérer vos Crédits",
-    description: "Comprenez le système de crédits et comment optimiser votre utilisation de la plateforme.",
-    icon: CreditCard,
-    color: "bg-orange-500",
-    duration: "2:30",
-    steps: [
-      "Consultez votre solde de crédits",
-      "Achetez des packs ou abonnez-vous",
-      "Suivez votre historique de consommation",
-      "Profitez des offres promotionnelles"
-    ],
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Placeholder - à remplacer
-    thumbnail: "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?w=800&h=450&fit=crop"
-  },
-  {
-    id: "referral",
-    title: "Programme de Parrainage",
-    description: "Maximisez vos gains en invitant vos amis et en profitant du système de récompenses.",
-    icon: Users,
-    color: "bg-pink-500",
-    duration: "2:15",
-    steps: [
-      "Obtenez votre lien de parrainage unique",
-      "Partagez-le avec vos contacts",
-      "Suivez vos parrainages en temps réel",
-      "Recevez vos crédits bonus automatiquement"
-    ],
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Placeholder - à remplacer
-    thumbnail: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&h=450&fit=crop"
-  }
-];
+type AcademyCourse = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  video_url: string;
+  thumbnail_url: string | null;
+  duration: string | null;
+  level: string | null;
+  order_index: number;
+};
 
-const Demo = () => {
+// Convert any YouTube URL into an embed URL
+const toEmbed = (url: string) => {
+  if (!url) return url;
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  return url;
+};
+
+const thumbFor = (course: AcademyCourse) => {
+  if (course.thumbnail_url) return course.thumbnail_url;
+  const yt = course.video_url?.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+  if (yt) return `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`;
+  return null;
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  general: "Général",
+  account: "Créer son compte",
+  visuals: "Visuels publicitaires",
+  videos: "Vidéos animées",
+  showcase: "Sites vitrine",
+  shop: "Boutiques e-commerce",
+  courses: "Formations",
+  api: "API & intégrations",
+};
+
+const Academy = () => {
   const navigate = useNavigate();
-  const [activeVideo, setActiveVideo] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState("images");
+  const [courses, setCourses] = useState<AcademyCourse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [active, setActive] = useState<AcademyCourse | null>(null);
+  const [filter, setFilter] = useState<string>("all");
 
-  const handlePlayVideo = (videoId: string) => {
-    setActiveVideo(videoId);
-  };
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("academy_courses" as any)
+        .select("*")
+        .eq("is_published", true)
+        .order("order_index", { ascending: true })
+        .order("created_at", { ascending: false });
+      setCourses((data as any) ?? []);
+      setLoading(false);
+    };
+    load();
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        // @ts-ignore
+        .in("role", ["founder", "co_founder"]);
+      setIsAdmin(!!roles && roles.length > 0);
+    });
+  }, []);
+
+  const categories = useMemo(() => {
+    const set = new Set(courses.map((c) => c.category));
+    return Array.from(set);
+  }, [courses]);
+
+  const filtered = useMemo(
+    () => (filter === "all" ? courses : courses.filter((c) => c.category === filter)),
+    [courses, filter]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
-      {/* Header */}
       <div className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent flex items-center gap-2">
+            <GraduationCap className="h-6 w-6 text-primary" />
             VisualPro Academy
           </h1>
+          {isAdmin && (
+            <Button size="sm" variant="outline" onClick={() => navigate("/academy-manager")}>
+              <Settings className="h-4 w-4 mr-2" />
+              Gérer
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-12">
-        {/* Hero Section */}
-        <div className="text-center mb-12 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
-            <PlayCircle className="h-4 w-4" />
-            <span className="text-sm font-medium">Formations & Tutoriels</span>
-          </div>
-          
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Apprenez à maîtriser VisualPro
-          </h2>
-          
-          <p className="text-lg text-muted-foreground mb-8">
-            Suivez nos formations pas à pas pour créer votre compte, générer vos visuels, monter vos vidéos, lancer votre site vitrine ou votre boutique — et utiliser VisualPro sans aucune difficulté.
+      <div className="container mx-auto px-4 py-10 md:py-14">
+        <div className="text-center mb-10 max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-5xl font-bold mb-3">Apprenez à maîtriser VisualPro</h2>
+          <p className="text-base md:text-lg text-muted-foreground">
+            Formations pas à pas pour créer votre compte, générer vos visuels, monter vos vidéos,
+            lancer votre site vitrine ou votre boutique — et utiliser VisualPro sans difficulté.
           </p>
         </div>
 
-        {/* Video Tabs */}
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="max-w-6xl mx-auto">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 mb-8">
-            {demoVideos.map((video) => {
-              const Icon = video.icon;
-              return (
-                <TabsTrigger key={video.id} value={video.id} className="gap-2">
-                  <Icon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{video.title.split(' ')[0]}</span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-
-          {demoVideos.map((video) => {
-            const Icon = video.icon;
-            return (
-              <TabsContent key={video.id} value={video.id} className="space-y-6">
-                <Card className="overflow-hidden">
-                  <CardHeader>
-                    <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-lg ${video.color} flex items-center justify-center flex-shrink-0`}>
-                        <Icon className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CardTitle className="text-2xl">{video.title}</CardTitle>
-                          <Badge variant="secondary">{video.duration}</Badge>
-                        </div>
-                        <CardDescription className="text-base">{video.description}</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-6">
-                    {/* Video Player */}
-                    <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                      {activeVideo === video.id ? (
-                        <iframe
-                          className="w-full h-full"
-                          src={video.videoUrl}
-                          title={video.title}
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <div 
-                          className="relative w-full h-full cursor-pointer group"
-                          onClick={() => handlePlayVideo(video.id)}
-                        >
-                          <img 
-                            src={video.thumbnail} 
-                            alt={video.title}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors flex items-center justify-center">
-                            <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                              <PlayCircle className="h-10 w-10 text-primary" />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Steps */}
-                    <div>
-                      <h3 className="font-semibold text-lg mb-4">Étapes à suivre :</h3>
-                      <div className="space-y-3">
-                        {video.steps.map((step, index) => (
-                          <div key={index} className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                              <CheckCircle2 className="h-4 w-4 text-primary" />
-                            </div>
-                            <p className="text-muted-foreground">{step}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* CTA */}
-                    <div className="flex flex-wrap gap-3 pt-4 border-t">
-                      <Button onClick={() => navigate("/generator")}>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Essayer maintenant
-                      </Button>
-                      <Button variant="outline" onClick={() => navigate("/tutorial")}>
-                        Voir le guide complet
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            );
-          })}
-        </Tabs>
-
-        {/* Additional Resources */}
-        <div className="mt-16 max-w-4xl mx-auto">
-          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5">
-            <CardHeader>
-              <CardTitle className="text-2xl">Besoin d'aide supplémentaire ?</CardTitle>
-              <CardDescription>Explorez nos autres ressources pour maîtriser VisualPro</CardDescription>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-4">
-              <Button 
-                variant="outline" 
-                className="h-auto py-4 justify-start"
-                onClick={() => navigate("/tutorial")}
+        {categories.length > 1 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            <Button size="sm" variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>
+              Toutes ({courses.length})
+            </Button>
+            {categories.map((cat) => (
+              <Button
+                key={cat}
+                size="sm"
+                variant={filter === cat ? "default" : "outline"}
+                onClick={() => setFilter(cat)}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
-                    <Sparkles className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold">Guide d'utilisation</div>
-                    <div className="text-xs text-muted-foreground">Documentation complète</div>
-                  </div>
-                </div>
+                {CATEGORY_LABELS[cat] ?? cat}
               </Button>
+            ))}
+          </div>
+        )}
 
-              <Button 
-                variant="outline" 
-                className="h-auto py-4 justify-start"
-                onClick={() => navigate("/feedback")}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
-                    <Users className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-semibold">Support & Feedback</div>
-                    <div className="text-xs text-muted-foreground">Contactez notre équipe</div>
-                  </div>
-                </div>
-              </Button>
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <Card className="max-w-xl mx-auto">
+            <CardContent className="py-12 text-center space-y-3">
+              <GraduationCap className="h-10 w-10 mx-auto text-muted-foreground" />
+              <h3 className="font-semibold text-lg">Aucune formation pour le moment</h3>
+              <p className="text-sm text-muted-foreground">
+                Les premières vidéos seront publiées très prochainement.
+              </p>
+              {isAdmin && (
+                <Button onClick={() => navigate("/academy-manager")}>
+                  Ajouter la première formation
+                </Button>
+              )}
             </CardContent>
           </Card>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
+            {filtered.map((course) => {
+              const thumb = thumbFor(course);
+              return (
+                <Card
+                  key={course.id}
+                  className="overflow-hidden cursor-pointer group hover:shadow-xl transition-all"
+                  onClick={() => setActive(course)}
+                >
+                  <div className="relative aspect-video bg-muted">
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt={course.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
+                        <PlayCircle className="h-12 w-12 text-primary/70" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <PlayCircle className="h-9 w-9 text-primary" />
+                      </div>
+                    </div>
+                    {course.duration && (
+                      <Badge className="absolute bottom-2 right-2 bg-black/80 text-white hover:bg-black/80">
+                        {course.duration}
+                      </Badge>
+                    )}
+                  </div>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary" className="text-xs">
+                        {CATEGORY_LABELS[course.category] ?? course.category}
+                      </Badge>
+                      {course.level && <Badge variant="outline" className="text-xs">{course.level}</Badge>}
+                    </div>
+                    <h3 className="font-semibold text-base line-clamp-2">{course.title}</h3>
+                    {course.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle className="text-xl">{active?.title}</DialogTitle>
+          </DialogHeader>
+          {active && (
+            <div className="px-6 pb-6 space-y-4">
+              <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
+                <iframe
+                  className="w-full h-full"
+                  src={toEmbed(active.video_url)}
+                  title={active.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+              {active.description && (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{active.description}</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-export default Demo;
+export default Academy;
