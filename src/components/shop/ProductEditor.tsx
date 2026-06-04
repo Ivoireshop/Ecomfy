@@ -25,7 +25,7 @@ import {
   List, ListOrdered, Link as LinkIcon, Video, Type, Palette, Undo, Redo,
   ChevronDown, Eye, Layers, Package, Settings, Search as SearchIcon, ShoppingCart, BarChart3,
   Minus, Code, Smile, Table, ExternalLink, Store, MapPin, Tag, Loader2, Film,
-  ArrowUp, ArrowDown, GripVertical
+  ArrowUp, ArrowDown, GripVertical, Download
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
@@ -307,7 +307,7 @@ export function ProductEditor({
     reader.readAsDataURL(file);
   };
 
-  const handleGenerateAiImage = async () => {
+  const handleGenerateAiImage = async (alsoDownload = false) => {
     const prompt = aiPrompt.trim();
     if (!prompt) {
       toast({ title: "Décrivez votre visuel", description: "Saisissez une description du produit.", variant: "destructive" });
@@ -334,7 +334,19 @@ export function ProductEditor({
       const ext = (blob.type.split("/")[1] || "png").split(";")[0];
       const file = new File([blob], `ai-${Date.now()}.${ext}`, { type: blob.type || "image/png" });
       setNewImages((prev) => [...prev, file]);
-      toast({ title: "✓ Image ajoutée", description: "Pensez à enregistrer le produit." });
+      if (alsoDownload) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast({ title: "✓ Image ajoutée et téléchargée", description: "Pensez à enregistrer le produit." });
+      } else {
+        toast({ title: "✓ Image ajoutée", description: "Pensez à enregistrer le produit." });
+      }
       setAiOpen(false);
       setAiPrompt("");
       setAiSourceImage(null);
@@ -1568,11 +1580,14 @@ export function ProductEditor({
               L'image sera ajoutée à la galerie. Pensez à enregistrer le produit ensuite.
             </p>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setAiOpen(false)} disabled={aiLoading}>
               Annuler
             </Button>
-            <Button onClick={handleGenerateAiImage} disabled={aiLoading}>
+            <Button variant="secondary" onClick={() => handleGenerateAiImage(true)} disabled={aiLoading} className="gap-2">
+              <Download className="h-4 w-4" /> Générer & télécharger
+            </Button>
+            <Button onClick={() => handleGenerateAiImage(false)} disabled={aiLoading}>
               {aiLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération…</>) : "Générer"}
             </Button>
           </DialogFooter>
