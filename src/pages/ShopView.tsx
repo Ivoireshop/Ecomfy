@@ -21,6 +21,7 @@ import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { containsDigits, stripDigits } from "@/lib/utils";
+import { Helmet } from "react-helmet";
 
 interface Product {
   id: string;
@@ -320,8 +321,7 @@ const ShopView = () => {
     addIcon("shortcut icon");
     addIcon("apple-touch-icon");
 
-    // Set page title to shop name
-    document.title = shopData.seo_title || shopData.business_name || "Boutique";
+    // Page title and social meta are handled by <Helmet> in the main render
 
     if (shopData.chatbot_enabled) {
       setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
@@ -551,8 +551,27 @@ const ShopView = () => {
   const themeConfig = shop.theme_config || {};
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
+  const shopTitle = shop.seo_title || shop.business_name || "Boutique";
+  const shopDescription = shop.business_description || `Boutique ${shop.business_name} sur VisualPro`;
+  const shopImage = shop.logo_url || shop.favicon_url || "https://storage.googleapis.com/gpt-engineer-file-uploads/YasR3rLLCfTPxhyVC44DaAaelxo2/social-images/social-1766315146557-T%C3%A9moignage%20(3).jpg";
+
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <Helmet>
+        <title>{shopTitle}</title>
+        <meta name="description" content={shopDescription} />
+        <link rel="canonical" href={window.location.href} />
+        <meta property="og:title" content={shopTitle} />
+        <meta property="og:description" content={shopDescription} />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:type" content="website" />
+        {shopImage && <meta property="og:image" content={shopImage} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={shopTitle} />
+        <meta name="twitter:description" content={shopDescription} />
+        {shopImage && <meta name="twitter:image" content={shopImage} />}
+      </Helmet>
+      <div className="min-h-screen bg-background">
       {/* Preview Mode Banner */}
       {shop._isPreview && (
         <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-50">
@@ -1168,6 +1187,7 @@ const ShopView = () => {
         secondaryColor={shop.secondary_color}
       />
     </div>
+    </>
   );
 };
 

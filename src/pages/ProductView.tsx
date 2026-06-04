@@ -25,6 +25,7 @@ import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { normalizeSectionOrder, type ProductSectionKey } from "@/lib/productSections";
 import { containsDigits, stripDigits } from "@/lib/utils";
+import { Helmet } from "react-helmet";
 
 // Countdown Timer Component
 const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; days: number; hours: number; minutes: number }) => {
@@ -256,7 +257,7 @@ const ProductView = () => {
       }
 
       try {
-        document.title = productData?.name || shopData.business_name || "Produit";
+        // Page title and social meta are handled by <Helmet> in the main render
         const iconHref = String(shopData.favicon_url || shopData.logo_url || "/favicon.png");
         document.head
           .querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']")
@@ -476,8 +477,26 @@ const ProductView = () => {
     else navigate(`/shop/${shop.slug}`);
   };
 
+  const productTitle = `${product.name} — ${shop.business_name}`;
+  const productDescription = product.short_description || product.description || shop.business_description || "";
+  const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <Helmet>
+        <title>{productTitle}</title>
+        <meta name="description" content={productDescription} />
+        <link rel="canonical" href={window.location.href} />
+        <meta property="og:title" content={productTitle} />
+        <meta property="og:description" content={productDescription} />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:type" content="product" />
+        {primaryImage && <meta property="og:image" content={primaryImage} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={productTitle} />
+        <meta name="twitter:description" content={productDescription} />
+        {primaryImage && <meta name="twitter:image" content={primaryImage} />}
+      </Helmet>
       {/* Preview Banner */}
       {shop._isPreview && (
         <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-50">

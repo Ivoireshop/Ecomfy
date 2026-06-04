@@ -2,12 +2,23 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Clock, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet";
 
 const Blog = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
+    <>
+      <Helmet>
+        <title>Blog — VisualPro</title>
+        <meta name="description" content="Guides, tutoriels et conseils pour tirer le meilleur de VisualPro." />
+        <link rel="canonical" href="https://visuelpro.cloud/blog" />
+        <meta property="og:title" content="Blog — VisualPro" />
+        <meta property="og:description" content="Guides, tutoriels et conseils pour tirer le meilleur de VisualPro." />
+        <meta property="og:url" content="https://visuelpro.cloud/blog" />
+        <meta property="og:type" content="website" />
+      </Helmet>
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       <Header />
 
       <div className="container mx-auto px-4 py-24 max-w-2xl">
@@ -40,6 +51,7 @@ const Blog = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

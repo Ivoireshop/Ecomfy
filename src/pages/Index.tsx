@@ -8,6 +8,7 @@ import {
   GraduationCap, Rocket, ChevronRight, Star
 } from "lucide-react";
 import { useEffect, useState, lazy, Suspense } from "react";
+import { Helmet } from "react-helmet";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -93,6 +94,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <link rel="canonical" href="https://visuelpro.cloud/" />
+      </Helmet>
       <Header />
 
       {showOnboarding && session?.user && (
