@@ -242,6 +242,7 @@ const AppContent = () => {
             path="/demo" 
             element={<Demo />} 
           />
+          <Route path="/academy" element={<Demo />} />
           <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
           <Route path="/showcase/:subdomain/:page" element={<ShowcaseView />} />
           <Route path="/enroll/:courseId" element={<EnrollmentCheckout />} />
