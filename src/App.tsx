@@ -74,7 +74,7 @@ const isCustomShopHost = (() => {
   const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
   const KNOWN = ["visuelpro.cloud", "localhost", "visualpro-african-ai-creations.lovable.app"];
   if (KNOWN.includes(host)) return false;
-  if (host.endsWith(".lovable.app") || host.endsWith(".lovable.dev")) return false;
+  if (host.endsWith(".lovable.app") || host.endsWith(".lovable.dev") || host.endsWith(".lovableproject.com")) return false;
   return true;
 })();
 
