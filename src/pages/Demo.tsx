@@ -40,7 +40,7 @@ const Demo = () => {
               <div className="relative aspect-video bg-black">
                 <iframe
                   className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${demo.youtubeId}`}
+                  src={`https://www.youtube.com/embed/${demo.youtubeId}?start=3026`}
                   title={demo.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
