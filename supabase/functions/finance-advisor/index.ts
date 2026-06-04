@@ -47,7 +47,14 @@ Réponds en français, format markdown avec puces.`;
     });
     if (!r.ok) {
       const t = await r.text();
-      return new Response(JSON.stringify({ success: false, error: `AI: ${t}` }), {
+      let error = `Service IA indisponible (code ${r.status}). Réessayez dans un instant.`;
+      if (r.status === 429) {
+        error = "Trop de demandes en peu de temps. Patientez une minute puis réessayez.";
+      } else if (r.status === 402) {
+        error = "Le crédit IA mensuel de la plateforme est épuisé. L'équipe VisualPro a été notifiée — réessayez plus tard ou contactez le support.";
+      }
+      console.error("finance-advisor AI error", r.status, t);
+      return new Response(JSON.stringify({ success: false, error }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
