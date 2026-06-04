@@ -35,7 +35,6 @@ const FounderTroubleshooting = lazy(() => import("./pages/FounderTroubleshooting
 const Referral = lazy(() => import("./pages/Referral"));
 const Tutorial = lazy(() => import("./pages/Tutorial"));
 const Demo = lazy(() => import("./pages/Demo"));
-const AcademyManager = lazy(() => import("./pages/AcademyManager"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const StudentCourse = lazy(() => import("./pages/StudentCourse"));
 const StudentCertificates = lazy(() => import("./pages/StudentCertificates"));
@@ -243,15 +242,6 @@ const AppContent = () => {
             path="/demo" 
             element={<Demo />} 
           />
-          <Route path="/academy" element={<Demo />} />
-          <Route
-            path="/academy-manager"
-            element={
-              <ProtectedRoute>
-                <AcademyManager />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
           <Route path="/showcase/:subdomain/:page" element={<ShowcaseView />} />
           <Route path="/enroll/:courseId" element={<EnrollmentCheckout />} />
@@ -308,7 +298,7 @@ const AppContent = () => {
   );
 };
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/academy", "/tutorial"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/tutorial"];
 
 const AppWithSidebar = () => {
   const location = useLocation();

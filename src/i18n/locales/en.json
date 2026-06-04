@@ -28,7 +28,7 @@
     "features": "Features",
     "pricing": "Pricing",
     "tutorial": "Tutorial",
-    "demo": "Academy",
+    "demo": "Demo",
     "blog": "Blog",
     "openMenu": "Open menu"
   },
@@ -45,7 +45,7 @@
       "generator": "Generator",
       "library": "Library",
       "showcases": "Showcase sites",
-      "courses": "Courses",
+      "courses": "Academy",
       "shops": "Shops",
       "studentSpace": "Student space",
       "tutorial": "Tutorial",
