@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Image as ImageIcon, Loader2, Plus, X, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
+import { Image as ImageIcon, Loader2, Plus, X, ArrowUp, ArrowDown, Sparkles, Download } from "lucide-react";
 import { encode } from "modern-gif";
 
 interface Frame {
@@ -116,7 +116,7 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
     return canvas;
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (alsoDownload = false) => {
     if (frames.length < MIN_FRAMES) {
       toast({ title: "Trop peu d'images", description: `Importez au moins ${MIN_FRAMES} images.`, variant: "destructive" });
       return;
@@ -137,7 +137,19 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
       const blob = new Blob([output], { type: "image/gif" });
       const file = new File([blob], `produit-anime-${Date.now()}.gif`, { type: "image/gif" });
       onGenerated(file);
-      toast({ title: "✓ GIF créé", description: "Ajouté à la galerie. Pensez à enregistrer." });
+      if (alsoDownload) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast({ title: "✓ GIF créé et téléchargé", description: "Ajouté à la galerie. Pensez à enregistrer." });
+      } else {
+        toast({ title: "✓ GIF créé", description: "Ajouté à la galerie. Pensez à enregistrer." });
+      }
       reset();
       onOpenChange(false);
     } catch (e: any) {
@@ -247,9 +259,12 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Annuler</Button>
-          <Button onClick={handleGenerate} disabled={loading || frames.length < MIN_FRAMES} className="gap-2">
+          <Button variant="secondary" onClick={() => handleGenerate(true)} disabled={loading || frames.length < MIN_FRAMES} className="gap-2">
+            <Download className="h-4 w-4" /> Générer & télécharger
+          </Button>
+          <Button onClick={() => handleGenerate(false)} disabled={loading || frames.length < MIN_FRAMES} className="gap-2">
             {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Création…</> : <><ImageIcon className="h-4 w-4" /> Générer le GIF</>}
           </Button>
         </DialogFooter>
