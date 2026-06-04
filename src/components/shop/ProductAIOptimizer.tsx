@@ -522,10 +522,22 @@ function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) =>
           </div>
         </div>
 
-        <Button onClick={() => { setGenerateImages(imageCount > 0); generate(); }} disabled={loading || !name.trim()} className="gap-2">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {loading ? "Génération en cours… (30-60s)" : "Générer la fiche produit"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => { setGenerateImages(imageCount > 0); generate(); }} disabled={loading || !name.trim()} className="gap-2">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {loading ? "Génération en cours… (30-60s)" : (sheet ? "Régénérer la fiche" : "Générer la fiche produit")}
+          </Button>
+          {(sheet || images.length > 0) && (
+            <Button type="button" variant="outline" onClick={resetDraft} className="gap-2">
+              <Trash2 className="h-4 w-4" /> Réinitialiser
+            </Button>
+          )}
+          {sheet && (
+            <span className="text-xs text-muted-foreground">
+              ✓ Fiche sauvegardée localement — elle restera ici même si vous quittez la page.
+            </span>
+          )}
+        </div>
       </Card>
 
       {sheet && (
