@@ -934,7 +934,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         <div className="container relative mx-auto px-4 py-6 md:py-12">
           <div className="max-w-2xl mx-auto text-center space-y-3">
             <Badge className="px-3 py-1 bg-white/90 text-rose-700 backdrop-blur-sm shadow-sm font-semibold">
-              <Atom className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              <Atom className="w-3.5 h-3.5 mr-1.5 text-sky-600" />
               Studio Visuels IA
             </Badge>
             <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900 break-words">
@@ -1053,15 +1053,15 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           <Tabs value={generationType === "video" ? "image" : generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
             <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
               <TabsTrigger value="image">
-                <ImageIcon className="mr-2 h-4 w-4 text-red-800" />
+                <ImageIcon className="mr-2 h-4 w-4 shrink-0 text-rose-600" />
                 Classique
               </TabsTrigger>
               <TabsTrigger value="advanced">
-                <Atom className="mr-2 h-4 w-4 text-blue-600" />
+                <Atom className="mr-2 h-4 w-4 shrink-0 text-sky-600" />
                 Avancé
               </TabsTrigger>
               <TabsTrigger value="pro">
-                <Aperture className="mr-2 h-4 w-4 text-yellow-600" />
+                <Aperture className="mr-2 h-4 w-4 shrink-0 text-amber-600" />
                 Mode Pro
               </TabsTrigger>
             </TabsList>
@@ -1075,7 +1075,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 <Card className="border-primary/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Aperture className="h-5 w-5 text-primary" />
+                      <Aperture className="h-5 w-5 shrink-0 text-amber-600" />
                       Mode Pro - Abonnement Requis
                     </CardTitle>
                     <CardDescription>
@@ -1443,7 +1443,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                   "Quota épuisé - Prenez un abonnement"
                 ) : (
                   <>
-                    <Atom className="mr-2 h-5 w-5 text-blue-600" />
+                     <Atom className="mr-2 h-5 w-5 shrink-0 text-primary-foreground" />
                     Prévisualiser et générer
                     {!hasActiveSubscription && freeGenerationsRemaining !== null && freeGenerationsRemaining > 0 && (
                       <span className="ml-2 text-xs opacity-80">
@@ -1501,7 +1501,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                         </>
                       ) : (
                         <>
-                          <Atom className="mr-2 h-4 w-4 text-blue-600" />
+                          <Atom className="mr-2 h-4 w-4 shrink-0 text-primary-foreground" />
                           Corriger et régénérer l'image
                         </>
                       )}
@@ -1820,7 +1820,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                           </>
                         ) : (
                           <>
-                            <Atom className="mr-2 h-4 w-4 text-blue-600" />
+                            <Atom className="mr-2 h-4 w-4 shrink-0 text-primary-foreground" />
                             Confirmer et générer
                           </>
                         )}
