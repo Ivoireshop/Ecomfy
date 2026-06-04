@@ -14,11 +14,11 @@ type DemoVideo = {
 const DEMOS: DemoVideo[] = [
   {
     id: "intro",
-    title: "Découvrez VisualPro en 2 minutes",
-    description: "Un aperçu rapide de tout ce que vous pouvez créer avec VisualPro.",
-    youtubeId: "dQw4w9WgXcQ",
+    title: "Formation complète VisualPro",
+    description: "Maîtrisez toutes les fonctionnalités de VisualPro en une seule formation.",
+    youtubeId: "z4Lko-oFNsY",
     category: "Présentation",
-    duration: "2:15",
+    duration: "1:20:00",
   },
 ];
 
@@ -30,7 +30,7 @@ const Demo = () => {
           <Badge variant="secondary" className="mb-4">Démo Vidéo</Badge>
           <h1 className="text-3xl md:text-5xl font-bold mb-3">Découvrez VisualPro en vidéo</h1>
           <p className="text-base md:text-lg text-muted-foreground">
-            Quelques démonstrations rapides pour voir la plateforme en action.
+            Suivez la formation complète pour maîtriser VisualPro de A à Z.
           </p>
         </div>
 
@@ -40,7 +40,7 @@ const Demo = () => {
               <div className="relative aspect-video bg-black">
                 <iframe
                   className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${demo.youtubeId}`}
+                  src={`https://www.youtube.com/embed/${demo.youtubeId}?start=3026`}
                   title={demo.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
