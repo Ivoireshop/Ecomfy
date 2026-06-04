@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy, Upload, Download, ImageIcon, Wand2 } from "lucide-react";
+import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy, Upload, Download, ImageIcon, Wand2, Trash2 } from "lucide-react";
 
 type Product = { id: string; name: string; price: number; is_published: boolean };
 type Shop = { id: string; ai_optimizer_enabled?: boolean; currency?: string };
@@ -302,19 +302,47 @@ type GeneratedSheet = {
 type GeneratedImage = { title: string; url: string | null; prompt: string; why?: string; error?: string };
 
 function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) => void }) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("");
-  const [audience, setAudience] = useState("");
-  const [brief, setBrief] = useState("");
-  const [framework, setFramework] = useState("hormozi");
+  const STORAGE_KEY = `vp_product_sheet_draft_${shop.id}`;
+
+  // Restaure le brouillon depuis localStorage à l'initialisation
+  const restored = (() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+
+  const [name, setName] = useState<string>(restored?.name ?? "");
+  const [price, setPrice] = useState<string>(restored?.price ?? "");
+  const [category, setCategory] = useState<string>(restored?.category ?? "");
+  const [audience, setAudience] = useState<string>(restored?.audience ?? "");
+  const [brief, setBrief] = useState<string>(restored?.brief ?? "");
+  const [framework, setFramework] = useState<string>(restored?.framework ?? "hormozi");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(restored?.imagePreview ?? null);
   const [generateImages, setGenerateImages] = useState(true);
-  const [imageCount, setImageCount] = useState(5);
+  const [imageCount, setImageCount] = useState<number>(restored?.imageCount ?? 5);
   const [loading, setLoading] = useState(false);
-  const [sheet, setSheet] = useState<GeneratedSheet | null>(null);
-  const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [sheet, setSheet] = useState<GeneratedSheet | null>(restored?.sheet ?? null);
+  const [images, setImages] = useState<GeneratedImage[]>(restored?.images ?? []);
+
+  // Sauvegarde automatique du brouillon à chaque modification
+  useEffect(() => {
+    try {
+      const payload = { name, price, category, audience, brief, framework, imageCount, imagePreview, sheet, images };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {}
+  }, [STORAGE_KEY, name, price, category, audience, brief, framework, imageCount, imagePreview, sheet, images]);
+
+  const resetDraft = () => {
+    if (!confirm("Effacer la fiche produit générée et tout recommencer ?")) return;
+    setName(""); setPrice(""); setCategory(""); setAudience(""); setBrief("");
+    setFramework("hormozi"); setImageCount(5);
+    setImageFile(null); setImagePreview(null);
+    setSheet(null); setImages([]);
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    toast.success("Fiche réinitialisée");
+  };
 
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -494,10 +522,22 @@ function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) =>
           </div>
         </div>
 
-        <Button onClick={() => { setGenerateImages(imageCount > 0); generate(); }} disabled={loading || !name.trim()} className="gap-2">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {loading ? "Génération en cours… (30-60s)" : "Générer la fiche produit"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => { setGenerateImages(imageCount > 0); generate(); }} disabled={loading || !name.trim()} className="gap-2">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {loading ? "Génération en cours… (30-60s)" : (sheet ? "Régénérer la fiche" : "Générer la fiche produit")}
+          </Button>
+          {(sheet || images.length > 0) && (
+            <Button type="button" variant="outline" onClick={resetDraft} className="gap-2">
+              <Trash2 className="h-4 w-4" /> Réinitialiser
+            </Button>
+          )}
+          {sheet && (
+            <span className="text-xs text-muted-foreground">
+              ✓ Fiche sauvegardée localement — elle restera ici même si vous quittez la page.
+            </span>
+          )}
+        </div>
       </Card>
 
       {sheet && (

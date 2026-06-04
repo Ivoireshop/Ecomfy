@@ -143,6 +143,23 @@ Rédige une fiche produit complète, persuasive, adaptée au marché ouest-afric
     if (generate_images && prompts.length > 0) {
       const results = await Promise.all(prompts.map(async (p) => {
         try {
+          // Si une image de référence du produit a été fournie, on l'injecte
+          // dans la requête image pour que le modèle PRESERVE le produit réel
+          // (forme, couleur, étiquettes, marque) et ne génère pas un produit
+          // imaginaire similaire. Les personnages / décor peuvent changer.
+          const refImagePrompt =
+            (image_base64
+              ? "CRITICAL PRODUCT FIDELITY RULE: The attached reference image shows the EXACT product to feature. You MUST keep the product identical to the reference: same shape, same packaging, same label, same brand text, same colors, same proportions, same materials. Do NOT redesign, restyle, or invent a similar-looking product. Only the human models, background, lighting and scene may change. Place the EXACT product from the reference into the scene below.\n\nSCENE: "
+              : "") + p.prompt;
+
+          const userContent: any = image_base64
+            ? [
+                { type: "text", text: refImagePrompt + ". STYLE: ultra-realistic photography, photojournalism, real human skin with natural pores and texture, authentic candid moment, shot on professional camera 85mm lens, natural soft lighting, shallow depth of field, 4k, subtle photographic film grain, editorial magazine quality. NEGATIVE PROMPT: do not alter, redesign or stylize the product; no AI generated look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no waxy skin, no generic stock photo, no uncanny valley." },
+                { type: "image_url", image_url: { url: `data:${image_mime || "image/jpeg"};base64,${image_base64}` } },
+              ]
+            : p.prompt +
+              ". STYLE: ultra-realistic photography, photojournalism, real human skin with natural pores and texture, authentic candid moment, shot on professional camera 85mm lens, natural soft lighting, shallow depth of field, 4k, subtle photographic film grain, editorial magazine quality. NEGATIVE PROMPT: no AI generated look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no waxy skin, no generic stock photo, no uncanny valley.";
+
           const imgResp = await fetch(LOVABLE_AI_URL, {
             method: "POST",
             headers: {
@@ -154,9 +171,7 @@ Rédige une fiche produit complète, persuasive, adaptée au marché ouest-afric
               messages: [
                 {
                   role: "user",
-                  content:
-                    p.prompt +
-                    ". STYLE: ultra-realistic photography, photojournalism, real human skin with natural pores and texture, authentic candid moment, shot on professional camera 85mm lens, natural soft lighting, shallow depth of field, 4k, subtle photographic film grain, editorial magazine quality. NEGATIVE PROMPT: no AI generated look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no waxy skin, no generic stock photo, no uncanny valley.",
+                  content: userContent,
                 },
               ],
               modalities: ["image", "text"],
