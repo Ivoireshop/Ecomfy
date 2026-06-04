@@ -257,7 +257,7 @@ const ProductView = () => {
       }
 
       try {
-        document.title = productData?.name || shopData.business_name || "Produit";
+        // Page title and social meta are handled by <Helmet> in the main render
         const iconHref = String(shopData.favicon_url || shopData.logo_url || "/favicon.png");
         document.head
           .querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']")
