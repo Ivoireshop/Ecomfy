@@ -12,7 +12,9 @@ import { Helmet } from "react-helmet";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { OnboardingTutorial } from "@/components/OnboardingTutorial";
+const OnboardingTutorial = lazy(() =>
+  import("@/components/OnboardingTutorial").then((m) => ({ default: m.OnboardingTutorial }))
+);
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useTranslation } from "react-i18next";
 const LandingMediaSections = lazy(() => import("@/components/LandingMediaSections"));
@@ -100,7 +102,9 @@ const Index = () => {
       <Header />
 
       {showOnboarding && session?.user && (
-        <OnboardingTutorial userId={session.user.id} onComplete={() => setShowOnboarding(false)} />
+        <Suspense fallback={null}>
+          <OnboardingTutorial userId={session.user.id} onComplete={() => setShowOnboarding(false)} />
+        </Suspense>
       )}
 
       {/* ===== SCROLLING TICKER ===== */}
