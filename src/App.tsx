@@ -10,7 +10,7 @@ import { SupportButton } from "@/components/SupportButton";
 import { BackButton } from "@/components/BackButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 // Eager load: landing only (critical path)
 import Index from "./pages/Index";
@@ -348,6 +348,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <IdlePrefetcher />
           <AppWithSidebar />
         </BrowserRouter>
       </TooltipProvider>
