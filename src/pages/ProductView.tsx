@@ -536,7 +536,7 @@ const ProductView = () => {
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={goToShop}>
               {shop.logo_url ? (
-                <img src={shop.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover flex-shrink-0" />
+                <img src={shop.logo_url} alt="" loading="eager" decoding="async" width={32} height={32} className="h-8 w-8 rounded-lg object-cover flex-shrink-0" />
               ) : (
                 <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: primaryColor + "15" }}>
                   <Store className="h-4 w-4" style={{ color: primaryColor }} />
@@ -639,7 +639,7 @@ const ProductView = () => {
                     onClick={() => setSelectedImageIdx(i)} 
                     className={`h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition ${i === selectedImageIdx ? "border-gray-900" : "border-transparent hover:border-gray-300"}`}
                   >
-                    <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                    <img src={img.image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -892,7 +892,7 @@ const ProductView = () => {
                       <div key={item.product.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           {item.product.product_images?.[0] && (
-                            <img src={item.product.product_images[0].image_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                            <img src={item.product.product_images[0].image_url} alt="" loading="lazy" decoding="async" width={40} height={40} className="h-10 w-10 rounded-lg object-cover" />
                           )}
                           <span className="font-medium">{item.product.name} × {item.quantity}</span>
                         </div>
@@ -1131,7 +1131,7 @@ const ProductView = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-2">
-              {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-8 w-8 rounded-lg" /> : <Store className="h-5 w-5" style={{ color: primaryColor }} />}
+              {shop.logo_url ? <img src={shop.logo_url} alt="" loading="lazy" decoding="async" width={32} height={32} className="h-8 w-8 rounded-lg" /> : <Store className="h-5 w-5" style={{ color: primaryColor }} />}
               <span className="font-semibold text-gray-700">{shop.business_name}</span>
             </div>
             <div className="flex items-center gap-4 flex-wrap justify-center">
@@ -1208,7 +1208,7 @@ const ProductView = () => {
                       {cart.map(item => (
                         <div key={item.product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                           <div className="h-16 w-16 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                            {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" className="h-full w-full object-cover" />}
+                            {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{item.product.name}</p>
