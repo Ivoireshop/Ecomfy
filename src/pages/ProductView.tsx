@@ -600,6 +600,9 @@ const ProductView = () => {
                 <img 
                   src={images[selectedImageIdx]?.image_url} 
                   alt={product.name} 
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
                   className="w-full h-full object-cover"
                 />
               ) : (
