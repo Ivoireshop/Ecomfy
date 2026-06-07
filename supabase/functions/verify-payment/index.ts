@@ -75,7 +75,7 @@ serve(async (req) => {
     const paymentType = (meta.payment_type as string) || "subscription";
     const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
 
-    if (payment.status === "completed" && paymentType !== "shop_activation" && paymentType !== "commission_payment") {
+    if (payment.status === "completed" && paymentType !== "shop_activation" && paymentType !== "commission_payment" && paymentType !== "shop_subscription") {
       return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

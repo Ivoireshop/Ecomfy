@@ -7,6 +7,91 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const isPaidStatus = (status?: string | null) => {
+  const normalized = String(status || "").toLowerCase();
+  return normalized === "completed" || normalized === "paid" || normalized === "success" || normalized === "successful";
+};
+
+const reconcilePendingShopActivation = async (
+  supabase: ReturnType<typeof createClient>,
+  apiKey: string | undefined,
+  apiSecret: string | undefined,
+  shopId: string,
+  userId: string,
+) => {
+  if (!apiKey || !apiSecret) return null;
+
+  const { data: pendingPayments, error } = await supabase
+    .from("payments")
+    .select("id, amount, currency, payment_method, transaction_id, status, metadata")
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .eq("metadata->>payment_type", "shop_activation")
+    .eq("metadata->>shop_id", shopId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.warn("Could not list pending shop activation payments:", error);
+    return null;
+  }
+
+  for (const payment of pendingPayments || []) {
+    const reference = payment.transaction_id || (payment.metadata as Record<string, unknown> | null)?.gateway_reference as string | undefined;
+    if (!reference) continue;
+
+    try {
+      const resp = await fetch(`https://pay.genius.ci/api/v1/merchant/payments/${reference}`, {
+        method: "GET",
+        headers: { "X-API-Key": apiKey, "X-API-Secret": apiSecret },
+      });
+      const json: any = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        console.warn("GeniusPay reconciliation lookup failed:", { reference, status: resp.status, json });
+        continue;
+      }
+
+      const remote = json.data || json;
+      const remoteStatus = remote?.status;
+      if (!isPaidStatus(remoteStatus)) {
+        if (["failed", "cancelled", "canceled", "expired", "refunded"].includes(String(remoteStatus || "").toLowerCase())) {
+          await supabase.from("payments").update({ status: String(remoteStatus).toLowerCase() }).eq("id", payment.id);
+        }
+        continue;
+      }
+
+      await supabase.from("payments").update({
+        status: "completed",
+        payment_method: remote?.payment_method || remote?.provider || payment.payment_method || "geniuspay",
+        metadata: {
+          ...((payment.metadata || {}) as Record<string, unknown>),
+          reconciled_at: new Date().toISOString(),
+          remote_status: remoteStatus,
+        },
+      }).eq("id", payment.id);
+
+      const { data: activationResult, error: activationError } = await supabase.rpc("apply_shop_activation", {
+        p_shop_id: shopId,
+        p_user_id: userId,
+        p_amount: Number(payment.amount) || 0,
+        p_transaction_reference: reference,
+        p_payment_method: remote?.payment_method || remote?.provider || payment.payment_method || "geniuspay",
+      });
+
+      if (activationError || activationResult?.success === false) {
+        console.error("Reconciled payment but shop activation failed:", { activationError, activationResult, shopId, userId, reference });
+        continue;
+      }
+
+      return { payment, reference, activationResult };
+    } catch (e) {
+      console.warn("Shop activation reconciliation failed:", { reference, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  return null;
+};
+
 // Zod validation schema
 const PaymentSchema = z.object({
   amount: z.number(),
@@ -116,6 +201,10 @@ serve(async (req) => {
 
     const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id, plan } = validatedData;
 
+    // === GeniusPay integration ===
+    const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
+    const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
+
     if (payment_type === "shop_subscription") {
       if (!shop_id) {
         return new Response(
@@ -144,6 +233,33 @@ serve(async (req) => {
       if (!shop_id) {
         return new Response(
           JSON.stringify({ success: false, error: "Sélectionnez la boutique à activer." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const reconciledActivation = await reconcilePendingShopActivation(
+        supabase,
+        GENIUSPAY_API_KEY,
+        GENIUSPAY_API_SECRET,
+        shop_id,
+        user_id,
+      );
+
+      if (reconciledActivation) {
+        console.log("Pending shop activation reconciled before new charge:", {
+          shop_id,
+          user_id,
+          reference: reconciledActivation.reference,
+        });
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_activated: true,
+            already_paid: true,
+            applied: true,
+            shop_id,
+            reference: reconciledActivation.reference,
+          }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -287,10 +403,6 @@ serve(async (req) => {
         finalAmount 
       });
     }
-
-    // === GeniusPay integration ===
-    const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
-    const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
 
     if (!GENIUSPAY_API_KEY || !GENIUSPAY_API_SECRET) {
       console.error("GeniusPay credentials not configured");
