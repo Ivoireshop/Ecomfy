@@ -163,7 +163,16 @@ const ShopView = () => {
   // Refetch when the tab regains focus / becomes visible so any change
   // published from the editor is reflected immediately on the live shop.
   useEffect(() => {
-    const refresh = () => { if (document.visibilityState === "visible") fetchShop(); };
+    // Throttle: avoid refetching if we just loaded; saves Supabase round-trips
+    // every time the user tabs away and back. 30s is enough to catch editor
+    // publishes without hammering on every focus event.
+    let lastRefresh = Date.now();
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastRefresh < 30_000) return;
+      lastRefresh = Date.now();
+      fetchShop();
+    };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
@@ -291,16 +300,17 @@ const ShopView = () => {
 
     // Track shop visit (skip preview mode)
     if (!shopData._isPreview) {
+      // Fire-and-forget: do not block render on analytics insert
       try {
         let sid = sessionStorage.getItem("vp_visit_session");
         if (!sid) {
           sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
           sessionStorage.setItem("vp_visit_session", sid);
         }
-        await supabase.from("shop_visits" as any).insert({
+        supabase.from("shop_visits" as any).insert({
           shop_id: shopData.id,
           session_id: sid,
-        } as any);
+        } as any).then(() => {}, () => {});
       } catch {}
     }
 
@@ -591,7 +601,7 @@ const ShopView = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {shop.logo_url ? (
-              <img src={shop.logo_url} alt="" className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover flex-shrink-0" />
+              <img src={shop.logo_url} alt="" loading="eager" decoding="async" width={36} height={36} className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover flex-shrink-0" />
             ) : (
               <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: primaryColor + "15" }}>
                 <Store className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: primaryColor }} />
@@ -650,7 +660,7 @@ const ShopView = () => {
       <section className="relative overflow-hidden" style={{ background: `linear-gradient(145deg, ${primaryColor}, ${secondaryColor})` }}>
         {shop.banner_url ? (
           <div className="absolute inset-0">
-            <img src={shop.banner_url} alt="" className="w-full h-full object-cover" />
+            <img src={shop.banner_url} alt="" loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20" />
           </div>
         ) : (
@@ -661,7 +671,7 @@ const ShopView = () => {
         )}
         <div className="relative max-w-7xl mx-auto px-4 py-12 sm:py-16 md:py-24 text-center text-primary-foreground">
           {shop.logo_url && (
-            <img src={shop.logo_url} alt={tShop.business_name} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
+            <img src={shop.logo_url} alt={tShop.business_name} loading="eager" decoding="async" width={80} height={80} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
           )}
           <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-3xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-4 tracking-tight">{tShop.business_name}</h1>
           {tShop.business_description && (
@@ -803,7 +813,7 @@ const ShopView = () => {
             <>
               <div className="aspect-square rounded-xl overflow-hidden bg-muted mb-4">
                 {selectedProduct.product_images?.[0] ? (
-                  <img src={selectedProduct.product_images[0].image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                  <img src={selectedProduct.product_images[0].image_url} alt={selectedProduct.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"><Store className="h-16 w-16 text-muted-foreground/30" /></div>
                 )}
@@ -811,7 +821,7 @@ const ShopView = () => {
               {selectedProduct.product_images && selectedProduct.product_images.length > 1 && (
                 <div className="flex gap-2 mb-4 overflow-x-auto">
                   {selectedProduct.product_images.map((img, i) => (
-                    <img key={img.id} src={img.image_url} alt="" className="h-16 w-16 rounded-lg object-cover border-2 border-transparent hover:border-primary cursor-pointer" />
+                    <img key={img.id} src={img.image_url} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 rounded-lg object-cover border-2 border-transparent hover:border-primary cursor-pointer" />
                   ))}
                 </div>
               )}
@@ -950,7 +960,7 @@ const ShopView = () => {
                       {cart.map(item => (
                         <div key={cartKey(item.product.id, item.selectedVariants)} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
                           <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
-                            {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" className="h-full w-full object-cover" />}
+                            {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{item.product.name}</p>
