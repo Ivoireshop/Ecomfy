@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,19 +16,28 @@ import { ShopSidebar, type ActiveSection } from "@/components/shop/ShopSidebar";
 import { ProductsTable } from "@/components/shop/ProductsTable";
 import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
-import { AbandonedCartsList } from "@/components/shop/AbandonedCartsList";
 import { ShopSettings } from "@/components/shop/ShopSettings";
-import { ProductEditor } from "@/components/shop/ProductEditor";
-import { ShopAssistantSettings } from "@/components/shop/ShopAssistantSettings";
-import { ShopStatistics } from "@/components/shop/ShopStatistics";
-import { ShopThemeSettings } from "@/components/shop/ShopThemeSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
-import { BillingHistory } from "@/components/shop/BillingHistory";
-import { ReviewsModeration } from "@/components/shop/ReviewsModeration";
-import { ShopFinances } from "@/components/shop/ShopFinances";
-import { ProductAIOptimizer } from "@/components/shop/ProductAIOptimizer";
-import { ShopCollaboratorsManager } from "@/components/shop/ShopCollaboratorsManager";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
+
+// Lazy-load heavy section panels (only one section is visible at a time).
+// Keeps the editor's initial JS small without changing UI or behavior.
+const AbandonedCartsList = lazy(() => import("@/components/shop/AbandonedCartsList").then(m => ({ default: m.AbandonedCartsList })));
+const ProductEditor = lazy(() => import("@/components/shop/ProductEditor").then(m => ({ default: m.ProductEditor })));
+const ShopAssistantSettings = lazy(() => import("@/components/shop/ShopAssistantSettings").then(m => ({ default: m.ShopAssistantSettings })));
+const ShopStatistics = lazy(() => import("@/components/shop/ShopStatistics").then(m => ({ default: m.ShopStatistics })));
+const ShopThemeSettings = lazy(() => import("@/components/shop/ShopThemeSettings").then(m => ({ default: m.ShopThemeSettings })));
+const BillingHistory = lazy(() => import("@/components/shop/BillingHistory").then(m => ({ default: m.BillingHistory })));
+const ReviewsModeration = lazy(() => import("@/components/shop/ReviewsModeration").then(m => ({ default: m.ReviewsModeration })));
+const ShopFinances = lazy(() => import("@/components/shop/ShopFinances").then(m => ({ default: m.ShopFinances })));
+const ProductAIOptimizer = lazy(() => import("@/components/shop/ProductAIOptimizer").then(m => ({ default: m.ProductAIOptimizer })));
+const ShopCollaboratorsManager = lazy(() => import("@/components/shop/ShopCollaboratorsManager").then(m => ({ default: m.ShopCollaboratorsManager })));
+
+const SectionFallback = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+  </div>
+);
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { useNativePush } from "@/hooks/useNativePush";
@@ -636,6 +645,7 @@ const ShopEditor = () => {
         {/* Full-page Product Editor */}
         {showProductEditor && (
           <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+            <Suspense fallback={<SectionFallback />}>
             <ProductEditor
               initialData={editingProduct ? {
                 name: editingProduct.name, description: editingProduct.description || "",
@@ -671,11 +681,13 @@ const ShopEditor = () => {
               productId={editingProduct?.id}
               shop={shop as any}
             />
+            </Suspense>
           </div>
         )}
 
         {/* Page Content */}
         <div className="px-4 md:px-8 py-6 md:py-8">
+          <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
             <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} />
           )}
@@ -842,6 +854,7 @@ const ShopEditor = () => {
           {activeSection === "assistant" && (
             <ShopAssistantSettings shopId={shop.id} isActivated={!!shop.is_activated} />
           )}
+          </Suspense>
         </div>
       </main>
     </div>
