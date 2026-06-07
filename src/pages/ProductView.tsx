@@ -235,24 +235,28 @@ const ProductView = () => {
         }
         setProduct(productData);
 
-        const { data: related } = await fetchWithRetry(() => supabase
+        // Load related products in background — do not block product render.
+        // The "you might also like" section can appear a moment later.
+        fetchWithRetry(() => supabase
           .from("products")
           .select("*, product_images(*)")
           .eq("shop_id", shopData.id)
           .neq("id", productData.id)
           .eq("is_published", true)
-          .limit(4)) as any;
-        setRelatedProducts(related || []);
+          .limit(4)).then((res: any) => {
+            setRelatedProducts(res?.data || []);
+          }, () => {});
       }
 
       if (productData && !shopData._isPreview) {
+        // Fire-and-forget analytics insert; never block product page render.
         try {
           let sid = sessionStorage.getItem("vp_visit_session");
           if (!sid) {
             sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
             sessionStorage.setItem("vp_visit_session", sid);
           }
-          await supabase.from("shop_visits" as any).insert({ shop_id: shopData.id, product_id: productData.id, session_id: sid } as any);
+          supabase.from("shop_visits" as any).insert({ shop_id: shopData.id, product_id: productData.id, session_id: sid } as any).then(() => {}, () => {});
         } catch {}
       }
 
