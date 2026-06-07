@@ -10,7 +10,7 @@ import { SupportButton } from "@/components/SupportButton";
 import { BackButton } from "@/components/BackButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 // Eager load: landing only (critical path)
 import Index from "./pages/Index";
@@ -78,7 +78,19 @@ const isCustomShopHost = (() => {
   return true;
 })();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Conservative caching: avoids redundant refetches across the dashboard
+      // without changing any UI or business logic. Pages still refetch on mount
+      // when stale (60s) and keep data in memory for 5 min.
+      staleTime: 60 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -300,6 +312,31 @@ const AppContent = () => {
 
 const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/tutorial"];
 
+// Prefetch heavy authenticated chunks during idle time so the first
+// in-dashboard navigation is instant. No-op on slow connections / save-data.
+const IdlePrefetcher = () => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const conn = (navigator as any).connection;
+    if (conn?.saveData) return;
+    if (conn?.effectiveType && /^(2g|slow-2g)$/.test(conn.effectiveType)) return;
+
+    const run = () => {
+      import("./pages/Dashboard");
+      import("./pages/Library");
+      import("./pages/Generator");
+      import("./pages/ShopManager");
+      import("./components/ProtectedRoute");
+    };
+    const ric = (window as any).requestIdleCallback as
+      | ((cb: () => void, opts?: { timeout: number }) => number)
+      | undefined;
+    if (ric) ric(run, { timeout: 3000 });
+    else setTimeout(run, 2000);
+  }, []);
+  return null;
+};
+
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
@@ -336,6 +373,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <IdlePrefetcher />
           <AppWithSidebar />
         </BrowserRouter>
       </TooltipProvider>
