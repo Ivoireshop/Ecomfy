@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,12 +9,44 @@ const corsHeaders = {
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
+function isPrivateHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === 'localhost' || h.endsWith('.localhost') || h === '0.0.0.0') return true;
+  // IPv6 loopback/local
+  if (h === '::1' || h.startsWith('[::1]') || h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80')) return true;
+  // IPv4 ranges
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a,b] = [parseInt(m[1]),parseInt(m[2])];
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 169 && b === 254) return true; // link-local incl. cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 0) return true;
+  }
+  return false;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Require authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Authentification requise" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const sb = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "");
+    const { data: ud, error: ue } = await sb.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (ue || !ud?.user) {
+      return new Response(JSON.stringify({ error: "Authentification requise" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { url } = await req.json();
 
     if (!url) {
@@ -21,6 +54,21 @@ serve(async (req) => {
         JSON.stringify({ error: "URL is required" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // SSRF protection: only http(s) + block private/loopback/metadata hosts
+    let parsed: URL;
+    try { parsed = new URL(url); } catch {
+      return new Response(JSON.stringify({ error: "URL invalide" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return new Response(JSON.stringify({ error: "Protocole non autorisé" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (isPrivateHost(parsed.hostname)) {
+      return new Response(JSON.stringify({ error: "Hôte non autorisé" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     console.log("Extracting brand data from:", url);
