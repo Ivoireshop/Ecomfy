@@ -201,6 +201,10 @@ serve(async (req) => {
 
     const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id, plan } = validatedData;
 
+    // === GeniusPay integration ===
+    const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
+    const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
+
     if (payment_type === "shop_subscription") {
       if (!shop_id) {
         return new Response(
@@ -229,6 +233,33 @@ serve(async (req) => {
       if (!shop_id) {
         return new Response(
           JSON.stringify({ success: false, error: "Sélectionnez la boutique à activer." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const reconciledActivation = await reconcilePendingShopActivation(
+        supabase,
+        GENIUSPAY_API_KEY,
+        GENIUSPAY_API_SECRET,
+        shop_id,
+        user_id,
+      );
+
+      if (reconciledActivation) {
+        console.log("Pending shop activation reconciled before new charge:", {
+          shop_id,
+          user_id,
+          reference: reconciledActivation.reference,
+        });
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_activated: true,
+            already_paid: true,
+            applied: true,
+            shop_id,
+            reference: reconciledActivation.reference,
+          }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -372,10 +403,6 @@ serve(async (req) => {
         finalAmount 
       });
     }
-
-    // === GeniusPay integration ===
-    const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
-    const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
 
     if (!GENIUSPAY_API_KEY || !GENIUSPAY_API_SECRET) {
       console.error("GeniusPay credentials not configured");
