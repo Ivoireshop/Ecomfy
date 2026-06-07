@@ -1205,8 +1205,26 @@ const ShopView = () => {
 function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice }: {
   product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string;
 }) {
+  // Warm up the ProductView chunk and its images on hover/touch so navigation
+  // feels instant. Idempotent — repeated calls are cheap.
+  const prefetchProduct = () => {
+    try {
+      import("@/pages/ProductView");
+      const url = product.product_images?.[0]?.image_url;
+      if (url) {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = url;
+      }
+    } catch {}
+  };
   return (
-    <Card className="overflow-hidden group cursor-pointer border-0 shadow-sm hover:shadow-xl transition-all duration-300" onClick={() => onView(product)}>
+    <Card
+      className="overflow-hidden group cursor-pointer border-0 shadow-sm hover:shadow-xl transition-all duration-300"
+      onClick={() => onView(product)}
+      onMouseEnter={prefetchProduct}
+      onTouchStart={prefetchProduct}
+    >
       <div className="aspect-square bg-muted relative overflow-hidden">
         {product.product_images?.[0] ? (
           <img src={product.product_images[0].image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
