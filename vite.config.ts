@@ -15,6 +15,15 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    __BUILD_ID__: JSON.stringify(
+      process.env.COMMIT_SHA ||
+        process.env.VERCEL_GIT_COMMIT_SHA ||
+        process.env.SOURCE_VERSION ||
+        `dev-${Date.now()}`
+    ),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   build: {
     target: "es2020",
     cssCodeSplit: true,
