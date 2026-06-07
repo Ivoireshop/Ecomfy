@@ -163,7 +163,16 @@ const ShopView = () => {
   // Refetch when the tab regains focus / becomes visible so any change
   // published from the editor is reflected immediately on the live shop.
   useEffect(() => {
-    const refresh = () => { if (document.visibilityState === "visible") fetchShop(); };
+    // Throttle: avoid refetching if we just loaded; saves Supabase round-trips
+    // every time the user tabs away and back. 30s is enough to catch editor
+    // publishes without hammering on every focus event.
+    let lastRefresh = Date.now();
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastRefresh < 30_000) return;
+      lastRefresh = Date.now();
+      fetchShop();
+    };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
@@ -291,16 +300,17 @@ const ShopView = () => {
 
     // Track shop visit (skip preview mode)
     if (!shopData._isPreview) {
+      // Fire-and-forget: do not block render on analytics insert
       try {
         let sid = sessionStorage.getItem("vp_visit_session");
         if (!sid) {
           sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
           sessionStorage.setItem("vp_visit_session", sid);
         }
-        await supabase.from("shop_visits" as any).insert({
+        supabase.from("shop_visits" as any).insert({
           shop_id: shopData.id,
           session_id: sid,
-        } as any);
+        } as any).then(() => {}, () => {});
       } catch {}
     }
 
