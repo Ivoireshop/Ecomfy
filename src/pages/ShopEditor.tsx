@@ -645,6 +645,7 @@ const ShopEditor = () => {
         {/* Full-page Product Editor */}
         {showProductEditor && (
           <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+            <Suspense fallback={<SectionFallback />}>
             <ProductEditor
               initialData={editingProduct ? {
                 name: editingProduct.name, description: editingProduct.description || "",
@@ -680,11 +681,13 @@ const ShopEditor = () => {
               productId={editingProduct?.id}
               shop={shop as any}
             />
+            </Suspense>
           </div>
         )}
 
         {/* Page Content */}
         <div className="px-4 md:px-8 py-6 md:py-8">
+          <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
             <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} />
           )}
@@ -851,6 +854,7 @@ const ShopEditor = () => {
           {activeSection === "assistant" && (
             <ShopAssistantSettings shopId={shop.id} isActivated={!!shop.is_activated} />
           )}
+          </Suspense>
         </div>
       </main>
     </div>
