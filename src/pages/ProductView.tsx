@@ -26,6 +26,7 @@ import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { normalizeSectionOrder, type ProductSectionKey } from "@/lib/productSections";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
+import { cacheGet, cacheSet, cacheIsFresh, shopKey, productKey } from "@/lib/shopCache";
 
 // Countdown Timer Component
 const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; days: number; hours: number; minutes: number }) => {
@@ -188,7 +189,25 @@ const ProductView = () => {
   const fetchData = async () => {
     if ((!slug && !id) || (!productId && !productSlug)) { setLoading(false); return; }
     setFetchError(null);
-    setLoading(true);
+    // Stale-while-revalidate from in-memory cache so jumping back from the
+    // shop to a product (or product → product) feels instant.
+    const shopCacheK = id ? shopKey(id, "id") : slug ? shopKey(slug, "slug") : null;
+    let hydrated = false;
+    if (shopCacheK) {
+      const cachedShop = cacheGet<any>(shopCacheK);
+      if (cachedShop) {
+        setShop(cachedShop);
+        const pKey = productKey(cachedShop.id, (productSlug || productId) as string);
+        const cachedProduct = cacheGet<any>(pKey);
+        if (cachedProduct) {
+          setProduct(cachedProduct);
+          hydrated = true;
+          setLoading(false);
+          if (cacheIsFresh(shopCacheK) && cacheIsFresh(pKey)) return;
+        }
+      }
+    }
+    if (!hydrated) setLoading(true);
     try {
       let shopData: any = null;
 
@@ -208,6 +227,7 @@ const ProductView = () => {
 
       if (!shopData) return;
       setShop(shopData);
+      if (shopCacheK) cacheSet(shopCacheK, shopData);
 
       const loadProduct = (field: "slug" | "id", value: string) => {
         let query = supabase
@@ -234,6 +254,9 @@ const ProductView = () => {
           productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
         }
         setProduct(productData);
+        // Cache by both slug and id so either URL form hits the cache.
+        if (productData.slug) cacheSet(productKey(shopData.id, productData.slug), productData);
+        cacheSet(productKey(shopData.id, productData.id), productData);
 
         // Load related products in background — do not block product render.
         // The "you might also like" section can appear a moment later.

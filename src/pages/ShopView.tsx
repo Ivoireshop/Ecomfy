@@ -22,6 +22,7 @@ import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
+import { cacheGet, cacheSet, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
 
 interface Product {
   id: string;
@@ -207,7 +208,27 @@ const ShopView = () => {
     const isCustomHost = host && !KNOWN_HOSTS.includes(host) && !host.endsWith(".lovable.app") && !host.endsWith(".lovable.dev") && !host.endsWith(".lovableproject.com");
     if (!slug && !id && !isCustomHost) return;
     setFetchError(null);
-    setLoading(true);
+    // Stale-while-revalidate: hydrate instantly from cache when available,
+    // then proceed with network fetch to refresh in background.
+    const cacheK = id
+      ? shopKey(id, "id")
+      : slug
+        ? shopKey(slug, "slug")
+        : isCustomHost ? shopKey(host, "domain") : null;
+    let hydratedFromCache = false;
+    if (cacheK) {
+      const cachedShop = cacheGet<any>(cacheK);
+      if (cachedShop) {
+        setShop(cachedShop);
+        const cachedProducts = cacheGet<Product[]>(shopProductsKey(cachedShop.id));
+        if (cachedProducts) setProducts(cachedProducts);
+        setLoading(false);
+        hydratedFromCache = true;
+        // If cache is fresh enough, skip the network round-trip entirely.
+        if (cacheIsFresh(cacheK)) return;
+      }
+    }
+    if (!hydratedFromCache) setLoading(true);
     let shopData: any = null;
     let networkError = false;
     let inactiveShop: any = null;
@@ -271,7 +292,10 @@ const ShopView = () => {
 
     if (!shopData) {
       if (networkError) {
-        setFetchError("Impossible de charger la boutique. Vérifiez votre connexion et réessayez.");
+        // Don't surface a network error if we already showed cached data.
+        if (!hydratedFromCache) {
+          setFetchError("Impossible de charger la boutique. Vérifiez votre connexion et réessayez.");
+        }
       } else if (inactiveShop) {
         setFetchError(
           inactiveShop.is_suspended
@@ -279,10 +303,11 @@ const ShopView = () => {
             : "Cette boutique est en cours de configuration. Elle sera bientôt disponible."
         );
       }
-      setLoading(false);
+      if (!hydratedFromCache) setLoading(false);
       return;
     }
     setShop(shopData);
+    if (cacheK) cacheSet(cacheK, shopData);
 
     let productsQuery = supabase
       .from("products")
@@ -295,7 +320,9 @@ const ShopView = () => {
     }
 
     const { data: productsData } = await productsQuery as any;
-    setProducts(productsData || []);
+    const finalProducts = productsData || [];
+    setProducts(finalProducts);
+    cacheSet(shopProductsKey(shopData.id), finalProducts);
     setLoading(false);
 
     // Track shop visit (skip preview mode)
