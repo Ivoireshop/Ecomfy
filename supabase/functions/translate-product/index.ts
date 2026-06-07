@@ -39,6 +39,21 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    // Require authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return json(200, { success: false, error: "Authentification requise." });
+    }
+    const sbAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+    );
+    const { data: ud, error: ue } = await sbAuth.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (ue || !ud?.user) {
+      return json(200, { success: false, error: "Authentification requise." });
+    }
+    const userId = ud.user.id;
+
     const body = (await req.json()) as Body;
     const { texts, target_lang, source_lang = "fr" } = body;
 
@@ -107,6 +122,28 @@ Deno.serve(async (req) => {
           Deno.env.get("SUPABASE_URL")!,
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         );
+        // Verify caller owns the shop before any write
+        if (!body.shop_id) {
+          return json(200, { success: false, error: "shop_id requis pour persister." });
+        }
+        const { data: shopRow, error: shopErr } = await supabase
+          .from("shops")
+          .select("id, user_id")
+          .eq("id", body.shop_id)
+          .maybeSingle();
+        if (shopErr || !shopRow || shopRow.user_id !== userId) {
+          return json(200, { success: false, error: "Accès refusé à cette boutique." });
+        }
+        if (body.product_id) {
+          const { data: prodRow, error: prodErr } = await supabase
+            .from("products")
+            .select("id, shop_id")
+            .eq("id", body.product_id)
+            .maybeSingle();
+          if (prodErr || !prodRow || prodRow.shop_id !== body.shop_id) {
+            return json(200, { success: false, error: "Produit invalide pour cette boutique." });
+          }
+        }
         const src = body.source ?? "ai_auto";
         if (body.product_id && body.shop_id) {
           await supabase.from("product_translations").upsert(
