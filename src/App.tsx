@@ -312,6 +312,31 @@ const AppContent = () => {
 
 const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/tutorial"];
 
+// Prefetch heavy authenticated chunks during idle time so the first
+// in-dashboard navigation is instant. No-op on slow connections / save-data.
+const IdlePrefetcher = () => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const conn = (navigator as any).connection;
+    if (conn?.saveData) return;
+    if (conn?.effectiveType && /^(2g|slow-2g)$/.test(conn.effectiveType)) return;
+
+    const run = () => {
+      import("./pages/Dashboard");
+      import("./pages/Library");
+      import("./pages/Generator");
+      import("./pages/ShopManager");
+      import("./components/ProtectedRoute");
+    };
+    const ric = (window as any).requestIdleCallback as
+      | ((cb: () => void, opts?: { timeout: number }) => number)
+      | undefined;
+    if (ric) ric(run, { timeout: 3000 });
+    else setTimeout(run, 2000);
+  }, []);
+  return null;
+};
+
 const AppWithSidebar = () => {
   const location = useLocation();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
