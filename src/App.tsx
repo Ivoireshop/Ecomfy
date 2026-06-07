@@ -65,6 +65,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const OrdersDiagnostic = lazy(() => import("./pages/OrdersDiagnostic"));
 const AcceptShopInvite = lazy(() => import("./pages/AcceptShopInvite"));
 const Documentation = lazy(() => import("./pages/Documentation"));
+const Health = lazy(() => import("./pages/Health"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
@@ -303,6 +304,8 @@ const AppContent = () => {
           <Route path="/order-confirmed" element={<OrderConfirmed />} />
           <Route path="/accept-shop-invite" element={<AcceptShopInvite />} />
           <Route path="/docs" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
+          <Route path="/health" element={<Health />} />
+          <Route path="/healthz" element={<Health />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -310,7 +313,7 @@ const AppContent = () => {
   );
 };
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/tutorial"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/tutorial", "/health", "/healthz"];
 
 // Prefetch heavy authenticated chunks during idle time so the first
 // in-dashboard navigation is instant. No-op on slow connections / save-data.
