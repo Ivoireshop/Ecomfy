@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
+import { enforceAiQuota } from "../_shared/ai-quota.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  const __quota = await enforceAiQuota(req, "generate-ai-image");
+  if (!__quota.allowed) return __quota.response;
+
 
   try {
     // Authentication
