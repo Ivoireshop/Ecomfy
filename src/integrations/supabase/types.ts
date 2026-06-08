@@ -3586,6 +3586,10 @@ export type Database = {
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: { user_id: string }; Returns: string }
       generate_shop_domain_verification_code: { Args: never; Returns: string }
+      get_ai_quota: {
+        Args: { _limit?: number; _user_id: string }
+        Returns: Json
+      }
       get_next_queue_item: { Args: never; Returns: string }
       get_public_shop_by_custom_domain: {
         Args: { p_domain: string }
