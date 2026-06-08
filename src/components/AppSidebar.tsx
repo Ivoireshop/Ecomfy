@@ -1,6 +1,6 @@
 import { 
   Home, Image, Video, MessageSquare, CreditCard, Globe, Tag, BarChart, 
-  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt, BookOpen, Activity, Bug, Book
+  Gift, HelpCircle, PlayCircle, Code2, Store, GraduationCap, Receipt, BookOpen, Activity, Bug, Book, Zap
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
