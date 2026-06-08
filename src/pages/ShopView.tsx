@@ -765,8 +765,8 @@ const ShopView = () => {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
+          {filteredProducts.map((product, idx) => (
+            <ProductCard key={product.id} product={product} primaryColor={primaryColor} eager={idx < 4} onAddToCart={addToCart} onView={(p) => {
               const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
               navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
             }} formatPrice={formatPrice} />
@@ -1229,8 +1229,8 @@ const ShopView = () => {
 };
 
 // Product Card Component
-function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice }: {
-  product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string;
+function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, eager }: {
+  product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string; eager?: boolean;
 }) {
   // Warm up the ProductView chunk and its images on hover/touch so navigation
   // feels instant. Idempotent — repeated calls are cheap.
@@ -1254,7 +1254,14 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice }
     >
       <div className="aspect-square bg-muted relative overflow-hidden">
         {product.product_images?.[0] ? (
-          <img src={product.product_images[0].image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+          <img
+            src={product.product_images[0].image_url}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            loading={eager ? "eager" : "lazy"}
+            decoding="async"
+            {...(eager ? { fetchpriority: "high" as any } : {})}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center"><Store className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30" /></div>
         )}
