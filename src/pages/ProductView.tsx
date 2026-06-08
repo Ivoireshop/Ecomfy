@@ -155,26 +155,17 @@ const ProductView = () => {
 
   useEffect(() => { fetchData(); }, [slug, id, productId, productSlug]);
 
-  // Refetch on tab focus / visibility so changes published from the editor
-  // appear immediately on the live product page.
-  useEffect(() => {
-    const refresh = () => { if (document.visibilityState === "visible") fetchData(); };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug, id, productId, productSlug]);
+  // NOTE: re-fetch on tab focus/visibility was removed (2026-06) — it caused
+  // unnecessary full reloads when the user simply switched tabs and made the
+  // page feel slow. The in-memory cache + mount fetch are sufficient.
 
-  const fetchWithRetry = async (fn: () => any, attempts = 3): Promise<any> => {
+  const fetchWithRetry = async (fn: () => any, attempts = 1): Promise<any> => {
     let lastErr: any = null;
     for (let i = 0; i < attempts; i++) {
       try {
         const res = await Promise.race([
           Promise.resolve(fn()),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 9000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 4000)),
         ]) as any;
         if (!res?.error) return res;
         lastErr = res.error;
@@ -209,6 +200,73 @@ const ProductView = () => {
     }
     if (!hydrated) setLoading(true);
     try {
+      // ── FAST PATH: single RPC that returns shop + product + images + related.
+      // Falls through to the legacy multi-query path on any failure (zero risk).
+      if (slug && productSlug) {
+        try {
+          const { data: rpc, error: rpcErr } = await fetchWithRetry(() =>
+            supabase.rpc("get_public_product_page" as any, {
+              p_shop_slug: slug,
+              p_product_slug: productSlug,
+            })
+          ) as any;
+          if (!rpcErr && rpc && rpc.shop && rpc.product) {
+            const shopData = rpc.shop;
+            const productData = rpc.product;
+            if (Array.isArray(productData.product_images)) {
+              productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+            }
+            setShop(shopData);
+            setProduct(productData);
+            setRelatedProducts(Array.isArray(rpc.related) ? rpc.related : []);
+            if (shopCacheK) cacheSet(shopCacheK, shopData);
+            if (productData.slug) cacheSet(productKey(shopData.id, productData.slug), productData);
+            cacheSet(productKey(shopData.id, productData.id), productData);
+
+            // Fire-and-forget analytics + pixels (do not block render).
+            try {
+              let sid = sessionStorage.getItem("vp_visit_session");
+              if (!sid) {
+                sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+                sessionStorage.setItem("vp_visit_session", sid);
+              }
+              supabase.from("shop_visits" as any).insert({ shop_id: shopData.id, product_id: productData.id, session_id: sid } as any).then(() => {}, () => {});
+            } catch {}
+            try {
+              const iconHref = String(shopData.favicon_url || shopData.logo_url || "/favicon.png");
+              document.head
+                .querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']")
+                .forEach((el) => el.parentNode?.removeChild(el));
+              (["icon", "shortcut icon", "apple-touch-icon"] as const).forEach((rel) => {
+                const l = document.createElement("link");
+                l.rel = rel;
+                l.type = "image/png";
+                l.href = `${iconHref}${iconHref.includes("?") ? "&" : "?"}v=${Date.now()}`;
+                document.head.appendChild(l);
+              });
+            } catch {}
+            if (shopData.chatbot_enabled) {
+              setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
+            }
+            try {
+              initShopPixels(shopData);
+              trackEvent(shopData, "PageView");
+              trackEvent(shopData, "ViewContent", {
+                value: productData.price,
+                content_ids: [productData.id],
+                content_name: productData.name,
+                content_type: "product",
+                contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
+              });
+            } catch {}
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn("[ProductView] RPC fast-path failed, falling back", e);
+        }
+      }
+
       let shopData: any = null;
 
       if (id) {

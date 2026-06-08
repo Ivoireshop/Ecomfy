@@ -3591,6 +3591,10 @@ export type Database = {
         Returns: Json
       }
       get_next_queue_item: { Args: never; Returns: string }
+      get_public_product_page: {
+        Args: { p_product_slug: string; p_shop_slug: string }
+        Returns: Json
+      }
       get_public_shop_by_custom_domain: {
         Args: { p_domain: string }
         Returns: {
