@@ -292,6 +292,30 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_daily_usage: {
+        Row: {
+          last_feature: string | null
+          request_count: number
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          last_feature?: string | null
+          request_count?: number
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          last_feature?: string | null
+          request_count?: number
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
           api_key: string
@@ -3542,6 +3566,10 @@ export type Database = {
       }
       cleanup_expired_trash: { Args: never; Returns: undefined }
       cleanup_old_image_cache: { Args: never; Returns: undefined }
+      consume_ai_quota: {
+        Args: { _feature?: string; _limit?: number; _user_id: string }
+        Returns: Json
+      }
       count_processing_generations: { Args: never; Returns: number }
       delete_email: {
         Args: { message_id: number; queue_name: string }
