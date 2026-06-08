@@ -17,6 +17,18 @@ const Blog = () => {
         <meta property="og:description" content="Guides, tutoriels et conseils pour tirer le meilleur de VisualPro." />
         <meta property="og:url" content="https://visuelpro.cloud/blog" />
         <meta property="og:type" content="website" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Blog",
+          "name": "Blog VisualPro",
+          "description": "Guides, tutoriels et conseils pour tirer le meilleur de VisualPro.",
+          "url": "https://visuelpro.cloud/blog",
+          "publisher": {
+            "@type": "Organization",
+            "name": "VisualPro",
+            "url": "https://visuelpro.cloud"
+          }
+        })}</script>
       </Helmet>
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       <Header />

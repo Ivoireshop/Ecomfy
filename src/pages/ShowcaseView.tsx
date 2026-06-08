@@ -426,6 +426,24 @@ export default function ShowcaseView() {
         <meta name="twitter:title" content={seoTitle} />
         <meta name="twitter:description" content={seoDescription} />
         {ogImage && <meta name="twitter:image" content={ogImage} />}
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "name": site.business_name,
+          "description": site.business_description || seoDescription,
+          "url": window.location.href,
+          "telephone": site.phone_number || site.whatsapp_number || undefined,
+          "image": ogImage || undefined,
+          "logo": site.logo_url || undefined,
+          "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "CI"
+          },
+          "founder": {
+            "@type": "Person",
+            "name": site.owner_name
+          }
+        })}</script>
       </Helmet>
 
       <div 
