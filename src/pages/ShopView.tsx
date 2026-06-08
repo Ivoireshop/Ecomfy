@@ -161,6 +161,18 @@ const ShopView = () => {
 
   useEffect(() => { fetchShop(); }, [slug, id]);
 
+  // Preload the ProductView chunk as soon as the shop renders so the first
+  // tap on a product card is instant on mobile (no hover to trigger prefetch).
+  useEffect(() => {
+    const conn = (navigator as any).connection;
+    if (conn?.saveData) return;
+    if (conn?.effectiveType && /^(2g|slow-2g)$/.test(conn.effectiveType)) return;
+    const ric = (window as any).requestIdleCallback as
+      | ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
+    const run = () => { import("@/pages/ProductView").catch(() => {}); };
+    if (ric) ric(run, { timeout: 2000 }); else setTimeout(run, 800);
+  }, []);
+
   // Refetch when the tab regains focus / becomes visible so any change
   // published from the editor is reflected immediately on the live shop.
   useEffect(() => {
