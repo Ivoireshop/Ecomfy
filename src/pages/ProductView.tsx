@@ -523,6 +523,29 @@ const ProductView = () => {
         <meta name="twitter:title" content={productTitle} />
         <meta name="twitter:description" content={productDescription} />
         {primaryImage && <meta name="twitter:image" content={primaryImage} />}
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": product.name,
+          "description": productDescription,
+          "image": images.map((img) => img.image_url),
+          "sku": product.id,
+          "brand": {
+            "@type": "Brand",
+            "name": shop.business_name
+          },
+          "offers": {
+            "@type": "Offer",
+            "url": window.location.href,
+            "price": String(product.price),
+            "priceCurrency": product.currency || "XOF",
+            "availability": (product.stock_quantity === null || product.stock_quantity > 0)
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+            "priceValidUntil": new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+          },
+          "category": product.category || undefined
+        })}</script>
       </Helmet>
       {/* Preview Banner */}
       {shop._isPreview && (
