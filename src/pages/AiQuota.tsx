@@ -69,7 +69,7 @@ const AiQuota = () => {
       });
 
       if (error) throw error;
-      setQuota(data as QuotaInfo);
+      setQuota((data as unknown) as QuotaInfo);
     } catch (error) {
       console.error("Erreur lors du chargement du quota:", error);
       toast({
