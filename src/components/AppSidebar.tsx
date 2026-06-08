@@ -114,6 +114,7 @@ export function AppSidebar() {
   const accountItems = [
     { title: t("sidebar.items.subscription"), url: "/subscription", icon: CreditCard },
     { title: t("sidebar.items.history"), url: "/payment-history", icon: Receipt },
+    { title: t("sidebar.items.aiQuota"), url: "/ai-quota", icon: Zap },
     { title: t("sidebar.items.referral"), url: "/referral", icon: Gift },
     { title: t("sidebar.items.feedback"), url: "/feedback", icon: MessageSquare },
     { title: t("sidebar.items.api"), url: "/api-documentation", icon: Code2 },
