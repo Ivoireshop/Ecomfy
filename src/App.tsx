@@ -248,6 +248,14 @@ const AppContent = () => {
               </ProtectedRoute>
             } 
           />
+          <Route
+            path="/ai-quota"
+            element={
+              <ProtectedRoute>
+                <AiQuota />
+              </ProtectedRoute>
+            }
+          />
           <Route 
             path="/tutorial" 
             element={<Tutorial />} 
