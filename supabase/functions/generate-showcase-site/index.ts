@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enforceAiQuota } from "../_shared/ai-quota.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +18,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  const __quota = await enforceAiQuota(req, "generate-showcase-site");
+  if (!__quota.allowed) return __quota.response;
+
 
   try {
     const authHeader = req.headers.get("Authorization");
