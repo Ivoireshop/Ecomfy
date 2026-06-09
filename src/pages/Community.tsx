@@ -12,6 +12,9 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { Hash, Pin, Smile, Send, Reply, Trash2, MoreVertical, X, ShieldCheck, AtSign, ChevronUp, ChevronDown, Volume2, Square, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -66,6 +69,7 @@ const Community = () => {
   const [isFounder, setIsFounder] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [showPinned, setShowPinned] = useState(true);
+  const [openedPinned, setOpenedPinned] = useState<Message | null>(null);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionList, setMentionList] = useState<ProfileLite[]>([]);
@@ -328,22 +332,53 @@ const Community = () => {
 
         {/* Pinned banner */}
         {showPinned && pinnedMessages.length > 0 && (
-          <div className="border-b bg-amber-50/50 dark:bg-amber-950/20 px-4 md:px-6 py-3 space-y-2 max-h-[40vh] overflow-y-auto">
+          <div className="border-b bg-amber-50/50 dark:bg-amber-950/20 px-3 md:px-4 py-1.5 space-y-1 max-h-28 overflow-y-auto">
             {pinnedMessages.map((m) => {
               const p = profiles[m.user_id];
+              const firstLine = (m.body || "").split("\n")[0];
               return (
-                <div key={m.id} className="rounded-lg border bg-card p-3">
-                  <div className="flex items-center gap-2 mb-1.5 text-sm">
-                    <Pin className="w-3.5 h-3.5 text-amber-600" />
-                    <span className="font-semibold">{p?.full_name || "Membre"}</span>
-                    <span className="text-xs text-muted-foreground">Message épinglé</span>
-                  </div>
-                  <div className="text-sm whitespace-pre-wrap pl-5">{renderBody(m.body)}</div>
-                </div>
+                <button
+                  key={m.id}
+                  onClick={() => setOpenedPinned(m)}
+                  className="w-full flex items-center gap-2 text-xs rounded-md hover:bg-amber-100/60 dark:hover:bg-amber-900/30 px-2 py-1 text-left"
+                  title="Cliquez pour lire le message épinglé"
+                >
+                  <Pin className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                  <span className="font-medium flex-shrink-0">{p?.full_name?.split(" ")[0] || "Membre"} :</span>
+                  <span className="truncate text-muted-foreground">{firstLine}</span>
+                </button>
               );
             })}
           </div>
         )}
+
+        {/* Pinned message dialog */}
+        <Dialog open={!!openedPinned} onOpenChange={(o) => !o && setOpenedPinned(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pin className="w-4 h-4 text-amber-600" />
+                Message épinglé
+              </DialogTitle>
+            </DialogHeader>
+            {openedPinned && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Avatar p={profiles[openedPinned.user_id]} size={32} />
+                  <div>
+                    <div className="text-sm font-semibold">{profiles[openedPinned.user_id]?.full_name || "Membre"}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {formatDistanceToNow(new Date(openedPinned.created_at), { addSuffix: true, locale: fr })}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                  {renderBody(openedPinned.body)}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-4 py-4">
@@ -371,7 +406,7 @@ const Community = () => {
                 return (
                   <div
                     key={m.id}
-                    className={`group flex gap-3 px-3 py-1 hover:bg-accent/40 rounded-md ${same ? "" : "mt-3"} ${m.is_pinned ? "border-l-2 border-amber-500" : ""}`}
+                    className={`group flex gap-3 px-3 py-1.5 rounded-md ${same ? "" : "mt-3"} ${m.is_pinned ? "border-l-2 border-amber-500" : ""} ${isOwn ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-accent/40"}`}
                   >
                     <div className="w-10 flex-shrink-0">
                       {same ? (
