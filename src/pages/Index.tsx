@@ -551,11 +551,21 @@ const Index = () => {
 
       {/* ===== CTA FINAL ===== */}
       {!session && (
-        <section className="py-12 md:py-16">
-          <div className="container mx-auto px-4 text-center">
-            <Button size="lg" className="text-base px-10 py-6 rounded-full" onClick={() => navigate("/auth")}>
-              Commencer gratuitement
-            </Button>
+        <section className="py-12 md:py-20">
+          <div className="container mx-auto px-4">
+            <div className="max-w-5xl mx-auto rounded-2xl border border-border/60 bg-card p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+              <div className="flex items-start md:items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl">🚀</div>
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold mb-1">Prêt à lancer votre boutique et à changer votre vie ?</h3>
+                  <p className="text-sm text-muted-foreground">Rejoignez des milliers d'entrepreneurs africains qui développent leur business avec VisualPro.</p>
+                </div>
+              </div>
+              <Button size="lg" className="text-base px-7 py-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap shadow-lg shadow-primary/20" onClick={() => navigate("/auth")}>
+                Créer ma boutique gratuitement
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </section>
       )}
