@@ -24,6 +24,7 @@ export function Header() {
     { label: t("header.blog"), href: "/blog" },
     { label: t("header.tutorial"), href: "/tutorial" },
     { label: t("header.demo"), href: "/demo" },
+    { label: t("header.community", "Communauté"), href: "/community" },
   ];
 
   const scrollToHash = (hash: string) => {
