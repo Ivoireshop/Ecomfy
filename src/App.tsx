@@ -11,6 +11,7 @@ import { BackButton } from "@/components/BackButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
+import { useCommunityNotifications } from "@/hooks/useCommunityNotifications";
 
 // Eager load: landing only (critical path)
 import Index from "./pages/Index";
@@ -131,6 +132,7 @@ const PageLoader = () => (
 
 const AppContent = () => {
   const location = useLocation();
+  useCommunityNotifications();
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
