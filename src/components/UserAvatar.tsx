@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 interface UserProfile {
   full_name: string | null;
   email: string | null;
+  avatar_url: string | null;
 }
 
 export function UserAvatar() {
