@@ -33,13 +33,6 @@ const REGISTRARS = [
     url: "https://www.namecheap.com/domains/",
     blurb: "Prix compétitifs, interface simple, paiement par carte.",
   },
-  {
-    name: "Lovable",
-    url: "https://docs.lovable.dev/features/custom-domain",
-    blurb: "Achat & connexion automatiques depuis votre projet Lovable.",
-    badge: "Plus simple",
-    badgeTone: "outline" as const,
-  },
 ];
 
 export function DomainRegistrarSuggestions() {
