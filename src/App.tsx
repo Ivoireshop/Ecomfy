@@ -15,58 +15,86 @@ import { lazy, Suspense, useEffect } from "react";
 // Eager load: landing only (critical path)
 import Index from "./pages/Index";
 
+// Wrap lazy() so that a stale chunk (after a redeploy) doesn't leave the user
+// on a blank screen. We retry once, and if it still fails we hard-reload the
+// page so the browser fetches the new asset manifest.
+const RELOAD_KEY = "__chunk_reload_attempted__";
+const lazyWithRetry = <T extends { default: React.ComponentType<any> }>(
+  factory: () => Promise<T>
+) =>
+  lazy(async () => {
+    try {
+      return await factory();
+    } catch (err) {
+      try {
+        return await factory();
+      } catch (err2) {
+        if (typeof window !== "undefined") {
+          const already = sessionStorage.getItem(RELOAD_KEY);
+          if (!already) {
+            sessionStorage.setItem(RELOAD_KEY, "1");
+            window.location.reload();
+            // Return a never-resolving promise to avoid Suspense throwing again.
+            return new Promise<T>(() => {});
+          }
+        }
+        throw err2;
+      }
+    }
+  });
+
 // Lazy load all other pages
-const Auth = lazy(() => import("./pages/Auth"));
-const Generator = lazy(() => import("./pages/Generator"));
-const Library = lazy(() => import("./pages/Library"));
-const Subscription = lazy(() => import("./pages/Subscription"));
-const Feedback = lazy(() => import("./pages/Feedback"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
-const ShowcaseBuilder = lazy(() => import("./pages/ShowcaseBuilder"));
-const ShowcaseView = lazy(() => import("./pages/ShowcaseView"));
-const ShowcaseManager = lazy(() => import("./pages/ShowcaseManager"));
-const ShowcaseEditor = lazy(() => import("./pages/ShowcaseEditor"));
-const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
-const PromoCodeManager = lazy(() => import("./pages/PromoCodeManager"));
-const FounderDashboard = lazy(() => import("./pages/FounderDashboard"));
-const FounderTroubleshooting = lazy(() => import("./pages/FounderTroubleshooting"));
-const Referral = lazy(() => import("./pages/Referral"));
-const Tutorial = lazy(() => import("./pages/Tutorial"));
-const Demo = lazy(() => import("./pages/Demo"));
-const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
-const StudentCourse = lazy(() => import("./pages/StudentCourse"));
-const StudentCertificates = lazy(() => import("./pages/StudentCertificates"));
-const EnrollmentCheckout = lazy(() => import("./pages/EnrollmentCheckout"));
-const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
-const VerifyCertificate = lazy(() => import("./pages/VerifyCertificate"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
-const TermsOfService = lazy(() => import("./pages/TermsOfService"));
-const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
-const ApiDocumentation = lazy(() => import("./pages/ApiDocumentation"));
-const Blog = lazy(() => import("./pages/Blog"));
-const LegalNotice = lazy(() => import("./pages/LegalNotice"));
-const ShopManager = lazy(() => import("./pages/ShopManager"));
-const ShopBuilder = lazy(() => import("./pages/ShopBuilder"));
-const ShopEditor = lazy(() => import("./pages/ShopEditor"));
-const ShopView = lazy(() => import("./pages/ShopView"));
-const ProductView = lazy(() => import("./pages/ProductView"));
-const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
-const CoursesManager = lazy(() => import("./pages/CoursesManager"));
-const OrderConfirmed = lazy(() => import("./pages/OrderConfirmed"));
-const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
-const VisuelsPublicitaires = lazy(() => import("./pages/VisuelsPublicitaires"));
-const VideosPublicitaires = lazy(() => import("./pages/VideosPublicitaires"));
-const SitesVitrines = lazy(() => import("./pages/SitesVitrines"));
-const BoutiquesEcommerce = lazy(() => import("./pages/BoutiquesEcommerce"));
-const VideoCreator = lazy(() => import("./pages/VideoCreator"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const OrdersDiagnostic = lazy(() => import("./pages/OrdersDiagnostic"));
-const AcceptShopInvite = lazy(() => import("./pages/AcceptShopInvite"));
-const Documentation = lazy(() => import("./pages/Documentation"));
-const Health = lazy(() => import("./pages/Health"));
-const AiQuota = lazy(() => import("./pages/AiQuota"));
+const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const Generator = lazyWithRetry(() => import("./pages/Generator"));
+const Library = lazyWithRetry(() => import("./pages/Library"));
+const Subscription = lazyWithRetry(() => import("./pages/Subscription"));
+const Feedback = lazyWithRetry(() => import("./pages/Feedback"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
+const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
+const VerifyEmail = lazyWithRetry(() => import("./pages/VerifyEmail"));
+const ShowcaseBuilder = lazyWithRetry(() => import("./pages/ShowcaseBuilder"));
+const ShowcaseView = lazyWithRetry(() => import("./pages/ShowcaseView"));
+const ShowcaseManager = lazyWithRetry(() => import("./pages/ShowcaseManager"));
+const ShowcaseEditor = lazyWithRetry(() => import("./pages/ShowcaseEditor"));
+const PaymentHistory = lazyWithRetry(() => import("./pages/PaymentHistory"));
+const PromoCodeManager = lazyWithRetry(() => import("./pages/PromoCodeManager"));
+const FounderDashboard = lazyWithRetry(() => import("./pages/FounderDashboard"));
+const FounderTroubleshooting = lazyWithRetry(() => import("./pages/FounderTroubleshooting"));
+const Referral = lazyWithRetry(() => import("./pages/Referral"));
+const Tutorial = lazyWithRetry(() => import("./pages/Tutorial"));
+const Demo = lazyWithRetry(() => import("./pages/Demo"));
+const StudentDashboard = lazyWithRetry(() => import("./pages/StudentDashboard"));
+const StudentCourse = lazyWithRetry(() => import("./pages/StudentCourse"));
+const StudentCertificates = lazyWithRetry(() => import("./pages/StudentCertificates"));
+const EnrollmentCheckout = lazyWithRetry(() => import("./pages/EnrollmentCheckout"));
+const PaymentSuccess = lazyWithRetry(() => import("./pages/PaymentSuccess"));
+const VerifyCertificate = lazyWithRetry(() => import("./pages/VerifyCertificate"));
+const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
+const CookiesPolicy = lazyWithRetry(() => import("./pages/CookiesPolicy"));
+const ApiDocumentation = lazyWithRetry(() => import("./pages/ApiDocumentation"));
+const Blog = lazyWithRetry(() => import("./pages/Blog"));
+const LegalNotice = lazyWithRetry(() => import("./pages/LegalNotice"));
+const ShopManager = lazyWithRetry(() => import("./pages/ShopManager"));
+const ShopBuilder = lazyWithRetry(() => import("./pages/ShopBuilder"));
+const ShopEditor = lazyWithRetry(() => import("./pages/ShopEditor"));
+const ShopView = lazyWithRetry(() => import("./pages/ShopView"));
+const ProductView = lazyWithRetry(() => import("./pages/ProductView"));
+const ProtectedRoute = lazyWithRetry(() => import("./components/ProtectedRoute"));
+const CoursesManager = lazyWithRetry(() => import("./pages/CoursesManager"));
+const OrderConfirmed = lazyWithRetry(() => import("./pages/OrderConfirmed"));
+const Unsubscribe = lazyWithRetry(() => import("./pages/Unsubscribe"));
+const VisuelsPublicitaires = lazyWithRetry(() => import("./pages/VisuelsPublicitaires"));
+const VideosPublicitaires = lazyWithRetry(() => import("./pages/VideosPublicitaires"));
+const SitesVitrines = lazyWithRetry(() => import("./pages/SitesVitrines"));
+const BoutiquesEcommerce = lazyWithRetry(() => import("./pages/BoutiquesEcommerce"));
+const VideoCreator = lazyWithRetry(() => import("./pages/VideoCreator"));
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
+const OrdersDiagnostic = lazyWithRetry(() => import("./pages/OrdersDiagnostic"));
+const AcceptShopInvite = lazyWithRetry(() => import("./pages/AcceptShopInvite"));
+const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
+const Health = lazyWithRetry(() => import("./pages/Health"));
+const AiQuota = lazyWithRetry(() => import("./pages/AiQuota"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
