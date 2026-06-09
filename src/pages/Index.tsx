@@ -19,6 +19,13 @@ import entrepreneur1 from "@/assets/entrepreneur-1.jpg";
 import entrepreneur2 from "@/assets/entrepreneur-2.jpg";
 import entrepreneur3 from "@/assets/entrepreneur-3.jpg";
 import entrepreneur4 from "@/assets/entrepreneur-4.jpg";
+import vpLogo from "@/assets/visualpro-logo.svg";
+import heroDesktop from "@/assets/hero-desktop-dashboard.jpg";
+import bentoAds from "@/assets/bento-ads.jpg";
+import bentoVideo from "@/assets/bento-video.jpg";
+import bentoEcom from "@/assets/bento-ecommerce.jpg";
+import bentoFormation from "@/assets/bento-formation.jpg";
+import bentoCommunity from "@/assets/bento-community.jpg";
 const OnboardingTutorial = lazy(() =>
   import("@/components/OnboardingTutorial").then((m) => ({ default: m.OnboardingTutorial }))
 );
@@ -149,94 +156,72 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
           </div>
 
           {/* RIGHT — floating phone + podium card */}
-          <div className="relative h-[480px] md:h-[560px] z-10">
-            {/* Phone mock */}
-            <div className="absolute left-2 sm:left-8 md:left-12 top-4 animate-float">
-              <div className="w-[220px] md:w-[260px] h-[440px] md:h-[520px] rounded-[2.4rem] bg-foreground p-2 shadow-2xl shadow-primary/30 border border-foreground/10">
-                <div className="w-full h-full rounded-[2rem] bg-background overflow-hidden flex flex-col">
-                  <div className="px-3 pt-3 pb-2 flex items-center gap-2 border-b border-border/60">
-                    <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-secondary" />
-                    <div className="text-[10px] font-bold tracking-wide">VisualPro</div>
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <div className="relative h-[520px] md:h-[600px] z-10">
+            {/* Desktop dashboard backdrop */}
+            <div className="absolute inset-0 flex items-center justify-center animate-float-slow">
+              <div className="relative w-[110%] md:w-[105%] -mr-6 md:-mr-10">
+                <img
+                  src={heroDesktop}
+                  alt="Tableau de bord VisualPro sur ordinateur"
+                  loading="eager"
+                  className="w-full h-auto rounded-2xl shadow-2xl shadow-primary/20"
+                />
+                {/* Overlay stats badge on the laptop screen */}
+                <div className="absolute top-[18%] right-[8%] bg-background/95 backdrop-blur rounded-xl border border-border/60 shadow-xl p-3 hidden md:block">
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-3.5 h-3.5 text-[#c9a84c]" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Top semaine</span>
                   </div>
-                  {/* Chiffre du jour */}
-                  <div className="px-3 py-2 text-[9px] uppercase tracking-widest text-muted-foreground">Chiffre du jour</div>
-                  <div className="px-3 flex items-baseline gap-2">
-                    <span className="text-lg font-extrabold text-primary">12,5M FCFA</span>
-                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600">
-                      ▲ +18%
-                    </span>
-                  </div>
-                  {/* Statistiques boutique */}
-                  <div className="px-3 mt-3 text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Statistiques boutique</div>
-                  <div className="px-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2">
-                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Cmd. du jour</div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-extrabold text-foreground">+24</span>
-                        <span className="text-[9px] font-bold text-emerald-600">▲ 12%</span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2">
-                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Total cmd.</div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-extrabold text-foreground">1 248</span>
-                        <span className="text-[9px] font-bold text-emerald-600">▲ 7%</span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2 col-span-2">
-                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground mb-1">Commandes validées</div>
-                      <div className="flex items-end gap-1 h-8">
-                        {[40,55,48,72,60,85,95].map((h,i)=>(
-                          <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-primary to-primary/40" style={{ height: `${h}%` }} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-auto px-3 py-2.5 border-t border-border/60 flex items-center justify-between">
-                    <div className="text-[9px] text-muted-foreground">Taux conversion</div>
-                    <div className="text-[11px] font-bold text-emerald-600">▲ 3,8%</div>
-                  </div>
+                  <div className="text-sm font-extrabold text-primary mt-1">12,5M FCFA</div>
+                  <div className="text-[9px] text-emerald-600 font-bold">▲ +18% vs semaine -1</div>
                 </div>
               </div>
             </div>
 
-            {/* Leaderboard card — top vendeurs réels */}
-            <div className="absolute right-0 top-16 md:top-12 w-[270px] md:w-[320px] animate-float-slow">
-              <div className="rounded-2xl bg-[#0f1b3d] text-white p-5 shadow-2xl border border-white/10">
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-white/70 mb-4">
-                  <Crown className="w-3.5 h-3.5 text-[#c9a84c]" /> Classement de la semaine
-                </div>
-                <div className="flex items-end justify-center gap-3 mb-4">
-                  {podiumDisplay.map((s, i) => {
-                    // i=0 → #2 (left), i=1 → #1 (center), i=2 → #3 (right)
-                    const rank = i === 0 ? 2 : i === 1 ? 1 : 3;
-                    const ring = rank===1 ? "ring-[#c9a84c]" : rank===2 ? "ring-[#d8d8e0]" : "ring-[#c98a4c]";
-                    const size = rank===1 ? "w-16 h-16" : "w-12 h-12";
-                    const barH = rank===1 ? "h-20" : rank===2 ? "h-14" : "h-12";
-                    return (
-                      <div key={s.shop_id} className="flex flex-col items-center w-1/3">
-                        <div className={`${size} rounded-full bg-gradient-to-br from-primary to-secondary ring-2 ring-offset-2 ring-offset-[#0f1b3d] ${ring} overflow-hidden flex items-center justify-center text-xs font-bold relative`}>
-                          {s.avatar_url ? (
-                            <img src={s.avatar_url} alt={firstName(s.full_name)} loading="lazy" className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{initials(s.full_name)}</span>
-                          )}
-                          {rank===1 && <Crown className="absolute -top-3 w-4 h-4 text-[#c9a84c] drop-shadow-[0_0_6px_rgba(201,168,76,0.9)]" />}
-                        </div>
-                        <div className="mt-1.5 text-[10px] font-medium text-center truncate w-full">{firstName(s.full_name)}</div>
-                        <div className={`text-xs font-extrabold ${rank===1 ? "text-[#c9a84c]" : "text-white"}`}>
-                          {compactFcfa(s.total_sales)}
-                        </div>
-                        <div className={`mt-1.5 w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary/10 ${barH}`} />
+            {/* Phone mockup — front-and-center */}
+            <div className="absolute left-1/2 -translate-x-1/2 md:left-2 md:translate-x-0 top-8 md:top-10 animate-float z-10">
+              <div className="w-[210px] md:w-[250px] h-[420px] md:h-[500px] rounded-[2.4rem] bg-foreground p-2 shadow-2xl shadow-primary/30 border border-foreground/10">
+                <div className="w-full h-full rounded-[2rem] bg-background overflow-hidden flex flex-col">
+                  {/* Header with REAL VisualPro logo */}
+                  <div className="px-3 pt-3 pb-2 flex items-center gap-2 border-b border-border/60">
+                    <img src={vpLogo} alt="Logo VisualPro" className="w-6 h-6" />
+                    <div className="text-[11px] font-bold tracking-wide bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">VisualPro</div>
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+
+                  {/* Greeting */}
+                  <div className="px-3 pt-3">
+                    <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Bonjour 👋</div>
+                    <div className="text-sm font-bold">Que créons-nous aujourd'hui ?</div>
+                  </div>
+
+                  {/* Features list */}
+                  <div className="px-3 mt-3 space-y-2">
+                    {[
+                      { Icon: ImageIcon, label: "Visuels publicitaires", color: "from-orange-500 to-pink-500" },
+                      { Icon: Video, label: "Vidéos animées IA", color: "from-blue-500 to-cyan-500" },
+                      { Icon: Store, label: "Boutique e-commerce", color: "from-emerald-500 to-teal-500" },
+                      { Icon: GraduationCap, label: "Formations", color: "from-amber-500 to-yellow-500" },
+                    ].map(({ Icon, label, color }, i) => (
+                      <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg border border-border/60 bg-muted/30">
+                        <span className={`w-7 h-7 rounded-md bg-gradient-to-br ${color} flex items-center justify-center flex-shrink-0`}>
+                          <Icon className="w-3.5 h-3.5 text-white" />
+                        </span>
+                        <span className="text-[10px] font-semibold leading-tight">{label}</span>
+                        <ChevronRight className="w-3 h-3 ml-auto text-muted-foreground" />
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+
+                  {/* Mini stat at bottom */}
+                  <div className="mt-auto px-3 py-2.5 border-t border-border/60 flex items-center justify-between">
+                    <div>
+                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Chiffre du jour</div>
+                      <div className="text-[11px] font-extrabold text-primary">12,5M FCFA</div>
+                    </div>
+                    <div className="text-[10px] font-bold text-emerald-600">▲ 18%</div>
+                  </div>
                 </div>
-                <p className="text-[11px] text-white/70 text-center mb-3">Qui sera le leader cette semaine ?</p>
-                <Button size="sm" className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-9" onClick={onStart}>
-                  Entrer dans la course
-                </Button>
               </div>
             </div>
           </div>
@@ -250,11 +235,11 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
 const InnovationBento = () => {
   const navigate = useNavigate();
   const items = [
-    { n: "01", title: "Visuels publicitaires IA", desc: "Créez des visuels professionnels en quelques secondes pour toutes vos campagnes.", route: "/generator", color: "from-primary/15 to-primary/5" },
-    { n: "02", title: "Vidéos animées", desc: "Transformez vos produits en vidéos qui captivent et convertissent.", route: "/video-creator", color: "from-secondary/15 to-secondary/5" },
-    { n: "03", title: "Boutique e-commerce", desc: "Lancez votre boutique en ligne en 60 secondes, paiement local intégré.", route: "/shop-manager", color: "from-emerald-500/15 to-emerald-500/5" },
-    { n: "04", title: "Formations", desc: "Apprenez à vendre, convertir et faire passer votre business au niveau supérieur.", route: "/courses-manager", color: "from-amber-500/15 to-amber-500/5" },
-    { n: "05", title: "Communauté & Support", desc: "Échangez avec d'autres entrepreneurs et obtenez de l'aide en temps réel.", route: "/community", color: "from-pink-500/15 to-pink-500/5" },
+    { n: "01", title: "Visuels publicitaires IA", desc: "Créez des visuels professionnels en quelques secondes pour toutes vos campagnes.", route: "/generator", color: "from-primary/15 to-primary/5", img: bentoAds },
+    { n: "02", title: "Vidéos animées", desc: "Transformez vos produits en vidéos qui captivent et convertissent.", route: "/video-creator", color: "from-secondary/15 to-secondary/5", img: bentoVideo },
+    { n: "03", title: "Boutique e-commerce", desc: "Lancez votre boutique en ligne en 60 secondes, paiement local intégré.", route: "/shop-manager", color: "from-emerald-500/15 to-emerald-500/5", img: bentoEcom },
+    { n: "04", title: "Formations", desc: "Apprenez à vendre, convertir et faire passer votre business au niveau supérieur.", route: "/courses-manager", color: "from-amber-500/15 to-amber-500/5", img: bentoFormation },
+    { n: "05", title: "Communauté & Support", desc: "Échangez avec d'autres entrepreneurs et obtenez de l'aide en temps réel.", route: "/community", color: "from-pink-500/15 to-pink-500/5", img: bentoCommunity },
   ];
   return (
     <section id="services" className="py-20 md:py-28 bg-muted/20 border-y border-border/60">
@@ -278,8 +263,13 @@ const InnovationBento = () => {
               <div className="text-[10px] font-bold text-primary tracking-widest mb-3">{it.n}</div>
               <h3 className="text-base font-bold mb-2 leading-tight">{it.title}</h3>
               <p className="text-xs text-muted-foreground leading-relaxed mb-4 min-h-[3rem]">{it.desc}</p>
-              <div className="mt-auto h-24 rounded-lg bg-background/60 border border-border/60 flex items-center justify-center text-[10px] text-muted-foreground">
-                Aperçu
+              <div className="mt-auto h-28 rounded-lg overflow-hidden border border-border/60 bg-background/60">
+                <img
+                  src={it.img}
+                  alt={it.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
               </div>
               <div className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                 Explorer <ChevronRight className="w-3 h-3" />
@@ -383,6 +373,54 @@ const TickerBanner = () => {
         {repeated.map((t, i) => (
           <span key={i} className="mx-10 text-[12px] uppercase tracking-[0.22em] font-medium opacity-80">{t}</span>
         ))}
+      </div>
+    </div>
+  );
+};
+
+/* ── Testimonials marquee (auto-scrolling round bubbles + quote) ── */
+const TestimonialsMarquee = ({ feedbacks }: { feedbacks: any[] }) => {
+  const loop = [...feedbacks, ...feedbacks];
+  return (
+    <div className="relative max-w-6xl mx-auto">
+      <div className="absolute inset-y-0 left-0 w-16 md:w-24 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-16 md:w-24 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+      <div className="overflow-hidden group py-4">
+        <div className="flex animate-marquee group-hover:[animation-play-state:paused]">
+          {loop.map((f, i) => (
+            <article
+              key={`${f.id}-${i}`}
+              className="shrink-0 w-[300px] md:w-[360px] mx-3 rounded-2xl border border-border/60 bg-card p-5 shadow-sm hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                {f.photo_url ? (
+                  <img
+                    src={f.photo_url}
+                    alt={f.full_name}
+                    loading="lazy"
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/30 ring-offset-2 ring-offset-background"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-bold text-white ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                    {(f.full_name || "?").slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm truncate">{f.full_name}</div>
+                  {f.country && <div className="text-[11px] text-muted-foreground truncate">{f.country}</div>}
+                  <div className="flex items-center gap-0.5 mt-0.5">
+                    {[...Array(5)].map((_, k) => (
+                      <Star key={k} className={`w-3 h-3 ${k < (f.rating || 0) ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground italic leading-relaxed line-clamp-4">
+                « {f.comment} »
+              </p>
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -564,45 +602,6 @@ const Index = () => {
         </section>
       )}
 
-      {/* ===== TARIFICATION ===== */}
-      {!session && (
-        <section id="pricing" className="py-16 md:py-24 bg-muted/20 border-y border-border/60">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
-                Des tarifs <span className="italic text-primary">accessibles</span>
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Commencez gratuitement, évoluez selon vos besoins</p>
-            </div>
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <Card className="p-7 hover:shadow-xl transition-all border-2 border-transparent hover:border-primary/10">
-                <Badge className="mb-4" variant="secondary">Gratuit</Badge>
-                <h3 className="text-2xl font-bold mb-3">Découverte</h3>
-                <div className="mb-5"><span className="text-4xl font-extrabold">0€</span><span className="text-muted-foreground">/mois</span></div>
-                <ul className="space-y-2.5 mb-7 text-sm">
-                  {["3 générations d'images", "1 vidéo gratuite", "Tous les templates"].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /><span>{f}</span></li>
-                  ))}
-                </ul>
-                <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>Commencer gratuitement</Button>
-              </Card>
-
-              <Card className="p-7 border-2 border-primary hover:shadow-xl transition-all relative bg-primary/[0.02]">
-                <Badge className="mb-4 bg-primary text-primary-foreground">Populaire</Badge>
-                <h3 className="text-2xl font-bold mb-3">Packs à la Carte</h3>
-                <div className="mb-5"><span className="text-sm text-muted-foreground">À partir de</span><br /><span className="text-4xl font-extrabold">1 000 FCFA</span></div>
-                <ul className="space-y-2.5 mb-7 text-sm">
-                  {["10 images — 1 000 FCFA", "20 images — 2 000 FCFA", "50 images + Site — 5 000 FCFA"].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /><span>{f}</span></li>
-                  ))}
-                </ul>
-                <Button className="w-full" onClick={() => navigate("/auth")}>Voir tous les packs</Button>
-              </Card>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ===== TÉMOIGNAGES ===== */}
       {!session && publishedFeedback.length > 0 && (
         <section className="py-16 md:py-24">
@@ -611,26 +610,9 @@ const Index = () => {
               <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
                 {t("landing.sections.trustTitle")} <span className="italic text-primary">{t("landing.sections.trustTitleB")}</span>
               </h2>
+              <p className="text-base text-muted-foreground max-w-2xl mx-auto">Découvrez ce que nos entrepreneurs disent de VisualPro</p>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {publishedFeedback.map((feedback) => (
-                <Card key={feedback.id} className="p-6 hover:shadow-xl transition-all">
-                  <div className="flex items-center mb-3">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={`w-4 h-4 ${i < feedback.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground text-sm mb-4 italic line-clamp-4">"{feedback.comment}"</p>
-                  <div className="flex items-center gap-3">
-                    {feedback.photo_url && <img src={feedback.photo_url} alt={feedback.full_name} className="w-9 h-9 rounded-full object-cover" />}
-                    <div>
-                      <div className="font-semibold text-sm">{feedback.full_name}</div>
-                      {feedback.country && <div className="text-xs text-muted-foreground">{feedback.country}</div>}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <TestimonialsMarquee feedbacks={publishedFeedback} />
           </div>
         </section>
       )}
