@@ -37,10 +37,10 @@ const TickerBanner = () => {
   ];
   const repeated = [...items, ...items];
   return (
-    <div className="bg-primary text-primary-foreground overflow-hidden whitespace-nowrap py-2.5 relative">
+    <div className="bg-foreground text-background overflow-hidden whitespace-nowrap py-2 relative border-b border-foreground/10">
       <div className="inline-flex animate-[ticker_30s_linear_infinite]">
         {repeated.map((t, i) => (
-          <span key={i} className="mx-8 text-sm font-medium">{t}</span>
+          <span key={i} className="mx-10 text-[12px] uppercase tracking-[0.22em] font-medium opacity-80">{t}</span>
         ))}
       </div>
     </div>
@@ -112,12 +112,8 @@ const Index = () => {
       <TickerBanner />
 
       {/* ===== HERO ===== */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-secondary/8" />
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-10 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-pulse" />
-
-        <div className="container relative mx-auto px-4 py-16 md:py-28">
+      <section className="relative overflow-hidden border-b border-border/60">
+        <div className="container relative mx-auto px-4 py-20 md:py-32">
           <div className="max-w-5xl mx-auto text-center">
             {session?.user ? (
               <>
@@ -133,28 +129,24 @@ const Index = () => {
               </>
             ) : (
               <>
-                <Badge className="mb-6 px-4 py-1.5 text-sm animate-fade-in bg-primary/10 text-primary border-primary/20">
-                  <Zap className="w-4 h-4 mr-2" />
+                <Badge className="mb-8 px-3 py-1 text-[11px] uppercase tracking-[0.22em] font-semibold animate-fade-in bg-transparent text-foreground border border-foreground/20 rounded-full">
                   {t("landing.hero.badge")}
                 </Badge>
-                <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in">
-                  <span className="text-foreground">{t("landing.hero.titleA")}</span>
+                <h1 className="text-4xl sm:text-5xl md:text-[5.5rem] font-semibold mb-6 leading-[1.05] tracking-[-0.02em] animate-fade-in text-foreground" style={{ fontFamily: "'Georgia', serif" }}>
+                  {t("landing.hero.titleA")}
                   <br />
-                  <span className="bg-gradient-to-r from-primary via-purple-500 to-secondary bg-clip-text text-transparent">
-                    {t("landing.hero.titleB")}
-                  </span>
+                  <span className="italic font-normal text-primary">{t("landing.hero.titleB")}</span>
                 </h1>
-                <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto animate-fade-in leading-relaxed">
+                <p className="text-base md:text-lg text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in leading-relaxed">
                   {t("landing.hero.subtitle")}
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
-                  <Button size="lg" className="text-lg px-10 py-7 shadow-xl hover:shadow-2xl transition-all hover:scale-105 bg-gradient-to-r from-primary to-primary/90" onClick={() => navigate("/auth")}>
-                    <Rocket className="mr-2 h-5 w-5" />
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4 animate-fade-in">
+                  <Button size="lg" className="text-base px-8 py-6 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-all" onClick={() => navigate("/auth")}>
                     {t("landing.hero.ctaStart")}
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
-                  <Button size="lg" variant="outline" className="text-lg px-10 py-7 shadow-lg hover:shadow-xl transition-all hover:scale-105" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
+                  <Button size="lg" variant="ghost" className="text-base px-8 py-6 rounded-full hover:bg-foreground/5" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
                     {t("landing.hero.ctaDiscover")}
-                    <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </div>
               </>
@@ -163,7 +155,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ===== SERVICE HUB (logged in) ===== */}
+      {/* ===== HALL OF FAME — placé tôt pour maximum de visibilité ===== */}
       {loadDeferredSections && (
         <Suspense fallback={null}>
           <TopSellersLeaderboard />
@@ -211,8 +203,8 @@ const Index = () => {
       ) : (
         <section id="services" className="py-16 md:py-24">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">
-              {t("landing.sections.platformTitleA")} <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{t("landing.sections.platformTitleB")}</span>
+            <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
+              {t("landing.sections.platformTitleA")} <span className="italic text-primary">{t("landing.sections.platformTitleB")}</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               {t("landing.sections.platformSub")}
@@ -226,17 +218,17 @@ const Index = () => {
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">{t("landing.sections.stepsTitle")}</h2>
+              <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>{t("landing.sections.stepsTitle")}</h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{t("landing.sections.stepsSub")}</p>
             </div>
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
               {[
-                { step: "1", title: t("landing.sections.step1Title"), desc: t("landing.sections.step1Desc"), color: "bg-primary" },
-                { step: "2", title: t("landing.sections.step2Title"), desc: t("landing.sections.step2Desc"), color: "bg-secondary" },
-                { step: "3", title: t("landing.sections.step3Title"), desc: t("landing.sections.step3Desc"), color: "bg-gradient-to-r from-primary to-secondary" },
+                { step: "01", title: t("landing.sections.step1Title"), desc: t("landing.sections.step1Desc") },
+                { step: "02", title: t("landing.sections.step2Title"), desc: t("landing.sections.step2Desc") },
+                { step: "03", title: t("landing.sections.step3Title"), desc: t("landing.sections.step3Desc") },
               ].map((item, idx) => (
                 <div key={idx} className="text-center group animate-fade-in" style={{ animationDelay: `${idx * 150}ms` }}>
-                  <div className={`w-16 h-16 ${item.color} rounded-2xl flex items-center justify-center mx-auto mb-5 text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform`}>
+                  <div className="w-14 h-14 border border-foreground/15 rounded-full flex items-center justify-center mx-auto mb-5 text-sm font-semibold tracking-widest text-muted-foreground group-hover:border-foreground/40 transition-colors">
                     {item.step}
                   </div>
                   <h3 className="text-xl font-bold mb-3">{item.title}</h3>
@@ -250,11 +242,11 @@ const Index = () => {
 
       {/* ===== TARIFICATION ===== */}
       {!session && (
-        <section id="pricing" className="py-16 md:py-24 bg-muted/30">
+        <section id="pricing" className="py-16 md:py-24 bg-muted/20 border-y border-border/60">
           <div className="container mx-auto px-4">
             <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                Des tarifs <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">accessibles</span>
+              <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
+                Des tarifs <span className="italic text-primary">accessibles</span>
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Commencez gratuitement, évoluez selon vos besoins</p>
             </div>
@@ -292,8 +284,8 @@ const Index = () => {
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                {t("landing.sections.trustTitle")} <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{t("landing.sections.trustTitleB")}</span>
+              <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
+                {t("landing.sections.trustTitle")} <span className="italic text-primary">{t("landing.sections.trustTitleB")}</span>
               </h2>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
