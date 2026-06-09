@@ -25,6 +25,252 @@ const LandingTeamSection = lazy(() =>
   import("@/components/LandingMediaSections").then((module) => ({ default: module.LandingTeamSection }))
 );
 
+/* ── EasyAfrik-style Hero with floating phone mockup + podium card ── */
+const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscover: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <section className="relative overflow-hidden">
+      {/* soft brand glows */}
+      <div className="pointer-events-none absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-primary/20 blur-3xl" />
+      <div className="pointer-events-none absolute top-40 -right-32 w-[420px] h-[420px] rounded-full bg-secondary/20 blur-3xl" />
+      <div className="container relative mx-auto px-4 pt-14 md:pt-20 pb-20 md:pb-28">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+          {/* LEFT */}
+          <div className="relative z-10 animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-[11px] uppercase tracking-[0.2em] font-semibold mb-6">
+              <Sparkles className="w-3.5 h-3.5" /> Conçu pour l'Afrique. Pensé pour vous.
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-[4.25rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-foreground mb-6">
+              Créez, vendez et<br />développez votre{" "}
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">business en ligne</span>{" "}en Afrique
+            </h1>
+            <p className="text-base md:text-lg text-muted-foreground mb-7 max-w-xl leading-relaxed">
+              VisualPro est la plateforme tout-en-un pour entrepreneurs africains :
+              visuels publicitaires IA, vidéos animées, boutique e-commerce et formations,
+              sans friction.
+            </p>
+            <div className="grid grid-cols-2 gap-3 max-w-md mb-8">
+              {[
+                { Icon: Wallet, label: "Paiement à la livraison" },
+                { Icon: Smartphone, label: "Mobile Money intégré" },
+                { Icon: Truck, label: "Livraison partout en Afrique" },
+                { Icon: Headphones, label: "Support local 24/7" },
+              ].map(({ Icon, label }, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs md:text-sm text-foreground/80">
+                  <span className="w-7 h-7 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                    <Icon className="w-3.5 h-3.5" />
+                  </span>
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <Button size="lg" className="text-base px-7 py-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25" onClick={onStart}>
+                Démarrer gratuitement
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button size="lg" variant="outline" className="text-base px-7 py-6 rounded-full" onClick={onDiscover}>
+                <PlayCircle className="mr-2 h-4 w-4" /> Voir une démo
+              </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {["#fca5a5","#fcd34d","#86efac","#93c5fd","#c4b5fd"].map((c,i)=>(
+                  <span key={i} className="w-7 h-7 rounded-full border-2 border-background" style={{ background: c }} />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Rejoint par <span className="font-bold text-foreground">+10 000 entrepreneurs</span> à travers l'Afrique
+              </p>
+            </div>
+          </div>
+
+          {/* RIGHT — floating phone + podium card */}
+          <div className="relative h-[480px] md:h-[560px] z-10">
+            {/* Phone mock */}
+            <div className="absolute left-2 sm:left-8 md:left-12 top-4 animate-float">
+              <div className="w-[220px] md:w-[260px] h-[440px] md:h-[520px] rounded-[2.4rem] bg-foreground p-2 shadow-2xl shadow-primary/30 border border-foreground/10">
+                <div className="w-full h-full rounded-[2rem] bg-background overflow-hidden flex flex-col">
+                  <div className="px-3 pt-3 pb-2 flex items-center gap-2 border-b border-border/60">
+                    <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-secondary" />
+                    <div className="text-[10px] font-bold tracking-wide">VisualPro</div>
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  </div>
+                  <div className="px-3 py-2 text-[9px] uppercase tracking-widest text-muted-foreground">Chiffre du jour</div>
+                  <div className="px-3 text-lg font-extrabold text-primary">12,5M FCFA</div>
+                  <div className="px-3 mt-3 text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Produits</div>
+                  <div className="px-3 grid grid-cols-2 gap-2">
+                    {[0,1,2,3].map(i=>(
+                      <div key={i} className="aspect-square rounded-lg bg-muted relative overflow-hidden">
+                        <div className="absolute inset-2 rounded-md bg-gradient-to-br from-primary/30 to-secondary/30" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-auto px-3 py-3 border-t border-border/60 flex items-center justify-between">
+                    <div className="text-[9px] text-muted-foreground">Commandes</div>
+                    <div className="text-[11px] font-bold text-primary">+24 aujourd'hui</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Leaderboard card */}
+            <div className="absolute right-0 top-16 md:top-12 w-[270px] md:w-[320px] animate-float-slow">
+              <div className="rounded-2xl bg-[#0f1b3d] text-white p-5 shadow-2xl border border-white/10">
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-white/70 mb-4">
+                  <Crown className="w-3.5 h-3.5 text-[#c9a84c]" /> Classement de la semaine
+                </div>
+                <div className="flex items-end justify-center gap-3 mb-4">
+                  {[
+                    { name: "Mariama D.", amount: "91k", rank: 2, h: "h-14" },
+                    { name: "Moustapha B.", amount: "132k", rank: 1, h: "h-20" },
+                    { name: "Aminata K.", amount: "78k", rank: 3, h: "h-12" },
+                  ].map((s, i) => {
+                    const ring = s.rank===1 ? "ring-[#c9a84c]" : s.rank===2 ? "ring-[#d8d8e0]" : "ring-[#c98a4c]";
+                    return (
+                      <div key={i} className="flex flex-col items-center w-1/3">
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary ring-2 ring-offset-2 ring-offset-[#0f1b3d] ${ring} flex items-center justify-center text-xs font-bold relative`}>
+                          {s.name.split(' ').map(n=>n[0]).join('')}
+                          {s.rank===1 && <Crown className="absolute -top-3 w-3.5 h-3.5 text-[#c9a84c]" />}
+                        </div>
+                        <div className="mt-1.5 text-[10px] font-medium text-center truncate w-full">{s.name}</div>
+                        <div className="text-[10px] font-bold text-[#c9a84c]">{s.amount}</div>
+                        <div className={`mt-1.5 w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary/10 ${s.h}`} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-white/70 text-center mb-3">Qui sera le leader cette semaine ?</p>
+                <Button size="sm" className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-9" onClick={onStart}>
+                  Entrer dans la course
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* ── L'innovation qui change la donne ── */
+const InnovationBento = () => {
+  const navigate = useNavigate();
+  const items = [
+    { n: "01", title: "Visuels publicitaires IA", desc: "Créez des visuels professionnels en quelques secondes pour toutes vos campagnes.", route: "/generator", color: "from-primary/15 to-primary/5" },
+    { n: "02", title: "Vidéos animées", desc: "Transformez vos produits en vidéos qui captivent et convertissent.", route: "/video-creator", color: "from-secondary/15 to-secondary/5" },
+    { n: "03", title: "Boutique e-commerce", desc: "Lancez votre boutique en ligne en 60 secondes, paiement local intégré.", route: "/shop-manager", color: "from-emerald-500/15 to-emerald-500/5" },
+    { n: "04", title: "Formations", desc: "Apprenez à vendre, convertir et faire passer votre business au niveau supérieur.", route: "/courses-manager", color: "from-amber-500/15 to-amber-500/5" },
+    { n: "05", title: "Communauté & Support", desc: "Échangez avec d'autres entrepreneurs et obtenez de l'aide en temps réel.", route: "/community", color: "from-pink-500/15 to-pink-500/5" },
+  ];
+  return (
+    <section id="services" className="py-20 md:py-28 bg-muted/20 border-y border-border/60">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12 md:mb-16">
+          <Badge variant="outline" className="mb-5 px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] border-primary/30 text-primary bg-primary/5">
+            Des fonctionnalités innovantes
+          </Badge>
+          <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+            L'innovation qui <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">change la donne</span>
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 max-w-7xl mx-auto">
+          {items.map((it, i) => (
+            <Card
+              key={i}
+              onClick={() => navigate(it.route)}
+              className={`group p-5 cursor-pointer border bg-gradient-to-br ${it.color} hover:-translate-y-1 hover:shadow-xl transition-all duration-300 animate-fade-in`}
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <div className="text-[10px] font-bold text-primary tracking-widest mb-3">{it.n}</div>
+              <h3 className="text-base font-bold mb-2 leading-tight">{it.title}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4 min-h-[3rem]">{it.desc}</p>
+              <div className="mt-auto h-24 rounded-lg bg-background/60 border border-border/60 flex items-center justify-center text-[10px] text-muted-foreground">
+                Aperçu
+              </div>
+              <div className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                Explorer <ChevronRight className="w-3 h-3" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* ── Trust strip ── */
+const TrustStrip = () => {
+  const items = [
+    { Icon: Wallet, label: "Paiement à la livraison" },
+    { Icon: Smartphone, label: "Mobile Money intégré" },
+    { Icon: Truck, label: "Livraison locale" },
+    { Icon: Globe2, label: "Multi-pays · Multi-devises" },
+    { Icon: Headphones, label: "Support en français 24/7" },
+    { Icon: ShieldCheck, label: "Sécurité de niveau bancaire" },
+  ];
+  return (
+    <section className="py-12 md:py-16 bg-background">
+      <div className="container mx-auto px-4">
+        <p className="text-center text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-8">
+          Pensé pour l'Afrique, dès le premier jour
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-6xl mx-auto">
+          {items.map(({ Icon, label }, i) => (
+            <div key={i} className="flex items-center gap-2.5 px-3 py-3 rounded-lg border border-border/60 bg-card/40">
+              <span className="w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <Icon className="w-4 h-4" />
+              </span>
+              <span className="text-xs font-medium leading-tight">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* ── Stats + testimonial ── */
+const StatsTestimonial = () => {
+  const stats = [
+    { v: "+10 000", l: "entrepreneurs nous font confiance" },
+    { v: "54", l: "pays où VisualPro est utilisé" },
+    { v: "99,9%", l: "uptime garanti" },
+    { v: "24/7", l: "support local en Afrique" },
+  ];
+  return (
+    <section className="py-14 md:py-20">
+      <div className="container mx-auto px-4">
+        <div className="rounded-2xl border border-border/60 bg-muted/30 p-6 md:p-10 max-w-6xl mx-auto grid md:grid-cols-2 gap-8 items-center">
+          <div className="grid grid-cols-2 gap-6">
+            {stats.map((s, i) => (
+              <div key={i}>
+                <div className="text-2xl md:text-3xl font-extrabold text-primary mb-1">{s.v}</div>
+                <p className="text-xs text-muted-foreground leading-snug">{s.l}</p>
+              </div>
+            ))}
+          </div>
+          <div className="border-l-0 md:border-l border-border/60 md:pl-8">
+            <p className="text-base md:text-lg text-foreground italic leading-relaxed mb-4">
+              « VisualPro a transformé mon business. Je gère tout depuis mon téléphone,
+              même mes livraisons et mes paiements COD. »
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs font-bold text-white">
+                AD
+              </div>
+              <div>
+                <div className="text-sm font-semibold">Awa Diallo</div>
+                <div className="text-xs text-muted-foreground">CEO, Boutique Awa</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 /* ── Ticker / scrolling banner ── */
 const TickerBanner = () => {
   const { t } = useTranslation();
