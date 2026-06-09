@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { ExternalLink, Copy, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { DomainRegistrarSuggestions } from "@/components/DomainRegistrarSuggestions";
 
 // Fixed DNS configuration for VisualPro
 const VISUALPRO_CONFIG = {
@@ -212,6 +213,9 @@ export const DnsConfigurationAssistant = ({
 
   return (
     <div className="space-y-6">
+      {/* Where to buy a domain */}
+      <DomainRegistrarSuggestions />
+
       {/* Lovable Subdomain */}
       <Card>
         <CardHeader>
