@@ -39,7 +39,6 @@ const Subscription = () => {
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [purchasedCredits, setPurchasedCredits] = useState(0);
   const [selectedPack, setSelectedPack] = useState<{size: number, price: number} | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'startup'>('pro');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -201,12 +200,15 @@ const Subscription = () => {
     method: string,
     options?: { provider?: string; phone?: string }
   ) => {
+    if (!selectedPack) {
+      toast({ title: "Choisissez un pack", description: "Sélectionnez un pack de crédits avant de payer.", variant: "destructive" });
+      return;
+    }
     setIsProcessing(true);
     const paymentWindow = openPaymentWindow();
     try {
-      const planAmount = selectedPlan === 'startup' ? 50000 : 10000;
-      const amount = selectedPack ? selectedPack.price : planAmount;
-      const paymentType = selectedPack ? 'credits' : 'subscription';
+      const amount = selectedPack.price;
+      const paymentType = 'credits';
       
       const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
@@ -217,7 +219,7 @@ const Subscription = () => {
           phone: options?.phone,
           promo_code: promoCode.trim().toUpperCase() || undefined,
           payment_type: paymentType,
-          credits_pack: selectedPack ? { size: selectedPack.size, price: selectedPack.price } : undefined,
+          credits_pack: { size: selectedPack.size, price: selectedPack.price },
         },
       });
 
@@ -272,16 +274,7 @@ const Subscription = () => {
   ];
 
   const comparisonFeatures = [
-    { name: "Générations d'images", free: "3 / mois", pro: "Illimitées", startup: "Illimitées" },
-    { name: "Générations de vidéos", free: "1 / mois", pro: "5 / mois", startup: "Illimitées" },
-    { name: "Sites vitrine", free: "❌", pro: "Illimités", startup: "Illimités" },
-    { name: "Clés API", free: "❌", pro: "❌", startup: "✅" },
-    { name: "Édition d'images IA", free: "❌", pro: "✅", startup: "✅" },
-    { name: "Tous les styles", free: "Limité", pro: "✅", startup: "✅" },
-    { name: "Formats multiples", free: "❌", pro: "✅", startup: "✅" },
-    { name: "Génération prioritaire", free: "❌", pro: "✅", startup: "✅" },
-    { name: "Support prioritaire", free: "❌", pro: "✅", startup: "Dédié 24/7" },
-  ];
+  ] as const;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
@@ -541,151 +534,6 @@ const Subscription = () => {
               )}
             </div>
 
-            <div className="text-center mb-12">
-              <div className="inline-block px-6 py-3 bg-muted rounded-full">
-                <span className="text-sm font-medium">OU</span>
-              </div>
-            </div>
-
-            <div className="mb-16 max-w-5xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl md:text-4xl font-bold mb-3">Abonnement Mensuel Illimité</h2>
-                <p className="text-muted-foreground">Pour une utilisation intensive sans limites</p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Free Plan */}
-                <Card className="relative overflow-hidden">
-                  <CardHeader>
-                    <CardTitle className="text-2xl">Gratuit</CardTitle>
-                    <CardDescription>Pour découvrir la plateforme</CardDescription>
-                    <div className="mt-4">
-                      <span className="text-4xl font-bold">0 FCFA</span>
-                      <span className="text-muted-foreground ml-2">/ mois</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {comparisonFeatures.map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-                            {feature.free === "❌" ? (
-                              <X className="w-3 h-3 text-muted-foreground" />
-                            ) : (
-                              <Check className="w-3 h-3 text-muted-foreground" />
-                            )}
-                          </div>
-                          <span className="text-sm flex-1">{feature.name}</span>
-                          <span className="text-sm font-medium text-muted-foreground">{feature.free}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button variant="outline" className="w-full mt-6" disabled>
-                      Plan actuel
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Pro Plan */}
-                <Card className="relative overflow-hidden border-primary shadow-xl">
-                  <div className="absolute top-0 right-0 bg-gradient-to-l from-primary to-secondary text-primary-foreground px-4 py-1 text-sm font-semibold">
-                    Le plus populaire ⭐
-                  </div>
-                  <CardHeader className="bg-gradient-to-br from-primary/5 to-secondary/5">
-                    <CardTitle className="text-2xl text-primary">Pro</CardTitle>
-                    <CardDescription>Pour les entrepreneurs sérieux</CardDescription>
-                    <div className="mt-4">
-                      {promoDiscount > 0 && selectedPlan === 'pro' ? (
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl font-bold line-through text-muted-foreground">10 000</span>
-                            <Badge variant="default">-{promoDiscount}%</Badge>
-                          </div>
-                          <span className="text-4xl font-bold text-primary">
-                            {Math.round(10000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-4xl font-bold">10 000 FCFA</span>
-                      )}
-                      <span className="text-muted-foreground ml-2">/ mois</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {comparisonFeatures.map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Check className="w-3 h-3 text-primary" />
-                          </div>
-                          <span className="text-sm flex-1">{feature.name}</span>
-                          <span className="text-sm font-bold text-primary">{feature.pro}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button className="w-full mt-6" size="lg" onClick={() => {
-                      setSelectedPack(null);
-                      setSelectedPlan('pro');
-                      const pricingSection = document.getElementById('pricing-section');
-                      pricingSection?.scrollIntoView({ behavior: 'smooth' });
-                    }}>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Passer à Pro maintenant
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Startup Plan */}
-                <Card className="relative overflow-hidden border-secondary shadow-xl">
-                  <div className="absolute top-0 right-0 bg-gradient-to-l from-secondary to-purple-600 text-white px-4 py-1 text-sm font-semibold">
-                    Pour entreprises 🚀
-                  </div>
-                  <CardHeader className="bg-gradient-to-br from-secondary/5 to-purple-600/5">
-                    <CardTitle className="text-2xl text-secondary">Startup</CardTitle>
-                    <CardDescription>Pour les entreprises en croissance</CardDescription>
-                    <div className="mt-4">
-                      {promoDiscount > 0 && selectedPlan === 'startup' ? (
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl font-bold line-through text-muted-foreground">50 000</span>
-                            <Badge variant="default">-{promoDiscount}%</Badge>
-                          </div>
-                          <span className="text-4xl font-bold text-secondary">
-                            {Math.round(50000 * (1 - promoDiscount / 100)).toLocaleString()} FCFA
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-4xl font-bold">50 000 FCFA</span>
-                      )}
-                      <span className="text-muted-foreground ml-2">/ mois</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {comparisonFeatures.map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-secondary/10 flex items-center justify-center">
-                            <Check className="w-3 h-3 text-secondary" />
-                          </div>
-                          <span className="text-sm flex-1">{feature.name}</span>
-                          <span className="text-sm font-bold text-secondary">{feature.startup}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button className="w-full mt-6 bg-secondary hover:bg-secondary/90" size="lg" onClick={() => {
-                      setSelectedPack(null);
-                      setSelectedPlan('startup');
-                      const pricingSection = document.getElementById('pricing-section');
-                      pricingSection?.scrollIntoView({ behavior: 'smooth' });
-                    }}>
-                      <TrendingUp className="mr-2 h-4 w-4" />
-                      Passer à Startup maintenant
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
             {/* Testimonials Section */}
             {testimonials.length > 0 && (
               <div className="mb-16 max-w-6xl mx-auto">
@@ -739,14 +587,6 @@ const Subscription = () => {
 
               {/* Pricing Section */}
             <div id="pricing-section" className="max-w-4xl mx-auto">
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold mb-2">Paiement de l'Abonnement Mensuel</h3>
-                <p className="text-muted-foreground">
-                  Plan sélectionné : <span className="font-bold text-primary">
-                    {selectedPlan === 'pro' ? 'Pro' : 'Startup'}
-                  </span> - {selectedPlan === 'pro' ? '10 000' : '50 000'} FCFA/mois
-                </p>
-              </div>
               {/* Promo Code */}
               <Card className="mb-8">
                 <CardHeader>
@@ -789,82 +629,27 @@ const Subscription = () => {
                     <div className="flex items-center gap-2 mt-2 p-3 bg-primary/10 rounded-lg">
                       <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
                       <p className="text-sm text-primary font-medium">
-                        Excellent ! Réduction de {promoDiscount}% appliquée - Économisez {Math.round((selectedPlan === 'startup' ? 50000 : 10000) * promoDiscount / 100).toLocaleString()} FCFA
+                        Réduction de {promoDiscount}% appliquée sur votre pack.
                       </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Payment Methods */}
-              {!selectedPack && (
-                <Card className="border-2 border-primary/20 shadow-xl">
-                <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
-                  <CardTitle className="text-2xl">Choisissez votre méthode de paiement</CardTitle>
-                  <CardDescription>
-                    Paiement sécurisé - Activation immédiate après confirmation
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="grid gap-4 md:grid-cols-2 mb-6">
-                    <Button
-                      variant="outline"
-                      className="h-auto py-8 flex flex-col items-center gap-3 hover:border-primary hover:bg-primary/5 transition-all"
-                      onClick={() => setShowMMModal(true)}
-                      disabled={isProcessing}
-                    >
-                      <Smartphone className="h-10 w-10 text-primary" />
-                      <div className="text-center">
-                        <div className="font-semibold text-lg mb-1">Mobile Money</div>
-                        <div className="text-xs text-muted-foreground">
-                          Orange, MTN, Moov, Wave
-                        </div>
-                      </div>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="h-auto py-8 flex flex-col items-center gap-3 hover:border-primary hover:bg-primary/5 transition-all"
-                      onClick={() => handlePayment("card")}
-                      disabled={isProcessing}
-                    >
-                      <CreditCard className="h-10 w-10 text-primary" />
-                      <div className="text-center">
-                        <div className="font-semibold text-lg mb-1">Carte Bancaire</div>
-                        <div className="text-xs text-muted-foreground">
-                          Visa, Mastercard
-                        </div>
-                      </div>
-                    </Button>
-                  </div>
-
-                  {isProcessing && (
-                    <div className="text-center py-8 bg-primary/5 rounded-lg">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-3" />
-                      <p className="text-sm font-medium">
-                        Redirection vers le paiement sécurisé...
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Trust badges */}
-                  <div className="flex items-center justify-center gap-6 mt-6 pt-6 border-t text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Paiement sécurisé
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Activation instantanée
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Support 24/7
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              )}
+              <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Paiement sécurisé
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Crédits ajoutés immédiatement
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Support 24/7
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -906,9 +691,9 @@ const Subscription = () => {
                 onChange={(e) => setMmPhone(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Le montant {promoDiscount > 0 
-                  ? `de ${Math.round((selectedPlan === 'startup' ? 50000 : 10000) * (1 - promoDiscount / 100)).toLocaleString()} FCFA` 
-                  : `de ${(selectedPlan === 'startup' ? '50 000' : '10 000')} FCFA`} sera débité après validation sur votre téléphone.
+                {selectedPack
+                  ? `Le montant de ${selectedPack.price.toLocaleString()} FCFA sera débité après validation sur votre téléphone.`
+                  : "Sélectionnez un pack de crédits avant de payer."}
               </p>
             </div>
 

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Trophy, User } from "lucide-react";
+import { Crown, Medal, Sparkles } from "lucide-react";
 
 interface Seller {
   shop_id: string;
@@ -14,14 +13,6 @@ interface Seller {
 
 const formatFcfa = (n: number) =>
   new Intl.NumberFormat("fr-FR").format(Math.round(n)) + " FCFA";
-
-const rankStyles = [
-  { ring: "ring-yellow-400", bg: "from-yellow-400/20 to-amber-500/10", badge: "bg-yellow-400 text-black" },
-  { ring: "ring-slate-300", bg: "from-slate-300/20 to-slate-400/10", badge: "bg-slate-300 text-black" },
-  { ring: "ring-amber-700", bg: "from-amber-700/20 to-orange-600/10", badge: "bg-amber-700 text-white" },
-  { ring: "ring-primary/40", bg: "from-primary/10 to-secondary/10", badge: "bg-primary text-primary-foreground" },
-  { ring: "ring-primary/40", bg: "from-primary/10 to-secondary/10", badge: "bg-primary text-primary-foreground" },
-];
 
 const getInitials = (name: string | null) => {
   if (!name) return "?";
@@ -37,24 +28,41 @@ const firstName = (name: string | null) => {
   return name.trim().split(/\s+/)[0] || "Vendeur";
 };
 
-const Avatar = ({ seller, size }: { seller: Seller; size: number }) => {
-  if (seller.avatar_url) {
-    return (
-      <img
-        src={seller.avatar_url}
-        alt={firstName(seller.full_name)}
-        loading="lazy"
-        className="w-full h-full object-cover"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
+const rankAccent = (rank: number) => {
+  if (rank === 1) return { ring: "ring-[#c9a84c]", glow: "shadow-[0_0_30px_rgba(201,168,76,0.45)]", chip: "bg-[#c9a84c] text-[#0f1b3d]", label: "OR" };
+  if (rank === 2) return { ring: "ring-[#d8d8e0]", glow: "shadow-[0_0_22px_rgba(216,216,224,0.35)]", chip: "bg-[#d8d8e0] text-[#0f1b3d]", label: "ARGENT" };
+  if (rank === 3) return { ring: "ring-[#c98a4c]", glow: "shadow-[0_0_22px_rgba(201,138,76,0.35)]", chip: "bg-[#c98a4c] text-[#0f1b3d]", label: "BRONZE" };
+  return { ring: "ring-white/15", glow: "", chip: "bg-white/10 text-white", label: `#${rank}` };
+};
+
+const SellerCard = ({ seller, rank }: { seller: Seller; rank: number }) => {
+  const a = rankAccent(rank);
   return (
-    <div
-      className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 to-secondary/30 text-foreground font-bold"
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
-    >
-      {getInitials(seller.full_name)}
+    <div className="shrink-0 w-[220px] md:w-[260px] mx-3">
+      <div className={`relative rounded-2xl bg-gradient-to-b from-[#1e3a5f]/90 to-[#0f1b3d] border border-white/10 p-5 ${a.glow} hover:-translate-y-1 transition-transform duration-300`}>
+        <div className={`absolute -top-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider ${a.chip}`}>
+          {a.label}
+        </div>
+        {rank === 1 && (
+          <Crown className="absolute -top-3 right-3 w-5 h-5 text-[#c9a84c] drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]" />
+        )}
+        <div className="flex flex-col items-center text-center pt-2">
+          <div className={`rounded-full overflow-hidden ring-2 ring-offset-2 ring-offset-[#0f1b3d] ${a.ring}`} style={{ width: 84, height: 84 }}>
+            {seller.avatar_url ? (
+              <img src={seller.avatar_url} alt={firstName(seller.full_name)} loading="lazy" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] to-[#0f1b3d] text-[#e8edf3] font-bold text-2xl">
+                {getInitials(seller.full_name)}
+              </div>
+            )}
+          </div>
+          <div className="mt-3 font-semibold text-[#e8edf3] truncate w-full">{firstName(seller.full_name)}</div>
+          <div className="mt-1 text-lg font-extrabold text-[#c9a84c] tabular-nums">{formatFcfa(seller.total_sales)}</div>
+          <div className="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">
+            {seller.total_orders} vente{seller.total_orders > 1 ? "s" : ""}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -73,68 +81,45 @@ export const TopSellersLeaderboard = () => {
 
   if (loading || sellers.length === 0) return null;
 
-  const [first, ...rest] = sellers;
+  // Duplicate for seamless marquee loop
+  const loop = [...sellers, ...sellers];
 
   return (
-    <section className="py-12 md:py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-3">
-            <Trophy className="w-3.5 h-3.5" />
-            Top vendeurs VisuelPro
-          </div>
-          <h2 className="text-2xl md:text-4xl font-bold">
-            Ils ont déjà <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">vendu avec nous</span>
-          </h2>
-          <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl mx-auto">
-            Rejoignez les entrepreneurs qui font du chiffre sur VisuelPro
-          </p>
-        </div>
+    <section className="relative py-14 md:py-20 overflow-hidden bg-[#0f1b3d]">
+      {/* Subtle grain / spotlight */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,168,76,0.18),transparent_60%)] pointer-events-none" />
+      <div className="absolute inset-y-0 left-0 w-24 md:w-40 bg-gradient-to-r from-[#0f1b3d] to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-24 md:w-40 bg-gradient-to-l from-[#0f1b3d] to-transparent z-10 pointer-events-none" />
 
-        {/* #1 podium */}
-        <div className="flex justify-center mb-8">
-          <Card className={`relative p-6 md:p-8 text-center bg-gradient-to-br ${rankStyles[0].bg} border-2 border-yellow-400/40 shadow-xl max-w-sm w-full`}>
-            <div className={`absolute -top-3 left-1/2 -translate-x-1/2 ${rankStyles[0].badge} rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1 shadow-lg`}>
-              <Trophy className="w-3.5 h-3.5" /> #1
-            </div>
-            <div className={`mx-auto rounded-full overflow-hidden ring-4 ${rankStyles[0].ring} ring-offset-2 ring-offset-background mb-4`} style={{ width: 112, height: 112 }}>
-              <Avatar seller={first} size={112} />
-            </div>
-            <div className="font-bold text-lg truncate">
-              {firstName(first.full_name)}
-            </div>
-            <div className="mt-3 text-xl md:text-2xl font-extrabold bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent">
-              {formatFcfa(first.total_sales)}
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-1">{first.total_orders} commande{first.total_orders > 1 ? "s" : ""}</div>
-          </Card>
+      <div className="relative container mx-auto px-4 text-center mb-8 md:mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#c9a84c]/15 border border-[#c9a84c]/40 text-[#c9a84c] text-[11px] font-semibold tracking-wider uppercase mb-4">
+          <Sparkles className="w-3.5 h-3.5" />
+          Hall of Fame · Top 5 vendeurs
         </div>
+        <h2 className="text-3xl md:text-5xl font-bold text-[#e8edf3] tracking-tight">
+          Ils encaissent.{" "}
+          <span className="bg-gradient-to-r from-[#c9a84c] to-[#f0d78c] bg-clip-text text-transparent">
+            Et vous ?
+          </span>
+        </h2>
+        <p className="text-sm md:text-base text-[#e8edf3]/70 mt-3 max-w-xl mx-auto">
+          Ces entrepreneurs construisent leur empire sur VisuelPro. Votre nom peut briller ici dès ce mois-ci.
+        </p>
+      </div>
 
-        {/* Others */}
-        {rest.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-4xl mx-auto">
-            {rest.map((s, i) => {
-              const rank = i + 2;
-              const style = rankStyles[i + 1] || rankStyles[3];
-              return (
-                <Card key={s.shop_id} className={`relative p-4 text-center bg-gradient-to-br ${style.bg} hover:shadow-lg transition-all`}>
-                  <div className={`absolute -top-2 left-1/2 -translate-x-1/2 ${style.badge} rounded-full w-7 h-7 text-xs font-bold flex items-center justify-center shadow`}>
-                    {rank}
-                  </div>
-                  <div className={`mx-auto rounded-full overflow-hidden ring-2 ${style.ring} mb-2 mt-1`} style={{ width: 64, height: 64 }}>
-                    <Avatar seller={s} size={64} />
-                  </div>
-                  <div className="font-semibold text-sm truncate">
-                    {firstName(s.full_name)}
-                  </div>
-                  <div className="text-sm font-bold text-primary mt-1 truncate">
-                    {formatFcfa(s.total_sales)}
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+      <div className="relative flex overflow-hidden group">
+        <div className="flex animate-marquee group-hover:[animation-play-state:paused] py-4">
+          {loop.map((s, i) => (
+            <SellerCard key={`${s.shop_id}-${i}`} seller={s} rank={(i % sellers.length) + 1} />
+          ))}
+        </div>
+      </div>
+
+      <div className="relative container mx-auto px-4 mt-8 text-center">
+        <div className="inline-flex items-center gap-2 text-[#e8edf3]/60 text-xs">
+          <Medal className="w-4 h-4 text-[#c9a84c]" />
+          Classement mis à jour en temps réel
+        </div>
       </div>
     </section>
   );
