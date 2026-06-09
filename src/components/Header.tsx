@@ -8,6 +8,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import logo from "@/assets/visualpro-logo.svg";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { AICreditsBadge } from "@/components/AICreditsBadge";
 
 export function Header() {
   const navigate = useNavigate();
@@ -86,6 +87,7 @@ export function Header() {
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
             <LanguageSelector />
+            {isAuthenticated && <AICreditsBadge />}
             {!isAuthenticated && (
               <Button variant="ghost" onClick={() => navigate("/auth")}>
                 {t("common.login")}
@@ -97,12 +99,15 @@ export function Header() {
           </div>
 
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">{t("header.openMenu")}</span>
-              </Button>
-            </SheetTrigger>
+            <div className="flex md:hidden items-center gap-2">
+              {isAuthenticated && <AICreditsBadge />}
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">{t("header.openMenu")}</span>
+                </Button>
+              </SheetTrigger>
+            </div>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <div className="flex flex-col gap-6 mt-8">
                 <div className="flex items-center gap-2 mb-4">
