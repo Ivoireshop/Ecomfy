@@ -554,45 +554,6 @@ const Index = () => {
         </section>
       )}
 
-      {/* ===== TARIFICATION ===== */}
-      {!session && (
-        <section id="pricing" className="py-16 md:py-24 bg-muted/20 border-y border-border/60">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
-                Des tarifs <span className="italic text-primary">accessibles</span>
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Commencez gratuitement, évoluez selon vos besoins</p>
-            </div>
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <Card className="p-7 hover:shadow-xl transition-all border-2 border-transparent hover:border-primary/10">
-                <Badge className="mb-4" variant="secondary">Gratuit</Badge>
-                <h3 className="text-2xl font-bold mb-3">Découverte</h3>
-                <div className="mb-5"><span className="text-4xl font-extrabold">0€</span><span className="text-muted-foreground">/mois</span></div>
-                <ul className="space-y-2.5 mb-7 text-sm">
-                  {["3 générations d'images", "1 vidéo gratuite", "Tous les templates"].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /><span>{f}</span></li>
-                  ))}
-                </ul>
-                <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>Commencer gratuitement</Button>
-              </Card>
-
-              <Card className="p-7 border-2 border-primary hover:shadow-xl transition-all relative bg-primary/[0.02]">
-                <Badge className="mb-4 bg-primary text-primary-foreground">Populaire</Badge>
-                <h3 className="text-2xl font-bold mb-3">Packs à la Carte</h3>
-                <div className="mb-5"><span className="text-sm text-muted-foreground">À partir de</span><br /><span className="text-4xl font-extrabold">1 000 FCFA</span></div>
-                <ul className="space-y-2.5 mb-7 text-sm">
-                  {["10 images — 1 000 FCFA", "20 images — 2 000 FCFA", "50 images + Site — 5 000 FCFA"].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /><span>{f}</span></li>
-                  ))}
-                </ul>
-                <Button className="w-full" onClick={() => navigate("/auth")}>Voir tous les packs</Button>
-              </Card>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ===== TÉMOIGNAGES ===== */}
       {!session && publishedFeedback.length > 0 && (
         <section className="py-16 md:py-24">
@@ -601,26 +562,9 @@ const Index = () => {
               <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
                 {t("landing.sections.trustTitle")} <span className="italic text-primary">{t("landing.sections.trustTitleB")}</span>
               </h2>
+              <p className="text-base text-muted-foreground max-w-2xl mx-auto">Découvrez ce que nos entrepreneurs disent de VisualPro</p>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {publishedFeedback.map((feedback) => (
-                <Card key={feedback.id} className="p-6 hover:shadow-xl transition-all">
-                  <div className="flex items-center mb-3">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={`w-4 h-4 ${i < feedback.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground text-sm mb-4 italic line-clamp-4">"{feedback.comment}"</p>
-                  <div className="flex items-center gap-3">
-                    {feedback.photo_url && <img src={feedback.photo_url} alt={feedback.full_name} className="w-9 h-9 rounded-full object-cover" />}
-                    <div>
-                      <div className="font-semibold text-sm">{feedback.full_name}</div>
-                      {feedback.country && <div className="text-xs text-muted-foreground">{feedback.country}</div>}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <TestimonialsMarquee feedbacks={publishedFeedback} />
           </div>
         </section>
       )}
