@@ -26,6 +26,9 @@ import bentoVideo from "@/assets/bento-video.jpg";
 import bentoEcom from "@/assets/bento-ecommerce.jpg";
 import bentoFormation from "@/assets/bento-formation.jpg";
 import bentoCommunity from "@/assets/bento-community.jpg";
+import sellerIrege from "@/assets/seller-irege.jpg";
+import sellerDario from "@/assets/seller-dario.jpg";
+import sellerAnge from "@/assets/seller-ange.jpg";
 const OnboardingTutorial = lazy(() =>
   import("@/components/OnboardingTutorial").then((m) => ({ default: m.OnboardingTutorial }))
 );
@@ -56,9 +59,9 @@ type PodiumSeller = {
 };
 
 const FALLBACK_PODIUM: PodiumSeller[] = [
-  { shop_id: "f1", full_name: "Eloïse D.",   avatar_url: null, total_sales: 3_200_000 },
-  { shop_id: "f2", full_name: "Boga M.",     avatar_url: null, total_sales: 540_000   },
-  { shop_id: "f3", full_name: "Aminata K.",  avatar_url: null, total_sales: 310_000   },
+  { shop_id: "f1", full_name: "Irège Dapi",     avatar_url: sellerIrege, total_sales: 3_200_000 },
+  { shop_id: "f2", full_name: "Dario Boga",     avatar_url: sellerDario, total_sales: 1_850_000 },
+  { shop_id: "f3", full_name: "Touaméni Ange",  avatar_url: sellerAnge,  total_sales: 1_240_000 },
 ];
 
 /* ── EasyAfrik-style Hero with floating phone mockup + podium card ── */
