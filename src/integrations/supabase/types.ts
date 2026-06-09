@@ -3707,6 +3707,18 @@ export type Database = {
           product_name: string
         }[]
       }
+      get_top_sellers: {
+        Args: { p_limit?: number }
+        Returns: {
+          business_name: string
+          first_name: string
+          logo_url: string
+          shop_id: string
+          slug: string
+          total_orders: number
+          total_sales: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
