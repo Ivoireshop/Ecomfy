@@ -69,6 +69,9 @@ export default function ShowcaseBuilder() {
         .eq("id", user.id)
         .single();
 
+      // Auto-expire subscription if past end_date before reading
+      await (await import("@/lib/subscriptionStatus")).refreshMySubscriptionStatus();
+
       // Get subscription data
       const { data: subData } = await supabase
         .from("subscriptions")
