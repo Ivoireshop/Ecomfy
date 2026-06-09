@@ -83,39 +83,30 @@ export const TopSellersLeaderboard = () => {
   const loop = [...sellers, ...sellers];
 
   return (
-    <section className="relative py-14 md:py-20 overflow-hidden bg-[#0f1b3d]">
+    <section className="relative py-8 md:py-10 overflow-hidden bg-[#0f1b3d]">
       {/* Subtle grain / spotlight */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,168,76,0.18),transparent_60%)] pointer-events-none" />
       <div className="absolute inset-y-0 left-0 w-24 md:w-40 bg-gradient-to-r from-[#0f1b3d] to-transparent z-10 pointer-events-none" />
       <div className="absolute inset-y-0 right-0 w-24 md:w-40 bg-gradient-to-l from-[#0f1b3d] to-transparent z-10 pointer-events-none" />
 
-      <div className="relative container mx-auto px-4 text-center mb-8 md:mb-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#c9a84c]/15 border border-[#c9a84c]/40 text-[#c9a84c] text-[11px] font-semibold tracking-wider uppercase mb-4">
-          <Sparkles className="w-3.5 h-3.5" />
-          Hall of Fame · Top 5 vendeurs
+      <div className="relative container mx-auto px-4 text-center mb-4 md:mb-5">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#c9a84c]/15 border border-[#c9a84c]/40 text-[#c9a84c] text-[10px] font-semibold tracking-wider uppercase">
+          <Sparkles className="w-3 h-3" />
+          Hall of Fame · Top vendeurs
         </div>
-        <h2 className="text-3xl md:text-5xl font-bold text-[#e8edf3] tracking-tight">
-          Ils encaissent.{" "}
-          <span className="bg-gradient-to-r from-[#c9a84c] to-[#f0d78c] bg-clip-text text-transparent">
-            Et vous ?
-          </span>
-        </h2>
-        <p className="text-sm md:text-base text-[#e8edf3]/70 mt-3 max-w-xl mx-auto">
-          Ces entrepreneurs construisent leur empire sur VisuelPro. Votre nom peut briller ici dès ce mois-ci.
-        </p>
       </div>
 
       <div className="relative flex overflow-hidden group">
-        <div className="flex animate-marquee group-hover:[animation-play-state:paused] py-4">
+        <div className="flex animate-marquee group-hover:[animation-play-state:paused] py-2">
           {loop.map((s, i) => (
             <SellerCard key={`${s.shop_id}-${i}`} seller={s} rank={(i % sellers.length) + 1} />
           ))}
         </div>
       </div>
 
-      <div className="relative container mx-auto px-4 mt-8 text-center">
-        <div className="inline-flex items-center gap-2 text-[#e8edf3]/60 text-xs">
-          <Medal className="w-4 h-4 text-[#c9a84c]" />
+      <div className="relative container mx-auto px-4 mt-3 text-center">
+        <div className="inline-flex items-center gap-2 text-[#e8edf3]/60 text-[10px]">
+          <Medal className="w-3 h-3 text-[#c9a84c]" />
           Classement mis à jour en temps réel
         </div>
       </div>
