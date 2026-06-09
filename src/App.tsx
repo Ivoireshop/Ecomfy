@@ -343,6 +343,7 @@ const AppContent = () => {
           <Route path="/order-confirmed" element={<OrderConfirmed />} />
           <Route path="/accept-shop-invite" element={<AcceptShopInvite />} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
           <Route path="/docs" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
           <Route path="/health" element={<Health />} />
           <Route path="/healthz" element={<Health />} />
