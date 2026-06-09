@@ -102,7 +102,6 @@ export function AppSidebar() {
     { title: t("sidebar.items.library"), url: "/library", icon: Video },
   ];
   const businessItems = [
-    { title: t("sidebar.items.showcases"), url: "/showcase-manager", icon: Globe },
     { title: t("sidebar.items.courses"), url: "/courses-manager", icon: BookOpen },
     { title: t("sidebar.items.shops"), url: "/shop-manager", icon: Store },
   ];

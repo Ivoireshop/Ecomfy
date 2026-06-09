@@ -14,7 +14,6 @@ const allItems = [
   { title: "Accueil", url: "/", icon: Home },
   { title: "Générateur", url: "/generator", icon: Image },
   { title: "Bibliothèque", url: "/library", icon: Video },
-  { title: "Sites Vitrines", url: "/showcase-manager", icon: Globe },
   { title: "Formations", url: "/courses-manager", icon: BookOpen },
   { title: "Boutiques", url: "/shop-manager", icon: Store },
   { title: "Espace Étudiant", url: "/student", icon: GraduationCap },

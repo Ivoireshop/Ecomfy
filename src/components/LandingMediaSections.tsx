@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Globe, Store, GraduationCap, Image as ImageIcon, Video, Play, ArrowRight } from "lucide-react";
+import { Store, GraduationCap, Image as ImageIcon, Video, Play, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import featureRapide from "@/assets/feature-rapide.jpg";
@@ -12,8 +12,6 @@ import videoModelCosmetics from "@/assets/video-model-cosmetics.mp4.asset.json";
 import videoModelHandbag from "@/assets/video-model-handbag-v2.mp4.asset.json";
 import videoPreview1 from "@/assets/video-preview-1.jpg";
 import videoPreview2 from "@/assets/video-preview-2.jpg";
-import showcaseSitePreview from "@/assets/showcase-site-preview.jpg";
-import showcaseDevPreview from "@/assets/showcase-dev-preview.jpg";
 import ecommerceDashboard from "@/assets/ecommerce-dashboard.jpg";
 import ecommerceProductPage from "@/assets/ecommerce-product-page.jpg";
 import ecommerceShopping from "@/assets/ecommerce-shopping.jpg";
@@ -203,17 +201,6 @@ const LandingMediaSections = ({ session }: { session: unknown }) => {
               reversed
               cta="Créer une vidéo"
               onClick={() => navigate(session ? "/video-creator" : "/auth")}
-            />
-
-            <ServiceSection
-              title="Sites Vitrine Professionnels"
-              subtitle="Site vitrine"
-              description="Lancez votre site web professionnel en quelques minutes. Présentez vos services, votre portfolio et recevez des réservations — sans aucune compétence technique."
-              images={[featureRapide, showcaseSitePreview, showcaseDevPreview]}
-              icon={Globe}
-              gradient="from-violet-500 to-purple-500"
-              cta="Créer un site vitrine"
-              onClick={() => navigate(session ? "/showcase-manager" : "/auth")}
             />
 
             <ServiceSection
