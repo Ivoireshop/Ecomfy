@@ -3867,6 +3867,14 @@ export type Database = {
         Args: { _limit?: number; _user_id: string }
         Returns: Json
       }
+      get_community_profiles: {
+        Args: { _ids: string[] }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+        }[]
+      }
       get_invite_email_by_token: { Args: { _token: string }; Returns: string }
       get_my_subscription_status: { Args: never; Returns: Json }
       get_next_queue_item: { Args: never; Returns: string }
@@ -4082,6 +4090,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      search_community_profiles: {
+        Args: { _limit?: number; _query: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+        }[]
       }
       slugify: { Args: { _value: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
