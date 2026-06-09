@@ -41,17 +41,6 @@ const tutorialSteps = [
     ]
   },
   {
-    title: "Sites Vitrine",
-    description: "Créez des sites web professionnels pour présenter vos produits, services ou formations en un clic.",
-    icon: Globe,
-    color: "text-green-500",
-    tips: [
-      "Templates personnalisables",
-      "Optimisé pour mobile",
-      "Déploiement instantané"
-    ]
-  },
-  {
     title: "Création de Boutique E-commerce",
     description: "Lancez votre boutique en ligne complète : ajoutez vos produits, encaissez via Mobile Money et gérez vos commandes.",
     icon: ShoppingBag,

@@ -270,7 +270,7 @@ const Subscription = () => {
     { size: 20, price: 2000, popular: false },
     { size: 30, price: 3000, popular: false },
     { size: 40, price: 4000, popular: false },
-    { size: 50, price: 5000, popular: true, showcase: true },
+    { size: 50, price: 5000, popular: true },
   ];
 
   const comparisonFeatures = [
@@ -376,12 +376,6 @@ const Subscription = () => {
                   Créer une vidéo animée
                 </Button>
               </div>
-              <div className="mt-3">
-                <Button variant="ghost" className="w-full" size="sm" onClick={() => navigate("/showcase-manager")}>
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  Mes sites vitrine
-                </Button>
-              </div>
             </CardContent>
           </Card>
         )}
@@ -407,18 +401,7 @@ const Subscription = () => {
                   <Zap className="mr-2 h-5 w-5" />
                   Créer un visuel
                 </Button>
-                {purchasedCredits >= 50 && (
-                  <Button variant="outline" className="w-full" size="lg" onClick={() => navigate("/showcase-manager")}>
-                    <TrendingUp className="mr-2 h-5 w-5" />
-                    Créer un site vitrine
-                  </Button>
-                )}
               </div>
-              {purchasedCredits < 50 && (
-                <p className="text-sm text-muted-foreground text-center mt-4">
-                  💡 Achetez le pack de 50 crédits (5000 FCFA) pour débloquer la création de sites vitrine
-                </p>
-              )}
             </CardContent>
           </Card>
         )}
@@ -467,11 +450,6 @@ const Subscription = () => {
                         <div className="text-xs text-muted-foreground mb-4">
                           {Math.round(pack.price / pack.size)} FCFA / création
                         </div>
-                        {pack.showcase && (
-                          <Badge variant="secondary" className="mb-2">
-                            🎨 Accès sites vitrine inclus
-                          </Badge>
-                        )}
                         <Button 
                           variant={selectedPack?.size === pack.size ? "default" : "outline"}
                           className="w-full"

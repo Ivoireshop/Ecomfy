@@ -52,10 +52,7 @@ const Feedback = lazyWithRetry(() => import("./pages/Feedback"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazyWithRetry(() => import("./pages/VerifyEmail"));
-const ShowcaseBuilder = lazyWithRetry(() => import("./pages/ShowcaseBuilder"));
 const ShowcaseView = lazyWithRetry(() => import("./pages/ShowcaseView"));
-const ShowcaseManager = lazyWithRetry(() => import("./pages/ShowcaseManager"));
-const ShowcaseEditor = lazyWithRetry(() => import("./pages/ShowcaseEditor"));
 const PaymentHistory = lazyWithRetry(() => import("./pages/PaymentHistory"));
 const PromoCodeManager = lazyWithRetry(() => import("./pages/PromoCodeManager"));
 const FounderDashboard = lazyWithRetry(() => import("./pages/FounderDashboard"));
@@ -86,7 +83,6 @@ const OrderConfirmed = lazyWithRetry(() => import("./pages/OrderConfirmed"));
 const Unsubscribe = lazyWithRetry(() => import("./pages/Unsubscribe"));
 const VisuelsPublicitaires = lazyWithRetry(() => import("./pages/VisuelsPublicitaires"));
 const VideosPublicitaires = lazyWithRetry(() => import("./pages/VideosPublicitaires"));
-const SitesVitrines = lazyWithRetry(() => import("./pages/SitesVitrines"));
 const BoutiquesEcommerce = lazyWithRetry(() => import("./pages/BoutiquesEcommerce"));
 const Community = lazyWithRetry(() => import("./pages/Community"));
 const VideoCreator = lazyWithRetry(() => import("./pages/VideoCreator"));
@@ -164,7 +160,6 @@ const AppContent = () => {
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/visuels-publicitaires" element={<VisuelsPublicitaires />} />
           <Route path="/videos-publicitaires" element={<VideosPublicitaires />} />
-          <Route path="/sites-vitrines" element={<SitesVitrines />} />
           <Route path="/boutiques-ecommerce" element={<BoutiquesEcommerce />} />
           <Route
             path="/subscription" 
@@ -211,30 +206,6 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <PaymentHistory />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/showcase-builder"
-            element={
-              <ProtectedRoute requireActiveSubscription>
-                <ShowcaseBuilder />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/showcase-manager" 
-            element={
-              <ProtectedRoute>
-                <ShowcaseManager />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/showcase-editor/:id" 
-            element={
-              <ProtectedRoute>
-                <ShowcaseEditor />
               </ProtectedRoute>
             } 
           />
@@ -354,7 +325,7 @@ const AppContent = () => {
   );
 };
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/sites-vitrines", "/boutiques-ecommerce", "/demo", "/tutorial", "/health", "/healthz"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/boutiques-ecommerce", "/demo", "/tutorial", "/health", "/healthz"];
 
 // Prefetch heavy authenticated chunks during idle time so the first
 // in-dashboard navigation is instant. No-op on slow connections / save-data.

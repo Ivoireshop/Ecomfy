@@ -206,17 +206,6 @@ const LandingMediaSections = ({ session }: { session: unknown }) => {
             />
 
             <ServiceSection
-              title="Sites Vitrine Professionnels"
-              subtitle="Site vitrine"
-              description="Lancez votre site web professionnel en quelques minutes. Présentez vos services, votre portfolio et recevez des réservations — sans aucune compétence technique."
-              images={[featureRapide, showcaseSitePreview, showcaseDevPreview]}
-              icon={Globe}
-              gradient="from-violet-500 to-purple-500"
-              cta="Créer un site vitrine"
-              onClick={() => navigate(session ? "/showcase-manager" : "/auth")}
-            />
-
-            <ServiceSection
               title="Boutiques E-commerce"
               subtitle="E-commerce"
               description="Vendez vos produits en ligne avec une boutique complète : gestion des stocks, paiements Mobile Money, suivi des commandes et livraisons intégrées."

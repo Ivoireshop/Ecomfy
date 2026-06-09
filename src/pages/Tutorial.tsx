@@ -33,18 +33,6 @@ const tutorialCards = [
     ]
   },
   {
-    title: "Sites Vitrine",
-    description: "Créez des sites web professionnels pour présenter vos produits ou services.",
-    icon: Globe,
-    color: "bg-green-500",
-    features: [
-      "Templates personnalisables",
-      "Optimisé pour mobile",
-      "Déploiement instantané",
-      "Nom de domaine personnalisé"
-    ]
-  },
-  {
     title: "Création de Boutique",
     description: "Lancez votre boutique e-commerce VisualPro en quelques minutes : produits, paiements Mobile Money, livraison.",
     icon: ShoppingBag,
@@ -197,7 +185,7 @@ const Tutorial = () => {
                 <div>
                   <h4 className="font-semibold mb-1">Choisissez votre création</h4>
                   <p className="text-sm text-muted-foreground">
-                    Sélectionnez entre visuel, vidéo ou site vitrine selon vos besoins
+                    Sélectionnez entre visuel, vidéo ou boutique e-commerce selon vos besoins
                   </p>
                 </div>
               </div>
