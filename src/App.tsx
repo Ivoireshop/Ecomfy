@@ -92,6 +92,8 @@ const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
 const Health = lazyWithRetry(() => import("./pages/Health"));
 const AiQuota = lazyWithRetry(() => import("./pages/AiQuota"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
+const DeliverySignup = lazyWithRetry(() => import("./pages/DeliverySignup"));
+const DeliveryDashboard = lazyWithRetry(() => import("./pages/DeliveryDashboard"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
@@ -306,6 +308,8 @@ const AppContent = () => {
           <Route path="/accept-shop-invite" element={<AcceptShopInvite />} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+          <Route path="/delivery-signup" element={<ProtectedRoute><DeliverySignup /></ProtectedRoute>} />
+          <Route path="/delivery-dashboard" element={<ProtectedRoute><DeliveryDashboard /></ProtectedRoute>} />
           <Route path="/docs" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
           <Route path="/health" element={<Health />} />
           <Route path="/healthz" element={<Health />} />
