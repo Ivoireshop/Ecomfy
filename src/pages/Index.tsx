@@ -26,6 +26,9 @@ import bentoVideo from "@/assets/bento-video.jpg";
 import bentoEcom from "@/assets/bento-ecommerce.jpg";
 import bentoFormation from "@/assets/bento-formation.jpg";
 import bentoCommunity from "@/assets/bento-community.jpg";
+import sellerIrege from "@/assets/seller-irege.jpg";
+import sellerDario from "@/assets/seller-dario.jpg";
+import sellerAnge from "@/assets/seller-ange.jpg";
 const OnboardingTutorial = lazy(() =>
   import("@/components/OnboardingTutorial").then((m) => ({ default: m.OnboardingTutorial }))
 );
@@ -56,9 +59,9 @@ type PodiumSeller = {
 };
 
 const FALLBACK_PODIUM: PodiumSeller[] = [
-  { shop_id: "f1", full_name: "Eloïse D.",   avatar_url: null, total_sales: 3_200_000 },
-  { shop_id: "f2", full_name: "Boga M.",     avatar_url: null, total_sales: 540_000   },
-  { shop_id: "f3", full_name: "Aminata K.",  avatar_url: null, total_sales: 310_000   },
+  { shop_id: "f1", full_name: "Irège Dapi",     avatar_url: sellerIrege, total_sales: 3_200_000 },
+  { shop_id: "f2", full_name: "Dario Boga",     avatar_url: sellerDario, total_sales: 1_850_000 },
+  { shop_id: "f3", full_name: "Touaméni Ange",  avatar_url: sellerAnge,  total_sales: 1_240_000 },
 ];
 
 /* ── EasyAfrik-style Hero with floating phone mockup + podium card ── */
@@ -175,6 +178,47 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
                   <div className="text-sm font-extrabold text-primary mt-1">12,5M FCFA</div>
                   <div className="text-[9px] text-emerald-600 font-bold">▲ +18% vs semaine -1</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Floating "Top vendeurs de la semaine" podium card */}
+            <div className="absolute -bottom-2 right-0 md:-right-4 z-20 animate-float-slow">
+              <div className="w-[260px] md:w-[300px] rounded-2xl bg-gradient-to-b from-[#1e3a5f]/95 to-[#0f1b3d] border border-white/10 shadow-2xl shadow-primary/30 p-4 backdrop-blur">
+                <div className="flex items-center justify-center gap-1.5 mb-3">
+                  <Crown className="w-3.5 h-3.5 text-[#c9a84c]" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c9a84c]">Top vendeurs · Semaine</span>
+                </div>
+                <div className="flex items-end justify-center gap-2">
+                  {/* #2 */}
+                  <div className="flex flex-col items-center w-[30%]">
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#d8d8e0] w-12 h-12">
+                      <img src={podiumDisplay[0]?.avatar_url || sellerDario} alt={firstName(podiumDisplay[0]?.full_name || "Dario")} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="text-[10px] font-semibold text-white mt-1 truncate w-full text-center">{firstName(podiumDisplay[0]?.full_name || "Dario")}</div>
+                    <div className="text-[11px] font-extrabold text-[#d8d8e0] tabular-nums">{compactFcfa(podiumDisplay[0]?.total_sales || 0)}</div>
+                    <div className="mt-1 w-full h-8 rounded-t-md bg-[#d8d8e0]/80 flex items-center justify-center text-[10px] font-extrabold text-[#0f1b3d]">2</div>
+                  </div>
+                  {/* #1 */}
+                  <div className="flex flex-col items-center w-[36%] -mt-3">
+                    <Crown className="w-4 h-4 text-[#c9a84c] drop-shadow-[0_0_6px_rgba(201,168,76,0.9)] mb-0.5" />
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#c9a84c] shadow-[0_0_20px_rgba(201,168,76,0.45)] w-16 h-16">
+                      <img src={podiumDisplay[1]?.avatar_url || sellerIrege} alt={firstName(podiumDisplay[1]?.full_name || "Irège")} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="text-[11px] font-bold text-white mt-1 truncate w-full text-center">{firstName(podiumDisplay[1]?.full_name || "Irège")}</div>
+                    <div className="text-sm font-extrabold text-[#c9a84c] tabular-nums">{compactFcfa(podiumDisplay[1]?.total_sales || 0)}</div>
+                    <div className="mt-1 w-full h-12 rounded-t-md bg-[#c9a84c] flex items-center justify-center text-[12px] font-extrabold text-[#0f1b3d]">1</div>
+                  </div>
+                  {/* #3 */}
+                  <div className="flex flex-col items-center w-[30%]">
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#c98a4c] w-12 h-12">
+                      <img src={podiumDisplay[2]?.avatar_url || sellerAnge} alt={firstName(podiumDisplay[2]?.full_name || "Ange")} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="text-[10px] font-semibold text-white mt-1 truncate w-full text-center">{firstName(podiumDisplay[2]?.full_name || "Ange")}</div>
+                    <div className="text-[11px] font-extrabold text-[#c98a4c] tabular-nums">{compactFcfa(podiumDisplay[2]?.total_sales || 0)}</div>
+                    <div className="mt-1 w-full h-6 rounded-t-md bg-[#c98a4c]/80 flex items-center justify-center text-[10px] font-extrabold text-[#0f1b3d]">3</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-center text-[9px] uppercase tracking-[0.2em] text-white/50">Mis à jour en temps réel</div>
               </div>
             </div>
 
