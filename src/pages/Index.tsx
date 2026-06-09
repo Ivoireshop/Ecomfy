@@ -3,9 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { 
-  Video, Image as ImageIcon, Globe, Zap, 
-  Code, CheckCircle2, ArrowRight, Wand2, Store,
-  GraduationCap, Rocket, ChevronRight, Star
+  Video, Image as ImageIcon, Globe, Zap,
+  Code, CheckCircle2, ArrowRight, Store,
+  GraduationCap, ChevronRight, Star
 } from "lucide-react";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Helmet } from "react-helmet";
