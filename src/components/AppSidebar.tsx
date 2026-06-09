@@ -142,7 +142,6 @@ export function AppSidebar() {
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
-    { title: t("sidebar.items.ordersDiag"), url: "/orders-diagnostic", icon: Activity },
     { title: "Documentation", url: "/docs", icon: Book },
     { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },
   ];
