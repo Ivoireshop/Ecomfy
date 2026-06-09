@@ -19,12 +19,8 @@ const AcceptShopInvite = () => {
       if (!token) { setStatus("error"); setMessage("Lien d'invitation invalide."); return; }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        const { data: inv } = await (supabase as any)
-          .from("shop_collaborators")
-          .select("invited_email")
-          .eq("invitation_token", token)
-          .maybeSingle();
-        if (inv?.invited_email) setInviteEmail(inv.invited_email);
+        const { data: email } = await (supabase as any).rpc("get_invite_email_by_token", { _token: token });
+        if (typeof email === "string" && email) setInviteEmail(email);
         setStatus("auth");
         return;
       }
