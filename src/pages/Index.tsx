@@ -235,11 +235,11 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
 const InnovationBento = () => {
   const navigate = useNavigate();
   const items = [
-    { n: "01", title: "Visuels publicitaires IA", desc: "Créez des visuels professionnels en quelques secondes pour toutes vos campagnes.", route: "/generator", color: "from-primary/15 to-primary/5" },
-    { n: "02", title: "Vidéos animées", desc: "Transformez vos produits en vidéos qui captivent et convertissent.", route: "/video-creator", color: "from-secondary/15 to-secondary/5" },
-    { n: "03", title: "Boutique e-commerce", desc: "Lancez votre boutique en ligne en 60 secondes, paiement local intégré.", route: "/shop-manager", color: "from-emerald-500/15 to-emerald-500/5" },
-    { n: "04", title: "Formations", desc: "Apprenez à vendre, convertir et faire passer votre business au niveau supérieur.", route: "/courses-manager", color: "from-amber-500/15 to-amber-500/5" },
-    { n: "05", title: "Communauté & Support", desc: "Échangez avec d'autres entrepreneurs et obtenez de l'aide en temps réel.", route: "/community", color: "from-pink-500/15 to-pink-500/5" },
+    { n: "01", title: "Visuels publicitaires IA", desc: "Créez des visuels professionnels en quelques secondes pour toutes vos campagnes.", route: "/generator", color: "from-primary/15 to-primary/5", img: bentoAds },
+    { n: "02", title: "Vidéos animées", desc: "Transformez vos produits en vidéos qui captivent et convertissent.", route: "/video-creator", color: "from-secondary/15 to-secondary/5", img: bentoVideo },
+    { n: "03", title: "Boutique e-commerce", desc: "Lancez votre boutique en ligne en 60 secondes, paiement local intégré.", route: "/shop-manager", color: "from-emerald-500/15 to-emerald-500/5", img: bentoEcom },
+    { n: "04", title: "Formations", desc: "Apprenez à vendre, convertir et faire passer votre business au niveau supérieur.", route: "/courses-manager", color: "from-amber-500/15 to-amber-500/5", img: bentoFormation },
+    { n: "05", title: "Communauté & Support", desc: "Échangez avec d'autres entrepreneurs et obtenez de l'aide en temps réel.", route: "/community", color: "from-pink-500/15 to-pink-500/5", img: bentoCommunity },
   ];
   return (
     <section id="services" className="py-20 md:py-28 bg-muted/20 border-y border-border/60">
@@ -263,8 +263,13 @@ const InnovationBento = () => {
               <div className="text-[10px] font-bold text-primary tracking-widest mb-3">{it.n}</div>
               <h3 className="text-base font-bold mb-2 leading-tight">{it.title}</h3>
               <p className="text-xs text-muted-foreground leading-relaxed mb-4 min-h-[3rem]">{it.desc}</p>
-              <div className="mt-auto h-24 rounded-lg bg-background/60 border border-border/60 flex items-center justify-center text-[10px] text-muted-foreground">
-                Aperçu
+              <div className="mt-auto h-28 rounded-lg overflow-hidden border border-border/60 bg-background/60">
+                <img
+                  src={it.img}
+                  alt={it.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
               </div>
               <div className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                 Explorer <ChevronRight className="w-3 h-3" />
