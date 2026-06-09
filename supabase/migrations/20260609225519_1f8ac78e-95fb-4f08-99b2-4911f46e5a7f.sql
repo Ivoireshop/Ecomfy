@@ -1,0 +1,1 @@
+REVOKE SELECT (domain_verification_code) ON public.showcase_sites FROM anon;
