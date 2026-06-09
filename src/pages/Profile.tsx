@@ -92,8 +92,11 @@ const Profile = () => {
           .from("avatars")
           .upload(path, pendingFile, { upsert: true, contentType: pendingFile.type });
         if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-        nextAvatarUrl = urlData.publicUrl;
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("avatars")
+          .createSignedUrl(path, 60 * 60 * 24 * 365);
+        if (signErr) throw signErr;
+        nextAvatarUrl = signed.signedUrl;
       }
       const { error } = await supabase
         .from("profiles")
