@@ -320,22 +320,11 @@ const Index = () => {
 
       {/* ===== CTA FINAL ===== */}
       {!session && (
-        <section className="py-16 md:py-24">
-          <div className="container mx-auto px-4">
-            <div className="relative max-w-4xl mx-auto rounded-3xl overflow-hidden shadow-2xl">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary to-secondary" />
-              <div className="relative p-10 md:p-16 text-center text-primary-foreground">
-                <Rocket className="w-12 h-12 mx-auto mb-6 opacity-90" />
-                <h2 className="text-3xl md:text-5xl font-extrabold mb-4">{t("landing.sections.ctaTitle")}</h2>
-                <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl mx-auto">{t("landing.sections.ctaSub")}</p>
-                <div className="flex justify-center w-full">
-                  <Button size="lg" className="text-lg px-10 py-7 bg-white text-primary hover:bg-white/90 shadow-xl hover:shadow-2xl font-bold" onClick={() => navigate("/auth")}>
-                    <Wand2 className="mr-2 h-5 w-5" />
-                    {t("landing.hero.ctaStart")}
-                  </Button>
-                </div>
-              </div>
-            </div>
+        <section className="py-12 md:py-16">
+          <div className="container mx-auto px-4 text-center">
+            <Button size="lg" className="text-base px-10 py-6 rounded-full" onClick={() => navigate("/auth")}>
+              Commencer gratuitement
+            </Button>
           </div>
         </section>
       )}
