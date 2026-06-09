@@ -8,6 +8,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import logo from "@/assets/visualpro-logo.svg";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { AICreditsBadge } from "@/components/AICreditsBadge";
 
 export function Header() {
   const navigate = useNavigate();
@@ -86,6 +87,7 @@ export function Header() {
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
             <LanguageSelector />
+            {isAuthenticated && <AICreditsBadge />}
             {!isAuthenticated && (
               <Button variant="ghost" onClick={() => navigate("/auth")}>
                 {t("common.login")}
