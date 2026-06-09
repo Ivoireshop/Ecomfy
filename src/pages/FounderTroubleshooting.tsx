@@ -677,7 +677,6 @@ export default function FounderTroubleshooting() {
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Button variant="outline" asChild><Link to="/boutiques-ecommerce">Tester page e-commerce</Link></Button>
                   <Button variant="outline" asChild><Link to="/shop-manager">Tester espace boutiques</Link></Button>
-                  <Button variant="outline" asChild><Link to="/orders-diagnostic">Diagnostic commandes avancé</Link></Button>
                 </div>
               </CardContent>
             </Card>
