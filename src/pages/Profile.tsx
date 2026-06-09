@@ -87,12 +87,12 @@ const Profile = () => {
       let nextAvatarUrl = avatarUrl;
       if (pendingFile) {
         const ext = pendingFile.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `avatars/${userId}-${Date.now()}.${ext}`;
+        const path = `${userId}/avatar-${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage
-          .from("shop-images")
+          .from("avatars")
           .upload(path, pendingFile, { upsert: true, contentType: pendingFile.type });
         if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("shop-images").getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
         nextAvatarUrl = urlData.publicUrl;
       }
       const { error } = await supabase
