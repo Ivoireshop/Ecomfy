@@ -148,6 +148,9 @@ const Generator = () => {
         return;
       }
 
+      // Auto-expire if past end_date before reading
+      await (await import("@/lib/subscriptionStatus")).refreshMySubscriptionStatus();
+
       // Check subscription (regular users)
       const { data: subData } = await supabase
         .from("subscriptions")

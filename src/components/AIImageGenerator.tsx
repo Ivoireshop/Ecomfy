@@ -83,6 +83,9 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
         setFreeVideoGenerationsRemaining(profile.free_video_generations_remaining);
       }
 
+      // Auto-expire subscription if past end_date before reading
+      await (await import("@/lib/subscriptionStatus")).refreshMySubscriptionStatus();
+
       // Check subscription status
       const { data: subscription } = await supabase
         .from("subscriptions")

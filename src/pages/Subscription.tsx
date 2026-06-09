@@ -129,6 +129,9 @@ const Subscription = () => {
 
   const loadSubscription = async () => {
     try {
+      // Force backend expiry check before reading
+      await (await import("@/lib/subscriptionStatus")).refreshMySubscriptionStatus();
+
       const { data, error } = await supabase
         .from("subscriptions")
         .select("*")

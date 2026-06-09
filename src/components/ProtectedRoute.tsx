@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { refreshMySubscriptionStatus } from "@/lib/subscriptionStatus";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -65,11 +66,14 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
       }
 
       const subRes = await withTimeout(
-        supabase
+        (async () => {
+          await refreshMySubscriptionStatus();
+          return supabase
           .from("subscriptions")
           .select("status")
           .eq("user_id", userId)
-          .single(),
+          .single();
+        })(),
         SUBSCRIPTION_CHECK_TIMEOUT_MS,
       );
       const subData = subRes?.data;
