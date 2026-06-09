@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Code, Key, Zap, Plus, Trash2, Copy, Eye, EyeOff, Globe, Webhook, Link2, BookOpen, Shield } from "lucide-react";
+import { Code, Key, Zap, Plus, Trash2, Copy, Eye, EyeOff, Globe, Webhook, Link2, BookOpen, Shield, Lock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,11 +27,21 @@ const ApiDocumentation = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user);
-      if (data.user) loadApiKeys();
+      if (!data.user) { setAllowed(false); return; }
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id)
+        // @ts-ignore
+        .in("role", ["founder", "co_founder"]);
+      const ok = !!(roles && roles.length);
+      setAllowed(ok);
+      if (ok) loadApiKeys();
     });
   }, []);
 
@@ -81,15 +92,38 @@ const ApiDocumentation = () => {
 
   const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
+  if (allowed === null) {
+    return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Chargement…</div>;
+  }
+  if (!allowed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card className="p-8 max-w-md text-center space-y-4">
+          <Lock className="h-10 w-10 mx-auto text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Accès restreint</h2>
+          <p className="text-sm text-muted-foreground">
+            La console API est réservée à l'équipe développeur. Pour découvrir les fonctionnalités de la plateforme, consultez la documentation publique.
+          </p>
+          <Button asChild><Link to="/">Retour à l'accueil</Link></Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <div className="container mx-auto px-4 py-16 max-w-6xl">
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/docs"><ArrowLeft className="w-4 h-4 mr-2" /> Retour à la documentation</Link>
+          </Button>
+        </div>
         <div className="text-center mb-12">
           <Code className="w-16 h-16 mx-auto mb-4 text-primary" />
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Documentation API VisualPro</h1>
-          <p className="text-muted-foreground text-lg">Intégrez la puissance de l'IA visuelle dans vos applications</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Console API VisualPro</h1>
+          <p className="text-muted-foreground text-lg">Gestion des clés et endpoints — accès développeur uniquement</p>
         </div>
 
         <Tabs defaultValue="api-keys" className="space-y-8">

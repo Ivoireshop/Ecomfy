@@ -117,7 +117,6 @@ export function AppSidebar() {
     { title: t("sidebar.items.referral"), url: "/referral", icon: Gift },
     { title: "Communauté", url: "/community", icon: Users },
     { title: t("sidebar.items.feedback"), url: "/feedback", icon: MessageSquare },
-    { title: t("sidebar.items.api"), url: "/api-documentation", icon: Code2 },
   ];
 
   useEffect(() => {
@@ -143,6 +142,7 @@ export function AppSidebar() {
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
     { title: "Documentation", url: "/docs", icon: Book },
+    { title: "Console API", url: "/api-documentation", icon: Code2 },
     { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },
   ];
 
