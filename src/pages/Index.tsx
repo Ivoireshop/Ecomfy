@@ -19,6 +19,13 @@ import entrepreneur1 from "@/assets/entrepreneur-1.jpg";
 import entrepreneur2 from "@/assets/entrepreneur-2.jpg";
 import entrepreneur3 from "@/assets/entrepreneur-3.jpg";
 import entrepreneur4 from "@/assets/entrepreneur-4.jpg";
+import vpLogo from "@/assets/visualpro-logo.svg";
+import heroDesktop from "@/assets/hero-desktop-dashboard.jpg";
+import bentoAds from "@/assets/bento-ads.jpg";
+import bentoVideo from "@/assets/bento-video.jpg";
+import bentoEcom from "@/assets/bento-ecommerce.jpg";
+import bentoFormation from "@/assets/bento-formation.jpg";
+import bentoCommunity from "@/assets/bento-community.jpg";
 const OnboardingTutorial = lazy(() =>
   import("@/components/OnboardingTutorial").then((m) => ({ default: m.OnboardingTutorial }))
 );
