@@ -33,7 +33,7 @@ export function UserAvatar() {
 
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("full_name, email, avatar_url")
         .eq("id", user.id)
         .single();
 
