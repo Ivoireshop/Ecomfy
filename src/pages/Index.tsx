@@ -18,6 +18,7 @@ const OnboardingTutorial = lazy(() =>
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useTranslation } from "react-i18next";
 const LandingMediaSections = lazy(() => import("@/components/LandingMediaSections"));
+const TopSellersLeaderboard = lazy(() => import("@/components/TopSellersLeaderboard"));
 const LandingTeamSection = lazy(() =>
   import("@/components/LandingMediaSections").then((module) => ({ default: module.LandingTeamSection }))
 );
@@ -163,6 +164,12 @@ const Index = () => {
       </section>
 
       {/* ===== SERVICE HUB (logged in) ===== */}
+      {loadDeferredSections && (
+        <Suspense fallback={null}>
+          <TopSellersLeaderboard />
+        </Suspense>
+      )}
+
       {session && (
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
