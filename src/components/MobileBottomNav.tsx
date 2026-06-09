@@ -23,10 +23,9 @@ const allItems = [
   { title: "Historique", url: "/payment-history", icon: Receipt },
   { title: "Parrainage", url: "/referral", icon: Gift },
   { title: "Avis", url: "/feedback", icon: MessageSquare },
-  { title: "API", url: "/api-documentation", icon: Code2 },
 ];
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/legal-notice"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/legal-notice"];
 
 export function MobileBottomNav() {
   const location = useLocation();

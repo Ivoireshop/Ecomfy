@@ -432,9 +432,11 @@ CREATE POLICY "owner_rw" ON public.exemple FOR ALL TO authenticated
     title: "API publique & intégrations",
     icon: Code2,
     category: "API",
-    summary: "Clés vp_..., N8N/Zapier, webhooks.",
+    summary: "Console API, clés vp_..., N8N/Zapier, webhooks.",
     body: [
-      { type: "p", text: "Clés API au format vp_XXXX gérées dans /api-documentation. Guides N8N et Zapier inclus." },
+      { type: "p", text: "La gestion des clés API (création, rotation, révocation) et les exemples d'endpoints sont regroupés dans la Console API interne, accessible uniquement à l'équipe développeur." },
+      { type: "callout", tone: "info", text: "Ouvrir la Console API : /api-documentation (réservée fondateur / co-fondateur)." },
+      { type: "p", text: "Format des clés : vp_XXXXXXXXXXXXXXXX. Guides d'intégration N8N et Zapier inclus dans la console." },
       { type: "h", text: "Authentification" },
       { type: "code", lang: "http", text:
 `POST https://<projet>.functions.supabase.co/<function>

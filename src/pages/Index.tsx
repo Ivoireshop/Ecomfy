@@ -523,7 +523,6 @@ const Index = () => {
     { icon: Video, key: "videos", color: "from-blue-500 to-cyan-500", bgLight: "bg-blue-50 dark:bg-blue-950/30", route: "/video-creator" },
     { icon: Store, key: "shops", color: "from-emerald-500 to-teal-500", bgLight: "bg-emerald-50 dark:bg-emerald-950/30", route: "/shop-manager" },
     { icon: GraduationCap, key: "courses", color: "from-amber-500 to-yellow-500", bgLight: "bg-amber-50 dark:bg-amber-950/30", route: "/courses-manager" },
-    { icon: Code, key: "api", color: "from-slate-500 to-gray-500", bgLight: "bg-slate-50 dark:bg-slate-950/30", route: "/api-documentation" },
   ] as const;
 
   return (
