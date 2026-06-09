@@ -7,13 +7,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
   full_name: string | null;
   email: string | null;
+  avatar_url: string | null;
 }
 
 export function UserAvatar() {
@@ -32,7 +33,7 @@ export function UserAvatar() {
 
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("full_name, email, avatar_url")
         .eq("id", user.id)
         .single();
 
@@ -70,6 +71,7 @@ export function UserAvatar() {
       <PopoverTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
           <Avatar className="h-10 w-10 border-2 border-primary/20 cursor-pointer hover:border-primary transition-colors">
+            <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || "Avatar"} />
             <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white font-semibold">
               {getInitials(profile?.full_name || profile?.email || null)}
             </AvatarFallback>
@@ -94,6 +96,15 @@ export function UserAvatar() {
             </div>
           </div>
           <div className="border-t pt-2 space-y-1">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              size="sm"
+              onClick={() => navigate("/profile")}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Mon profil
+            </Button>
             <Button
               variant="ghost"
               className="w-full justify-start"
