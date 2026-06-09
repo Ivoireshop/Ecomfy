@@ -88,7 +88,6 @@ const BoutiquesEcommerce = lazyWithRetry(() => import("./pages/BoutiquesEcommerc
 const Community = lazyWithRetry(() => import("./pages/Community"));
 const VideoCreator = lazyWithRetry(() => import("./pages/VideoCreator"));
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
-const OrdersDiagnostic = lazyWithRetry(() => import("./pages/OrdersDiagnostic"));
 const AcceptShopInvite = lazyWithRetry(() => import("./pages/AcceptShopInvite"));
 const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
 const Health = lazyWithRetry(() => import("./pages/Health"));
@@ -226,14 +225,6 @@ const AppContent = () => {
                 <FounderDashboard />
               </ProtectedRoute>
             } 
-          />
-          <Route
-            path="/orders-diagnostic"
-            element={
-              <ProtectedRoute>
-                <OrdersDiagnostic />
-              </ProtectedRoute>
-            }
           />
           <Route
             path="/founder-troubleshooting"
