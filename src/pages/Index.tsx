@@ -14,6 +14,11 @@ import { Helmet } from "react-helmet";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import founderImage from "@/assets/founder-ulrich-djate.jpg";
+import entrepreneur1 from "@/assets/entrepreneur-1.jpg";
+import entrepreneur2 from "@/assets/entrepreneur-2.jpg";
+import entrepreneur3 from "@/assets/entrepreneur-3.jpg";
+import entrepreneur4 from "@/assets/entrepreneur-4.jpg";
 const OnboardingTutorial = lazy(() =>
   import("@/components/OnboardingTutorial").then((m) => ({ default: m.OnboardingTutorial }))
 );
@@ -25,9 +30,59 @@ const LandingTeamSection = lazy(() =>
   import("@/components/LandingMediaSections").then((module) => ({ default: module.LandingTeamSection }))
 );
 
+/* Compact amount formatter — 3 200 000 → "3M", 540 000 → "540k" */
+const compactFcfa = (n: number): string => {
+  if (!n || n < 1000) return `${Math.round(n)}`;
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}M`;
+  }
+  const v = n / 1000;
+  return `${Math.round(v)}k`;
+};
+
+type PodiumSeller = {
+  shop_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  total_sales: number;
+};
+
+const FALLBACK_PODIUM: PodiumSeller[] = [
+  { shop_id: "f1", full_name: "Eloïse D.",   avatar_url: null, total_sales: 3_200_000 },
+  { shop_id: "f2", full_name: "Boga M.",     avatar_url: null, total_sales: 540_000   },
+  { shop_id: "f3", full_name: "Aminata K.",  avatar_url: null, total_sales: 310_000   },
+];
+
 /* ── EasyAfrik-style Hero with floating phone mockup + podium card ── */
 const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscover: () => void }) => {
   const { t } = useTranslation();
+  const [podium, setPodium] = useState<PodiumSeller[]>(FALLBACK_PODIUM);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.rpc("get_top_sellers", { p_limit: 3 });
+        const rows = (data as PodiumSeller[]) || [];
+        if (rows.length >= 3) setPodium(rows.slice(0, 3));
+      } catch { /* keep fallback */ }
+    })();
+  }, []);
+  // Reorder for podium display: [#2, #1, #3]
+  const podiumDisplay = [podium[1], podium[0], podium[2]].filter(Boolean) as PodiumSeller[];
+  const firstName = (n: string | null) => (n?.trim().split(/\s+/)[0]) || "Vendeur";
+  const initials = (n: string | null) => {
+    const p = (n || "").trim().split(/\s+/).filter(Boolean);
+    return (p.length >= 2 ? p[0][0] + p[p.length - 1][0] : (p[0]?.[0] || "?")).toUpperCase();
+  };
+
+  const trustPeople = [
+    { src: founderImage,     alt: "Eloïse Djaté, fondateur" },
+    { src: entrepreneur1,    alt: "Entrepreneuse ivoirienne" },
+    { src: entrepreneur2,    alt: "Entrepreneur burkinabé" },
+    { src: entrepreneur3,    alt: "Entrepreneuse béninoise" },
+    { src: entrepreneur4,    alt: "Entrepreneur africain-américain" },
+  ];
+
   return (
     <section className="relative overflow-hidden">
       {/* soft brand glows */}
@@ -75,8 +130,16 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
             </div>
             <div className="flex items-center gap-3">
               <div className="flex -space-x-2">
-                {["#fca5a5","#fcd34d","#86efac","#93c5fd","#c4b5fd"].map((c,i)=>(
-                  <span key={i} className="w-7 h-7 rounded-full border-2 border-background" style={{ background: c }} />
+                {trustPeople.map((p, i) => (
+                  <img
+                    key={i}
+                    src={p.src}
+                    alt={p.alt}
+                    loading="lazy"
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 rounded-full border-2 border-background object-cover"
+                  />
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -96,46 +159,76 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
                     <div className="text-[10px] font-bold tracking-wide">VisualPro</div>
                     <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   </div>
+                  {/* Chiffre du jour */}
                   <div className="px-3 py-2 text-[9px] uppercase tracking-widest text-muted-foreground">Chiffre du jour</div>
-                  <div className="px-3 text-lg font-extrabold text-primary">12,5M FCFA</div>
-                  <div className="px-3 mt-3 text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Produits</div>
-                  <div className="px-3 grid grid-cols-2 gap-2">
-                    {[0,1,2,3].map(i=>(
-                      <div key={i} className="aspect-square rounded-lg bg-muted relative overflow-hidden">
-                        <div className="absolute inset-2 rounded-md bg-gradient-to-br from-primary/30 to-secondary/30" />
-                      </div>
-                    ))}
+                  <div className="px-3 flex items-baseline gap-2">
+                    <span className="text-lg font-extrabold text-primary">12,5M FCFA</span>
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600">
+                      ▲ +18%
+                    </span>
                   </div>
-                  <div className="mt-auto px-3 py-3 border-t border-border/60 flex items-center justify-between">
-                    <div className="text-[9px] text-muted-foreground">Commandes</div>
-                    <div className="text-[11px] font-bold text-primary">+24 aujourd'hui</div>
+                  {/* Statistiques boutique */}
+                  <div className="px-3 mt-3 text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Statistiques boutique</div>
+                  <div className="px-3 grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2">
+                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Cmd. du jour</div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-sm font-extrabold text-foreground">+24</span>
+                        <span className="text-[9px] font-bold text-emerald-600">▲ 12%</span>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2">
+                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Total cmd.</div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-sm font-extrabold text-foreground">1 248</span>
+                        <span className="text-[9px] font-bold text-emerald-600">▲ 7%</span>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2 col-span-2">
+                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground mb-1">Commandes validées</div>
+                      <div className="flex items-end gap-1 h-8">
+                        {[40,55,48,72,60,85,95].map((h,i)=>(
+                          <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-primary to-primary/40" style={{ height: `${h}%` }} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-auto px-3 py-2.5 border-t border-border/60 flex items-center justify-between">
+                    <div className="text-[9px] text-muted-foreground">Taux conversion</div>
+                    <div className="text-[11px] font-bold text-emerald-600">▲ 3,8%</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Leaderboard card */}
+            {/* Leaderboard card — top vendeurs réels */}
             <div className="absolute right-0 top-16 md:top-12 w-[270px] md:w-[320px] animate-float-slow">
               <div className="rounded-2xl bg-[#0f1b3d] text-white p-5 shadow-2xl border border-white/10">
                 <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-white/70 mb-4">
                   <Crown className="w-3.5 h-3.5 text-[#c9a84c]" /> Classement de la semaine
                 </div>
                 <div className="flex items-end justify-center gap-3 mb-4">
-                  {[
-                    { name: "Mariama D.", amount: "91k", rank: 2, h: "h-14" },
-                    { name: "Moustapha B.", amount: "132k", rank: 1, h: "h-20" },
-                    { name: "Aminata K.", amount: "78k", rank: 3, h: "h-12" },
-                  ].map((s, i) => {
-                    const ring = s.rank===1 ? "ring-[#c9a84c]" : s.rank===2 ? "ring-[#d8d8e0]" : "ring-[#c98a4c]";
+                  {podiumDisplay.map((s, i) => {
+                    // i=0 → #2 (left), i=1 → #1 (center), i=2 → #3 (right)
+                    const rank = i === 0 ? 2 : i === 1 ? 1 : 3;
+                    const ring = rank===1 ? "ring-[#c9a84c]" : rank===2 ? "ring-[#d8d8e0]" : "ring-[#c98a4c]";
+                    const size = rank===1 ? "w-16 h-16" : "w-12 h-12";
+                    const barH = rank===1 ? "h-20" : rank===2 ? "h-14" : "h-12";
                     return (
-                      <div key={i} className="flex flex-col items-center w-1/3">
-                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary ring-2 ring-offset-2 ring-offset-[#0f1b3d] ${ring} flex items-center justify-center text-xs font-bold relative`}>
-                          {s.name.split(' ').map(n=>n[0]).join('')}
-                          {s.rank===1 && <Crown className="absolute -top-3 w-3.5 h-3.5 text-[#c9a84c]" />}
+                      <div key={s.shop_id} className="flex flex-col items-center w-1/3">
+                        <div className={`${size} rounded-full bg-gradient-to-br from-primary to-secondary ring-2 ring-offset-2 ring-offset-[#0f1b3d] ${ring} overflow-hidden flex items-center justify-center text-xs font-bold relative`}>
+                          {s.avatar_url ? (
+                            <img src={s.avatar_url} alt={firstName(s.full_name)} loading="lazy" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{initials(s.full_name)}</span>
+                          )}
+                          {rank===1 && <Crown className="absolute -top-3 w-4 h-4 text-[#c9a84c] drop-shadow-[0_0_6px_rgba(201,168,76,0.9)]" />}
                         </div>
-                        <div className="mt-1.5 text-[10px] font-medium text-center truncate w-full">{s.name}</div>
-                        <div className="text-[10px] font-bold text-[#c9a84c]">{s.amount}</div>
-                        <div className={`mt-1.5 w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary/10 ${s.h}`} />
+                        <div className="mt-1.5 text-[10px] font-medium text-center truncate w-full">{firstName(s.full_name)}</div>
+                        <div className={`text-xs font-extrabold ${rank===1 ? "text-[#c9a84c]" : "text-white"}`}>
+                          {compactFcfa(s.total_sales)}
+                        </div>
+                        <div className={`mt-1.5 w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary/10 ${barH}`} />
                       </div>
                     );
                   })}
