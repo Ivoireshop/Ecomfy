@@ -12,7 +12,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Hash, Pin, Smile, Send, Reply, Trash2, MoreVertical, X, ShieldCheck, AtSign, ChevronUp, ChevronDown } from "lucide-react";
+import { Hash, Pin, Smile, Send, Reply, Trash2, MoreVertical, X, ShieldCheck, AtSign, ChevronUp, ChevronDown, Volume2, Square, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -69,6 +69,8 @@ const Community = () => {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionList, setMentionList] = useState<ProfileLite[]>([]);
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -116,12 +118,47 @@ const Community = () => {
     setTimeout(() => scrollToBottom(false), 50);
   };
 
+  const speakMessage = (m: Message) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      toast.error("Lecture vocale non supportée sur ce navigateur");
+      return;
+    }
+    const synth = window.speechSynthesis;
+    if (speakingId === m.id) {
+      synth.cancel();
+      setSpeakingId(null);
+      return;
+    }
+    synth.cancel();
+    const cleaned = (m.body || "").replace(/@([\p{L}0-9_.-]+)/gu, "$1").trim();
+    if (!cleaned) return;
+    const u = new SpeechSynthesisUtterance(cleaned);
+    const voices = synth.getVoices();
+    const fr = voices.find((v) => /fr(-|_)?/i.test(v.lang)) || voices.find((v) => v.lang?.toLowerCase().startsWith("fr"));
+    if (fr) u.voice = fr;
+    u.lang = fr?.lang || "fr-FR";
+    u.rate = 1;
+    u.pitch = 1;
+    u.onend = () => setSpeakingId((id) => (id === m.id ? null : id));
+    u.onerror = () => setSpeakingId((id) => (id === m.id ? null : id));
+    setSpeakingId(m.id);
+    synth.speak(u);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!session?.user) return;
     void loadMessages();
 
     const channel = supabase
-      .channel("community_messages_live")
+      .channel("community_messages_live", { config: { presence: { key: session.user.id } } })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "community_messages" },
@@ -148,7 +185,15 @@ const Community = () => {
           setMessages((prev) => prev.filter((x) => x.id !== id));
         }
       )
-      .subscribe();
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState() as Record<string, unknown[]>;
+        setOnlineCount(Object.keys(state).length);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
+        }
+      });
 
     return () => { void supabase.removeChannel(channel); };
   }, [session?.user]);
@@ -254,7 +299,16 @@ const Community = () => {
               Discussion générale de la communauté
             </span>
           </div>
-          {pinnedMessages.length > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 px-2 py-1 rounded-full" title={`${onlineCount} membre${onlineCount > 1 ? "s" : ""} en ligne`}>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              <span className="font-medium tabular-nums">{onlineCount}</span>
+              <span className="hidden sm:inline">en ligne</span>
+            </div>
+            {pinnedMessages.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -265,7 +319,8 @@ const Community = () => {
               <span className="hidden sm:inline">{pinnedMessages.length} épinglé{pinnedMessages.length > 1 ? "s" : ""}</span>
               {showPinned ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </Button>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Pinned banner */}
@@ -349,6 +404,15 @@ const Community = () => {
                       </div>
                     </div>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-start gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => speakMessage(m)}
+                        title={speakingId === m.id ? "Arrêter la lecture" : "Écouter le message"}
+                      >
+                        {speakingId === m.id ? <Square className="w-3.5 h-3.5 text-primary" /> : <Volume2 className="w-3.5 h-3.5" />}
+                      </Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setReplyTo(m); textareaRef.current?.focus(); }} title="Répondre">
                         <Reply className="w-3.5 h-3.5" />
                       </Button>
