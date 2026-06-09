@@ -3867,6 +3867,7 @@ export type Database = {
         Args: { _limit?: number; _user_id: string }
         Returns: Json
       }
+      get_invite_email_by_token: { Args: { _token: string }; Returns: string }
       get_my_subscription_status: { Args: never; Returns: Json }
       get_next_queue_item: { Args: never; Returns: string }
       get_public_product_page: {
