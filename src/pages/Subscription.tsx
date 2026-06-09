@@ -39,7 +39,6 @@ const Subscription = () => {
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [purchasedCredits, setPurchasedCredits] = useState(0);
   const [selectedPack, setSelectedPack] = useState<{size: number, price: number} | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'startup'>('pro');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -201,12 +200,15 @@ const Subscription = () => {
     method: string,
     options?: { provider?: string; phone?: string }
   ) => {
+    if (!selectedPack) {
+      toast({ title: "Choisissez un pack", description: "Sélectionnez un pack de crédits avant de payer.", variant: "destructive" });
+      return;
+    }
     setIsProcessing(true);
     const paymentWindow = openPaymentWindow();
     try {
-      const planAmount = selectedPlan === 'startup' ? 50000 : 10000;
-      const amount = selectedPack ? selectedPack.price : planAmount;
-      const paymentType = selectedPack ? 'credits' : 'subscription';
+      const amount = selectedPack.price;
+      const paymentType = 'credits';
       
       const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
@@ -217,7 +219,7 @@ const Subscription = () => {
           phone: options?.phone,
           promo_code: promoCode.trim().toUpperCase() || undefined,
           payment_type: paymentType,
-          credits_pack: selectedPack ? { size: selectedPack.size, price: selectedPack.price } : undefined,
+          credits_pack: { size: selectedPack.size, price: selectedPack.price },
         },
       });
 
@@ -272,16 +274,7 @@ const Subscription = () => {
   ];
 
   const comparisonFeatures = [
-    { name: "Générations d'images", free: "3 / mois", pro: "Illimitées", startup: "Illimitées" },
-    { name: "Générations de vidéos", free: "1 / mois", pro: "5 / mois", startup: "Illimitées" },
-    { name: "Sites vitrine", free: "❌", pro: "Illimités", startup: "Illimités" },
-    { name: "Clés API", free: "❌", pro: "❌", startup: "✅" },
-    { name: "Édition d'images IA", free: "❌", pro: "✅", startup: "✅" },
-    { name: "Tous les styles", free: "Limité", pro: "✅", startup: "✅" },
-    { name: "Formats multiples", free: "❌", pro: "✅", startup: "✅" },
-    { name: "Génération prioritaire", free: "❌", pro: "✅", startup: "✅" },
-    { name: "Support prioritaire", free: "❌", pro: "✅", startup: "Dédié 24/7" },
-  ];
+  ] as const;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
