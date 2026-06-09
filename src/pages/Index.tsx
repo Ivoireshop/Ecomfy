@@ -56,7 +56,7 @@ type PodiumSeller = {
 };
 
 const FALLBACK_PODIUM: PodiumSeller[] = [
-  { shop_id: "f1", full_name: "Ulrich Djaté",         avatar_url: null, total_sales: 3_200_000 },
+  { shop_id: "f1", full_name: "Ulrich Djaté",         avatar_url: founderImage, total_sales: 3_200_000 },
   { shop_id: "f2", full_name: "Dali Boga",            avatar_url: null, total_sales: 1_850_000 },
   { shop_id: "f3", full_name: "Gouamené Gagouehi",    avatar_url: null, total_sales: 1_240_000 },
 ];
@@ -188,8 +188,12 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
                 <div className="flex items-end justify-center gap-2">
                   {/* #2 */}
                   <div className="flex flex-col items-center w-[30%]">
-                    <div className="rounded-full ring-2 ring-[#d8d8e0] w-12 h-12 flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] to-[#0f1b3d] text-[#d8d8e0] font-extrabold text-sm">
-                      {initials(podiumDisplay[0]?.full_name || "Dali Boga")}
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#d8d8e0] w-12 h-12 flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] to-[#0f1b3d] text-[#d8d8e0] font-extrabold text-sm">
+                      {podiumDisplay[0]?.avatar_url ? (
+                        <img src={podiumDisplay[0].avatar_url} alt={fullName(podiumDisplay[0].full_name)} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        initials(podiumDisplay[0]?.full_name || "Dali Boga")
+                      )}
                     </div>
                     <div className="text-[10px] font-semibold text-white mt-1 truncate w-full text-center">{fullName(podiumDisplay[0]?.full_name || "Dali Boga")}</div>
                     <div className="text-[11px] font-extrabold text-[#d8d8e0] tabular-nums">{compactFcfa(podiumDisplay[0]?.total_sales || 0)}</div>
@@ -198,8 +202,12 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
                   {/* #1 */}
                   <div className="flex flex-col items-center w-[36%] -mt-3">
                     <Crown className="w-4 h-4 text-[#c9a84c] drop-shadow-[0_0_6px_rgba(201,168,76,0.9)] mb-0.5" />
-                    <div className="rounded-full ring-2 ring-[#c9a84c] shadow-[0_0_20px_rgba(201,168,76,0.45)] w-16 h-16 flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] to-[#0f1b3d] text-[#c9a84c] font-extrabold text-lg">
-                      {initials(podiumDisplay[1]?.full_name || "Ulrich Djaté")}
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#c9a84c] shadow-[0_0_20px_rgba(201,168,76,0.45)] w-16 h-16 flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] to-[#0f1b3d] text-[#c9a84c] font-extrabold text-lg">
+                      {podiumDisplay[1]?.avatar_url ? (
+                        <img src={podiumDisplay[1].avatar_url} alt={fullName(podiumDisplay[1].full_name)} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        initials(podiumDisplay[1]?.full_name || "Ulrich Djaté")
+                      )}
                     </div>
                     <div className="text-[11px] font-bold text-white mt-1 truncate w-full text-center">{fullName(podiumDisplay[1]?.full_name || "Ulrich Djaté")}</div>
                     <div className="text-sm font-extrabold text-[#c9a84c] tabular-nums">{compactFcfa(podiumDisplay[1]?.total_sales || 0)}</div>
@@ -207,8 +215,12 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
                   </div>
                   {/* #3 */}
                   <div className="flex flex-col items-center w-[30%]">
-                    <div className="rounded-full ring-2 ring-[#c98a4c] w-12 h-12 flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] to-[#0f1b3d] text-[#c98a4c] font-extrabold text-sm">
-                      {initials(podiumDisplay[2]?.full_name || "Gouamené Gagouehi")}
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#c98a4c] w-12 h-12 flex items-center justify-center bg-gradient-to-br from-[#1e3a5f] to-[#0f1b3d] text-[#c98a4c] font-extrabold text-sm">
+                      {podiumDisplay[2]?.avatar_url ? (
+                        <img src={podiumDisplay[2].avatar_url} alt={fullName(podiumDisplay[2].full_name)} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        initials(podiumDisplay[2]?.full_name || "Gouamené Gagouehi")
+                      )}
                     </div>
                     <div className="text-[10px] font-semibold text-white mt-1 truncate w-full text-center">{fullName(podiumDisplay[2]?.full_name || "Gouamené Gagouehi")}</div>
                     <div className="text-[11px] font-extrabold text-[#c98a4c] tabular-nums">{compactFcfa(podiumDisplay[2]?.total_sales || 0)}</div>
