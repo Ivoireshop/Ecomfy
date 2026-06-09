@@ -100,6 +100,15 @@ export function UserAvatar() {
               variant="ghost"
               className="w-full justify-start"
               size="sm"
+              onClick={() => navigate("/profile")}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Mon profil
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              size="sm"
               onClick={() => navigate("/subscription")}
             >
               <User className="mr-2 h-4 w-4" />
