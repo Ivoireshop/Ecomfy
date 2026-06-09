@@ -1063,6 +1063,66 @@ export type Database = {
           },
         ]
       }
+      delivery_providers: {
+        Row: {
+          base_price: number | null
+          city: string | null
+          company_name: string
+          contact_email: string | null
+          contact_phone: string
+          coverage_areas: string[] | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_recommended: boolean
+          is_verified: boolean
+          logo_url: string | null
+          slug: string | null
+          updated_at: string
+          user_id: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          base_price?: number | null
+          city?: string | null
+          company_name: string
+          contact_email?: string | null
+          contact_phone: string
+          coverage_areas?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_recommended?: boolean
+          is_verified?: boolean
+          logo_url?: string | null
+          slug?: string | null
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          base_price?: number | null
+          city?: string | null
+          company_name?: string
+          contact_email?: string | null
+          contact_phone?: string
+          coverage_areas?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_recommended?: boolean
+          is_verified?: boolean
+          logo_url?: string | null
+          slug?: string | null
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
       device_tokens: {
         Row: {
           created_at: string
@@ -1638,6 +1698,8 @@ export type Database = {
           customer_email: string | null
           customer_name: string
           customer_phone: string
+          delivery_provider_id: string | null
+          delivery_transferred_at: string | null
           id: string
           is_read: boolean | null
           notes: string | null
@@ -1660,6 +1722,8 @@ export type Database = {
           customer_email?: string | null
           customer_name: string
           customer_phone: string
+          delivery_provider_id?: string | null
+          delivery_transferred_at?: string | null
           id?: string
           is_read?: boolean | null
           notes?: string | null
@@ -1682,6 +1746,8 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string
+          delivery_provider_id?: string | null
+          delivery_transferred_at?: string | null
           id?: string
           is_read?: boolean | null
           notes?: string | null
@@ -1696,6 +1762,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_delivery_provider_id_fkey"
+            columns: ["delivery_provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_shop_id_fkey"
             columns: ["shop_id"]
@@ -2352,6 +2425,58 @@ export type Database = {
           },
           {
             foreignKeyName: "shop_collaborators_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_delivery_connections: {
+        Row: {
+          auto_transfer: boolean
+          created_at: string
+          delivery_provider_id: string
+          id: string
+          shop_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auto_transfer?: boolean
+          created_at?: string
+          delivery_provider_id: string
+          id?: string
+          shop_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_transfer?: boolean
+          created_at?: string
+          delivery_provider_id?: string
+          id?: string
+          shop_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_delivery_connections_delivery_provider_id_fkey"
+            columns: ["delivery_provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_delivery_connections_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_delivery_connections_shop_id_fkey"
             columns: ["shop_id"]
             isOneToOne: false
             referencedRelation: "shops_public"
@@ -3979,7 +4104,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "founder" | "co_founder"
+      app_role: "admin" | "user" | "founder" | "co_founder" | "delivery"
       shop_collab_role:
         | "view_orders"
         | "edit_shop"
@@ -4112,7 +4237,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "founder", "co_founder"],
+      app_role: ["admin", "user", "founder", "co_founder", "delivery"],
       shop_collab_role: [
         "view_orders",
         "edit_shop",
