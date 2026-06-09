@@ -94,6 +94,7 @@ const AiQuota = lazyWithRetry(() => import("./pages/AiQuota"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const DeliverySignup = lazyWithRetry(() => import("./pages/DeliverySignup"));
 const DeliveryDashboard = lazyWithRetry(() => import("./pages/DeliveryDashboard"));
+const FounderRoute = lazyWithRetry(() => import("./components/FounderRoute"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
@@ -291,7 +292,7 @@ const AppContent = () => {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/cookies-policy" element={<CookiesPolicy />} />
-          <Route path="/api-documentation" element={<ProtectedRoute><ApiDocumentation /></ProtectedRoute>} />
+          <Route path="/api-documentation" element={<FounderRoute><ApiDocumentation /></FounderRoute>} />
           <Route path="/legal-notice" element={<LegalNotice />} />
           <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
           <Route path="/courses-manager" element={<ProtectedRoute><CoursesManager /></ProtectedRoute>} />
@@ -310,7 +311,7 @@ const AppContent = () => {
           <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
           <Route path="/delivery-signup" element={<ProtectedRoute><DeliverySignup /></ProtectedRoute>} />
           <Route path="/delivery-dashboard" element={<ProtectedRoute><DeliveryDashboard /></ProtectedRoute>} />
-          <Route path="/docs" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
+          <Route path="/docs" element={<FounderRoute><Documentation /></FounderRoute>} />
           <Route path="/health" element={<Health />} />
           <Route path="/healthz" element={<Health />} />
           <Route path="*" element={<NotFound />} />
