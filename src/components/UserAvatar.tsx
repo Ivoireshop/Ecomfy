@@ -71,6 +71,7 @@ export function UserAvatar() {
       <PopoverTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
           <Avatar className="h-10 w-10 border-2 border-primary/20 cursor-pointer hover:border-primary transition-colors">
+            <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || "Avatar"} />
             <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white font-semibold">
               {getInitials(profile?.full_name || profile?.email || null)}
             </AvatarFallback>
