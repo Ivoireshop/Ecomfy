@@ -95,6 +95,7 @@ const AcceptShopInvite = lazyWithRetry(() => import("./pages/AcceptShopInvite"))
 const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
 const Health = lazyWithRetry(() => import("./pages/Health"));
 const AiQuota = lazyWithRetry(() => import("./pages/AiQuota"));
+const Profile = lazyWithRetry(() => import("./pages/Profile"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
