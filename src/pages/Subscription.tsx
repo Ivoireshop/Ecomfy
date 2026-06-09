@@ -587,14 +587,6 @@ const Subscription = () => {
 
               {/* Pricing Section */}
             <div id="pricing-section" className="max-w-4xl mx-auto">
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold mb-2">Paiement de l'Abonnement Mensuel</h3>
-                <p className="text-muted-foreground">
-                  Plan sélectionné : <span className="font-bold text-primary">
-                    {selectedPlan === 'pro' ? 'Pro' : 'Startup'}
-                  </span> - {selectedPlan === 'pro' ? '10 000' : '50 000'} FCFA/mois
-                </p>
-              </div>
               {/* Promo Code */}
               <Card className="mb-8">
                 <CardHeader>
@@ -637,82 +629,27 @@ const Subscription = () => {
                     <div className="flex items-center gap-2 mt-2 p-3 bg-primary/10 rounded-lg">
                       <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
                       <p className="text-sm text-primary font-medium">
-                        Excellent ! Réduction de {promoDiscount}% appliquée - Économisez {Math.round((selectedPlan === 'startup' ? 50000 : 10000) * promoDiscount / 100).toLocaleString()} FCFA
+                        Réduction de {promoDiscount}% appliquée sur votre pack.
                       </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Payment Methods */}
-              {!selectedPack && (
-                <Card className="border-2 border-primary/20 shadow-xl">
-                <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
-                  <CardTitle className="text-2xl">Choisissez votre méthode de paiement</CardTitle>
-                  <CardDescription>
-                    Paiement sécurisé - Activation immédiate après confirmation
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="grid gap-4 md:grid-cols-2 mb-6">
-                    <Button
-                      variant="outline"
-                      className="h-auto py-8 flex flex-col items-center gap-3 hover:border-primary hover:bg-primary/5 transition-all"
-                      onClick={() => setShowMMModal(true)}
-                      disabled={isProcessing}
-                    >
-                      <Smartphone className="h-10 w-10 text-primary" />
-                      <div className="text-center">
-                        <div className="font-semibold text-lg mb-1">Mobile Money</div>
-                        <div className="text-xs text-muted-foreground">
-                          Orange, MTN, Moov, Wave
-                        </div>
-                      </div>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="h-auto py-8 flex flex-col items-center gap-3 hover:border-primary hover:bg-primary/5 transition-all"
-                      onClick={() => handlePayment("card")}
-                      disabled={isProcessing}
-                    >
-                      <CreditCard className="h-10 w-10 text-primary" />
-                      <div className="text-center">
-                        <div className="font-semibold text-lg mb-1">Carte Bancaire</div>
-                        <div className="text-xs text-muted-foreground">
-                          Visa, Mastercard
-                        </div>
-                      </div>
-                    </Button>
-                  </div>
-
-                  {isProcessing && (
-                    <div className="text-center py-8 bg-primary/5 rounded-lg">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-3" />
-                      <p className="text-sm font-medium">
-                        Redirection vers le paiement sécurisé...
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Trust badges */}
-                  <div className="flex items-center justify-center gap-6 mt-6 pt-6 border-t text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Paiement sécurisé
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Activation instantanée
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Support 24/7
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              )}
+              <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Paiement sécurisé
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Crédits ajoutés immédiatement
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Support 24/7
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -754,9 +691,9 @@ const Subscription = () => {
                 onChange={(e) => setMmPhone(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Le montant {promoDiscount > 0 
-                  ? `de ${Math.round((selectedPlan === 'startup' ? 50000 : 10000) * (1 - promoDiscount / 100)).toLocaleString()} FCFA` 
-                  : `de ${(selectedPlan === 'startup' ? '50 000' : '10 000')} FCFA`} sera débité après validation sur votre téléphone.
+                {selectedPack
+                  ? `Le montant de ${selectedPack.price.toLocaleString()} FCFA sera débité après validation sur votre téléphone.`
+                  : "Sélectionnez un pack de crédits avant de payer."}
               </p>
             </div>
 
