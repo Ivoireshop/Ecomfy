@@ -130,7 +130,10 @@ const Community = () => {
       return;
     }
     synth.cancel();
-    const cleaned = (m.body || "").replace(/@([\p{L}0-9_.-]+)/gu, "$1").trim();
+    const cleaned = (m.body || "")
+      .replace(/@([\p{L}0-9_.-]+)/gu, "$1")
+      .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD00-\uDDFF])/g, "")
+      .trim();
     if (!cleaned) return;
     const u = new SpeechSynthesisUtterance(cleaned);
     const voices = synth.getVoices();
