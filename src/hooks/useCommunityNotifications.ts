@@ -73,12 +73,9 @@ export const useCommunityNotifications = () => {
           if (!reason) return;
           seen.add(m.id);
 
-          const { data: author } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", m.user_id)
-            .maybeSingle();
-          const authorName = author?.full_name || "Un membre";
+          const { data: authors } = await supabase
+            .rpc("get_community_profiles", { _ids: [m.user_id] });
+          const authorName = (authors as any[] | null)?.[0]?.full_name || "Un membre";
           const preview = String(m.body || "").slice(0, 120);
           const title = reason === "mention"
             ? `${authorName} vous a mentionné`
