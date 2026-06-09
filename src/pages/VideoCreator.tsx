@@ -41,6 +41,8 @@ const VideoCreator = () => {
       return;
     }
 
+    await (await import("@/lib/subscriptionStatus")).refreshMySubscriptionStatus();
+
     const { data: subData } = await supabase
       .from("subscriptions")
       .select("status, video_generations_remaining")
