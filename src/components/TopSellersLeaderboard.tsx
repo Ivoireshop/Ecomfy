@@ -58,9 +58,7 @@ const SellerCard = ({ seller, rank }: { seller: Seller; rank: number }) => {
           </div>
           <div className="mt-3 font-semibold text-[#e8edf3] truncate w-full">{firstName(seller.full_name)}</div>
           <div className="mt-1 text-lg font-extrabold text-[#c9a84c] tabular-nums">{formatFcfa(seller.total_sales)}</div>
-          <div className="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">
-            {seller.total_orders} vente{seller.total_orders > 1 ? "s" : ""}
-          </div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-white/50 mt-1">Encaissé</div>
         </div>
       </div>
     </div>
