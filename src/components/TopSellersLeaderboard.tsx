@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Trophy, Store } from "lucide-react";
+import { Trophy, User } from "lucide-react";
 
 interface Seller {
   shop_id: string;
-  business_name: string | null;
+  full_name: string | null;
   slug: string | null;
-  logo_url: string | null;
-  first_name: string | null;
+  avatar_url: string | null;
   total_sales: number;
   total_orders: number;
 }
@@ -24,13 +23,26 @@ const rankStyles = [
   { ring: "ring-primary/40", bg: "from-primary/10 to-secondary/10", badge: "bg-primary text-primary-foreground" },
 ];
 
+const getInitials = (name: string | null) => {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return parts[0]?.charAt(0).toUpperCase() || "?";
+};
+
+const firstName = (name: string | null) => {
+  if (!name) return "Vendeur";
+  return name.trim().split(/\s+/)[0] || "Vendeur";
+};
+
 const Avatar = ({ seller, size }: { seller: Seller; size: number }) => {
-  const label = (seller.first_name || seller.business_name || "?").charAt(0).toUpperCase();
-  if (seller.logo_url) {
+  if (seller.avatar_url) {
     return (
       <img
-        src={seller.logo_url}
-        alt={seller.business_name || seller.first_name || "Vendeur"}
+        src={seller.avatar_url}
+        alt={firstName(seller.full_name)}
         loading="lazy"
         className="w-full h-full object-cover"
         style={{ width: size, height: size }}
@@ -42,7 +54,7 @@ const Avatar = ({ seller, size }: { seller: Seller; size: number }) => {
       className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 to-secondary/30 text-foreground font-bold"
       style={{ width: size, height: size, fontSize: size * 0.4 }}
     >
-      {label === "?" ? <Store className="w-1/2 h-1/2 opacity-70" /> : label}
+      {getInitials(seller.full_name)}
     </div>
   );
 };
@@ -89,11 +101,8 @@ export const TopSellersLeaderboard = () => {
               <Avatar seller={first} size={112} />
             </div>
             <div className="font-bold text-lg truncate">
-              {first.first_name || first.business_name || "Vendeur"}
+              {firstName(first.full_name)}
             </div>
-            {first.business_name && first.first_name && (
-              <div className="text-xs text-muted-foreground truncate">{first.business_name}</div>
-            )}
             <div className="mt-3 text-xl md:text-2xl font-extrabold bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent">
               {formatFcfa(first.total_sales)}
             </div>
@@ -116,7 +125,7 @@ export const TopSellersLeaderboard = () => {
                     <Avatar seller={s} size={64} />
                   </div>
                   <div className="font-semibold text-sm truncate">
-                    {s.first_name || s.business_name || "Vendeur"}
+                    {firstName(s.full_name)}
                   </div>
                   <div className="text-sm font-bold text-primary mt-1 truncate">
                     {formatFcfa(s.total_sales)}

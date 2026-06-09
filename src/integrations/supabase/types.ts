@@ -1958,6 +1958,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           country: string | null
           created_at: string | null
           email: string | null
@@ -1974,6 +1975,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
@@ -1990,6 +1992,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
@@ -3710,9 +3713,8 @@ export type Database = {
       get_top_sellers: {
         Args: { p_limit?: number }
         Returns: {
-          business_name: string
-          first_name: string
-          logo_url: string
+          avatar_url: string
+          full_name: string
           shop_id: string
           slug: string
           total_orders: number
