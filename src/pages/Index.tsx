@@ -156,94 +156,72 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
           </div>
 
           {/* RIGHT — floating phone + podium card */}
-          <div className="relative h-[480px] md:h-[560px] z-10">
-            {/* Phone mock */}
-            <div className="absolute left-2 sm:left-8 md:left-12 top-4 animate-float">
-              <div className="w-[220px] md:w-[260px] h-[440px] md:h-[520px] rounded-[2.4rem] bg-foreground p-2 shadow-2xl shadow-primary/30 border border-foreground/10">
-                <div className="w-full h-full rounded-[2rem] bg-background overflow-hidden flex flex-col">
-                  <div className="px-3 pt-3 pb-2 flex items-center gap-2 border-b border-border/60">
-                    <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-secondary" />
-                    <div className="text-[10px] font-bold tracking-wide">VisualPro</div>
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <div className="relative h-[520px] md:h-[600px] z-10">
+            {/* Desktop dashboard backdrop */}
+            <div className="absolute inset-0 flex items-center justify-center animate-float-slow">
+              <div className="relative w-[110%] md:w-[105%] -mr-6 md:-mr-10">
+                <img
+                  src={heroDesktop}
+                  alt="Tableau de bord VisualPro sur ordinateur"
+                  loading="eager"
+                  className="w-full h-auto rounded-2xl shadow-2xl shadow-primary/20"
+                />
+                {/* Overlay stats badge on the laptop screen */}
+                <div className="absolute top-[18%] right-[8%] bg-background/95 backdrop-blur rounded-xl border border-border/60 shadow-xl p-3 hidden md:block">
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-3.5 h-3.5 text-[#c9a84c]" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Top semaine</span>
                   </div>
-                  {/* Chiffre du jour */}
-                  <div className="px-3 py-2 text-[9px] uppercase tracking-widest text-muted-foreground">Chiffre du jour</div>
-                  <div className="px-3 flex items-baseline gap-2">
-                    <span className="text-lg font-extrabold text-primary">12,5M FCFA</span>
-                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600">
-                      ▲ +18%
-                    </span>
-                  </div>
-                  {/* Statistiques boutique */}
-                  <div className="px-3 mt-3 text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Statistiques boutique</div>
-                  <div className="px-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2">
-                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Cmd. du jour</div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-extrabold text-foreground">+24</span>
-                        <span className="text-[9px] font-bold text-emerald-600">▲ 12%</span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2">
-                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Total cmd.</div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-extrabold text-foreground">1 248</span>
-                        <span className="text-[9px] font-bold text-emerald-600">▲ 7%</span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2 col-span-2">
-                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground mb-1">Commandes validées</div>
-                      <div className="flex items-end gap-1 h-8">
-                        {[40,55,48,72,60,85,95].map((h,i)=>(
-                          <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-primary to-primary/40" style={{ height: `${h}%` }} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-auto px-3 py-2.5 border-t border-border/60 flex items-center justify-between">
-                    <div className="text-[9px] text-muted-foreground">Taux conversion</div>
-                    <div className="text-[11px] font-bold text-emerald-600">▲ 3,8%</div>
-                  </div>
+                  <div className="text-sm font-extrabold text-primary mt-1">12,5M FCFA</div>
+                  <div className="text-[9px] text-emerald-600 font-bold">▲ +18% vs semaine -1</div>
                 </div>
               </div>
             </div>
 
-            {/* Leaderboard card — top vendeurs réels */}
-            <div className="absolute right-0 top-16 md:top-12 w-[270px] md:w-[320px] animate-float-slow">
-              <div className="rounded-2xl bg-[#0f1b3d] text-white p-5 shadow-2xl border border-white/10">
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-white/70 mb-4">
-                  <Crown className="w-3.5 h-3.5 text-[#c9a84c]" /> Classement de la semaine
-                </div>
-                <div className="flex items-end justify-center gap-3 mb-4">
-                  {podiumDisplay.map((s, i) => {
-                    // i=0 → #2 (left), i=1 → #1 (center), i=2 → #3 (right)
-                    const rank = i === 0 ? 2 : i === 1 ? 1 : 3;
-                    const ring = rank===1 ? "ring-[#c9a84c]" : rank===2 ? "ring-[#d8d8e0]" : "ring-[#c98a4c]";
-                    const size = rank===1 ? "w-16 h-16" : "w-12 h-12";
-                    const barH = rank===1 ? "h-20" : rank===2 ? "h-14" : "h-12";
-                    return (
-                      <div key={s.shop_id} className="flex flex-col items-center w-1/3">
-                        <div className={`${size} rounded-full bg-gradient-to-br from-primary to-secondary ring-2 ring-offset-2 ring-offset-[#0f1b3d] ${ring} overflow-hidden flex items-center justify-center text-xs font-bold relative`}>
-                          {s.avatar_url ? (
-                            <img src={s.avatar_url} alt={firstName(s.full_name)} loading="lazy" className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{initials(s.full_name)}</span>
-                          )}
-                          {rank===1 && <Crown className="absolute -top-3 w-4 h-4 text-[#c9a84c] drop-shadow-[0_0_6px_rgba(201,168,76,0.9)]" />}
-                        </div>
-                        <div className="mt-1.5 text-[10px] font-medium text-center truncate w-full">{firstName(s.full_name)}</div>
-                        <div className={`text-xs font-extrabold ${rank===1 ? "text-[#c9a84c]" : "text-white"}`}>
-                          {compactFcfa(s.total_sales)}
-                        </div>
-                        <div className={`mt-1.5 w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary/10 ${barH}`} />
+            {/* Phone mockup — front-and-center */}
+            <div className="absolute left-1/2 -translate-x-1/2 md:left-2 md:translate-x-0 top-8 md:top-10 animate-float z-10">
+              <div className="w-[210px] md:w-[250px] h-[420px] md:h-[500px] rounded-[2.4rem] bg-foreground p-2 shadow-2xl shadow-primary/30 border border-foreground/10">
+                <div className="w-full h-full rounded-[2rem] bg-background overflow-hidden flex flex-col">
+                  {/* Header with REAL VisualPro logo */}
+                  <div className="px-3 pt-3 pb-2 flex items-center gap-2 border-b border-border/60">
+                    <img src={vpLogo} alt="Logo VisualPro" className="w-6 h-6" />
+                    <div className="text-[11px] font-bold tracking-wide bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">VisualPro</div>
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+
+                  {/* Greeting */}
+                  <div className="px-3 pt-3">
+                    <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Bonjour 👋</div>
+                    <div className="text-sm font-bold">Que créons-nous aujourd'hui ?</div>
+                  </div>
+
+                  {/* Features list */}
+                  <div className="px-3 mt-3 space-y-2">
+                    {[
+                      { Icon: ImageIcon, label: "Visuels publicitaires", color: "from-orange-500 to-pink-500" },
+                      { Icon: Video, label: "Vidéos animées IA", color: "from-blue-500 to-cyan-500" },
+                      { Icon: Store, label: "Boutique e-commerce", color: "from-emerald-500 to-teal-500" },
+                      { Icon: GraduationCap, label: "Formations", color: "from-amber-500 to-yellow-500" },
+                    ].map(({ Icon, label, color }, i) => (
+                      <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg border border-border/60 bg-muted/30">
+                        <span className={`w-7 h-7 rounded-md bg-gradient-to-br ${color} flex items-center justify-center flex-shrink-0`}>
+                          <Icon className="w-3.5 h-3.5 text-white" />
+                        </span>
+                        <span className="text-[10px] font-semibold leading-tight">{label}</span>
+                        <ChevronRight className="w-3 h-3 ml-auto text-muted-foreground" />
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+
+                  {/* Mini stat at bottom */}
+                  <div className="mt-auto px-3 py-2.5 border-t border-border/60 flex items-center justify-between">
+                    <div>
+                      <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Chiffre du jour</div>
+                      <div className="text-[11px] font-extrabold text-primary">12,5M FCFA</div>
+                    </div>
+                    <div className="text-[10px] font-bold text-emerald-600">▲ 18%</div>
+                  </div>
                 </div>
-                <p className="text-[11px] text-white/70 text-center mb-3">Qui sera le leader cette semaine ?</p>
-                <Button size="sm" className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-9" onClick={onStart}>
-                  Entrer dans la course
-                </Button>
               </div>
             </div>
           </div>
