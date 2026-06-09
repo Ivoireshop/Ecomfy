@@ -181,6 +181,47 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
               </div>
             </div>
 
+            {/* Floating "Top vendeurs de la semaine" podium card */}
+            <div className="absolute -bottom-2 right-0 md:-right-4 z-20 animate-float-slow">
+              <div className="w-[260px] md:w-[300px] rounded-2xl bg-gradient-to-b from-[#1e3a5f]/95 to-[#0f1b3d] border border-white/10 shadow-2xl shadow-primary/30 p-4 backdrop-blur">
+                <div className="flex items-center justify-center gap-1.5 mb-3">
+                  <Crown className="w-3.5 h-3.5 text-[#c9a84c]" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c9a84c]">Top vendeurs · Semaine</span>
+                </div>
+                <div className="flex items-end justify-center gap-2">
+                  {/* #2 */}
+                  <div className="flex flex-col items-center w-[30%]">
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#d8d8e0] w-12 h-12">
+                      <img src={podiumDisplay[0]?.avatar_url || sellerDario} alt={firstName(podiumDisplay[0]?.full_name || "Dario")} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="text-[10px] font-semibold text-white mt-1 truncate w-full text-center">{firstName(podiumDisplay[0]?.full_name || "Dario")}</div>
+                    <div className="text-[11px] font-extrabold text-[#d8d8e0] tabular-nums">{compactFcfa(podiumDisplay[0]?.total_sales || 0)}</div>
+                    <div className="mt-1 w-full h-8 rounded-t-md bg-[#d8d8e0]/80 flex items-center justify-center text-[10px] font-extrabold text-[#0f1b3d]">2</div>
+                  </div>
+                  {/* #1 */}
+                  <div className="flex flex-col items-center w-[36%] -mt-3">
+                    <Crown className="w-4 h-4 text-[#c9a84c] drop-shadow-[0_0_6px_rgba(201,168,76,0.9)] mb-0.5" />
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#c9a84c] shadow-[0_0_20px_rgba(201,168,76,0.45)] w-16 h-16">
+                      <img src={podiumDisplay[1]?.avatar_url || sellerIrege} alt={firstName(podiumDisplay[1]?.full_name || "Irège")} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="text-[11px] font-bold text-white mt-1 truncate w-full text-center">{firstName(podiumDisplay[1]?.full_name || "Irège")}</div>
+                    <div className="text-sm font-extrabold text-[#c9a84c] tabular-nums">{compactFcfa(podiumDisplay[1]?.total_sales || 0)}</div>
+                    <div className="mt-1 w-full h-12 rounded-t-md bg-[#c9a84c] flex items-center justify-center text-[12px] font-extrabold text-[#0f1b3d]">1</div>
+                  </div>
+                  {/* #3 */}
+                  <div className="flex flex-col items-center w-[30%]">
+                    <div className="rounded-full overflow-hidden ring-2 ring-[#c98a4c] w-12 h-12">
+                      <img src={podiumDisplay[2]?.avatar_url || sellerAnge} alt={firstName(podiumDisplay[2]?.full_name || "Ange")} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="text-[10px] font-semibold text-white mt-1 truncate w-full text-center">{firstName(podiumDisplay[2]?.full_name || "Ange")}</div>
+                    <div className="text-[11px] font-extrabold text-[#c98a4c] tabular-nums">{compactFcfa(podiumDisplay[2]?.total_sales || 0)}</div>
+                    <div className="mt-1 w-full h-6 rounded-t-md bg-[#c98a4c]/80 flex items-center justify-center text-[10px] font-extrabold text-[#0f1b3d]">3</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-center text-[9px] uppercase tracking-[0.2em] text-white/50">Mis à jour en temps réel</div>
+              </div>
+            </div>
+
             {/* Phone mockup — front-and-center */}
             <div className="absolute left-1/2 -translate-x-1/2 md:left-2 md:translate-x-0 top-8 md:top-10 animate-float z-10">
               <div className="w-[210px] md:w-[250px] h-[420px] md:h-[500px] rounded-[2.4rem] bg-foreground p-2 shadow-2xl shadow-primary/30 border border-foreground/10">
