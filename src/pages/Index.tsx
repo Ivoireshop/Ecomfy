@@ -378,6 +378,54 @@ const TickerBanner = () => {
   );
 };
 
+/* ── Testimonials marquee (auto-scrolling round bubbles + quote) ── */
+const TestimonialsMarquee = ({ feedbacks }: { feedbacks: any[] }) => {
+  const loop = [...feedbacks, ...feedbacks];
+  return (
+    <div className="relative max-w-6xl mx-auto">
+      <div className="absolute inset-y-0 left-0 w-16 md:w-24 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-16 md:w-24 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+      <div className="overflow-hidden group py-4">
+        <div className="flex animate-marquee group-hover:[animation-play-state:paused]">
+          {loop.map((f, i) => (
+            <article
+              key={`${f.id}-${i}`}
+              className="shrink-0 w-[300px] md:w-[360px] mx-3 rounded-2xl border border-border/60 bg-card p-5 shadow-sm hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                {f.photo_url ? (
+                  <img
+                    src={f.photo_url}
+                    alt={f.full_name}
+                    loading="lazy"
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/30 ring-offset-2 ring-offset-background"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-bold text-white ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                    {(f.full_name || "?").slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm truncate">{f.full_name}</div>
+                  {f.country && <div className="text-[11px] text-muted-foreground truncate">{f.country}</div>}
+                  <div className="flex items-center gap-0.5 mt-0.5">
+                    {[...Array(5)].map((_, k) => (
+                      <Star key={k} className={`w-3 h-3 ${k < (f.rating || 0) ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground italic leading-relaxed line-clamp-4">
+                « {f.comment} »
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const [publishedFeedback, setPublishedFeedback] = useState<any[]>([]);
