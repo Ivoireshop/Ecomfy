@@ -26,7 +26,7 @@ const allItems = [
   { title: "API", url: "/api-documentation", icon: Code2 },
 ];
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/legal-notice"];
 
 export function MobileBottomNav() {
   const location = useLocation();

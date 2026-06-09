@@ -290,7 +290,6 @@ const AppContent = () => {
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/cookies-policy" element={<CookiesPolicy />} />
           <Route path="/api-documentation" element={<ApiDocumentation />} />
-          <Route path="/blog" element={<Blog />} />
           <Route path="/legal-notice" element={<LegalNotice />} />
           <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
           <Route path="/courses-manager" element={<ProtectedRoute><CoursesManager /></ProtectedRoute>} />
@@ -317,7 +316,7 @@ const AppContent = () => {
   );
 };
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/blog", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/boutiques-ecommerce", "/demo", "/tutorial", "/health", "/healthz"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/boutiques-ecommerce", "/demo", "/tutorial", "/health", "/healthz"];
 
 // Prefetch heavy authenticated chunks during idle time so the first
 // in-dashboard navigation is instant. No-op on slow connections / save-data.
