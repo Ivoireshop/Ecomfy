@@ -3731,6 +3731,7 @@ export type Database = {
         Returns: number
       }
       expire_stale_pending_payments: { Args: never; Returns: number }
+      expire_subscriptions: { Args: never; Returns: number }
       generate_api_key: { Args: never; Returns: string }
       generate_certificate_number: { Args: never; Returns: string }
       generate_domain_verification_code: { Args: never; Returns: string }
