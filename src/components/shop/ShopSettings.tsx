@@ -381,6 +381,10 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
           <NotificationSettings shop={shop} setShop={setShop} />
         )}
 
+        {activeTab === "delivery" && (
+          <ShopDeliveryPartners shopId={shop.id} />
+        )}
+
         {activeTab === "languages" && (
           <LanguageSettings shop={shop} setShop={setShop} />
         )}
