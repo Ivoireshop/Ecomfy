@@ -71,7 +71,6 @@ const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const CookiesPolicy = lazyWithRetry(() => import("./pages/CookiesPolicy"));
 const ApiDocumentation = lazyWithRetry(() => import("./pages/ApiDocumentation"));
-const Blog = lazyWithRetry(() => import("./pages/Blog"));
 const LegalNotice = lazyWithRetry(() => import("./pages/LegalNotice"));
 const ShopManager = lazyWithRetry(() => import("./pages/ShopManager"));
 const ShopBuilder = lazyWithRetry(() => import("./pages/ShopBuilder"));
