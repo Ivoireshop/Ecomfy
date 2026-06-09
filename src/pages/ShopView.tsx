@@ -63,6 +63,10 @@ const ShopView = () => {
   const [variantChoice, setVariantChoice] = useState<Record<string, string>>({});
   const [orderSuccess, setOrderSuccess] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  // Progressive rendering: only render a window of products to keep first paint fast.
+  const PAGE_SIZE = 12;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const [customerInfo, setCustomerInfo] = useState({
     name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
@@ -394,6 +398,27 @@ const ShopView = () => {
     return matchCat && matchSearch;
   });
   const featuredProducts = tProducts.filter(p => p.is_featured);
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const hasMore = filteredProducts.length > visibleCount;
+
+  // Reset window whenever the active filter / search changes.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [selectedCategory, searchQuery, products.length]);
+
+  // Auto-load more on scroll using an IntersectionObserver sentinel.
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = loadMoreRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) {
+        setVisibleCount(c => c + PAGE_SIZE);
+      }
+    }, { rootMargin: "600px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, visibleCount, filteredProducts.length]);
 
   const cartKey = (productId: string, sv?: Record<string, string> | null) =>
     `${productId}::${sv && Object.keys(sv).length ? JSON.stringify(sv) : ""}`;
@@ -777,13 +802,24 @@ const ShopView = () => {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          {filteredProducts.map((product, idx) => (
+          {visibleProducts.map((product, idx) => (
             <ProductCard key={product.id} product={product} primaryColor={primaryColor} eager={idx < 4} onAddToCart={addToCart} onView={(p) => {
               const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
               navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
             }} formatPrice={formatPrice} />
           ))}
         </div>
+        {hasMore && (
+          <div ref={loadMoreRef} className="flex justify-center py-8">
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+            >
+              Voir plus de produits ({filteredProducts.length - visibleCount} restants)
+            </Button>
+          </div>
+        )}
         {filteredProducts.length === 0 && (
           <div className="text-center py-16">
             <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
@@ -1272,6 +1308,9 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             loading={eager ? "eager" : "lazy"}
             decoding="async"
+            width={400}
+            height={400}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             {...(eager ? { fetchpriority: "high" as any } : {})}
           />
         ) : (
