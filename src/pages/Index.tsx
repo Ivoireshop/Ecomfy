@@ -258,7 +258,7 @@ const Index = () => {
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Commencez gratuitement, évoluez selon vos besoins</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               <Card className="p-7 hover:shadow-xl transition-all border-2 border-transparent hover:border-primary/10">
                 <Badge className="mb-4" variant="secondary">Gratuit</Badge>
                 <h3 className="text-2xl font-bold mb-3">Découverte</h3>
@@ -281,18 +281,6 @@ const Index = () => {
                   ))}
                 </ul>
                 <Button className="w-full" onClick={() => navigate("/auth")}>Voir tous les packs</Button>
-              </Card>
-
-              <Card className="p-7 hover:shadow-xl transition-all border-2 border-transparent hover:border-primary/10">
-                <Badge className="mb-4" variant="secondary">Entreprise</Badge>
-                <h3 className="text-2xl font-bold mb-3">Business</h3>
-                <div className="mb-5"><span className="text-4xl font-extrabold">65 000</span><span className="text-muted-foreground"> FCFA/mois</span></div>
-                <ul className="space-y-2.5 mb-7 text-sm">
-                  {["Images illimitées", "Vidéos illimitées", "Sites & boutiques illimités", "Accès API"].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /><span>{f}</span></li>
-                  ))}
-                </ul>
-                <Button className="w-full" variant="outline" onClick={() => navigate("/auth")}>Choisir Business</Button>
               </Card>
             </div>
           </div>
