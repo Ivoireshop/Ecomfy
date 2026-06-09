@@ -88,6 +88,7 @@ const VisuelsPublicitaires = lazyWithRetry(() => import("./pages/VisuelsPublicit
 const VideosPublicitaires = lazyWithRetry(() => import("./pages/VideosPublicitaires"));
 const SitesVitrines = lazyWithRetry(() => import("./pages/SitesVitrines"));
 const BoutiquesEcommerce = lazyWithRetry(() => import("./pages/BoutiquesEcommerce"));
+const Community = lazyWithRetry(() => import("./pages/Community"));
 const VideoCreator = lazyWithRetry(() => import("./pages/VideoCreator"));
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
 const OrdersDiagnostic = lazyWithRetry(() => import("./pages/OrdersDiagnostic"));
