@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { 
   Video, Image as ImageIcon, Globe, Zap,
   Code, CheckCircle2, ArrowRight, Store,
-  GraduationCap, ChevronRight, Star
+  GraduationCap, ChevronRight, Star, Crown,
+  Wallet, Truck, MessageCircle, Sparkles, ShieldCheck,
+  Smartphone, Globe2, Headphones, PlayCircle
 } from "lucide-react";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Helmet } from "react-helmet";
