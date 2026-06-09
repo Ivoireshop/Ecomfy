@@ -98,7 +98,7 @@ const Community = () => {
   const loadProfiles = async (ids: string[]) => {
     const need = Array.from(new Set(ids.filter((id) => id && !profiles[id])));
     if (!need.length) return;
-    const { data } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", need);
+    const { data } = await supabase.rpc("get_community_profiles", { _ids: need });
     if (data) setProfiles((p) => ({ ...p, ...Object.fromEntries(data.map((d: any) => [d.id, d])) }));
   };
 
@@ -246,9 +246,7 @@ const Community = () => {
   useEffect(() => {
     if (!showMentions) return;
     const t = setTimeout(async () => {
-      let q = supabase.from("profiles").select("id, full_name, avatar_url").not("full_name", "is", null).limit(6);
-      if (mentionQuery) q = q.ilike("full_name", `%${mentionQuery}%`);
-      const { data } = await q;
+      const { data } = await supabase.rpc("search_community_profiles", { _query: mentionQuery || "", _limit: 6 });
       setMentionList((data as ProfileLite[]) || []);
     }, 150);
     return () => clearTimeout(t);
