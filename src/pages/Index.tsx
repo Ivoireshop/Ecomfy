@@ -113,50 +113,34 @@ const Index = () => {
       <TickerBanner />
 
       {/* ===== HERO ===== */}
-      <section className="relative overflow-hidden border-b border-border/60">
-        <div className="container relative mx-auto px-4 py-20 md:py-32">
-          <div className="max-w-5xl mx-auto text-center">
-            {session?.user ? (
-              <>
-                <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in tracking-tight">
-                  <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" style={{ fontFamily: "'Georgia', serif" }}>
-                    {new Date().getHours() < 18 ? t("dashboard.greetingMorning") : t("dashboard.greetingEvening")} {session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0]}, {t("dashboard.welcome")}
-                  </span>
-                  <span className="inline-block animate-wiggle text-4xl sm:text-5xl md:text-6xl ml-2">👋</span>
-                </h1>
-                <p className="text-base md:text-lg text-muted-foreground mb-10 animate-fade-in tracking-wide font-medium">
-                  {t("dashboard.subtitle")}
-                </p>
-              </>
-            ) : (
-              <>
-                <Badge className="mb-8 px-3 py-1 text-[11px] uppercase tracking-[0.22em] font-semibold animate-fade-in bg-transparent text-foreground border border-foreground/20 rounded-full">
-                  {t("landing.hero.badge")}
-                </Badge>
-                <h1 className="text-4xl sm:text-5xl md:text-[5.5rem] font-semibold mb-6 leading-[1.05] tracking-[-0.02em] animate-fade-in text-foreground" style={{ fontFamily: "'Georgia', serif" }}>
-                  {t("landing.hero.titleA")}
-                  <br />
-                  <span className="italic font-normal text-primary">{t("landing.hero.titleB")}</span>
-                </h1>
-                <p className="text-base md:text-lg text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in leading-relaxed">
-                  {t("landing.hero.subtitle")}
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4 animate-fade-in">
-                  <Button size="lg" className="text-base px-8 py-6 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-all" onClick={() => navigate("/auth")}>
-                    {t("landing.hero.ctaStart")}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button size="lg" variant="ghost" className="text-base px-8 py-6 rounded-full hover:bg-foreground/5" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
-                    {t("landing.hero.ctaDiscover")}
-                  </Button>
-                </div>
-              </>
-            )}
+      {session?.user ? (
+        <section className="relative overflow-hidden border-b border-border/60">
+          <div className="container relative mx-auto px-4 py-20 md:py-32 text-center">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in tracking-tight">
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" style={{ fontFamily: "'Georgia', serif" }}>
+                {new Date().getHours() < 18 ? t("dashboard.greetingMorning") : t("dashboard.greetingEvening")} {session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0]}, {t("dashboard.welcome")}
+              </span>
+              <span className="inline-block animate-wiggle text-4xl sm:text-5xl md:text-6xl ml-2">👋</span>
+            </h1>
+            <p className="text-base md:text-lg text-muted-foreground mb-10 animate-fade-in tracking-wide font-medium">
+              {t("dashboard.subtitle")}
+            </p>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <HeroVisualPro onStart={() => navigate("/auth")} onDiscover={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })} />
+      )}
 
-      {/* ===== HALL OF FAME — placé tôt pour maximum de visibilité ===== */}
+      {/* ===== INNOVATION BENTO ===== */}
+      {!session && <InnovationBento />}
+
+      {/* ===== TRUST STRIP ===== */}
+      {!session && <TrustStrip />}
+
+      {/* ===== STATS + TESTIMONIAL ===== */}
+      {!session && <StatsTestimonial />}
+
+      {/* ===== HALL OF FAME ===== */}
       {loadDeferredSections && (
         <Suspense fallback={null}>
           <TopSellersLeaderboard />
