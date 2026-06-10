@@ -1,46 +1,67 @@
-# Réordonnancement des sections de la fiche produit
+## Objectifs
 
-## Objectif
-Permettre au vendeur de déplacer librement (drag & drop) les blocs d'une fiche produit : image, titre/prix, description courte, description longue, compte à rebours, barre d'urgence stock, options/variantes, quantité, bouton commander, etc.
+Le générateur de visuels et l'éditeur de texte sur image ne sont pas utilisables sur mobile. Le backend accumule aussi les images générées sans limite. On corrige les 4 zones suivantes en une seule passe.
 
-## Sections déplaçables
-1. **Galerie image** (`gallery`)
-2. **Titre + prix** (`title_price`)
-3. **Compte à rebours** (`countdown`)
-4. **Barre d'urgence stock** (`stock_urgency`)
-5. **Description courte** (`short_description`)
-6. **Variantes / options** (`variants`)
-7. **Quantité** (`quantity`)
-8. **Bouton commander** (`order_button`)
-9. **Description longue** (`long_description`)
-10. **Preuve sociale / avis** (`social_proof`) si activée
+---
 
-## Données
-Ajout d'un champ `section_order: string[]` dans `products.theme_config` (jsonb existant) ou dans une nouvelle colonne `section_order jsonb` sur la table `products`.
-- Valeur par défaut = ordre actuel.
-- Stocké par produit (override) avec fallback sur l'ordre boutique (`shops.theme_config.product_section_order`) pour appliquer à toutes les fiches.
+## 1. Page Générateur (`/generator`) — mobile-first
 
-## UI éditeur
-Dans **ProductEditor** (onglet "Mise en page") :
-- Liste verticale des sections avec poignée de glisser-déposer (`@dnd-kit/sortable` déjà disponible côté shop).
-- Bouton "Réinitialiser l'ordre par défaut".
-- Toggle "Appliquer à tous mes produits" → écrit dans `shops.theme_config.product_section_order`.
-- Aperçu live dans la prévisualisation.
+Fichier : `src/pages/Generator.tsx` (1893 lignes — on retravaille uniquement la couche présentation, la logique reste).
 
-Dans **ShopEditor → Thème** : même contrôle pour définir l'ordre par défaut de la boutique.
+Problèmes constatés :
+- Le sélecteur Image / Vidéo / Pro / Avancé affiche déjà des champs avant qu'on ait choisi → l'écran déborde sur téléphone.
+- Boutons trop larges, padding excessif, formulaire vertical infini.
+- Zoom-out donne le même rendu cassé.
 
-## Rendu (ProductView.tsx)
-- Refactor : extraire chaque bloc en composant/fonction `renderSection(key)`.
-- Construire la liste finale : `product.section_order ?? shop.theme_config.product_section_order ?? DEFAULT_ORDER`.
-- Boucler et rendre dans l'ordre, sur desktop (colonne droite + image à gauche) et mobile (colonne unique).
-- Les sections désactivées (countdown_enabled=false, etc.) sont ignorées.
+Changements :
+- **Sélecteur de mode en haut, sticky** : 4 tuiles compactes (Image / Vidéo / Pro / Avancé) en grille 2×2 sur mobile, ligne sur desktop. **Aucun champ visible** tant qu'aucun mode n'est sélectionné — juste une carte d'introduction.
+- Une fois un mode choisi : le formulaire s'affiche dans une carte plein-largeur, padding réduit (`p-3` mobile / `p-6` desktop), inputs en `h-11` (touch-friendly), labels condensés.
+- Bouton "Générer" sticky en bas sur mobile (barre fixe avec safe-area).
+- Bouton retour discret en haut-gauche pour changer de mode sans recharger.
+- Compteur de crédits sticky en haut-droit, compact.
+
+## 2. Éditeur de texte sur image
+
+Fichier : `src/components/ImageTextEditor.tsx` (687 lignes).
+
+Problème : texte ajouté apparaît minuscule, poignées de redimensionnement non utilisables au doigt, clavier mobile masque la zone.
+
+Changements :
+- **Taille par défaut** : `fontSize` initial = `Math.round(imageHeight * 0.08)` (≈ 8 % de la hauteur), `font-weight: 800`, ombre portée pour lisibilité.
+- **Poignées tactiles** : passer les handles à 44 × 44 px minimum (norme Apple HIG), avec hit-area transparente élargie.
+- **Clavier mobile** : quand un champ texte reçoit le focus, scroller la zone d'édition au-dessus du clavier (`scrollIntoView({ block: 'center' })`).
+- Barre d'outils (couleur, taille, gras, alignement) en bas, sticky, scrollable horizontalement sur mobile.
+- Bouton "Terminer" sticky en haut-droit (corporate).
+
+## 3. Galerie / Bibliothèque
+
+Fichier : `src/pages/Library.tsx`.
+
+Changements :
+- Grille 2 colonnes sur mobile (au lieu de 1), 3 sur tablette, 4 sur desktop.
+- Vignettes carrées avec `aspect-square`, action (télécharger / supprimer) en overlay tap.
+- Header sticky avec filtres en chips horizontaux scrollables.
+
+## 4. Nettoyage automatique backend (30 jours)
+
+Tables visées : `generated_images`, `generated_videos`.
+
+- Migration SQL : fonction `cleanup_old_generated_media()` qui supprime les lignes `created_at < now() - interval '30 days'` (et les objets storage associés).
+- Cron `pg_cron` quotidien à 03:00 UTC.
+- Bandeau informatif dans la bibliothèque : *« Les visuels sont conservés 30 jours. Téléchargez ceux que vous voulez garder. »*
+
+---
 
 ## Détails techniques
-- Migration SQL : `ALTER TABLE products ADD COLUMN section_order jsonb;` + GRANTs.
-- Hook `useProductSectionOrder(product, shop)` qui retourne l'ordre effectif et filtre les sections désactivées.
-- Le layout desktop a deux colonnes : on permet de réordonner uniquement la colonne droite (infos) ; la galerie reste à gauche. **Option** : ajouter un mode "1 colonne" pour permettre image dans le flux.
-- Mobile : tout est en une colonne → ordre intégral respecté.
 
-## Hors périmètre
-- Drag & drop direct sur la fiche publique (l'édition se fait dans l'éditeur).
-- Sections personnalisées créées par l'utilisateur (uniquement les blocs existants).
+- Tokens design existants (`--primary`, `--background`, `--card`, etc.) — pas de couleurs en dur.
+- Pas d'icônes IA (étoiles/baguettes) — respect mémoire `aesthetic-preference`.
+- Bouton primaire en haut-droit, secondaire en haut-gauche — respect mémoire `ui-layout-constraints`.
+- Aucune modification de la logique de génération, de l'API IA, ou du système de crédits.
+- Cron via `supabase--insert` (pas migration) car contient URL + clé anon.
+
+## Hors scope (à demander explicitement)
+
+- Refonte du composant `AdvancedImageGenerator` (661 lignes) — uniquement adapté visuellement, pas refondu.
+- Voix off, son — non touché.
+- Page boutique / autres sections — non touchées.
