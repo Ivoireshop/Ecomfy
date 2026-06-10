@@ -3850,6 +3850,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_trash: { Args: never; Returns: undefined }
+      cleanup_old_generated_media: { Args: never; Returns: undefined }
       cleanup_old_image_cache: { Args: never; Returns: undefined }
       consume_ai_credit: {
         Args: { _amount?: number; _feature: string; _user_id: string }
