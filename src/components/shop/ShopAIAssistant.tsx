@@ -43,7 +43,6 @@ interface AssistantConfig {
 export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", secondaryColor = "#7c3aed" }: Props) {
   const [config, setConfig] = useState<AssistantConfig | null>(null);
   const [open, setOpen] = useState(false);
-  const [showBubble, setShowBubble] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,6 +54,7 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const hasGreetedRef = useRef(false);
+  const autoGreetedRef = useRef(false);
 
   // Load config
   useEffect(() => {
@@ -73,16 +73,38 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
     return () => { cancelled = true; };
   }, [shopId]);
 
-  // Auto-open + welcome bubble
+  // Auto voice greeting on arrival (no text UI shown).
+  // Browsers block autoplay until a user gesture: we attach a one-shot
+  // listener so the first tap/scroll triggers the greeting silently.
   useEffect(() => {
-    if (!config) return;
-    const t1 = setTimeout(() => setShowBubble(true), 1500);
-    if (config.auto_open) {
-      const t2 = setTimeout(() => { setOpen(true); setShowBubble(false); }, 3500);
-      return () => { clearTimeout(t1); clearTimeout(t2); };
-    }
-    return () => clearTimeout(t1);
-  }, [config]);
+    if (!config || autoGreetedRef.current) return;
+    if (!config.voice_enabled || muted) return;
+
+    const trigger = async () => {
+      if (autoGreetedRef.current) return;
+      autoGreetedRef.current = true;
+      const custom = config.custom_greeting?.trim();
+      const spoken = custom ||
+        `Bonjour et bienvenue sur ${shopName}. Je suis ${config.name}, votre assistante personnelle. Découvrez nos produits, et n'hésitez pas à me poser une question.`;
+      await speak(spoken);
+    };
+
+    // Try immediate autoplay (works on desktop / sometimes mobile)
+    const t = setTimeout(() => { void trigger(); }, 800);
+
+    const onGesture = () => { void trigger(); };
+    window.addEventListener("pointerdown", onGesture, { once: true });
+    window.addEventListener("scroll", onGesture, { once: true, passive: true });
+    window.addEventListener("keydown", onGesture, { once: true });
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("scroll", onGesture);
+      window.removeEventListener("keydown", onGesture);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, muted, shopName]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -102,11 +124,6 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
       ? `${greetingHead}\n\n${custom}`
       : `${greetingHead}\n\nJe suis ${config.name}, l'assistante de **${shopName}**. Comment puis-je vous aider à choisir le produit qui vous correspond ?`;
     setMessages([{ role: "assistant", content: greet }]);
-    if (voiceMode && !muted) {
-      // Speak only the spoken greeting (avoid reading flags aloud)
-      const spoken = custom || `Bonjour, je suis ${config.name}, l'assistante de ${shopName}. Comment puis-je vous aider aujourd'hui ?`;
-      void speak(spoken);
-    }
   }, [open, config]);
 
   const stopAudio = () => {
@@ -123,9 +140,9 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
       stopAudio();
       setSpeaking(true);
       const { data, error } = await supabase.functions.invoke("shop-ai-assistant-tts", {
-        body: { text, voiceId: config.voice_id },
+        body: { text, voiceId: config.voice_id, shopId },
       });
-      if (error || !data?.audioBase64) {
+      if (error || !data?.audioBase64 || data?.error) {
         setSpeaking(false);
         return;
       }
@@ -252,32 +269,23 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
 
   if (!config) return null;
 
-  const bubbleText = config.welcome_bubble?.trim() || `${config.name} est en ligne 💬`;
   const gradient = `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`;
 
   return (
     <>
-      {/* Floating button */}
+      {/* Small voice/mic floating button — no text bubble, mobile-friendly */}
       {!open && (
-        <div className="fixed bottom-5 right-5 z-[60] flex flex-col items-end gap-2">
-          {showBubble && (
-            <div className="relative animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="bg-white text-gray-900 px-4 py-2.5 rounded-2xl rounded-br-sm shadow-2xl border border-gray-100 max-w-[240px] text-sm font-medium">
-                {bubbleText}
-                <button onClick={() => setShowBubble(false)} className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-gray-900 text-white text-xs flex items-center justify-center shadow">
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="fixed bottom-5 right-5 z-[60]">
           <button
-            onClick={() => { setOpen(true); setShowBubble(false); }}
-            className="relative h-16 w-16 rounded-full shadow-2xl flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95"
+            onClick={() => setOpen(true)}
+            className="relative h-12 w-12 rounded-full shadow-xl flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95"
             style={{ background: gradient }}
-            aria-label="Ouvrir l'assistant"
+            aria-label={speaking ? "Assistant en train de parler" : "Parler à l'assistant"}
           >
-            <span className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: gradient }} />
-            <Sparkles className="h-7 w-7 relative" />
+            {speaking && (
+              <span className="absolute inset-0 rounded-full animate-ping opacity-40" style={{ background: gradient }} />
+            )}
+            <Mic className="h-5 w-5 relative" />
           </button>
         </div>
       )}
