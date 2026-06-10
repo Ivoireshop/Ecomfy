@@ -9,6 +9,7 @@ import logo from "@/assets/visualpro-logo.svg";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AICreditsBadge } from "@/components/AICreditsBadge";
+import { useCommunityUnread } from "@/hooks/useCommunityUnread";
 
 export function Header() {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ export function Header() {
   const { session } = useAuthReady();
   const isAuthenticated = !!session?.user;
   const { t } = useTranslation();
+  const communityUnread = useCommunityUnread();
 
   const menuItems = [
     { label: t("header.home"), href: "/" },
@@ -24,7 +26,7 @@ export function Header() {
     { label: t("header.pricing"), href: "/subscription" },
     { label: t("header.tutorial"), href: "/tutorial" },
     { label: t("header.demo"), href: "/demo" },
-    { label: t("header.community", "Communauté"), href: "/community" },
+    { label: t("header.community", "Communauté"), href: "/community", key: "community" },
   ];
 
   const scrollToHash = (hash: string) => {
@@ -77,9 +79,14 @@ export function Header() {
                   e.preventDefault();
                   handleNavClick(item.href);
                 }}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}
+                {(item as any).key === "community" && communityUnread > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse">
+                    {communityUnread > 99 ? "99+" : communityUnread}
+                  </span>
+                )}
               </a>
             ))}
           </nav>
@@ -130,6 +137,11 @@ export function Header() {
                       }}
                     >
                       {item.label}
+                      {(item as any).key === "community" && communityUnread > 0 && (
+                        <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                          {communityUnread > 99 ? "99+" : communityUnread}
+                        </span>
+                      )}
                     </a>
                   ))}
                 </nav>
