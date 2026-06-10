@@ -931,10 +931,10 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* ===== HERO DYNAMIQUE ===== */}
-      <section className="relative overflow-hidden border-b bg-gradient-to-br from-rose-100 via-pink-50 to-orange-50">
+      <section className="relative overflow-hidden border-b bg-gradient-to-br from-rose-100 via-pink-50 to-orange-50 hidden md:block">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(251,113,133,0.2),_transparent_50%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(251,146,60,0.15),_transparent_50%)]" />
-        <div className="container relative mx-auto px-4 py-6 md:py-12">
+        <div className="container relative mx-auto px-4 py-6 md:py-10">
           <div className="max-w-2xl mx-auto text-center space-y-3">
             <Badge className="px-3 py-1 bg-white/90 text-rose-700 backdrop-blur-sm shadow-sm font-semibold">
               <Atom className="w-3.5 h-3.5 mr-1.5 text-sky-600" />
@@ -960,17 +960,19 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         </div>
       </section>
 
-      {/* ===== GALERIE DÉFILANTE (une image à la fois) ===== */}
-      <ExampleSlideshow
-        images={[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate]}
-      />
+      {/* ===== GALERIE DÉFILANTE — desktop only pour libérer l'écran mobile ===== */}
+      <div className="hidden md:block">
+        <ExampleSlideshow
+          images={[exampleHandbag, examplePhone, exampleFood, exampleBeauty, exampleFitness, exampleRealestate]}
+        />
+      </div>
 
-      <div id="create" className="container mx-auto px-4 py-6 md:py-8 scroll-mt-20">
+      <div id="create" className="container mx-auto px-3 md:px-4 py-4 md:py-8 scroll-mt-20">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8 md:mb-12">
+          <div className="text-center mb-4 md:mb-12">
             <div className="flex flex-col items-center gap-3 mb-4">
-              <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold break-words">
-                Créez votre contenu publicitaire
+              <h1 className="text-xl sm:text-2xl md:text-5xl font-bold break-words">
+                Choisissez un mode de création
               </h1>
               {!isFounder && !hasActiveSubscription && (freeGenerationsRemaining !== null || purchasedCredits > 0) && (
                 <Badge 
@@ -995,8 +997,8 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 </Badge>
               )}
             </div>
-            <p className="text-lg text-muted-foreground">
-              Remplissez le formulaire et laissez l'IA créer du contenu professionnel pour vous
+            <p className="hidden md:block text-lg text-muted-foreground">
+              Sélectionnez d'abord un mode ci-dessous, puis remplissez le formulaire.
             </p>
             
             {isFounder && (
@@ -1053,19 +1055,23 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
             )}
           </div>
 
-          <Tabs value={generationType === "video" ? "image" : generationType} onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")} className="mb-6">
-            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3">
-              <TabsTrigger value="image">
-                <ImageIcon className="mr-2 h-4 w-4 shrink-0 text-rose-600" />
-                Classique
+          <Tabs
+            value={generationType === "video" ? "image" : generationType}
+            onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")}
+            className="mb-4 md:mb-6 sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-2 -mx-3 px-3 md:mx-0 md:px-0"
+          >
+            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 h-auto">
+              <TabsTrigger value="image" className="flex-col gap-1 py-2 text-xs sm:text-sm sm:flex-row sm:gap-2">
+                <ImageIcon className="h-4 w-4 shrink-0 text-rose-600" />
+                <span>Classique</span>
               </TabsTrigger>
-              <TabsTrigger value="advanced">
-                <Atom className="mr-2 h-4 w-4 shrink-0 text-sky-600" />
-                Avancé
+              <TabsTrigger value="advanced" className="flex-col gap-1 py-2 text-xs sm:text-sm sm:flex-row sm:gap-2">
+                <Atom className="h-4 w-4 shrink-0 text-sky-600" />
+                <span>Avancé</span>
               </TabsTrigger>
-              <TabsTrigger value="pro">
-                <Aperture className="mr-2 h-4 w-4 shrink-0 text-amber-600" />
-                Mode Pro
+              <TabsTrigger value="pro" className="flex-col gap-1 py-2 text-xs sm:text-sm sm:flex-row sm:gap-2">
+                <Aperture className="h-4 w-4 shrink-0 text-amber-600" />
+                <span>Pro</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
