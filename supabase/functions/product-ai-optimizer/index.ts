@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
+import { requireUserCredits } from "../_shared/credits-gate.ts";
 import { geminiChat } from "../_shared/openrouter-chat.ts";
 
 const corsHeaders = {
@@ -16,6 +17,8 @@ const json = (body: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const __credits = await requireUserCredits(req);
+  if (!__credits.allowed) return __credits.response;
   const __quota = await enforceAiQuota(req, "product-ai-optimizer");
   if (!__quota.allowed) return __quota.response;
 

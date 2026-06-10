@@ -78,7 +78,7 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
         body: { shop_id: shop.id, product_id: productId, framework },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Erreur");
+      if (!data?.success) throw new Error(data?.message || data?.error || "Erreur");
       const a = { ...data.analysis, ...data.parsed } as Analysis;
       setAnalysis(a);
       setHistory((h) => [a, ...h].slice(0, 5));
@@ -388,7 +388,7 @@ function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) =>
         },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Erreur");
+      if (!data?.success) throw new Error(data?.message || data?.error || "Erreur");
       setSheet(data.sheet || {});
       setImages(Array.isArray(data.images) ? data.images : []);
       toast.success("Fiche produit générée");
