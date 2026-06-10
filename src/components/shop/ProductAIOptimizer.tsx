@@ -392,7 +392,10 @@ function CreateSheetPanel({ shop, onCopy }: { shop: Shop; onCopy: (s: string) =>
         },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.message || data?.error || "Erreur");
+      if (!data?.success) {
+        if (handleCreditsRequired(data)) return;
+        throw new Error(data?.message || data?.error || "Erreur");
+      }
       setSheet(data.sheet || {});
       setImages(Array.isArray(data.images) ? data.images : []);
       toast.success("Fiche produit générée");
