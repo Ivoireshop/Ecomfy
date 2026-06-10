@@ -9,9 +9,9 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 
 const PACKS = [
-  { size: 10, price: 2000, label: "Starter" },
-  { size: 15, price: 2500, label: "Pro", popular: true },
-  { size: 20, price: 3000, label: "Studio" },
+  { size: 20, price: 2000, label: "Starter" },
+  { size: 30, price: 2500, label: "Pro", popular: true },
+  { size: 40, price: 3000, label: "Studio" },
 ];
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
@@ -37,6 +37,8 @@ export function AICreditsBadge() {
 
   useEffect(() => {
     void load();
+    const openHandler = () => setOpen(true);
+    window.addEventListener("open-credits-dialog", openHandler);
     if (!user) return;
     const ch = supabase
       .channel(`profile-credits-${user.id}`)
@@ -44,13 +46,14 @@ export function AICreditsBadge() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
         (payload: any) => {
-          if (typeof payload?.new?.purchased_credits === "number") {
+          if (payload?.new?.purchased_credits !== undefined && payload?.new?.purchased_credits !== null) {
             setCredits(payload.new.purchased_credits);
           }
         },
       )
       .subscribe();
     return () => {
+      window.removeEventListener("open-credits-dialog", openHandler);
       supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,8 +137,8 @@ export function AICreditsBadge() {
               <Zap className="h-5 w-5 text-primary" /> Recharger vos crédits IA
             </DialogTitle>
             <DialogDescription>
-              1 crédit = 1 génération (fiche produit ou image IA). Solde actuel :{" "}
-              <b>{credits} crédits</b>.
+              1,5 crédit par fiche produit · 2 crédits par message vocal. Solde
+              actuel : <b>{credits} crédits</b>.
             </DialogDescription>
           </DialogHeader>
 
