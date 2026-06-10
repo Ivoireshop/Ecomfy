@@ -8,9 +8,9 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 
 const PACKS = [
-  { size: 15, price: 3000, label: "Starter" },
-  { size: 30, price: 6000, label: "Pro", popular: true },
-  { size: 60, price: 12000, label: "Studio" },
+  { size: 10, price: 2000, label: "Starter" },
+  { size: 15, price: 2500, label: "Pro", popular: true },
+  { size: 20, price: 3000, label: "Studio" },
 ];
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
