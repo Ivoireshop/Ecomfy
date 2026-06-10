@@ -1,22 +1,33 @@
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { shopOwnerHasCredits } from "../_shared/credits-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Default: Sarah (warm, friendly female), multilingual_v2 supports FR/EN
-const DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL";
+// Default: Charlotte (warm, natural, very expressive female — better for FR)
+const DEFAULT_VOICE = "XB0fDUnXU5powFXDhCwa";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { text, voiceId, language } = await req.json();
+    const { text, voiceId, language, shopId } = await req.json();
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "text required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // If a shopId is provided, gate audio on the owner's IA credit balance
+    if (shopId) {
+      const ownerOk = await shopOwnerHasCredits(shopId);
+      if (!ownerOk) {
+        return new Response(JSON.stringify({ error: "credits_required" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const apiKey = Deno.env.get("ELEVEN_LABS_API_KEY");
@@ -33,11 +44,11 @@ Deno.serve(async (req) => {
         headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
           text: safeText,
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_turbo_v2_5",
           voice_settings: {
-            stability: 0.45,
-            similarity_boost: 0.8,
-            style: 0.35,
+            stability: 0.35,
+            similarity_boost: 0.85,
+            style: 0.55,
             use_speaker_boost: true,
             speed: 1.0,
           },
