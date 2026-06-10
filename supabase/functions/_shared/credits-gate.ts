@@ -107,3 +107,59 @@ export async function shopOwnerHasCredits(shopId: string): Promise<boolean> {
   if (!shop?.user_id) return false;
   return userHasCredits(shop.user_id);
 }
+
+/**
+ * Atomically consumes credit for a feature. Handles free trial (1 per
+ * feature), founder exemption, active subscription, then deducts paid
+ * credits. Returns `{ success, error?, balance?, free_trial?, ... }`.
+ */
+export async function consumeAiCredit(
+  userId: string,
+  feature: "optimizer" | "voice" | "product_sheet" | "image" | string,
+  amount = 1.5,
+): Promise<{ success: boolean; error?: string; balance?: number; free_trial?: boolean; exempt?: boolean }> {
+  if (!userId) return { success: false, error: "not_authenticated" };
+  const admin = adminClient();
+  const { data, error } = await admin.rpc("consume_ai_credit", {
+    _user_id: userId,
+    _feature: feature,
+    _amount: amount,
+  });
+  if (error) {
+    console.error("consume_ai_credit rpc error", error);
+    return { success: false, error: "rpc_failed" };
+  }
+  return (data || { success: false }) as any;
+}
+
+/**
+ * Consumes credit for the shop owner (used by per-shop AI features like
+ * the voice assistant). Returns the same shape as `consumeAiCredit`.
+ */
+export async function consumeShopOwnerCredit(
+  shopId: string,
+  feature: string,
+  amount: number,
+) {
+  if (!shopId) return { success: false, error: "missing_shop" };
+  const admin = adminClient();
+  const { data: shop } = await admin
+    .from("shops")
+    .select("user_id")
+    .eq("id", shopId)
+    .maybeSingle();
+  if (!shop?.user_id) return { success: false, error: "shop_not_found" };
+  return consumeAiCredit(shop.user_id, feature, amount);
+}
+
+export const creditsRequiredResponse = (extra: Record<string, unknown> = {}) =>
+  new Response(
+    JSON.stringify({
+      success: false,
+      error: "credits_required",
+      message:
+        "Vous avez utilisé votre essai gratuit. Achetez un pack de crédits IA (à partir de 2 000 FCFA) pour continuer.",
+      ...extra,
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
