@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Canvas as FabricCanvas, FabricImage, IText, FabricObject } from "fabric";
+import { Canvas as FabricCanvas, FabricImage, IText, FabricObject, Shadow } from "fabric";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -374,7 +374,7 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
       fontFamily: "Montserrat",
       fontWeight: "bold",
       textAlign: "center",
-      shadow: "rgba(0,0,0,0.6) 0 2px 6px",
+      shadow: new Shadow({ color: "rgba(0,0,0,0.6)", blur: 6, offsetX: 0, offsetY: 2 }),
     });
 
     fabricCanvas.add(text);
