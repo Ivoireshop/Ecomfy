@@ -15,7 +15,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Hash, Pin, Smile, Send, Reply, Trash2, MoreVertical, X, ShieldCheck, AtSign, ChevronUp, ChevronDown, Volume2, Square, Circle } from "lucide-react";
+import { Hash, Pin, Smile, Send, Reply, Trash2, MoreVertical, X, ShieldCheck, AtSign, ChevronUp, ChevronDown, Volume2, Square, Heart, SmilePlus } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -31,6 +31,15 @@ type Message = {
 };
 
 type ProfileLite = { id: string; full_name: string | null; avatar_url: string | null };
+
+type Reaction = {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+};
+
+const QUICK_REACTIONS = ["❤️", "👍", "😂", "🔥", "🎉", "👏"];
 
 const Avatar = ({ p, size = 40 }: { p?: ProfileLite | null; size?: number }) => {
   const initials = (p?.full_name || "?").trim().split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
@@ -75,6 +84,7 @@ const Community = () => {
   const [mentionList, setMentionList] = useState<ProfileLite[]>([]);
   const [onlineCount, setOnlineCount] = useState(0);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -118,6 +128,13 @@ const Community = () => {
     const list = ((data as Message[]) || []).slice().reverse();
     setMessages(list);
     await loadProfiles(list.map((m) => m.user_id));
+    if (list.length) {
+      const { data: rx } = await supabase
+        .from("community_message_reactions" as any)
+        .select("id,message_id,user_id,emoji")
+        .in("message_id", list.map((m) => m.id));
+      setReactions(((rx as any) || []) as Reaction[]);
+    }
     setLoading(false);
     setTimeout(() => scrollToBottom(false), 50);
   };
@@ -202,7 +219,30 @@ const Community = () => {
         }
       });
 
-    return () => { void supabase.removeChannel(channel); };
+    const reactionsChannel = supabase
+      .channel("community_reactions_live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "community_message_reactions" },
+        (payload) => {
+          const r = payload.new as Reaction;
+          setReactions((prev) => prev.some((x) => x.id === r.id) ? prev : [...prev, r]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "community_message_reactions" },
+        (payload) => {
+          const r = payload.old as Reaction;
+          setReactions((prev) => prev.filter((x) => x.id !== r.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+      void supabase.removeChannel(reactionsChannel);
+    };
   }, [session?.user]);
 
   const pinnedMessages = useMemo(() => messages.filter((m) => m.is_pinned), [messages]);
@@ -286,6 +326,36 @@ const Community = () => {
   };
 
   const findMessage = (id: string | null) => id ? messages.find((m) => m.id === id) : null;
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (!session?.user) return;
+    const mine = reactions.find(
+      (r) => r.message_id === messageId && r.user_id === session.user.id && r.emoji === emoji
+    );
+    if (mine) {
+      setReactions((prev) => prev.filter((r) => r.id !== mine.id));
+      await supabase.from("community_message_reactions" as any).delete().eq("id", mine.id);
+    } else {
+      const optimistic: Reaction = {
+        id: `tmp-${Date.now()}-${Math.random()}`,
+        message_id: messageId,
+        user_id: session.user.id,
+        emoji,
+      };
+      setReactions((prev) => [...prev, optimistic]);
+      const { data, error } = await supabase
+        .from("community_message_reactions" as any)
+        .insert({ message_id: messageId, user_id: session.user.id, emoji })
+        .select("id,message_id,user_id,emoji")
+        .single();
+      if (error) {
+        setReactions((prev) => prev.filter((r) => r.id !== optimistic.id));
+        if (!String(error.message || "").includes("duplicate")) toast.error("Réaction impossible");
+      } else if (data) {
+        setReactions((prev) => prev.map((r) => r.id === optimistic.id ? (data as any) : r));
+      }
+    }
+  };
 
   return (
     <>
