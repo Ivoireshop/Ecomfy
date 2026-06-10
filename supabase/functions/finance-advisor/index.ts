@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
+import { geminiChat } from "../_shared/openrouter-chat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,12 +28,6 @@ Deno.serve(async (req) => {
     }
 
     const { stats } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ success: false, error: "AI non configurée" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const prompt = `Tu es un comptable expert pour e-commerçants africains (FCFA). Analyse ces chiffres et donne 4 conseils concrets, courts (1-2 phrases chacun), avec emojis. Sois direct, bienveillant, sans jargon.
 
@@ -41,32 +36,20 @@ ${JSON.stringify(stats, null, 2)}
 
 Réponds en français, format markdown avec puces.`;
 
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+    try {
+      const { content: advice, provider } = await geminiChat({
         messages: [{ role: "user", content: prompt }],
-      }),
-    });
-    if (!r.ok) {
-      const t = await r.text();
-      let error = `Service IA indisponible (code ${r.status}). Réessayez dans un instant.`;
-      if (r.status === 429) {
-        error = "Trop de demandes en peu de temps. Patientez une minute puis réessayez.";
-      } else if (r.status === 402) {
-        error = "Le crédit IA mensuel de la plateforme est épuisé. L'équipe VisualPro a été notifiée — réessayez plus tard ou contactez le support.";
-      }
-      console.error("finance-advisor AI error", r.status, t);
-      return new Response(JSON.stringify({ success: false, error }), {
+      });
+      console.log(`[finance-advisor] provider=${provider}`);
+      return new Response(JSON.stringify({ success: true, advice }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (e) {
+      console.error("finance-advisor AI error", e);
+      return new Response(JSON.stringify({ success: false, error: "Service IA momentanément indisponible. Réessayez dans un instant." }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const data = await r.json();
-    const advice = data.choices?.[0]?.message?.content || "";
-    return new Response(JSON.stringify({ success: true, advice }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, error: String(e) }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
