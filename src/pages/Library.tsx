@@ -357,7 +357,7 @@ const Library = () => {
                 <p>Aucune vidéo générée pour le moment</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                 {videos.map((video) => (
                   <div key={video.id} className="bg-card rounded-lg overflow-hidden shadow-lg border">
                     <div className="w-full aspect-video bg-muted flex items-center justify-center">
