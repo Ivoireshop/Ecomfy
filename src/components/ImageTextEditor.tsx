@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Canvas as FabricCanvas, FabricImage, IText, FabricObject } from "fabric";
+import { Canvas as FabricCanvas, FabricImage, IText, FabricObject, Shadow } from "fabric";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -259,34 +259,53 @@ const TEXT_TEMPLATES: TextTemplate[] = [
 
 export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageTextEditorProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const [selectedObject, setSelectedObject] = useState<FabricObject | null>(null);
   const [textContent, setTextContent] = useState("");
-  const [fontSize, setFontSize] = useState(24);
+  const [fontSize, setFontSize] = useState(64);
   const [fontFamily, setFontFamily] = useState("Arial");
-  const [textColor, setTextColor] = useState("#000000");
-  const [isBold, setIsBold] = useState(false);
+  const [textColor, setTextColor] = useState("#FFFFFF");
+  const [isBold, setIsBold] = useState(true);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current || !isOpen) return;
 
+    // Responsive sizing: fit canvas to wrapper width (mobile-first).
+    const wrap = canvasWrapRef.current;
+    const wrapW = wrap?.clientWidth || Math.min(window.innerWidth - 32, 800);
+    const targetW = Math.max(280, Math.min(wrapW, 1024));
+    const targetH = Math.round(targetW * 0.75); // 4:3 default until image loads
+
     const canvas = new FabricCanvas(canvasRef.current, {
-      width: 800,
-      height: 600,
+      width: targetW,
+      height: targetH,
       backgroundColor: "#ffffff",
     });
+
+    // Larger control handles for touch.
+    FabricObject.prototype.cornerSize = 28;
+    FabricObject.prototype.touchCornerSize = 44;
+    FabricObject.prototype.cornerStyle = "circle";
+    FabricObject.prototype.cornerColor = "#ffffff";
+    FabricObject.prototype.cornerStrokeColor = "#111827";
+    FabricObject.prototype.transparentCorners = false;
+    FabricObject.prototype.borderColor = "#111827";
+    FabricObject.prototype.borderScaleFactor = 2;
 
     // Load the image
     FabricImage.fromURL(imageUrl, { crossOrigin: "anonymous" }).then((img) => {
       if (!img) return;
-      
-      const scale = Math.min(
-        canvas.width! / (img.width || 1),
-        canvas.height! / (img.height || 1)
-      );
-      
+
+      // Resize canvas to image aspect ratio.
+      const iw = img.width || 1;
+      const ih = img.height || 1;
+      const newH = Math.round(targetW * (ih / iw));
+      canvas.setDimensions({ width: targetW, height: newH });
+      const scale = targetW / iw;
+
       img.scale(scale);
       img.set({
         left: 0,
@@ -341,18 +360,30 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
   const addText = () => {
     if (!fabricCanvas) return;
 
-    const text = new IText("Double-cliquez pour éditer", {
-      left: 100,
-      top: 100,
-      fontSize: 24,
-      fill: "#000000",
-      fontFamily: "Arial",
+    const h = fabricCanvas.height || 600;
+    const w = fabricCanvas.width || 800;
+    // Default = ~8% of image height, bold, white with shadow for legibility.
+    const defaultSize = Math.max(32, Math.round(h * 0.08));
+    const text = new IText("VOTRE TEXTE", {
+      left: w / 2,
+      top: h / 2,
+      originX: "center",
+      originY: "center",
+      fontSize: defaultSize,
+      fill: "#FFFFFF",
+      fontFamily: "Montserrat",
+      fontWeight: "bold",
+      textAlign: "center",
+      shadow: new Shadow({ color: "rgba(0,0,0,0.6)", blur: 6, offsetX: 0, offsetY: 2 }),
     });
 
     fabricCanvas.add(text);
     fabricCanvas.setActiveObject(text);
     fabricCanvas.renderAll();
-    toast.success("Texte ajouté - Double-cliquez pour éditer");
+    setFontSize(defaultSize);
+    setTextColor("#FFFFFF");
+    setIsBold(true);
+    toast.success("Texte ajouté — double-cliquez pour le modifier");
   };
 
   const addTemplateText = (template: TextTemplate) => {
@@ -433,19 +464,19 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl w-[100vw] sm:w-auto h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
         <DialogHeader>
-          <DialogTitle>Éditeur de Texte - Style Canva</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Éditeur de texte sur image</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4 pb-24 sm:pb-0">
           {/* Canvas */}
           <div className="lg:col-span-3">
-            <div className="border rounded-lg overflow-hidden bg-muted">
-              <canvas ref={canvasRef} />
+            <div ref={canvasWrapRef} className="border rounded-lg overflow-hidden bg-muted flex justify-center">
+              <canvas ref={canvasRef} className="max-w-full h-auto touch-none" />
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              💡 Double-cliquez sur un texte pour l'éditer directement sur l'image
+            <p className="text-xs text-muted-foreground mt-2">
+              Double-cliquez sur un texte pour le modifier. Glissez les coins pour redimensionner.
             </p>
           </div>
 
@@ -673,12 +704,12 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t p-3 sm:static sm:border-0 sm:p-0 flex-row gap-2 [padding-bottom:max(env(safe-area-inset-bottom),0.75rem)]">
+          <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-initial h-11">
             Annuler
           </Button>
-          <Button onClick={handleSave}>
-            Enregistrer les modifications
+          <Button onClick={handleSave} className="flex-1 sm:flex-initial h-11">
+            Enregistrer
           </Button>
         </DialogFooter>
       </DialogContent>
