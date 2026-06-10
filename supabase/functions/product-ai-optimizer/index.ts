@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
+import { geminiChat } from "../_shared/openrouter-chat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +24,6 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
@@ -130,34 +130,21 @@ TRAFIC & CONVERSION (30 derniers jours):
 
 Analyse pourquoi les visiteurs ne convertissent pas et propose un plan d'action priorisé.`;
 
-    if (!LOVABLE_API_KEY) return json({ success: false, error: "IA indisponible" });
-
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+    let raw = "{}";
+    try {
+      const { content, provider } = await geminiChat({
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!aiResp.ok) {
-      const t = await aiResp.text();
-      console.error("AI error", aiResp.status, t);
-      if (aiResp.status === 429) return json({ success: false, error: "Trop de requêtes IA, réessayez dans une minute." });
-      if (aiResp.status === 402) return json({ success: false, error: "Crédits IA épuisés. Ajoutez du crédit dans Réglages > Espace > Usage." });
-      return json({ success: false, error: "Erreur IA" });
+        jsonMode: true,
+      });
+      console.log(`[product-ai-optimizer] provider=${provider}`);
+      raw = content || "{}";
+    } catch (e) {
+      console.error("AI error", e);
+      return json({ success: false, error: "Service IA momentanément indisponible. Réessayez dans un instant." });
     }
-
-    const aiData = await aiResp.json();
-    const raw = aiData?.choices?.[0]?.message?.content ?? "{}";
     let parsed: any = {};
     try { parsed = JSON.parse(raw); } catch { parsed = { diagnosis: raw, recommendations: [] }; }
 
