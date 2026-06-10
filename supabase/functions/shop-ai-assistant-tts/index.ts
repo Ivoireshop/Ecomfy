@@ -1,5 +1,5 @@
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { shopOwnerHasCredits } from "../_shared/credits-gate.ts";
+import { consumeShopOwnerCredit } from "../_shared/credits-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,13 +20,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // If a shopId is provided, gate audio on the owner's IA credit balance
+    // 1 free trial per shop owner, then 2 credits per voice message
     if (shopId) {
-      const ownerOk = await shopOwnerHasCredits(shopId);
-      if (!ownerOk) {
-        return new Response(JSON.stringify({ error: "credits_required" }), {
-          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      const charge = await consumeShopOwnerCredit(shopId, "voice", 2);
+      if (!charge.success) {
+        return new Response(
+          JSON.stringify({
+            error: "credits_required",
+            message:
+              "Le propriétaire de la boutique doit acheter un pack de crédits IA pour activer l'assistant vocal.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     }
 

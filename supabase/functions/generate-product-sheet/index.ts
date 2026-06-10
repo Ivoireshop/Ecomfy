@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
-import { requireUserCredits } from "../_shared/credits-gate.ts";
+import { consumeAiCredit, creditsRequiredResponse } from "../_shared/credits-gate.ts";
 import { geminiChat, geminiImage } from "../_shared/openrouter-chat.ts";
 
 const corsHeaders = {
@@ -17,8 +17,6 @@ const json = (body: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const __credits = await requireUserCredits(req);
-  if (!__credits.allowed) return __credits.response;
   const __quota = await enforceAiQuota(req, "generate-product-sheet");
   if (!__quota.allowed) return __quota.response;
 
@@ -36,6 +34,14 @@ Deno.serve(async (req) => {
     });
     const { data: userData, error: userErr } = await userClient.auth.getUser(token);
     if (userErr || !userData?.user) return json({ success: false, error: "Session invalide" });
+    const userId = userData.user.id;
+
+    // 1 free trial, then 1.5 credit per product sheet
+    const charge = await consumeAiCredit(userId, "product_sheet", 1.5);
+    if (!charge.success) {
+      if (charge.error === "credits_required") return creditsRequiredResponse({ feature: "product_sheet" });
+      return json({ success: false, error: charge.error || "credits_error" });
+    }
 
     const body = await req.json().catch(() => ({}));
     const {
