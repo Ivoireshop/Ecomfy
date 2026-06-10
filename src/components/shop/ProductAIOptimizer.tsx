@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy, Upload, Download, ImageIcon, Wand2, Trash2 } from "lucide-react";
+import { handleCreditsRequired } from "@/lib/creditsDialog";
 
 type Product = { id: string; name: string; price: number; is_published: boolean };
 type Shop = { id: string; ai_optimizer_enabled?: boolean; currency?: string };
@@ -78,7 +79,10 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
         body: { shop_id: shop.id, product_id: productId, framework },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.message || data?.error || "Erreur");
+      if (!data?.success) {
+        if (handleCreditsRequired(data)) return;
+        throw new Error(data?.message || data?.error || "Erreur");
+      }
       const a = { ...data.analysis, ...data.parsed } as Analysis;
       setAnalysis(a);
       setHistory((h) => [a, ...h].slice(0, 5));
