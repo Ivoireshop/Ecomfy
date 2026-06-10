@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { shopOwnerHasCredits } from "../_shared/credits-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,6 +59,15 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Gate: shop owner must have IA credits for the assistant to respond
+    const ownerOk = await shopOwnerHasCredits(shopId);
+    if (!ownerOk) {
+      return new Response(
+        JSON.stringify({ error: "credits_required" }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const name = cfg.name || "Ramina";
