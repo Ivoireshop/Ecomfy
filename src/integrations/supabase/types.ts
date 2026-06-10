@@ -2184,7 +2184,10 @@ export type Database = {
           created_at: string | null
           email: string | null
           free_generations_remaining: number
+          free_optimizer_used: boolean
+          free_product_sheet_used: boolean
           free_video_generations_remaining: number
+          free_voice_used: boolean
           full_name: string | null
           has_showcase_access: boolean | null
           id: string
@@ -2201,7 +2204,10 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           free_generations_remaining?: number
+          free_optimizer_used?: boolean
+          free_product_sheet_used?: boolean
           free_video_generations_remaining?: number
+          free_voice_used?: boolean
           full_name?: string | null
           has_showcase_access?: boolean | null
           id: string
@@ -2218,7 +2224,10 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           free_generations_remaining?: number
+          free_optimizer_used?: boolean
+          free_product_sheet_used?: boolean
           free_video_generations_remaining?: number
+          free_voice_used?: boolean
           full_name?: string | null
           has_showcase_access?: boolean | null
           id?: string
@@ -3842,6 +3851,10 @@ export type Database = {
       }
       cleanup_expired_trash: { Args: never; Returns: undefined }
       cleanup_old_image_cache: { Args: never; Returns: undefined }
+      consume_ai_credit: {
+        Args: { _amount?: number; _feature: string; _user_id: string }
+        Returns: Json
+      }
       consume_ai_quota: {
         Args: { _feature?: string; _limit?: number; _user_id: string }
         Returns: Json
