@@ -229,9 +229,12 @@ const Library = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-3 md:px-4 py-4 md:py-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold mb-8">Ma Bibliothèque</h1>
+        <h1 className="text-2xl md:text-4xl font-bold mb-3 md:mb-6">Ma Bibliothèque</h1>
+        <div className="mb-4 rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs md:text-sm text-amber-900 dark:text-amber-200">
+          Les visuels et vidéos sont conservés <strong>30 jours</strong>. Pensez à télécharger ceux que vous voulez garder.
+        </div>
 
         <Tabs defaultValue="images" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -239,22 +242,23 @@ const Library = () => {
             <TabsTrigger value="videos">Vidéos ({videos.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="images" className="mt-8">
+          <TabsContent value="images" className="mt-4 md:mt-8">
             {images.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Aucune image générée pour le moment</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
                 {images.map((image) => (
                   <div key={image.id} className="bg-card rounded-lg overflow-hidden shadow-lg border">
                     <img 
                       src={image.image_url} 
                       alt={image.product_details?.productName || "Image générée"}
-                      className="w-full h-48 object-cover"
+                      className="w-full aspect-square object-cover"
+                      loading="lazy"
                     />
-                    <div className="p-4">
-                      <h3 className="font-semibold mb-2">
+                    <div className="p-2 md:p-3">
+                      <h3 className="font-semibold text-xs md:text-sm mb-1 line-clamp-1">
                         {image.product_details?.productName || "Sans titre"}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-2">
