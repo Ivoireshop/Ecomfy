@@ -471,21 +471,30 @@ const Community = () => {
                 const isOwn = session?.user?.id === m.user_id;
                 const canDelete = isOwn || isFounder;
 
+                const msgReactions = reactions.filter((r) => r.message_id === m.id);
+                const grouped = msgReactions.reduce<Record<string, { count: number; mine: boolean }>>((acc, r) => {
+                  const cur = acc[r.emoji] || { count: 0, mine: false };
+                  cur.count += 1;
+                  if (r.user_id === session?.user?.id) cur.mine = true;
+                  acc[r.emoji] = cur;
+                  return acc;
+                }, {});
+
                 return (
                   <div
                     key={m.id}
-                    className={`group flex gap-3 px-3 py-1.5 rounded-md ${same ? "" : "mt-3"} ${m.is_pinned ? "border-l-2 border-amber-500" : ""} ${isOwn ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-accent/40"}`}
+                    className={`group relative flex gap-2 md:gap-3 px-2 md:px-3 py-1.5 rounded-md ${same ? "" : "mt-3"} ${m.is_pinned ? "border-l-2 border-amber-500" : ""} ${isOwn ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-accent/40"}`}
                   >
-                    <div className="w-10 flex-shrink-0">
+                    <div className="w-8 md:w-10 flex-shrink-0">
                       {same ? (
                         <span className="opacity-0 group-hover:opacity-60 text-[10px] text-muted-foreground block text-right pr-1 pt-1">
                           {new Date(m.created_at).toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       ) : (
-                        <Avatar p={p} size={40} />
+                        <Avatar p={p} size={32} />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 overflow-hidden">
                       {parent && (
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5 truncate">
                           <Reply className="w-3 h-3" />
@@ -495,21 +504,78 @@ const Community = () => {
                       )}
                       {!same && (
                         <div className="flex items-baseline gap-2 mb-0.5">
-                          <span className="font-semibold text-sm">{p?.full_name || "Membre"}</span>
+                          <span className="font-semibold text-[13px] md:text-sm truncate max-w-[140px] md:max-w-none">{p?.full_name || "Membre"}</span>
                           {isFounder && m.user_id === session?.user?.id && (
                             <Badge className="text-[9px] gap-1 h-4"><ShieldCheck className="w-2.5 h-2.5" />Fondateur</Badge>
                           )}
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-[10px] md:text-[11px] text-muted-foreground">
                             {formatDistanceToNow(new Date(m.created_at), { addSuffix: true, locale: fr })}
                           </span>
                           {m.is_pinned && <Pin className="w-3 h-3 text-amber-600" />}
                         </div>
                       )}
-                      <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                      <div className="text-[13px] md:text-sm whitespace-pre-wrap break-words leading-relaxed overflow-wrap-anywhere">
                         {renderBody(m.body)}
                       </div>
+                      {/* Reactions */}
+                      {Object.keys(grouped).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {Object.entries(grouped).map(([emoji, { count, mine }]) => (
+                            <button
+                              key={emoji}
+                              onClick={() => toggleReaction(m.id, emoji)}
+                              className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] transition-colors ${
+                                mine ? "bg-primary/15 border-primary/40 text-primary" : "bg-muted/60 border-transparent hover:bg-muted"
+                              }`}
+                            >
+                              <span>{emoji}</span>
+                              <span className="tabular-nums">{count}</span>
+                            </button>
+                          ))}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="inline-flex items-center rounded-full border border-dashed px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted">
+                                <SmilePlus className="w-3 h-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent side="top" align="start" className="p-1 w-auto">
+                              <div className="flex gap-1">
+                                {QUICK_REACTIONS.map((e) => (
+                                  <button
+                                    key={e}
+                                    onClick={() => toggleReaction(m.id, e)}
+                                    className="text-lg p-1 rounded hover:bg-accent"
+                                  >
+                                    {e}
+                                  </button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
                     </div>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-start gap-1">
+                    <div className="md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-start gap-0.5 md:gap-1 flex-shrink-0">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Réagir">
+                            <Heart className="w-3.5 h-3.5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" align="end" className="p-1 w-auto">
+                          <div className="flex gap-1">
+                            {QUICK_REACTIONS.map((e) => (
+                              <button
+                                key={e}
+                                onClick={() => toggleReaction(m.id, e)}
+                                className="text-lg p-1 rounded hover:bg-accent"
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <Button
                         size="icon"
                         variant="ghost"
