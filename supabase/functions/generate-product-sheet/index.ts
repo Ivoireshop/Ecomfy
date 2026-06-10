@@ -101,15 +101,10 @@ ${brief || "(aucun brief — déduis depuis le nom du produit)"}
 
 Rédige une fiche produit complète, persuasive, adaptée au marché ouest-africain (français, FCFA, codes culturels locaux quand pertinent).`;
 
-    // 1) Copy generation
-    const copyResp = await fetch(LOVABLE_AI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+    // 1) Copy generation (OpenRouter Gemini → Lovable Cloud fallback)
+    let rawCopy = "{}";
+    try {
+      const { content, provider } = await geminiChat({
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -122,20 +117,14 @@ Rédige une fiche produit complète, persuasive, adaptée au marché ouest-afric
               : userPrompt,
           },
         ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!copyResp.ok) {
-      const t = await copyResp.text();
-      console.error("copy AI error", copyResp.status, t);
-      if (copyResp.status === 429) return json({ success: false, error: "Trop de requêtes IA, réessayez dans une minute." });
-      if (copyResp.status === 402) return json({ success: false, error: "Crédits IA épuisés. Ajoutez du crédit dans Réglages > Espace > Usage." });
-      return json({ success: false, error: "Erreur IA (copy)" });
+        jsonMode: true,
+      });
+      console.log(`[generate-product-sheet] copy provider=${provider}`);
+      rawCopy = content || "{}";
+    } catch (e) {
+      console.error("copy AI error", e);
+      return json({ success: false, error: "Service IA momentanément indisponible (rédaction). Réessayez dans un instant." });
     }
-
-    const copyData = await copyResp.json();
-    const rawCopy = copyData?.choices?.[0]?.message?.content ?? "{}";
     let sheet: any = {};
     try { sheet = JSON.parse(rawCopy); } catch { sheet = {}; }
 
@@ -155,40 +144,14 @@ Rédige une fiche produit complète, persuasive, adaptée au marché ouest-afric
               ? "CRITICAL PRODUCT FIDELITY RULE: The attached reference image shows the EXACT product to feature. You MUST keep the product identical to the reference: same shape, same packaging, same label, same brand text, same colors, same proportions, same materials. Do NOT redesign, restyle, or invent a similar-looking product. Only the human models, background, lighting and scene may change. Place the EXACT product from the reference into the scene below.\n\nSCENE: "
               : "") + p.prompt;
 
-          const userContent: any = image_base64
-            ? [
-                { type: "text", text: refImagePrompt + ". STYLE: ultra-realistic photography, photojournalism, real human skin with natural pores and texture, authentic candid moment, shot on professional camera 85mm lens, natural soft lighting, shallow depth of field, 4k, subtle photographic film grain, editorial magazine quality. NEGATIVE PROMPT: do not alter, redesign or stylize the product; no AI generated look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no waxy skin, no generic stock photo, no uncanny valley." },
-                { type: "image_url", image_url: { url: `data:${image_mime || "image/jpeg"};base64,${image_base64}` } },
-              ]
-            : p.prompt +
-              ". STYLE: ultra-realistic photography, photojournalism, real human skin with natural pores and texture, authentic candid moment, shot on professional camera 85mm lens, natural soft lighting, shallow depth of field, 4k, subtle photographic film grain, editorial magazine quality. NEGATIVE PROMPT: no AI generated look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no waxy skin, no generic stock photo, no uncanny valley.";
-
-          const imgResp = await fetch(LOVABLE_AI_URL, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3.1-flash-image-preview",
-              messages: [
-                {
-                  role: "user",
-                  content: userContent,
-                },
-              ],
-              modalities: ["image", "text"],
-            }),
-          });
-          if (!imgResp.ok) {
-            const t = await imgResp.text();
-            console.warn("image gen failed", imgResp.status, t.slice(0, 200));
-            return { title: p.title, url: null, prompt: p.prompt, why: p.why, error: `HTTP ${imgResp.status}` };
-          }
-          const imgData = await imgResp.json();
-          const url = imgData?.choices?.[0]?.message?.images?.[0]?.image_url?.url
-            || imgData?.choices?.[0]?.message?.content;
-          return { title: p.title, url: typeof url === "string" ? url : null, prompt: p.prompt, why: p.why };
+          const styledPrompt = refImagePrompt +
+            ". STYLE: ultra-realistic photography, photojournalism, real human skin with natural pores and texture, authentic candid moment, shot on professional camera 85mm lens, natural soft lighting, shallow depth of field, 4k, subtle photographic film grain, editorial magazine quality. NEGATIVE PROMPT: no AI generated look, no plastic skin, no cartoon, no 3d render, no cgi, no illustration, no oversaturation, no perfect symmetric face, no waxy skin, no generic stock photo, no uncanny valley.";
+          const refs = image_base64
+            ? [`data:${image_mime || "image/jpeg"};base64,${image_base64}`]
+            : [];
+          const { url, provider } = await geminiImage(styledPrompt, refs);
+          console.log(`[generate-product-sheet] image provider=${provider}`);
+          return { title: p.title, url, prompt: p.prompt, why: p.why };
         } catch (e) {
           console.warn("image gen exception", e);
           return { title: p.title, url: null, prompt: p.prompt, why: p.why, error: e instanceof Error ? e.message : "Erreur" };
