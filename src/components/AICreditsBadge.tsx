@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Zap, Loader2, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Zap, Loader2, CheckCircle2, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -20,6 +21,9 @@ export function AICreditsBadge() {
   const [credits, setCredits] = useState<number>(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<number | null>(null);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [promo, setPromo] = useState<{ code: string; discount: number } | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -66,6 +70,7 @@ export function AICreditsBadge() {
           user_id: user.id,
           payment_type: "credits",
           credits_pack: { size: pack.size, price: pack.price },
+          promo_code: promo?.code,
         },
       });
       if (error || !data?.success) {
@@ -78,6 +83,33 @@ export function AICreditsBadge() {
       setLoading(null);
     }
   };
+
+  const applyPromo = async () => {
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
+    setPromoChecking(true);
+    try {
+      const { data, error } = await supabase.rpc("validate_promo_code", { promo_code: code });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (error || !row?.is_valid) {
+        toast.error(row?.message || "Code promo invalide");
+        setPromo(null);
+        return;
+      }
+      setPromo({ code, discount: row.discount_percentage });
+      toast.success(`Code appliqué : -${row.discount_percentage}%`);
+    } finally {
+      setPromoChecking(false);
+    }
+  };
+
+  const clearPromo = () => {
+    setPromo(null);
+    setPromoInput("");
+  };
+
+  const priceFor = (price: number) =>
+    promo ? Math.round(price * (1 - promo.discount / 100)) : price;
 
   if (!user) return null;
 
@@ -128,11 +160,18 @@ export function AICreditsBadge() {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      Pack {p.label} · {fmt(Math.round(p.price / p.size))} FCFA / crédit
+                      Pack {p.label} · {fmt(Math.round(priceFor(p.price) / p.size))} FCFA / crédit
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">{fmt(p.price)} FCFA</div>
+                    {promo ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs line-through text-muted-foreground">{fmt(p.price)} FCFA</span>
+                        <span className="font-bold text-primary">{fmt(priceFor(p.price))} FCFA</span>
+                      </div>
+                    ) : (
+                      <div className="font-bold">{fmt(p.price)} FCFA</div>
+                    )}
                     {loading === p.size ? (
                       <Loader2 className="h-4 w-4 animate-spin mt-1 ml-auto text-primary" />
                     ) : (
@@ -142,6 +181,50 @@ export function AICreditsBadge() {
                 </div>
               </button>
             ))}
+          </div>
+
+          <div className="mt-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold">Code promo</span>
+              {promo && (
+                <span className="ml-auto text-[10px] uppercase tracking-wide bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                  -{promo.discount}%
+                </span>
+              )}
+            </div>
+            {promo ? (
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-mono font-semibold">{promo.code}</span>
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={clearPromo}>
+                  <X className="h-3.5 w-3.5 mr-1" /> Retirer
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                  placeholder="Entrez votre code"
+                  className="h-9 text-sm uppercase"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void applyPromo();
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void applyPromo()}
+                  disabled={promoChecking || !promoInput.trim()}
+                  className="h-9"
+                >
+                  {promoChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Appliquer"}
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="mt-3 text-[11px] text-muted-foreground flex items-start gap-1.5">
