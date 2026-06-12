@@ -249,7 +249,23 @@ const ShopView = () => {
     let networkError = false;
     let inactiveShop: any = null;
 
+    // ── ULTRA-FAST PATH: in-flight RPC started from index.html BEFORE the JS
+    // bundle finished loading. Saves 400-1500 ms on ad-traffic cold loads.
+    try {
+      const preload: any = (window as any).__vpShopPreload;
+      if (preload && preload.slug === slug && preload.promise) {
+        const rows = await preload.promise;
+        (window as any).__vpShopPreload = null;
+        const live = Array.isArray(rows) ? rows[0] : null;
+        if (live) shopData = live;
+      }
+    } catch {}
+
     if (id) {
+      // skip
+    } else if (shopData) {
+      // already resolved by preload — fall through to set state below
+    } else if (id) {
       const { data: previewById, error } = await fetchWithRetry(() =>
         supabase.from("shops").select("*").eq("id", id).maybeSingle()
       );
