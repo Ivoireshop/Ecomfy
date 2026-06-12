@@ -200,6 +200,58 @@ const ProductView = () => {
     }
     if (!hydrated) setLoading(true);
     try {
+      // ── ULTRA-FAST PATH: in-flight RPC started from index.html BEFORE the
+      // JS bundle finished loading. Saves 400-1500 ms on ad-traffic cold loads.
+      try {
+        const preload: any = (window as any).__vpProductPreload;
+        if (preload && preload.slug === slug && preload.productSlug === productSlug && preload.promise) {
+          const rpc = await preload.promise;
+          (window as any).__vpProductPreload = null;
+          if (rpc && rpc.shop && rpc.product) {
+            const shopData = rpc.shop;
+            const productData = rpc.product;
+            if (Array.isArray(productData.product_images)) {
+              productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+            }
+            setShop(shopData);
+            setProduct(productData);
+            setRelatedProducts(Array.isArray(rpc.related) ? rpc.related : []);
+            if (shopCacheK) cacheSet(shopCacheK, shopData);
+            if (productData.slug) cacheSet(productKey(shopData.id, productData.slug), productData);
+            cacheSet(productKey(shopData.id, productData.id), productData);
+            setLoading(false);
+            // Fire pixels / analytics asynchronously without blocking.
+            queueMicrotask(() => {
+              try {
+                let sid = sessionStorage.getItem("vp_visit_session");
+                if (!sid) {
+                  sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+                  sessionStorage.setItem("vp_visit_session", sid);
+                }
+                supabase.from("shop_visits" as any).insert({ shop_id: shopData.id, product_id: productData.id, session_id: sid } as any).then(() => {}, () => {});
+              } catch {}
+              if (shopData.chatbot_enabled) {
+                setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
+              }
+              try {
+                initShopPixels(shopData);
+                trackEvent(shopData, "PageView");
+                trackEvent(shopData, "ViewContent", {
+                  value: productData.price,
+                  content_ids: [productData.id],
+                  content_name: productData.name,
+                  content_type: "product",
+                  contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
+                });
+              } catch {}
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("[ProductView] preload path failed", e);
+      }
+
       // ── FAST PATH: single RPC that returns shop + product + images + related.
       // Falls through to the legacy multi-query path on any failure (zero risk).
       if (slug && productSlug) {
