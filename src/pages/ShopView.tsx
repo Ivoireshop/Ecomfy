@@ -261,9 +261,7 @@ const ShopView = () => {
       }
     } catch {}
 
-    if (id) {
-      // skip
-    } else if (shopData) {
+    if (shopData) {
       // already resolved by preload — fall through to set state below
     } else if (id) {
       const { data: previewById, error } = await fetchWithRetry(() =>
