@@ -249,7 +249,21 @@ const ShopView = () => {
     let networkError = false;
     let inactiveShop: any = null;
 
-    if (id) {
+    // ── ULTRA-FAST PATH: in-flight RPC started from index.html BEFORE the JS
+    // bundle finished loading. Saves 400-1500 ms on ad-traffic cold loads.
+    try {
+      const preload: any = (window as any).__vpShopPreload;
+      if (preload && preload.slug === slug && preload.promise) {
+        const rows = await preload.promise;
+        (window as any).__vpShopPreload = null;
+        const live = Array.isArray(rows) ? rows[0] : null;
+        if (live) shopData = live;
+      }
+    } catch {}
+
+    if (shopData) {
+      // already resolved by preload — fall through to set state below
+    } else if (id) {
       const { data: previewById, error } = await fetchWithRetry(() =>
         supabase.from("shops").select("*").eq("id", id).maybeSingle()
       );
@@ -584,10 +598,27 @@ const ShopView = () => {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full" />
-        <p className="text-sm text-muted-foreground">Chargement de la boutique...</p>
+    <div className="min-h-screen bg-white">
+      <div className="border-b sticky top-0 z-40 bg-white">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse" />
+            <div className="h-4 w-32 rounded bg-gray-200 animate-pulse" />
+          </div>
+          <div className="h-9 w-20 rounded-lg bg-gray-200 animate-pulse" />
+        </div>
+      </div>
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6">
+        <div className="h-40 sm:h-56 rounded-xl bg-gray-100 animate-pulse mb-6" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="aspect-square rounded-xl bg-gray-100 animate-pulse" />
+              <div className="h-3 w-3/4 rounded bg-gray-200 animate-pulse" />
+              <div className="h-3 w-1/2 rounded bg-gray-200 animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

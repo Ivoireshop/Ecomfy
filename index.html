@@ -95,6 +95,57 @@
 
   <body>
     <div id="root"></div>
+    <!--
+      Ad-traffic landing speed: kick off the product/shop RPC BEFORE the JS
+      bundle has finished downloading. We stash a promise on
+      window.__vpProductPreload that ProductView / ShopView await on mount.
+      Saves 400–1500 ms on cold loads (network in parallel with bundle parse).
+    -->
+    <script>
+      (function () {
+        try {
+          var SUPABASE_URL = "https://dqlbmtkaamjohgbcjwtw.supabase.co";
+          var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxbGJtdGthYW1qb2hnYmNqd3R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMTMyNTAsImV4cCI6MjA3NzY4OTI1MH0.Y74c0ym91Q29oW6C-F5g8rBF8y4AphYtB4KJtu1AOLg";
+          var path = location.pathname;
+          var headers = {
+            "Content-Type": "application/json",
+            "apikey": ANON,
+            "Authorization": "Bearer " + ANON,
+          };
+          // /shop/:slug/p/:productSlug — product landing
+          var mProd = path.match(/^\/shop\/([^\/]+)\/p\/([^\/?#]+)/);
+          if (mProd) {
+            var slug = decodeURIComponent(mProd[1]);
+            var pslug = decodeURIComponent(mProd[2]);
+            window.__vpProductPreload = {
+              slug: slug,
+              productSlug: pslug,
+              promise: fetch(SUPABASE_URL + "/rest/v1/rpc/get_public_product_page", {
+                method: "POST",
+                headers: headers,
+                body: JSON.stringify({ p_shop_slug: slug, p_product_slug: pslug }),
+              }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+            };
+          } else {
+            // /shop/:slug or custom-domain "/" — shop landing
+            var mShop = path.match(/^\/shop\/([^\/?#]+)\/?$/);
+            if (mShop || path === "/") {
+              var sslug = mShop ? decodeURIComponent(mShop[1]) : null;
+              if (sslug) {
+                window.__vpShopPreload = {
+                  slug: sslug,
+                  promise: fetch(SUPABASE_URL + "/rest/v1/rpc/get_public_shop_by_slug", {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify({ p_slug: sslug }),
+                  }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+                };
+              }
+            }
+          }
+        } catch (e) { /* never block the page */ }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
