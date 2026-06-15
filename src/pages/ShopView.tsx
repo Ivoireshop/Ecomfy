@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef, type CSSProperties } from "react";
-import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
+import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,12 +16,21 @@ import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
-import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
+import { useDeferredMount } from "@/lib/useDeferredMount";
+
+// Heavy, non-critical widgets — load only after the shop hero/products grid is
+// visible so the LCP and "Commander" button are not blocked by extra JS.
+const SocialProofNotification = lazy(() =>
+  import("@/components/shop/SocialProofNotification").then(m => ({ default: m.SocialProofNotification }))
+);
+const ShopAIAssistant = lazy(() =>
+  import("@/components/shop/ShopAIAssistant").then(m => ({ default: m.ShopAIAssistant }))
+);
 
 interface Product {
   id: string;
