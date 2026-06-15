@@ -216,11 +216,11 @@ export default function ShowcaseView() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("showcase_sites")
+      // Public projection: excludes domain_verification_code and DNS/SSL metadata.
+      const { data, error } = await (supabase as any)
+        .from("showcase_sites_public")
         .select("*")
         .eq("subdomain", subdomain)
-        .eq("is_published", true)
         .single();
 
       if (error) {
