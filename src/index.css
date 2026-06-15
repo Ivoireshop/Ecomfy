@@ -4,6 +4,51 @@
 
 /* Design system moderne - Inspiré de MisterColombo */
 
+/* ===== Global responsive safety net =====
+   Prevent any horizontal scroll on mobile/tablet/desktop and ensure
+   long text, links and images never escape their container. */
+@layer base {
+  html, body, #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  body {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+  /* Long unbroken tokens (URLs, IDs, emails) wrap instead of pushing layout */
+  p, span, li, a, h1, h2, h3, h4, h5, h6, label, button, td, th, div {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  /* Media never overflows its container */
+  img, video, canvas, svg, iframe {
+    max-width: 100%;
+    height: auto;
+  }
+  /* Tables can scroll inside their own wrapper instead of breaking the page */
+  table {
+    max-width: 100%;
+  }
+  /* Inputs/textareas respect their parent width on mobile */
+  input, textarea, select {
+    max-width: 100%;
+  }
+  /* Prevent iOS auto-zoom on small inputs */
+  @media (max-width: 640px) {
+    input, textarea, select {
+      font-size: 16px;
+    }
+  }
+}
+
+@layer utilities {
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
