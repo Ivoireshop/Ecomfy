@@ -135,7 +135,7 @@ async function flush() {
     const texts: Record<string, string> = {};
     slice.forEach(([orig], idx) => { texts[`k${i + idx}`] = orig; });
     try {
-      const { data, error } = await supabase.functions.invoke("translate-product", {
+      const { data, error } = await supabase.functions.invoke("translate-ui", {
         body: { texts, target_lang: lang, source_lang: "fr" },
       });
       if (error || !data?.success) continue;
@@ -254,7 +254,16 @@ function stopObserver() {
 
 /** Public: enable/disable auto-translation for a given language. */
 export function setAutoTranslateLanguage(lang: string) {
+  const prev = currentLang;
   currentLang = lang;
+  // Switching between two non-FR languages would leave the DOM filled
+  // with the previous translation as "source". Force a reload so the
+  // canonical French strings come back, then the observer translates them.
+  if (typeof window !== "undefined" && prev && prev !== lang && prev !== "fr" && lang !== "fr") {
+    try { sessionStorage.setItem("vp_lang_switch_pending", lang); } catch { /* ignore */ }
+    window.location.reload();
+    return;
+  }
   if (lang === "fr") {
     stopObserver();
     pending.clear();

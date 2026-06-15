@@ -83,6 +83,9 @@ project_id = "dqlbmtkaamjohgbcjwtw"
 [functions.translate-product]
 verify_jwt = false
 
+[functions.translate-ui]
+verify_jwt = false
+
 [functions.shop-ai-assistant-chat]
 verify_jwt = false
 
