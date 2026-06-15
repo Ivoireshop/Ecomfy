@@ -4291,6 +4291,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      sanitize_html_content: { Args: { _input: string }; Returns: string }
       search_community_profiles: {
         Args: { _limit?: number; _query: string }
         Returns: {
