@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type CSSProperties } from "react";
+import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,18 +15,29 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
-import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
-import { ProductReviews } from "@/components/shop/ProductReviews";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
-import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { normalizeSectionOrder, type ProductSectionKey } from "@/lib/productSections";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, productKey } from "@/lib/shopCache";
+import { useDeferredMount } from "@/lib/useDeferredMount";
+
+// Non-critical, below-the-fold widgets. Loaded only after the LCP image and
+// the "Commander maintenant" button are interactive — keeps the initial JS
+// payload small for ad-traffic landings.
+const SocialProofNotification = lazy(() =>
+  import("@/components/shop/SocialProofNotification").then(m => ({ default: m.SocialProofNotification }))
+);
+const ProductReviews = lazy(() =>
+  import("@/components/shop/ProductReviews").then(m => ({ default: m.ProductReviews }))
+);
+const ShopAIAssistant = lazy(() =>
+  import("@/components/shop/ShopAIAssistant").then(m => ({ default: m.ShopAIAssistant }))
+);
 
 // Countdown Timer Component
 const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; days: number; hours: number; minutes: number }) => {
