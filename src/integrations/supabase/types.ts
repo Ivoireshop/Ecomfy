@@ -2353,6 +2353,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_hits: {
+        Row: {
+          bucket: string
+          hit_at: string
+          key: string
+        }
+        Insert: {
+          bucket: string
+          hit_at?: string
+          key: string
+        }
+        Update: {
+          bucket?: string
+          hit_at?: string
+          key?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           bonus_generations: number
@@ -4036,6 +4054,15 @@ export type Database = {
           p_shop_id: string
           p_transaction_reference: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      check_rate_limit: {
+        Args: {
+          _bucket: string
+          _key: string
+          _max: number
+          _window_seconds: number
         }
         Returns: Json
       }

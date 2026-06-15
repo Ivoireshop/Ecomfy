@@ -159,6 +159,16 @@ serve(async (req) => {
 
     // Parse and validate request body
     const requestBody = await req.json();
+
+    // Rate limit per user: 10 payment attempts per minute
+    const { data: rl } = await supabase.rpc('check_rate_limit', {
+      _bucket: 'process-payment', _key: authUserId, _max: 10, _window_seconds: 60,
+    });
+    if (rl && (rl as any).allowed === false) {
+      return new Response(JSON.stringify({ success: false, error: "Trop de tentatives de paiement, patientez un instant." }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     
     let validatedData;
     try {
