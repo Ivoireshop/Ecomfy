@@ -33,12 +33,12 @@ export function ProductReviews({ shopId, productId, primaryColor = "#111827", is
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("product_reviews")
+    // Read from the safe public view so visitors never see reviewer_email.
+    const { data } = await (supabase as any)
+      .from("product_reviews_public")
       .select("id, reviewer_name, rating, comment, created_at")
       .eq("shop_id", shopId)
       .eq("product_id", productId)
-      .eq("status", "approved")
       .order("created_at", { ascending: false })
       .limit(50);
     setReviews((data as any) || []);
