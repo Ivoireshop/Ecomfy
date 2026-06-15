@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef, type CSSProperties } from "react";
-import { SocialProofNotification } from "@/components/shop/SocialProofNotification";
+import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,12 +16,21 @@ import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
-import { ShopAIAssistant } from "@/components/shop/ShopAIAssistant";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
+import { useDeferredMount } from "@/lib/useDeferredMount";
+
+// Heavy, non-critical widgets — load only after the shop hero/products grid is
+// visible so the LCP and "Commander" button are not blocked by extra JS.
+const SocialProofNotification = lazy(() =>
+  import("@/components/shop/SocialProofNotification").then(m => ({ default: m.SocialProofNotification }))
+);
+const ShopAIAssistant = lazy(() =>
+  import("@/components/shop/ShopAIAssistant").then(m => ({ default: m.ShopAIAssistant }))
+);
 
 interface Product {
   id: string;
@@ -45,6 +53,9 @@ interface ChatMessage { role: "user" | "assistant"; content: string; }
 const ShopView = () => {
   const { slug, id } = useParams<{ slug?: string; id?: string }>();
   const navigate = useNavigate();
+  // Defer mounting non-critical widgets (social proof toasts, AI chat) so the
+  // shop hero + products grid + "Commander" button paint as fast as possible.
+  const deferredReady = useDeferredMount(1500);
   const [shop, setShop] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1289,19 +1300,22 @@ const ShopView = () => {
         </div>
       )}
 
-      {/* Social Proof Notifications */}
-      <SocialProofNotification
-        shopId={shop.id}
-        enabled={shop.social_proof_enabled || false}
-        shopName={shop.business_name}
-      />
-
-      <ShopAIAssistant
-        shopId={shop.id}
-        shopName={shop.business_name}
-        primaryColor={shop.primary_color}
-        secondaryColor={shop.secondary_color}
-      />
+      {/* Social Proof Notifications + AI Assistant (deferred for faster LCP) */}
+      {deferredReady && (
+        <Suspense fallback={null}>
+          <SocialProofNotification
+            shopId={shop.id}
+            enabled={shop.social_proof_enabled || false}
+            shopName={shop.business_name}
+          />
+          <ShopAIAssistant
+            shopId={shop.id}
+            shopName={shop.business_name}
+            primaryColor={shop.primary_color}
+            secondaryColor={shop.secondary_color}
+          />
+        </Suspense>
+      )}
     </div>
     </>
   );
