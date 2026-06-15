@@ -254,7 +254,16 @@ function stopObserver() {
 
 /** Public: enable/disable auto-translation for a given language. */
 export function setAutoTranslateLanguage(lang: string) {
+  const prev = currentLang;
   currentLang = lang;
+  // Switching between two non-FR languages would leave the DOM filled
+  // with the previous translation as "source". Force a reload so the
+  // canonical French strings come back, then the observer translates them.
+  if (typeof window !== "undefined" && prev && prev !== lang && prev !== "fr" && lang !== "fr") {
+    try { sessionStorage.setItem("vp_lang_switch_pending", lang); } catch { /* ignore */ }
+    window.location.reload();
+    return;
+  }
   if (lang === "fr") {
     stopObserver();
     pending.clear();
