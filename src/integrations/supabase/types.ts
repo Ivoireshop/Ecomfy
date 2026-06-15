@@ -3840,7 +3840,6 @@ export type Database = {
           email: string | null
           facebook_pixels: string[] | null
           favicon_url: string | null
-          google_analytics_code: string | null
           google_analytics_ids: string[] | null
           id: string | null
           is_activated: boolean | null
@@ -3862,7 +3861,6 @@ export type Database = {
           tiktok_pixels: string[] | null
           tracking_enabled: boolean | null
           updated_at: string | null
-          user_id: string | null
           whatsapp_number: string | null
         }
         Insert: {
@@ -3883,7 +3881,6 @@ export type Database = {
           email?: string | null
           facebook_pixels?: string[] | null
           favicon_url?: string | null
-          google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string | null
           is_activated?: boolean | null
@@ -3905,7 +3902,6 @@ export type Database = {
           tiktok_pixels?: string[] | null
           tracking_enabled?: boolean | null
           updated_at?: string | null
-          user_id?: string | null
           whatsapp_number?: string | null
         }
         Update: {
@@ -3926,7 +3922,6 @@ export type Database = {
           email?: string | null
           facebook_pixels?: string[] | null
           favicon_url?: string | null
-          google_analytics_code?: string | null
           google_analytics_ids?: string[] | null
           id?: string | null
           is_activated?: boolean | null
@@ -3948,208 +3943,63 @@ export type Database = {
           tiktok_pixels?: string[] | null
           tracking_enabled?: boolean | null
           updated_at?: string | null
-          user_id?: string | null
           whatsapp_number?: string | null
         }
         Relationships: []
       }
       showcase_sites_public: {
         Row: {
-          about_description: string | null
-          about_image_url: string | null
-          about_layout: string | null
-          about_title: string | null
-          about_video_url: string | null
-          background_color: string | null
-          biography_content: string | null
-          biography_image_position: string | null
-          biography_image_url: string | null
-          biography_title: string | null
           business_description: string | null
           business_name: string | null
           created_at: string | null
-          cta_description: string | null
-          cta_title: string | null
           custom_domain: string | null
-          features: Json | null
-          font_family: string | null
-          footer_color: string | null
           formation_description: string | null
           formation_image_url: string | null
           formation_price: string | null
           formation_title: string | null
-          formations: Json | null
-          formations_text_align: string | null
-          gallery_text_position: string | null
-          hero_image_url: string | null
-          hero_subtitle: string | null
-          hero_title: string | null
-          hero_title_color: string | null
-          hero_title_size: number | null
-          hero_video_url: string | null
           id: string | null
           is_published: boolean | null
-          logo_url: string | null
-          navigation_bg_color: string | null
-          navigation_text_color: string | null
-          og_image_url: string | null
-          og_type: string | null
           owner_name: string | null
           owner_photo_url: string | null
           phone_number: string | null
-          price_bg_color: string | null
-          price_text_color: string | null
-          primary_color: string | null
-          professional_experience: Json | null
-          secondary_color: string | null
-          seo_description: string | null
-          seo_keywords: string[] | null
-          seo_title: string | null
-          stats_bg_color: string | null
-          stats_projects_completed: number | null
-          stats_satisfied_clients: number | null
-          stats_show_section: boolean | null
-          stats_text_color: string | null
-          stats_years_experience: number | null
           subdomain: string | null
-          text_color: string | null
-          theme: string | null
-          theme_mode: string | null
-          twitter_card: string | null
           updated_at: string | null
-          user_id: string | null
           whatsapp_number: string | null
         }
         Insert: {
-          about_description?: string | null
-          about_image_url?: string | null
-          about_layout?: string | null
-          about_title?: string | null
-          about_video_url?: string | null
-          background_color?: string | null
-          biography_content?: string | null
-          biography_image_position?: string | null
-          biography_image_url?: string | null
-          biography_title?: string | null
           business_description?: string | null
           business_name?: string | null
           created_at?: string | null
-          cta_description?: string | null
-          cta_title?: string | null
           custom_domain?: string | null
-          features?: Json | null
-          font_family?: string | null
-          footer_color?: string | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
-          formations?: Json | null
-          formations_text_align?: string | null
-          gallery_text_position?: string | null
-          hero_image_url?: string | null
-          hero_subtitle?: string | null
-          hero_title?: string | null
-          hero_title_color?: string | null
-          hero_title_size?: number | null
-          hero_video_url?: string | null
           id?: string | null
           is_published?: boolean | null
-          logo_url?: string | null
-          navigation_bg_color?: string | null
-          navigation_text_color?: string | null
-          og_image_url?: string | null
-          og_type?: string | null
           owner_name?: string | null
           owner_photo_url?: string | null
           phone_number?: string | null
-          price_bg_color?: string | null
-          price_text_color?: string | null
-          primary_color?: string | null
-          professional_experience?: Json | null
-          secondary_color?: string | null
-          seo_description?: string | null
-          seo_keywords?: string[] | null
-          seo_title?: string | null
-          stats_bg_color?: string | null
-          stats_projects_completed?: number | null
-          stats_satisfied_clients?: number | null
-          stats_show_section?: boolean | null
-          stats_text_color?: string | null
-          stats_years_experience?: number | null
           subdomain?: string | null
-          text_color?: string | null
-          theme?: string | null
-          theme_mode?: string | null
-          twitter_card?: string | null
           updated_at?: string | null
-          user_id?: string | null
           whatsapp_number?: string | null
         }
         Update: {
-          about_description?: string | null
-          about_image_url?: string | null
-          about_layout?: string | null
-          about_title?: string | null
-          about_video_url?: string | null
-          background_color?: string | null
-          biography_content?: string | null
-          biography_image_position?: string | null
-          biography_image_url?: string | null
-          biography_title?: string | null
           business_description?: string | null
           business_name?: string | null
           created_at?: string | null
-          cta_description?: string | null
-          cta_title?: string | null
           custom_domain?: string | null
-          features?: Json | null
-          font_family?: string | null
-          footer_color?: string | null
           formation_description?: string | null
           formation_image_url?: string | null
           formation_price?: string | null
           formation_title?: string | null
-          formations?: Json | null
-          formations_text_align?: string | null
-          gallery_text_position?: string | null
-          hero_image_url?: string | null
-          hero_subtitle?: string | null
-          hero_title?: string | null
-          hero_title_color?: string | null
-          hero_title_size?: number | null
-          hero_video_url?: string | null
           id?: string | null
           is_published?: boolean | null
-          logo_url?: string | null
-          navigation_bg_color?: string | null
-          navigation_text_color?: string | null
-          og_image_url?: string | null
-          og_type?: string | null
           owner_name?: string | null
           owner_photo_url?: string | null
           phone_number?: string | null
-          price_bg_color?: string | null
-          price_text_color?: string | null
-          primary_color?: string | null
-          professional_experience?: Json | null
-          secondary_color?: string | null
-          seo_description?: string | null
-          seo_keywords?: string[] | null
-          seo_title?: string | null
-          stats_bg_color?: string | null
-          stats_projects_completed?: number | null
-          stats_satisfied_clients?: number | null
-          stats_show_section?: boolean | null
-          stats_text_color?: string | null
-          stats_years_experience?: number | null
           subdomain?: string | null
-          text_color?: string | null
-          theme?: string | null
-          theme_mode?: string | null
-          twitter_card?: string | null
           updated_at?: string | null
-          user_id?: string | null
           whatsapp_number?: string | null
         }
         Relationships: []
@@ -4256,7 +4106,6 @@ export type Database = {
           email: string | null
           facebook_pixels: string[] | null
           favicon_url: string | null
-          google_analytics_code: string | null
           google_analytics_ids: string[] | null
           id: string | null
           is_activated: boolean | null
@@ -4278,7 +4127,6 @@ export type Database = {
           tiktok_pixels: string[] | null
           tracking_enabled: boolean | null
           updated_at: string | null
-          user_id: string | null
           whatsapp_number: string | null
         }[]
         SetofOptions: {
@@ -4308,7 +4156,6 @@ export type Database = {
           email: string | null
           facebook_pixels: string[] | null
           favicon_url: string | null
-          google_analytics_code: string | null
           google_analytics_ids: string[] | null
           id: string | null
           is_activated: boolean | null
@@ -4330,7 +4177,6 @@ export type Database = {
           tiktok_pixels: string[] | null
           tracking_enabled: boolean | null
           updated_at: string | null
-          user_id: string | null
           whatsapp_number: string | null
         }[]
         SetofOptions: {

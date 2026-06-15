@@ -1,67 +1,51 @@
-## Objectifs
+## Audit & renforcement sécurité VisualPro
 
-Le générateur de visuels et l'éditeur de texte sur image ne sont pas utilisables sur mobile. Le backend accumule aussi les images générées sans limite. On corrige les 4 zones suivantes en une seule passe.
-
----
-
-## 1. Page Générateur (`/generator`) — mobile-first
-
-Fichier : `src/pages/Generator.tsx` (1893 lignes — on retravaille uniquement la couche présentation, la logique reste).
-
-Problèmes constatés :
-- Le sélecteur Image / Vidéo / Pro / Avancé affiche déjà des champs avant qu'on ait choisi → l'écran déborde sur téléphone.
-- Boutons trop larges, padding excessif, formulaire vertical infini.
-- Zoom-out donne le même rendu cassé.
-
-Changements :
-- **Sélecteur de mode en haut, sticky** : 4 tuiles compactes (Image / Vidéo / Pro / Avancé) en grille 2×2 sur mobile, ligne sur desktop. **Aucun champ visible** tant qu'aucun mode n'est sélectionné — juste une carte d'introduction.
-- Une fois un mode choisi : le formulaire s'affiche dans une carte plein-largeur, padding réduit (`p-3` mobile / `p-6` desktop), inputs en `h-11` (touch-friendly), labels condensés.
-- Bouton "Générer" sticky en bas sur mobile (barre fixe avec safe-area).
-- Bouton retour discret en haut-gauche pour changer de mode sans recharger.
-- Compteur de crédits sticky en haut-droit, compact.
-
-## 2. Éditeur de texte sur image
-
-Fichier : `src/components/ImageTextEditor.tsx` (687 lignes).
-
-Problème : texte ajouté apparaît minuscule, poignées de redimensionnement non utilisables au doigt, clavier mobile masque la zone.
-
-Changements :
-- **Taille par défaut** : `fontSize` initial = `Math.round(imageHeight * 0.08)` (≈ 8 % de la hauteur), `font-weight: 800`, ombre portée pour lisibilité.
-- **Poignées tactiles** : passer les handles à 44 × 44 px minimum (norme Apple HIG), avec hit-area transparente élargie.
-- **Clavier mobile** : quand un champ texte reçoit le focus, scroller la zone d'édition au-dessus du clavier (`scrollIntoView({ block: 'center' })`).
-- Barre d'outils (couleur, taille, gras, alignement) en bas, sticky, scrollable horizontalement sur mobile.
-- Bouton "Terminer" sticky en haut-droit (corporate).
-
-## 3. Galerie / Bibliothèque
-
-Fichier : `src/pages/Library.tsx`.
-
-Changements :
-- Grille 2 colonnes sur mobile (au lieu de 1), 3 sur tablette, 4 sur desktop.
-- Vignettes carrées avec `aspect-square`, action (télécharger / supprimer) en overlay tap.
-- Header sticky avec filtres en chips horizontaux scrollables.
-
-## 4. Nettoyage automatique backend (30 jours)
-
-Tables visées : `generated_images`, `generated_videos`.
-
-- Migration SQL : fonction `cleanup_old_generated_media()` qui supprime les lignes `created_at < now() - interval '30 days'` (et les objets storage associés).
-- Cron `pg_cron` quotidien à 03:00 UTC.
-- Bandeau informatif dans la bibliothèque : *« Les visuels sont conservés 30 jours. Téléchargez ceux que vous voulez garder. »*
+Demande très large (11 axes). Je propose de la découper en **3 lots** livrables incrémentalement pour pouvoir valider chaque étape, plutôt que tout faire en un seul commit massif (risque de casse sur les boutiques publiques en pleine campagne pub).
 
 ---
 
-## Détails techniques
+### Lot 1 — Quick wins headers + RLS audit (sans risque)
 
-- Tokens design existants (`--primary`, `--background`, `--card`, etc.) — pas de couleurs en dur.
-- Pas d'icônes IA (étoiles/baguettes) — respect mémoire `aesthetic-preference`.
-- Bouton primaire en haut-droit, secondaire en haut-gauche — respect mémoire `ui-layout-constraints`.
-- Aucune modification de la logique de génération, de l'API IA, ou du système de crédits.
-- Cron via `supabase--insert` (pas migration) car contient URL + clé anon.
+1. **Audit RLS complet** via `psql` sur : `orders`, `profiles`, `abandoned_carts`, `community_messages`, `community_topics`, `community_replies`, `product_reviews`, `shop_visits`, `subscriptions`, `payments`, `shop_secrets`, `ad_accounts`, `api_keys`, storage buckets. Rapport écrit + migration corrective uniquement pour les fuites confirmées (anon SELECT/INSERT/UPDATE/DELETE non justifiés).
+2. **Headers HTTP réels** via `vite.config.ts` (dev) + un fichier `public/_headers` (Netlify-style, supporté par l'hébergeur Lovable) :
+   - `Content-Security-Policy` stricte (script-src self + lovable + GA/Meta/TikTok, connect-src self + supabase + AI gateway + cloudinary, img-src self https: data: blob:, frame-ancestors 'self' lovable.app/dev).
+   - `Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `Permissions-Policy` resserrée, `X-Frame-Options: SAMEORIGIN` (sauf preview Lovable).
+   - Retire les meta CSP redondantes de `index.html`.
+3. **`public/.well-known/security.txt`** avec contact founder.
+4. **Restreindre RPC publiques** : auditer `get_public_shop_by_slug`, `get_public_product_page`, vues `shops_public` / `product_reviews_public` / `showcase_sites_public` — s'assurer qu'elles n'exposent pas `user_id`, emails, secrets de tracking, configuration interne. Recréer les vues avec colonnes whitelistées si besoin.
 
-## Hors scope (à demander explicitement)
+### Lot 2 — Sanitization & validation serveur (changements code)
 
-- Refonte du composant `AdvancedImageGenerator` (661 lignes) — uniquement adapté visuellement, pas refondu.
-- Voix off, son — non touché.
-- Page boutique / autres sections — non touchées.
+5. **Sanitization HTML serveur-side** : trigger Postgres `BEFORE INSERT/UPDATE` sur `products.description`, `shops.description`, `shop_announcements`, `community_messages.content`, `blog_posts.content` qui supprime `<script>`, `<iframe>` non-whitelist, `on*=` handlers, `javascript:` URLs via regex stricte. Côté client, vérifier que tous les `dangerouslySetInnerHTML` passent par DOMPurify (déjà en place selon mémoire).
+6. **Champs tracking sécurisés** : remplacer `shops.google_analytics_code` (texte libre) par `shops.google_analytics_id`, `meta_pixel_id`, `tiktok_pixel_id` (formats validés `G-XXXX`, `\d{15,16}`, `C[A-Z0-9]+`). Migration + UI ShopThemeSettings/Tracking. Côté front, injecter via composants React typés, jamais via `innerHTML`.
+7. **Validation prix serveur** : revoir l'edge function de création de commande pour **recalculer** `unit_price`, `total`, frais de livraison à partir de `products`/`shops` en base, ignorer toute valeur prix venant du client.
+8. **Validation Zod** sur edge functions publiques : `process-payment`, contact, reviews, abandoned_carts, shop-ai-assistant-chat/tts. Téléphone, email, pays, ville, quantité, total.
+
+### Lot 3 — Anti-abuse, storage, tests
+
+9. **Rate limiting in-memory** (déjà partiel sur `translate-ui`) étendu à : reviews, abandoned_carts, contact, shop-ai-chat, shop-ai-tts, process-payment. Par IP, 30-60 req/min.
+10. **Audit storage buckets** : lister tous les buckets, vérifier public/privé, policies RLS storage, types MIME et taille max sur uploads sensibles (documents identité, factures). Rendre privés ceux qui n'ont aucune raison d'être publics.
+11. **Checklist tests sécurité** : script `tests/security/anon-access.test.ts` (Deno/vitest) qui essaie depuis anon : lire orders d'une autre boutique, modifier shop d'un autre user, insérer `<script>` dans review, créer commande avec total=1, lire payments. Rapport pass/fail.
+
+---
+
+### Livrable final
+
+Rapport markdown `SECURITY-AUDIT-2026-06.md` listant :
+- Failles trouvées + corrections appliquées (avec ID migration)
+- RLS vérifiées table par table (✓ / corrigée / à surveiller)
+- Headers ajoutés (avant/après)
+- Endpoints protégés (rate-limit, Zod, recalcul prix)
+- Tests automatisés ajoutés + résultats
+- Risques résiduels (ex: `unsafe-inline` conservé pour Tailwind/Vite, ce qui est inévitable)
+
+---
+
+### Question avant de lancer
+
+Veux-tu :
+- **A.** Que j'enchaîne les 3 lots d'un coup (gros volume de changements, ~10-15 fichiers + 3-4 migrations, risque non-nul de casser une boutique pendant la pub) ?
+- **B.** Que je commence par **Lot 1 uniquement** (audit + headers + RPC, zéro impact fonctionnel) et qu'on valide avant Lots 2 et 3 ?
+- **C.** Cibler seulement certains points parmi les 11 (lesquels prioritaires) ?
+
+Je recommande **B** vu que tu lances du trafic publicitaire — on sécurise sans rien casser, puis on durcit progressivement.
