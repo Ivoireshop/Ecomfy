@@ -1,0 +1,40 @@
+# Lovable hosting respects Netlify-style _headers for production.
+# These headers apply to every response.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(self), geolocation=(self), payment=(self), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  X-DNS-Prefetch-Control: on
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self' https://pay.genius.ci https://*.supabase.co; frame-ancestors 'self' https://*.lovable.app https://*.lovable.dev https://lovable.dev; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.lovable.app https://*.lovable.dev https://lovable.dev https://*.supabase.co https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://analytics.tiktok.com https://sc-static.net https://*.snapchat.com https://challenges.cloudflare.com https://res.cloudinary.com https://storage.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https: blob: data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://ai.gateway.lovable.dev https://connector-gateway.lovable.dev https://api.elevenlabs.io https://pay.genius.ci https://res.cloudinary.com https://storage.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://graph.facebook.com https://analytics.tiktok.com https://sc-static.net https://*.snapchat.com https://api.replicate.com https://api.openai.com https://openrouter.ai; frame-src 'self' https://pay.genius.ci https://challenges.cloudflare.com https://www.google.com https://www.youtube.com https://www.youtube-nocookie.com; worker-src 'self' blob:; manifest-src 'self'
+
+# Long-cache static assets (Vite hashes the filenames)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Service workers must not be aggressively cached
+/firebase-messaging-sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+
+/sw.js
+  Cache-Control: no-cache
+
+# Manifests / icons
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600
+  Content-Type: application/manifest+json
+
+/favicon.ico
+  Cache-Control: public, max-age=86400
+
+/favicon.png
+  Cache-Control: public, max-age=86400
+
+# Security.txt should be served as text/plain
+/.well-known/security.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=86400
