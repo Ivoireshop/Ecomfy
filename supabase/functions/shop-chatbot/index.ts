@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +10,26 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
+    // Rate limit per IP: 20 messages / 60s
+    const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: rl } = await admin.rpc('check_rate_limit', {
+      _bucket: 'shop-chatbot', _key: ip, _max: 20, _window_seconds: 60,
+    });
+    if (rl && (rl as any).allowed === false) {
+      return new Response(JSON.stringify({ reply: "Trop de messages, merci de patienter un instant." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+
     const { message, shopName, shopDescription, products } = await req.json();
+    if (typeof message !== 'string' || message.trim().length === 0 || message.length > 1000) {
+      return new Response(JSON.stringify({ reply: "Message invalide." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 

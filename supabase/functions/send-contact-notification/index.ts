@@ -38,6 +38,27 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Validate inputs
+    const nameOk = typeof contactName === 'string' && contactName.trim().length > 0 && contactName.length <= 100;
+    const emailOk = typeof contactEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) && contactEmail.length <= 255;
+    const msgOk = typeof message === 'string' && message.trim().length > 0 && message.length <= 2000;
+    if (!showcaseSiteId || !nameOk || !emailOk || !msgOk) {
+      return new Response(JSON.stringify({ success: false, error: "Données invalides" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rate limit per IP + per site: 5 messages / 10 min
+    const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
+    const { data: rl } = await supabase.rpc('check_rate_limit', {
+      _bucket: 'contact-form', _key: `${ip}:${showcaseSiteId}`, _max: 5, _window_seconds: 600,
+    });
+    if (rl && (rl as any).allowed === false) {
+      return new Response(JSON.stringify({ success: false, error: "Trop de messages envoyés. Réessayez plus tard." }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get site and owner information
     const { data: site, error: siteError } = await supabase
       .from("showcase_sites")
