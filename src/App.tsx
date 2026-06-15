@@ -331,6 +331,15 @@ const IdlePrefetcher = () => {
     const conn = (navigator as any).connection;
     if (conn?.saveData) return;
     if (conn?.effectiveType && /^(2g|slow-2g)$/.test(conn.effectiveType)) return;
+    // Don't prefetch the authenticated dashboard chunks on public e-commerce
+    // landings — that traffic typically comes from ads and must stay light.
+    const p = window.location.pathname;
+    const onShop =
+      p.startsWith("/shop/") ||
+      p.startsWith("/shop-preview/") ||
+      p.startsWith("/order-confirmed") ||
+      isCustomShopHost;
+    if (onShop) return;
 
     const run = () => {
       import("./pages/Dashboard");
