@@ -53,6 +53,9 @@ interface ChatMessage { role: "user" | "assistant"; content: string; }
 const ShopView = () => {
   const { slug, id } = useParams<{ slug?: string; id?: string }>();
   const navigate = useNavigate();
+  // Defer mounting non-critical widgets (social proof toasts, AI chat) so the
+  // shop hero + products grid + "Commander" button paint as fast as possible.
+  const deferredReady = useDeferredMount(1500);
   const [shop, setShop] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1297,19 +1300,22 @@ const ShopView = () => {
         </div>
       )}
 
-      {/* Social Proof Notifications */}
-      <SocialProofNotification
-        shopId={shop.id}
-        enabled={shop.social_proof_enabled || false}
-        shopName={shop.business_name}
-      />
-
-      <ShopAIAssistant
-        shopId={shop.id}
-        shopName={shop.business_name}
-        primaryColor={shop.primary_color}
-        secondaryColor={shop.secondary_color}
-      />
+      {/* Social Proof Notifications + AI Assistant (deferred for faster LCP) */}
+      {deferredReady && (
+        <Suspense fallback={null}>
+          <SocialProofNotification
+            shopId={shop.id}
+            enabled={shop.social_proof_enabled || false}
+            shopName={shop.business_name}
+          />
+          <ShopAIAssistant
+            shopId={shop.id}
+            shopName={shop.business_name}
+            primaryColor={shop.primary_color}
+            secondaryColor={shop.secondary_color}
+          />
+        </Suspense>
+      )}
     </div>
     </>
   );
