@@ -1,0 +1,12 @@
+# VisualPro Security Policy
+# https://visuelpro.cloud
+
+Contact: mailto:djateulrich@gmail.com
+Contact: tel:+22507581527617
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: fr, en
+Canonical: https://visuelpro.cloud/.well-known/security.txt
+Policy: https://visuelpro.cloud/privacy-policy
+
+# Please report any vulnerability privately to the contacts above
+# before public disclosure. We aim to acknowledge within 72 hours.
