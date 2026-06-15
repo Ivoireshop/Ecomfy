@@ -122,6 +122,10 @@ const ProductView = () => {
   const productId = searchParams.get("product");
   const navigate = useNavigate();
 
+  // Defer non-critical widgets (social proof, AI chat, reviews) until the LCP
+  // image + order button are paint-stable. Massive boost for ad-traffic LCP.
+  const deferredReady = useDeferredMount(1500);
+
   const [shop, setShop] = useState<any>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -1312,8 +1316,12 @@ const ProductView = () => {
         </section>
       )}
 
-      {/* ====== REVIEWS SECTION ====== */}
-      <ProductReviews shopId={shop.id} productId={product.id} primaryColor={primaryColor} isPreview={!!shop._isPreview} />
+      {/* ====== REVIEWS SECTION (deferred) ====== */}
+      {deferredReady && (
+        <Suspense fallback={null}>
+          <ProductReviews shopId={shop.id} productId={product.id} primaryColor={primaryColor} isPreview={!!shop._isPreview} />
+        </Suspense>
+      )}
 
       {/* ====== FOOTER ====== */}
       <footer
@@ -1637,18 +1645,21 @@ const ProductView = () => {
         </div>
       )}
 
-      <SocialProofNotification
-        shopId={shop.id}
-        enabled={shop.social_proof_enabled || false}
-        productName={product?.name}
-      />
-
-      <ShopAIAssistant
-        shopId={shop.id}
-        shopName={shop.business_name}
-        primaryColor={shop.primary_color}
-        secondaryColor={shop.secondary_color}
-      />
+      {deferredReady && (
+        <Suspense fallback={null}>
+          <SocialProofNotification
+            shopId={shop.id}
+            enabled={shop.social_proof_enabled || false}
+            productName={product?.name}
+          />
+          <ShopAIAssistant
+            shopId={shop.id}
+            shopName={shop.business_name}
+            primaryColor={shop.primary_color}
+            secondaryColor={shop.secondary_color}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
