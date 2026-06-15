@@ -135,7 +135,7 @@ async function flush() {
     const texts: Record<string, string> = {};
     slice.forEach(([orig], idx) => { texts[`k${i + idx}`] = orig; });
     try {
-      const { data, error } = await supabase.functions.invoke("translate-product", {
+      const { data, error } = await supabase.functions.invoke("translate-ui", {
         body: { texts, target_lang: lang, source_lang: "fr" },
       });
       if (error || !data?.success) continue;
