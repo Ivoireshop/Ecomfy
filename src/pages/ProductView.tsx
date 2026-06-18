@@ -58,19 +58,29 @@ const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; 
 
   const Box = ({ val, label }: { val: number; label: string }) => (
     <div className="flex flex-col items-center">
-      <div className="w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-xl" style={{ backgroundColor: color }}>{String(val).padStart(2, '0')}</div>
-      <span className="text-xs text-gray-500 mt-1">{label}</span>
+      <div
+        className="w-9 h-9 sm:w-12 sm:h-12 rounded-md sm:rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-lg tabular-nums"
+        style={{ backgroundColor: color }}
+      >
+        {String(val).padStart(2, '0')}
+      </div>
+      <span className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">{label}</span>
     </div>
   );
 
   return (
-    <div className="flex items-center gap-1 py-2">
-      <Clock className="w-4 h-4 mr-1" style={{ color }} />
-      <span className="text-sm font-semibold mr-2" style={{ color }}>Offre expire dans :</span>
-      <div className="flex gap-2">
-        <Box val={timeLeft.d} label="Jours" /><span className="text-xl font-bold self-start mt-3" style={{ color }}>:</span>
-        <Box val={timeLeft.h} label="Heures" /><span className="text-xl font-bold self-start mt-3" style={{ color }}>:</span>
-        <Box val={timeLeft.m} label="Min" /><span className="text-xl font-bold self-start mt-3" style={{ color }}>:</span>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2 w-full">
+      <div className="flex items-center gap-1.5 whitespace-nowrap">
+        <Clock className="w-4 h-4 shrink-0" style={{ color }} />
+        <span className="text-sm font-semibold" style={{ color }}>Offre expire dans :</span>
+      </div>
+      <div className="flex items-start gap-1 sm:gap-2">
+        <Box val={timeLeft.d} label="Jours" />
+        <span className="text-base sm:text-xl font-bold mt-2 sm:mt-3" style={{ color }}>:</span>
+        <Box val={timeLeft.h} label="Heures" />
+        <span className="text-base sm:text-xl font-bold mt-2 sm:mt-3" style={{ color }}>:</span>
+        <Box val={timeLeft.m} label="Min" />
+        <span className="text-base sm:text-xl font-bold mt-2 sm:mt-3" style={{ color }}>:</span>
         <Box val={timeLeft.s} label="Sec" />
       </div>
     </div>
