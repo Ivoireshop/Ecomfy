@@ -853,7 +853,7 @@ const ProductView = () => {
                     onClick={() => setSelectedImageIdx(i)} 
                     className={`h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition ${i === selectedImageIdx ? "border-gray-900" : "border-transparent hover:border-gray-300"}`}
                   >
-                    <img src={img.image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    <img src={thumbUrl(img.image_url, 160)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -1106,7 +1106,7 @@ const ProductView = () => {
                       <div key={item.product.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           {item.product.product_images?.[0] && (
-                            <img src={item.product.product_images[0].image_url} alt="" loading="lazy" decoding="async" width={40} height={40} className="h-10 w-10 rounded-lg object-cover" />
+                            <img src={thumbUrl(item.product.product_images[0].image_url, 96)} alt="" loading="lazy" decoding="async" width={40} height={40} className="h-10 w-10 rounded-lg object-cover" />
                           )}
                           <span className="font-medium">{item.product.name} × {item.quantity}</span>
                         </div>
@@ -1313,7 +1313,7 @@ const ProductView = () => {
                   >
                     <div className="aspect-square bg-gray-100 overflow-hidden">
                       {rpImg ? (
-                        <img src={rpImg} alt={rp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                        <img src={thumbUrl(rpImg, 400)} alt={rp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center"><Store className="h-8 w-8 text-gray-300" /></div>
                       )}
@@ -1426,7 +1426,7 @@ const ProductView = () => {
                       {cart.map(item => (
                         <div key={item.product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                           <div className="h-16 w-16 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                            {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
+                            {item.product.product_images?.[0] && <img src={thumbUrl(item.product.product_images[0].image_url, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{item.product.name}</p>
