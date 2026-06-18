@@ -19,7 +19,7 @@ import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { PhoneInput } from "@/components/shop/PhoneInput";
-import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
+import { isValidFullPhone, normalizeToE164, parseFullPhone } from "@/lib/phoneCountries";
 import { normalizeSectionOrder, type ProductSectionKey } from "@/lib/productSections";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
@@ -510,6 +510,7 @@ const ProductView = () => {
     setOrderLoading(true);
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
+      const detectedCountry = parseFullPhone(normalizedPhone).country?.name || shop?.country || null;
       const commissionAmount = cartTotal * (shop.commission_rate || 0.025);
       const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
       const orderId = (crypto as any).randomUUID();
@@ -527,7 +528,9 @@ const ProductView = () => {
         shop_id: shop.id, order_number: orderNumber,
         customer_name: customerInfo.name, customer_email: customerInfo.email,
         customer_phone: normalizedPhone, customer_address: customerInfo.address,
-        customer_city: customerInfo.city, subtotal: cartTotal,
+        customer_city: customerInfo.city,
+        customer_country: detectedCountry,
+        subtotal: cartTotal,
         commission_amount: commissionAmount, total: cartTotal,
         payment_method: customerInfo.paymentMethod,
         products_summary: productsSummary,
