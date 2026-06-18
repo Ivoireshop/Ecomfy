@@ -17,7 +17,7 @@ import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
 import { isRtlLang } from "@/lib/shopLanguages";
 import { PhoneInput } from "@/components/shop/PhoneInput";
-import { isValidFullPhone, normalizeToE164 } from "@/lib/phoneCountries";
+import { isValidFullPhone, normalizeToE164, parseFullPhone } from "@/lib/phoneCountries";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
@@ -160,6 +160,11 @@ const ShopView = () => {
           customer_email: customerInfo.email || null,
           customer_city: customerInfo.city || null,
           customer_address: customerInfo.address || null,
+          customer_country: (() => {
+            if (!customerInfo.phone) return null;
+            const n = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
+            return parseFullPhone(n).country?.name || null;
+          })(),
           payment_method: customerInfo.paymentMethod || null,
           items,
           items_count: itemsCount,
@@ -513,6 +518,7 @@ const ShopView = () => {
     setOrderLoading(true);
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
+      const detectedCountry = parseFullPhone(normalizedPhone).country?.name || shop?.country || null;
       const commissionAmount = cartTotal * (shop.commission_rate || 0.025);
       const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
       const orderId = (crypto as any).randomUUID();
@@ -530,7 +536,9 @@ const ShopView = () => {
         shop_id: shop.id, order_number: orderNumber,
         customer_name: customerInfo.name, customer_email: customerInfo.email,
         customer_phone: normalizedPhone, customer_address: customerInfo.address,
-        customer_city: customerInfo.city, subtotal: cartTotal,
+        customer_city: customerInfo.city,
+        customer_country: detectedCountry,
+        subtotal: cartTotal,
         commission_amount: commissionAmount, total: cartTotal,
         payment_method: customerInfo.paymentMethod,
         products_summary: productsSummary,
