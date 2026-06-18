@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { thumbUrl } from "@/lib/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -938,7 +939,7 @@ const ShopView = () => {
             <>
               <div className="aspect-square rounded-xl overflow-hidden bg-muted mb-4">
                 {selectedProduct.product_images?.[0] ? (
-                  <img src={selectedProduct.product_images[0].image_url} alt={selectedProduct.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                  <img src={thumbUrl(selectedProduct.product_images[0].image_url, 600)} alt={selectedProduct.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"><Store className="h-16 w-16 text-muted-foreground/30" /></div>
                 )}
@@ -946,7 +947,7 @@ const ShopView = () => {
               {selectedProduct.product_images && selectedProduct.product_images.length > 1 && (
                 <div className="flex gap-2 mb-4 overflow-x-auto">
                   {selectedProduct.product_images.map((img, i) => (
-                    <img key={img.id} src={img.image_url} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 rounded-lg object-cover border-2 border-transparent hover:border-primary cursor-pointer" />
+                    <img key={img.id} src={thumbUrl(img.image_url, 128)} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 rounded-lg object-cover border-2 border-transparent hover:border-primary cursor-pointer" />
                   ))}
                 </div>
               )}
@@ -1085,7 +1086,7 @@ const ShopView = () => {
                       {cart.map(item => (
                         <div key={cartKey(item.product.id, item.selectedVariants)} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
                           <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
-                            {item.product.product_images?.[0] && <img src={item.product.product_images[0].image_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
+                            {item.product.product_images?.[0] && <img src={thumbUrl(item.product.product_images[0].image_url, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{item.product.name}</p>
@@ -1356,7 +1357,7 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
       <div className="aspect-square bg-muted relative overflow-hidden">
         {product.product_images?.[0] ? (
           <img
-            src={product.product_images[0].image_url}
+            src={thumbUrl(product.product_images[0].image_url, eager ? 600 : 400)}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             loading={eager ? "eager" : "lazy"}
