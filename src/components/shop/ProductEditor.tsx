@@ -1103,15 +1103,46 @@ export function ProductEditor({
                   ))}
                 </div>
               )}
-              <label className="cursor-pointer block">
-                <input type="file" accept="image/*" multiple className="hidden"
-                  onChange={(e) => { if (e.target.files) setNewImages(prev => [...prev, ...Array.from(e.target.files!)]); }} />
+              <label htmlFor="product-images-upload" className="cursor-pointer block">
+                <input
+                  id="product-images-upload"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      const arr = Array.from(files);
+                      setNewImages(prev => [...prev, ...arr]);
+                      toast({
+                        title: `${arr.length} image(s) ajoutée(s)`,
+                        description: "Pensez à enregistrer le produit pour les sauvegarder.",
+                      });
+                    }
+                    // Reset so selecting the same file again still triggers onChange
+                    e.target.value = "";
+                  }}
+                />
                 <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm font-medium">Glissez & déposez ou cliquez pour télécharger</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP · Taille recommandée 800x800</p>
+                  <p className="text-sm font-medium">Glissez & déposez ou cliquez pour ajouter des images</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ajoutez autant d'images que vous voulez · PNG, JPG, WEBP · 800×800 recommandé
+                  </p>
                 </div>
               </label>
+              {allImages.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => document.getElementById("product-images-upload")?.click()}
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajouter d'autres images
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -1629,7 +1660,13 @@ export function ProductEditor({
       <ProductGifGenerator
         open={gifOpen}
         onOpenChange={setGifOpen}
-        onGenerated={(file) => setNewImages((prev) => [...prev, file])}
+        onGenerated={(file) => {
+          setNewImages((prev) => [...prev, file]);
+          toast({
+            title: "✓ GIF ajouté",
+            description: "Pensez à enregistrer le produit pour le sauvegarder.",
+          });
+        }}
         shop={shop}
       />
     </div>
