@@ -1660,7 +1660,13 @@ export function ProductEditor({
       <ProductGifGenerator
         open={gifOpen}
         onOpenChange={setGifOpen}
-        onGenerated={(file) => setNewImages((prev) => [...prev, file])}
+        onGenerated={(file) => {
+          setNewImages((prev) => [...prev, file]);
+          toast({
+            title: "✓ GIF ajouté",
+            description: "Pensez à enregistrer le produit pour le sauvegarder.",
+          });
+        }}
         shop={shop}
       />
     </div>
