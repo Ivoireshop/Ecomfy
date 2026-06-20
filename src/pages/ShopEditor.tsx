@@ -444,7 +444,13 @@ const ShopEditor = () => {
     } else {
       const prodId = editingProduct?.id || result.data?.[0]?.id;
       if (prodId && newImgs.length > 0) {
-        for (const file of newImgs) await uploadProductImage(prodId, file);
+        for (const file of newImgs) {
+          const uploaded = await uploadProductImage(prodId, file, false);
+          if (!uploaded) {
+            setSaving(false);
+            return;
+          }
+        }
       }
       toast({ title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓" });
       setShowProductEditor(false);
@@ -470,16 +476,33 @@ const ShopEditor = () => {
     fetchData();
   };
 
-  const uploadProductImage = async (productId: string, file: File) => {
+  const uploadProductImage = async (productId: string, file: File, refresh = true): Promise<boolean> => {
     setUploadingImage(true);
-    const ext = file.name.split(".").pop();
-    const path = `products/${productId}/${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from("shop-images").upload(path, file);
-    if (uploadError) { toast({ title: "Erreur", description: uploadError.message, variant: "destructive" }); setUploadingImage(false); return; }
-    const { data: urlData } = supabase.storage.from("shop-images").getPublicUrl(path);
-    await supabase.from("product_images").insert({ product_id: productId, image_url: urlData.publicUrl, is_primary: false }) as any;
-    setUploadingImage(false);
-    fetchData();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Connectez-vous pour ajouter une image.");
+
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = `${user.id}/products/${productId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("shop-images")
+        .upload(path, file, { contentType: file.type || undefined, upsert: false });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from("shop-images").getPublicUrl(path);
+      const { error: imageError } = await supabase
+        .from("product_images")
+        .insert({ product_id: productId, image_url: urlData.publicUrl, is_primary: false }) as any;
+      if (imageError) throw imageError;
+
+      if (refresh) fetchData();
+      return true;
+    } catch (error: any) {
+      toast({ title: "Image non sauvegardée", description: error?.message || "L'image n'a pas pu être ajoutée.", variant: "destructive" });
+      return false;
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
