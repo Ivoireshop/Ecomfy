@@ -4,6 +4,8 @@ import {
   List, ListOrdered, Link as LinkIcon, Video, Palette, Undo, Redo, ChevronDown,
   Minus, Code, Smile, Table, Image as ImageIcon,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const FONT_SIZE_PRESETS = [
   { size: "14", label: "Petit", hint: "Détails" },
@@ -259,22 +261,76 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
+  // Upload to Supabase Storage instead of embedding base64 in HTML.
+  // Base64 inflated descriptions to MB-sized blobs that broke product pages.
+  const uploadEditorImage = useCallback(async (file: File): Promise<string | null> => {
+    try {
+      if (file.size > 8 * 1024 * 1024) {
+        toast({ title: "Image trop lourde", description: "Maximum 8 Mo.", variant: "destructive" });
+        return null;
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Connexion requise", variant: "destructive" });
+        return null;
+      }
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = `${user.id}/rich-text/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("shop-images").upload(path, file, {
+        cacheControl: "31536000",
+        upsert: false,
+        contentType: file.type || undefined,
+      });
+      if (error) {
+        toast({ title: "Échec du téléversement", description: error.message, variant: "destructive" });
+        return null;
+      }
+      const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
+      return data.publicUrl;
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Téléversement impossible", variant: "destructive" });
+      return null;
+    }
+  }, []);
+
   const insertImage = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          exec("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:8px 0;border-radius:8px;" />`);
-        };
-        reader.readAsDataURL(file);
-      }
+      if (!file) return;
+      const tId = toast({ title: "Téléversement de l'image…" }).id;
+      const url = await uploadEditorImage(file);
+      if (url) exec("insertHTML", `<img src="${url}" style="max-width:100%;height:auto;margin:8px 0;border-radius:8px;" loading="lazy" />`);
     };
     input.click();
   };
+
+  // Intercept paste of images (clipboard screenshots) — same root cause.
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it.kind === "file" && it.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = it.getAsFile();
+        if (!file) return;
+        toast({ title: "Téléversement de l'image collée…" });
+        const url = await uploadEditorImage(file);
+        if (url) exec("insertHTML", `<img src="${url}" style="max-width:100%;height:auto;margin:8px 0;border-radius:8px;" loading="lazy" />`);
+        return;
+      }
+    }
+    // Also strip any data:image base64 from pasted HTML (rare but possible).
+    const html = e.clipboardData?.getData("text/html");
+    if (html && /src=["']data:image/i.test(html)) {
+      e.preventDefault();
+      const cleaned = html.replace(/<img[^>]*src=["']data:image[^"']*["'][^>]*\/?>(\s*<\/img>)?/gi, "");
+      exec("insertHTML", cleaned);
+    }
+  }, [uploadEditorImage, exec]);
 
   const insertVideo = () => {
     const url = prompt("URL de la vidéo (YouTube, Vimeo...)");
