@@ -263,6 +263,9 @@ export function ProductEditor({
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [validatingImages, setValidatingImages] = useState(false);
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipAutoSave = useRef(true);
   const [showFontSize, setShowFontSize] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState<string>("16");
   const [showTextColor, setShowTextColor] = useState(false);
