@@ -185,13 +185,13 @@ const ProductView = () => {
   // unnecessary full reloads when the user simply switched tabs and made the
   // page feel slow. The in-memory cache + mount fetch are sufficient.
 
-  const fetchWithRetry = async (fn: () => any, attempts = 1): Promise<any> => {
+  const fetchWithRetry = async (fn: () => any, attempts = 3): Promise<any> => {
     let lastErr: any = null;
     for (let i = 0; i < attempts; i++) {
       try {
         const res = await Promise.race([
           Promise.resolve(fn()),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 4000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 9000)),
         ]) as any;
         if (!res?.error) return res;
         lastErr = res.error;
@@ -405,6 +405,14 @@ const ProductView = () => {
           .limit(4)).then((res: any) => {
             setRelatedProducts(res?.data || []);
           }, () => {});
+      } else if (!hydrated) {
+        // Distinguish a real "not found" from a slow-network timeout so the
+        // user sees the retry button instead of a misleading "Ce produit
+        // n'existe pas" — the #1 source of bogus "ma boutique ne marche pas"
+        // reports.
+        setFetchError(
+          "Connexion lente détectée. Réessayez — votre produit existe bien."
+        );
       }
 
       if (productData && !shopData._isPreview) {
