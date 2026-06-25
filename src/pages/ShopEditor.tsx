@@ -44,6 +44,7 @@ import { useNativePush } from "@/hooks/useNativePush";
 import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
+import { prepareImageForUpload } from "@/lib/imageCompress";
 
 interface Product {
   id: string;
@@ -273,6 +274,12 @@ const ShopEditor = () => {
   const uploadShopImage = async (file: File, type: 'logo' | 'banner' | 'favicon') => {
     if (!shop) return;
     try {
+      const prepared = await prepareImageForUpload(file);
+      if (!prepared.ok) {
+        toast({ title: "Image refusée", description: prepared.reason, variant: "destructive" });
+        return;
+      }
+      file = prepared.file;
       const ext = file.name.split('.').pop();
       const path = `${shop.id}/${type}-${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('shop-images').upload(path, file);
@@ -481,6 +488,16 @@ const ShopEditor = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Connectez-vous pour ajouter une image.");
+
+      const prepared = await prepareImageForUpload(file);
+      if (!prepared.ok) {
+        toast({ title: "Image refusée", description: prepared.reason, variant: "destructive" });
+        return false;
+      }
+      if (prepared.wasCompressed) {
+        toast({ title: "Image optimisée", description: "Compressée automatiquement pour un chargement rapide." });
+      }
+      file = prepared.file;
 
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
       const path = `${user.id}/products/${productId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
