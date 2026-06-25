@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2 } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 interface Product {
   id: string;
@@ -105,7 +106,92 @@ export function ProductsTable({
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y">
+            {filtered.map((product) => {
+              const img = product.product_images?.[0]?.image_url;
+              const prodOrders = orderCounts[product.id] || 0;
+              return (
+                <div key={product.id} className="p-3 flex gap-3 items-start">
+                  <div className="h-16 w-16 rounded-lg bg-muted overflow-hidden shrink-0">
+                    {img ? (
+                      <img src={img} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => onEditProduct(product)}
+                      className="text-left w-full"
+                    >
+                      <p className="font-medium text-sm line-clamp-2">{product.name || "Sans nom"}</p>
+                      {product.category && (
+                        <p className="text-[11px] text-muted-foreground">{product.category}</p>
+                      )}
+                    </button>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-sm font-semibold whitespace-nowrap">{formatPrice(product.price)}</span>
+                      {product.compare_at_price && product.compare_at_price > product.price && (
+                        <span className="text-[11px] text-muted-foreground line-through">{formatPrice(product.compare_at_price)}</span>
+                      )}
+                      {product.is_published ? (
+                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 text-[10px] px-1.5 py-0">Visible</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Brouillon</Badge>
+                      )}
+                      <span className={`text-[11px] ${product.stock_quantity <= 0 ? "text-destructive font-semibold" : product.stock_quantity < 5 ? "text-orange-500" : "text-muted-foreground"}`}>
+                        Stock: {product.stock_quantity <= 0 ? "Rupture" : product.stock_quantity}
+                      </span>
+                      {prodOrders > 0 && (
+                        <span className="text-[11px] text-muted-foreground">· {prodOrders} cmd</span>
+                      )}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Options">
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => onEditProduct(product)}>
+                        <Edit className="h-4 w-4 mr-2" /> Modifier
+                      </DropdownMenuItem>
+                      {onPreviewProduct && (
+                        <DropdownMenuItem onClick={() => onPreviewProduct(product)}>
+                          <ExternalLink className="h-4 w-4 mr-2" /> Voir en magasin
+                        </DropdownMenuItem>
+                      )}
+                      {shopSlug && product.slug && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const url = `https://visuelpro.cloud/shop/${shopSlug}/p/${product.slug}`;
+                            navigator.clipboard.writeText(url);
+                            toast({ title: "Lien copié ✓", description: url });
+                          }}
+                        >
+                          <Link2 className="h-4 w-4 mr-2" /> Copier le lien
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => onDeleteProduct(product.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
