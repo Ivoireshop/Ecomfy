@@ -4328,6 +4328,7 @@ export type Database = {
         }[]
       }
       slugify: { Args: { _value: string }; Returns: string }
+      strip_base64_images: { Args: { _input: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
       validate_promo_code: {
         Args: { promo_code: string }
