@@ -21,7 +21,7 @@ const loadImage = (src: string) =>
 
 export async function prepareImageForUpload(file: File): Promise<PrepareResult> {
   if (!file.type.startsWith("image/")) {
-    return { ok: false, reason: "Format non supporté (image attendue)" };
+    return { ok: false, reason: "Format non supporté (image attendue)" } as PrepareResult;
   }
   // Animated GIFs lose animation if re-encoded — leave them alone but enforce cap.
   if (file.type === "image/gif") {
