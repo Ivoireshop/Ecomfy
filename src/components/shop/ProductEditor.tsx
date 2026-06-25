@@ -777,22 +777,30 @@ export function ProductEditor({
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
       <div className="sticky top-0 z-30 bg-card border-b">
-        <div className="flex items-center justify-between px-4 md:px-6 h-14">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={onCancel} className="h-9 w-9">
+        <div className="flex items-center justify-between gap-2 px-3 md:px-6 h-14">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button variant="ghost" size="icon" onClick={onCancel} className="h-9 w-9 shrink-0" aria-label="Retour">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="font-bold text-base md:text-lg">
-              {isEditing ? "Modifier le produit" : "Créer un produit"}
-            </h1>
+            <div className="min-w-0">
+              <h1 className="font-bold text-sm md:text-lg truncate">
+                {isEditing ? "Modifier le produit" : "Créer un produit"}
+              </h1>
+              {isEditing && (
+                <p className="text-[11px] leading-none mt-0.5 hidden sm:block">
+                  {autoSaveState === "saving" && <span className="text-muted-foreground">Sauvegarde…</span>}
+                  {autoSaveState === "pending" && <span className="text-muted-foreground">Modifications non sauvegardées…</span>}
+                  {autoSaveState === "saved" && <span className="text-green-600">✓ Sauvegardé automatiquement</span>}
+                  {autoSaveState === "error" && <span className="text-destructive">Erreur de sauvegarde auto</span>}
+                  {autoSaveState === "idle" && <span className="text-muted-foreground">Sauvegarde automatique activée</span>}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onCancel}>
-              Annuler
-            </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
             <PreviewSheet
               trigger={
-                <Button variant="outline" size="sm" className="gap-1.5">
+                <Button variant="outline" size="sm" className="gap-1.5 h-9 px-2.5">
                   <Eye className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Aperçu live</span>
                 </Button>
@@ -800,7 +808,7 @@ export function ProductEditor({
             />
             <Button
               size="sm"
-              className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white"
+              className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white h-9 px-3"
               onClick={() => onSave(product, newImages)}
               disabled={(!product.name && !product.short_description) || saving || validatingImages}
             >
@@ -809,15 +817,19 @@ export function ProductEditor({
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              <span className="hidden xs:inline sm:inline">
-                {saving ? "Enregistrement…" : isEditing ? "Enregistrer" : "Ajouter"}
-              </span>
-              <span className="xs:hidden sm:hidden">
-                {saving ? "…" : isEditing ? "Enregistrer" : "Ajouter"}
-              </span>
+              <span>{saving ? "…" : isEditing ? "Tout enregistrer" : "Ajouter"}</span>
             </Button>
           </div>
         </div>
+        {isEditing && (
+          <div className="sm:hidden px-3 pb-1.5 text-[11px]">
+            {autoSaveState === "saving" && <span className="text-muted-foreground">Sauvegarde en cours…</span>}
+            {autoSaveState === "pending" && <span className="text-muted-foreground">Modifications non sauvegardées…</span>}
+            {autoSaveState === "saved" && <span className="text-green-600">✓ Sauvegardé automatiquement</span>}
+            {autoSaveState === "error" && <span className="text-destructive">Erreur de sauvegarde auto · utilisez "Tout enregistrer"</span>}
+            {autoSaveState === "idle" && <span className="text-muted-foreground">Sauvegarde automatique activée</span>}
+          </div>
+        )}
       </div>
 
       {/* Content */}
