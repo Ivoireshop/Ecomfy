@@ -484,6 +484,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         className="p-3 text-sm focus:outline-none overflow-y-auto flex-1 [&>*]:mb-2"
         style={{ minHeight, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
         onInput={handleInput}
+        onPaste={handlePaste}
         data-code-view="false"
       />
       {selectedImg && imgRect && (
