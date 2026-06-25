@@ -12,6 +12,7 @@ import { ProductLivePreview } from "./ProductLivePreview";
 import { ProductGifGenerator } from "./ProductGifGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { prepareImageForUpload } from "@/lib/imageCompress";
 import {
   DEFAULT_PRODUCT_BLOCKS,
   PRODUCT_SECTION_LABELS,
@@ -260,6 +261,7 @@ export function ProductEditor({
     section_order: { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
   });
   const [newImages, setNewImages] = useState<File[]>([]);
+  const [validatingImages, setValidatingImages] = useState(false);
   const [showFontSize, setShowFontSize] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState<string>("16");
   const [showTextColor, setShowTextColor] = useState(false);
@@ -763,14 +765,19 @@ export function ProductEditor({
               size="sm"
               className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white"
               onClick={() => onSave(product, newImages)}
-              disabled={(!product.name && !product.short_description) || saving}
+              disabled={(!product.name && !product.short_description) || saving || validatingImages}
             >
               {saving ? (
                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              {isEditing ? "Enregistrer" : "Ajouter le produit"}
+              <span className="hidden xs:inline sm:inline">
+                {saving ? "Enregistrement…" : isEditing ? "Enregistrer" : "Ajouter"}
+              </span>
+              <span className="xs:hidden sm:hidden">
+                {saving ? "…" : isEditing ? "Enregistrer" : "Ajouter"}
+              </span>
             </Button>
           </div>
         </div>
@@ -1107,28 +1114,68 @@ export function ProductEditor({
                 <input
                   id="product-images-upload"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
                   multiple
                   className="hidden"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const files = e.target.files;
                     if (files && files.length > 0) {
                       const arr = Array.from(files);
-                      setNewImages(prev => [...prev, ...arr]);
-                      toast({
-                        title: `${arr.length} image(s) ajoutée(s)`,
-                        description: "Pensez à enregistrer le produit pour les sauvegarder.",
-                      });
+                      setValidatingImages(true);
+                      const accepted: File[] = [];
+                      const rejected: string[] = [];
+                      let compressedCount = 0;
+                      for (const f of arr) {
+                        const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+                        if (f.type && !allowed.includes(f.type)) {
+                          rejected.push(`${f.name} (format non supporté)`);
+                          continue;
+                        }
+                        try {
+                          const prepared = await prepareImageForUpload(f);
+                          if (!prepared.ok) {
+                            rejected.push(`${f.name} (${prepared.reason})`);
+                            continue;
+                          }
+                          if (prepared.wasCompressed) compressedCount++;
+                          accepted.push(prepared.file);
+                        } catch {
+                          rejected.push(`${f.name} (lecture impossible)`);
+                        }
+                      }
+                      if (accepted.length > 0) {
+                        setNewImages(prev => [...prev, ...accepted]);
+                        toast({
+                          title: `${accepted.length} image(s) ajoutée(s)`,
+                          description: compressedCount > 0
+                            ? `${compressedCount} optimisée(s). Pensez à enregistrer le produit.`
+                            : "Pensez à enregistrer le produit pour les sauvegarder.",
+                        });
+                      }
+                      if (rejected.length > 0) {
+                        toast({
+                          title: `${rejected.length} image(s) refusée(s)`,
+                          description: rejected.slice(0, 3).join(" · "),
+                          variant: "destructive",
+                        });
+                      }
+                      setValidatingImages(false);
                     }
                     // Reset so selecting the same file again still triggers onChange
                     e.target.value = "";
                   }}
                 />
                 <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm font-medium">Glissez & déposez ou cliquez pour ajouter des images</p>
+                  {validatingImages ? (
+                    <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  )}
+                  <p className="text-sm font-medium">
+                    {validatingImages ? "Vérification en cours…" : "Cliquez ou glissez vos images ici"}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Ajoutez autant d'images que vous voulez · PNG, JPG, WEBP · 800×800 recommandé
+                    JPG, PNG, WEBP, GIF · 5 Mo max · optimisation automatique
                   </p>
                 </div>
               </label>
