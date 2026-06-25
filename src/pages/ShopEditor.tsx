@@ -276,7 +276,7 @@ const ShopEditor = () => {
     try {
       const prepared = await prepareImageForUpload(file);
       if (!prepared.ok) {
-        toast({ title: "Image refusée", description: prepared.reason, variant: "destructive" });
+        toast({ title: "Image non ajoutée", description: prepared.reason, variant: "destructive" });
         return;
       }
       file = prepared.file;
@@ -516,7 +516,7 @@ const ShopEditor = () => {
 
       const prepared = await prepareImageForUpload(file);
       if (!prepared.ok) {
-        toast({ title: "Image refusée", description: prepared.reason, variant: "destructive" });
+        toast({ title: "Image non ajoutée", description: prepared.reason, variant: "destructive" });
         return false;
       }
       if (prepared.wasCompressed) {
@@ -540,7 +540,7 @@ const ShopEditor = () => {
       if (refresh) fetchData();
       return true;
     } catch (error: any) {
-      toast({ title: "Image non sauvegardée", description: error?.message || "L'image n'a pas pu être ajoutée.", variant: "destructive" });
+      toast({ title: "Image non sauvegardée", description: error?.message || "L'image n'a pas pu être ajoutée. Vérifiez qu'elle fait moins de 2 Mo.", variant: "destructive" });
       return false;
     } finally {
       setUploadingImage(false);

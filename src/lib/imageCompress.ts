@@ -1,11 +1,14 @@
 // Image compression / size-guard used by all product/shop/rich-text image
-// uploads. A 5–10 MB photo from a phone is unnecessary on a product page and
-// is the #1 cause of slow / broken shops. We resize to max 1600 px, re-encode
-// to JPEG ~0.82 quality, and hard-reject anything still over the cap.
+// uploads. Heavy phone photos are the #1 cause of slow / broken shops. We
+// resize to max 1600 px, re-encode to JPEG ~0.82 quality, and hard-reject
+// anything still over the cap with a clear user-facing reason.
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB final cap
+export const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB final cap
+export const IMAGE_LIMIT_MESSAGE = "Visual Pro accepte uniquement les images de moins de 2 Mo. Compressez votre image puis réessayez.";
 const MAX_DIMENSION = 1600;
 const QUALITY = 0.82;
+
+const formatSize = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
 
 export type PrepareResult =
   | { ok: true; file: File; wasCompressed: boolean; reason?: undefined }
@@ -21,14 +24,14 @@ const loadImage = (src: string) =>
 
 export async function prepareImageForUpload(file: File): Promise<PrepareResult> {
   if (!file.type.startsWith("image/")) {
-    return { ok: false, reason: "Format non supporté (image attendue)" } as PrepareResult;
+    return { ok: false, reason: "Format non supporté. Importez une image JPG, PNG, WEBP ou GIF de moins de 2 Mo." } as PrepareResult;
   }
   // Animated GIFs lose animation if re-encoded — leave them alone but enforce cap.
   if (file.type === "image/gif") {
     if (file.size > MAX_IMAGE_BYTES) {
       return {
         ok: false,
-        reason: `Ce GIF fait ${(file.size / 1024 / 1024).toFixed(1)} Mo. Maximum 5 Mo. Réduisez-le sur https://ezgif.com/optimize puis réessayez.`,
+        reason: `Ce GIF fait ${formatSize(file.size)}. ${IMAGE_LIMIT_MESSAGE}`,
       } as PrepareResult;
     }
     return { ok: true, file, wasCompressed: false } as PrepareResult;
@@ -51,7 +54,7 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
     canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      if (file.size > MAX_IMAGE_BYTES) return { ok: false, reason: "Compression indisponible sur ce navigateur. Réduisez l'image puis réessayez." } as PrepareResult;
+      if (file.size > MAX_IMAGE_BYTES) return { ok: false, reason: `Cette image fait ${formatSize(file.size)}. ${IMAGE_LIMIT_MESSAGE}` } as PrepareResult;
       return { ok: true, file, wasCompressed: false } as PrepareResult;
     }
     ctx.drawImage(img, 0, 0, w, h);
@@ -61,7 +64,7 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
     );
     if (!blob) {
       if (file.size > MAX_IMAGE_BYTES) {
-        return { ok: false, reason: `Image trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo.` } as PrepareResult;
+        return { ok: false, reason: `Cette image fait ${formatSize(file.size)}. ${IMAGE_LIMIT_MESSAGE}` } as PrepareResult;
       }
       return { ok: true, file, wasCompressed: false } as PrepareResult;
     }
@@ -69,7 +72,7 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
     // Only keep the compressed version if it actually got smaller.
     if (blob.size >= file.size) {
       if (file.size > MAX_IMAGE_BYTES) {
-        return { ok: false, reason: `Image trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo. Réduisez sa taille puis réessayez.` } as PrepareResult;
+        return { ok: false, reason: `Cette image fait ${formatSize(file.size)}. ${IMAGE_LIMIT_MESSAGE}` } as PrepareResult;
       }
       return { ok: true, file, wasCompressed: false } as PrepareResult;
     }
@@ -77,12 +80,12 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
     const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
     const compressed = new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
     if (compressed.size > MAX_IMAGE_BYTES) {
-      return { ok: false, reason: `Image trop lourde même après compression (${(compressed.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo.` } as PrepareResult;
+      return { ok: false, reason: `Même après optimisation, l'image fait ${formatSize(compressed.size)}. ${IMAGE_LIMIT_MESSAGE}` } as PrepareResult;
     }
     return { ok: true, file: compressed, wasCompressed: true } as PrepareResult;
   } catch (e: any) {
     if (file.size > MAX_IMAGE_BYTES) {
-      return { ok: false, reason: e?.message || "Compression impossible. Réduisez l'image puis réessayez." } as PrepareResult;
+      return { ok: false, reason: e?.message || `Cette image fait ${formatSize(file.size)}. ${IMAGE_LIMIT_MESSAGE}` } as PrepareResult;
     }
     return { ok: true, file, wasCompressed: false } as PrepareResult;
   }
