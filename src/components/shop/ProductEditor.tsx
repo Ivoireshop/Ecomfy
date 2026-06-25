@@ -1177,7 +1177,7 @@ export function ProductEditor({
                       for (const f of arr) {
                         const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
                         if (f.type && !allowed.includes(f.type)) {
-                          rejected.push(`${f.name} (format non supporté)`);
+                          rejected.push(`${f.name} : format non supporté. Importez JPG, PNG, WEBP ou GIF de moins de 2 Mo.`);
                           continue;
                         }
                         try {
@@ -1203,7 +1203,7 @@ export function ProductEditor({
                       }
                       if (rejected.length > 0) {
                         toast({
-                          title: `${rejected.length} image(s) refusée(s)`,
+                          title: `${rejected.length} image(s) non ajoutée(s)`,
                           description: rejected.slice(0, 3).join(" · "),
                           variant: "destructive",
                         });
@@ -1224,7 +1224,7 @@ export function ProductEditor({
                     {validatingImages ? "Vérification en cours…" : "Cliquez ou glissez vos images ici"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    JPG, PNG, WEBP, GIF · 5 Mo max · optimisation automatique
+                    Visual Pro accepte les images JPG, PNG, WEBP ou GIF de moins de 2 Mo.
                   </p>
                 </div>
               </label>

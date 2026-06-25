@@ -268,7 +268,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     try {
       const prepared = await prepareImageForUpload(file);
       if (!prepared.ok) {
-        toast({ title: "Image refusée", description: prepared.reason, variant: "destructive" });
+        toast({ title: "Image non ajoutée", description: prepared.reason, variant: "destructive" });
         return null;
       }
       if (prepared.wasCompressed) {
@@ -288,13 +288,13 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         contentType: file.type || undefined,
       });
       if (error) {
-        toast({ title: "Échec du téléversement", description: error.message, variant: "destructive" });
+        toast({ title: "Image non sauvegardée", description: error.message, variant: "destructive" });
         return null;
       }
       const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
       return data.publicUrl;
     } catch (e: any) {
-      toast({ title: "Erreur", description: e?.message || "Téléversement impossible", variant: "destructive" });
+      toast({ title: "Image non sauvegardée", description: e?.message || "Téléversement impossible. Vérifiez que l'image fait moins de 2 Mo.", variant: "destructive" });
       return null;
     }
   }, []);
@@ -334,6 +334,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     if (html && /src=["']data:image/i.test(html)) {
       e.preventDefault();
       const cleaned = html.replace(/<img[^>]*src=["']data:image[^"']*["'][^>]*\/?>(\s*<\/img>)?/gi, "");
+      toast({ title: "Image non ajoutée", description: "Visual Pro accepte uniquement les images de moins de 2 Mo. Utilisez le bouton image pour téléverser une image compressée." });
       exec("insertHTML", cleaned);
     }
   }, [uploadEditorImage, exec]);
