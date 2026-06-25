@@ -728,6 +728,7 @@ const ShopEditor = () => {
               existingImages={editingProduct?.product_images || []}
               isEditing={!!editingProduct}
               onSave={handleProductEditorSave}
+              onAutoSave={handleProductAutoSave}
               onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
               onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file) : undefined}
               onDeleteImage={deleteProductImage}
