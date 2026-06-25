@@ -765,14 +765,19 @@ export function ProductEditor({
               size="sm"
               className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white"
               onClick={() => onSave(product, newImages)}
-              disabled={(!product.name && !product.short_description) || saving}
+              disabled={(!product.name && !product.short_description) || saving || validatingImages}
             >
               {saving ? (
                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              {isEditing ? "Enregistrer" : "Ajouter le produit"}
+              <span className="hidden xs:inline sm:inline">
+                {saving ? "Enregistrement…" : isEditing ? "Enregistrer" : "Ajouter"}
+              </span>
+              <span className="xs:hidden sm:hidden">
+                {saving ? "…" : isEditing ? "Enregistrer" : "Ajouter"}
+              </span>
             </Button>
           </div>
         </div>
