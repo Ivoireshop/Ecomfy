@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { prepareImageForUpload } from "@/lib/imageCompress";
 
 const FONT_SIZE_PRESETS = [
   { size: "14", label: "Petit", hint: "Détails" },
@@ -265,10 +266,15 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
   // Base64 inflated descriptions to MB-sized blobs that broke product pages.
   const uploadEditorImage = useCallback(async (file: File): Promise<string | null> => {
     try {
-      if (file.size > 8 * 1024 * 1024) {
-        toast({ title: "Image trop lourde", description: "Maximum 8 Mo.", variant: "destructive" });
+      const prepared = await prepareImageForUpload(file);
+      if (!prepared.ok) {
+        toast({ title: "Image refusée", description: prepared.reason, variant: "destructive" });
         return null;
       }
+      if (prepared.wasCompressed) {
+        toast({ title: "Image optimisée", description: "Compressée automatiquement." });
+      }
+      file = prepared.file;
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({ title: "Connexion requise", variant: "destructive" });
