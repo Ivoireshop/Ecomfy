@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { prepareImageForUpload } from "@/lib/imageCompress";
 
 interface MultiImageUploaderProps {
   onImagesUploaded: (imageUrls: string[]) => void;
@@ -38,21 +39,25 @@ export function MultiImageUploader({
       const uploadPromises = Array.from(files).map(async (file) => {
         // Validate file type
         if (!file.type.startsWith("image/")) {
-          throw new Error(`${file.name} n'est pas une image`);
+          throw new Error(`${file.name} : importez une image JPG, PNG, WEBP ou GIF de moins de 2 Mo.`);
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error(`${file.name} est trop volumineux (max 5MB)`);
+        const prepared = await prepareImageForUpload(file);
+        if (!prepared.ok) {
+          throw new Error(`${file.name} : ${prepared.reason}`);
         }
+        if (prepared.wasCompressed) {
+          toast.success(`${file.name} optimisée automatiquement`);
+        }
+        const uploadFile = prepared.file;
 
-        const fileName = `product-ref-${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`;
+        const fileName = `product-ref-${Date.now()}-${Math.random().toString(36).substring(7)}.${uploadFile.name.split('.').pop()}`;
         const filePath = `${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("generated-images")
-          .upload(filePath, file, {
-            contentType: file.type,
+          .upload(filePath, uploadFile, {
+            contentType: uploadFile.type,
             upsert: false,
           });
 
@@ -100,7 +105,7 @@ export function MultiImageUploader({
     const newImages = uploadedImages.filter((_, i) => i !== index);
     setUploadedImages(newImages);
     onImagesUploaded(newImages);
-    toast.success("Image retirée");
+    toast.success("Image supprimée de la sélection");
   };
 
   return (
@@ -111,7 +116,7 @@ export function MultiImageUploader({
           Images de Référence du Produit
         </CardTitle>
         <CardDescription>
-          Uploadez 1 à 3 images de votre produit sous différents angles (max 5MB par image)
+          Uploadez 1 à 3 images de votre produit sous différents angles. Visual Pro accepte les images de moins de 2 Mo.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
