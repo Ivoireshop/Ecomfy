@@ -236,6 +236,7 @@ interface ProductEditorProps {
   existingImages?: ProductImage[];
   isEditing: boolean;
   onSave: (data: ProductData, newImages: File[]) => void;
+  onAutoSave?: (data: ProductData) => Promise<boolean | void> | boolean | void;
   onCancel: () => void;
   onUploadImage?: (file: File) => void;
   onDeleteImage?: (imageId: string) => void;
@@ -249,7 +250,7 @@ interface ProductEditorProps {
 }
 
 export function ProductEditor({
-  initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
+  initialData, existingImages = [], isEditing, onSave, onAutoSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
   shopSlug, shopActivated, shopPublished, productId, shop,
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
