@@ -12,6 +12,7 @@ import { ProductLivePreview } from "./ProductLivePreview";
 import { ProductGifGenerator } from "./ProductGifGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { prepareImageForUpload } from "@/lib/imageCompress";
 import {
   DEFAULT_PRODUCT_BLOCKS,
   PRODUCT_SECTION_LABELS,
@@ -260,6 +261,7 @@ export function ProductEditor({
     section_order: { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
   });
   const [newImages, setNewImages] = useState<File[]>([]);
+  const [validatingImages, setValidatingImages] = useState(false);
   const [showFontSize, setShowFontSize] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState<string>("16");
   const [showTextColor, setShowTextColor] = useState(false);
