@@ -1631,12 +1631,9 @@ export function ProductEditor({
       </div>
 
       {/* Bottom Bar */}
-      <div className="sticky bottom-0 z-20 bg-card border-t px-4 md:px-6 py-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground hidden sm:block">
-            {isEditing ? "Les modifications seront sauvegardées automatiquement" : "Remplissez les informations du produit"}
-          </span>
-          <div className="flex items-center gap-2 ml-auto">
+      {(canViewInShop || liveProductUrl) && (
+        <div className="sticky bottom-0 z-20 bg-card border-t px-3 md:px-6 py-2">
+          <div className="flex items-center justify-end gap-2 flex-wrap">
             {canViewInShop && (
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
                 <a href={shopUrl} target="_blank" rel="noopener noreferrer">
@@ -1645,14 +1642,6 @@ export function ProductEditor({
                 </a>
               </Button>
             )}
-            <PreviewSheet
-              trigger={
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Eye className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Aperçu live</span>
-                </Button>
-              }
-            />
             {liveProductUrl && (
               <Button
                 variant="outline"
@@ -1667,21 +1656,9 @@ export function ProductEditor({
                 </a>
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={onCancel}>
-              Annuler
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => onSave(product, newImages)}
-              disabled={(!product.name && !product.short_description) || saving}
-            >
-              <Save className="h-3.5 w-3.5" />
-              {isEditing ? "Enregistrer" : "Ajouter le produit"}
-            </Button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* AI Image Generator Dialog */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
