@@ -44,6 +44,7 @@ import { useNativePush } from "@/hooks/useNativePush";
 import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
+import { prepareImageForUpload } from "@/lib/imageCompress";
 
 interface Product {
   id: string;
