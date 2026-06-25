@@ -236,6 +236,7 @@ interface ProductEditorProps {
   existingImages?: ProductImage[];
   isEditing: boolean;
   onSave: (data: ProductData, newImages: File[]) => void;
+  onAutoSave?: (data: ProductData) => Promise<boolean | void> | boolean | void;
   onCancel: () => void;
   onUploadImage?: (file: File) => void;
   onDeleteImage?: (imageId: string) => void;
@@ -249,7 +250,7 @@ interface ProductEditorProps {
 }
 
 export function ProductEditor({
-  initialData, existingImages = [], isEditing, onSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
+  initialData, existingImages = [], isEditing, onSave, onAutoSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
   shopSlug, shopActivated, shopPublished, productId, shop,
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
@@ -262,6 +263,9 @@ export function ProductEditor({
   });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [validatingImages, setValidatingImages] = useState(false);
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipAutoSave = useRef(true);
   const [showFontSize, setShowFontSize] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState<string>("16");
   const [showTextColor, setShowTextColor] = useState(false);
@@ -367,6 +371,39 @@ export function ProductEditor({
       editorInitialized.current = true;
     }
   }, [product.description]);
+
+  // Auto-save (debounced) — only when editing an existing product and a handler is provided.
+  useEffect(() => {
+    if (!onAutoSave || !isEditing) return;
+    // Skip the very first run (initial state hydration).
+    if (skipAutoSave.current) {
+      skipAutoSave.current = false;
+      return;
+    }
+    if (!product.name?.trim() && !product.short_description?.trim()) return;
+    setAutoSaveState("pending");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      setAutoSaveState("saving");
+      try {
+        const res = await onAutoSave(product);
+        setAutoSaveState(res === false ? "error" : "saved");
+      } catch {
+        setAutoSaveState("error");
+      }
+    }, 1500);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, onAutoSave, isEditing]);
+
+  // Reset "saved" badge after a few seconds.
+  useEffect(() => {
+    if (autoSaveState !== "saved") return;
+    const t = setTimeout(() => setAutoSaveState("idle"), 2500);
+    return () => clearTimeout(t);
+  }, [autoSaveState]);
 
   const closeAllDropdowns = useCallback(() => {
     setShowFontSize(false);
@@ -740,22 +777,30 @@ export function ProductEditor({
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
       <div className="sticky top-0 z-30 bg-card border-b">
-        <div className="flex items-center justify-between px-4 md:px-6 h-14">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={onCancel} className="h-9 w-9">
+        <div className="flex items-center justify-between gap-2 px-3 md:px-6 h-14">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button variant="ghost" size="icon" onClick={onCancel} className="h-9 w-9 shrink-0" aria-label="Retour">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="font-bold text-base md:text-lg">
-              {isEditing ? "Modifier le produit" : "Créer un produit"}
-            </h1>
+            <div className="min-w-0">
+              <h1 className="font-bold text-sm md:text-lg truncate">
+                {isEditing ? "Modifier le produit" : "Créer un produit"}
+              </h1>
+              {isEditing && (
+                <p className="text-[11px] leading-none mt-0.5 hidden sm:block">
+                  {autoSaveState === "saving" && <span className="text-muted-foreground">Sauvegarde…</span>}
+                  {autoSaveState === "pending" && <span className="text-muted-foreground">Modifications non sauvegardées…</span>}
+                  {autoSaveState === "saved" && <span className="text-green-600">✓ Sauvegardé automatiquement</span>}
+                  {autoSaveState === "error" && <span className="text-destructive">Erreur de sauvegarde auto</span>}
+                  {autoSaveState === "idle" && <span className="text-muted-foreground">Sauvegarde automatique activée</span>}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onCancel}>
-              Annuler
-            </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
             <PreviewSheet
               trigger={
-                <Button variant="outline" size="sm" className="gap-1.5">
+                <Button variant="outline" size="sm" className="gap-1.5 h-9 px-2.5">
                   <Eye className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Aperçu live</span>
                 </Button>
@@ -763,7 +808,7 @@ export function ProductEditor({
             />
             <Button
               size="sm"
-              className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white"
+              className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white h-9 px-3"
               onClick={() => onSave(product, newImages)}
               disabled={(!product.name && !product.short_description) || saving || validatingImages}
             >
@@ -772,15 +817,19 @@ export function ProductEditor({
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              <span className="hidden xs:inline sm:inline">
-                {saving ? "Enregistrement…" : isEditing ? "Enregistrer" : "Ajouter"}
-              </span>
-              <span className="xs:hidden sm:hidden">
-                {saving ? "…" : isEditing ? "Enregistrer" : "Ajouter"}
-              </span>
+              <span>{saving ? "…" : isEditing ? "Tout enregistrer" : "Ajouter"}</span>
             </Button>
           </div>
         </div>
+        {isEditing && (
+          <div className="sm:hidden px-3 pb-1.5 text-[11px]">
+            {autoSaveState === "saving" && <span className="text-muted-foreground">Sauvegarde en cours…</span>}
+            {autoSaveState === "pending" && <span className="text-muted-foreground">Modifications non sauvegardées…</span>}
+            {autoSaveState === "saved" && <span className="text-green-600">✓ Sauvegardé automatiquement</span>}
+            {autoSaveState === "error" && <span className="text-destructive">Erreur de sauvegarde auto · utilisez "Tout enregistrer"</span>}
+            {autoSaveState === "idle" && <span className="text-muted-foreground">Sauvegarde automatique activée</span>}
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -1582,12 +1631,9 @@ export function ProductEditor({
       </div>
 
       {/* Bottom Bar */}
-      <div className="sticky bottom-0 z-20 bg-card border-t px-4 md:px-6 py-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground hidden sm:block">
-            {isEditing ? "Les modifications seront sauvegardées automatiquement" : "Remplissez les informations du produit"}
-          </span>
-          <div className="flex items-center gap-2 ml-auto">
+      {(canViewInShop || liveProductUrl) && (
+        <div className="sticky bottom-0 z-20 bg-card border-t px-3 md:px-6 py-2">
+          <div className="flex items-center justify-end gap-2 flex-wrap">
             {canViewInShop && (
               <Button variant="outline" size="sm" className="gap-1.5" asChild>
                 <a href={shopUrl} target="_blank" rel="noopener noreferrer">
@@ -1596,14 +1642,6 @@ export function ProductEditor({
                 </a>
               </Button>
             )}
-            <PreviewSheet
-              trigger={
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Eye className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Aperçu live</span>
-                </Button>
-              }
-            />
             {liveProductUrl && (
               <Button
                 variant="outline"
@@ -1618,21 +1656,9 @@ export function ProductEditor({
                 </a>
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={onCancel}>
-              Annuler
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => onSave(product, newImages)}
-              disabled={(!product.name && !product.short_description) || saving}
-            >
-              <Save className="h-3.5 w-3.5" />
-              {isEditing ? "Enregistrer" : "Ajouter le produit"}
-            </Button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* AI Image Generator Dialog */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
