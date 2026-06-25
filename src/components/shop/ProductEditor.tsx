@@ -372,6 +372,39 @@ export function ProductEditor({
     }
   }, [product.description]);
 
+  // Auto-save (debounced) — only when editing an existing product and a handler is provided.
+  useEffect(() => {
+    if (!onAutoSave || !isEditing) return;
+    // Skip the very first run (initial state hydration).
+    if (skipAutoSave.current) {
+      skipAutoSave.current = false;
+      return;
+    }
+    if (!product.name?.trim() && !product.short_description?.trim()) return;
+    setAutoSaveState("pending");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      setAutoSaveState("saving");
+      try {
+        const res = await onAutoSave(product);
+        setAutoSaveState(res === false ? "error" : "saved");
+      } catch {
+        setAutoSaveState("error");
+      }
+    }, 1500);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, onAutoSave, isEditing]);
+
+  // Reset "saved" badge after a few seconds.
+  useEffect(() => {
+    if (autoSaveState !== "saved") return;
+    const t = setTimeout(() => setAutoSaveState("idle"), 2500);
+    return () => clearTimeout(t);
+  }, [autoSaveState]);
+
   const closeAllDropdowns = useCallback(() => {
     setShowFontSize(false);
     setShowTextColor(false);
