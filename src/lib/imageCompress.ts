@@ -8,8 +8,8 @@ const MAX_DIMENSION = 1600;
 const QUALITY = 0.82;
 
 export type PrepareResult =
-  | { ok: true; file: File; wasCompressed: boolean }
-  | { ok: false; reason: string };
+  | { ok: true; file: File; wasCompressed: boolean; reason?: undefined }
+  | { ok: false; reason: string; file?: undefined; wasCompressed?: undefined };
 
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement>((res, rej) => {
@@ -29,13 +29,13 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
       return {
         ok: false,
         reason: `Ce GIF fait ${(file.size / 1024 / 1024).toFixed(1)} Mo. Maximum 5 Mo. Réduisez-le sur https://ezgif.com/optimize puis réessayez.`,
-      };
+      } as PrepareResult;
     }
-    return { ok: true, file, wasCompressed: false };
+    return { ok: true, file, wasCompressed: false } as PrepareResult;
   }
 
   // Small + already JPEG/WebP/PNG: no need to recompress.
-  if (file.size <= 800 * 1024) return { ok: true, file, wasCompressed: false };
+  if (file.size <= 800 * 1024) return { ok: true, file, wasCompressed: false } as PrepareResult;
 
   try {
     const url = URL.createObjectURL(file);
@@ -50,7 +50,10 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return { ok: file.size <= MAX_IMAGE_BYTES, file, wasCompressed: false } as PrepareResult;
+    if (!ctx) {
+      if (file.size > MAX_IMAGE_BYTES) return { ok: false, reason: "Compression indisponible sur ce navigateur. Réduisez l'image puis réessayez." } as PrepareResult;
+      return { ok: true, file, wasCompressed: false } as PrepareResult;
+    }
     ctx.drawImage(img, 0, 0, w, h);
 
     const blob: Blob | null = await new Promise((res) =>
@@ -58,38 +61,29 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
     );
     if (!blob) {
       if (file.size > MAX_IMAGE_BYTES) {
-        return {
-          ok: false,
-          reason: `Image trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo.`,
-        };
+        return { ok: false, reason: `Image trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo.` } as PrepareResult;
       }
-      return { ok: true, file, wasCompressed: false };
+      return { ok: true, file, wasCompressed: false } as PrepareResult;
     }
 
     // Only keep the compressed version if it actually got smaller.
     if (blob.size >= file.size) {
       if (file.size > MAX_IMAGE_BYTES) {
-        return {
-          ok: false,
-          reason: `Image trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo. Réduisez sa taille puis réessayez.`,
-        };
+        return { ok: false, reason: `Image trop lourde (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo. Réduisez sa taille puis réessayez.` } as PrepareResult;
       }
-      return { ok: true, file, wasCompressed: false };
+      return { ok: true, file, wasCompressed: false } as PrepareResult;
     }
 
     const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
     const compressed = new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
     if (compressed.size > MAX_IMAGE_BYTES) {
-      return {
-        ok: false,
-        reason: `Image trop lourde même après compression (${(compressed.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo.`,
-      };
+      return { ok: false, reason: `Image trop lourde même après compression (${(compressed.size / 1024 / 1024).toFixed(1)} Mo). Maximum 5 Mo.` } as PrepareResult;
     }
-    return { ok: true, file: compressed, wasCompressed: true };
+    return { ok: true, file: compressed, wasCompressed: true } as PrepareResult;
   } catch (e: any) {
     if (file.size > MAX_IMAGE_BYTES) {
-      return { ok: false, reason: e?.message || "Compression impossible. Réduisez l'image puis réessayez." };
+      return { ok: false, reason: e?.message || "Compression impossible. Réduisez l'image puis réessayez." } as PrepareResult;
     }
-    return { ok: true, file, wasCompressed: false };
+    return { ok: true, file, wasCompressed: false } as PrepareResult;
   }
 }
