@@ -471,6 +471,31 @@ const ShopEditor = () => {
     setSaving(false);
   };
 
+  // Silent auto-save: updates the product fields in DB without closing the editor and without re-uploading images.
+  const handleProductAutoSave = async (data: any): Promise<boolean> => {
+    if (!id || !editingProduct?.id) return false;
+    const productData = {
+      name: data.name, description: data.description, short_description: data.short_description,
+      price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
+      stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
+      is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null,
+      bundle_offers: Array.isArray(data.bundle_offers)
+        ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
+        : [],
+      bundle_position: data.bundle_position || "after_countdown",
+      variants: Array.isArray(data.variants)
+        ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
+        : [],
+      section_order: data.section_order ?? null,
+    };
+    const { error } = await supabase
+      .from("products")
+      .update(productData)
+      .eq("id", editingProduct.id) as any;
+    if (error) return false;
+    return true;
+  };
+
   const deleteProductImage = async (imageId: string) => {
     await supabase.from("product_images").delete().eq("id", imageId) as any;
     fetchData();
