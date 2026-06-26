@@ -546,10 +546,19 @@ const ShopEditor = () => {
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from("shop-images").getPublicUrl(path);
-      const { error: imageError } = await supabase
+      const { data: insertedImage, error: imageError } = await supabase
         .from("product_images")
-        .insert({ product_id: productId, image_url: urlData.publicUrl, is_primary: false }) as any;
+        .insert({ product_id: productId, image_url: urlData.publicUrl, is_primary: false })
+        .select("id, image_url, is_primary, display_order")
+        .single() as any;
       if (imageError) throw imageError;
+
+      if (insertedImage) {
+        setEditingProduct(prev => prev?.id === productId
+          ? { ...prev, product_images: [...(prev.product_images || []), insertedImage] }
+          : prev
+        );
+      }
 
       if (refresh) fetchData();
       return true;
