@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ClipboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -679,7 +679,7 @@ export function ProductEditor({
     input.click();
   };
 
-  const handleEditorPaste = useCallback(async (e: React.ClipboardEvent<HTMLDivElement>) => {
+  const handleEditorPaste = useCallback(async (e: ClipboardEvent<HTMLDivElement>) => {
     const items = Array.from(e.clipboardData?.items || []);
     const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
 
