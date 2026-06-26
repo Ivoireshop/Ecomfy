@@ -508,6 +508,10 @@ const ShopEditor = () => {
 
   const deleteProductImage = async (imageId: string) => {
     await supabase.from("product_images").delete().eq("id", imageId) as any;
+    setEditingProduct(prev => prev
+      ? { ...prev, product_images: (prev.product_images || []).filter(img => img.id !== imageId) }
+      : prev
+    );
     fetchData();
   };
 
