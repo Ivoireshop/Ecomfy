@@ -284,7 +284,8 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         return null;
       }
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const path = `${user.id}/rich-text/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const randomId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const path = `${user.id}/rich-text/${Date.now()}-${randomId}.${ext}`;
       const { error } = await supabase.storage.from("shop-images").upload(path, file, {
         cacheControl: "31536000",
         upsert: false,
