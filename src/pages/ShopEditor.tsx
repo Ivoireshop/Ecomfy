@@ -286,8 +286,12 @@ const ShopEditor = () => {
         });
       }
       file = prepared.file;
-      const ext = file.name.split('.').pop();
-      const path = `${shop.id}/${type}-${Date.now()}.${ext}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Connectez-vous pour ajouter une image.");
+
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const randomId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const path = `${user.id}/shop/${shop.id}/${type}-${Date.now()}-${randomId}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('shop-images').upload(path, file);
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('shop-images').getPublicUrl(path);
@@ -295,7 +299,7 @@ const ShopEditor = () => {
       await supabase.from('shops').update({ [field]: urlData.publicUrl }).eq('id', shop.id);
       setShop({ ...shop, [field]: urlData.publicUrl });
       toast({ title: `✓ ${type === 'logo' ? 'Logo' : type === 'banner' ? 'Bannière' : 'Favicon'} mis à jour` });
-    } catch { toast({ title: "Erreur d'upload", variant: "destructive" }); }
+    } catch (error: any) { toast({ title: "Erreur d'upload", description: error?.message || "L'image n'a pas pu être sauvegardée.", variant: "destructive" }); }
   };
 
   const saveShop = async () => {
@@ -534,7 +538,8 @@ const ShopEditor = () => {
       file = prepared.file;
 
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const path = `${user.id}/products/${productId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const randomId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const path = `${user.id}/products/${productId}/${Date.now()}-${randomId}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("shop-images")
         .upload(path, file, { contentType: file.type || undefined, upsert: false });
