@@ -12,7 +12,7 @@ import { ProductLivePreview } from "./ProductLivePreview";
 import { ProductGifGenerator } from "./ProductGifGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { prepareImageForUpload } from "@/lib/imageCompress";
+import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
 import {
   DEFAULT_PRODUCT_BLOCKS,
   PRODUCT_SECTION_LABELS,
