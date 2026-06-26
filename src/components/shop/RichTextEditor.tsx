@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { prepareImageForUpload } from "@/lib/imageCompress";
+import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
 
 const FONT_SIZE_PRESETS = [
   { size: "14", label: "Petit", hint: "Détails" },
@@ -272,7 +272,10 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
         return null;
       }
       if (prepared.wasCompressed) {
-        toast({ title: "Image optimisée", description: "Compressée automatiquement." });
+        toast({
+          title: "Image compressée automatiquement",
+          description: `${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} (sous 2 Mo)`,
+        });
       }
       file = prepared.file;
       const { data: { user } } = await supabase.auth.getUser();
