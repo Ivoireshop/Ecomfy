@@ -608,22 +608,104 @@ export function ProductEditor({
     handleEditorInput();
   };
 
+  const uploadDescriptionImage = useCallback(async (file: File): Promise<string | null> => {
+    try {
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Image non ajoutée",
+          description: "Importez une image JPG, PNG, WEBP ou GIF de moins de 2 Mo.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const prepared = await prepareImageForUpload(file);
+      if (!prepared.ok) {
+        toast({ title: "Image non ajoutée", description: prepared.reason, variant: "destructive" });
+        return null;
+      }
+
+      if (prepared.wasCompressed) {
+        toast({
+          title: "Image compressée automatiquement",
+          description: `Aperçu après compression : ${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} (sous 2 Mo)`,
+        });
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Connexion requise", description: "Reconnectez-vous pour importer l'image.", variant: "destructive" });
+        return null;
+      }
+
+      const uploadFile = prepared.file;
+      const ext = (uploadFile.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = `${user.id}/rich-text/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("shop-images").upload(path, uploadFile, {
+        cacheControl: "31536000",
+        contentType: uploadFile.type || undefined,
+        upsert: false,
+      });
+
+      if (error) throw error;
+      const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
+      return data.publicUrl;
+    } catch (error: any) {
+      toast({
+        title: "Image non sauvegardée",
+        description: error?.message || "Téléversement impossible. Vérifiez que l'image fait moins de 2 Mo.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [toast]);
+
   const insertImage = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          execCmd("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" />`);
-        };
-        reader.readAsDataURL(file);
+        toast({ title: "Téléversement de l'image…" });
+        const url = await uploadDescriptionImage(file);
+        if (url) {
+          execCmd("insertHTML", `<img src="${url}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" loading="lazy" />`);
+        }
       }
+      (e.target as HTMLInputElement).value = "";
     };
     input.click();
   };
+
+  const handleEditorPaste = useCallback(async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
+
+    if (imageItem) {
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      toast({ title: "Téléversement de l'image collée…" });
+      const url = await uploadDescriptionImage(file);
+      if (url) {
+        execCmd("insertHTML", `<img src="${url}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" loading="lazy" />`);
+      }
+      return;
+    }
+
+    const html = e.clipboardData?.getData("text/html");
+    if (html && /src=["']data:image/i.test(html)) {
+      e.preventDefault();
+      const cleaned = html.replace(/<img[^>]*src=["']data:image[^"']*["'][^>]*\/?>(\s*<\/img>)?/gi, "");
+      toast({
+        title: "Image non ajoutée",
+        description: "Utilisez le bouton image : Visual Pro compresse puis sauvegarde l'image avant de l'ajouter.",
+        variant: "destructive",
+      });
+      if (cleaned.trim()) execCmd("insertHTML", cleaned);
+    }
+  }, [execCmd, toast, uploadDescriptionImage]);
 
   const insertVideo = () => {
     const url = prompt("Entrez l'URL de la vidéo (YouTube, Vimeo...)");
