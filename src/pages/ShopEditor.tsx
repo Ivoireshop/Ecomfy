@@ -279,6 +279,12 @@ const ShopEditor = () => {
         toast({ title: "Image non ajoutée", description: prepared.reason, variant: "destructive" });
         return;
       }
+      if (prepared.wasCompressed) {
+        toast({
+          title: "Image compressée automatiquement",
+          description: `${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} (sous 2 Mo)`,
+        });
+      }
       file = prepared.file;
       const ext = file.name.split('.').pop();
       const path = `${shop.id}/${type}-${Date.now()}.${ext}`;
@@ -520,7 +526,10 @@ const ShopEditor = () => {
         return false;
       }
       if (prepared.wasCompressed) {
-        toast({ title: "Image optimisée", description: "Compressée automatiquement pour un chargement rapide." });
+        toast({
+          title: "Image compressée automatiquement",
+          description: `${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} (sous 2 Mo)`,
+        });
       }
       file = prepared.file;
 
