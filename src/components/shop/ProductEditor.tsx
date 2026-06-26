@@ -1319,73 +1319,19 @@ export function ProductEditor({
                   multiple
                   className="hidden"
                   onChange={async (e) => {
-                    const files = e.target.files;
-                    if (files && files.length > 0) {
-                      const arr = Array.from(files);
-                      setValidatingImages(true);
-                      const accepted: File[] = [];
-                      const rejected: string[] = [];
-                      let compressedCount = 0;
-                      let savedBytes = 0;
-                      let uploadedCount = 0;
-                      for (const f of arr) {
-                        const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
-                        if (f.type && !allowed.includes(f.type)) {
-                          rejected.push(`${f.name} : format non supporté. Importez JPG, PNG, WEBP ou GIF de moins de 2 Mo.`);
-                          continue;
-                        }
-                        try {
-                          const prepared = await prepareImageForUpload(f);
-                          if (!prepared.ok) {
-                            rejected.push(`${f.name} (${prepared.reason})`);
-                            continue;
-                          }
-                          if (prepared.wasCompressed) {
-                            compressedCount++;
-                            savedBytes += Math.max(0, prepared.originalSize - prepared.finalSize);
-                          }
-                          if (onUploadImage) {
-                            const uploaded = await onUploadImage(prepared.file);
-                            if (uploaded === false) {
-                              rejected.push(`${f.name} (téléversement impossible)`);
-                              continue;
-                            }
-                            uploadedCount++;
-                          } else {
-                            accepted.push(prepared.file);
-                          }
-                        } catch {
-                          rejected.push(`${f.name} (lecture impossible)`);
-                        }
-                      }
-                      if (accepted.length > 0) {
-                        setNewImages(prev => [...prev, ...accepted]);
-                      }
-                      if (accepted.length > 0 || uploadedCount > 0) {
-                        const totalAdded = accepted.length + uploadedCount;
-                        toast({
-                          title: `${totalAdded} image(s) ajoutée(s)`,
-                          description: uploadedCount > 0
-                            ? `${uploadedCount} sauvegardée(s) automatiquement.${compressedCount > 0 ? ` ${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés).` : ""}`
-                            : compressedCount > 0
-                              ? `${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés). Pensez à enregistrer.`
-                              : "Pensez à enregistrer le produit pour les sauvegarder.",
-                        });
-                      }
-                      if (rejected.length > 0) {
-                        toast({
-                          title: `${rejected.length} image(s) non ajoutée(s)`,
-                          description: rejected.slice(0, 3).join(" · "),
-                          variant: "destructive",
-                        });
-                      }
-                      setValidatingImages(false);
-                    }
+                    await handleProductImageFiles(e.target.files);
                     // Reset so selecting the same file again still triggers onChange
                     e.target.value = "";
                   }}
                 />
-                <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <div
+                  className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    await handleProductImageFiles(e.dataTransfer.files);
+                  }}
+                >
                   {validatingImages ? (
                     <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
                   ) : (
