@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { prepareImageForUpload } from "@/lib/imageCompress";
+import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
 
 interface MultiImageUploaderProps {
   onImagesUploaded: (imageUrls: string[]) => void;
@@ -47,7 +47,9 @@ export function MultiImageUploader({
           throw new Error(`${file.name} : ${prepared.reason}`);
         }
         if (prepared.wasCompressed) {
-          toast.success(`${file.name} optimisée automatiquement`);
+          toast.success(
+            `${file.name} compressée : ${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} ✓ (sous 2 Mo)`
+          );
         }
         const uploadFile = prepared.file;
 
