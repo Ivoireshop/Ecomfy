@@ -1174,6 +1174,7 @@ export function ProductEditor({
                       const accepted: File[] = [];
                       const rejected: string[] = [];
                       let compressedCount = 0;
+                      let savedBytes = 0;
                       for (const f of arr) {
                         const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
                         if (f.type && !allowed.includes(f.type)) {
@@ -1186,7 +1187,10 @@ export function ProductEditor({
                             rejected.push(`${f.name} (${prepared.reason})`);
                             continue;
                           }
-                          if (prepared.wasCompressed) compressedCount++;
+                          if (prepared.wasCompressed) {
+                            compressedCount++;
+                            savedBytes += Math.max(0, prepared.originalSize - prepared.finalSize);
+                          }
                           accepted.push(prepared.file);
                         } catch {
                           rejected.push(`${f.name} (lecture impossible)`);
@@ -1197,7 +1201,7 @@ export function ProductEditor({
                         toast({
                           title: `${accepted.length} image(s) ajoutée(s)`,
                           description: compressedCount > 0
-                            ? `${compressedCount} optimisée(s). Pensez à enregistrer le produit.`
+                            ? `${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés). Pensez à enregistrer.`
                             : "Pensez à enregistrer le produit pour les sauvegarder.",
                         });
                       }
