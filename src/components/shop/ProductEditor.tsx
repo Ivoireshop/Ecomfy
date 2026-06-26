@@ -1121,6 +1121,7 @@ export function ProductEditor({
                   style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                   onInput={handleEditorInput}
                   onKeyDown={handleEditorKeyDown}
+                  onPaste={handleEditorPaste}
                   onClick={handleEditorClick}
                   suppressContentEditableWarning
                   data-code-view="false"
