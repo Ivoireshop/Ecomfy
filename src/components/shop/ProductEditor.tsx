@@ -238,7 +238,7 @@ interface ProductEditorProps {
   onSave: (data: ProductData, newImages: File[]) => void;
   onAutoSave?: (data: ProductData) => Promise<boolean | void> | boolean | void;
   onCancel: () => void;
-  onUploadImage?: (file: File) => void;
+  onUploadImage?: (file: File) => Promise<boolean> | boolean;
   onDeleteImage?: (imageId: string) => void;
   onReorderImages?: (orderedIds: string[]) => void;
   saving?: boolean;
@@ -1258,6 +1258,7 @@ export function ProductEditor({
                       const rejected: string[] = [];
                       let compressedCount = 0;
                       let savedBytes = 0;
+                      let uploadedCount = 0;
                       for (const f of arr) {
                         const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
                         if (f.type && !allowed.includes(f.type)) {
@@ -1274,18 +1275,32 @@ export function ProductEditor({
                             compressedCount++;
                             savedBytes += Math.max(0, prepared.originalSize - prepared.finalSize);
                           }
-                          accepted.push(prepared.file);
+                          if (onUploadImage) {
+                            const uploaded = await onUploadImage(prepared.file);
+                            if (uploaded === false) {
+                              rejected.push(`${f.name} (téléversement impossible)`);
+                              continue;
+                            }
+                            uploadedCount++;
+                          } else {
+                            accepted.push(prepared.file);
+                          }
                         } catch {
                           rejected.push(`${f.name} (lecture impossible)`);
                         }
                       }
                       if (accepted.length > 0) {
                         setNewImages(prev => [...prev, ...accepted]);
+                      }
+                      if (accepted.length > 0 || uploadedCount > 0) {
+                        const totalAdded = accepted.length + uploadedCount;
                         toast({
-                          title: `${accepted.length} image(s) ajoutée(s)`,
-                          description: compressedCount > 0
-                            ? `${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés). Pensez à enregistrer.`
-                            : "Pensez à enregistrer le produit pour les sauvegarder.",
+                          title: `${totalAdded} image(s) ajoutée(s)`,
+                          description: uploadedCount > 0
+                            ? `${uploadedCount} sauvegardée(s) automatiquement.${compressedCount > 0 ? ` ${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés).` : ""}`
+                            : compressedCount > 0
+                              ? `${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés). Pensez à enregistrer.`
+                              : "Pensez à enregistrer le produit pour les sauvegarder.",
                         });
                       }
                       if (rejected.length > 0) {
