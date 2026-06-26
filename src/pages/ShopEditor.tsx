@@ -44,7 +44,7 @@ import { useNativePush } from "@/hooks/useNativePush";
 import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
-import { prepareImageForUpload } from "@/lib/imageCompress";
+import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
 
 interface Product {
   id: string;
@@ -278,6 +278,12 @@ const ShopEditor = () => {
       if (!prepared.ok) {
         toast({ title: "Image non ajoutée", description: prepared.reason, variant: "destructive" });
         return;
+      }
+      if (prepared.wasCompressed) {
+        toast({
+          title: "Image compressée automatiquement",
+          description: `${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} (sous 2 Mo)`,
+        });
       }
       file = prepared.file;
       const ext = file.name.split('.').pop();
@@ -520,7 +526,10 @@ const ShopEditor = () => {
         return false;
       }
       if (prepared.wasCompressed) {
-        toast({ title: "Image optimisée", description: "Compressée automatiquement pour un chargement rapide." });
+        toast({
+          title: "Image compressée automatiquement",
+          description: `${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} (sous 2 Mo)`,
+        });
       }
       file = prepared.file;
 
