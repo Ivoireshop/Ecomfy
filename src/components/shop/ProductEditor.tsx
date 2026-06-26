@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ClipboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -238,7 +238,7 @@ interface ProductEditorProps {
   onSave: (data: ProductData, newImages: File[]) => void;
   onAutoSave?: (data: ProductData) => Promise<boolean | void> | boolean | void;
   onCancel: () => void;
-  onUploadImage?: (file: File) => void;
+  onUploadImage?: (file: File) => Promise<boolean> | boolean;
   onDeleteImage?: (imageId: string) => void;
   onReorderImages?: (orderedIds: string[]) => void;
   saving?: boolean;
@@ -608,22 +608,105 @@ export function ProductEditor({
     handleEditorInput();
   };
 
+  const uploadDescriptionImage = useCallback(async (file: File): Promise<string | null> => {
+    try {
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Image non ajoutée",
+          description: "Importez une image JPG, PNG, WEBP ou GIF de moins de 2 Mo.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const prepared = await prepareImageForUpload(file);
+      if (!prepared.ok) {
+        toast({ title: "Image non ajoutée", description: prepared.reason, variant: "destructive" });
+        return null;
+      }
+
+      if (prepared.wasCompressed) {
+        toast({
+          title: "Image compressée automatiquement",
+          description: `Aperçu après compression : ${formatSize(prepared.originalSize)} → ${formatSize(prepared.finalSize)} (sous 2 Mo)`,
+        });
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Connexion requise", description: "Reconnectez-vous pour importer l'image.", variant: "destructive" });
+        return null;
+      }
+
+      const uploadFile = prepared.file;
+      const ext = (uploadFile.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const randomId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const path = `${user.id}/rich-text/${Date.now()}-${randomId}.${ext}`;
+      const { error } = await supabase.storage.from("shop-images").upload(path, uploadFile, {
+        cacheControl: "31536000",
+        contentType: uploadFile.type || undefined,
+        upsert: false,
+      });
+
+      if (error) throw error;
+      const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
+      return data.publicUrl;
+    } catch (error: any) {
+      toast({
+        title: "Image non sauvegardée",
+        description: error?.message || "Téléversement impossible. Vérifiez que l'image fait moins de 2 Mo.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [toast]);
+
   const insertImage = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          execCmd("insertHTML", `<img src="${reader.result}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" />`);
-        };
-        reader.readAsDataURL(file);
+        toast({ title: "Téléversement de l'image…" });
+        const url = await uploadDescriptionImage(file);
+        if (url) {
+          execCmd("insertHTML", `<img src="${url}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" loading="lazy" />`);
+        }
       }
+      (e.target as HTMLInputElement).value = "";
     };
     input.click();
   };
+
+  const handleEditorPaste = useCallback(async (e: ClipboardEvent<HTMLDivElement>) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
+
+    if (imageItem) {
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      toast({ title: "Téléversement de l'image collée…" });
+      const url = await uploadDescriptionImage(file);
+      if (url) {
+        execCmd("insertHTML", `<img src="${url}" style="max-width:100%;height:auto;margin:12px 0;border-radius:8px;cursor:pointer;" loading="lazy" />`);
+      }
+      return;
+    }
+
+    const html = e.clipboardData?.getData("text/html");
+    if (html && /src=["']data:image/i.test(html)) {
+      e.preventDefault();
+      const cleaned = html.replace(/<img[^>]*src=["']data:image[^"']*["'][^>]*\/?>(\s*<\/img>)?/gi, "");
+      toast({
+        title: "Image non ajoutée",
+        description: "Utilisez le bouton image : Visual Pro compresse puis sauvegarde l'image avant de l'ajouter.",
+        variant: "destructive",
+      });
+      if (cleaned.trim()) execCmd("insertHTML", cleaned);
+    }
+  }, [execCmd, toast, uploadDescriptionImage]);
 
   const insertVideo = () => {
     const url = prompt("Entrez l'URL de la vidéo (YouTube, Vimeo...)");
@@ -702,6 +785,74 @@ export function ProductEditor({
   const isGifUrl = (url: string) => /\.gif(\?|$)/i.test(url);
   const isGifItem = (img: typeof allImages[number]) =>
     img.type === "new" ? (img as any).file?.type === "image/gif" || isGifUrl((img as any).file?.name || "") : isGifUrl(img.image_url);
+
+  const handleProductImageFiles = useCallback(async (incoming: FileList | File[] | null) => {
+    if (!incoming || incoming.length === 0) return;
+    const arr = Array.from(incoming);
+    setValidatingImages(true);
+    try {
+      const accepted: File[] = [];
+      const rejected: string[] = [];
+      let compressedCount = 0;
+      let savedBytes = 0;
+      let uploadedCount = 0;
+
+      for (const f of arr) {
+        const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+        if (f.type && !allowed.includes(f.type)) {
+          rejected.push(`${f.name} : format non supporté. Importez JPG, PNG, WEBP ou GIF de moins de 2 Mo.`);
+          continue;
+        }
+        try {
+          const prepared = await prepareImageForUpload(f);
+          if (!prepared.ok) {
+            rejected.push(`${f.name} (${prepared.reason})`);
+            continue;
+          }
+          if (prepared.wasCompressed) {
+            compressedCount++;
+            savedBytes += Math.max(0, prepared.originalSize - prepared.finalSize);
+          }
+          if (onUploadImage) {
+            const uploaded = await onUploadImage(prepared.file);
+            if (uploaded === false) {
+              rejected.push(`${f.name} (téléversement impossible)`);
+              continue;
+            }
+            uploadedCount++;
+          } else {
+            accepted.push(prepared.file);
+          }
+        } catch {
+          rejected.push(`${f.name} (lecture impossible)`);
+        }
+      }
+
+      if (accepted.length > 0) {
+        setNewImages(prev => [...prev, ...accepted]);
+      }
+      if (accepted.length > 0 || uploadedCount > 0) {
+        const totalAdded = accepted.length + uploadedCount;
+        toast({
+          title: `${totalAdded} image(s) ajoutée(s)`,
+          description: uploadedCount > 0
+            ? `${uploadedCount} sauvegardée(s) automatiquement.${compressedCount > 0 ? ` ${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés).` : ""}`
+            : compressedCount > 0
+              ? `${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés). Pensez à enregistrer.`
+              : "Pensez à enregistrer le produit pour les sauvegarder.",
+        });
+      }
+      if (rejected.length > 0) {
+        toast({
+          title: `${rejected.length} image(s) non ajoutée(s)`,
+          description: rejected.slice(0, 3).join(" · "),
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setValidatingImages(false);
+    }
+  }, [onUploadImage, toast]);
 
   const moveImage = (index: number, dir: -1 | 1) => {
     const target = index + dir;
@@ -1039,6 +1190,7 @@ export function ProductEditor({
                   style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                   onInput={handleEditorInput}
                   onKeyDown={handleEditorKeyDown}
+                  onPaste={handleEditorPaste}
                   onClick={handleEditorClick}
                   suppressContentEditableWarning
                   data-code-view="false"
@@ -1167,58 +1319,19 @@ export function ProductEditor({
                   multiple
                   className="hidden"
                   onChange={async (e) => {
-                    const files = e.target.files;
-                    if (files && files.length > 0) {
-                      const arr = Array.from(files);
-                      setValidatingImages(true);
-                      const accepted: File[] = [];
-                      const rejected: string[] = [];
-                      let compressedCount = 0;
-                      let savedBytes = 0;
-                      for (const f of arr) {
-                        const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
-                        if (f.type && !allowed.includes(f.type)) {
-                          rejected.push(`${f.name} : format non supporté. Importez JPG, PNG, WEBP ou GIF de moins de 2 Mo.`);
-                          continue;
-                        }
-                        try {
-                          const prepared = await prepareImageForUpload(f);
-                          if (!prepared.ok) {
-                            rejected.push(`${f.name} (${prepared.reason})`);
-                            continue;
-                          }
-                          if (prepared.wasCompressed) {
-                            compressedCount++;
-                            savedBytes += Math.max(0, prepared.originalSize - prepared.finalSize);
-                          }
-                          accepted.push(prepared.file);
-                        } catch {
-                          rejected.push(`${f.name} (lecture impossible)`);
-                        }
-                      }
-                      if (accepted.length > 0) {
-                        setNewImages(prev => [...prev, ...accepted]);
-                        toast({
-                          title: `${accepted.length} image(s) ajoutée(s)`,
-                          description: compressedCount > 0
-                            ? `${compressedCount} compressée(s) sous 2 Mo (${formatSize(savedBytes)} économisés). Pensez à enregistrer.`
-                            : "Pensez à enregistrer le produit pour les sauvegarder.",
-                        });
-                      }
-                      if (rejected.length > 0) {
-                        toast({
-                          title: `${rejected.length} image(s) non ajoutée(s)`,
-                          description: rejected.slice(0, 3).join(" · "),
-                          variant: "destructive",
-                        });
-                      }
-                      setValidatingImages(false);
-                    }
+                    await handleProductImageFiles(e.target.files);
                     // Reset so selecting the same file again still triggers onChange
                     e.target.value = "";
                   }}
                 />
-                <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <div
+                  className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    await handleProductImageFiles(e.dataTransfer.files);
+                  }}
+                >
                   {validatingImages ? (
                     <Loader2 className="h-8 w-8 mx-auto text-primary mb-2 animate-spin" />
                   ) : (
