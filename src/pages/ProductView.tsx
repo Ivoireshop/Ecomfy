@@ -127,6 +127,12 @@ interface Product {
 interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string>; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
+const sortProductImages = (images?: Product["product_images"] | null) =>
+  [...(images || [])].sort((a, b) => {
+    if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+    return (a.display_order ?? 0) - (b.display_order ?? 0);
+  });
+
 const ProductView = () => {
   const { slug, id, productSlug } = useParams<{ slug?: string; id?: string; productSlug?: string }>();
   const [searchParams] = useSearchParams();
@@ -236,9 +242,7 @@ const ProductView = () => {
           if (rpc && rpc.shop && rpc.product) {
             const shopData = rpc.shop;
             const productData = rpc.product;
-            if (Array.isArray(productData.product_images)) {
-              productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
-            }
+            productData.product_images = sortProductImages(productData.product_images);
             setShop(shopData);
             setProduct(productData);
             setRelatedProducts(Array.isArray(rpc.related) ? rpc.related : []);
@@ -291,9 +295,7 @@ const ProductView = () => {
           if (!rpcErr && rpc && rpc.shop && rpc.product) {
             const shopData = rpc.shop;
             const productData = rpc.product;
-            if (Array.isArray(productData.product_images)) {
-              productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
-            }
+            productData.product_images = sortProductImages(productData.product_images);
             setShop(shopData);
             setProduct(productData);
             setRelatedProducts(Array.isArray(rpc.related) ? rpc.related : []);
@@ -386,9 +388,7 @@ const ProductView = () => {
       }
 
       if (productData) {
-        if (productData.product_images) {
-          productData.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
-        }
+        productData.product_images = sortProductImages(productData.product_images);
         setProduct(productData);
         // Cache by both slug and id so either URL form hits the cache.
         if (productData.slug) cacheSet(productKey(shopData.id, productData.slug), productData);
