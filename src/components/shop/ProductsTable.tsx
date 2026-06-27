@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Product {
   id: string;
@@ -47,9 +48,9 @@ export function ProductsTable({
   products, searchQuery, onSearchChange, onAddProduct,
   onEditProduct, onDeleteProduct, onUploadImage, onPreviewProduct, primaryColor, orders, shopSlug,
 }: ProductsTableProps) {
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("recent");
 
   // Count distinct orders per product (1 order = 1, even if multiple units)
   const orderCounts: Record<string, number> = {};
@@ -62,6 +63,25 @@ export function ProductsTable({
       }
     });
   });
+
+  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
+
+  const filtered = products
+    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(p => statusFilter === "all"
+      || (statusFilter === "published" && p.is_published)
+      || (statusFilter === "draft" && !p.is_published)
+      || (statusFilter === "out_of_stock" && p.stock_quantity <= 0))
+    .filter(p => categoryFilter === "all" || p.category === categoryFilter)
+    .sort((a, b) => {
+      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
+      if (sortBy === "name_desc") return b.name.localeCompare(a.name);
+      if (sortBy === "price_asc") return a.price - b.price;
+      if (sortBy === "price_desc") return b.price - a.price;
+      if (sortBy === "orders_desc") return (orderCounts[b.id] || 0) - (orderCounts[a.id] || 0);
+      if (sortBy === "stock_asc") return a.stock_quantity - b.stock_quantity;
+      return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
+    });
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString("fr-FR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -78,8 +98,8 @@ export function ProductsTable({
 
       {/* Search & Filters */}
       <Card className="p-3">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Rechercher un produit"
@@ -87,6 +107,36 @@ export function ProductsTable({
               onChange={e => onSearchChange(e.target.value)}
               className="pl-10"
             />
+          </div>
+          <div className="grid grid-cols-3 md:flex md:flex-row gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 md:w-[140px] text-xs"><SelectValue placeholder="Statut" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous statuts</SelectItem>
+                <SelectItem value="published">Visibles</SelectItem>
+                <SelectItem value="draft">Brouillons</SelectItem>
+                <SelectItem value="out_of_stock">En rupture</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="h-9 md:w-[160px] text-xs"><SelectValue placeholder="Catégorie" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes catégories</SelectItem>
+                {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="h-9 md:w-[170px] text-xs"><SelectValue placeholder="Trier" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recent">Plus récents</SelectItem>
+                <SelectItem value="name_asc">Nom (A→Z)</SelectItem>
+                <SelectItem value="name_desc">Nom (Z→A)</SelectItem>
+                <SelectItem value="price_asc">Prix croissant</SelectItem>
+                <SelectItem value="price_desc">Prix décroissant</SelectItem>
+                <SelectItem value="orders_desc">Plus commandés</SelectItem>
+                <SelectItem value="stock_asc">Stock faible</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </Card>
