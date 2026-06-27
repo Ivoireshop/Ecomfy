@@ -670,15 +670,10 @@ const ShopView = () => {
     </div>
   );
 
-  if (shop.is_suspended && !shop._isPreview) return (
-    <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-background p-6 text-center">
-      <Store className="h-20 w-20 text-muted-foreground/30" />
-      <h1 className="text-2xl font-bold">Boutique temporairement indisponible</h1>
-      <p className="text-muted-foreground max-w-md">
-        Cette boutique est momentanément fermée. Veuillez réessayer plus tard ou contacter le vendeur.
-      </p>
-    </div>
-  );
+  // Note: une boutique "is_suspended" (vendeur verrouillé pour paiement) reste
+  // entièrement accessible aux clients. Le verrouillage ne concerne que l'espace
+  // vendeur ; la boutique publique, les fiches produits et le tunnel de commande
+  // continuent de fonctionner normalement.
 
   const primaryColor = shop.primary_color || "#2563eb";
   const secondaryColor = shop.secondary_color || "#7c3aed";
