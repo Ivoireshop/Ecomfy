@@ -820,12 +820,15 @@ export function ProductEditor({
       .slice()
       .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
       .map(img => ({ type: "existing" as const, ...img })),
-    ...newImages.map((pending) => ({
+    ...newImages.map((pending, idx) => ({
       type: "new" as const,
       id: pending.id,
       image_url: pending.previewUrl,
       file: pending.file,
-      is_primary: false,
+      // For a brand-new product, the first pending image is already treated as
+      // the future primary image. This gives immediate feedback before the DB
+      // row exists; on save, files are uploaded in this same order.
+      is_primary: existingImages.length === 0 && idx === 0,
     })),
   ];
 
@@ -1304,7 +1307,7 @@ export function ProductEditor({
                           GIF
                         </span>
                       )}
-                      {img.type === "existing" && (img.is_primary || idx === 0) && (
+                      {(img.is_primary || idx === 0) && (
                         <span className="absolute top-1 left-1 text-[9px] font-bold tracking-wide bg-green-600 text-white px-1.5 py-0.5 rounded shadow">
                           Principal
                         </span>
@@ -1367,6 +1370,22 @@ export function ProductEditor({
                             type="button"
                             title="Définir comme image principale"
                             onClick={() => onSetPrimaryImage(img.id)}
+                            className="h-6 px-1.5 bg-background/90 text-foreground border rounded text-[10px] font-medium shadow hover:bg-background"
+                          >
+                            Principal
+                          </button>
+                        )}
+                        {img.type === "new" && existingImages.length === 0 && idx !== 0 && (
+                          <button
+                            type="button"
+                            title="Définir comme image principale"
+                            onClick={() => {
+                              setNewImages(prev => {
+                                const selected = prev.find(p => p.id === img.id);
+                                if (!selected) return prev;
+                                return [selected, ...prev.filter(p => p.id !== img.id)];
+                              });
+                            }}
                             className="h-6 px-1.5 bg-background/90 text-foreground border rounded text-[10px] font-medium shadow hover:bg-background"
                           >
                             Principal
