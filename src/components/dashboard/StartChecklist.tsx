@@ -136,7 +136,6 @@ export function StartChecklist({ userId }: { userId: string }) {
   if (dismissed || !steps) return null;
   const done = steps.filter((s) => s.done).length;
   const total = steps.length;
-  if (done === total) return null;
   const pct = Math.round((done / total) * 100);
 
   const buildProductUrl = (p: { id: string; shop_subdomain: string | null }) => {
