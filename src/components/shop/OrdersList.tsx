@@ -227,8 +227,8 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
         <div className="space-y-3">
           {filteredOrders.map((order) => (
             <Card key={order.id} className={`overflow-hidden ${!order.is_read ? 'ring-1 ring-primary' : ''}`} onClick={() => !order.is_read && onMarkRead(order.id)}>
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
+              <div className="p-3 sm:p-5">
+                <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3">
                     {!order.is_read && <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />}
                      <div>
@@ -282,9 +282,9 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                     ))}
                   </div>
                 ) : null}
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <Select value={order.order_status} onValueChange={(v) => onUpdateStatus(order.id, v)}>
-                    <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-44 h-10 min-h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(STATUS_MAP).map(([key, val]) => (
                         <SelectItem key={key} value={key}>{val.label}</SelectItem>
@@ -297,7 +297,7 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-9"
+                    className="h-10 min-h-10 flex-1 sm:flex-none"
                     onClick={(e) => { e.stopPropagation(); handleCopy(order, sequenceById[order.id]); }}
                   >
                     {copiedId === order.id ? (
@@ -307,13 +307,13 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                     )}
                   </Button>
                   {order.customer_phone && (
-                    <div className="flex items-center gap-2 ml-auto">
-                      <Button asChild size="sm" variant="outline" className="h-9">
+                    <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+                      <Button asChild size="sm" variant="outline" className="h-10 min-h-10 flex-1 sm:flex-none">
                         <a href={`tel:${order.customer_phone.replace(/[^0-9+]/g, "")}`} onClick={(e) => e.stopPropagation()}>
                           <Phone className="h-4 w-4 mr-1" /> Appeler
                         </a>
                       </Button>
-                      <Button asChild size="sm" className="h-9 bg-green-600 hover:bg-green-700 text-white">
+                      <Button asChild size="sm" className="h-10 min-h-10 flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white">
                         <a
                           href={`https://wa.me/${order.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}?text=${encodeURIComponent(`Bonjour ${order.customer_name}, je vous contacte au sujet de votre commande ${order.order_number}.`)}`}
                           target="_blank"
