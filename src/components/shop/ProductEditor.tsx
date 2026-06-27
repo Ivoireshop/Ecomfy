@@ -817,7 +817,13 @@ export function ProductEditor({
 
   const allImages = [
     ...existingImages.map(img => ({ type: "existing" as const, ...img })),
-    ...newImages.map((file, i) => ({ type: "new" as const, id: `new-${i}`, image_url: URL.createObjectURL(file), file })),
+    ...newImages.map((pending) => ({
+      type: "new" as const,
+      id: pending.id,
+      image_url: pending.previewUrl,
+      file: pending.file,
+      is_primary: false,
+    })),
   ];
 
   const isGifUrl = (url: string) => /\.gif(\?|$)/i.test(url);
@@ -867,7 +873,7 @@ export function ProductEditor({
       }
 
       if (accepted.length > 0) {
-        setNewImages(prev => [...prev, ...accepted]);
+        setNewImages(prev => [...prev, ...accepted.map(addPendingImage)]);
       }
       if (accepted.length > 0 || uploadedCount > 0) {
         const totalAdded = accepted.length + uploadedCount;
@@ -890,7 +896,24 @@ export function ProductEditor({
     } finally {
       setValidatingImages(false);
     }
-  }, [onUploadImage, toast]);
+  }, [onUploadImage, toast, addPendingImage]);
+
+  const handleSaveClick = async () => {
+    if (localSaving || saving || validatingImages) return;
+    setLocalSaving(true);
+    try {
+      const pendingFiles = newImages.map(img => img.file);
+      const result = await onSave(product, pendingFiles);
+      if (result !== false && pendingFiles.length > 0) {
+        setNewImages(prev => {
+          prev.forEach(img => URL.revokeObjectURL(img.previewUrl));
+          return [];
+        });
+      }
+    } finally {
+      setLocalSaving(false);
+    }
+  };
 
   const moveImage = (index: number, dir: -1 | 1) => {
     const target = index + dir;
@@ -899,8 +922,9 @@ export function ProductEditor({
     const b = allImages[target];
     // Swap within "new" group
     if (a.type === "new" && b.type === "new") {
-      const i1 = parseInt(a.id.replace("new-", ""), 10);
-      const i2 = parseInt(b.id.replace("new-", ""), 10);
+      const i1 = newImages.findIndex(img => img.id === a.id);
+      const i2 = newImages.findIndex(img => img.id === b.id);
+      if (i1 < 0 || i2 < 0) return;
       setNewImages(prev => {
         const next = [...prev];
         [next[i1], next[i2]] = [next[i2], next[i1]];
