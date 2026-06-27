@@ -1065,10 +1065,31 @@ export function ProductEditor({
             {autoSaveState === "idle" && <span className="text-muted-foreground">Sauvegarde automatique activée</span>}
           </div>
         )}
+        <div className="px-3 md:px-6 pb-2 flex items-center gap-1">
+          <button type="button" onClick={() => setEditorMode("assistant")} className={`px-3 py-1 text-xs rounded-md font-semibold transition-colors ${editorMode === "assistant" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>✨ Assistant guidé</button>
+          <button type="button" onClick={() => setEditorMode("expert")} className={`px-3 py-1 text-xs rounded-md font-semibold transition-colors ${editorMode === "expert" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>⚙️ Mode Expert</button>
+        </div>
       </div>
 
+      {editorMode === "assistant" && (
+        <ProductWizard
+          product={product}
+          setProduct={setProduct}
+          newImages={newImages}
+          existingImages={existingImages}
+          onAddImages={(files) => handleProductImageFiles(files)}
+          onRemovePending={removePendingImage}
+          onDeleteExisting={onDeleteImage}
+          onSwitchToExpert={() => setEditorMode("expert")}
+          onSave={handleSaveClick}
+          saving={!!saving || localSaving || validatingImages}
+          currency="FCFA"
+          isEditing={isEditing}
+        />
+      )}
+
       {/* Content */}
-      <div className="flex flex-col lg:flex-row gap-0">
+      <div className={`flex flex-col lg:flex-row gap-0 ${editorMode === "assistant" ? "hidden" : ""}`}>
         {/* Main Editor */}
         <div className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
           {/* Product URL */}
