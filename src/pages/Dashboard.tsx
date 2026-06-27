@@ -51,8 +51,8 @@ const Dashboard = () => {
       <Header />
       <section className="container mx-auto px-4 py-5 md:py-16">
         <div className="max-w-5xl mx-auto text-center mb-6 md:mb-10">
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold mb-2 md:mb-3 tracking-tight">
-            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" style={{ fontFamily: "'Georgia', serif" }}>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold mb-2 md:mb-3 tracking-tight break-words">
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent break-words" style={{ fontFamily: "'Georgia', serif" }}>
               {greeting}{firstName ? ` ${firstName}` : ""}, {t("dashboard.welcome")}
             </span>
             <span className="inline-block animate-wiggle ml-2">👋</span>
