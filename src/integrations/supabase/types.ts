@@ -1776,12 +1776,14 @@ export type Database = {
           delivery_transferred_at: string | null
           id: string
           is_read: boolean | null
+          locked_at_order_time: string | null
           notes: string | null
           order_number: string
           order_status: string
           payment_method: string
           payment_status: string
           products_summary: string | null
+          received_during_lock: boolean
           shop_id: string
           subtotal: number
           total: number
@@ -1800,12 +1802,14 @@ export type Database = {
           delivery_transferred_at?: string | null
           id?: string
           is_read?: boolean | null
+          locked_at_order_time?: string | null
           notes?: string | null
           order_number: string
           order_status?: string
           payment_method?: string
           payment_status?: string
           products_summary?: string | null
+          received_during_lock?: boolean
           shop_id: string
           subtotal?: number
           total?: number
@@ -1824,12 +1828,14 @@ export type Database = {
           delivery_transferred_at?: string | null
           id?: string
           is_read?: boolean | null
+          locked_at_order_time?: string | null
           notes?: string | null
           order_number?: string
           order_status?: string
           payment_method?: string
           payment_status?: string
           products_summary?: string | null
+          received_during_lock?: boolean
           shop_id?: string
           subtotal?: number
           total?: number
@@ -4111,6 +4117,7 @@ export type Database = {
         }[]
       }
       get_invite_email_by_token: { Args: { _token: string }; Returns: string }
+      get_locked_orders_summary: { Args: { _shop_id: string }; Returns: Json }
       get_my_subscription_status: { Args: never; Returns: Json }
       get_next_queue_item: { Args: never; Returns: string }
       get_public_product_page: {
