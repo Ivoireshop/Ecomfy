@@ -67,6 +67,14 @@ interface Product {
   product_images?: { id: string; image_url: string; is_primary: boolean; display_order: number }[];
 }
 
+type ProductImageRow = { id: string; image_url: string; is_primary: boolean; display_order: number };
+
+const sortProductImages = (images?: ProductImageRow[] | null) =>
+  [...(images || [])].sort((a, b) => {
+    if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+    return (a.display_order ?? 0) - (b.display_order ?? 0);
+  });
+
 interface Order {
   id: string;
   order_number: string;
@@ -154,7 +162,12 @@ const ShopEditor = () => {
         weekly_finance_email_enabled: secrets.weekly_finance_email_enabled ?? false,
       });
     }
-    if (productsRes.data) setProducts(productsRes.data);
+    if (productsRes.data) {
+      setProducts((productsRes.data as Product[]).map(product => ({
+        ...product,
+        product_images: sortProductImages(product.product_images),
+      })));
+    }
     if (ordersRes.data) {
       setOrders(ordersRes.data);
       setUnreadOrders(ordersRes.data.filter((o: Order) => !o.is_read).length);
