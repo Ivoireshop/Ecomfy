@@ -311,7 +311,7 @@ const ShopEditor = () => {
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('shop-images').getPublicUrl(path);
       const field = type === 'logo' ? 'logo_url' : type === 'banner' ? 'banner_url' : 'favicon_url';
-      await supabase.from('shops').update({ [field]: urlData.publicUrl }).eq('id', shop.id);
+      await supabase.from('shops').update({ [field]: urlData.publicUrl } as any).eq('id', shop.id);
       setShop({ ...shop, [field]: urlData.publicUrl });
       toast({ title: `✓ ${type === 'logo' ? 'Logo' : type === 'banner' ? 'Bannière' : 'Favicon'} mis à jour` });
     } catch (error: any) { toast({ title: "Erreur d'upload", description: error?.message || "L'image n'a pas pu être sauvegardée.", variant: "destructive" }); }
