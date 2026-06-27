@@ -6,10 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy, Upload, Download, ImageIcon, Wand2, Trash2 } from "lucide-react";
+import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy } from "lucide-react";
 import { handleCreditsRequired } from "@/lib/creditsDialog";
 
 type Product = { id: string; name: string; price: number; is_published: boolean };
@@ -111,13 +110,7 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
         </p>
       </div>
 
-      <Tabs defaultValue="optimize" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="optimize" className="gap-1.5"><Brain className="h-3.5 w-3.5" />Optimiser</TabsTrigger>
-          <TabsTrigger value="create" className="gap-1.5"><Wand2 className="h-3.5 w-3.5" />Créer une fiche</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="optimize" className="space-y-6 mt-6">
+      <div className="space-y-6">
           {/* Controls */}
           <Card className="p-5 space-y-4">
             <div className="grid md:grid-cols-3 gap-3">
@@ -260,12 +253,7 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
               )}
             </>
           )}
-        </TabsContent>
-
-        <TabsContent value="create" className="mt-6">
-          <CreateSheetPanel shop={shop} onCopy={copy} />
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }
