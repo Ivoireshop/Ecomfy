@@ -559,7 +559,12 @@ const ShopEditor = () => {
     fetchData();
   };
 
-  const uploadProductImage = async (productId: string, file: File, refresh = true): Promise<boolean> => {
+  const uploadProductImage = async (
+    productId: string,
+    file: File,
+    refresh = true,
+    options: { displayOrder?: number; isPrimary?: boolean } = {}
+  ): Promise<boolean> => {
     setUploadingImage(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
