@@ -888,6 +888,7 @@ const ShopEditor = () => {
               onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
               onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file) : undefined}
               onDeleteImage={deleteProductImage}
+              onSetPrimaryImage={setPrimaryProductImage}
               onReorderImages={async (orderedIds) => {
                 await Promise.all(
                   orderedIds.map((imgId, idx) =>
