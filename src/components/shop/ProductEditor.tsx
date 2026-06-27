@@ -297,6 +297,7 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
+  const pendingImagesRef = useRef<PendingProductImage[]>([]);
   const savedSelection = useRef<{ range: Range; capturedAt: number } | null>(null);
   const { toast } = useToast();
 
@@ -315,10 +316,14 @@ export function ProductEditor({
   }, []);
 
   useEffect(() => {
-    return () => {
-      newImages.forEach(img => URL.revokeObjectURL(img.previewUrl));
-    };
+    pendingImagesRef.current = newImages;
   }, [newImages]);
+
+  useEffect(() => {
+    return () => {
+      pendingImagesRef.current.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    };
+  }, []);
 
   // AI image generation
   const [aiOpen, setAiOpen] = useState(false);
