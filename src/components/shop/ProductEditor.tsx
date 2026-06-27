@@ -816,7 +816,10 @@ export function ProductEditor({
   };
 
   const allImages = [
-    ...existingImages.map(img => ({ type: "existing" as const, ...img })),
+    ...existingImages
+      .slice()
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+      .map(img => ({ type: "existing" as const, ...img })),
     ...newImages.map((pending) => ({
       type: "new" as const,
       id: pending.id,
@@ -1301,6 +1304,11 @@ export function ProductEditor({
                           GIF
                         </span>
                       )}
+                      {img.type === "existing" && (img.is_primary || idx === 0) && (
+                        <span className="absolute top-1 left-1 text-[9px] font-bold tracking-wide bg-green-600 text-white px-1.5 py-0.5 rounded shadow">
+                          Principal
+                        </span>
+                      )}
                       <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
                         {idx + 1}
                       </span>
@@ -1354,6 +1362,16 @@ export function ProductEditor({
                         >
                           <Download className="h-3 w-3" />
                         </button>
+                        {img.type === "existing" && onSetPrimaryImage && !img.is_primary && (
+                          <button
+                            type="button"
+                            title="Définir comme image principale"
+                            onClick={() => onSetPrimaryImage(img.id)}
+                            className="h-6 px-1.5 bg-background/90 text-foreground border rounded text-[10px] font-medium shadow hover:bg-background"
+                          >
+                            Principal
+                          </button>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -1362,7 +1380,7 @@ export function ProductEditor({
                           if (img.type === "existing" && onDeleteImage) {
                             if (confirm("Supprimer cette image définitivement ?")) onDeleteImage(img.id);
                           } else {
-                            setNewImages(prev => prev.filter((_, i) => `new-${i}` !== img.id));
+                            removePendingImage(img.id);
                           }
                         }}
                         className="absolute top-1 right-1 h-6 w-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
