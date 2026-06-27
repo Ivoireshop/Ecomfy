@@ -143,7 +143,7 @@ const AppContent = () => {
   const hideChrome = isShopView || isOrderConfirmed;
 
   return (
-    <div className={hideChrome ? "" : "pb-16 md:pb-0"}>
+    <div className={hideChrome ? "overflow-x-hidden" : "pb-16 md:pb-0 overflow-x-hidden"}>
       {!hideChrome && <BackButton />}
       {showSupport && <SupportButton />}
       {!isOrderConfirmed && <MobileBottomNav />}
