@@ -103,3 +103,6 @@ verify_jwt = false
 
 [functions.seo-auto-index]
 verify_jwt = false
+
+[functions.share-product]
+verify_jwt = false

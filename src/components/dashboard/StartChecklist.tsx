@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { buildProductShareUrl } from "@/lib/shareLinks";
 
 type Step = {
   key: string;
@@ -139,9 +140,14 @@ export function StartChecklist({ userId }: { userId: string }) {
   const pct = Math.round((done / total) * 100);
 
   const buildProductUrl = (p: { id: string; shop_subdomain: string | null }) => {
-    const base = `${window.location.origin}`;
-    if (p.shop_subdomain) return `${base}/shop/${p.shop_subdomain}/product/${p.id}`;
-    return `${base}/product/${p.id}`;
+    // Use the share-product edge function so the link preview on WhatsApp,
+    // Facebook, Messenger, Telegram, LinkedIn… shows the real product image
+    // + title + description (SPA <Helmet> meta tags are invisible to social
+    // crawlers).
+    if (p.shop_subdomain) {
+      return buildProductShareUrl({ shopSlug: p.shop_subdomain, productId: p.id });
+    }
+    return `${window.location.origin}/product/${p.id}`;
   };
 
   const handleShare = async (p: { id: string; name: string; shop_subdomain: string | null }) => {
