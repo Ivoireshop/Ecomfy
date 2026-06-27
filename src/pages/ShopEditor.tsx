@@ -800,7 +800,7 @@ const ShopEditor = () => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 mt-[52px] md:mt-0">
+      <main className="flex-1 min-w-0 mt-[52px] md:mt-0 pb-24 md:pb-0">
         {/* Billing balance banner — masquée pour les abonnés actifs */}
         {(() => {
           const sub = (shop as any).subscription_active_until;
