@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Package, Bell, TrendingUp } from "lucide-react";
 import { useMemo } from "react";
+import { ShopResources } from "./ShopResources";
 
 interface Order {
   id: string;
@@ -149,6 +150,8 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
           </div>
         )}
       </Card>
+
+      <ShopResources />
     </div>
   );
 }
