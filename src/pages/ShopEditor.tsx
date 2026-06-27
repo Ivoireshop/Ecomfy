@@ -484,10 +484,11 @@ const ShopEditor = () => {
 
       if (prodId && newImgs.length > 0) {
         const existingCount = editingProduct?.product_images?.length || 0;
-        for (const file of newImgs) {
+        for (let i = 0; i < newImgs.length; i++) {
+          const file = newImgs[i];
           const uploaded = await uploadProductImage(prodId, file, false, {
-            displayOrder: existingCount + newImgs.indexOf(file),
-            isPrimary: existingCount === 0 && newImgs.indexOf(file) === 0,
+            displayOrder: existingCount + i,
+            isPrimary: existingCount === 0 && i === 0,
           });
           if (!uploaded) {
             setSaving(false);
