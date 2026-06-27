@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, ChevronRight, Store, Package, Palette, ShoppingBag, X, Search, Share2 } from "lucide-react";
@@ -40,9 +39,8 @@ if (typeof window !== "undefined") {
 export function StartChecklist({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const [steps, setSteps] = useState<Step[] | null>(null);
-  const [pickerOpen, setPickerOpen] = useState<null | "share" | "product">(null);
+  const [pickerOpen, setPickerOpen] = useState<null | "share">(null);
   const [products, setProducts] = useState<Array<{ id: string; name: string; shop_id: string; shop_subdomain: string | null }>>([]);
-  const [shopForCreate, setShopForCreate] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [dismissed, setDismissed] = useState<boolean>(
     typeof window !== "undefined" && sessionStorage.getItem(DISMISS_KEY) === "1"
@@ -75,7 +73,6 @@ export function StartChecklist({ userId }: { userId: string }) {
       setProducts(
         productsData.map((p) => ({ ...p, shop_subdomain: subdomainById.get(p.shop_id) ?? null }))
       );
-      setShopForCreate(shop?.id ?? null);
       setSteps([
         {
           key: "shop",
