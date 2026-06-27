@@ -170,6 +170,17 @@ const toProductSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const makeLocalId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+interface PendingProductImage {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
 const EMOJIS = [
   "😀","😂","😍","🥰","😎","🤩","🔥","✅","⭐","💯","🎉","💪",
   "❤️","💚","💙","💛","🧡","💜","🖤","🤍","👍","👏","🙏","💰",
@@ -235,11 +246,12 @@ interface ProductEditorProps {
   initialData?: ProductData;
   existingImages?: ProductImage[];
   isEditing: boolean;
-  onSave: (data: ProductData, newImages: File[]) => void;
+  onSave: (data: ProductData, newImages: File[]) => Promise<boolean | void> | boolean | void;
   onAutoSave?: (data: ProductData) => Promise<boolean | void> | boolean | void;
   onCancel: () => void;
   onUploadImage?: (file: File) => Promise<boolean> | boolean;
   onDeleteImage?: (imageId: string) => void;
+  onSetPrimaryImage?: (imageId: string) => void;
   onReorderImages?: (orderedIds: string[]) => void;
   saving?: boolean;
   shopSlug?: string;
@@ -250,7 +262,7 @@ interface ProductEditorProps {
 }
 
 export function ProductEditor({
-  initialData, existingImages = [], isEditing, onSave, onAutoSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
+  initialData, existingImages = [], isEditing, onSave, onAutoSave, onCancel, onUploadImage, onDeleteImage, onSetPrimaryImage, onReorderImages, saving,
   shopSlug, shopActivated, shopPublished, productId, shop,
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
@@ -261,8 +273,9 @@ export function ProductEditor({
     variants: [],
     section_order: { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
   });
-  const [newImages, setNewImages] = useState<File[]>([]);
+  const [newImages, setNewImages] = useState<PendingProductImage[]>([]);
   const [validatingImages, setValidatingImages] = useState(false);
+  const [localSaving, setLocalSaving] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipAutoSave = useRef(true);
@@ -286,6 +299,26 @@ export function ProductEditor({
   const editorInitialized = useRef(false);
   const savedSelection = useRef<{ range: Range; capturedAt: number } | null>(null);
   const { toast } = useToast();
+
+  const addPendingImage = useCallback((file: File): PendingProductImage => ({
+    id: makeLocalId(),
+    file,
+    previewUrl: URL.createObjectURL(file),
+  }), []);
+
+  const removePendingImage = useCallback((imageId: string) => {
+    setNewImages(prev => {
+      const target = prev.find(img => img.id === imageId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(img => img.id !== imageId);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      newImages.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    };
+  }, [newImages]);
 
   // AI image generation
   const [aiOpen, setAiOpen] = useState(false);
@@ -339,7 +372,7 @@ export function ProductEditor({
       const blob = await res.blob();
       const ext = (blob.type.split("/")[1] || "png").split(";")[0];
       const file = new File([blob], `ai-${Date.now()}.${ext}`, { type: blob.type || "image/png" });
-      setNewImages((prev) => [...prev, file]);
+      setNewImages((prev) => [...prev, addPendingImage(file)]);
       if (alsoDownload) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -659,7 +692,7 @@ export function ProductEditor({
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, addPendingImage]);
 
   const insertImage = () => {
     const input = document.createElement("input");
