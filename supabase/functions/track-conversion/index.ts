@@ -50,17 +50,31 @@ const SNAP_MAP: Record<string, string> = {
   CompleteRegistration: "SIGN_UP",
 };
 
+const ALLOWED_EVENTS = new Set<string>([
+  "PageView", "ViewContent", "AddToCart", "InitiateCheckout",
+  "AddPaymentInfo", "Purchase", "Lead", "Search", "CompleteRegistration",
+]);
+const MAX_EVENT_VALUE = 1_000_000;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
     const { shop_id, event, event_id, event_source_url, user_agent, payload = {} } = body || {};
     if (!shop_id || !event || !event_id) return fail("Missing shop_id/event/event_id");
+    if (!ALLOWED_EVENTS.has(event)) return fail("invalid_event");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // IP-based rate limit: 60 req / min / IP
+    const ipForLimit = pickIp(req) || "unknown";
+    const { data: rl } = await supabase.rpc("check_rate_limit", {
+      _bucket: "track-conversion", _key: ipForLimit, _max: 60, _window_seconds: 60,
+    });
+    if (rl && (rl as any).allowed === false) return fail("rate_limited");
 
     const [shopRes, secretsRes] = await Promise.all([
       supabase
@@ -80,7 +94,9 @@ Deno.serve(async (req) => {
 
     const ip = pickIp(req);
     const ts = Math.floor(Date.now() / 1000);
-    const value = Number(payload.value || 0);
+    let value = Number(payload.value || 0);
+    if (!Number.isFinite(value) || value < 0) value = 0;
+    if (value > MAX_EVENT_VALUE) return fail("value_too_high");
     const currency = payload.currency || "XOF";
     const results: Record<string, unknown> = {};
 
