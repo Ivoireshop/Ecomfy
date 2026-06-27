@@ -1,17 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, ChevronRight, Store, Package, Palette, ShoppingBag, X } from "lucide-react";
+import { Check, ChevronRight, Store, Package, Palette, ShoppingBag, X, Search, Share2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 type Step = {
   key: string;
   label: string;
   desc: string;
   icon: typeof Store;
-  route: string;
+  route?: string;
+  action?: () => void;
   done: boolean;
 };
 
@@ -30,6 +40,10 @@ if (typeof window !== "undefined") {
 export function StartChecklist({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const [steps, setSteps] = useState<Step[] | null>(null);
+  const [pickerOpen, setPickerOpen] = useState<null | "share" | "product">(null);
+  const [products, setProducts] = useState<Array<{ id: string; name: string; shop_id: string; shop_subdomain: string | null }>>([]);
+  const [shopForCreate, setShopForCreate] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [dismissed, setDismissed] = useState<boolean>(
     typeof window !== "undefined" && sessionStorage.getItem(DISMISS_KEY) === "1"
   );
@@ -38,15 +52,30 @@ export function StartChecklist({ userId }: { userId: string }) {
     let cancelled = false;
     (async () => {
       const sb: any = supabase;
-      const shopsRes = await sb.from("shops").select("id, logo_url, primary_color").eq("user_id", userId).limit(1);
-      const productsRes = await sb.from("products").select("id").eq("user_id", userId).limit(1);
-      const ordersRes = await sb.from("orders").select("id").eq("user_id", userId).limit(1);
-      const shops = shopsRes.data as Array<{ id: string; logo_url: string | null; primary_color: string | null }> | null;
-      const products = productsRes.data as Array<{ id: string }> | null;
-      const orders = ordersRes.data as Array<{ id: string }> | null;
+      const shopsRes = await sb
+        .from("shops")
+        .select("id, subdomain, logo_url, primary_color")
+        .eq("user_id", userId);
+      const shops = shopsRes.data as Array<{ id: string; subdomain: string | null; logo_url: string | null; primary_color: string | null }> | null;
+      const shopIds = (shops ?? []).map((s) => s.id);
+      let productsData: Array<{ id: string; name: string; shop_id: string }> = [];
+      let ordersCount = 0;
+      if (shopIds.length > 0) {
+        const [prodRes, ordRes] = await Promise.all([
+          sb.from("products").select("id, name, shop_id").in("shop_id", shopIds).order("created_at", { ascending: false }),
+          sb.from("orders").select("id", { count: "exact", head: true }).in("shop_id", shopIds),
+        ]);
+        productsData = (prodRes.data as Array<{ id: string; name: string; shop_id: string }> | null) ?? [];
+        ordersCount = (ordRes as any).count ?? 0;
+      }
       if (cancelled) return;
       const shop = shops?.[0];
       const customized = !!(shop?.logo_url || shop?.primary_color);
+      const subdomainById = new Map((shops ?? []).map((s) => [s.id, s.subdomain] as const));
+      setProducts(
+        productsData.map((p) => ({ ...p, shop_subdomain: subdomainById.get(p.shop_id) ?? null }))
+      );
+      setShopForCreate(shop?.id ?? null);
       setSteps([
         {
           key: "shop",
@@ -61,8 +90,14 @@ export function StartChecklist({ userId }: { userId: string }) {
           label: "Ajoutez votre premier produit",
           desc: "Photos, prix et description en quelques clics",
           icon: Package,
-          route: shop ? `/shop-editor/${shop.id}` : "/shop-manager",
-          done: !!(products && products.length > 0),
+          action: () => {
+            if (!shop) {
+              navigate("/shop-manager");
+              return;
+            }
+            navigate(`/shop-editor/${shop.id}?new=product`);
+          },
+          done: productsData.length > 0,
         },
         {
           key: "brand",
@@ -77,8 +112,16 @@ export function StartChecklist({ userId }: { userId: string }) {
           label: "Recevez votre première commande",
           desc: "Partagez votre lien sur WhatsApp et réseaux sociaux",
           icon: ShoppingBag,
-          route: shop ? `/shop-editor/${shop.id}` : "/shop-manager",
-          done: !!(orders && orders.length > 0),
+          action: () => {
+            if (productsData.length === 0) {
+              if (!shop) navigate("/shop-manager");
+              else navigate(`/shop-editor/${shop.id}?new=product`);
+              return;
+            }
+            setQuery("");
+            setPickerOpen("share");
+          },
+          done: ordersCount > 0,
         },
       ]);
     })();
@@ -87,11 +130,42 @@ export function StartChecklist({ userId }: { userId: string }) {
     };
   }, [userId]);
 
+  const filteredProducts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => p.name.toLowerCase().includes(q));
+  }, [products, query]);
+
   if (dismissed || !steps) return null;
   const done = steps.filter((s) => s.done).length;
   const total = steps.length;
   if (done === total) return null;
   const pct = Math.round((done / total) * 100);
+
+  const buildProductUrl = (p: { id: string; shop_subdomain: string | null }) => {
+    const base = `${window.location.origin}`;
+    if (p.shop_subdomain) return `${base}/shop/${p.shop_subdomain}/product/${p.id}`;
+    return `${base}/product/${p.id}`;
+  };
+
+  const handleShare = async (p: { id: string; name: string; shop_subdomain: string | null }) => {
+    const url = buildProductUrl(p);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: p.name, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Lien copié", { description: url });
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Lien copié", { description: url });
+      } catch {
+        toast.error("Impossible de partager", { description: url });
+      }
+    }
+  };
 
   return (
     <Card className="relative overflow-hidden border-2 border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/5 mb-8 animate-fade-in">
@@ -120,7 +194,10 @@ export function StartChecklist({ userId }: { userId: string }) {
           {steps.map((s) => (
             <li key={s.key}>
               <button
-                onClick={() => navigate(s.route)}
+                onClick={() => {
+                  if (s.action) s.action();
+                  else if (s.route) navigate(s.route);
+                }}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                   s.done
                     ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40"
