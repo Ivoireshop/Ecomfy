@@ -102,8 +102,8 @@ export function ProductWizard({
       });
       if (error) throw error;
       if (!data?.success) {
-        if (data?.credits_required) {
-          toast.error("Crédits insuffisants pour la génération IA.");
+        if (data?.error === "credits_required" || data?.credits_required) {
+          toast.error("Crédits IA insuffisants. Achetez un pack pour continuer.");
           return;
         }
         throw new Error(data?.message || data?.error || "Erreur");
