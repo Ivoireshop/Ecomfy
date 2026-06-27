@@ -67,6 +67,14 @@ interface Product {
   product_images?: { id: string; image_url: string; is_primary: boolean; display_order: number }[];
 }
 
+type ProductImageRow = { id: string; image_url: string; is_primary: boolean; display_order: number };
+
+const sortProductImages = (images?: ProductImageRow[] | null) =>
+  [...(images || [])].sort((a, b) => {
+    if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+    return (a.display_order ?? 0) - (b.display_order ?? 0);
+  });
+
 interface Order {
   id: string;
   order_number: string;
@@ -154,7 +162,12 @@ const ShopEditor = () => {
         weekly_finance_email_enabled: secrets.weekly_finance_email_enabled ?? false,
       });
     }
-    if (productsRes.data) setProducts(productsRes.data);
+    if (productsRes.data) {
+      setProducts((productsRes.data as Product[]).map(product => ({
+        ...product,
+        product_images: sortProductImages(product.product_images),
+      })));
+    }
     if (ordersRes.data) {
       setOrders(ordersRes.data);
       setUnreadOrders(ordersRes.data.filter((o: Order) => !o.is_read).length);
@@ -431,54 +444,78 @@ const ShopEditor = () => {
     }
   };
 
-  const handleProductEditorSave = async (data: any, newImgs: File[]) => {
-    if (!id) return;
+  const handleProductEditorSave = async (data: any, newImgs: File[]): Promise<boolean> => {
+    if (!id) return false;
     setSaving(true);
-    const productSlug = editingProduct?.slug || await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
-    const productData = {
-      name: data.name, description: data.description, short_description: data.short_description,
-      price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
-      stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
-      is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
-      slug: productSlug,
-      bundle_offers: Array.isArray(data.bundle_offers)
-        ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
-        : [],
-      bundle_position: data.bundle_position || "after_countdown",
-      variants: Array.isArray(data.variants)
-        ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
-        : [],
-      section_order: data.section_order ?? null,
-    };
-    let result;
-    if (editingProduct) {
-      result = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
-    } else {
-      result = await supabase.from("products").insert(productData).select("id") as any;
-    }
-    if (result.error) {
-      toast({ title: "Erreur", description: result.error.message, variant: "destructive" });
-    } else {
-      const prodId = editingProduct?.id || result.data?.[0]?.id;
+    try {
+      const productSlug = editingProduct?.slug || await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
+      const productData = {
+        name: data.name, description: data.description, short_description: data.short_description,
+        price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
+        stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
+        is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
+        slug: productSlug,
+        bundle_offers: Array.isArray(data.bundle_offers)
+          ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
+          : [],
+        bundle_position: data.bundle_position || "after_countdown",
+        variants: Array.isArray(data.variants)
+          ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
+          : [],
+        section_order: data.section_order ?? null,
+      };
+      let prodId = editingProduct?.id;
+
+      if (editingProduct) {
+        const { error } = await supabase.from("products").update(productData).eq("id", editingProduct.id) as any;
+        if (error) throw error;
+      } else {
+        const { data: createdProduct, error } = await supabase
+          .from("products")
+          .insert(productData)
+          .select("*, product_images(*)")
+          .single() as any;
+        if (error) throw error;
+        prodId = createdProduct?.id;
+        // If an upload fails, the editor stays open and the next retry updates this
+        // just-created product instead of creating a duplicate product.
+        if (createdProduct) setEditingProduct({ ...createdProduct, product_images: [] });
+      }
+
       if (prodId && newImgs.length > 0) {
-        for (const file of newImgs) {
-          const uploaded = await uploadProductImage(prodId, file, false);
+        const existingCount = editingProduct?.product_images?.length || 0;
+        for (let i = 0; i < newImgs.length; i++) {
+          const file = newImgs[i];
+          const uploaded = await uploadProductImage(prodId, file, false, {
+            displayOrder: existingCount + i,
+            isPrimary: existingCount === 0 && i === 0,
+          });
           if (!uploaded) {
             setSaving(false);
-            return;
+            return false;
           }
         }
       }
-      toast({ title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓" });
+      toast({
+        title: editingProduct ? "Produit modifié ✓" : "Produit ajouté ✓",
+        description: newImgs.length > 0
+          ? "La fiche et ses images sont sauvegardées. Vous pourrez les retrouver après actualisation ou reconnexion."
+          : "La fiche produit est sauvegardée.",
+      });
       setShowProductEditor(false);
       setEditingProduct(null);
       resetProductForm();
-      fetchData();
+      await fetchData();
       if (data.is_published && shop?.slug) {
         triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
       }
+      return true;
+    } catch (error: any) {
+      toast({ title: "Produit non sauvegardé", description: error?.message || "Vérifiez votre connexion puis réessayez.", variant: "destructive" });
+      return false;
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   // Silent auto-save: updates the product fields in DB without closing the editor and without re-uploading images.
@@ -507,11 +544,69 @@ const ShopEditor = () => {
   };
 
   const deleteProductImage = async (imageId: string) => {
-    await supabase.from("product_images").delete().eq("id", imageId) as any;
+    const productId = editingProduct?.id;
+    const imageToDelete = editingProduct?.product_images?.find(img => img.id === imageId);
+    const { error } = await supabase.from("product_images").delete().eq("id", imageId) as any;
+    if (error) {
+      toast({ title: "Image non supprimée", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    if (productId && imageToDelete?.is_primary) {
+      const nextImage = (editingProduct?.product_images || [])
+        .filter(img => img.id !== imageId)
+        .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))[0];
+      if (nextImage) {
+        await supabase.from("product_images").update({ is_primary: true }).eq("id", nextImage.id) as any;
+      }
+    }
+
     setEditingProduct(prev => prev
-      ? { ...prev, product_images: (prev.product_images || []).filter(img => img.id !== imageId) }
+      ? {
+          ...prev,
+          product_images: sortProductImages((prev.product_images || [])
+            .filter(img => img.id !== imageId)
+            .map((img, idx) => imageToDelete?.is_primary && idx === 0 ? { ...img, is_primary: true } : img)),
+        }
       : prev
     );
+    setProducts(prev => prev.map(product => ({
+      ...product,
+      product_images: sortProductImages((product.product_images || [])
+        .filter(img => img.id !== imageId)
+        .map((img, idx) => product.id === productId && imageToDelete?.is_primary && idx === 0 ? { ...img, is_primary: true } : img)),
+    })));
+    fetchData();
+  };
+
+  const setPrimaryProductImage = async (imageId: string) => {
+    if (!editingProduct?.id) return;
+    const productId = editingProduct.id;
+    const { error: resetError } = await supabase
+      .from("product_images")
+      .update({ is_primary: false })
+      .eq("product_id", productId) as any;
+    if (resetError) {
+      toast({ title: "Image principale non modifiée", description: resetError.message, variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase
+      .from("product_images")
+      .update({ is_primary: true, display_order: 0 })
+      .eq("id", imageId) as any;
+    if (error) {
+      toast({ title: "Image principale non modifiée", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditingProduct(prev => prev?.id === productId
+      ? { ...prev, product_images: sortProductImages((prev.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
+      : prev
+    );
+    setProducts(prev => prev.map(product => product.id === productId
+      ? { ...product, product_images: sortProductImages((product.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
+      : product
+    ));
+    toast({ title: "Image principale mise à jour" });
     fetchData();
   };
 
@@ -522,7 +617,12 @@ const ShopEditor = () => {
     fetchData();
   };
 
-  const uploadProductImage = async (productId: string, file: File, refresh = true): Promise<boolean> => {
+  const uploadProductImage = async (
+    productId: string,
+    file: File,
+    refresh = true,
+    options: { displayOrder?: number; isPrimary?: boolean } = {}
+  ): Promise<boolean> => {
     setUploadingImage(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -550,18 +650,47 @@ const ShopEditor = () => {
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from("shop-images").getPublicUrl(path);
+      const currentImages = editingProduct?.id === productId ? (editingProduct.product_images || []) : [];
+      const shouldBePrimary = options.isPrimary ?? !currentImages.some(img => img.is_primary);
+      const displayOrder = options.displayOrder ?? currentImages.length;
       const { data: insertedImage, error: imageError } = await supabase
         .from("product_images")
-        .insert({ product_id: productId, image_url: urlData.publicUrl, is_primary: false })
+        .insert({
+          product_id: productId,
+          image_url: urlData.publicUrl,
+          is_primary: shouldBePrimary,
+          display_order: displayOrder,
+        })
         .select("id, image_url, is_primary, display_order")
         .single() as any;
-      if (imageError) throw imageError;
+      if (imageError) {
+        await supabase.storage.from("shop-images").remove([path]);
+        throw imageError;
+      }
+
+      if (shouldBePrimary && insertedImage?.id) {
+        await supabase
+          .from("product_images")
+          .update({ is_primary: false })
+          .eq("product_id", productId)
+          .neq("id", insertedImage.id) as any;
+      }
 
       if (insertedImage) {
-        setEditingProduct(prev => prev?.id === productId
-          ? { ...prev, product_images: [...(prev.product_images || []), insertedImage] }
-          : prev
-        );
+        setEditingProduct(prev => {
+          if (prev?.id !== productId) return prev;
+          const previous = shouldBePrimary
+            ? (prev.product_images || []).map(img => ({ ...img, is_primary: false }))
+            : (prev.product_images || []);
+          return { ...prev, product_images: sortProductImages([...previous, insertedImage]) };
+        });
+        setProducts(prev => prev.map(product => {
+          if (product.id !== productId) return product;
+          const previous = shouldBePrimary
+            ? (product.product_images || []).map(img => ({ ...img, is_primary: false }))
+            : (product.product_images || []);
+          return { ...product, product_images: sortProductImages([...previous, insertedImage]) };
+        }));
       }
 
       if (refresh) fetchData();
@@ -759,6 +888,7 @@ const ShopEditor = () => {
               onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
               onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file) : undefined}
               onDeleteImage={deleteProductImage}
+              onSetPrimaryImage={setPrimaryProductImage}
               onReorderImages={async (orderedIds) => {
                 await Promise.all(
                   orderedIds.map((imgId, idx) =>

@@ -170,6 +170,17 @@ const toProductSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const makeLocalId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+interface PendingProductImage {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
 const EMOJIS = [
   "😀","😂","😍","🥰","😎","🤩","🔥","✅","⭐","💯","🎉","💪",
   "❤️","💚","💙","💛","🧡","💜","🖤","🤍","👍","👏","🙏","💰",
@@ -235,11 +246,12 @@ interface ProductEditorProps {
   initialData?: ProductData;
   existingImages?: ProductImage[];
   isEditing: boolean;
-  onSave: (data: ProductData, newImages: File[]) => void;
+  onSave: (data: ProductData, newImages: File[]) => Promise<boolean | void> | boolean | void;
   onAutoSave?: (data: ProductData) => Promise<boolean | void> | boolean | void;
   onCancel: () => void;
   onUploadImage?: (file: File) => Promise<boolean> | boolean;
   onDeleteImage?: (imageId: string) => void;
+  onSetPrimaryImage?: (imageId: string) => void;
   onReorderImages?: (orderedIds: string[]) => void;
   saving?: boolean;
   shopSlug?: string;
@@ -250,7 +262,7 @@ interface ProductEditorProps {
 }
 
 export function ProductEditor({
-  initialData, existingImages = [], isEditing, onSave, onAutoSave, onCancel, onUploadImage, onDeleteImage, onReorderImages, saving,
+  initialData, existingImages = [], isEditing, onSave, onAutoSave, onCancel, onUploadImage, onDeleteImage, onSetPrimaryImage, onReorderImages, saving,
   shopSlug, shopActivated, shopPublished, productId, shop,
 }: ProductEditorProps) {
   const [product, setProduct] = useState<ProductData>(initialData || {
@@ -261,8 +273,9 @@ export function ProductEditor({
     variants: [],
     section_order: { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
   });
-  const [newImages, setNewImages] = useState<File[]>([]);
+  const [newImages, setNewImages] = useState<PendingProductImage[]>([]);
   const [validatingImages, setValidatingImages] = useState(false);
+  const [localSaving, setLocalSaving] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipAutoSave = useRef(true);
@@ -284,8 +297,33 @@ export function ProductEditor({
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
+  const pendingImagesRef = useRef<PendingProductImage[]>([]);
   const savedSelection = useRef<{ range: Range; capturedAt: number } | null>(null);
   const { toast } = useToast();
+
+  const addPendingImage = useCallback((file: File): PendingProductImage => ({
+    id: makeLocalId(),
+    file,
+    previewUrl: URL.createObjectURL(file),
+  }), []);
+
+  const removePendingImage = useCallback((imageId: string) => {
+    setNewImages(prev => {
+      const target = prev.find(img => img.id === imageId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(img => img.id !== imageId);
+    });
+  }, []);
+
+  useEffect(() => {
+    pendingImagesRef.current = newImages;
+  }, [newImages]);
+
+  useEffect(() => {
+    return () => {
+      pendingImagesRef.current.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    };
+  }, []);
 
   // AI image generation
   const [aiOpen, setAiOpen] = useState(false);
@@ -339,7 +377,7 @@ export function ProductEditor({
       const blob = await res.blob();
       const ext = (blob.type.split("/")[1] || "png").split(";")[0];
       const file = new File([blob], `ai-${Date.now()}.${ext}`, { type: blob.type || "image/png" });
-      setNewImages((prev) => [...prev, file]);
+      setNewImages((prev) => [...prev, addPendingImage(file)]);
       if (alsoDownload) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -659,7 +697,7 @@ export function ProductEditor({
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, addPendingImage]);
 
   const insertImage = () => {
     const input = document.createElement("input");
@@ -778,8 +816,20 @@ export function ProductEditor({
   };
 
   const allImages = [
-    ...existingImages.map(img => ({ type: "existing" as const, ...img })),
-    ...newImages.map((file, i) => ({ type: "new" as const, id: `new-${i}`, image_url: URL.createObjectURL(file), file })),
+    ...existingImages
+      .slice()
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+      .map(img => ({ type: "existing" as const, ...img })),
+    ...newImages.map((pending, idx) => ({
+      type: "new" as const,
+      id: pending.id,
+      image_url: pending.previewUrl,
+      file: pending.file,
+      // For a brand-new product, the first pending image is already treated as
+      // the future primary image. This gives immediate feedback before the DB
+      // row exists; on save, files are uploaded in this same order.
+      is_primary: existingImages.length === 0 && idx === 0,
+    })),
   ];
 
   const isGifUrl = (url: string) => /\.gif(\?|$)/i.test(url);
@@ -829,7 +879,7 @@ export function ProductEditor({
       }
 
       if (accepted.length > 0) {
-        setNewImages(prev => [...prev, ...accepted]);
+        setNewImages(prev => [...prev, ...accepted.map(addPendingImage)]);
       }
       if (accepted.length > 0 || uploadedCount > 0) {
         const totalAdded = accepted.length + uploadedCount;
@@ -852,7 +902,24 @@ export function ProductEditor({
     } finally {
       setValidatingImages(false);
     }
-  }, [onUploadImage, toast]);
+  }, [onUploadImage, toast, addPendingImage]);
+
+  const handleSaveClick = async () => {
+    if (localSaving || saving || validatingImages) return;
+    setLocalSaving(true);
+    try {
+      const pendingFiles = newImages.map(img => img.file);
+      const result = await onSave(product, pendingFiles);
+      if (result !== false && pendingFiles.length > 0) {
+        setNewImages(prev => {
+          prev.forEach(img => URL.revokeObjectURL(img.previewUrl));
+          return [];
+        });
+      }
+    } finally {
+      setLocalSaving(false);
+    }
+  };
 
   const moveImage = (index: number, dir: -1 | 1) => {
     const target = index + dir;
@@ -861,8 +928,9 @@ export function ProductEditor({
     const b = allImages[target];
     // Swap within "new" group
     if (a.type === "new" && b.type === "new") {
-      const i1 = parseInt(a.id.replace("new-", ""), 10);
-      const i2 = parseInt(b.id.replace("new-", ""), 10);
+      const i1 = newImages.findIndex(img => img.id === a.id);
+      const i2 = newImages.findIndex(img => img.id === b.id);
+      if (i1 < 0 || i2 < 0) return;
       setNewImages(prev => {
         const next = [...prev];
         [next[i1], next[i2]] = [next[i2], next[i1]];
@@ -960,15 +1028,15 @@ export function ProductEditor({
             <Button
               size="sm"
               className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white h-9 px-3"
-              onClick={() => onSave(product, newImages)}
-              disabled={(!product.name && !product.short_description) || saving || validatingImages}
+              onClick={handleSaveClick}
+              disabled={(!product.name && !product.short_description) || saving || localSaving || validatingImages}
             >
-              {saving ? (
+              {saving || localSaving ? (
                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              <span>{saving ? "…" : isEditing ? "Tout enregistrer" : "Ajouter"}</span>
+              <span>{saving || localSaving ? "…" : isEditing ? "Tout enregistrer" : "Ajouter"}</span>
             </Button>
           </div>
         </div>
@@ -1239,6 +1307,11 @@ export function ProductEditor({
                           GIF
                         </span>
                       )}
+                      {(img.is_primary || idx === 0) && (
+                        <span className="absolute top-1 left-1 text-[9px] font-bold tracking-wide bg-green-600 text-white px-1.5 py-0.5 rounded shadow">
+                          Principal
+                        </span>
+                      )}
                       <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
                         {idx + 1}
                       </span>
@@ -1292,6 +1365,32 @@ export function ProductEditor({
                         >
                           <Download className="h-3 w-3" />
                         </button>
+                        {img.type === "existing" && onSetPrimaryImage && !img.is_primary && (
+                          <button
+                            type="button"
+                            title="Définir comme image principale"
+                            onClick={() => onSetPrimaryImage(img.id)}
+                            className="h-6 px-1.5 bg-background/90 text-foreground border rounded text-[10px] font-medium shadow hover:bg-background"
+                          >
+                            Principal
+                          </button>
+                        )}
+                        {img.type === "new" && existingImages.length === 0 && idx !== 0 && (
+                          <button
+                            type="button"
+                            title="Définir comme image principale"
+                            onClick={() => {
+                              setNewImages(prev => {
+                                const selected = prev.find(p => p.id === img.id);
+                                if (!selected) return prev;
+                                return [selected, ...prev.filter(p => p.id !== img.id)];
+                              });
+                            }}
+                            className="h-6 px-1.5 bg-background/90 text-foreground border rounded text-[10px] font-medium shadow hover:bg-background"
+                          >
+                            Principal
+                          </button>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -1300,7 +1399,7 @@ export function ProductEditor({
                           if (img.type === "existing" && onDeleteImage) {
                             if (confirm("Supprimer cette image définitivement ?")) onDeleteImage(img.id);
                           } else {
-                            setNewImages(prev => prev.filter((_, i) => `new-${i}` !== img.id));
+                            removePendingImage(img.id);
                           }
                         }}
                         className="absolute top-1 right-1 h-6 w-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
@@ -1851,7 +1950,7 @@ export function ProductEditor({
         open={gifOpen}
         onOpenChange={setGifOpen}
         onGenerated={(file) => {
-          setNewImages((prev) => [...prev, file]);
+          setNewImages((prev) => [...prev, addPendingImage(file)]);
           toast({
             title: "✓ GIF ajouté",
             description: "Pensez à enregistrer le produit pour le sauvegarder.",
