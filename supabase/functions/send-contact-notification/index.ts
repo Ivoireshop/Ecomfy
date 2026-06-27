@@ -19,6 +19,15 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const esc = (s: unknown) =>
+    String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  const escUrl = (s: unknown) => encodeURIComponent(String(s ?? ""));
+
   try {
     // Basic anti-spam: require an Authorization header (anon key is acceptable for public forms)
     const authHeader = req.headers.get("Authorization") || req.headers.get("apikey");
@@ -172,38 +181,38 @@ const handler = async (req: Request): Promise<Response> => {
             <body>
               <div class="header">
                 <h1 style="margin: 0; font-size: 24px;">📧 Nouveau message reçu</h1>
-                <p style="margin: 10px 0 0 0; opacity: 0.9;">Votre site vitrine ${site.business_name}</p>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">Votre site vitrine ${esc(site.business_name)}</p>
               </div>
               
               <div class="content">
-                <p>Bonjour ${ownerName},</p>
-                <p>Vous avez reçu un nouveau message via le formulaire de contact de votre site vitrine <strong>${site.business_name}</strong>.</p>
+                <p>Bonjour ${esc(ownerName)},</p>
+                <p>Vous avez reçu un nouveau message via le formulaire de contact de votre site vitrine <strong>${esc(site.business_name)}</strong>.</p>
                 
                 <div class="contact-info">
                   <h3 style="margin-top: 0; color: #2563eb;">👤 Informations du contact</h3>
                   <div class="contact-info-item">
                     <span class="contact-info-label">Nom :</span>
-                    <span>${contactName}</span>
+                    <span>${esc(contactName)}</span>
                   </div>
                   <div class="contact-info-item">
                     <span class="contact-info-label">Email :</span>
-                    <a href="mailto:${contactEmail}">${contactEmail}</a>
+                    <a href="mailto:${escUrl(contactEmail)}">${esc(contactEmail)}</a>
                   </div>
                   ${contactPhone ? `
                   <div class="contact-info-item">
                     <span class="contact-info-label">Téléphone :</span>
-                    <a href="tel:${contactPhone}">${contactPhone}</a>
+                    <a href="tel:${escUrl(contactPhone)}">${esc(contactPhone)}</a>
                   </div>
                   ` : ''}
                 </div>
                 
                 <div class="message-box">
                   <h3 style="margin-top: 0; color: #2563eb;">💬 Message</h3>
-                  <p style="white-space: pre-wrap; margin: 0;">${message}</p>
+                  <p style="white-space: pre-wrap; margin: 0;">${esc(message)}</p>
                 </div>
                 
                 <div style="text-align: center;">
-                  <a href="https://${site.subdomain}.visualpro.cloud" class="button">
+                  <a href="https://${esc(site.subdomain)}.visualpro.cloud" class="button">
                     Voir mon site vitrine
                   </a>
                 </div>
@@ -215,7 +224,7 @@ const handler = async (req: Request): Promise<Response> => {
               
               <div class="footer">
                 <p>Cette notification a été envoyée par <strong>VisualPro</strong></p>
-                <p>Vous recevez cet email car vous êtes propriétaire du site <strong>${site.business_name}</strong></p>
+                <p>Vous recevez cet email car vous êtes propriétaire du site <strong>${esc(site.business_name)}</strong></p>
               </div>
             </body>
           </html>
