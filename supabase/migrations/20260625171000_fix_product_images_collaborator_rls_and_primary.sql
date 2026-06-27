@@ -2,7 +2,8 @@
 -- Product text could be saved by edit_shop collaborators, but product_images had only
 -- owner/public policies, so image rows failed to insert/select after upload.
 
-CREATE POLICY IF NOT EXISTS "Collaborators edit_shop can view product images"
+DROP POLICY IF EXISTS "Collaborators edit_shop can view product images" ON public.product_images;
+CREATE POLICY "Collaborators edit_shop can view product images"
 ON public.product_images
 FOR SELECT
 TO authenticated
@@ -15,7 +16,8 @@ USING (
   )
 );
 
-CREATE POLICY IF NOT EXISTS "Collaborators edit_shop can manage product images"
+DROP POLICY IF EXISTS "Collaborators edit_shop can manage product images" ON public.product_images;
+CREATE POLICY "Collaborators edit_shop can manage product images"
 ON public.product_images
 FOR ALL
 TO authenticated
