@@ -592,18 +592,47 @@ const ShopEditor = () => {
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from("shop-images").getPublicUrl(path);
+      const currentImages = editingProduct?.id === productId ? (editingProduct.product_images || []) : [];
+      const shouldBePrimary = options.isPrimary ?? !currentImages.some(img => img.is_primary);
+      const displayOrder = options.displayOrder ?? currentImages.length;
       const { data: insertedImage, error: imageError } = await supabase
         .from("product_images")
-        .insert({ product_id: productId, image_url: urlData.publicUrl, is_primary: false })
+        .insert({
+          product_id: productId,
+          image_url: urlData.publicUrl,
+          is_primary: shouldBePrimary,
+          display_order: displayOrder,
+        })
         .select("id, image_url, is_primary, display_order")
         .single() as any;
-      if (imageError) throw imageError;
+      if (imageError) {
+        await supabase.storage.from("shop-images").remove([path]);
+        throw imageError;
+      }
+
+      if (shouldBePrimary && insertedImage?.id) {
+        await supabase
+          .from("product_images")
+          .update({ is_primary: false })
+          .eq("product_id", productId)
+          .neq("id", insertedImage.id) as any;
+      }
 
       if (insertedImage) {
-        setEditingProduct(prev => prev?.id === productId
-          ? { ...prev, product_images: [...(prev.product_images || []), insertedImage] }
-          : prev
-        );
+        setEditingProduct(prev => {
+          if (prev?.id !== productId) return prev;
+          const previous = shouldBePrimary
+            ? (prev.product_images || []).map(img => ({ ...img, is_primary: false }))
+            : (prev.product_images || []);
+          return { ...prev, product_images: sortProductImages([...previous, insertedImage]) };
+        });
+        setProducts(prev => prev.map(product => {
+          if (product.id !== productId) return product;
+          const previous = shouldBePrimary
+            ? (product.product_images || []).map(img => ({ ...img, is_primary: false }))
+            : (product.product_images || []);
+          return { ...product, product_images: sortProductImages([...previous, insertedImage]) };
+        }));
       }
 
       if (refresh) fetchData();
