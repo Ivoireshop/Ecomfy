@@ -40,7 +40,7 @@ interface ProductsTableProps {
   onUploadImage: (productId: string, file: File) => void;
   onPreviewProduct?: (product: Product) => void;
   primaryColor: string;
-  orders: { order_items?: { product_id: string; quantity: number }[] }[];
+  orders: { id?: string; products_summary?: string | null; order_items?: { product_id: string; quantity: number }[] }[];
   shopSlug?: string;
 }
 
@@ -52,16 +52,35 @@ export function ProductsTable({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("recent");
 
-  // Count distinct orders per product (1 order = 1, even if multiple units)
+  // Count distinct orders per product (1 order = 1, even if multiple units).
+  // Fallback: many legacy orders have no order_items rows but reference the
+  // product in products_summary text — match by product name (case-insensitive).
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const productByNorm: Record<string, string> = {};
+  products.forEach(p => {
+    if (p.name) productByNorm[normalize(p.name)] = p.id;
+  });
   const orderCounts: Record<string, number> = {};
   orders.forEach(o => {
-    const seen = new Set<string>();
+    const counted = new Set<string>();
     o.order_items?.forEach(item => {
-      if (!seen.has(item.product_id)) {
-        seen.add(item.product_id);
+      if (item.product_id && !counted.has(item.product_id)) {
+        counted.add(item.product_id);
         orderCounts[item.product_id] = (orderCounts[item.product_id] || 0) + 1;
       }
     });
+    // Fallback via products_summary when order_items is empty or missing the product
+    const summary = o.products_summary ? normalize(o.products_summary) : "";
+    if (summary) {
+      Object.entries(productByNorm).forEach(([nname, pid]) => {
+        if (counted.has(pid)) return;
+        if (summary.includes(nname)) {
+          counted.add(pid);
+          orderCounts[pid] = (orderCounts[pid] || 0) + 1;
+        }
+      });
+    }
   });
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
