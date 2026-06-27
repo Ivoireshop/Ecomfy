@@ -350,10 +350,10 @@ const ShopView = () => {
           setFetchError("Impossible de charger la boutique. Vérifiez votre connexion et réessayez.");
         }
       } else if (inactiveShop) {
+        // Suspended shops restent visibles via la vue publique ; ce chemin ne se
+        // déclenche que lorsque la boutique n'est ni publiée ni activée.
         setFetchError(
-          inactiveShop.is_suspended
-            ? "Cette boutique est temporairement indisponible. Merci de réessayer plus tard."
-            : "Cette boutique est en cours de configuration. Elle sera bientôt disponible."
+          "Cette boutique est en cours de configuration. Elle sera bientôt disponible."
         );
       }
       if (!hydratedFromCache) setLoading(false);
