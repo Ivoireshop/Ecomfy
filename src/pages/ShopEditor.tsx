@@ -16,6 +16,7 @@ import { ShopSidebar, type ActiveSection } from "@/components/shop/ShopSidebar";
 import { ProductsTable } from "@/components/shop/ProductsTable";
 import { ShopOverview } from "@/components/shop/ShopOverview";
 import { OrdersList } from "@/components/shop/OrdersList";
+import { LockedOrdersScreen } from "@/components/shop/LockedOrdersScreen";
 import { ShopSettings } from "@/components/shop/ShopSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
