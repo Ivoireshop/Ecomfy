@@ -223,6 +223,52 @@ export function StartChecklist({ userId }: { userId: string }) {
           ))}
         </ul>
       </div>
+
+      <Dialog open={pickerOpen === "share"} onOpenChange={(o) => !o && setPickerOpen(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Choisissez un produit à partager</DialogTitle>
+            <DialogDescription>
+              Sélectionnez le produit dont vous voulez copier le lien à diffuser sur WhatsApp et vos réseaux.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher un produit..."
+              className="pl-9"
+            />
+          </div>
+          <div className="max-h-[55vh] overflow-y-auto -mx-1 px-1 space-y-1">
+            {filteredProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Aucun produit trouvé
+              </p>
+            ) : (
+              filteredProducts.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleShare(p)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/40 transition-colors text-left"
+                >
+                  <div className="shrink-0 w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{p.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {buildProductUrl(p).replace(/^https?:\/\//, "")}
+                    </div>
+                  </div>
+                  <Share2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
