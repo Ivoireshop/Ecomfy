@@ -4086,6 +4086,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      ensure_product_primary_image: {
+        Args: { _product_id: string }
+        Returns: undefined
+      }
       expire_stale_pending_payments: { Args: never; Returns: number }
       expire_subscriptions: { Args: never; Returns: number }
       generate_api_key: { Args: never; Returns: string }
