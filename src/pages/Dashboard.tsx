@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Header } from "@/components/Header";
+import { StartChecklist } from "@/components/dashboard/StartChecklist";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useTranslation } from "react-i18next";
@@ -58,6 +59,12 @@ const Dashboard = () => {
           </h1>
           <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
         </div>
+
+        {session && (
+          <div className="max-w-3xl mx-auto">
+            <StartChecklist userId={session.user.id} />
+          </div>
+        )}
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
           {hubServices.map((s, idx) => (
