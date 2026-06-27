@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     // Find shop owner + tokens + notification preferences
     const { data: shop } = await supabase
       .from("shops")
-      .select("user_id, business_name, notification_settings")
+      .select("user_id, business_name, notification_settings, is_suspended")
       .eq("id", shop_id)
       .maybeSingle();
     if (!shop) {
@@ -167,7 +167,22 @@ Deno.serve(async (req) => {
     }
 
     // Allow merchants to fully disable push notifications per shop.
-    const notifSettings = (shop as any).notification_settings || {};
+    let notifSettings = (shop as any).notification_settings || {};
+    const shopLocked = !!(shop as any).is_suspended;
+    // When the seller dashboard is locked for unpaid commissions, force a
+    // redacted notification: the merchant must NOT see customer details
+    // (name, phone, address, order content) until they settle the balance.
+    if (shopLocked) {
+      notifSettings = {
+        ...notifSettings,
+        template: "minimal",
+        include_customer_name: false,
+        include_phone: false,
+        include_place: false,
+        include_total: false,
+        include_products: false,
+      };
+    }
     if (notifSettings && notifSettings.enabled === false) {
       return new Response(JSON.stringify({ success: true, sent: 0, info: "notifications_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
