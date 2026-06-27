@@ -27,11 +27,12 @@ export function StartChecklist({ userId }: { userId: string }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [{ data: shops }, { data: products }, { data: orders }] = await Promise.all([
-        supabase.from("shops").select("id, logo_url, primary_color").eq("user_id", userId).limit(1),
-        supabase.from("products").select("id").eq("user_id", userId).limit(1),
-        supabase.from("orders").select("id").eq("user_id", userId).limit(1),
-      ]);
+      const shopsRes: any = await supabase.from("shops").select("id, logo_url, primary_color").eq("user_id", userId).limit(1);
+      const productsRes: any = await supabase.from("products").select("id").eq("user_id", userId).limit(1);
+      const ordersRes: any = await supabase.from("orders").select("id").eq("user_id", userId).limit(1);
+      const shops = shopsRes.data as Array<{ id: string; logo_url: string | null; primary_color: string | null }> | null;
+      const products = productsRes.data as Array<{ id: string }> | null;
+      const orders = ordersRes.data as Array<{ id: string }> | null;
       if (cancelled) return;
       const shop = shops?.[0];
       const customized = !!(shop?.logo_url || shop?.primary_color);
