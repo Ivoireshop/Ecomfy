@@ -272,5 +272,3 @@ function Block({ label, value, onCopy, multiline }: { label: string; value: stri
   );
 }
 
-// ===============================================================
-// Nouveau panneau : création d'une fiche produit complète
