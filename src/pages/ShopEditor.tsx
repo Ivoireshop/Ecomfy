@@ -544,11 +544,69 @@ const ShopEditor = () => {
   };
 
   const deleteProductImage = async (imageId: string) => {
-    await supabase.from("product_images").delete().eq("id", imageId) as any;
+    const productId = editingProduct?.id;
+    const imageToDelete = editingProduct?.product_images?.find(img => img.id === imageId);
+    const { error } = await supabase.from("product_images").delete().eq("id", imageId) as any;
+    if (error) {
+      toast({ title: "Image non supprimée", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    if (productId && imageToDelete?.is_primary) {
+      const nextImage = (editingProduct?.product_images || [])
+        .filter(img => img.id !== imageId)
+        .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))[0];
+      if (nextImage) {
+        await supabase.from("product_images").update({ is_primary: true }).eq("id", nextImage.id) as any;
+      }
+    }
+
     setEditingProduct(prev => prev
-      ? { ...prev, product_images: (prev.product_images || []).filter(img => img.id !== imageId) }
+      ? {
+          ...prev,
+          product_images: sortProductImages((prev.product_images || [])
+            .filter(img => img.id !== imageId)
+            .map((img, idx) => imageToDelete?.is_primary && idx === 0 ? { ...img, is_primary: true } : img)),
+        }
       : prev
     );
+    setProducts(prev => prev.map(product => ({
+      ...product,
+      product_images: sortProductImages((product.product_images || [])
+        .filter(img => img.id !== imageId)
+        .map((img, idx) => product.id === productId && imageToDelete?.is_primary && idx === 0 ? { ...img, is_primary: true } : img)),
+    })));
+    fetchData();
+  };
+
+  const setPrimaryProductImage = async (imageId: string) => {
+    if (!editingProduct?.id) return;
+    const productId = editingProduct.id;
+    const { error: resetError } = await supabase
+      .from("product_images")
+      .update({ is_primary: false })
+      .eq("product_id", productId) as any;
+    if (resetError) {
+      toast({ title: "Image principale non modifiée", description: resetError.message, variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase
+      .from("product_images")
+      .update({ is_primary: true, display_order: 0 })
+      .eq("id", imageId) as any;
+    if (error) {
+      toast({ title: "Image principale non modifiée", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditingProduct(prev => prev?.id === productId
+      ? { ...prev, product_images: sortProductImages((prev.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
+      : prev
+    );
+    setProducts(prev => prev.map(product => product.id === productId
+      ? { ...product, product_images: sortProductImages((product.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
+      : product
+    ));
+    toast({ title: "Image principale mise à jour" });
     fetchData();
   };
 
