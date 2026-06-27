@@ -245,14 +245,14 @@ export function ProductsTable({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="w-12"></TableHead>
-                  <TableHead>Nom</TableHead>
-                  <TableHead className="text-right">Prix</TableHead>
-                  <TableHead className="text-center">Inventaire</TableHead>
-                  <TableHead className="text-center">Commandes</TableHead>
-                  <TableHead className="text-center">Visibilité</TableHead>
-                  <TableHead>Date de création</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead className="w-12 whitespace-nowrap text-xs"></TableHead>
+                  <TableHead className="whitespace-nowrap text-xs">Nom</TableHead>
+                  <TableHead className="text-right whitespace-nowrap text-xs">Prix</TableHead>
+                  <TableHead className="text-center whitespace-nowrap text-xs">Inventaire</TableHead>
+                  <TableHead className="text-center whitespace-nowrap text-xs">Commandes</TableHead>
+                  <TableHead className="text-center whitespace-nowrap text-xs">Visibilité</TableHead>
+                  <TableHead className="whitespace-nowrap text-xs">Date de création</TableHead>
+                  <TableHead className="text-center whitespace-nowrap text-xs">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -296,13 +296,13 @@ export function ProductsTable({
                       <TableCell className="text-center text-sm text-muted-foreground">
                         {prodOrders}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center whitespace-nowrap">
                         {product.is_published ? (
-                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 text-xs">
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 text-xs whitespace-nowrap">
                             Visible
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs">Brouillon</Badge>
+                          <Badge variant="secondary" className="text-xs whitespace-nowrap">Brouillon</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
