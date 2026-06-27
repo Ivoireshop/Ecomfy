@@ -378,7 +378,7 @@ const AppWithSidebar = () => {
     <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
-        <main className="flex-1">
+        <main className="flex-1 min-w-0">
           <AppContent />
         </main>
       </div>
