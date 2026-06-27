@@ -125,7 +125,7 @@ export const TrashManager = ({ showcaseId, onRestore }: TrashManagerProps) => {
 
           const { error: imageError } = await supabase
             .from("showcase_sites")
-            .update({ [columnName]: item.item_data.url })
+            .update({ [columnName]: item.item_data.url } as any)
             .eq("id", showcaseId);
           if (imageError) throw imageError;
           break;
@@ -146,7 +146,7 @@ export const TrashManager = ({ showcaseId, onRestore }: TrashManagerProps) => {
           
           const { error: updateError } = await supabase
             .from("showcase_sites")
-            .update({ [columnToUpdate]: [...currentItems, item.item_data] })
+            .update({ [columnToUpdate]: [...currentItems, item.item_data] } as any)
             .eq("id", showcaseId);
           
           if (updateError) throw updateError;
