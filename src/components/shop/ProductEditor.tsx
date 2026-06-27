@@ -1022,15 +1022,15 @@ export function ProductEditor({
             <Button
               size="sm"
               className="gap-1.5 bg-pink-500 hover:bg-pink-600 text-white h-9 px-3"
-              onClick={() => onSave(product, newImages)}
-              disabled={(!product.name && !product.short_description) || saving || validatingImages}
+              onClick={handleSaveClick}
+              disabled={(!product.name && !product.short_description) || saving || localSaving || validatingImages}
             >
-              {saving ? (
+              {saving || localSaving ? (
                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              <span>{saving ? "…" : isEditing ? "Tout enregistrer" : "Ajouter"}</span>
+              <span>{saving || localSaving ? "…" : isEditing ? "Tout enregistrer" : "Ajouter"}</span>
             </Button>
           </div>
         </div>
@@ -1913,7 +1913,7 @@ export function ProductEditor({
         open={gifOpen}
         onOpenChange={setGifOpen}
         onGenerated={(file) => {
-          setNewImages((prev) => [...prev, file]);
+          setNewImages((prev) => [...prev, addPendingImage(file)]);
           toast({
             title: "✓ GIF ajouté",
             description: "Pensez à enregistrer le produit pour le sauvegarder.",
