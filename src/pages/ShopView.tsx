@@ -51,6 +51,12 @@ interface Product {
 interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string> | null; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
+const sortProductImages = (images?: Product["product_images"] | null) =>
+  [...(images || [])].sort((a, b) => {
+    if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+    return ((a as any).display_order ?? 0) - ((b as any).display_order ?? 0);
+  });
+
 const ShopView = () => {
   const { slug, id } = useParams<{ slug?: string; id?: string }>();
   const navigate = useNavigate();
@@ -367,7 +373,10 @@ const ShopView = () => {
     }
 
     const { data: productsData } = await productsQuery as any;
-    const finalProducts = productsData || [];
+    const finalProducts = (productsData || []).map((product: Product) => ({
+      ...product,
+      product_images: sortProductImages(product.product_images),
+    }));
     setProducts(finalProducts);
     cacheSet(shopProductsKey(shopData.id), finalProducts);
     setLoading(false);
