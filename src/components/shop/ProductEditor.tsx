@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ProductLivePreview } from "./ProductLivePreview";
 import { ProductGifGenerator } from "./ProductGifGenerator";
+import { ProductWizard } from "./ProductWizard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
@@ -300,6 +301,7 @@ export function ProductEditor({
   const pendingImagesRef = useRef<PendingProductImage[]>([]);
   const savedSelection = useRef<{ range: Range; capturedAt: number } | null>(null);
   const { toast } = useToast();
+  const [editorMode, setEditorMode] = useState<"assistant" | "expert">(isEditing ? "expert" : "assistant");
 
   const addPendingImage = useCallback((file: File): PendingProductImage => ({
     id: makeLocalId(),
