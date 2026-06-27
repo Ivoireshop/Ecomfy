@@ -69,7 +69,7 @@ export function VideoUploader({
       const updateField = videoType === "hero" ? "hero_video_url" : "about_video_url";
       const { error: updateError } = await supabase
         .from("showcase_sites")
-        .update({ [updateField]: videoUrl })
+        .update({ [updateField]: videoUrl } as any)
         .eq("id", showcaseSiteId);
 
       if (updateError) {
@@ -95,7 +95,7 @@ export function VideoUploader({
       const updateField = videoType === "hero" ? "hero_video_url" : "about_video_url";
       const { error } = await supabase
         .from("showcase_sites")
-        .update({ [updateField]: null })
+        .update({ [updateField]: null } as any)
         .eq("id", showcaseSiteId);
 
       if (error) {
