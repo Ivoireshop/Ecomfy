@@ -1,51 +1,77 @@
-## Audit & renforcement sécurité VisualPro
+# Refonte VisualPro — Plan en 4 lots
 
-Demande très large (11 axes). Je propose de la découper en **3 lots** livrables incrémentalement pour pouvoir valider chaque étape, plutôt que tout faire en un seul commit massif (risque de casse sur les boutiques publiques en pleine campagne pub).
+Travail découpé pour éviter les régressions. Chaque lot est livré, vérifié, puis le suivant démarre.
 
----
+## Lot 1 — Bug images (priorité absolue, ce tour)
 
-### Lot 1 — Quick wins headers + RLS audit (sans risque)
+Objectif : aucune image ne disparaît plus jamais sur une nouvelle fiche produit.
 
-1. **Audit RLS complet** via `psql` sur : `orders`, `profiles`, `abandoned_carts`, `community_messages`, `community_topics`, `community_replies`, `product_reviews`, `shop_visits`, `subscriptions`, `payments`, `shop_secrets`, `ad_accounts`, `api_keys`, storage buckets. Rapport écrit + migration corrective uniquement pour les fuites confirmées (anon SELECT/INSERT/UPDATE/DELETE non justifiés).
-2. **Headers HTTP réels** via `vite.config.ts` (dev) + un fichier `public/_headers` (Netlify-style, supporté par l'hébergeur Lovable) :
-   - `Content-Security-Policy` stricte (script-src self + lovable + GA/Meta/TikTok, connect-src self + supabase + AI gateway + cloudinary, img-src self https: data: blob:, frame-ancestors 'self' lovable.app/dev).
-   - `Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `Permissions-Policy` resserrée, `X-Frame-Options: SAMEORIGIN` (sauf preview Lovable).
-   - Retire les meta CSP redondantes de `index.html`.
-3. **`public/.well-known/security.txt`** avec contact founder.
-4. **Restreindre RPC publiques** : auditer `get_public_shop_by_slug`, `get_public_product_page`, vues `shops_public` / `product_reviews_public` / `showcase_sites_public` — s'assurer qu'elles n'exposent pas `user_id`, emails, secrets de tracking, configuration interne. Recréer les vues avec colonnes whitelistées si besoin.
+- Audit complet du pipeline existant : `ProductEditor.tsx`, `RichTextEditor.tsx`, `ShopEditor.tsx` (handleSaveProduct), `uploadProductImage`, RLS `product_images`, `shop-images` bucket, trigger `strip_base64_images`.
+- Garantir que `handleSaveProduct` :
+  - upload TOUTES les images avant `INSERT/UPDATE` du produit ;
+  - bloque le save si un upload échoue (toast clair, texte préservé) ;
+  - pour un nouveau produit, crée d'abord la ligne `products`, puis uploade images avec `product_id` réel ;
+  - retry automatique 1× par image en échec réseau.
+- Aperçu local immédiat via `URL.createObjectURL`, mais ne JAMAIS l'écrire en base.
+- Invalider `shopCache` après save pour éviter l'affichage sans image au retour.
+- Messages d'erreur explicites (poids, format, échec réseau, RLS).
+- Cache‑busting du `<img>` après upload pour éviter image fantôme.
+- Test manuel via Playwright : créer produit avec 1 image, 3 images, recharger, modifier, supprimer 1 image.
 
-### Lot 2 — Sanitization & validation serveur (changements code)
+## Lot 2 — Dashboard guidé "Commencez dès maintenant" (tour suivant)
 
-5. **Sanitization HTML serveur-side** : trigger Postgres `BEFORE INSERT/UPDATE` sur `products.description`, `shops.description`, `shop_announcements`, `community_messages.content`, `blog_posts.content` qui supprime `<script>`, `<iframe>` non-whitelist, `on*=` handlers, `javascript:` URLs via regex stricte. Côté client, vérifier que tous les `dangerouslySetInnerHTML` passent par DOMPurify (déjà en place selon mémoire).
-6. **Champs tracking sécurisés** : remplacer `shops.google_analytics_code` (texte libre) par `shops.google_analytics_id`, `meta_pixel_id`, `tiktok_pixel_id` (formats validés `G-XXXX`, `\d{15,16}`, `C[A-Z0-9]+`). Migration + UI ShopThemeSettings/Tracking. Côté front, injecter via composants React typés, jamais via `innerHTML`.
-7. **Validation prix serveur** : revoir l'edge function de création de commande pour **recalculer** `unit_price`, `total`, frais de livraison à partir de `products`/`shops` en base, ignorer toute valeur prix venant du client.
-8. **Validation Zod** sur edge functions publiques : `process-payment`, contact, reviews, abandoned_carts, shop-ai-assistant-chat/tts. Téléphone, email, pays, ville, quantité, total.
+- Composant `OnboardingChecklist.tsx` sur `Dashboard.tsx` + `ShopEditor.tsx` overview.
+- 8 étapes : activer boutique, créer produit, ajouter images, personnaliser, infos commande, paiement, domaine, publier.
+- Statut calculé depuis la DB (shops + products + paramètres).
+- Barre de progression %, bouton d'action par étape, redirection ciblée.
+- Masquage automatique une fois 100% (réaffichable depuis "Ressources").
 
-### Lot 3 — Anti-abuse, storage, tests
+## Lot 3 — Mode "Assistant" fiche produit (tour suivant)
 
-9. **Rate limiting in-memory** (déjà partiel sur `translate-ui`) étendu à : reviews, abandoned_carts, contact, shop-ai-chat, shop-ai-tts, process-payment. Par IP, 30-60 req/min.
-10. **Audit storage buckets** : lister tous les buckets, vérifier public/privé, policies RLS storage, types MIME et taille max sur uploads sensibles (documents identité, factures). Rendre privés ceux qui n'ont aucune raison d'être publics.
-11. **Checklist tests sécurité** : script `tests/security/anon-access.test.ts` (Deno/vitest) qui essaie depuis anon : lire orders d'une autre boutique, modifier shop d'un autre user, insérer `<script>` dans review, créer commande avec total=1, lire payments. Rapport pass/fail.
+- Bouton "Création guidée" en haut de `ProductEditor` qui ouvre un wizard 6 étapes dans un Sheet (Sheet + Stepper).
+- Réutilise le state et les champs du `ProductEditor` actuel — zéro duplication de logique de save.
+- Étapes : Infos → Images → Description (avec boutons IA existants) → Variantes → Livraison → Aperçu+Publication.
+- Bouton "Mode expert" pour revenir à l'éditeur complet à tout moment.
+- Auto‑save silencieux 1,5s (déjà en place), indicateur "Enregistré" en haut.
+- Avertissement `beforeunload` si des changements non sauvegardés.
 
----
+## Lot 4 — Liste produits + Ressources + Aperçu (tour suivant)
 
-### Livrable final
+- `ProductsTable` mobile : carte avec image, nom, prix, statut, vues, commandes, menu actions (Modifier/Dupliquer/Aperçu/Publier/Supprimer).
+- Recherche, filtres statut/catégorie, tris.
+- Empty state motivant.
+- Section "Ressources" : tutoriels, FAQ, support WhatsApp (+225 07 58 15 27 61).
+- "Voir comme client" + partage WhatsApp/Facebook + copie de lien.
 
-Rapport markdown `SECURITY-AUDIT-2026-06.md` listant :
-- Failles trouvées + corrections appliquées (avec ID migration)
-- RLS vérifiées table par table (✓ / corrigée / à surveiller)
-- Headers ajoutés (avant/après)
-- Endpoints protégés (rate-limit, Zod, recalcul prix)
-- Tests automatisés ajoutés + résultats
-- Risques résiduels (ex: `unsafe-inline` conservé pour Tailwind/Vite, ce qui est inévitable)
+## Détails techniques Lot 1
 
----
+### Pipeline cible (handleSaveProduct, nouveau produit)
+```text
+1. Validation champs requis
+2. INSERT products (sans images) → product_id
+3. setEditingProduct(productId)   ← anti‑duplication retry
+4. Pour chaque newImages[i]:
+   a. uploadProductImage(file, user.id, shop.id, product_id)
+   b. INSERT product_images(product_id, image_url, is_primary=(i===0), display_order=i)
+   c. Retry 1× si erreur réseau
+5. Si ≥1 upload KO : toast "Texte enregistré, X image(s) non envoyées — réessayer"
+6. Si OK : invalidate shopCache + toast succès + refresh local state
+```
 
-### Question avant de lancer
+### RLS / Storage à vérifier
+- `product_images` policies couvrent owner + collaborateurs `edit_shop` (migration 20260627010318 déjà appliquée).
+- `shop-images` bucket : INSERT/SELECT autorisés pour path `${auth.uid()}/...`.
+- Trigger `strip_base64_images` ne casse plus la description si l'éditeur n'envoie que des URLs `storage.supabase.co`.
 
-Veux-tu :
-- **A.** Que j'enchaîne les 3 lots d'un coup (gros volume de changements, ~10-15 fichiers + 3-4 migrations, risque non-nul de casser une boutique pendant la pub) ?
-- **B.** Que je commence par **Lot 1 uniquement** (audit + headers + RPC, zéro impact fonctionnel) et qu'on valide avant Lots 2 et 3 ?
-- **C.** Cibler seulement certains points parmi les 11 (lesquels prioritaires) ?
+### Fichiers Lot 1
+- `src/components/shop/ProductEditor.tsx` — robustifier flux save + messages.
+- `src/pages/ShopEditor.tsx` — handleSaveProduct (création produit avant upload images).
+- `src/lib/shopCache.ts` — exposer `invalidate(shopSlug)`.
+- `src/lib/imageCompress.ts` — déjà OK (2 Mo + 7 passes).
+- Pas de migration DB nécessaire en Lot 1.
 
-Je recommande **B** vu que tu lances du trafic publicitaire — on sécurise sans rien casser, puis on durcit progressivement.
+## Règle commune à tous les lots
+- Ne pas supprimer de données existantes.
+- Pas de changement schema sans migration explicite.
+- Pas de modification des anciennes fiches qui marchent.
+- Chaque lot testé via Playwright avant de passer au suivant.

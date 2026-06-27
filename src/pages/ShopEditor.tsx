@@ -45,6 +45,7 @@ import { EnableNotificationsBanner } from "@/components/shop/EnableNotifications
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
+import { cacheInvalidate } from "@/lib/shopCache";
 
 interface Product {
   id: string;
@@ -484,6 +485,7 @@ const ShopEditor = () => {
 
       if (prodId && newImgs.length > 0) {
         const existingCount = editingProduct?.product_images?.length || 0;
+        const failed: string[] = [];
         for (let i = 0; i < newImgs.length; i++) {
           const file = newImgs[i];
           const uploaded = await uploadProductImage(prodId, file, false, {
@@ -491,9 +493,20 @@ const ShopEditor = () => {
             isPrimary: existingCount === 0 && i === 0,
           });
           if (!uploaded) {
-            setSaving(false);
-            return false;
+            failed.push(file.name);
           }
+        }
+        if (failed.length > 0) {
+          // Keep editor open so the user can retry just the failed images
+          // (text + product row are already saved, no data loss).
+          toast({
+            title: "Texte enregistré — image(s) à renvoyer",
+            description: `${failed.length} image(s) n'ont pas pu être envoyées. Réessayez l'ajout, votre fiche est sauvegardée.`,
+            variant: "destructive",
+          });
+          await fetchData();
+          setSaving(false);
+          return false;
         }
       }
       toast({
@@ -506,6 +519,13 @@ const ShopEditor = () => {
       setEditingProduct(null);
       resetProductForm();
       await fetchData();
+      // Invalidate public-facing caches so the new product + images appear
+      // immediately for visitors arriving from ads/links.
+      if (shop?.slug) {
+        cacheInvalidate(`shop:slug:${shop.slug}`);
+        cacheInvalidate(`shop-products:${id}`);
+        cacheInvalidate(`product:${id}:`);
+      }
       if (data.is_published && shop?.slug) {
         triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
       }

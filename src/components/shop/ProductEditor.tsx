@@ -325,6 +325,20 @@ export function ProductEditor({
     };
   }, []);
 
+  // Protect the user against accidental tab close / reload while images
+  // are queued for upload or the autosave is still pending. The browser
+  // shows its native "leave this page?" confirmation.
+  useEffect(() => {
+    const hasPending = newImages.length > 0 || autoSaveState === "pending" || autoSaveState === "saving";
+    if (!hasPending) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [newImages.length, autoSaveState]);
+
   // AI image generation
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
