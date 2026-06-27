@@ -972,7 +972,9 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "orders" && (
-            <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />
+            shop?.is_suspended
+              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} />
+              : <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />
           )}
 
           {activeSection === "abandoned" && shop?.id && (
