@@ -49,15 +49,15 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <section className="container mx-auto px-4 py-10 md:py-16">
-        <div className="max-w-5xl mx-auto text-center mb-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-3 tracking-tight">
-            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" style={{ fontFamily: "'Georgia', serif" }}>
+      <section className="container mx-auto px-4 py-5 md:py-16">
+        <div className="max-w-5xl mx-auto text-center mb-6 md:mb-10">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold mb-2 md:mb-3 tracking-tight break-words">
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent break-words" style={{ fontFamily: "'Georgia', serif" }}>
               {greeting}{firstName ? ` ${firstName}` : ""}, {t("dashboard.welcome")}
             </span>
             <span className="inline-block animate-wiggle ml-2">👋</span>
           </h1>
-          <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
+          <p className="text-sm md:text-base text-muted-foreground">{t("dashboard.subtitle")}</p>
         </div>
 
         {session && (
@@ -66,7 +66,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 max-w-6xl mx-auto">
           {hubServices.map((s, idx) => (
             <Card
               key={idx}

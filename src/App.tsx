@@ -143,7 +143,7 @@ const AppContent = () => {
   const hideChrome = isShopView || isOrderConfirmed;
 
   return (
-    <div className={hideChrome ? "" : "pb-16 md:pb-0"}>
+    <div className={hideChrome ? "overflow-x-hidden" : "pb-16 md:pb-0 overflow-x-hidden"}>
       {!hideChrome && <BackButton />}
       {showSupport && <SupportButton />}
       {!isOrderConfirmed && <MobileBottomNav />}
@@ -378,7 +378,7 @@ const AppWithSidebar = () => {
     <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
-        <main className="flex-1">
+        <main className="flex-1 min-w-0">
           <AppContent />
         </main>
       </div>
