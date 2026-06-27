@@ -266,10 +266,14 @@ Deno.serve(async (req) => {
       String(shop.business_name || ""),
       notifSettings,
     );
-    const titleText = built.title || "💰 Nouvelle commande";
-    const bodyText = built.body;
-    const productLine = built.productLine;
-    const firstProductName = built.firstProductName;
+    const titleText = shopLocked
+      ? "🔒 Nouvelle commande reçue"
+      : (built.title || "💰 Nouvelle commande");
+    const bodyText = shopLocked
+      ? "Réglez votre montant dû pour voir les détails de la commande."
+      : built.body;
+    const productLine = shopLocked ? "" : built.productLine;
+    const firstProductName = shopLocked ? "" : built.firstProductName;
     const clickUrl = `/shop-editor/${shop_id}`;
     const notificationTag = `visualpro-order-${order_id || Date.now()}`;
 
