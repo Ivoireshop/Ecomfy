@@ -1,77 +1,73 @@
-# Refonte VisualPro — Plan en 4 lots
+## Objectif
 
-Travail découpé pour éviter les régressions. Chaque lot est livré, vérifié, puis le suivant démarre.
+Rendre VisualPro entièrement utilisable sur téléphone (création boutique, produits, images, commandes, paiement, IA, aperçu, partage) tout en préservant intégralement la version ordinateur. Aucune fonctionnalité supprimée — uniquement des adaptations responsive et de navigation.
 
-## Lot 1 — Bug images (priorité absolue, ce tour)
+## Approche
 
-Objectif : aucune image ne disparaît plus jamais sur une nouvelle fiche produit.
+Travail purement frontend/CSS/layout, par lots indépendants. Chaque modification utilise les breakpoints Tailwind (`sm`, `md`, `lg`) pour ne toucher au desktop que via les classes `md:` et au-dessus.
 
-- Audit complet du pipeline existant : `ProductEditor.tsx`, `RichTextEditor.tsx`, `ShopEditor.tsx` (handleSaveProduct), `uploadProductImage`, RLS `product_images`, `shop-images` bucket, trigger `strip_base64_images`.
-- Garantir que `handleSaveProduct` :
-  - upload TOUTES les images avant `INSERT/UPDATE` du produit ;
-  - bloque le save si un upload échoue (toast clair, texte préservé) ;
-  - pour un nouveau produit, crée d'abord la ligne `products`, puis uploade images avec `product_id` réel ;
-  - retry automatique 1× par image en échec réseau.
-- Aperçu local immédiat via `URL.createObjectURL`, mais ne JAMAIS l'écrire en base.
-- Invalider `shopCache` après save pour éviter l'affichage sans image au retour.
-- Messages d'erreur explicites (poids, format, échec réseau, RLS).
-- Cache‑busting du `<img>` après upload pour éviter image fantôme.
-- Test manuel via Playwright : créer produit avec 1 image, 3 images, recharger, modifier, supprimer 1 image.
+## Lot 1 — Navigation mobile (priorité haute)
 
-## Lot 2 — Dashboard guidé "Commencez dès maintenant" (tour suivant)
+Problème actuel : la `ShopSidebar` (240px sombre) reste affichée sur mobile et coupe l'écran ; le `StartChecklist` est invisible sur téléphone.
 
-- Composant `OnboardingChecklist.tsx` sur `Dashboard.tsx` + `ShopEditor.tsx` overview.
-- 8 étapes : activer boutique, créer produit, ajouter images, personnaliser, infos commande, paiement, domaine, publier.
-- Statut calculé depuis la DB (shops + products + paramètres).
-- Barre de progression %, bouton d'action par étape, redirection ciblée.
-- Masquage automatique une fois 100% (réaffichable depuis "Ressources").
+- `src/components/shop/ShopSidebar.tsx` : masquer par défaut sur mobile (`hidden md:flex`), ouverture via Sheet (drawer gauche) déclenché par un bouton hamburger.
+- Ajouter dans `src/pages/ShopEditor.tsx` une **TopBar mobile** : hamburger (ouvre la sidebar en Sheet), titre boutique, bouton « Sauvegarder », bouton « Aperçu » (icônes).
+- Ajouter une **BottomNav boutique** mobile (`ShopMobileBottomNav.tsx`) : Tableau de bord, Produits, Commandes, Boutique, Plus (Sheet avec le reste : finances, IA, thème, paramètres…). Badges commandes non lues.
+- Préserver la `MobileBottomNav` globale uniquement hors de `/shop-editor/*` (la nouvelle bottom-nav boutique la remplace dans l'éditeur).
 
-## Lot 3 — Mode "Assistant" fiche produit (tour suivant)
+## Lot 2 — Tableau de bord & checklist mobile
 
-- Bouton "Création guidée" en haut de `ProductEditor` qui ouvre un wizard 6 étapes dans un Sheet (Sheet + Stepper).
-- Réutilise le state et les champs du `ProductEditor` actuel — zéro duplication de logique de save.
-- Étapes : Infos → Images → Description (avec boutons IA existants) → Variantes → Livraison → Aperçu+Publication.
-- Bouton "Mode expert" pour revenir à l'éditeur complet à tout moment.
-- Auto‑save silencieux 1,5s (déjà en place), indicateur "Enregistré" en haut.
-- Avertissement `beforeunload` si des changements non sauvegardés.
+- `src/components/dashboard/StartChecklist.tsx` : grille empilée en mobile, items pleine largeur, bouton CTA tactile (`h-11`), padding réduit, plus de scroll horizontal.
+- `src/pages/Dashboard.tsx` : titre `text-2xl` en mobile, services hub en 1 colonne sur xs / 2 sur sm.
+- Vérifier que la checklist apparaît bien au-dessus du fold sur téléphone.
 
-## Lot 4 — Liste produits + Ressources + Aperçu (tour suivant)
+## Lot 3 — Liste produits & fiche produit mobile
 
-- `ProductsTable` mobile : carte avec image, nom, prix, statut, vues, commandes, menu actions (Modifier/Dupliquer/Aperçu/Publier/Supprimer).
-- Recherche, filtres statut/catégorie, tris.
-- Empty state motivant.
-- Section "Ressources" : tutoriels, FAQ, support WhatsApp (+225 07 58 15 27 61).
-- "Voir comme client" + partage WhatsApp/Facebook + copie de lien.
+- `src/components/shop/ProductsTable.tsx` : sur mobile (`md:hidden`), remplacer la table par des **cartes produit** (image carrée 80px, nom, prix, badge statut horizontal, menu actions ⋯ : modifier, voir, dupliquer, supprimer, publier/dépublier). Garder la table en `hidden md:table`.
+- Barre d'outils mobile sticky : recherche pleine largeur + filtres dans Sheet + bouton « Créer un produit » flottant (FAB) en bas-droite.
+- `src/components/shop/ProductEditor.tsx` : sections en **accordéon** sur mobile (Informations / Images / Description / Livraison / Aperçu / Publication). Champs `h-11`, espacements `space-y-4`. Footer sticky mobile avec « Sauvegarder » + « Publier ».
+- `ProductWizard` déjà adapté ; vérifier hauteurs tactiles.
 
-## Détails techniques Lot 1
+## Lot 4 — Ajout d'images mobile
 
-### Pipeline cible (handleSaveProduct, nouveau produit)
-```text
-1. Validation champs requis
-2. INSERT products (sans images) → product_id
-3. setEditingProduct(productId)   ← anti‑duplication retry
-4. Pour chaque newImages[i]:
-   a. uploadProductImage(file, user.id, shop.id, product_id)
-   b. INSERT product_images(product_id, image_url, is_primary=(i===0), display_order=i)
-   c. Retry 1× si erreur réseau
-5. Si ≥1 upload KO : toast "Texte enregistré, X image(s) non envoyées — réessayer"
-6. Si OK : invalidate shopCache + toast succès + refresh local state
-```
+- Bouton d'upload visible en haut de la section Images, taille tactile, libellé « Ajouter une image ». `accept="image/*"` + `capture="environment"` pour proposer l'appareil photo natif.
+- Grille images responsive 2 colonnes mobile / 4 desktop, drag-handle remplacé par boutons ↑ ↓ tactiles sur mobile.
+- Compression auto déjà en place (`imageCompress.ts`) ; ajouter message clair en cas d'échec.
 
-### RLS / Storage à vérifier
-- `product_images` policies couvrent owner + collaborateurs `edit_shop` (migration 20260627010318 déjà appliquée).
-- `shop-images` bucket : INSERT/SELECT autorisés pour path `${auth.uid()}/...`.
-- Trigger `strip_base64_images` ne casse plus la description si l'éditeur n'envoie que des URLs `storage.supabase.co`.
+## Lot 5 — Commandes mobile
 
-### Fichiers Lot 1
-- `src/components/shop/ProductEditor.tsx` — robustifier flux save + messages.
-- `src/pages/ShopEditor.tsx` — handleSaveProduct (création produit avant upload images).
-- `src/lib/shopCache.ts` — exposer `invalidate(shopSlug)`.
-- `src/lib/imageCompress.ts` — déjà OK (2 Mo + 7 passes).
-- Pas de migration DB nécessaire en Lot 1.
+- `src/components/shop/OrdersList.tsx` : vue cartes sur mobile (client, produit, montant, date, statut, actions Voir/Appeler/WhatsApp). Pas de table à scroll horizontal.
+- Respect du verrouillage (masquage infos sensibles déjà en place via `LockedOrdersScreen`).
 
-## Règle commune à tous les lots
-- Ne pas supprimer de données existantes.
-- Pas de changement schema sans migration explicite.
-- Pas de modification des anciennes fiches qui marchent.
-- Chaque lot testé via Playwright avant de passer au suivant.
+## Lot 6 — Paiement / verrouillage / aperçu / IA mobile
+
+- `LockedOrdersScreen` + `BillingBanner` : padding mobile, bouton « Payer maintenant » pleine largeur sticky.
+- `ProductAIOptimizer` & `ShopAIAssistant` : boutons IA en grille 2 col mobile, réponses dans une carte scrollable, boutons « Copier / Insérer » tactiles.
+- Aperçu boutique : boutons « Voir comme client », « Copier le lien », « Partager WhatsApp/Facebook » regroupés dans une barre sticky bas en mobile.
+
+## Lot 7 — Ergonomie globale
+
+- Audit CSS : retirer `min-w-[...]` excessifs, ajouter `overflow-x-hidden` sur le shell, vérifier que tous les boutons critiques ont `min-h-11`.
+- Modales (`Dialog`, `Sheet`) : `max-h-[90vh] overflow-y-auto`, bouton fermer visible.
+- Toasts standardisés : « Produit enregistré », « Image ajoutée », « Sauvegarde en cours… », « Toutes les modifications sont enregistrées ».
+
+## Tests
+
+Playwright headless en viewport 375×812 (iPhone), 414×896, 768×1024, 1280×800 : login → dashboard → checklist → créer produit → upload image → sauver → voir commandes → ouvrir menu boutique → paiement. Screenshots à chaque étape pour vérifier qu'aucun bouton n'est coupé.
+
+## Hors scope
+
+- Pas de changement de logique métier, RLS, edge functions, paiements, IA backend.
+- Pas de refonte desktop : toutes les classes responsive ciblent uniquement `< md`.
+
+## Détails techniques
+
+- Breakpoints : `sm` 640, `md` 768, `lg` 1024.
+- Nouveau composant `src/components/shop/ShopMobileBottomNav.tsx`.
+- Conversion sidebar boutique : wrapper conditionnel `useIsMobile()` → `Sheet side="left"`.
+- FAB : `fixed bottom-20 right-4 z-40 md:hidden` (au-dessus de la bottom-nav `h-14`).
+- Sticky footer mobile éditeur produit : `sticky bottom-0 bg-background/95 backdrop-blur p-3 border-t md:hidden`.
+
+## Livraison
+
+Lots 1→7 livrés séquentiellement dans une seule passe, avec capture Playwright finale en 375px pour validation visuelle.
