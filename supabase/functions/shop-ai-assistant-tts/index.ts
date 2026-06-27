@@ -1,4 +1,5 @@
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { consumeShopOwnerCredit } from "../_shared/credits-gate.ts";
 
 const corsHeaders = {
@@ -18,6 +19,33 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "text required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // IP-based rate limit: 30 req / min / IP to prevent credit drain abuse
+    const ip =
+      (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
+      req.headers.get("cf-connecting-ip") ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: rl } = await supabase.rpc("check_rate_limit", {
+        _bucket: "shop-ai-tts",
+        _key: `${ip}:${shopId || "anon"}`,
+        _max: 30,
+        _window_seconds: 60,
+      });
+      if (rl && (rl as any).allowed === false) {
+        return new Response(
+          JSON.stringify({ error: "rate_limited", message: "Trop de requêtes. Réessayez dans une minute." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } catch (_) {
+      // fail-open on rate-limit infra errors; downstream credit check still protects
     }
 
     // 1 free trial per shop owner, then 2 credits per voice message

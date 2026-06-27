@@ -39,6 +39,15 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { showcaseSiteId, bookingDetails }: BookingNotificationRequest = await req.json();
+
+    const esc = (s: unknown) =>
+      String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    const escUrl = (s: unknown) => encodeURIComponent(String(s ?? ""));
     
     console.log("Processing booking notification for showcase site:", showcaseSiteId);
 
@@ -107,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
           <div class="container">
             <div class="header">
               <h1>🎉 Nouvelle Réservation !</h1>
-              <p style="margin: 10px 0 0 0; font-size: 16px;">Vous avez reçu une nouvelle réservation sur ${site.business_name}</p>
+              <p style="margin: 10px 0 0 0; font-size: 16px;">Vous avez reçu une nouvelle réservation sur ${esc(site.business_name)}</p>
             </div>
             <div class="content">
               <p style="font-size: 18px;"><span class="badge">NOUVEAU</span></p>
@@ -117,18 +126,18 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="info-row">
                   <div class="info-label">👤 Nom complet:</div>
-                  <div class="info-value">${bookingDetails.full_name}</div>
+                  <div class="info-value">${esc(bookingDetails.full_name)}</div>
                 </div>
                 
                 <div class="info-row">
                   <div class="info-label">📧 Email:</div>
-                  <div class="info-value"><a href="mailto:${bookingDetails.email}">${bookingDetails.email}</a></div>
+                  <div class="info-value"><a href="mailto:${escUrl(bookingDetails.email)}">${esc(bookingDetails.email)}</a></div>
                 </div>
                 
                 ${bookingDetails.phone ? `
                   <div class="info-row">
                     <div class="info-label">📱 Téléphone:</div>
-                    <div class="info-value"><a href="tel:${bookingDetails.phone}">${bookingDetails.phone}</a></div>
+                    <div class="info-value"><a href="tel:${escUrl(bookingDetails.phone)}">${esc(bookingDetails.phone)}</a></div>
                   </div>
                 ` : ''}
                 
@@ -139,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="info-row">
                   <div class="info-label">✨ ${serviceTypeLabel}:</div>
-                  <div class="info-value"><strong>${bookingDetails.service_name}</strong></div>
+                  <div class="info-value"><strong>${esc(bookingDetails.service_name)}</strong></div>
                 </div>
                 
                 <div class="info-row">
@@ -149,18 +158,18 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="info-row">
                   <div class="info-label">🕐 Heure:</div>
-                  <div class="info-value">${bookingDetails.booking_time}</div>
+                  <div class="info-value">${esc(bookingDetails.booking_time)}</div>
                 </div>
                 
                 <div class="info-row">
                   <div class="info-label">👥 Participants:</div>
-                  <div class="info-value">${bookingDetails.number_of_participants} personne(s)</div>
+                  <div class="info-value">${Number(bookingDetails.number_of_participants) || 0} personne(s)</div>
                 </div>
                 
                 ${bookingDetails.message ? `
                   <div class="message-box">
                     <strong>💬 Message du client:</strong>
-                    <p style="margin: 10px 0 0 0;">${bookingDetails.message}</p>
+                    <p style="margin: 10px 0 0 0; white-space: pre-wrap;">${esc(bookingDetails.message)}</p>
                   </div>
                 ` : ''}
               </div>
