@@ -15,13 +15,23 @@ type Step = {
   done: boolean;
 };
 
-const DISMISS_KEY = "vp_start_checklist_dismissed";
+const DISMISS_KEY = "vp_start_checklist_dismissed_v2";
+const LEGACY_DISMISS_KEY = "vp_start_checklist_dismissed";
+
+if (typeof window !== "undefined") {
+  // One-time reset: anciens utilisateurs qui avaient fermé la checklist
+  // la retrouvent automatiquement (dismiss devient session-only).
+  try {
+    window.localStorage.removeItem(LEGACY_DISMISS_KEY);
+    window.localStorage.removeItem(DISMISS_KEY);
+  } catch {}
+}
 
 export function StartChecklist({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [dismissed, setDismissed] = useState<boolean>(
-    typeof window !== "undefined" && localStorage.getItem(DISMISS_KEY) === "1"
+    typeof window !== "undefined" && sessionStorage.getItem(DISMISS_KEY) === "1"
   );
 
   useEffect(() => {
@@ -87,7 +97,7 @@ export function StartChecklist({ userId }: { userId: string }) {
     <Card className="relative overflow-hidden border-2 border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/5 mb-8 animate-fade-in">
       <button
         onClick={() => {
-          localStorage.setItem(DISMISS_KEY, "1");
+          sessionStorage.setItem(DISMISS_KEY, "1");
           setDismissed(true);
         }}
         className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted transition-colors"
