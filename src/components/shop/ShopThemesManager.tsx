@@ -227,7 +227,7 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
 function ThemeCard({
   meta, active, installed, saving, onPreview, onInstall, onActivate, onUninstall, onCustomize,
 }: {
-  meta: { slug: string; name: string; description: string; category: string };
+  meta: { slug: string; name: string; description: string; category: string; preview?: string };
   active?: boolean;
   installed?: boolean;
   saving?: boolean;
@@ -239,19 +239,34 @@ function ThemeCard({
 }) {
   return (
     <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
-      <div className="aspect-[16/10] bg-gradient-to-br from-muted via-background to-muted relative">
-        <div className="absolute inset-0 grid place-items-center text-sm font-semibold uppercase tracking-widest text-muted-foreground/70">
-          {meta.name}
-        </div>
+      <button
+        type="button"
+        onClick={onPreview}
+        className="aspect-[16/10] bg-gradient-to-br from-muted via-background to-muted relative overflow-hidden group"
+      >
+        {meta.preview ? (
+          <img
+            src={meta.preview}
+            alt={`Aperçu du thème ${meta.name}`}
+            loading="lazy"
+            width={800}
+            height={512}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center text-sm font-semibold uppercase tracking-widest text-muted-foreground/70">
+            {meta.name}
+          </div>
+        )}
         {active && (
-          <Badge className="absolute top-2 left-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+          <Badge className="absolute top-2 left-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 shadow">
             <Check className="h-3 w-3 mr-1" /> Actif
           </Badge>
         )}
         {!active && !installed && (
-          <Badge variant="secondary" className="absolute top-2 left-2">Nouveau</Badge>
+          <Badge variant="secondary" className="absolute top-2 left-2 shadow">Nouveau</Badge>
         )}
-      </div>
+      </button>
       <div className="p-4 flex-1 flex flex-col">
         <div className="flex items-center justify-between gap-2">
           <div className="font-semibold">{meta.name}</div>
