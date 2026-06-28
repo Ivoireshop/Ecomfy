@@ -720,7 +720,7 @@ const ProductView = () => {
     themeSettings?.theme_slug &&
     !new URLSearchParams(window.location.search).get("classic")
   ) {
-    const ThemeRenderer = React.lazy(() => import("@/lib/productThemes/ThemeRenderer"));
+    const ThemeRenderer = lazy(() => import("@/lib/productThemes/ThemeRenderer"));
     return (
       <>
         <Helmet>
@@ -733,7 +733,7 @@ const ProductView = () => {
           <meta property="og:type" content="product" />
           {primaryImage && <meta property="og:image" content={primaryImage} />}
         </Helmet>
-        <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
+        <Suspense fallback={<div className="min-h-screen bg-white" />}>
           <ThemeRenderer
             product={product}
             shop={shop}
@@ -741,7 +741,7 @@ const ProductView = () => {
             settings={themeSettings}
             fallback={null}
           />
-        </React.Suspense>
+        </Suspense>
       </>
     );
   }
