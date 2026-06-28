@@ -944,6 +944,15 @@ const ShopEditor = () => {
             <ShopThemeSettings shop={shop} setShop={setShop} />
           )}
 
+          {activeSection === "shop-themes" && (
+            <ShopThemesManager
+              shop={shop}
+              setShop={setShop}
+              products={products}
+              onCustomize={() => setActiveSection("theme")}
+            />
+          )}
+
           {activeSection === "products" && (
             <ProductsTable
               products={products}
