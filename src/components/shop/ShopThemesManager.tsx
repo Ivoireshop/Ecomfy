@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Eye, Plus, Check, Paintbrush, Smartphone, Monitor, Trash2, X, ArrowLeft, Loader2 } from "lucide-react";
 import { SHOP_THEME_LIST } from "@/lib/shopThemes/registry";
 import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
+import classicDesktopPreview from "@/assets/themes/classic-shop.jpg";
+import classicMobilePreview from "@/assets/themes/classic-shop-mobile.jpg";
 
 interface Props {
   shop: any;
@@ -28,6 +30,11 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
     () => SHOP_THEME_LIST.find((t) => t.slug === activeSlug) || null,
     [activeSlug]
   );
+
+  const currentDesktopPreview = activeMeta?.preview || classicDesktopPreview;
+  const currentMobilePreview = activeMeta?.slug === null || !activeMeta
+    ? classicMobilePreview
+    : (activeMeta.preview || classicMobilePreview);
 
   const updateThemeConfig = async (patch: Record<string, any>) => {
     const newConfig = { ...themeConfig, ...patch };
@@ -122,13 +129,39 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
                 )}
               </div>
             </div>
-            <div className="hidden md:flex gap-2">
-              <div className="w-40 h-28 rounded-lg border bg-gradient-to-br from-muted to-background grid place-items-center text-xs text-muted-foreground">
-                <Monitor className="h-6 w-6 opacity-60" />
-              </div>
-              <div className="w-16 h-28 rounded-lg border bg-gradient-to-br from-muted to-background grid place-items-center text-xs text-muted-foreground">
-                <Smartphone className="h-5 w-5 opacity-60" />
-              </div>
+            <div className="flex gap-3 w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => { setPreviewMobile(false); setPreviewSlug(activeMeta?.slug || "classic-shop"); }}
+                className="relative flex-1 md:flex-none md:w-56 aspect-[16/10] rounded-lg border overflow-hidden bg-muted group"
+                aria-label="Aperçu ordinateur du thème actuel"
+              >
+                <img
+                  src={currentDesktopPreview}
+                  alt="Aperçu ordinateur du thème actuel"
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                />
+                <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-md bg-black/60 text-white text-[10px] px-1.5 py-0.5">
+                  <Monitor className="h-3 w-3" /> Ordinateur
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setPreviewMobile(true); setPreviewSlug(activeMeta?.slug || "classic-shop"); }}
+                className="relative w-24 md:w-28 aspect-[9/16] rounded-lg border overflow-hidden bg-muted group"
+                aria-label="Aperçu mobile du thème actuel"
+              >
+                <img
+                  src={currentMobilePreview}
+                  alt="Aperçu mobile du thème actuel"
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                />
+                <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-md bg-black/60 text-white text-[10px] px-1.5 py-0.5">
+                  <Smartphone className="h-3 w-3" /> Mobile
+                </span>
+              </button>
             </div>
           </div>
         </div>
