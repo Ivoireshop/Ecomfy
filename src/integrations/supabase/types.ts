@@ -4159,6 +4159,39 @@ export type Database = {
       }
     }
     Views: {
+      feedback_public: {
+        Row: {
+          comment: string | null
+          country: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string | null
+          photo_url: string | null
+          rating: number | null
+          status: string | null
+        }
+        Insert: {
+          comment?: string | null
+          country?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          photo_url?: string | null
+          rating?: number | null
+          status?: string | null
+        }
+        Update: {
+          comment?: string | null
+          country?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          photo_url?: string | null
+          rating?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       product_reviews_public: {
         Row: {
           comment: string | null
