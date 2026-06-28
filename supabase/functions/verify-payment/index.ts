@@ -22,16 +22,19 @@ serve(async (req) => {
       });
     }
 
-    let authUserId: string;
-    try {
-      const token = authHeader.replace("Bearer ", "");
-      authUserId = JSON.parse(atob(token.split(".")[1]))?.sub;
-      if (!authUserId) throw new Error("invalid");
-    } catch {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user?.id) {
       return new Response(JSON.stringify({ success: false, error: "Token invalide" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const authUserId: string = userData.user.id;
 
     const { reference } = await req.json().catch(() => ({}));
     if (!reference) {
@@ -39,11 +42,6 @@ serve(async (req) => {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     // Retrouver le paiement local
     let { data: payment } = await supabase
