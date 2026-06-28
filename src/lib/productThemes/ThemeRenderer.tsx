@@ -12,7 +12,7 @@ interface Props {
 }
 
 class ThemeErrorBoundary extends React.Component<
-  { fallback: React.ReactNode; children: React.ReactNode },
+  { children: React.ReactNode },
   { hasError: boolean }
 > {
   state = { hasError: false };
@@ -21,10 +21,17 @@ class ThemeErrorBoundary extends React.Component<
   }
   componentDidCatch(err: unknown) {
     // eslint-disable-next-line no-console
-    console.warn("[ThemeRenderer] theme crashed, falling back to classic", err);
+    console.warn("[ThemeRenderer] theme crashed, reloading classic view", err);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("classic", "1");
+      window.location.replace(url.toString());
+    }
   }
   render() {
-    if (this.state.hasError) return <>{this.props.fallback}</>;
+    if (this.state.hasError) {
+      return <div className="min-h-screen bg-white" />;
+    }
     return <>{this.props.children}</>;
   }
 }
@@ -39,8 +46,9 @@ export default function ThemeRenderer({ product, shop, audios, settings, fallbac
   const Theme = THEME_REGISTRY[slug].component;
   const data = buildThemeData({ product, shop, audios, settings });
 
+  void fallback;
   return (
-    <ThemeErrorBoundary fallback={fallback}>
+    <ThemeErrorBoundary>
       <Suspense fallback={<div className="min-h-screen bg-white" />}>
         <Theme data={data} />
       </Suspense>
