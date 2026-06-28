@@ -1,95 +1,106 @@
-# Système de thèmes professionnels — Vraies structures de fiche produit
+## Système de Thèmes de Boutique (Jarbo/VisualPro)
 
-## Objectif
-Transformer le système actuel (qui ne change que couleurs/fond) en un vrai moteur de **layouts** : chaque thème réorganise les sections de la fiche produit publique, sans toucher au contenu ni casser l'existant.
-
-## Principe directeur — Non destructif
-- Aucune fiche existante n'est modifiée tant que le vendeur n'a pas explicitement choisi un thème.
-- Si `theme_slug = null` ou `theme_slug = "classic"` → l'affichage actuel de `ProductView.tsx` reste **strictement inchangé**.
-- Le contenu produit reste dans la table `products` (rien n'est dupliqué). Le thème ne stocke que la présentation.
-- Si un thème plante au runtime → fallback automatique vers le rendu classique (ErrorBoundary).
-
-## Lot 1 — Moteur de thèmes (architecture)
-
-Créer `src/lib/productThemes/` :
-- `types.ts` — types `ThemeLayout`, `ThemeSection` (`hero | gallery | benefits | problem | solution | usage | testimonials | audios | faq | guarantee | urgency | cta | related`), `ThemeRegistry`.
-- `registry.ts` — registry central qui mappe `slug → { meta, layout, sections[], renderer }`.
-- `dataAdapter.ts` — `mapProductToThemeData(product, audios, reviews)` qui transforme les données existantes en blocs réutilisables (titre, prix, ancien_prix, images, description courte/longue, bénéfices extraits, témoignages, audios, FAQ).
-- `ThemeRenderer.tsx` — composant unique qui prend `{ slug, data, settings }` et orchestre le rendu, avec ErrorBoundary + Suspense + lazy import du thème choisi (un seul thème chargé par fiche → perf).
-
-## Lot 2 — 7 vrais layouts (composants distincts)
-
-Chaque thème = un dossier `src/lib/productThemes/themes/<slug>/` avec son propre `index.tsx`, ses sections et son CSS scopé (Tailwind + variables) :
-
-1. **classic-premium** — image gauche / infos droite, structure sobre.
-2. **landing-ad** — hero promesse + CTA → problème → solution → bénéfices → preuves → témoignages → urgence → FAQ → CTA final (vraie page de vente).
-3. **health-wellness** — promesse douce, bienfaits, mode d'emploi, témoignages audio mis en avant, précautions, FAQ.
-4. **luxury-dark** — hero plein écran, typo minimaliste, espaces larges, fond sombre, CTA raffiné.
-5. **storytelling** — situation → problème → découverte → transformation → avant/après → CTA.
-6. **mobile-first** — sticky CTA en bas, accordéons partout, sections courtes, bouton WhatsApp flottant.
-7. **promo-offer** — badge promo géant, prix barré, compte à rebours, stock limité, rappel CTA en bas.
-
-Chaque thème est **chargé en lazy** (`React.lazy`) — un visiteur ne télécharge que le thème de la fiche qu'il consulte.
-
-## Lot 3 — Intégration dans `ProductView.tsx`
-
-```tsx
-const settings = await fetchProductThemeSettings(productId);
-if (!settings?.theme_slug || settings.theme_slug === 'classic') {
-  return <ClassicProductView ... />; // code actuel, intact
-}
-return (
-  <ErrorBoundary fallback={<ClassicProductView ... />}>
-    <ThemeRenderer slug={settings.theme_slug} data={...} settings={settings} />
-  </ErrorBoundary>
-);
-```
-Aucune modification du rendu actuel : on **emballe**, on ne remplace pas.
-
-## Lot 4 — UX éditeur
-
-Étendre `ProductThemePicker.tsx` :
-- Galerie avec vraies vignettes (mini-wireframes SVG montrant la structure, pas juste des pastilles de couleur).
-- Bouton **Prévisualiser** → ouvre `/shop/:slug/p/:productSlug?preview_theme=<slug>` dans un nouvel onglet (rendu réel, lecture seule).
-- Bouton **Appliquer** avec confirmation : *« Ce thème va modifier la présentation visuelle… vos textes, images, audios et informations ne seront pas supprimés. »*
-- Bouton **Revenir au design classique** (réinitialise `theme_slug = null`).
-- Personnalisation limitée : couleurs principales / CTA / sections visibles (déjà géré dans `ProductAppearancePanel`).
-
-Nouveau dialog `NewProductChoiceDialog.tsx` (cas 2) : quand un vendeur clique « Ajouter un produit », il choisit entre **Fiche classique** ou **Démarrer depuis un thème** (le wizard pré-remplit alors les champs spécifiques au thème).
-
-## Lot 5 — Base de données
-
-Réutiliser les tables existantes `product_themes` + `product_theme_settings`. Ajouter via migration :
-- Colonne `product_theme_settings.preview_only` (bool) — pour la prévisualisation sans application.
-- Seed des 7 thèmes dans `product_themes` avec `layout_config` (JSON décrivant l'ordre/visibilité des sections par défaut).
-
-Aucun changement destructif sur les tables existantes.
-
-## Lot 6 — Performance
-
-- Lazy-load par thème (un seul bundle thème chargé par fiche publique).
-- Images : `loading="lazy"` partout sauf hero (`fetchpriority="high"`).
-- Audios : `preload="none"` (déjà fait).
-- Pas de framer-motion sur le rendu public (animations CSS only).
-- Pas de fetch supplémentaire : `product_theme_settings` est récupéré dans la même requête initiale de `ProductView`.
-
-## Lot 7 — Tests manuels (Playwright)
-
-Vérifier : fiche sans thème inchangée, application de `landing-ad`, changement vers `luxury-dark`, retour classique, mobile 390px, données conservées en DB.
+Ajouter un vrai module de gestion de thèmes pour la **boutique e-commerce complète** (ShopView), distinct du système actuel de thèmes par fiche produit. Inspiré de YouCan : Thème actuel → Mes thèmes installés → Galerie. Non destructif : si aucun thème actif → ShopView classique inchangée.
 
 ---
 
-## Détails techniques
+### 1. Base de données (1 migration)
 
-- **Aucun changement** à `ProductView.tsx` dans le chemin sans thème (sécurité totale pour les fiches déjà publiées).
-- **ErrorBoundary** obligatoire autour de `ThemeRenderer` → fallback classique en cas de bug.
-- **Slugs publics inchangés** : `/shop/:slug/p/:productSlug` reste l'URL canonique.
-- **Bucket storage** : `shop-images` (déjà utilisé pour audios), pas de nouveau bucket.
-- **Premium** : flag `is_premium` respecté côté UI (toast « bientôt disponible »), aucun paiement bloquant.
-- **Admin** : pas d'UI admin dédiée dans ce lot ; les thèmes sont seedés via migration, modifiables plus tard côté DB.
+**`shop_themes`** (catalogue global, lecture publique)
+- `id`, `slug` (unique), `name`, `description`, `category` (classic/fashion/beauty/tech/luxury/mobile/landing), `preview_desktop_url`, `preview_mobile_url`, `is_free`, `is_premium`, `price`, `is_new`, `version`, `default_config` (jsonb), `is_active_catalog` (admin toggle)
+- GRANT SELECT to anon/authenticated ; INSERT/UPDATE service_role seulement
+- Seed avec 7 thèmes : Classic, Fashion, Beauty, Tech, Luxury, Mobile First, Landing Conversion
 
-## Hors scope (pour itérations futures)
-- UI admin de gestion des thèmes (CRUD visuel).
-- Paiement réel des thèmes premium.
-- Statistiques d'usage par thème.
-- Wizards de création guidée détaillés par thème (un wizard générique simple est fourni ; les wizards spécialisés peuvent venir ensuite).
+**`shop_installed_themes`** (par boutique)
+- `id`, `shop_id`, `theme_id`, `customized_settings` (jsonb), `installed_at`
+- UNIQUE (shop_id, theme_id)
+- RLS : owner du shop via has_shop_access
+
+**`shops.active_shop_theme_id`** (colonne nullable ajoutée à `shops`)
+- NULL = thème classique actuel (comportement actuel préservé)
+- Sinon = id du thème actif
+
+Aucune table existante n'est modifiée destructivement. Le système actuel `product_themes` (fiche produit) reste indépendant et intact.
+
+---
+
+### 2. Frontend — Page d'admin Thèmes
+
+**Nouveau composant** `src/components/shop/ShopThemesManager.tsx` ajouté comme onglet "Thèmes" dans `ShopEditor.tsx` (à côté de "Apparence" existant).
+
+Sections (inspirées image YouCan) :
+1. **Thème actuel** — carte large avec preview desktop+mobile, badge "Activé", bouton Personnaliser / Changer
+2. **Mes thèmes installés** — grille ou message vide "Aucun thème installé"
+3. **Tous les thèmes disponibles** — grille de cartes (preview, nom, badges Nouveau/Gratuit/Premium, boutons Prévisualiser + Installer)
+
+**Modale Prévisualisation** `ShopThemePreviewDialog.tsx` :
+- Toggle Desktop/Mobile (iframe responsive vers `/shop/:slug?preview_theme=<slug>`)
+- Boutons : Installer ce thème / Fermer
+
+**Modale Personnalisation** `ShopThemeCustomizer.tsx` :
+- Couleurs primaire/secondaire/bouton, typographie, ordre/visibilité sections, texte CTA, hero
+- Sauvegarde dans `shop_installed_themes.customized_settings`
+
+---
+
+### 3. Frontend — Rendu public (ShopView)
+
+**Nouvelle architecture** `src/lib/shopThemes/` :
+- `types.ts` — `ShopThemeData`, `ShopThemeProps`, `ShopThemeSlug`
+- `dataAdapter.ts` — transforme shop + products → `ShopThemeData`
+- `registry.ts` — map slug → composant lazy
+- `ShopThemeRenderer.tsx` — wrapper avec Suspense + ErrorBoundary (fallback = ShopView classique)
+- `themes/` — 7 implémentations :
+  - `classic-shop.tsx` (reproduit le rendu actuel, sécurité)
+  - `fashion-shop.tsx`, `beauty-shop.tsx`, `tech-shop.tsx`
+  - `luxury-shop.tsx`, `mobile-first-shop.tsx`, `landing-shop.tsx`
+- `ShopThemeShared.tsx` — blocs réutilisables (Header, Footer, ProductCard, Hero, CTA, WhatsAppBtn)
+
+**Intégration dans `ShopView.tsx`** :
+```tsx
+// tout en haut du return, avant le rendu classique
+if (shop.active_shop_theme_id && !searchParams.get("classic")) {
+  return <ShopThemeRenderer shop={shop} products={products} themeId={...} />;
+}
+// sinon : rendu actuel inchangé
+```
+
+Le paramètre `?classic=1` force le rendu classique (fallback de sécurité + utilisé par les CTAs de checkout pour ne jamais casser le tunnel de commande existant).
+
+---
+
+### 4. Garanties de non-régression
+
+- Aucune table existante modifiée à part `shops.active_shop_theme_id` (nullable, défaut NULL)
+- Boutiques existantes : `active_shop_theme_id = NULL` → comportement actuel 100% identique
+- Fiches produits : système `product_themes` actuel inchangé, indépendant
+- ErrorBoundary autour de chaque thème → si crash → ShopView classique
+- Lazy loading : un seul thème chargé sur la boutique publique
+- Lien checkout/order toujours via `?classic=1`
+
+---
+
+### 5. Performance
+
+- Preview images = CDN Lovable Assets (générées une fois)
+- Themes lazy-loaded (un seul code-split chargé côté public)
+- Cache shop déjà en place (`shopCache.ts`) réutilisé
+- Aucun chargement de catalogue de thèmes sur la boutique publique (uniquement dans l'admin)
+
+---
+
+### 6. Mobile
+
+ShopThemesManager : grille `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`, boutons tactiles `min-h-[44px]`. Prévisualisation modale plein écran sur mobile avec toggle device.
+
+---
+
+### Plus tard (préparé mais non livré)
+- Marketplace premium (champ `price` + `is_premium` déjà présent)
+- Interface admin fondateur (route séparée `/founder/themes`)
+- Upload custom themes
+
+---
+
+### Livré ce sprint
+1 migration + 1 onglet Thèmes dans ShopEditor + 7 thèmes publics + renderer non destructif + preview + install + activate + customize basique.
