@@ -132,19 +132,13 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    // Anti-spam: require an Authorization header. The DB trigger calls with the anon key,
-    // which is acceptable; anonymous direct callers without any header are rejected.
-    const authHeader = req.headers.get("Authorization") || req.headers.get("apikey");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ success: false, error: "unauthorized" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
-      });
-    }
     const body = await req.json().catch(() => ({}));
-    const { order_id, shop_id, customer_name, total, order_number } = body;
+    const { order_id, shop_id: bodyShopId } = body;
 
-    if (!shop_id) {
-      return new Response(JSON.stringify({ success: false, error: "missing_shop_id" }), {
+    // SECURITY: never trust caller-supplied notification content.
+    // We require a real order_id and rebuild the payload from the DB.
+    if (!order_id || typeof order_id !== "string") {
+      return new Response(JSON.stringify({ success: false, error: "missing_order_id" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
     }
@@ -153,6 +147,26 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Load the canonical order row first; the shop_id must match what the
+    // database stores for this order (we ignore any body-supplied shop_id).
+    const { data: orderRow } = await supabase
+      .from("orders")
+      .select("id, shop_id, customer_name, customer_phone, customer_city, customer_country, total, order_number")
+      .eq("id", order_id)
+      .maybeSingle();
+
+    if (!orderRow) {
+      return new Response(JSON.stringify({ success: false, error: "order_not_found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+    if (bodyShopId && String(bodyShopId) !== String(orderRow.shop_id)) {
+      return new Response(JSON.stringify({ success: false, error: "shop_mismatch" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+    const shop_id = orderRow.shop_id;
 
     // Find shop owner + tokens + notification preferences
     const { data: shop } = await supabase
@@ -234,33 +248,25 @@ Deno.serve(async (req) => {
     const accessToken = await getAccessToken(sa);
     const projectId = sa.project_id;
 
-    const { data: orderDetails } = order_id
-      ? await supabase
-          .from("orders")
-          .select("customer_name, customer_phone, customer_city, customer_country, total, order_number")
-          .eq("id", order_id)
-          .maybeSingle()
-      : { data: null } as any;
+    const orderDetails = orderRow;
 
     // Fetch ordered items to mention the product(s) in the notification
-    const { data: itemRows } = order_id
-      ? await supabase
-          .from("order_items")
-          .select("product_name, quantity")
-          .eq("order_id", order_id)
-          .order("created_at", { ascending: true })
-      : { data: null } as any;
+    const { data: itemRows } = await supabase
+      .from("order_items")
+      .select("product_name, quantity")
+      .eq("order_id", order_id)
+      .order("created_at", { ascending: true });
     const items = (itemRows || []) as Array<{ product_name: string | null; quantity: number | null }>;
 
     // Build title + body using shop-specific notification settings.
     // This mirrors src/lib/notificationFormat.ts (keep in sync).
     const built = buildOrderNotification(
       {
-        customer_name: orderDetails?.customer_name ?? customer_name,
+        customer_name: orderDetails?.customer_name,
         customer_phone: orderDetails?.customer_phone,
         customer_city: orderDetails?.customer_city,
         customer_country: orderDetails?.customer_country,
-        total: orderDetails?.total ?? total,
+        total: orderDetails?.total,
         items,
       },
       String(shop.business_name || ""),
@@ -339,12 +345,12 @@ Deno.serve(async (req) => {
             body: bodyText,
             order_id: String(order_id || ""),
             shop_id: String(shop_id),
-            customer_name: String(orderDetails?.customer_name || customer_name || ""),
+            customer_name: String(orderDetails?.customer_name || ""),
             customer_phone: String(orderDetails?.customer_phone || ""),
             customer_city: String(orderDetails?.customer_city || ""),
             customer_country: String(orderDetails?.customer_country || ""),
-            total: String(orderDetails?.total ?? total ?? ""),
-            order_number: String(orderDetails?.order_number || order_number || ""),
+            total: String(orderDetails?.total ?? ""),
+            order_number: String(orderDetails?.order_number || ""),
             product_name: String(firstProductName || ""),
             product_line: String(productLine || ""),
             url: clickUrl,

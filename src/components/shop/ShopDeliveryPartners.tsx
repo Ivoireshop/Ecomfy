@@ -5,15 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Search, Truck, Star, CheckCircle2, Loader2, MapPin, Phone, X } from "lucide-react";
+import { Search, Truck, Star, CheckCircle2, Loader2, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Provider {
   id: string;
   company_name: string;
   slug: string | null;
-  contact_phone: string;
-  contact_email: string | null;
   city: string | null;
   coverage_areas: string[] | null;
   description: string | null;
@@ -40,7 +38,7 @@ export function ShopDeliveryPartners({ shopId }: { shopId: string }) {
   const load = async () => {
     setLoading(true);
     const [{ data: prov }, { data: conn }] = await Promise.all([
-      supabase.from("delivery_providers").select("*").eq("is_active", true)
+      (supabase as any).from("delivery_providers_public").select("*")
         .order("is_recommended", { ascending: false })
         .order("company_name"),
       supabase.from("shop_delivery_connections").select("id,delivery_provider_id,status,auto_transfer").eq("shop_id", shopId),
@@ -135,7 +133,6 @@ export function ShopDeliveryPartners({ shopId }: { shopId: string }) {
                   {p.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.description}</p>}
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
                     {p.city && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {p.city}</span>}
-                    <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {p.contact_phone}</span>
                     {p.base_price ? <span>À partir de {p.base_price.toLocaleString("fr-FR")} FCFA</span> : null}
                   </div>
                   {conn && (
