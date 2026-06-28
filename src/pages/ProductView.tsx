@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+const LazyThemeRenderer = lazy(() => import("@/lib/productThemes/ThemeRenderer"));
 import { thumbUrl } from "@/lib/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -712,6 +713,38 @@ const ProductView = () => {
   const productDescription = product.short_description || product.description || shop.business_description || "";
   const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
   const customPageStyle = buildProductPageStyle(themeSettings);
+
+  // Optional professional themes — only activates when a known theme_slug is set
+  // on themeSettings and the URL does not force classic mode. Falls back to the
+  // legacy view on error via internal reload.
+  if (
+    themeSettings?.theme_slug &&
+    !new URLSearchParams(window.location.search).get("classic")
+  ) {
+    return (
+      <>
+        <Helmet>
+          <title>{productTitle}</title>
+          <meta name="description" content={productDescription} />
+          <link rel="canonical" href={window.location.href} />
+          <meta property="og:title" content={productTitle} />
+          <meta property="og:description" content={productDescription} />
+          <meta property="og:url" content={window.location.href} />
+          <meta property="og:type" content="product" />
+          {primaryImage && <meta property="og:image" content={primaryImage} />}
+        </Helmet>
+        <Suspense fallback={<div className="min-h-screen bg-white" />}>
+          <LazyThemeRenderer
+            product={product}
+            shop={shop}
+            audios={productAudios}
+            settings={themeSettings}
+            fallback={null}
+          />
+        </Suspense>
+      </>
+    );
+  }
 
   return (
     <div
