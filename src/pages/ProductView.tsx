@@ -713,6 +713,39 @@ const ProductView = () => {
   const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
   const customPageStyle = buildProductPageStyle(themeSettings);
 
+  // Optional professional themes — only activates when a known theme_slug is set
+  // on themeSettings and the URL does not force classic mode. Falls back to the
+  // legacy view on error via internal reload.
+  if (
+    themeSettings?.theme_slug &&
+    !new URLSearchParams(window.location.search).get("classic")
+  ) {
+    const ThemeRenderer = React.lazy(() => import("@/lib/productThemes/ThemeRenderer"));
+    return (
+      <>
+        <Helmet>
+          <title>{productTitle}</title>
+          <meta name="description" content={productDescription} />
+          <link rel="canonical" href={window.location.href} />
+          <meta property="og:title" content={productTitle} />
+          <meta property="og:description" content={productDescription} />
+          <meta property="og:url" content={window.location.href} />
+          <meta property="og:type" content="product" />
+          {primaryImage && <meta property="og:image" content={primaryImage} />}
+        </Helmet>
+        <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
+          <ThemeRenderer
+            product={product}
+            shop={shop}
+            audios={productAudios}
+            settings={themeSettings}
+            fallback={null}
+          />
+        </React.Suspense>
+      </>
+    );
+  }
+
   return (
     <div
       className={`min-h-screen text-gray-900 ${customPageStyle ? "" : "bg-white"}`}
