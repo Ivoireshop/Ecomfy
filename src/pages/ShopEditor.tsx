@@ -28,6 +28,7 @@ const ProductEditor = lazy(() => import("@/components/shop/ProductEditor").then(
 const ShopAssistantSettings = lazy(() => import("@/components/shop/ShopAssistantSettings").then(m => ({ default: m.ShopAssistantSettings })));
 const ShopStatistics = lazy(() => import("@/components/shop/ShopStatistics").then(m => ({ default: m.ShopStatistics })));
 const ShopThemeSettings = lazy(() => import("@/components/shop/ShopThemeSettings").then(m => ({ default: m.ShopThemeSettings })));
+const ShopThemesManager = lazy(() => import("@/components/shop/ShopThemesManager"));
 const BillingHistory = lazy(() => import("@/components/shop/BillingHistory").then(m => ({ default: m.BillingHistory })));
 const ReviewsModeration = lazy(() => import("@/components/shop/ReviewsModeration").then(m => ({ default: m.ReviewsModeration })));
 const ShopFinances = lazy(() => import("@/components/shop/ShopFinances").then(m => ({ default: m.ShopFinances })));
