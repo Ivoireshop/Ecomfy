@@ -26,6 +26,13 @@ import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, productKey } from "@/lib/shopCache";
 import { useDeferredMount } from "@/lib/useDeferredMount";
+import {
+  buildProductPageStyle,
+  fetchProductAudios,
+  fetchProductThemeSettings,
+  type ProductAudio,
+  type ProductThemeSettings,
+} from "@/lib/productAppearance";
 
 // Non-critical, below-the-fold widgets. Loaded only after the LCP image and
 // the "Commander maintenant" button are interactive — keeps the initial JS
@@ -170,6 +177,8 @@ const ProductView = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [themeSettings, setThemeSettings] = useState<ProductThemeSettings | null>(null);
+  const [productAudios, setProductAudios] = useState<ProductAudio[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Sync cart with current quantity when user changes quantity while inline checkout is open
@@ -186,6 +195,28 @@ const ProductView = () => {
   }, [quantity, showInlineCheckout, product]);
 
   useEffect(() => { fetchData(); }, [slug, id, productId, productSlug]);
+
+  // Charge thème + témoignages audio (lecture publique via RLS)
+  useEffect(() => {
+    if (!product?.id) {
+      setThemeSettings(null);
+      setProductAudios([]);
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      const [ts, audios] = await Promise.all([
+        fetchProductThemeSettings(product.id),
+        fetchProductAudios(product.id, true),
+      ]);
+      if (cancel) return;
+      setThemeSettings(ts);
+      setProductAudios(audios);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [product?.id]);
 
   // NOTE: re-fetch on tab focus/visibility was removed (2026-06) — it caused
   // unnecessary full reloads when the user simply switched tabs and made the
@@ -680,9 +711,13 @@ const ProductView = () => {
   const productTitle = `${product.name} — ${shop.business_name}`;
   const productDescription = product.short_description || product.description || shop.business_description || "";
   const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
+  const customPageStyle = buildProductPageStyle(themeSettings);
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div
+      className={`min-h-screen text-gray-900 ${customPageStyle ? "" : "bg-white"}`}
+      style={customPageStyle}
+    >
       <Helmet>
         <title>{productTitle}</title>
         <meta name="description" content={productDescription} />
@@ -1302,6 +1337,52 @@ const ProductView = () => {
         );
         })()}
       </section>
+
+      {/* ====== TÉMOIGNAGES AUDIO (additif, masqué si vide) ====== */}
+      {productAudios.length > 0 && (
+        <section className="border-t" style={{ background: themeSettings?.section_bg_color || "#FAFAFA" }}>
+          <div className="max-w-3xl mx-auto px-3 sm:px-6 py-8 sm:py-10">
+            <h2 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: themeSettings?.title_color || undefined }}>
+              Témoignages audio de nos clients
+            </h2>
+            <p className="text-sm opacity-70 mb-5">Écoutez ce que disent les clients qui ont déjà acheté.</p>
+            <div className="space-y-3">
+              {productAudios.map((a) => (
+                <div
+                  key={a.id}
+                  className="rounded-lg p-3 sm:p-4 shadow-sm"
+                  style={{
+                    background: themeSettings?.card_bg_color || "#FFFFFF",
+                    border: `1px solid ${themeSettings?.border_color || "#E5E7EB"}`,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm sm:text-base truncate">
+                        {a.title || "Témoignage client"}
+                      </div>
+                      <div className="text-xs opacity-70 truncate">{a.customer_name || "Client vérifié"}</div>
+                      {a.description && (
+                        <div className="text-xs opacity-80 mt-1">{a.description}</div>
+                      )}
+                    </div>
+                    <span
+                      className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full"
+                      style={{
+                        background: themeSettings?.badge_color || "#10B981",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      ✓ Authentique
+                    </span>
+                  </div>
+                  <audio src={a.audio_url} controls preload="none" className="w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ====== RELATED PRODUCTS (opt-in) ====== */}
       {!!shop?.theme_config?.show_related_products && relatedProducts.length > 0 && (

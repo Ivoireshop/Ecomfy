@@ -1,73 +1,85 @@
 ## Objectif
 
-Rendre VisualPro entièrement utilisable sur téléphone (création boutique, produits, images, commandes, paiement, IA, aperçu, partage) tout en préservant intégralement la version ordinateur. Aucune fonctionnalité supprimée — uniquement des adaptations responsive et de navigation.
+Ajouter à VisualPro, sans casser l'existant : (1) témoignages audio sur fiche produit, (2) thèmes professionnels de fiche produit, (3) personnalisation fond/couleurs avec contraste auto, (4) prévisualisation temps réel mobile/desktop.
 
-## Approche
+Tout est additif : les anciennes fiches restent identiques tant que le vendeur ne touche à rien.
 
-Travail purement frontend/CSS/layout, par lots indépendants. Chaque modification utilise les breakpoints Tailwind (`sm`, `md`, `lg`) pour ne toucher au desktop que via les classes `md:` et au-dessus.
+## Lot 1 — Backend audio (migration + storage)
 
-## Lot 1 — Navigation mobile (priorité haute)
+Nouvelle table `product_audios` (product_id, shop_id, user_id, audio_url, title, description, customer_name, duration, file_type, file_size, is_active, sort_order, timestamps) avec RLS :
+- public SELECT si `is_shop_publicly_visible(shop_id)` et `is_active`
+- propriétaire/collaborateur shop : full CRUD
+- GRANT anon SELECT + authenticated CRUD + service_role ALL
 
-Problème actuel : la `ShopSidebar` (240px sombre) reste affichée sur mobile et coupe l'écran ; le `StartChecklist` est invisible sur téléphone.
+Nouveau bucket Storage `product-audios` (public read), policies :
+- upload/update/delete réservés au owner du shop (path `shop_id/product_id/uuid.ext`)
+- read public
+- limite côté client 8 Mo, formats MP3/WAV/M4A/AAC/OGG/OPUS/WEBM
 
-- `src/components/shop/ShopSidebar.tsx` : masquer par défaut sur mobile (`hidden md:flex`), ouverture via Sheet (drawer gauche) déclenché par un bouton hamburger.
-- Ajouter dans `src/pages/ShopEditor.tsx` une **TopBar mobile** : hamburger (ouvre la sidebar en Sheet), titre boutique, bouton « Sauvegarder », bouton « Aperçu » (icônes).
-- Ajouter une **BottomNav boutique** mobile (`ShopMobileBottomNav.tsx`) : Tableau de bord, Produits, Commandes, Boutique, Plus (Sheet avec le reste : finances, IA, thème, paramètres…). Badges commandes non lues.
-- Préserver la `MobileBottomNav` globale uniquement hors de `/shop-editor/*` (la nouvelle bottom-nav boutique la remplace dans l'éditeur).
+## Lot 2 — Backend thèmes
 
-## Lot 2 — Tableau de bord & checklist mobile
+Deux tables :
+- `product_themes` (catalogue global) : name, slug, description, preview_image, theme_type, is_premium, price (FCFA), is_active, configuration_json (palette + sections par défaut). SELECT public ; écriture founder/co_founder uniquement.
+- `product_theme_settings` (1 ligne par produit) : product_id (unique), theme_slug, background_color, section_bg_color, card_bg_color, text_color, title_color, button_color, button_text_color, border_color, badge_color, background_mode (`solid|gradient|image`), gradient_from/to, background_image_url, visible_sections (text[]), section_order (text[]), custom_css_settings (jsonb). RLS via owner/collab shop du produit.
 
-- `src/components/dashboard/StartChecklist.tsx` : grille empilée en mobile, items pleine largeur, bouton CTA tactile (`h-11`), padding réduit, plus de scroll horizontal.
-- `src/pages/Dashboard.tsx` : titre `text-2xl` en mobile, services hub en 1 colonne sur xs / 2 sur sm.
-- Vérifier que la checklist apparaît bien au-dessus du fold sur téléphone.
+Seed des 7 thèmes : `classic-premium`, `health-wellness`, `luxury-dark`, `direct-conversion`, `storytelling`, `mobile-first`, `landing-ad`. + thème "default" implicite quand pas de ligne settings.
 
-## Lot 3 — Liste produits & fiche produit mobile
+## Lot 3 — UI éditeur (ProductEditor)
 
-- `src/components/shop/ProductsTable.tsx` : sur mobile (`md:hidden`), remplacer la table par des **cartes produit** (image carrée 80px, nom, prix, badge statut horizontal, menu actions ⋯ : modifier, voir, dupliquer, supprimer, publier/dépublier). Garder la table en `hidden md:table`.
-- Barre d'outils mobile sticky : recherche pleine largeur + filtres dans Sheet + bouton « Créer un produit » flottant (FAB) en bas-droite.
-- `src/components/shop/ProductEditor.tsx` : sections en **accordéon** sur mobile (Informations / Images / Description / Livraison / Aperçu / Publication). Champs `h-11`, espacements `space-y-4`. Footer sticky mobile avec « Sauvegarder » + « Publier ».
-- `ProductWizard` déjà adapté ; vérifier hauteurs tactiles.
+Nouvel onglet **"Apparence"** dans `ProductEditor.tsx` (n'altère pas les onglets existants), contenant :
 
-## Lot 4 — Ajout d'images mobile
+1. **Témoignages audio** — composant `ProductAudioManager.tsx`
+   - Bouton "Ajouter un témoignage audio" → input file accept audio/*
+   - Upload immédiat vers `product-audios` (avec toast d'état, taille max 8 Mo, validation MIME)
+   - Liste : aperçu `<audio controls preload="none">`, titre, nom client, description, toggle actif, drag-handle sort, supprimer, remplacer
+   - Auto-save debounced sur chaque modification
+   - Tous les messages d'erreur demandés en français
 
-- Bouton d'upload visible en haut de la section Images, taille tactile, libellé « Ajouter une image ». `accept="image/*"` + `capture="environment"` pour proposer l'appareil photo natif.
-- Grille images responsive 2 colonnes mobile / 4 desktop, drag-handle remplacé par boutons ↑ ↓ tactiles sur mobile.
-- Compression auto déjà en place (`imageCompress.ts`) ; ajouter message clair en cas d'échec.
+2. **Thème** — composant `ProductThemePicker.tsx`
+   - Galerie de cartes thème avec preview_image + badge gratuit/premium
+   - Bouton "Utiliser ce thème" (gratuit appliqué direct ; premium → toast "Bientôt disponible")
+   - Bouton "Revenir au design par défaut" (supprime la ligne `product_theme_settings`)
 
-## Lot 5 — Commandes mobile
+3. **Personnalisation** — composant `ProductAppearancePanel.tsx`
+   - Color pickers (input type=color + champ HEX) pour fond, sections, cartes, boutons, textes, titres, bordures, badges
+   - Choix mode fond : uni / dégradé (2 couleurs) / image (upload)
+   - Fonction `ensureReadableTextColor()` (calcul luminance WCAG) : si contraste < 4.5, force texte clair/foncé et affiche un avertissement "Texte ajusté pour rester lisible"
+   - Sections : liste de toggles + drag pour réorganiser `visible_sections` / `section_order`
 
-- `src/components/shop/OrdersList.tsx` : vue cartes sur mobile (client, produit, montant, date, statut, actions Voir/Appeler/WhatsApp). Pas de table à scroll horizontal.
-- Respect du verrouillage (masquage infos sensibles déjà en place via `LockedOrdersScreen`).
+4. **Prévisualisation temps réel** — réutilise `ProductLivePreview` existant + toggle device mobile/desktop ; bouton "Voir comme client" ouvre `/shop/:slug/p/:productSlug` ; bouton "Annuler" recharge les settings ; bouton "Revenir au design par défaut".
 
-## Lot 6 — Paiement / verrouillage / aperçu / IA mobile
+Mobile : onglet "Apparence" accessible depuis bottom-tabs déjà présentes, pickers full-width, sticky save bar.
 
-- `LockedOrdersScreen` + `BillingBanner` : padding mobile, bouton « Payer maintenant » pleine largeur sticky.
-- `ProductAIOptimizer` & `ShopAIAssistant` : boutons IA en grille 2 col mobile, réponses dans une carte scrollable, boutons « Copier / Insérer » tactiles.
-- Aperçu boutique : boutons « Voir comme client », « Copier le lien », « Partager WhatsApp/Facebook » regroupés dans une barre sticky bas en mobile.
+## Lot 4 — Rendu public (ProductView)
 
-## Lot 7 — Ergonomie globale
+Dans `src/pages/ProductView.tsx` :
+- Charger `product_theme_settings` + `product_audios` en parallèle du produit
+- Wrapper racine reçoit un `style` calculé depuis settings (CSS variables `--pv-bg`, `--pv-text`, etc.) ; **si aucun settings**, rien ne change (compat ancien rendu)
+- Section "Témoignages audio de nos clients" rendue conditionnellement si audios actifs, lazy-mount, `preload="none"`, badge "Témoignage authentique"
+- Helper `applyThemePreset(slug)` retourne overrides CSS pour les 7 thèmes du seed
+- Respecte `visible_sections` / `section_order` quand présents ; fallback ordre actuel sinon
 
-- Audit CSS : retirer `min-w-[...]` excessifs, ajouter `overflow-x-hidden` sur le shell, vérifier que tous les boutons critiques ont `min-h-11`.
-- Modales (`Dialog`, `Sheet`) : `max-h-[90vh] overflow-y-auto`, bouton fermer visible.
-- Toasts standardisés : « Produit enregistré », « Image ajoutée », « Sauvegarde en cours… », « Toutes les modifications sont enregistrées ».
+## Lot 5 — Tests & garde-fous
 
-## Tests
-
-Playwright headless en viewport 375×812 (iPhone), 414×896, 768×1024, 1280×800 : login → dashboard → checklist → créer produit → upload image → sauver → voir commandes → ouvrir menu boutique → paiement. Screenshots à chaque étape pour vérifier qu'aucun bouton n'est coupé.
-
-## Hors scope
-
-- Pas de changement de logique métier, RLS, edge functions, paiements, IA backend.
-- Pas de refonte desktop : toutes les classes responsive ciblent uniquement `< md`.
+- Vérifier ouverture d'une fiche existante (sans settings ni audios) → rendu identique
+- Upload MP3/M4A/OPUS, refresh, vérifier persistence URL publique
+- Changer de thème puis revenir → contenu produit inchangé (queries seulement sur `product_theme_settings`)
+- Lighthouse mobile : pas de regression (audios `preload="none"`, images thèmes lazy)
+- Linter Supabase post-migration
 
 ## Détails techniques
 
-- Breakpoints : `sm` 640, `md` 768, `lg` 1024.
-- Nouveau composant `src/components/shop/ShopMobileBottomNav.tsx`.
-- Conversion sidebar boutique : wrapper conditionnel `useIsMobile()` → `Sheet side="left"`.
-- FAB : `fixed bottom-20 right-4 z-40 md:hidden` (au-dessus de la bottom-nav `h-14`).
-- Sticky footer mobile éditeur produit : `sticky bottom-0 bg-background/95 backdrop-blur p-3 border-t md:hidden`.
+- Pas de breaking change sur `products` ni `product_images`
+- Toutes les nouvelles tables ont GRANT explicites dans la même migration
+- Trigger `update_updated_at_column` réutilisé
+- Bucket public mais writes scoped par RLS sur `storage.objects` (`bucket_id = 'product-audios' AND auth.uid() = owner_user`)
+- Aucune logique de paiement de thème activée maintenant ; champ `price` + `is_premium` posés pour la future marketplace
+- Admin thèmes : page founder simple `/founder/themes` (réutilise `FounderRoute`)
 
-## Livraison
+## Hors scope (à confirmer si tu veux les ajouter)
 
-Lots 1→7 livrés séquentiellement dans une seule passe, avec capture Playwright finale en 375px pour validation visuelle.
+- Marketplace payante de thèmes (UI achat / déblocage)
+- Historique des thèmes utilisés
+- Modération admin des audios uploadés
+
+Dis-moi si je lance les 5 lots ou si tu veux ajuster.

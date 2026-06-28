@@ -11,6 +11,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ProductLivePreview } from "./ProductLivePreview";
 import { ProductGifGenerator } from "./ProductGifGenerator";
 import { ProductWizard } from "./ProductWizard";
+import { ProductAppearancePanel } from "./ProductAppearancePanel";
+import { Palette as PaletteIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
@@ -1097,6 +1099,28 @@ export function ProductEditor({
             <LinkIcon className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">https://votreboutique.shop/produit/{product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "..."}</span>
           </div>
+
+          {/* Appearance + audios (additif, n'altère pas l'existant) */}
+          {isEditing && productId && shop?.id && (
+            <details className="group border rounded-lg bg-card overflow-hidden" open>
+              <summary className="list-none cursor-pointer flex items-center justify-between gap-2 px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <PaletteIcon className="h-4 w-4 text-primary" />
+                  Apparence, thèmes & témoignages audio
+                </span>
+                <span className="text-[11px] text-muted-foreground group-open:hidden">Ouvrir</span>
+                <span className="text-[11px] text-muted-foreground hidden group-open:inline">Fermer</span>
+              </summary>
+              <div className="p-3">
+                <ProductAppearancePanel
+                  productId={productId}
+                  shopId={shop.id}
+                  shopSlug={shopSlug}
+                  productSlug={savedProductSlug || product.slug || undefined}
+                />
+              </div>
+            </details>
+          )}
 
           {/* Short Description */}
           <div className="space-y-1.5">

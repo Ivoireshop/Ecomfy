@@ -2020,6 +2020,85 @@ export type Database = {
           },
         ]
       }
+      product_audios: {
+        Row: {
+          audio_url: string
+          created_at: string
+          customer_name: string | null
+          description: string | null
+          duration_seconds: number | null
+          file_size: number | null
+          file_type: string | null
+          id: string
+          is_active: boolean
+          product_id: string
+          shop_id: string
+          sort_order: number
+          storage_path: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_url: string
+          created_at?: string
+          customer_name?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_active?: boolean
+          product_id: string
+          shop_id: string
+          sort_order?: number
+          storage_path?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_url?: string
+          created_at?: string
+          customer_name?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_active?: boolean
+          product_id?: string
+          shop_id?: string
+          sort_order?: number
+          storage_path?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_audios_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_audios_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_audios_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_images: {
         Row: {
           alt_text: string | null
@@ -2093,6 +2172,148 @@ export type Database = {
           reviewer_name?: string
           shop_id?: string
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_theme_settings: {
+        Row: {
+          background_color: string | null
+          background_image_url: string | null
+          background_mode: string
+          badge_color: string | null
+          border_color: string | null
+          button_color: string | null
+          button_text_color: string | null
+          card_bg_color: string | null
+          created_at: string
+          custom_css_settings: Json
+          gradient_from: string | null
+          gradient_to: string | null
+          product_id: string
+          section_bg_color: string | null
+          section_order: string[] | null
+          shop_id: string
+          text_color: string | null
+          theme_slug: string | null
+          title_color: string | null
+          updated_at: string
+          visible_sections: string[] | null
+        }
+        Insert: {
+          background_color?: string | null
+          background_image_url?: string | null
+          background_mode?: string
+          badge_color?: string | null
+          border_color?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          card_bg_color?: string | null
+          created_at?: string
+          custom_css_settings?: Json
+          gradient_from?: string | null
+          gradient_to?: string | null
+          product_id: string
+          section_bg_color?: string | null
+          section_order?: string[] | null
+          shop_id: string
+          text_color?: string | null
+          theme_slug?: string | null
+          title_color?: string | null
+          updated_at?: string
+          visible_sections?: string[] | null
+        }
+        Update: {
+          background_color?: string | null
+          background_image_url?: string | null
+          background_mode?: string
+          badge_color?: string | null
+          border_color?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          card_bg_color?: string | null
+          created_at?: string
+          custom_css_settings?: Json
+          gradient_from?: string | null
+          gradient_to?: string | null
+          product_id?: string
+          section_bg_color?: string | null
+          section_order?: string[] | null
+          shop_id?: string
+          text_color?: string | null
+          theme_slug?: string | null
+          title_color?: string | null
+          updated_at?: string
+          visible_sections?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_theme_settings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_theme_settings_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_theme_settings_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_themes: {
+        Row: {
+          configuration_json: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_premium: boolean
+          name: string
+          preview_image: string | null
+          price: number
+          slug: string
+          sort_order: number
+          theme_type: string
+          updated_at: string
+        }
+        Insert: {
+          configuration_json?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_premium?: boolean
+          name: string
+          preview_image?: string | null
+          price?: number
+          slug: string
+          sort_order?: number
+          theme_type?: string
+          updated_at?: string
+        }
+        Update: {
+          configuration_json?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_premium?: boolean
+          name?: string
+          preview_image?: string | null
+          price?: number
+          slug?: string
+          sort_order?: number
+          theme_type?: string
           updated_at?: string
         }
         Relationships: []
