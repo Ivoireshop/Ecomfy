@@ -103,13 +103,15 @@ async function sendStudentEmail({
   whatsappGroupLink,
   tempPassword,
   resend,
+  isNewAccount,
 }: {
   studentEmail: string;
   studentName: string;
   courseTitle: string;
   whatsappGroupLink: string | null;
-  tempPassword: string;
+  tempPassword: string | null;
   resend: boolean;
+  isNewAccount: boolean;
 }): Promise<EmailSendResult> {
   if (!RESEND_API_KEY) {
     return {
@@ -132,27 +134,37 @@ async function sendStudentEmail({
       `
     : "";
 
-  const emailBody = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2563eb;">${resend ? "Vos accès ont été réinitialisés" : "Bienvenue sur votre espace de formation !"}</h2>
-      <p>Bonjour <strong>${studentName}</strong>,</p>
-      <p>${resend ? "Voici vos nouveaux accès pour" : "Votre accès pour"} <strong>${courseTitle}</strong>.</p>
-
+  const credentialsBlock = isNewAccount && tempPassword
+    ? `
       <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
         <h3 style="margin-top: 0;">Vos identifiants d'accès :</h3>
         <ul style="list-style: none; padding: 0; margin: 0;">
           <li style="padding: 5px 0;"><strong>Email :</strong> ${studentEmail}</li>
           <li style="padding: 5px 0;"><strong>Mot de passe temporaire :</strong> <code style="background: #e5e7eb; padding: 3px 6px; border-radius: 3px;">${tempPassword}</code></li>
         </ul>
-      </div>
+      </div>`
+    : `
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0;">
+          Connectez-vous avec votre adresse <strong>${studentEmail}</strong> et votre mot de passe habituel.
+          Si vous l'avez oublié, utilisez le lien « Mot de passe oublié » sur la page de connexion.
+        </p>
+      </div>`;
+
+  const emailBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2563eb;">${isNewAccount ? (resend ? "Vos accès ont été préparés" : "Bienvenue sur votre espace de formation !") : "Accès à votre nouvelle formation"}</h2>
+      <p>Bonjour <strong>${studentName}</strong>,</p>
+      <p>Votre accès pour <strong>${courseTitle}</strong> est désormais actif.</p>
+
+      ${credentialsBlock}
 
       ${whatsappSection}
 
       <p>Pour accéder à votre formation :</p>
       <ol>
         <li>Connectez-vous sur votre espace étudiant</li>
-        <li>Utilisez le mot de passe temporaire ci-dessus</li>
-        <li>Changez votre mot de passe après connexion</li>
+        ${isNewAccount ? "<li>Utilisez le mot de passe temporaire ci-dessus</li><li>Changez votre mot de passe après connexion</li>" : "<li>Utilisez vos identifiants habituels (ou réinitialisez-les si besoin)</li>"}
         ${whatsappGroupLink ? "<li>Rejoignez le groupe WhatsApp d'accompagnement</li>" : ""}
         <li>Commencez votre formation</li>
       </ol>
@@ -171,9 +183,9 @@ async function sendStudentEmail({
       body: JSON.stringify({
         from: "VisualPro <onboarding@resend.dev>",
         to: [studentEmail],
-        subject: resend
-          ? "Vos nouveaux accès à votre formation"
-          : "Vos identifiants d'accès à votre formation",
+        subject: isNewAccount
+          ? (resend ? "Vos accès à votre formation" : "Vos identifiants d'accès à votre formation")
+          : "Accès à votre nouvelle formation",
         html: emailBody,
       }),
     });
@@ -253,6 +265,7 @@ serve(async (req) => {
 
     const tempPassword = `${Math.random().toString(36).slice(-8)}A1!${Math.random().toString(36).slice(-2)}`;
     let userId = await findExistingUserIdByEmail(serviceClient, studentEmail);
+    const isNewAccount = userId === null;
 
     if (!userId) {
       const { data: createdUser, error: createUserError } = await serviceClient.auth.admin.createUser({
@@ -283,15 +296,18 @@ serve(async (req) => {
       return jsonResponse({ error: "Impossible de retrouver l'utilisateur" }, 400);
     }
 
-    const { error: updateUserError } = await serviceClient.auth.admin.updateUserById(userId, {
-      password: tempPassword,
-      user_metadata: {
-        full_name: studentName,
-      },
-    });
-
-    if (updateUserError) {
-      throw updateUserError;
+    // SECURITY: Never reset the password of an existing platform user.
+    // Only set credentials when we just created the account; otherwise
+    // leave the user's password untouched and only refresh display name.
+    if (isNewAccount) {
+      const { error: updateUserError } = await serviceClient.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          full_name: studentName,
+        },
+      });
+      if (updateUserError) {
+        throw updateUserError;
+      }
     }
 
     const { error: profileError } = await serviceClient
@@ -330,8 +346,9 @@ serve(async (req) => {
       studentName,
       courseTitle: course.title,
       whatsappGroupLink: course.whatsapp_group_link,
-      tempPassword,
+      tempPassword: isNewAccount ? tempPassword : null,
       resend,
+      isNewAccount,
     });
 
     return jsonResponse({
