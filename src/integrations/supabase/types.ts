@@ -1850,6 +1850,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orders_delivery_provider_id_fkey"
+            columns: ["delivery_provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_shop_id_fkey"
             columns: ["shop_id"]
             isOneToOne: false
@@ -2794,6 +2801,13 @@ export type Database = {
             columns: ["delivery_provider_id"]
             isOneToOne: false
             referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_delivery_connections_delivery_provider_id_fkey"
+            columns: ["delivery_provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers_public"
             referencedColumns: ["id"]
           },
           {
@@ -4159,6 +4173,54 @@ export type Database = {
       }
     }
     Views: {
+      delivery_providers_public: {
+        Row: {
+          base_price: number | null
+          city: string | null
+          company_name: string | null
+          coverage_areas: string[] | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          is_recommended: boolean | null
+          is_verified: boolean | null
+          logo_url: string | null
+          slug: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          base_price?: number | null
+          city?: string | null
+          company_name?: string | null
+          coverage_areas?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          is_verified?: boolean | null
+          logo_url?: string | null
+          slug?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          base_price?: number | null
+          city?: string | null
+          company_name?: string | null
+          coverage_areas?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          is_verified?: boolean | null
+          logo_url?: string | null
+          slug?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       feedback_public: {
         Row: {
           comment: string | null
