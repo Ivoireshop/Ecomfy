@@ -514,7 +514,7 @@ const Index = () => {
   }, [isReady, navigate, session]);
 
   const loadPublishedFeedback = async () => {
-    const { data } = await supabase.from("feedback").select("*").eq("status", "published").order("created_at", { ascending: false });
+    const { data } = await supabase.from("feedback_public" as any).select("*").order("created_at", { ascending: false });
     setPublishedFeedback(data || []);
   };
 
