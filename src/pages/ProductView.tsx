@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+const LazyThemeRenderer = lazy(() => import("@/lib/productThemes/ThemeRenderer"));
 import { thumbUrl } from "@/lib/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -720,7 +721,6 @@ const ProductView = () => {
     themeSettings?.theme_slug &&
     !new URLSearchParams(window.location.search).get("classic")
   ) {
-    const ThemeRenderer = lazy(() => import("@/lib/productThemes/ThemeRenderer"));
     return (
       <>
         <Helmet>
@@ -734,7 +734,7 @@ const ProductView = () => {
           {primaryImage && <meta property="og:image" content={primaryImage} />}
         </Helmet>
         <Suspense fallback={<div className="min-h-screen bg-white" />}>
-          <ThemeRenderer
+          <LazyThemeRenderer
             product={product}
             shop={shop}
             audios={productAudios}
