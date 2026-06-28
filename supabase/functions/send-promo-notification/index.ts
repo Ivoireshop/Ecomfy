@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@4.0.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -10,10 +10,7 @@ const corsHeaders = {
 };
 
 interface PromoNotificationRequest {
-  userName: string;
-  userEmail: string;
   promoCode: string;
-  discountPercentage: number;
   originalAmount: number;
   discountedAmount: number;
 }
@@ -24,14 +21,66 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log("Promo notification function invoked");
+    // SECURITY: require an authenticated caller and rebuild every
+    // displayed value from server-side data so a body cannot inject
+    // arbitrary content into founder emails.
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
-    const { userName, userEmail, promoCode, discountPercentage, originalAmount, discountedAmount }: PromoNotificationRequest = await req.json();
-    
-    // Initialize Supabase client to get founders' emails
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const token = authHeader.slice(7).trim();
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user?.id) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    const authedUser = userData.user;
+
+    const rawBody = (await req.json().catch(() => ({}))) as Partial<PromoNotificationRequest>;
+    const submittedCode = String(rawBody.promoCode || "").trim().toUpperCase();
+    const originalAmount = Number(rawBody.originalAmount);
+    const discountedAmount = Number(rawBody.discountedAmount);
+    if (!submittedCode || !Number.isFinite(originalAmount) || !Number.isFinite(discountedAmount)) {
+      return new Response(JSON.stringify({ error: "invalid_payload" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Re-validate the promo code from the DB so the email can only carry
+    // a known code + real discount percentage.
+    const { data: promoRow } = await supabase
+      .from("promo_codes")
+      .select("code, discount_percentage, is_active")
+      .eq("code", submittedCode)
+      .maybeSingle();
+    if (!promoRow || promoRow.is_active === false) {
+      return new Response(JSON.stringify({ error: "invalid_promo" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    const promoCode = promoRow.code as string;
+    const discountPercentage = Number(promoRow.discount_percentage) || 0;
+
+    // User identity comes from the verified JWT, never from the body.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", authedUser.id)
+      .maybeSingle();
+    const userEmail = profile?.email || authedUser.email || "(inconnu)";
+    const userName = profile?.full_name || userEmail;
 
     // Get founders and co-founders emails
     const { data: founders, error: foundersError } = await supabase
