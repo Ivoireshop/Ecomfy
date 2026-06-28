@@ -1,85 +1,95 @@
+# Système de thèmes professionnels — Vraies structures de fiche produit
+
 ## Objectif
+Transformer le système actuel (qui ne change que couleurs/fond) en un vrai moteur de **layouts** : chaque thème réorganise les sections de la fiche produit publique, sans toucher au contenu ni casser l'existant.
 
-Ajouter à VisualPro, sans casser l'existant : (1) témoignages audio sur fiche produit, (2) thèmes professionnels de fiche produit, (3) personnalisation fond/couleurs avec contraste auto, (4) prévisualisation temps réel mobile/desktop.
+## Principe directeur — Non destructif
+- Aucune fiche existante n'est modifiée tant que le vendeur n'a pas explicitement choisi un thème.
+- Si `theme_slug = null` ou `theme_slug = "classic"` → l'affichage actuel de `ProductView.tsx` reste **strictement inchangé**.
+- Le contenu produit reste dans la table `products` (rien n'est dupliqué). Le thème ne stocke que la présentation.
+- Si un thème plante au runtime → fallback automatique vers le rendu classique (ErrorBoundary).
 
-Tout est additif : les anciennes fiches restent identiques tant que le vendeur ne touche à rien.
+## Lot 1 — Moteur de thèmes (architecture)
 
-## Lot 1 — Backend audio (migration + storage)
+Créer `src/lib/productThemes/` :
+- `types.ts` — types `ThemeLayout`, `ThemeSection` (`hero | gallery | benefits | problem | solution | usage | testimonials | audios | faq | guarantee | urgency | cta | related`), `ThemeRegistry`.
+- `registry.ts` — registry central qui mappe `slug → { meta, layout, sections[], renderer }`.
+- `dataAdapter.ts` — `mapProductToThemeData(product, audios, reviews)` qui transforme les données existantes en blocs réutilisables (titre, prix, ancien_prix, images, description courte/longue, bénéfices extraits, témoignages, audios, FAQ).
+- `ThemeRenderer.tsx` — composant unique qui prend `{ slug, data, settings }` et orchestre le rendu, avec ErrorBoundary + Suspense + lazy import du thème choisi (un seul thème chargé par fiche → perf).
 
-Nouvelle table `product_audios` (product_id, shop_id, user_id, audio_url, title, description, customer_name, duration, file_type, file_size, is_active, sort_order, timestamps) avec RLS :
-- public SELECT si `is_shop_publicly_visible(shop_id)` et `is_active`
-- propriétaire/collaborateur shop : full CRUD
-- GRANT anon SELECT + authenticated CRUD + service_role ALL
+## Lot 2 — 7 vrais layouts (composants distincts)
 
-Nouveau bucket Storage `product-audios` (public read), policies :
-- upload/update/delete réservés au owner du shop (path `shop_id/product_id/uuid.ext`)
-- read public
-- limite côté client 8 Mo, formats MP3/WAV/M4A/AAC/OGG/OPUS/WEBM
+Chaque thème = un dossier `src/lib/productThemes/themes/<slug>/` avec son propre `index.tsx`, ses sections et son CSS scopé (Tailwind + variables) :
 
-## Lot 2 — Backend thèmes
+1. **classic-premium** — image gauche / infos droite, structure sobre.
+2. **landing-ad** — hero promesse + CTA → problème → solution → bénéfices → preuves → témoignages → urgence → FAQ → CTA final (vraie page de vente).
+3. **health-wellness** — promesse douce, bienfaits, mode d'emploi, témoignages audio mis en avant, précautions, FAQ.
+4. **luxury-dark** — hero plein écran, typo minimaliste, espaces larges, fond sombre, CTA raffiné.
+5. **storytelling** — situation → problème → découverte → transformation → avant/après → CTA.
+6. **mobile-first** — sticky CTA en bas, accordéons partout, sections courtes, bouton WhatsApp flottant.
+7. **promo-offer** — badge promo géant, prix barré, compte à rebours, stock limité, rappel CTA en bas.
 
-Deux tables :
-- `product_themes` (catalogue global) : name, slug, description, preview_image, theme_type, is_premium, price (FCFA), is_active, configuration_json (palette + sections par défaut). SELECT public ; écriture founder/co_founder uniquement.
-- `product_theme_settings` (1 ligne par produit) : product_id (unique), theme_slug, background_color, section_bg_color, card_bg_color, text_color, title_color, button_color, button_text_color, border_color, badge_color, background_mode (`solid|gradient|image`), gradient_from/to, background_image_url, visible_sections (text[]), section_order (text[]), custom_css_settings (jsonb). RLS via owner/collab shop du produit.
+Chaque thème est **chargé en lazy** (`React.lazy`) — un visiteur ne télécharge que le thème de la fiche qu'il consulte.
 
-Seed des 7 thèmes : `classic-premium`, `health-wellness`, `luxury-dark`, `direct-conversion`, `storytelling`, `mobile-first`, `landing-ad`. + thème "default" implicite quand pas de ligne settings.
+## Lot 3 — Intégration dans `ProductView.tsx`
 
-## Lot 3 — UI éditeur (ProductEditor)
+```tsx
+const settings = await fetchProductThemeSettings(productId);
+if (!settings?.theme_slug || settings.theme_slug === 'classic') {
+  return <ClassicProductView ... />; // code actuel, intact
+}
+return (
+  <ErrorBoundary fallback={<ClassicProductView ... />}>
+    <ThemeRenderer slug={settings.theme_slug} data={...} settings={settings} />
+  </ErrorBoundary>
+);
+```
+Aucune modification du rendu actuel : on **emballe**, on ne remplace pas.
 
-Nouvel onglet **"Apparence"** dans `ProductEditor.tsx` (n'altère pas les onglets existants), contenant :
+## Lot 4 — UX éditeur
 
-1. **Témoignages audio** — composant `ProductAudioManager.tsx`
-   - Bouton "Ajouter un témoignage audio" → input file accept audio/*
-   - Upload immédiat vers `product-audios` (avec toast d'état, taille max 8 Mo, validation MIME)
-   - Liste : aperçu `<audio controls preload="none">`, titre, nom client, description, toggle actif, drag-handle sort, supprimer, remplacer
-   - Auto-save debounced sur chaque modification
-   - Tous les messages d'erreur demandés en français
+Étendre `ProductThemePicker.tsx` :
+- Galerie avec vraies vignettes (mini-wireframes SVG montrant la structure, pas juste des pastilles de couleur).
+- Bouton **Prévisualiser** → ouvre `/shop/:slug/p/:productSlug?preview_theme=<slug>` dans un nouvel onglet (rendu réel, lecture seule).
+- Bouton **Appliquer** avec confirmation : *« Ce thème va modifier la présentation visuelle… vos textes, images, audios et informations ne seront pas supprimés. »*
+- Bouton **Revenir au design classique** (réinitialise `theme_slug = null`).
+- Personnalisation limitée : couleurs principales / CTA / sections visibles (déjà géré dans `ProductAppearancePanel`).
 
-2. **Thème** — composant `ProductThemePicker.tsx`
-   - Galerie de cartes thème avec preview_image + badge gratuit/premium
-   - Bouton "Utiliser ce thème" (gratuit appliqué direct ; premium → toast "Bientôt disponible")
-   - Bouton "Revenir au design par défaut" (supprime la ligne `product_theme_settings`)
+Nouveau dialog `NewProductChoiceDialog.tsx` (cas 2) : quand un vendeur clique « Ajouter un produit », il choisit entre **Fiche classique** ou **Démarrer depuis un thème** (le wizard pré-remplit alors les champs spécifiques au thème).
 
-3. **Personnalisation** — composant `ProductAppearancePanel.tsx`
-   - Color pickers (input type=color + champ HEX) pour fond, sections, cartes, boutons, textes, titres, bordures, badges
-   - Choix mode fond : uni / dégradé (2 couleurs) / image (upload)
-   - Fonction `ensureReadableTextColor()` (calcul luminance WCAG) : si contraste < 4.5, force texte clair/foncé et affiche un avertissement "Texte ajusté pour rester lisible"
-   - Sections : liste de toggles + drag pour réorganiser `visible_sections` / `section_order`
+## Lot 5 — Base de données
 
-4. **Prévisualisation temps réel** — réutilise `ProductLivePreview` existant + toggle device mobile/desktop ; bouton "Voir comme client" ouvre `/shop/:slug/p/:productSlug` ; bouton "Annuler" recharge les settings ; bouton "Revenir au design par défaut".
+Réutiliser les tables existantes `product_themes` + `product_theme_settings`. Ajouter via migration :
+- Colonne `product_theme_settings.preview_only` (bool) — pour la prévisualisation sans application.
+- Seed des 7 thèmes dans `product_themes` avec `layout_config` (JSON décrivant l'ordre/visibilité des sections par défaut).
 
-Mobile : onglet "Apparence" accessible depuis bottom-tabs déjà présentes, pickers full-width, sticky save bar.
+Aucun changement destructif sur les tables existantes.
 
-## Lot 4 — Rendu public (ProductView)
+## Lot 6 — Performance
 
-Dans `src/pages/ProductView.tsx` :
-- Charger `product_theme_settings` + `product_audios` en parallèle du produit
-- Wrapper racine reçoit un `style` calculé depuis settings (CSS variables `--pv-bg`, `--pv-text`, etc.) ; **si aucun settings**, rien ne change (compat ancien rendu)
-- Section "Témoignages audio de nos clients" rendue conditionnellement si audios actifs, lazy-mount, `preload="none"`, badge "Témoignage authentique"
-- Helper `applyThemePreset(slug)` retourne overrides CSS pour les 7 thèmes du seed
-- Respecte `visible_sections` / `section_order` quand présents ; fallback ordre actuel sinon
+- Lazy-load par thème (un seul bundle thème chargé par fiche publique).
+- Images : `loading="lazy"` partout sauf hero (`fetchpriority="high"`).
+- Audios : `preload="none"` (déjà fait).
+- Pas de framer-motion sur le rendu public (animations CSS only).
+- Pas de fetch supplémentaire : `product_theme_settings` est récupéré dans la même requête initiale de `ProductView`.
 
-## Lot 5 — Tests & garde-fous
+## Lot 7 — Tests manuels (Playwright)
 
-- Vérifier ouverture d'une fiche existante (sans settings ni audios) → rendu identique
-- Upload MP3/M4A/OPUS, refresh, vérifier persistence URL publique
-- Changer de thème puis revenir → contenu produit inchangé (queries seulement sur `product_theme_settings`)
-- Lighthouse mobile : pas de regression (audios `preload="none"`, images thèmes lazy)
-- Linter Supabase post-migration
+Vérifier : fiche sans thème inchangée, application de `landing-ad`, changement vers `luxury-dark`, retour classique, mobile 390px, données conservées en DB.
+
+---
 
 ## Détails techniques
 
-- Pas de breaking change sur `products` ni `product_images`
-- Toutes les nouvelles tables ont GRANT explicites dans la même migration
-- Trigger `update_updated_at_column` réutilisé
-- Bucket public mais writes scoped par RLS sur `storage.objects` (`bucket_id = 'product-audios' AND auth.uid() = owner_user`)
-- Aucune logique de paiement de thème activée maintenant ; champ `price` + `is_premium` posés pour la future marketplace
-- Admin thèmes : page founder simple `/founder/themes` (réutilise `FounderRoute`)
+- **Aucun changement** à `ProductView.tsx` dans le chemin sans thème (sécurité totale pour les fiches déjà publiées).
+- **ErrorBoundary** obligatoire autour de `ThemeRenderer` → fallback classique en cas de bug.
+- **Slugs publics inchangés** : `/shop/:slug/p/:productSlug` reste l'URL canonique.
+- **Bucket storage** : `shop-images` (déjà utilisé pour audios), pas de nouveau bucket.
+- **Premium** : flag `is_premium` respecté côté UI (toast « bientôt disponible »), aucun paiement bloquant.
+- **Admin** : pas d'UI admin dédiée dans ce lot ; les thèmes sont seedés via migration, modifiables plus tard côté DB.
 
-## Hors scope (à confirmer si tu veux les ajouter)
-
-- Marketplace payante de thèmes (UI achat / déblocage)
-- Historique des thèmes utilisés
-- Modération admin des audios uploadés
-
-Dis-moi si je lance les 5 lots ou si tu veux ajuster.
+## Hors scope (pour itérations futures)
+- UI admin de gestion des thèmes (CRUD visuel).
+- Paiement réel des thèmes premium.
+- Statistiques d'usage par thème.
+- Wizards de création guidée détaillés par thème (un wizard générique simple est fourni ; les wizards spécialisés peuvent venir ensuite).
