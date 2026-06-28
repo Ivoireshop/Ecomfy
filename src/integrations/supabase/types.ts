@@ -2845,6 +2845,55 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_installed_themes: {
+        Row: {
+          customized_settings: Json
+          id: string
+          installed_at: string
+          shop_id: string
+          theme_id: string
+          updated_at: string
+        }
+        Insert: {
+          customized_settings?: Json
+          id?: string
+          installed_at?: string
+          shop_id: string
+          theme_id: string
+          updated_at?: string
+        }
+        Update: {
+          customized_settings?: Json
+          id?: string
+          installed_at?: string
+          shop_id?: string
+          theme_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_installed_themes_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_installed_themes_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_installed_themes_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "shop_themes_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_secrets: {
         Row: {
           created_at: string
@@ -2901,6 +2950,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      shop_themes_catalog: {
+        Row: {
+          author: string | null
+          category: string
+          created_at: string
+          default_config: Json
+          description: string | null
+          id: string
+          is_active_catalog: boolean
+          is_free: boolean
+          is_new: boolean
+          is_premium: boolean
+          name: string
+          preview_desktop_url: string | null
+          preview_mobile_url: string | null
+          price: number
+          slug: string
+          sort_order: number
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          author?: string | null
+          category?: string
+          created_at?: string
+          default_config?: Json
+          description?: string | null
+          id?: string
+          is_active_catalog?: boolean
+          is_free?: boolean
+          is_new?: boolean
+          is_premium?: boolean
+          name: string
+          preview_desktop_url?: string | null
+          preview_mobile_url?: string | null
+          price?: number
+          slug: string
+          sort_order?: number
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          author?: string | null
+          category?: string
+          created_at?: string
+          default_config?: Json
+          description?: string | null
+          id?: string
+          is_active_catalog?: boolean
+          is_free?: boolean
+          is_new?: boolean
+          is_premium?: boolean
+          name?: string
+          preview_desktop_url?: string | null
+          preview_mobile_url?: string | null
+          price?: number
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
       }
       shop_translations: {
         Row: {
@@ -2983,6 +3095,7 @@ export type Database = {
       shops: {
         Row: {
           activation_fee_paid: boolean | null
+          active_shop_theme_id: string | null
           address: string | null
           ai_optimizer_enabled: boolean
           banner_url: string | null
@@ -3049,6 +3162,7 @@ export type Database = {
         }
         Insert: {
           activation_fee_paid?: boolean | null
+          active_shop_theme_id?: string | null
           address?: string | null
           ai_optimizer_enabled?: boolean
           banner_url?: string | null
@@ -3115,6 +3229,7 @@ export type Database = {
         }
         Update: {
           activation_fee_paid?: boolean | null
+          active_shop_theme_id?: string | null
           address?: string | null
           ai_optimizer_enabled?: boolean
           banner_url?: string | null
@@ -3179,7 +3294,15 @@ export type Database = {
           user_id?: string
           whatsapp_number?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shops_active_shop_theme_id_fkey"
+            columns: ["active_shop_theme_id"]
+            isOneToOne: false
+            referencedRelation: "shop_themes_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       showcase_analytics: {
         Row: {

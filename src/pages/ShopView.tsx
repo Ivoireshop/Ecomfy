@@ -23,6 +23,7 @@ import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
 import { useDeferredMount } from "@/lib/useDeferredMount";
+import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
 
 // Heavy, non-critical widgets — load only after the shop hero/products grid is
 // visible so the LCP and "Commander" button are not blocked by extra JS.
@@ -678,6 +679,28 @@ const ShopView = () => {
   const primaryColor = shop.primary_color || "#2563eb";
   const secondaryColor = shop.secondary_color || "#7c3aed";
   const themeConfig = shop.theme_config || {};
+
+  // Optional pro theme — early return when a theme is active and user did not opt-out via ?classic=1
+  const activeShopThemeSlug: string | null = themeConfig?.active_theme_slug || null;
+  const classicOptOut = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("classic") === "1";
+  if (activeShopThemeSlug && !classicOptOut) {
+    return (
+      <>
+        <Helmet>
+          <title>{shop.seo_title || shop.business_name || "Boutique"}</title>
+          <meta name="description" content={shop.business_description || `Boutique ${shop.business_name}`} />
+          <link rel="canonical" href={window.location.href} />
+        </Helmet>
+        <ShopThemeRenderer
+          themeSlug={activeShopThemeSlug}
+          shop={shop}
+          products={products}
+          customSettings={themeConfig?.custom_settings}
+        />
+      </>
+    );
+  }
+
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   const shopTitle = shop.seo_title || shop.business_name || "Boutique";

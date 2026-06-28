@@ -28,6 +28,7 @@ const ProductEditor = lazy(() => import("@/components/shop/ProductEditor").then(
 const ShopAssistantSettings = lazy(() => import("@/components/shop/ShopAssistantSettings").then(m => ({ default: m.ShopAssistantSettings })));
 const ShopStatistics = lazy(() => import("@/components/shop/ShopStatistics").then(m => ({ default: m.ShopStatistics })));
 const ShopThemeSettings = lazy(() => import("@/components/shop/ShopThemeSettings").then(m => ({ default: m.ShopThemeSettings })));
+const ShopThemesManager = lazy(() => import("@/components/shop/ShopThemesManager"));
 const BillingHistory = lazy(() => import("@/components/shop/BillingHistory").then(m => ({ default: m.BillingHistory })));
 const ReviewsModeration = lazy(() => import("@/components/shop/ReviewsModeration").then(m => ({ default: m.ReviewsModeration })));
 const ShopFinances = lazy(() => import("@/components/shop/ShopFinances").then(m => ({ default: m.ShopFinances })));
@@ -752,7 +753,7 @@ const ShopEditor = () => {
     if (r.includes("view_orders") || r.includes("manage_delivered_orders") || r.includes("edit_shop")) {
       allowed.push("orders", "abandoned", "statistics");
     }
-    if (r.includes("edit_shop")) allowed.push("products", "appearance", "theme", "ai-optimizer", "reviews");
+    if (r.includes("edit_shop")) allowed.push("products", "appearance", "theme", "shop-themes", "ai-optimizer", "reviews");
     if (r.includes("manage_expenses")) allowed.push("finances", "billing");
     return allowed;
   })();
@@ -942,6 +943,15 @@ const ShopEditor = () => {
 
           {activeSection === "theme" && (
             <ShopThemeSettings shop={shop} setShop={setShop} />
+          )}
+
+          {activeSection === "shop-themes" && (
+            <ShopThemesManager
+              shop={shop}
+              setShop={setShop}
+              products={products}
+              onCustomize={() => setActiveSection("theme")}
+            />
           )}
 
           {activeSection === "products" && (
