@@ -40,4 +40,5 @@ export interface ShopThemeMeta {
   name: string;
   category: string;
   description: string;
+  preview?: string;
 }
