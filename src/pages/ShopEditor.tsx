@@ -753,7 +753,7 @@ const ShopEditor = () => {
     if (r.includes("view_orders") || r.includes("manage_delivered_orders") || r.includes("edit_shop")) {
       allowed.push("orders", "abandoned", "statistics");
     }
-    if (r.includes("edit_shop")) allowed.push("products", "appearance", "theme", "ai-optimizer", "reviews");
+    if (r.includes("edit_shop")) allowed.push("products", "appearance", "theme", "shop-themes", "ai-optimizer", "reviews");
     if (r.includes("manage_expenses")) allowed.push("finances", "billing");
     return allowed;
   })();
