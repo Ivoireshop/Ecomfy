@@ -10,7 +10,8 @@ import {
   Smartphone, Globe2, Headphones, PlayCircle
 } from "lucide-react";
 import { useEffect, useState, lazy, Suspense } from "react";
-import { Helmet } from "react-helmet";
+import { SEO } from "@/components/seo/SEO";
+import { CredibilityBar } from "@/components/seo/CredibilityBar";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -527,9 +528,21 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Helmet>
-        <link rel="canonical" href="https://visuelpro.cloud/" />
-      </Helmet>
+      <SEO
+        title="VisualPro — Créez vos visuels, vidéos et boutiques avec l'IA"
+        description="VisualPro est la plateforme tout-en-un pour entrepreneurs africains : création de visuels publicitaires IA, vidéos animées, sites vitrines, boutiques e-commerce et formations."
+        path="/"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "VisualPro",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://visuelpro.cloud/",
+          "description": "Plateforme IA tout-en-un : visuels publicitaires, vidéos, sites vitrines, boutiques e-commerce et formations pour entrepreneurs africains.",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "XOF", "availability": "https://schema.org/InStock" }
+        }}
+      />
       <Header />
 
       {showOnboarding && session?.user && (
@@ -559,6 +572,9 @@ const Index = () => {
       ) : (
         <HeroVisualPro onStart={() => navigate("/auth")} onDiscover={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })} />
       )}
+
+      {/* ===== CREDIBILITY STATS ===== */}
+      {!session && <CredibilityBar />}
 
       {/* ===== INNOVATION BENTO ===== */}
       {!session && <InnovationBento />}

@@ -1960,6 +1960,30 @@ export type Database = {
           },
         ]
       }
+      platform_stats: {
+        Row: {
+          key: string
+          label: string
+          sort_order: number
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          key: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          key?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
       product_ai_analyses: {
         Row: {
           conversion_rate: number

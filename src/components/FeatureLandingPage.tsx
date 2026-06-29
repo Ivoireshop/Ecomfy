@@ -55,6 +55,21 @@ export function FeatureLandingPage({
     areaServed: "Africa",
   };
 
+  const path = canonical.replace(/^https?:\/\/[^/]+/, "");
+  const segLabel = path
+    .replace(/^\//, "")
+    .split("-")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Accueil", item: "https://visuelpro.cloud/" },
+      { "@type": "ListItem", position: 2, name: segLabel || title, item: canonical },
+    ],
+  };
+
   return (
     <>
       <Helmet>
@@ -65,9 +80,16 @@ export function FeatureLandingPage({
         <meta property="og:description" content={metaDescription} />
         <meta property="og:url" content={canonical} />
         <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="VisualPro" />
+        <meta property="og:image" content="https://visuelpro.cloud/og-default.jpg" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={metaTitle} />
+        <meta name="twitter:description" content={metaDescription} />
+        <meta name="twitter:image" content="https://visuelpro.cloud/og-default.jpg" />
         <meta name="robots" content="index, follow" />
         <script type="application/ld+json">{JSON.stringify(serviceLd)}</script>
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbLd)}</script>
       </Helmet>
 
       <div className="min-h-screen bg-background">

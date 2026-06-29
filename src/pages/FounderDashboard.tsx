@@ -17,7 +17,8 @@ import {
   Store,
   GraduationCap,
   Globe,
-  Bug
+  Bug,
+  Search
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import {
@@ -1323,6 +1324,14 @@ const FounderDashboard = () => {
               >
                 <TrendingUp className="h-6 w-6" />
                 <span>Générateur de Visuels</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => navigate("/founder/seo-preview")}
+              >
+                <Search className="h-6 w-6" />
+                <span>Aperçu SEO Google</span>
               </Button>
             </div>
           </CardContent>

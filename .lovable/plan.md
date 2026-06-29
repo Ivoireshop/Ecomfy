@@ -1,106 +1,132 @@
-## Système de Thèmes de Boutique (Jarbo/VisualPro)
+# Optimisation SEO, Chrome & PWA de VisualPro
 
-Ajouter un vrai module de gestion de thèmes pour la **boutique e-commerce complète** (ShopView), distinct du système actuel de thèmes par fiche produit. Inspiré de YouCan : Thème actuel → Mes thèmes installés → Galerie. Non destructif : si aucun thème actif → ShopView classique inchangée.
+Objectif : rendre VisualPro visible de manière professionnelle sur Google Search et Chrome (favicon, titres, descriptions, données structurées, PWA installable, sitemap), sans casser l'existant.
 
----
+## 1. SEO par page (react-helmet-async)
 
-### 1. Base de données (1 migration)
+Installer `react-helmet-async`, ajouter `HelmetProvider` dans `src/main.tsx`, puis ajouter sur chaque page publique un `<Helmet>` avec :
+- `<title>` unique
+- meta description unique
+- canonical auto-référent vers `https://visuelpro.cloud{path}`
+- Open Graph (og:title, og:description, og:url, og:type, og:image)
+- Twitter Card (summary_large_image)
+- un seul H1 + structure H2/H3 vérifiée
 
-**`shop_themes`** (catalogue global, lecture publique)
-- `id`, `slug` (unique), `name`, `description`, `category` (classic/fashion/beauty/tech/luxury/mobile/landing), `preview_desktop_url`, `preview_mobile_url`, `is_free`, `is_premium`, `price`, `is_new`, `version`, `default_config` (jsonb), `is_active_catalog` (admin toggle)
-- GRANT SELECT to anon/authenticated ; INSERT/UPDATE service_role seulement
-- Seed avec 7 thèmes : Classic, Fashion, Beauty, Tech, Luxury, Mobile First, Landing Conversion
+Pages couvertes :
+- `/` (Index) — "VisualPro — Créez vos visuels, vidéos et boutiques avec l'IA"
+- `/visuels-publicitaires`
+- `/videos-publicitaires`
+- `/boutiques-ecommerce`
+- `/sites-vitrines`
+- `/demo`, `/tutorial`, `/blog`
+- `/auth` (connexion/inscription)
+- `/api-documentation`, `/feedback`
+- Pages légales (priority basse)
+- Boutiques publiques `/shop/:slug` (dynamique depuis la base)
+- Fiches produit `/shop/:slug/p/:productSlug` (déjà partiellement géré par l'edge `share-product` — on garde + on enrichit le SPA)
 
-**`shop_installed_themes`** (par boutique)
-- `id`, `shop_id`, `theme_id`, `customized_settings` (jsonb), `installed_at`
-- UNIQUE (shop_id, theme_id)
-- RLS : owner du shop via has_shop_access
+Le fallback statique reste dans `index.html` pour les crawlers sans JS (LinkedIn, Slack, Facebook). Les balises canoniques sont retirées de `index.html` quand chaque route possède la sienne.
 
-**`shops.active_shop_theme_id`** (colonne nullable ajoutée à `shops`)
-- NULL = thème classique actuel (comportement actuel préservé)
-- Sinon = id du thème actif
+## 2. Favicon et icônes Chrome / Apple
 
-Aucune table existante n'est modifiée destructivement. Le système actuel `product_themes` (fiche produit) reste indépendant et intact.
+- Générer un logo carré VisualPro propre (style corporate, gradient violet/cyan déjà en charte).
+- Produire : `favicon.ico`, `favicon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` dans `public/`.
+- Mettre à jour `<head>` de `index.html` avec tous les liens icon/apple-touch-icon/mask-icon + `theme-color`.
 
----
+## 3. PWA installable (manifest seul, pas de service worker app-shell)
 
-### 2. Frontend — Page d'admin Thèmes
+Le manifest existe déjà (`public/manifest.webmanifest`). On l'améliore :
+- name complet, short_name, description marketing claire
+- `start_url: "/"`, `scope: "/"`, `display: "standalone"`
+- `theme_color: "#1a1d2e"`, `background_color: "#ffffff"`
+- icons 192/512 (any + maskable) avec les nouveaux PNG
 
-**Nouveau composant** `src/components/shop/ShopThemesManager.tsx` ajouté comme onglet "Thèmes" dans `ShopEditor.tsx` (à côté de "Apparence" existant).
+On NE crée PAS de service worker app-shell (règle PWA Lovable : manifest-only pour "installable"). Le worker Firebase Messaging déjà présent reste intact.
 
-Sections (inspirées image YouCan) :
-1. **Thème actuel** — carte large avec preview desktop+mobile, badge "Activé", bouton Personnaliser / Changer
-2. **Mes thèmes installés** — grille ou message vide "Aucun thème installé"
-3. **Tous les thèmes disponibles** — grille de cartes (preview, nom, badges Nouveau/Gratuit/Premium, boutons Prévisualiser + Installer)
+## 4. Données structurées JSON-LD
 
-**Modale Prévisualisation** `ShopThemePreviewDialog.tsx` :
-- Toggle Desktop/Mobile (iframe responsive vers `/shop/:slug?preview_theme=<slug>`)
-- Boutons : Installer ce thème / Fermer
+Ajouter via Helmet :
+- **Sitewide** (dans `index.html`) : `Organization` + `WebSite` avec SearchAction.
+- **Page d'accueil** : `SoftwareApplication` (applicationCategory: BusinessApplication, operatingSystem: Web, offers depuis FCFA). Pas d'aggregateRating tant qu'il n'y a pas d'avis réels.
+- **Pages feature** (visuels, vidéos, sites, boutiques) : `Service` ou `Product` selon le cas + `BreadcrumbList`.
+- **Fiches produit publiques** : `Product` (déjà partiellement injecté par l'edge `share-product`, on aligne le SPA).
+- **Blog** : `Article` par post.
+- **Pages FAQ existantes** (FeatureLandingPage) : `FAQPage`.
+- **Formations** : `Course` quand applicable.
 
-**Modale Personnalisation** `ShopThemeCustomizer.tsx` :
-- Couleurs primaire/secondaire/bouton, typographie, ordre/visibilité sections, texte CTA, hero
-- Sauvegarde dans `shop_installed_themes.customized_settings`
+## 5. Sitemap & robots
 
----
+Sitemap dynamique déjà en place (`supabase/functions/dynamic-sitemap`). On :
+- Met à jour `public/sitemap.xml` statique pour qu'il liste les bonnes routes actuelles (ajout `/blog`, `/api-documentation`, retrait routes obsolètes).
+- Garde `robots.txt` actuel (déjà bon) — on s'assure que les deux sitemaps (statique + dynamic edge) sont déclarés.
 
-### 3. Frontend — Rendu public (ShopView)
+## 6. Titres marketing (resserrés)
 
-**Nouvelle architecture** `src/lib/shopThemes/` :
-- `types.ts` — `ShopThemeData`, `ShopThemeProps`, `ShopThemeSlug`
-- `dataAdapter.ts` — transforme shop + products → `ShopThemeData`
-- `registry.ts` — map slug → composant lazy
-- `ShopThemeRenderer.tsx` — wrapper avec Suspense + ErrorBoundary (fallback = ShopView classique)
-- `themes/` — 7 implémentations :
-  - `classic-shop.tsx` (reproduit le rendu actuel, sécurité)
-  - `fashion-shop.tsx`, `beauty-shop.tsx`, `tech-shop.tsx`
-  - `luxury-shop.tsx`, `mobile-first-shop.tsx`, `landing-shop.tsx`
-- `ShopThemeShared.tsx` — blocs réutilisables (Header, Footer, ProductCard, Hero, CTA, WhatsAppBtn)
+Ré-écriture des titres de chaque page selon la liste demandée (courts, < 60 car, format `Sujet — VisualPro`).
 
-**Intégration dans `ShopView.tsx`** :
-```tsx
-// tout en haut du return, avant le rendu classique
-if (shop.active_shop_theme_id && !searchParams.get("classic")) {
-  return <ShopThemeRenderer shop={shop} products={products} themeId={...} />;
-}
-// sinon : rendu actuel inchangé
+## 7. Module "SEO Preview" pour le fondateur
+
+Nouvelle page `/founder/seo-preview` (accessible via FounderRoute) :
+- Liste des pages publiques principales avec, pour chacune :
+  - aperçu desktop (favicon + url + title + description, façon Google SERP)
+  - aperçu mobile (carte compacte)
+  - badges : `TITLE OPTIMIZED`, `DESCRIPTION OK`, `FAVICON OK`, `SCHEMA OK`, `INDEXABLE`
+- Bouton "Re-soumettre le sitemap à Google" qui appelle l'edge `seo-auto-index` existant.
+
+Lecture seule (pas d'édition de title/description ici — ils sont versionnés dans le code).
+
+## 8. Chiffres de crédibilité éditables
+
+- Nouvelle table `public.platform_stats` : `key text PK`, `value int`, `label text`, `updated_at`.
+- Seed des 4 valeurs demandées (979 visuels, 120 boutiques, 350 entrepreneurs, 45 vidéos).
+- Lecture publique (anon `SELECT`) ; écriture réservée au rôle `founder` via `has_role`.
+- Composant `<CredibilityBar />` sur la page d'accueil qui lit la table avec un fallback (les valeurs seed) pour éviter tout flash vide.
+- Édition depuis `FounderDashboard` (mini formulaire 4 champs).
+
+## 9. Performance pages publiques
+
+- `loading="lazy"` + `decoding="async"` sur toutes les images non-hero.
+- `fetchpriority="high"` sur le hero d'`/`.
+- Vérifier que les pages publiques ne sont pas derrière `ProtectedRoute`.
+- Pas de gros refactor perf : on respecte "ne pas casser l'existant".
+
+## 10. Garde-fous
+
+- Aucun changement de logique business.
+- Aucun service worker app-shell ajouté.
+- Auto-gen Supabase, `client.ts`, `types.ts` jamais touchés.
+- Les edge functions existantes (`share-product`, `dynamic-sitemap`, `seo-auto-index`) restent et sont réutilisées.
+
+## Détails techniques
+
+```text
+src/
+  main.tsx                       + HelmetProvider
+  components/seo/
+    SEO.tsx                      composant Helmet réutilisable
+    JsonLd.tsx                   helper JSON-LD typé
+    CredibilityBar.tsx
+  pages/
+    Index.tsx                    + <SEO> + SoftwareApplication JSON-LD + CredibilityBar
+    VisuelsPublicitaires.tsx     + <SEO> + Service + BreadcrumbList
+    VideosPublicitaires.tsx      idem
+    BoutiquesEcommerce.tsx       idem
+    SitesVitrines.tsx            idem
+    Auth.tsx                     + <SEO>
+    Blog.tsx                     + <SEO> + Article par post
+    ApiDocumentation.tsx         + <SEO>
+    founder/SeoPreview.tsx       nouveau (route /founder/seo-preview)
+  App.tsx                        + route SeoPreview (FounderRoute)
+public/
+  favicon.ico, favicon.svg, icon-192.png, icon-512.png, apple-touch-icon.png
+  manifest.webmanifest           amélioré
+  sitemap.xml                    rafraîchi
+index.html                       icônes, OG/Twitter par défaut, JSON-LD Organization+WebSite
+supabase/migrations/             table platform_stats + RLS + GRANT + seed
 ```
 
-Le paramètre `?classic=1` force le rendu classique (fallback de sécurité + utilisé par les CTAs de checkout pour ne jamais casser le tunnel de commande existant).
+Pas de nouveau secret, pas de nouvelle dépendance hors `react-helmet-async`.
 
----
+## Livraison
 
-### 4. Garanties de non-régression
-
-- Aucune table existante modifiée à part `shops.active_shop_theme_id` (nullable, défaut NULL)
-- Boutiques existantes : `active_shop_theme_id = NULL` → comportement actuel 100% identique
-- Fiches produits : système `product_themes` actuel inchangé, indépendant
-- ErrorBoundary autour de chaque thème → si crash → ShopView classique
-- Lazy loading : un seul thème chargé sur la boutique publique
-- Lien checkout/order toujours via `?classic=1`
-
----
-
-### 5. Performance
-
-- Preview images = CDN Lovable Assets (générées une fois)
-- Themes lazy-loaded (un seul code-split chargé côté public)
-- Cache shop déjà en place (`shopCache.ts`) réutilisé
-- Aucun chargement de catalogue de thèmes sur la boutique publique (uniquement dans l'admin)
-
----
-
-### 6. Mobile
-
-ShopThemesManager : grille `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`, boutons tactiles `min-h-[44px]`. Prévisualisation modale plein écran sur mobile avec toggle device.
-
----
-
-### Plus tard (préparé mais non livré)
-- Marketplace premium (champ `price` + `is_premium` déjà présent)
-- Interface admin fondateur (route séparée `/founder/themes`)
-- Upload custom themes
-
----
-
-### Livré ce sprint
-1 migration + 1 onglet Thèmes dans ShopEditor + 7 thèmes publics + renderer non destructif + preview + install + activate + customize basique.
+Implémentation en une passe, en commençant par : dépendance + HelmetProvider + composant SEO, puis migrations, puis pages, puis assets, puis module Founder.
