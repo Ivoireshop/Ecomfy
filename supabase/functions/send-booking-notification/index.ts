@@ -40,6 +40,27 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { showcaseSiteId, bookingDetails }: BookingNotificationRequest = await req.json();
 
+    // Basic input validation
+    if (!showcaseSiteId || typeof showcaseSiteId !== "string" || showcaseSiteId.length > 100) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid request" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const bd = bookingDetails || ({} as any);
+    const tooLong = (s: unknown, n: number) => typeof s === "string" && s.length > n;
+    if (
+      tooLong(bd.full_name, 200) || tooLong(bd.email, 255) || tooLong(bd.phone, 50) ||
+      tooLong(bd.service_type, 100) || tooLong(bd.service_name, 200) ||
+      tooLong(bd.booking_date, 50) || tooLong(bd.booking_time, 50) ||
+      tooLong(bd.message, 2000)
+    ) {
+      return new Response(JSON.stringify({ success: false, error: "Payload too large" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const esc = (s: unknown) =>
       String(s ?? "")
         .replace(/&/g, "&amp;")
@@ -55,6 +76,23 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Rate limit: 5 booking notifications / 10 min per IP+site
+    const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
+    try {
+      const { data: rl } = await supabase.rpc("check_rate_limit", {
+        _bucket: "booking-notification",
+        _key: `${ip}:${showcaseSiteId}`,
+        _max: 5,
+        _window_seconds: 600,
+      });
+      if (rl && (rl as any).allowed === false) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Trop de requêtes, réessayez plus tard." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (_) { /* fail-open on RL infra error */ }
 
     // Récupérer les informations du site vitrine et du propriétaire
     const { data: site, error: siteError } = await supabase
