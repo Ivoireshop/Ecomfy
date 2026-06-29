@@ -160,26 +160,25 @@ const ShopView = () => {
         }));
         const itemsCount = cart.reduce((s, i) => s + i.quantity, 0);
         const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
-        await (supabase as any).from("abandoned_carts").upsert({
-          shop_id: shop.id,
-          session_id: sessionIdRef.current,
-          customer_name: customerInfo.name || null,
-          customer_phone: customerInfo.phone ? (normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone) : null,
-          customer_email: customerInfo.email || null,
-          customer_city: customerInfo.city || null,
-          customer_address: customerInfo.address || null,
-          customer_country: (() => {
-            if (!customerInfo.phone) return null;
-            const n = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
-            return parseFullPhone(n).country?.name || null;
-          })(),
-          payment_method: customerInfo.paymentMethod || null,
-          items,
-          items_count: itemsCount,
-          total,
-          converted: false,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "shop_id,session_id" });
+        const _country = (() => {
+          if (!customerInfo.phone) return null;
+          const n = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
+          return parseFullPhone(n).country?.name || null;
+        })();
+        await (supabase as any).rpc("upsert_abandoned_cart", {
+          _shop_id: shop.id,
+          _session_id: sessionIdRef.current,
+          _customer_name: customerInfo.name || null,
+          _customer_phone: customerInfo.phone ? (normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone) : null,
+          _customer_email: customerInfo.email || null,
+          _customer_city: customerInfo.city || null,
+          _customer_address: customerInfo.address || null,
+          _customer_country: _country,
+          _payment_method: customerInfo.paymentMethod || null,
+          _items: items,
+          _items_count: itemsCount,
+          _total: total,
+        });
         abandonedSavedRef.current = true;
       } catch (_) { /* silent */ }
     }, 1200);
@@ -568,10 +567,10 @@ const ShopView = () => {
       // Mark abandoned cart as converted (if any was tracked)
       if (sessionIdRef.current && shop?.id) {
         try {
-          await (supabase as any).from("abandoned_carts")
-            .update({ converted: true })
-            .eq("shop_id", shop.id)
-            .eq("session_id", sessionIdRef.current);
+          await (supabase as any).rpc("mark_abandoned_cart_converted", {
+            _shop_id: shop.id,
+            _session_id: sessionIdRef.current,
+          });
         } catch (_) {}
       }
       trackEvent(shop, "Purchase", {

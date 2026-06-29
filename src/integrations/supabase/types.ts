@@ -4732,6 +4732,10 @@ export type Database = {
         Returns: boolean
       }
       is_shop_publicly_visible: { Args: { _shop_id: string }; Returns: boolean }
+      mark_abandoned_cart_converted: {
+        Args: { _session_id: string; _shop_id: string }
+        Returns: undefined
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -4804,6 +4808,23 @@ export type Database = {
       slugify: { Args: { _value: string }; Returns: string }
       strip_base64_images: { Args: { _input: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
+      upsert_abandoned_cart: {
+        Args: {
+          _customer_address: string
+          _customer_city: string
+          _customer_country: string
+          _customer_email: string
+          _customer_name: string
+          _customer_phone: string
+          _items: Json
+          _items_count: number
+          _payment_method: string
+          _session_id: string
+          _shop_id: string
+          _total: number
+        }
+        Returns: string
+      }
       validate_promo_code: {
         Args: { promo_code: string }
         Returns: {

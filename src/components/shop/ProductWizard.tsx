@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -274,7 +275,15 @@ export function ProductWizard({
             {product.description && (
               <div className="mt-2 p-3 rounded-md bg-muted/40 max-h-48 overflow-y-auto text-sm">
                 <p className="text-xs font-semibold text-muted-foreground mb-1">Aperçu généré :</p>
-                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: product.description }} />
+                <div
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(product.description, {
+                      ALLOWED_TAGS: ['p','br','strong','em','ul','ol','li','h1','h2','h3','h4','span','div','a'],
+                      ALLOWED_ATTR: ['class','style','href','target','rel'],
+                    }),
+                  }}
+                />
               </div>
             )}
             <p className="text-xs text-muted-foreground">Vous pouvez passer cette étape et écrire votre description manuellement plus tard.</p>
