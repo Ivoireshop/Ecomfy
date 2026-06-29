@@ -49,10 +49,16 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://visuelpro.cloud/auth</loc>
-    <lastmod>2026-05-14</lastmod>
+    <loc>https://visuelpro.cloud/auth?tab=signup</loc>
+    <lastmod>2026-06-29</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://visuelpro.cloud/auth</loc>
+    <lastmod>2026-06-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://visuelpro.cloud/feedback</loc>
