@@ -573,6 +573,9 @@ const Index = () => {
         <HeroVisualPro onStart={() => navigate("/auth")} onDiscover={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })} />
       )}
 
+      {/* ===== CREDIBILITY STATS ===== */}
+      {!session && <CredibilityBar />}
+
       {/* ===== INNOVATION BENTO ===== */}
       {!session && <InnovationBento />}
 
