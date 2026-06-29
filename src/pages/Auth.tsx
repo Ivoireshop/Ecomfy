@@ -14,6 +14,7 @@ import { Session } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import authHeroV5 from "@/assets/auth-hero-v5.jpg";
+import { SEO } from "@/components/seo/SEO";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -338,6 +339,13 @@ const Auth = () => {
   };
 
   return (
+    <>
+    <SEO
+      title="Connexion & Inscription — VisualPro"
+      description="Connectez-vous à VisualPro ou créez votre compte gratuit pour générer vos visuels, vidéos et lancer votre boutique e-commerce IA."
+      path="/auth"
+      noIndex={false}
+    />
     <div className="relative min-h-svh overflow-x-hidden bg-background md:grid md:min-h-screen md:grid-cols-2">
       <div className="absolute inset-0 hidden md:block">
         <img
