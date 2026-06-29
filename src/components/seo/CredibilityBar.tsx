@@ -25,7 +25,7 @@ export function CredibilityBar() {
         .from("platform_stats" as any)
         .select("key,value,label,sort_order")
         .order("sort_order", { ascending: true });
-      if (alive && Array.isArray(data) && data.length) setStats(data as Stat[]);
+      if (alive && Array.isArray(data) && data.length) setStats(data as unknown as Stat[]);
     })();
     return () => {
       alive = false;
