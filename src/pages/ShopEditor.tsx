@@ -805,6 +805,17 @@ const ShopEditor = () => {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 mt-[52px] md:mt-0 pb-24 md:pb-0">
+        {/* Payment status: countdown banner + locking gate */}
+        {(() => {
+          const info = computeShopPaymentInfo(shop);
+          return (
+            <>
+              {info.status === "payment_pending" && (
+                <ShopPaymentCountdown shopId={shop.id} info={info} />
+              )}
+            </>
+          );
+        })()}
         {/* Billing balance banner — masquée pour les abonnés actifs */}
         {(() => {
           const sub = (shop as any).subscription_active_until;
