@@ -122,8 +122,8 @@ export function VideoGenerator({
           .from("generated-images")
           .upload(path, img.file, { contentType: img.file.type });
         if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("generated-images").getPublicUrl(path);
-        imageUrls.push(urlData.publicUrl);
+        const { signGeneratedImagePath } = await import("@/lib/generatedImageUrl");
+        imageUrls.push(await signGeneratedImagePath(path));
       }
 
       setProgress({ step: "generating", percentage: 10 });
