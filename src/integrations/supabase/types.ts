@@ -4617,6 +4617,10 @@ export type Database = {
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enforce_shop_payment_state: { Args: never; Returns: Json }
+      enforce_shop_payment_state_for: {
+        Args: { _shop_id: string }
+        Returns: Json
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
