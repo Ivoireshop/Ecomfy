@@ -305,6 +305,35 @@ serve(async (req) => {
           console.error("apply_commission_payment failed:", commissionError);
         } else {
           console.log(`Commission paid ${amountPaid} for shop ${shopId}`, commissionResult);
+          // Best-effort unlock confirmation email
+          try {
+            const { data: shopRow } = await supabase
+              .from("shops")
+              .select("business_name, slug, shop_payment_status, commission_balance_due")
+              .eq("id", shopId)
+              .maybeSingle();
+            const { data: profileRow } = await supabase
+              .from("profiles").select("email").eq("id", userId).maybeSingle();
+            if (profileRow?.email) {
+              const unlocked = !shopRow || shopRow.shop_payment_status === "active" || Number(shopRow.commission_balance_due || 0) <= 0;
+              const shopUrl = shopRow?.slug ? `https://visuelpro.cloud/shop/${shopRow.slug}` : undefined;
+              await supabase.functions.invoke("send-transactional-email", {
+                body: {
+                  templateName: "commission-payment",
+                  recipientEmail: profileRow.email,
+                  idempotencyKey: `commission-payment-${reference || shopId}-${Math.round(amountPaid)}`,
+                  templateData: {
+                    shopName: shopRow?.business_name || "votre boutique",
+                    amount: amountPaid,
+                    shopUrl,
+                    unlocked,
+                  },
+                },
+              });
+            }
+          } catch (e) {
+            console.warn("commission-payment email failed:", e);
+          }
         }
       } else {
         console.warn("commission_payment without shop_id metadata", { reference });
