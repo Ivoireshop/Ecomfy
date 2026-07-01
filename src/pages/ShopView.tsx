@@ -131,6 +131,8 @@ const ShopView = () => {
   // Abandoned cart tracking: stable session id per shop, kept in localStorage
   const sessionIdRef = useRef<string>("");
   const abandonedSavedRef = useRef<boolean>(false);
+  // Prevent duplicate order submissions from double-tap / double-click.
+  const submittingOrderRef = useRef(false);
   useEffect(() => {
     if (!shop?.id) return;
     const key = `vp_abandon_session_${shop.id}`;
@@ -509,6 +511,7 @@ const ShopView = () => {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const placeOrder = async () => {
+    if (submittingOrderRef.current) return;
     if (!shop || !customerInfo.name || !customerInfo.phone || cart.length === 0) {
       toast({ title: "Erreur", description: "Remplissez tous les champs obligatoires", variant: "destructive" });
       return;
@@ -525,6 +528,7 @@ const ShopView = () => {
       toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
       return;
     }
+    submittingOrderRef.current = true;
     setOrderLoading(true);
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
