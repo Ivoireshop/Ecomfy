@@ -21,7 +21,6 @@ import { ShopSettings } from "@/components/shop/ShopSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
-import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
