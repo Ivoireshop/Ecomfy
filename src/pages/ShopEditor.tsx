@@ -21,7 +21,6 @@ import { ShopSettings } from "@/components/shop/ShopSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
-import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
@@ -213,7 +212,21 @@ const ShopEditor = () => {
         toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Realtime shop status — auto-unlock after payment confirmation
+    const shopChannel = supabase.channel(`shop-status-${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "shops", filter: `id=eq.${id}` }, (payload) => {
+        const next: any = payload.new;
+        setShop((prev: any) => {
+          const wasLocked = prev && (prev.is_suspended || ["locked","final_suspension","payment_pending"].includes(prev.shop_payment_status));
+          const nowActive = next && next.shop_payment_status === "active" && !next.is_suspended;
+          if (wasLocked && nowActive) {
+            toast({ title: "✅ Boutique déverrouillée", description: "Paiement confirmé. Accès complet aux commandes restauré." });
+          }
+          return { ...prev, ...next };
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); supabase.removeChannel(shopChannel); };
   }, [id]);
 
   // Refresh orders when the tab becomes visible or window regains focus
@@ -805,16 +818,11 @@ const ShopEditor = () => {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 mt-[52px] md:mt-0 pb-24 md:pb-0">
-        {/* Payment status: countdown banner + locking gate */}
+        {/* Payment status: countdown / lock banner (owner side only — public shop reste actif) */}
         {(() => {
           const info = computeShopPaymentInfo(shop);
-          return (
-            <>
-              {info.status === "payment_pending" && (
-                <ShopPaymentCountdown shopId={shop.id} info={info} />
-              )}
-            </>
-          );
+          if (info.status === "active") return null;
+          return <ShopPaymentCountdown shopId={shop.id} info={info} />;
         })()}
         {/* Billing balance banner — masquée pour les abonnés actifs */}
         {(() => {
@@ -944,8 +952,9 @@ const ShopEditor = () => {
           </div>
         )}
 
-        {/* Page Content */}
-        <ShopPaymentGate shopId={shop.id} info={computeShopPaymentInfo(shop)}>
+        {/* Page Content — la boutique publique reste toujours accessible aux clients.
+            Le verrouillage propriétaire s'applique uniquement aux sections sensibles
+            (commandes / paniers abandonnés / informations clients). */}
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
@@ -996,15 +1005,21 @@ const ShopEditor = () => {
             />
           )}
 
-          {activeSection === "orders" && (
-            shop?.is_suspended
-              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} />
-              : <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />
-          )}
+          {activeSection === "orders" && (() => {
+            const info = computeShopPaymentInfo(shop);
+            const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
+            return ownerLocked
+              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+              : <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />;
+          })()}
 
-          {activeSection === "abandoned" && shop?.id && (
-            <AbandonedCartsList shopId={shop.id} />
-          )}
+          {activeSection === "abandoned" && shop?.id && (() => {
+            const info = computeShopPaymentInfo(shop);
+            const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
+            return ownerLocked
+              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+              : <AbandonedCartsList shopId={shop.id} />;
+          })()}
 
           {activeSection === "appearance" && (
             <div className="space-y-6 max-w-2xl">
@@ -1127,7 +1142,6 @@ const ShopEditor = () => {
           )}
           </Suspense>
         </div>
-        </ShopPaymentGate>
       </main>
     </div>
   );
