@@ -36,12 +36,9 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
   const submit = async () => {
     if (!provider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
     if (provider !== "wave" && !phone) { toast({ title: "Entrez votre numéro", variant: "destructive" }); return; }
-    if (!amount || amount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
-    if (amount > balanceDue) { toast({ title: "Montant trop élevé", description: `Solde dû : ${fmt(balanceDue)} FCFA`, variant: "destructive" }); return; }
-    if (fullOnly && amount < Math.round(balanceDue)) {
-      toast({ title: "Paiement complet requis", description: `Votre boutique est verrouillée. Vous devez payer la totalité : ${fmt(balanceDue)} FCFA.`, variant: "destructive" });
-      return;
-    }
+    const chargeAmount = fullOnly ? Math.round(balanceDue) : amount;
+    if (!chargeAmount || chargeAmount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
+    if (chargeAmount > balanceDue) { toast({ title: "Montant trop élevé", description: `Solde dû : ${fmt(balanceDue)} FCFA`, variant: "destructive" }); return; }
 
     setLoading(true);
     const win = openPaymentWindow();
@@ -50,7 +47,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
       if (!session) throw new Error("Non connecté");
       const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
-          amount,
+          amount: chargeAmount,
           payment_method: "mobile_money",
           user_id: session.user.id,
           provider,
