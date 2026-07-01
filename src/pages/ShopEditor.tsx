@@ -945,6 +945,7 @@ const ShopEditor = () => {
         )}
 
         {/* Page Content */}
+        <ShopPaymentGate shopId={shop.id} info={computeShopPaymentInfo(shop)}>
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
@@ -1126,6 +1127,7 @@ const ShopEditor = () => {
           )}
           </Suspense>
         </div>
+        </ShopPaymentGate>
       </main>
     </div>
   );
