@@ -1333,6 +1333,14 @@ const FounderDashboard = () => {
                 <Search className="h-6 w-6" />
                 <span>Aperçu SEO Google</span>
               </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => navigate("/founder/shop-payment-control")}
+              >
+                <Bug className="h-6 w-6" />
+                <span>Contrôle Paiement Boutiques</span>
+              </Button>
             </div>
           </CardContent>
         </Card>

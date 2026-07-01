@@ -43,7 +43,7 @@ export default function ShopPaymentControl() {
 
   const reset = async (shopId: string) => {
     setBusyId(shopId);
-    const { error } = await supabase.rpc("founder_reset_shop_payment", { p_shop_id: shopId });
+    const { error } = await supabase.rpc("founder_reset_shop_payment", { _shop_id: shopId, _reason: "Admin reset" });
     setBusyId(null);
     if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
     toast({ title: "Boutique réactivée" });

@@ -246,6 +246,14 @@ const AppContent = () => {
               </FounderRoute>
             }
           />
+          <Route
+            path="/founder/shop-payment-control"
+            element={
+              <FounderRoute>
+                <ShopPaymentControl />
+              </FounderRoute>
+            }
+          />
           <Route 
             path="/referral" 
             element={
