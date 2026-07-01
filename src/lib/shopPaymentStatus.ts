@@ -57,12 +57,13 @@ export function computeShopPaymentInfo(shop: any): ShopPaymentInfo {
 }
 
 export function formatRemaining(ms: number): string {
-  if (ms <= 0) return "0j 00h 00min";
+  if (ms <= 0) return "0j 00h 00min 00s";
   const total = Math.floor(ms / 1000);
   const d = Math.floor(total / 86400);
   const h = Math.floor((total % 86400) / 3600);
   const m = Math.floor((total % 3600) / 60);
-  return `${d}j ${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}min`;
+  const s = total % 60;
+  return `${d}j ${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`;
 }
 
 export function useShopPaymentStatus(shopId: string | null | undefined): ShopPaymentInfo | null {
@@ -71,6 +72,7 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
   useEffect(() => {
     if (!shopId) return;
     let mounted = true;
+    let enforcing = false;
 
     const load = async () => {
       const { data } = await supabase
@@ -84,6 +86,24 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
     };
     void load();
 
+    const maybeEnforce = async (current: ShopPaymentInfo | null) => {
+      if (!current || enforcing) return;
+      const dl = current.deadline ? new Date(current.deadline).getTime() : 0;
+      const shouldEscalate =
+        (current.status === "payment_pending" || current.status === "locked") &&
+        dl > 0 &&
+        dl <= Date.now();
+      if (!shouldEscalate) return;
+      enforcing = true;
+      try {
+        // @ts-ignore - RPC added via migration
+        await supabase.rpc("enforce_shop_payment_state_for", { _shop_id: shopId });
+        await load();
+      } finally {
+        enforcing = false;
+      }
+    };
+
     const channel = supabase
       .channel(`shop_payment_status_${shopId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "shops", filter: `id=eq.${shopId}` }, (payload) => {
@@ -92,12 +112,33 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
       .subscribe();
 
     const tick = window.setInterval(() => {
-      setInfo((prev) => (prev ? { ...prev, remainingMs: prev.deadline ? Math.max(0, new Date(prev.deadline).getTime() - Date.now()) : 0 } : prev));
-    }, 30000);
+      setInfo((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, remainingMs: prev.deadline ? Math.max(0, new Date(prev.deadline).getTime() - Date.now()) : 0 };
+        if (next.remainingMs === 0) void maybeEnforce(next);
+        return next;
+      });
+    }, 1000);
+
+    // Enforce right away on mount in case we arrive past the deadline
+    const initialEnforce = window.setTimeout(async () => {
+      const { data } = await supabase
+        .from("shops")
+        .select(
+          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline",
+        )
+        .eq("id", shopId)
+        .maybeSingle();
+      if (!mounted || !data) return;
+      const computed = computeShopPaymentInfo(data);
+      setInfo(computed);
+      void maybeEnforce(computed);
+    }, 300);
 
     return () => {
       mounted = false;
       window.clearInterval(tick);
+      window.clearTimeout(initialEnforce);
       supabase.removeChannel(channel);
     };
   }, [shopId]);

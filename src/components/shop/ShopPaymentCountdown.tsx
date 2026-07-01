@@ -16,7 +16,7 @@ export function ShopPaymentCountdown({ shopId, info }: Props) {
   const [payOpen, setPayOpen] = useState(false);
 
   useEffect(() => {
-    const i = window.setInterval(() => setNow(Date.now()), 1000 * 30);
+    const i = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(i);
   }, []);
 

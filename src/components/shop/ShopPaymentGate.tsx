@@ -18,7 +18,7 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
 
   useEffect(() => {
     if (info.status !== "locked" && info.status !== "final_suspension") return;
-    const i = window.setInterval(() => setNow(Date.now()), 1000 * 30);
+    const i = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(i);
   }, [info.status]);
 
