@@ -1158,6 +1158,9 @@ const ShopEditor = () => {
           )}
           </Suspense>
         </div>
+            </>
+          );
+        })()}
       </main>
     </div>
   );
