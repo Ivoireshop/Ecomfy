@@ -939,8 +939,9 @@ const ShopEditor = () => {
           </div>
         )}
 
-        {/* Page Content */}
-        <ShopPaymentGate shopId={shop.id} info={computeShopPaymentInfo(shop)}>
+        {/* Page Content — la boutique publique reste toujours accessible aux clients.
+            Le verrouillage propriétaire s'applique uniquement aux sections sensibles
+            (commandes / paniers abandonnés / informations clients). */}
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
@@ -991,15 +992,21 @@ const ShopEditor = () => {
             />
           )}
 
-          {activeSection === "orders" && (
-            shop?.is_suspended
-              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} />
-              : <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />
-          )}
+          {activeSection === "orders" && (() => {
+            const info = computeShopPaymentInfo(shop);
+            const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
+            return ownerLocked
+              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+              : <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />;
+          })()}
 
-          {activeSection === "abandoned" && shop?.id && (
-            <AbandonedCartsList shopId={shop.id} />
-          )}
+          {activeSection === "abandoned" && shop?.id && (() => {
+            const info = computeShopPaymentInfo(shop);
+            const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
+            return ownerLocked
+              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+              : <AbandonedCartsList shopId={shop.id} />;
+          })()}
 
           {activeSection === "appearance" && (
             <div className="space-y-6 max-w-2xl">
@@ -1122,7 +1129,6 @@ const ShopEditor = () => {
           )}
           </Suspense>
         </div>
-        </ShopPaymentGate>
       </main>
     </div>
   );
