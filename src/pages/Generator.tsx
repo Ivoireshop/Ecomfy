@@ -620,12 +620,9 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
         if (uploadError) throw uploadError;
 
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from("generated-images")
-          .getPublicUrl(uploadData.path);
-
-        const finalImageUrl = urlData.publicUrl;
+        // Signed URL (bucket is private, scoped to owner)
+        const { signGeneratedImagePath } = await import("@/lib/generatedImageUrl");
+        const finalImageUrl = await signGeneratedImagePath(uploadData.path);
         
         // Save to database
         await supabase.from("generated_images").insert({

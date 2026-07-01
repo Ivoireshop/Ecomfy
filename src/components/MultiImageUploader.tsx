@@ -6,6 +6,7 @@ import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
+import { signGeneratedImagePath } from "@/lib/generatedImageUrl";
 
 interface MultiImageUploaderProps {
   onImagesUploaded: (imageUrls: string[]) => void;
@@ -65,11 +66,7 @@ export function MultiImageUploader({
 
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
-          .from("generated-images")
-          .getPublicUrl(filePath);
-
-        return urlData.publicUrl;
+        return await signGeneratedImagePath(filePath);
       });
 
       const newImageUrls = await Promise.all(uploadPromises);

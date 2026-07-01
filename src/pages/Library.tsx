@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ImageTextEditor } from "@/components/ImageTextEditor";
+import { signGeneratedImageUrl } from "@/lib/generatedImageUrl";
 
 interface ImageFormat {
   id: string;
@@ -91,7 +92,21 @@ const Library = () => {
         ...img,
         formats: formatsMap[img.id] || [],
       }));
-      setImages(imagesWithFormats);
+      // Re-sign URLs from the now-private `generated-images` bucket so the
+      // owner can still view historical rows that were saved as public URLs.
+      const signedImages = await Promise.all(
+        imagesWithFormats.map(async (img) => ({
+          ...img,
+          image_url: await signGeneratedImageUrl(img.image_url),
+          formats: await Promise.all(
+            (img.formats || []).map(async (f) => ({
+              ...f,
+              image_url: await signGeneratedImageUrl(f.image_url),
+            })),
+          ),
+        })),
+      );
+      setImages(signedImages);
 
       // Load videos
       const { data: videosData, error: videosError } = await supabase
@@ -102,7 +117,13 @@ const Library = () => {
         .limit(100);
 
       if (videosError) throw videosError;
-      setVideos(videosData || []);
+      const signedVideos = await Promise.all(
+        (videosData || []).map(async (v) => ({
+          ...v,
+          video_url: await signGeneratedImageUrl(v.video_url),
+        })),
+      );
+      setVideos(signedVideos);
     } catch (error) {
       console.error("Error loading library:", error);
       toast({
