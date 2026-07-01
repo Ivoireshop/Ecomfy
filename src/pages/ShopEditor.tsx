@@ -212,7 +212,21 @@ const ShopEditor = () => {
         toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Realtime shop status — auto-unlock after payment confirmation
+    const shopChannel = supabase.channel(`shop-status-${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "shops", filter: `id=eq.${id}` }, (payload) => {
+        const next: any = payload.new;
+        setShop((prev: any) => {
+          const wasLocked = prev && (prev.is_suspended || ["locked","final_suspension","payment_pending"].includes(prev.shop_payment_status));
+          const nowActive = next && next.shop_payment_status === "active" && !next.is_suspended;
+          if (wasLocked && nowActive) {
+            toast({ title: "✅ Boutique déverrouillée", description: "Paiement confirmé. Accès complet aux commandes restauré." });
+          }
+          return { ...prev, ...next };
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); supabase.removeChannel(shopChannel); };
   }, [id]);
 
   // Refresh orders when the tab becomes visible or window regains focus
