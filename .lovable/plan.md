@@ -1,132 +1,82 @@
-# Optimisation SEO, Chrome & PWA de VisualPro
 
-Objectif : rendre VisualPro visible de manière professionnelle sur Google Search et Chrome (favicon, titres, descriptions, données structurées, PWA installable, sitemap), sans casser l'existant.
+# Système de contrôle de paiement progressif des boutiques
 
-## 1. SEO par page (react-helmet-async)
+Ajout non destructif au module e-commerce actuel. Le système existant utilise déjà `commission_balance_due`, `commission_threshold` (12 000 FCFA), `payment_deadline`, `is_suspended` et `received_during_lock`. On étend cette base au lieu de créer une table parallèle.
 
-Installer `react-helmet-async`, ajouter `HelmetProvider` dans `src/main.tsx`, puis ajouter sur chaque page publique un `<Helmet>` avec :
-- `<title>` unique
-- meta description unique
-- canonical auto-référent vers `https://visuelpro.cloud{path}`
-- Open Graph (og:title, og:description, og:url, og:type, og:image)
-- Twitter Card (summary_large_image)
-- un seul H1 + structure H2/H3 vérifiée
+## 1. Base de données (migration unique)
 
-Pages couvertes :
-- `/` (Index) — "VisualPro — Créez vos visuels, vidéos et boutiques avec l'IA"
-- `/visuels-publicitaires`
-- `/videos-publicitaires`
-- `/boutiques-ecommerce`
-- `/sites-vitrines`
-- `/demo`, `/tutorial`, `/blog`
-- `/auth` (connexion/inscription)
-- `/api-documentation`, `/feedback`
-- Pages légales (priority basse)
-- Boutiques publiques `/shop/:slug` (dynamique depuis la base)
-- Fiches produit `/shop/:slug/p/:productSlug` (déjà partiellement géré par l'edge `share-product` — on garde + on enrichit le SPA)
+Étendre `public.shops` avec :
+- `shop_payment_status` text : `active | payment_pending | locked | final_suspension`
+- `threshold_reached_at` timestamptz
+- `first_deadline_at` timestamptz (= threshold_reached_at + 3 jours)
+- `locked_at` timestamptz
+- `second_deadline_at` timestamptz (= locked_at + 3 jours)
+- `final_suspension_at` timestamptz
 
-Le fallback statique reste dans `index.html` pour les crawlers sans JS (LinkedIn, Slack, Facebook). Les balises canoniques sont retirées de `index.html` quand chaque route possède la sienne.
+Créer table `public.shop_payment_events` (audit léger) :
+- shop_id, event_type (`threshold_reached | payment_partial_50 | payment_partial_75 | paid_full | locked | final_suspension | reactivated | manual_override`), amount, note, created_by, created_at
+- RLS : owner SELECT, founder ALL, service_role ALL. GRANT explicites.
 
-## 2. Favicon et icônes Chrome / Apple
+Mise à jour des fonctions existantes :
+- `sync_shop_order_stats` : quand le seuil est franchi, écrit `threshold_reached_at`, `first_deadline_at`, `shop_payment_status='payment_pending'`, insert event.
+- `apply_commission_payment` : après application, recalcule le statut :
+  - `>= 100%` (balance = 0) → `active`, reset tous les timestamps, `is_suspended=false`, révèle `received_during_lock`.
+  - `>= 75%` ou `>= 50%` du montant dû initial → prolonge `first_deadline_at` de 3 jours, statut `payment_pending`.
+  - Log event `payment_partial_50/75` ou `paid_full`.
+- Nouvelle fonction `public.enforce_shop_payment_state()` (SECURITY DEFINER) : parcourt tous les shops et
+  - passe `payment_pending → locked` si `first_deadline_at < now()` et balance > 0 (set `locked_at`, `second_deadline_at = locked_at + 3j`, `is_suspended=true`).
+  - passe `locked → final_suspension` si `second_deadline_at < now()` (set `final_suspension_at`).
+- Cron pg_cron toutes les 15 min (insert tool, pas migration).
 
-- Générer un logo carré VisualPro propre (style corporate, gradient violet/cyan déjà en charte).
-- Produire : `favicon.ico`, `favicon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` dans `public/`.
-- Mettre à jour `<head>` de `index.html` avec tous les liens icon/apple-touch-icon/mask-icon + `theme-color`.
+Nouvelle fonction `public.can_manage_shop(_shop_id uuid)` STABLE SECURITY DEFINER :
+- Retourne `true` si l'utilisateur est owner ET `shop_payment_status IN (active, payment_pending)`.
+- Utilisée dans RLS des `products`, `orders`, `shop_secrets`, `shop_ai_assistants`, `ad_accounts`, etc. pour bloquer les mutations quand `locked`/`final_suspension`. Les policies SELECT restent inchangées (lecture des produits/commandes toujours possible → conforme au comportement demandé).
 
-## 3. PWA installable (manifest seul, pas de service worker app-shell)
+## 2. Backend front-side helper
 
-Le manifest existe déjà (`public/manifest.webmanifest`). On l'améliore :
-- name complet, short_name, description marketing claire
-- `start_url: "/"`, `scope: "/"`, `display: "standalone"`
-- `theme_color: "#1a1d2e"`, `background_color: "#ffffff"`
-- icons 192/512 (any + maskable) avec les nouveaux PNG
+`src/lib/shopPaymentStatus.ts` :
+- `getShopPaymentInfo(shopId)` → `{ status, amountDue, amountPaid50, amountPaid75, amountPaidFull, thresholdReachedAt, firstDeadline, lockedAt, secondDeadline, finalSuspensionAt, remainingMs, canOperate, canReactivate }`
+- Hook `useShopPaymentStatus(shopId)` avec realtime subscribe sur `shops`.
 
-On NE crée PAS de service worker app-shell (règle PWA Lovable : manifest-only pour "installable"). Le worker Firebase Messaging déjà présent reste intact.
+## 3. Composants UI (nouveaux, aucun composant existant supprimé)
 
-## 4. Données structurées JSON-LD
+- `src/components/shop/ShopPaymentCountdown.tsx` : bandeau avec compte à rebours "J HH MM" en direct. Remplace/complète `BillingBanner` uniquement quand `payment_pending` ou `locked`.
+- `src/components/shop/ShopPaymentGate.tsx` : overlay plein écran (fond flouté `backdrop-blur` + `bg-red-600/40`), carte centrale blanche, message contextualisé selon statut :
+  - `locked` → "Boutique verrouillée. Fermeture définitive dans J HH MM." + bouton "Payer maintenant" + "Contacter le support".
+  - `final_suspension` → "Boutique fermée définitivement." + bouton principal "Contacter le support WhatsApp" (pre-rempli), "Payer maintenant" désactivé.
+- `src/components/shop/PayCommissionDialog.tsx` (existant) : ajouter 3 boutons rapides 50% / 75% / 100% pré-remplissant le montant. Continue d'utiliser GeniusPay via `process-payment`.
 
-Ajouter via Helmet :
-- **Sitewide** (dans `index.html`) : `Organization` + `WebSite` avec SearchAction.
-- **Page d'accueil** : `SoftwareApplication` (applicationCategory: BusinessApplication, operatingSystem: Web, offers depuis FCFA). Pas d'aggregateRating tant qu'il n'y a pas d'avis réels.
-- **Pages feature** (visuels, vidéos, sites, boutiques) : `Service` ou `Product` selon le cas + `BreadcrumbList`.
-- **Fiches produit publiques** : `Product` (déjà partiellement injecté par l'edge `share-product`, on aligne le SPA).
-- **Blog** : `Article` par post.
-- **Pages FAQ existantes** (FeatureLandingPage) : `FAQPage`.
-- **Formations** : `Course` quand applicable.
+## 4. Intégration ShopEditor / pages
 
-## 5. Sitemap & robots
+- `src/pages/ShopEditor.tsx` : afficher `ShopPaymentCountdown` en haut si `payment_pending`. Wrapper `ShopPaymentGate` autour du contenu si `locked` ou `final_suspension` → l'overlay bloque toute interaction sauf paiement/support. Onglet "Produits (lecture seule)" reste accessible visuellement.
+- `src/pages/ShopManager.tsx` : badge de statut sur la carte boutique.
+- Désactiver visuellement (disabled + tooltip) les boutons de mutation dans `ProductsTable`, `ProductEditor`, `ShopSettings`, `OrdersList` quand `!canOperate`. Les mutations serveur sont déjà bloquées par RLS (défense en profondeur).
 
-Sitemap dynamique déjà en place (`supabase/functions/dynamic-sitemap`). On :
-- Met à jour `public/sitemap.xml` statique pour qu'il liste les bonnes routes actuelles (ajout `/blog`, `/api-documentation`, retrait routes obsolètes).
-- Garde `robots.txt` actuel (déjà bon) — on s'assure que les deux sitemaps (statique + dynamic edge) sont déclarés.
+## 5. Interface admin fondateur
 
-## 6. Titres marketing (resserrés)
+Nouvelle page `src/pages/founder/ShopPaymentControl.tsx` (route `/founder/shop-payments`, protégée par `FounderRoute`) :
+- Filtres : `payment_pending`, `locked`, `final_suspension`, `active with balance`.
+- Table : boutique, propriétaire, balance, statut, deadlines.
+- Actions : "Confirmer paiement manuel" (appelle `apply_commission_payment`), "Réactiver manuellement" (RPC dédiée `founder_reset_shop_payment`), "Voir historique" (events).
+- Lien depuis `FounderDashboard`.
 
-Ré-écriture des titres de chaque page selon la liste demandée (courts, < 60 car, format `Sujet — VisualPro`).
+## 6. Sécurité (défense en profondeur)
 
-## 7. Module "SEO Preview" pour le fondateur
+- RLS UPDATE/INSERT/DELETE sur `products`, `product_images`, `orders` (côté vendeur), `shop_secrets`, `shop_ai_assistants`, `shop_installed_themes`, `shop_delivery_connections`, `ad_accounts` : ajouter `AND can_manage_shop(shop_id)`.
+- Edge functions sensibles (`create-video-from-image` shop, `shop-ai-assistant-*`) : vérifier statut avant traitement.
 
-Nouvelle page `/founder/seo-preview` (accessible via FounderRoute) :
-- Liste des pages publiques principales avec, pour chacune :
-  - aperçu desktop (favicon + url + title + description, façon Google SERP)
-  - aperçu mobile (carte compacte)
-  - badges : `TITLE OPTIMIZED`, `DESCRIPTION OK`, `FAVICON OK`, `SCHEMA OK`, `INDEXABLE`
-- Bouton "Re-soumettre le sitemap à Google" qui appelle l'edge `seo-auto-index` existant.
+## 7. Textes (FR) fidèles au brief utilisateur
 
-Lecture seule (pas d'édition de title/description ici — ils sont versionnés dans le code).
-
-## 8. Chiffres de crédibilité éditables
-
-- Nouvelle table `public.platform_stats` : `key text PK`, `value int`, `label text`, `updated_at`.
-- Seed des 4 valeurs demandées (979 visuels, 120 boutiques, 350 entrepreneurs, 45 vidéos).
-- Lecture publique (anon `SELECT`) ; écriture réservée au rôle `founder` via `has_role`.
-- Composant `<CredibilityBar />` sur la page d'accueil qui lit la table avec un fallback (les valeurs seed) pour éviter tout flash vide.
-- Édition depuis `FounderDashboard` (mini formulaire 4 champs).
-
-## 9. Performance pages publiques
-
-- `loading="lazy"` + `decoding="async"` sur toutes les images non-hero.
-- `fetchpriority="high"` sur le hero d'`/`.
-- Vérifier que les pages publiques ne sont pas derrière `ProtectedRoute`.
-- Pas de gros refactor perf : on respecte "ne pas casser l'existant".
-
-## 10. Garde-fous
-
-- Aucun changement de logique business.
-- Aucun service worker app-shell ajouté.
-- Auto-gen Supabase, `client.ts`, `types.ts` jamais touchés.
-- Les edge functions existantes (`share-product`, `dynamic-sitemap`, `seo-auto-index`) restent et sont réutilisées.
+Reprend les messages exacts fournis : "Paiement requis : 12 000 FCFA…", "Votre boutique est temporairement verrouillée…", "Fermeture définitive dans…", "Votre boutique a été fermée définitivement…", message WhatsApp automatique.
 
 ## Détails techniques
 
-```text
-src/
-  main.tsx                       + HelmetProvider
-  components/seo/
-    SEO.tsx                      composant Helmet réutilisable
-    JsonLd.tsx                   helper JSON-LD typé
-    CredibilityBar.tsx
-  pages/
-    Index.tsx                    + <SEO> + SoftwareApplication JSON-LD + CredibilityBar
-    VisuelsPublicitaires.tsx     + <SEO> + Service + BreadcrumbList
-    VideosPublicitaires.tsx      idem
-    BoutiquesEcommerce.tsx       idem
-    SitesVitrines.tsx            idem
-    Auth.tsx                     + <SEO>
-    Blog.tsx                     + <SEO> + Article par post
-    ApiDocumentation.tsx         + <SEO>
-    founder/SeoPreview.tsx       nouveau (route /founder/seo-preview)
-  App.tsx                        + route SeoPreview (FounderRoute)
-public/
-  favicon.ico, favicon.svg, icon-192.png, icon-512.png, apple-touch-icon.png
-  manifest.webmanifest           amélioré
-  sitemap.xml                    rafraîchi
-index.html                       icônes, OG/Twitter par défaut, JSON-LD Organization+WebSite
-supabase/migrations/             table platform_stats + RLS + GRANT + seed
-```
+- Boutique existante avec balance déjà due sera migrée : si `payment_deadline IS NOT NULL AND is_suspended=false` → statut `payment_pending`, `first_deadline_at = payment_deadline`, `threshold_reached_at = payment_deadline - interval '3 days'`. Si `is_suspended=true` → `locked`, `locked_at = updated_at`, `second_deadline_at = locked_at + interval '3 days'`.
+- Cron via `net.http_post` non nécessaire : la fonction s'exécute en SQL pur, on peut la scheduler directement avec `cron.schedule` + `SELECT public.enforce_shop_payment_state();`.
+- Le compte à rebours front est purement affichage ; l'autorité reste le trigger SQL + cron. Le front recharge le statut à `remainingMs = 0`.
+- `PayCommissionDialog` continue d'utiliser le flux GeniusPay existant, aucun changement de paiement.
 
-Pas de nouveau secret, pas de nouvelle dépendance hors `react-helmet-async`.
-
-## Livraison
-
-Implémentation en une passe, en commençant par : dépendance + HelmetProvider + composant SEO, puis migrations, puis pages, puis assets, puis module Founder.
+Livrables :
+1. Migration SQL (shops + shop_payment_events + fonctions + RLS `can_manage_shop`).
+2. Cron via `supabase--insert` après migration.
+3. Fichiers front : `shopPaymentStatus.ts`, `ShopPaymentCountdown.tsx`, `ShopPaymentGate.tsx`, `PayCommissionDialog.tsx` (édition), `ShopEditor.tsx` (édition), `ShopManager.tsx` (édition), `ShopPaymentControl.tsx` (nouveau), route dans `App.tsx`, entrée dans `FounderDashboard.tsx`.
