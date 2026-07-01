@@ -608,6 +608,7 @@ const ShopView = () => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } finally {
       setOrderLoading(false);
+      submittingOrderRef.current = false;
     }
   };
 
