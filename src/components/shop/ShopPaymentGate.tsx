@@ -57,9 +57,9 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
             ) : (
               <>
                 <p className="text-sm">
-                  Votre boutique est temporairement verrouillée. Vous devez régler votre paiement de{" "}
-                  <span className="font-bold text-red-600">{fmt(info.amountDue)} FCFA</span> pour
-                  continuer à utiliser les fonctionnalités de votre boutique.
+                  Votre boutique est temporairement verrouillée. Vous disposez de 3 jours pour payer la
+                  totalité du montant dû, soit <span className="font-bold text-red-600">{fmt(info.amountDue)} FCFA</span>.
+                  Les paiements en tranche (25%, 50%, 75%) ne sont plus disponibles à ce stade.
                 </p>
                 <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-center">
                   <p className="text-xs uppercase tracking-wide text-red-700 font-semibold">
@@ -85,7 +85,7 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
             ) : (
               <>
                 <Button size="lg" onClick={() => setPayOpen(true)} className="w-full bg-red-600 hover:bg-red-700 text-white">
-                  Payer maintenant
+                  Payer {fmt(info.amountDue)} FCFA maintenant
                 </Button>
                 <Button asChild variant="outline" size="lg" className="w-full gap-2">
                   <a href={supportWhatsappLink(waMsg)} target="_blank" rel="noopener noreferrer">
@@ -104,7 +104,7 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
         </div>
       </div>
 
-      <PayCommissionDialog open={payOpen} onOpenChange={setPayOpen} shopId={shopId} balanceDue={info.amountDue} />
+      <PayCommissionDialog open={payOpen} onOpenChange={setPayOpen} shopId={shopId} balanceDue={info.amountDue} fullOnly />
     </div>
   );
 }

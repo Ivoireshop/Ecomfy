@@ -31,11 +31,11 @@ export function ShopPaymentCountdown({ shopId, info }: Props) {
           <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
           <div>
             <p className="font-bold text-sm sm:text-base">
-              Paiement requis : {fmt(info.amountDue)} FCFA
+              Seuil atteint — Paiement requis : {fmt(info.amountDue)} FCFA
             </p>
             <p className="text-xs sm:text-sm opacity-95">
               Temps restant : <span className="font-semibold">{formatRemaining(remaining)}</span>
-              {" "}· Payez 50%, 75% ou 100% pour éviter le verrouillage.
+              {" "}· Pendant ces 3 jours, payez 25%, 50%, 75% ou 100% pour éviter le verrouillage.
             </p>
           </div>
         </div>

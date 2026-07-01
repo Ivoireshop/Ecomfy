@@ -13,6 +13,8 @@ interface PayCommissionDialogProps {
   onOpenChange: (open: boolean) => void;
   shopId: string;
   balanceDue: number;
+  /** When true, only the full 100% payment is allowed (used when shop is locked). */
+  fullOnly?: boolean;
 }
 
 const OPERATORS = [
@@ -24,7 +26,7 @@ const OPERATORS = [
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
 
-export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue }: PayCommissionDialogProps) {
+export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fullOnly = false }: PayCommissionDialogProps) {
   const { toast } = useToast();
   const [provider, setProvider] = useState("");
   const [phone, setPhone] = useState("");
@@ -34,8 +36,9 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue }: 
   const submit = async () => {
     if (!provider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
     if (provider !== "wave" && !phone) { toast({ title: "Entrez votre numéro", variant: "destructive" }); return; }
-    if (!amount || amount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
-    if (amount > balanceDue) { toast({ title: "Montant trop élevé", description: `Solde dû : ${fmt(balanceDue)} FCFA`, variant: "destructive" }); return; }
+    const chargeAmount = fullOnly ? Math.round(balanceDue) : amount;
+    if (!chargeAmount || chargeAmount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
+    if (chargeAmount > balanceDue) { toast({ title: "Montant trop élevé", description: `Solde dû : ${fmt(balanceDue)} FCFA`, variant: "destructive" }); return; }
 
     setLoading(true);
     const win = openPaymentWindow();
@@ -44,7 +47,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue }: 
       if (!session) throw new Error("Non connecté");
       const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
-          amount,
+          amount: chargeAmount,
           payment_method: "mobile_money",
           user_id: session.user.id,
           provider,
@@ -72,7 +75,10 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-red-600" />Régler ma commission</DialogTitle>
           <DialogDescription>
-            Solde à payer : <span className="font-bold text-red-600">{fmt(balanceDue)} FCFA</span>. Vous pouvez régler tout ou partie immédiatement.
+            Solde à payer : <span className="font-bold text-red-600">{fmt(balanceDue)} FCFA</span>.
+            {fullOnly
+              ? " Votre boutique est verrouillée : seul le paiement complet est autorisé."
+              : " Vous pouvez régler 25%, 50%, 75% ou 100% pendant les 3 premiers jours."}
           </DialogDescription>
         </DialogHeader>
 
@@ -102,39 +108,51 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue }: 
 
           <div>
             <Label className="text-sm">Montant à payer (FCFA)</Label>
-            <div className="grid grid-cols-4 gap-2 mt-2">
-              {[
-                { label: "25%", value: Math.max(100, Math.round(balanceDue * 0.25)) },
-                { label: "50%", value: Math.max(100, Math.round(balanceDue * 0.5)) },
-                { label: "75%", value: Math.max(100, Math.round(balanceDue * 0.75)) },
-                { label: "100%", value: Math.max(100, Math.round(balanceDue)) },
-              ].map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => setAmount(preset.value)}
-                  className={`py-2 rounded-lg border-2 text-xs font-semibold transition-all ${amount === preset.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-            <Input
-              type="number"
-              min={100}
-              max={Math.round(balanceDue)}
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              className="mt-2"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Payez en plusieurs fois si besoin. Minimum 100 FCFA · Maximum : {fmt(balanceDue)} FCFA
-            </p>
+            {fullOnly ? (
+              <div className="mt-2 rounded-xl border-2 border-red-600 bg-red-50 p-4 text-center">
+                <p className="text-xs uppercase tracking-wide text-red-700 font-semibold">Paiement complet obligatoire</p>
+                <p className="text-2xl font-bold text-red-700 mt-1">{fmt(balanceDue)} FCFA</p>
+                <p className="text-xs text-red-700/80 mt-2">
+                  Les paiements en tranche (25%, 50%, 75%) ne sont plus disponibles car votre boutique est verrouillée.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-4 gap-2 mt-2">
+                  {[
+                    { label: "25%", value: Math.max(100, Math.round(balanceDue * 0.25)) },
+                    { label: "50%", value: Math.max(100, Math.round(balanceDue * 0.5)) },
+                    { label: "75%", value: Math.max(100, Math.round(balanceDue * 0.75)) },
+                    { label: "100%", value: Math.max(100, Math.round(balanceDue)) },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setAmount(preset.value)}
+                      className={`py-2 rounded-lg border-2 text-xs font-semibold transition-all ${amount === preset.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <Input
+                  type="number"
+                  min={100}
+                  max={Math.round(balanceDue)}
+                  value={amount}
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Payez en plusieurs fois si besoin. Minimum 100 FCFA · Maximum : {fmt(balanceDue)} FCFA
+                </p>
+              </>
+            )}
           </div>
 
           <Button onClick={submit} disabled={loading || !provider} className="w-full gap-2" size="lg">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-            {loading ? "Redirection..." : `Payer ${fmt(amount)} FCFA`}
+            {loading ? "Redirection..." : `Payer ${fmt(fullOnly ? Math.round(balanceDue) : amount)} FCFA`}
           </Button>
         </div>
       </DialogContent>
