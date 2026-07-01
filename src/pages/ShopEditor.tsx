@@ -20,6 +20,9 @@ import { LockedOrdersScreen } from "@/components/shop/LockedOrdersScreen";
 import { ShopSettings } from "@/components/shop/ShopSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
+import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
+import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
+import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
 // Keeps the editor's initial JS small without changing UI or behavior.
@@ -802,6 +805,17 @@ const ShopEditor = () => {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 mt-[52px] md:mt-0 pb-24 md:pb-0">
+        {/* Payment status: countdown banner + locking gate */}
+        {(() => {
+          const info = computeShopPaymentInfo(shop);
+          return (
+            <>
+              {info.status === "payment_pending" && (
+                <ShopPaymentCountdown shopId={shop.id} info={info} />
+              )}
+            </>
+          );
+        })()}
         {/* Billing balance banner — masquée pour les abonnés actifs */}
         {(() => {
           const sub = (shop as any).subscription_active_until;
@@ -931,6 +945,7 @@ const ShopEditor = () => {
         )}
 
         {/* Page Content */}
+        <ShopPaymentGate shopId={shop.id} info={computeShopPaymentInfo(shop)}>
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
@@ -1112,6 +1127,7 @@ const ShopEditor = () => {
           )}
           </Suspense>
         </div>
+        </ShopPaymentGate>
       </main>
     </div>
   );

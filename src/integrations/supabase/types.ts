@@ -2932,6 +2932,51 @@ export type Database = {
           },
         ]
       }
+      shop_payment_events: {
+        Row: {
+          amount: number | null
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          note: string | null
+          shop_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          note?: string | null
+          shop_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          note?: string | null
+          shop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_payment_events_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_payment_events_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_secrets: {
         Row: {
           created_at: string
@@ -3162,6 +3207,8 @@ export type Database = {
           facebook_pixels: string[] | null
           facebook_test_event_code: string | null
           favicon_url: string | null
+          final_suspension_at: string | null
+          first_deadline_at: string | null
           ga4_measurement_id: string | null
           gifs_generated_count: number
           gifs_period_start: string
@@ -3171,6 +3218,7 @@ export type Database = {
           is_activated: boolean | null
           is_published: boolean | null
           is_suspended: boolean
+          locked_at: string | null
           logo_url: string | null
           notification_settings: Json
           order_confirmation_message: string | null
@@ -3178,9 +3226,11 @@ export type Database = {
           payment_methods: string[] | null
           phone_number: string | null
           primary_color: string | null
+          second_deadline_at: string | null
           secondary_color: string | null
           seo_description: string | null
           seo_title: string | null
+          shop_payment_status: string
           slug: string
           snapchat_pixels: string[] | null
           social_proof_enabled: boolean | null
@@ -3190,6 +3240,7 @@ export type Database = {
           subscription_started_at: string | null
           theme: string | null
           theme_config: Json | null
+          threshold_reached_at: string | null
           tiktok_pixels: string[] | null
           total_orders: number | null
           total_sales: number | null
@@ -3229,6 +3280,8 @@ export type Database = {
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
+          final_suspension_at?: string | null
+          first_deadline_at?: string | null
           ga4_measurement_id?: string | null
           gifs_generated_count?: number
           gifs_period_start?: string
@@ -3238,6 +3291,7 @@ export type Database = {
           is_activated?: boolean | null
           is_published?: boolean | null
           is_suspended?: boolean
+          locked_at?: string | null
           logo_url?: string | null
           notification_settings?: Json
           order_confirmation_message?: string | null
@@ -3245,9 +3299,11 @@ export type Database = {
           payment_methods?: string[] | null
           phone_number?: string | null
           primary_color?: string | null
+          second_deadline_at?: string | null
           secondary_color?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          shop_payment_status?: string
           slug: string
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
@@ -3257,6 +3313,7 @@ export type Database = {
           subscription_started_at?: string | null
           theme?: string | null
           theme_config?: Json | null
+          threshold_reached_at?: string | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
@@ -3296,6 +3353,8 @@ export type Database = {
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
+          final_suspension_at?: string | null
+          first_deadline_at?: string | null
           ga4_measurement_id?: string | null
           gifs_generated_count?: number
           gifs_period_start?: string
@@ -3305,6 +3364,7 @@ export type Database = {
           is_activated?: boolean | null
           is_published?: boolean | null
           is_suspended?: boolean
+          locked_at?: string | null
           logo_url?: string | null
           notification_settings?: Json
           order_confirmation_message?: string | null
@@ -3312,9 +3372,11 @@ export type Database = {
           payment_methods?: string[] | null
           phone_number?: string | null
           primary_color?: string | null
+          second_deadline_at?: string | null
           secondary_color?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          shop_payment_status?: string
           slug?: string
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
@@ -3324,6 +3386,7 @@ export type Database = {
           subscription_started_at?: string | null
           theme?: string | null
           theme_config?: Json | null
+          threshold_reached_at?: string | null
           tiktok_pixels?: string[] | null
           total_orders?: number | null
           total_sales?: number | null
@@ -4526,6 +4589,7 @@ export type Database = {
         }
         Returns: Json
       }
+      can_manage_shop: { Args: { _shop_id: string }; Returns: boolean }
       check_rate_limit: {
         Args: {
           _bucket: string
@@ -4552,6 +4616,7 @@ export type Database = {
         Returns: boolean
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
+      enforce_shop_payment_state: { Args: never; Returns: Json }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -4562,6 +4627,10 @@ export type Database = {
       }
       expire_stale_pending_payments: { Args: never; Returns: number }
       expire_subscriptions: { Args: never; Returns: number }
+      founder_reset_shop_payment: {
+        Args: { _reason?: string; _shop_id: string }
+        Returns: Json
+      }
       generate_api_key: { Args: never; Returns: string }
       generate_certificate_number: { Args: never; Returns: string }
       generate_domain_verification_code: { Args: never; Returns: string }
