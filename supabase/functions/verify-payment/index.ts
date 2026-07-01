@@ -210,6 +210,31 @@ serve(async (req) => {
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
         p_notes: "Paiement en ligne via GeniusPay",
       });
+      try {
+        const { data: shopRow } = await supabase
+          .from("shops").select("business_name, slug, shop_payment_status, commission_balance_due").eq("id", shopId).maybeSingle();
+        const { data: profileRow } = await supabase
+          .from("profiles").select("email").eq("id", userId).maybeSingle();
+        if (profileRow?.email) {
+          const unlocked = !shopRow || shopRow.shop_payment_status === "active" || Number(shopRow.commission_balance_due || 0) <= 0;
+          const shopUrl = shopRow?.slug ? `https://visuelpro.cloud/shop/${shopRow.slug}` : undefined;
+          await supabase.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "commission-payment",
+              recipientEmail: profileRow.email,
+              idempotencyKey: `commission-payment-${payment.transaction_id || reference}-${Math.round(Number(payment.amount) || 0)}`,
+              templateData: {
+                shopName: shopRow?.business_name || "votre boutique",
+                amount: Number(payment.amount) || 0,
+                shopUrl,
+                unlocked,
+              },
+            },
+          });
+        }
+      } catch (e) {
+        console.warn("commission-payment email (verify-payment) failed:", e);
+      }
     } else if (paymentType === "shop_subscription" && shopId) {
       const plan = (meta.plan as string) || "starter";
       await supabase.rpc("apply_shop_subscription", {
