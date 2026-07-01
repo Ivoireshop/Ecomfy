@@ -21,6 +21,7 @@ import { ShopSettings } from "@/components/shop/ShopSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
+import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
@@ -818,12 +819,27 @@ const ShopEditor = () => {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 mt-[52px] md:mt-0 pb-24 md:pb-0">
-        {/* Payment status: countdown / lock banner (owner side only — public shop reste actif) */}
+        {/* Payment status: bannière compte à rebours (phase pending). En état
+            locked/final, tout l'espace propriétaire est verrouillé via ShopPaymentGate. */}
         {(() => {
           const info = computeShopPaymentInfo(shop);
-          if (info.status === "active") return null;
+          if (info.status !== "payment_pending") return null;
           return <ShopPaymentCountdown shopId={shop.id} info={info} />;
         })()}
+        {(() => {
+          const info = computeShopPaymentInfo(shop);
+          if (info.status !== "locked" && info.status !== "final_suspension") return null;
+          return (
+            <ShopPaymentGate shopId={shop.id} info={info}>
+              <div className="min-h-[60vh]" />
+            </ShopPaymentGate>
+          );
+        })()}
+        {(() => {
+          const info = computeShopPaymentInfo(shop);
+          if (info.status === "locked" || info.status === "final_suspension") return null;
+          return (
+            <>
         {/* Billing balance banner — masquée pour les abonnés actifs */}
         {(() => {
           const sub = (shop as any).subscription_active_until;
@@ -1142,6 +1158,9 @@ const ShopEditor = () => {
           )}
           </Suspense>
         </div>
+            </>
+          );
+        })()}
       </main>
     </div>
   );
