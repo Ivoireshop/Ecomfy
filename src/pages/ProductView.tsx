@@ -181,6 +181,9 @@ const ProductView = () => {
   const [themeSettings, setThemeSettings] = useState<ProductThemeSettings | null>(null);
   const [productAudios, setProductAudios] = useState<ProductAudio[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  // Guard against duplicate order submissions (double-tap on mobile, double-click,
+  // Enter key spam). Uses a ref so state updates cannot race the second click.
+  const submittingOrderRef = useRef(false);
 
   // Sync cart with current quantity when user changes quantity while inline checkout is open
   useEffect(() => {
@@ -549,6 +552,7 @@ const ProductView = () => {
   const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.product.id !== productId));
 
   const placeOrder = async () => {
+    if (submittingOrderRef.current) return;
     if (!shop || !customerInfo.name || !customerInfo.phone || cart.length === 0) {
       toast({ title: "Erreur", description: "Remplissez tous les champs obligatoires", variant: "destructive" });
       return;
@@ -565,6 +569,7 @@ const ProductView = () => {
       toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
       return;
     }
+    submittingOrderRef.current = true;
     setOrderLoading(true);
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
@@ -634,7 +639,10 @@ const ProductView = () => {
       });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    } finally { setOrderLoading(false); }
+    } finally {
+      setOrderLoading(false);
+      submittingOrderRef.current = false;
+    }
   };
 
   const sendChatMessage = async () => {
