@@ -390,8 +390,15 @@ const ProductView = () => {
         if (live) shopData = live;
         else {
           const { data: pRows } = await fetchWithRetry(() => supabase.from("shops").select("*").eq("slug", slug).limit(1)) as any;
-          if (pRows?.[0]) shopData = { ...pRows[0], _isPreview: true };
-          else if (shopErr) setFetchError("Connexion lente : impossible de charger cette boutique pour le moment.");
+          if (pRows?.[0]) {
+            // Only expose the "preview / not activated" mode to the shop
+            // owner. For regular public visitors, treat the shop as a normal
+            // live storefront so ordering keeps working even when the owner
+            // account is locked / awaiting the 12 000 FCFA commission payment.
+            const { data: { session } } = await supabase.auth.getSession();
+            const isOwner = !!session && session.user.id === pRows[0].user_id;
+            shopData = isOwner ? { ...pRows[0], _isPreview: true } : pRows[0];
+          } else if (shopErr) setFetchError("Connexion lente : impossible de charger cette boutique pour le moment.");
         }
       }
 
