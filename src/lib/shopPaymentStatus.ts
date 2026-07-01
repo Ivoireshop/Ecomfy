@@ -57,12 +57,13 @@ export function computeShopPaymentInfo(shop: any): ShopPaymentInfo {
 }
 
 export function formatRemaining(ms: number): string {
-  if (ms <= 0) return "0j 00h 00min";
+  if (ms <= 0) return "0j 00h 00min 00s";
   const total = Math.floor(ms / 1000);
   const d = Math.floor(total / 86400);
   const h = Math.floor((total % 86400) / 3600);
   const m = Math.floor((total % 3600) / 60);
-  return `${d}j ${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}min`;
+  const s = total % 60;
+  return `${d}j ${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`;
 }
 
 export function useShopPaymentStatus(shopId: string | null | undefined): ShopPaymentInfo | null {
