@@ -28,6 +28,8 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
 
   const remaining = info.deadline ? Math.max(0, new Date(info.deadline).getTime() - now) : 0;
   const isFinal = info.status === "final_suspension";
+  const isExtra = info.status === "locked" && info.extraDeadlineActive;
+  const extraExpired = isExtra && remaining <= 0;
   const waMsg = isFinal
     ? "Bonjour VisualPro, ma boutique a été fermée pour défaut de paiement. Je souhaite la réactiver."
     : `Bonjour VisualPro, ma boutique est verrouillée pour un paiement de ${fmt(info.amountDue)} FCFA. Je souhaite être assisté.`;
@@ -54,6 +56,25 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
                 Votre boutique a été fermée définitivement pour défaut de paiement. Pour la réactiver,
                 veuillez contacter le support VisualPro sur WhatsApp.
               </p>
+            ) : isExtra ? (
+              <>
+                <p className="text-sm">
+                  Votre boutique est actuellement verrouillée. Un <span className="font-semibold">dernier délai de 2 jours</span> vous a été accordé pour effectuer le paiement de{" "}
+                  <span className="font-bold text-red-600">{fmt(info.amountDue > 0 ? info.amountDue : 12000)} FCFA</span>.
+                </p>
+                {extraExpired ? (
+                  <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-center">
+                    <p className="text-sm font-semibold text-red-700">
+                      Le délai supplémentaire est expiré. Veuillez effectuer votre paiement pour réactiver votre boutique.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-center">
+                    <p className="text-xs uppercase tracking-wide text-red-700 font-semibold">Temps restant</p>
+                    <p className="text-xl font-bold text-red-700 mt-1">{formatRemaining(remaining)}</p>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <p className="text-sm">
