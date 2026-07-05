@@ -53,6 +53,8 @@ export function ShopPaymentCountdown({ shopId, info }: Props) {
 
   // LOCKED — full-amount payment required, WA fallback
   if (info.status === "locked") {
+    const isExtra = info.extraDeadlineActive;
+    const extraExpired = isExtra && remaining <= 0;
     return (
       <div className="bg-red-700 text-white px-4 md:px-6 py-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -60,12 +62,24 @@ export function ShopPaymentCountdown({ shopId, info }: Props) {
             <Lock className="h-5 w-5 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold text-sm sm:text-base">
-                Boutique verrouillée — Payez {fmt(amount)} FCFA pour déverrouiller
+                {isExtra
+                  ? `Dernier délai — Payez ${fmt(amount)} FCFA pour déverrouiller`
+                  : `Boutique verrouillée — Payez ${fmt(amount)} FCFA pour déverrouiller`}
               </p>
               <p className="text-xs sm:text-sm opacity-95">
-                Votre boutique reste en ligne pour vos clients. L'accès aux commandes est
-                bloqué jusqu'au paiement complet.
-                {remaining > 0 && (<> · Fermeture définitive dans <span className="font-semibold">{formatRemaining(remaining)}</span></>)}
+                {isExtra ? (
+                  extraExpired ? (
+                    <>Le délai supplémentaire est expiré. Veuillez effectuer votre paiement pour réactiver votre boutique.</>
+                  ) : (
+                    <>Un dernier délai de 2 jours vous a été accordé. Temps restant : <span className="font-semibold">{formatRemaining(remaining)}</span></>
+                  )
+                ) : (
+                  <>
+                    Votre boutique reste en ligne pour vos clients. L'accès aux commandes est
+                    bloqué jusqu'au paiement complet.
+                    {remaining > 0 && (<> · Fermeture définitive dans <span className="font-semibold">{formatRemaining(remaining)}</span></>)}
+                  </>
+                )}
               </p>
             </div>
           </div>
