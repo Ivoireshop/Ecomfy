@@ -53,6 +53,7 @@ const Feedback = lazyWithRetry(() => import("./pages/Feedback"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazyWithRetry(() => import("./pages/VerifyEmail"));
+const OAuthConsent = lazyWithRetry(() => import("./pages/OAuthConsent"));
 const ShowcaseView = lazyWithRetry(() => import("./pages/ShowcaseView"));
 const PaymentHistory = lazyWithRetry(() => import("./pages/PaymentHistory"));
 const PromoCodeManager = lazyWithRetry(() => import("./pages/PromoCodeManager"));
@@ -162,6 +163,7 @@ const AppContent = () => {
             }
           />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/visuels-publicitaires" element={<VisuelsPublicitaires />} />
           <Route path="/videos-publicitaires" element={<VideosPublicitaires />} />
