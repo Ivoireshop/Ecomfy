@@ -3204,6 +3204,10 @@ export type Database = {
           domain_verification_code: string | null
           email: string | null
           enabled_languages: string[]
+          extra_deadline_active: boolean
+          extra_deadline_ends_at: string | null
+          extra_deadline_granted_by: string | null
+          extra_deadline_started_at: string | null
           facebook_pixels: string[] | null
           facebook_test_event_code: string | null
           favicon_url: string | null
@@ -3277,6 +3281,10 @@ export type Database = {
           domain_verification_code?: string | null
           email?: string | null
           enabled_languages?: string[]
+          extra_deadline_active?: boolean
+          extra_deadline_ends_at?: string | null
+          extra_deadline_granted_by?: string | null
+          extra_deadline_started_at?: string | null
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
@@ -3350,6 +3358,10 @@ export type Database = {
           domain_verification_code?: string | null
           email?: string | null
           enabled_languages?: string[]
+          extra_deadline_active?: boolean
+          extra_deadline_ends_at?: string | null
+          extra_deadline_granted_by?: string | null
+          extra_deadline_started_at?: string | null
           facebook_pixels?: string[] | null
           facebook_test_event_code?: string | null
           favicon_url?: string | null
@@ -4631,6 +4643,10 @@ export type Database = {
       }
       expire_stale_pending_payments: { Args: never; Returns: number }
       expire_subscriptions: { Args: never; Returns: number }
+      founder_grant_extra_deadline: {
+        Args: { _days?: number; _shop_id: string }
+        Returns: Json
+      }
       founder_reset_shop_payment: {
         Args: { _reason?: string; _shop_id: string }
         Returns: Json
