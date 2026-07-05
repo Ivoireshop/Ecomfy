@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { defineTool, type ToolContext } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 
+declare const process: { env: Record<string, string | undefined> };
+
 function supabaseForUser(ctx: ToolContext) {
   return createClient(
     process.env.SUPABASE_URL!,
@@ -29,8 +31,8 @@ export default defineTool({
     const sb = supabaseForUser(ctx);
     const { data, error } = await sb
       .from("shops")
-      .select("id, business_name, slug, created_at, is_active")
-      .eq("owner_id", ctx.getUserId())
+      .select("id, business_name, slug, created_at")
+      .eq("user_id", ctx.getUserId())
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
