@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, Lock, AlertOctagon, Clock, Search } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, Lock, AlertOctagon, Clock, Search, CalendarClock } from "lucide-react";
 import { formatRemaining, computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
@@ -30,7 +30,7 @@ export default function ShopPaymentControl() {
     setLoading(true);
     const { data, error } = await supabase
       .from("shops")
-      .select("id, business_name, user_id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, is_suspended, updated_at")
+      .select("id, business_name, user_id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, is_suspended, updated_at, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at")
       .gt("commission_balance_due", 0)
       .order("updated_at", { ascending: false })
       .limit(500);
@@ -47,6 +47,22 @@ export default function ShopPaymentControl() {
     setBusyId(null);
     if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
     toast({ title: "Boutique réactivée" });
+    void load();
+  };
+
+  const grantExtra = async (shopId: string) => {
+    const raw = window.prompt("Nombre de jours de délai supplémentaire ?", "2");
+    if (!raw) return;
+    const days = Math.max(1, Math.min(30, parseInt(raw, 10) || 2));
+    setBusyId(shopId);
+    // @ts-ignore RPC created via migration
+    const { data, error } = await supabase.rpc("founder_grant_extra_deadline", { _shop_id: shopId, _days: days });
+    setBusyId(null);
+    if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    if ((data as any)?.success === false) {
+      return toast({ title: "Refusé", description: (data as any)?.error || "Action refusée", variant: "destructive" });
+    }
+    toast({ title: `Délai supplémentaire de ${days} jour(s) accordé` });
     void load();
   };
 
@@ -112,6 +128,11 @@ export default function ShopPaymentControl() {
                         <Badge variant="outline" className={meta.className}>
                           <Icon className="h-3 w-3 mr-1" /> {meta.label}
                         </Badge>
+                        {info.extraDeadlineActive && (
+                          <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300">
+                            <CalendarClock className="h-3 w-3 mr-1" /> Délai suppl. actif
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 truncate">ID: {shop.id}</p>
                     </div>
@@ -123,6 +144,9 @@ export default function ShopPaymentControl() {
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => navigate(`/shop-editor/${shop.id}`)}>Voir</Button>
+                      <Button size="sm" variant="outline" onClick={() => grantExtra(shop.id)} disabled={busyId === shop.id}>
+                        <CalendarClock className="h-4 w-4 mr-1" /> Délai +
+                      </Button>
                       <Button size="sm" onClick={() => reset(shop.id)} disabled={busyId === shop.id}>
                         {busyId === shop.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Réactiver"}
                       </Button>
