@@ -18,6 +18,10 @@ export interface ShopPaymentInfo {
   canOperate: boolean;
   deadline: string | null;
   remainingMs: number;
+  extraDeadlineActive: boolean;
+  extraDeadlineStartedAt: string | null;
+  extraDeadlineEndsAt: string | null;
+  extraDeadlineExpired: boolean;
 }
 
 export const SUPPORT_WHATSAPP = "22507581527 61".replace(/\s+/g, "");
@@ -30,10 +34,16 @@ export function computeShopPaymentInfo(shop: any): ShopPaymentInfo {
   const isLocked = status === "locked";
   const isFinal = status === "final_suspension";
   const isPending = status === "payment_pending";
+  const extraDeadlineActive = Boolean(shop?.extra_deadline_active);
+  const extraDeadlineEndsAt = shop?.extra_deadline_ends_at ?? null;
+  const extraDeadlineExpired =
+    extraDeadlineActive && extraDeadlineEndsAt
+      ? new Date(extraDeadlineEndsAt).getTime() <= Date.now()
+      : false;
   const deadline = isFinal
     ? shop?.final_suspension_at ?? null
     : isLocked
-      ? shop?.second_deadline_at ?? null
+      ? (extraDeadlineActive ? extraDeadlineEndsAt : shop?.second_deadline_at) ?? null
       : isPending
         ? shop?.first_deadline_at ?? shop?.payment_deadline ?? null
         : null;
@@ -53,6 +63,10 @@ export function computeShopPaymentInfo(shop: any): ShopPaymentInfo {
     canOperate: !isLocked && !isFinal,
     deadline,
     remainingMs,
+    extraDeadlineActive,
+    extraDeadlineStartedAt: shop?.extra_deadline_started_at ?? null,
+    extraDeadlineEndsAt,
+    extraDeadlineExpired,
   };
 }
 
@@ -78,7 +92,7 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
       const { data } = await supabase
         .from("shops")
         .select(
-          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline",
+          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at",
         )
         .eq("id", shopId)
         .maybeSingle();
@@ -92,7 +106,8 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
       const shouldEscalate =
         (current.status === "payment_pending" || current.status === "locked") &&
         dl > 0 &&
-        dl <= Date.now();
+        dl <= Date.now() &&
+        !current.extraDeadlineActive;
       if (!shouldEscalate) return;
       enforcing = true;
       try {
@@ -125,7 +140,7 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
       const { data } = await supabase
         .from("shops")
         .select(
-          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline",
+          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at",
         )
         .eq("id", shopId)
         .maybeSingle();
