@@ -6,17 +6,42 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function escapeHtml(input: unknown): string {
+  return String(input ?? "").replace(/[&<>"'`\/]/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+    "`": "&#96;",
+    "/": "&#47;",
+  }[c] as string));
+}
+
 function generateCertificateHTML(
-  studentName: string,
-  courseTitle: string,
-  completionDate: string,
-  certificateNumber: string,
-  logoUrl: string | null,
-  businessName: string,
-  ownerName: string,
-  verificationUrl: string
+  studentNameRaw: string,
+  courseTitleRaw: string,
+  completionDateRaw: string,
+  certificateNumberRaw: string,
+  logoUrlRaw: string | null,
+  businessNameRaw: string,
+  ownerNameRaw: string,
+  verificationUrlRaw: string
 ): string {
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verificationUrl)}`;
+  // HTML-escape every interpolated value to prevent stored XSS in shareable
+  // certificate pages (student-controlled full_name would otherwise execute).
+  const studentName = escapeHtml(studentNameRaw);
+  const courseTitle = escapeHtml(courseTitleRaw);
+  const completionDate = escapeHtml(completionDateRaw);
+  const certificateNumber = escapeHtml(certificateNumberRaw);
+  const businessName = escapeHtml(businessNameRaw);
+  const ownerName = escapeHtml(ownerNameRaw);
+  // Only allow http(s) logo URLs; drop anything else (e.g. javascript:).
+  const safeLogoUrl =
+    typeof logoUrlRaw === "string" && /^https?:\/\//i.test(logoUrlRaw)
+      ? escapeHtml(logoUrlRaw)
+      : null;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(String(verificationUrlRaw ?? ""))}`;
   
   return `
 <!DOCTYPE html>
@@ -198,8 +223,8 @@ function generateCertificateHTML(
   <div class="certificate">
     <div class="inner-border">
       <div class="watermark">CERTIFIÉ</div>
-      ${logoUrl ? `<img src="${logoUrl}" alt="Logo" class="logo" />` : ''}
-      <img src="${qrCodeUrl}" alt="QR Code" class="qr-code" />
+      ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" class="logo" />` : ''}
+      <img src="${escapeHtml(qrCodeUrl)}" alt="QR Code" class="qr-code" />
       
       <div class="header">
         <h1 class="title">Certificat de Formation</h1>
