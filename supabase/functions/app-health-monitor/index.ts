@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 
 // Public health monitor. Runs every 5 minutes via pg_cron.
 // - Probes critical surfaces of the app
@@ -22,6 +23,7 @@ type Probe = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!isAuthorizedCron(req)) return cronUnauthorizedResponse(corsHeaders);
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
