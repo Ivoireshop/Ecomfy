@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,7 @@ const corsHeaders = {
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!isAuthorizedCron(req)) return cronUnauthorizedResponse(corsHeaders);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
