@@ -61,7 +61,7 @@ export function ShowcaseCourses({
     try {
       const { data, error } = await supabase
         .from("courses")
-        .select("*")
+        .select("id,showcase_site_id,title,description,short_description,price,currency,image_url,category,duration,level,is_published,max_participants,whatsapp_group_link,created_at,updated_at")
         .eq("showcase_site_id", showcaseSiteId)
         .eq("is_published", true)
         .order("created_at", { ascending: false });

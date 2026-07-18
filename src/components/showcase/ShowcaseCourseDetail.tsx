@@ -89,7 +89,7 @@ export function ShowcaseCourseDetail({
     try {
       const { data: courseData, error: courseError } = await supabase
         .from("courses")
-        .select("*")
+        .select("id,showcase_site_id,title,description,short_description,price,currency,image_url,category,duration,level,is_published,max_participants,whatsapp_group_link,created_at,updated_at")
         .eq("id", courseId)
         .single();
 
