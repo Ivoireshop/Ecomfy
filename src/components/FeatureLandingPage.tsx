@@ -99,22 +99,22 @@ export function FeatureLandingPage({
           {/* Hero */}
           <section className="container mx-auto px-4 pt-12 pb-16 md:pt-20 md:pb-24">
             <div className="max-w-3xl mx-auto text-center">
-              <span className="inline-block text-xs md:text-sm uppercase tracking-widest text-primary font-semibold mb-4">
+              <span className="inline-block text-xs md:text-sm uppercase tracking-widest text-primary font-semibold mb-4 animate-fade-in-up stagger-1">
                 {hero.eyebrow}
               </span>
-              <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-5 leading-tight">
+              <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-5 leading-tight animate-fade-in-up stagger-2">
                 {hero.heading}
               </h1>
-              <p className="text-base md:text-lg text-muted-foreground mb-8">
+              <p className="text-base md:text-lg text-muted-foreground mb-8 animate-fade-in-up stagger-3">
                 {hero.subheading}
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in-up stagger-4">
                 {hero.ctaSecondary && (
-                  <Button asChild variant="outline" size="lg">
+                  <Button asChild variant="outline" size="lg" className="btn-interactive">
                     <Link to={hero.ctaSecondary.to}>{hero.ctaSecondary.label}</Link>
                   </Button>
                 )}
-                <Button asChild size="lg">
+                <Button asChild size="lg" className="btn-interactive shadow-lg hover:shadow-emerald-500/25">
                   <Link to={hero.ctaPrimary.to}>
                     {hero.ctaPrimary.label} <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -130,8 +130,8 @@ export function FeatureLandingPage({
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {benefits.map((b, i) => (
-                <Card key={i} className="p-6">
-                  <b.icon className="h-8 w-8 text-primary mb-4" />
+                <Card key={i} className="p-6 card-interactive">
+                  <b.icon className="h-8 w-8 text-primary mb-4 transition-transform duration-300 group-hover:scale-110" />
                   <h3 className="text-lg font-semibold mb-2">{b.title}</h3>
                   <p className="text-sm text-muted-foreground">{b.description}</p>
                 </Card>

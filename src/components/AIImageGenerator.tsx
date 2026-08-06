@@ -326,28 +326,28 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
         <Button
           onClick={generateImage}
           disabled={isGenerating || !prompt.trim()}
-          className="w-full"
+          className={cn("w-full btn-interactive shadow-lg", isGenerating && "ai-pulse-glow bg-emerald-600 text-white")}
         >
           {isGenerating ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Génération en cours...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
+              Génération par IA en cours…
             </>
           ) : (
             <>
               <Sparkles className="mr-2 h-4 w-4" />
-              Générer l'image
+              Générer l'image par IA
             </>
           )}
         </Button>
 
         {generatedImage && (
-          <div className="space-y-4 pt-4 border-t">
-            <div className="relative">
+          <div className="space-y-4 pt-4 border-t animate-fade-in">
+            <div className="relative group overflow-hidden rounded-lg">
               <img
                 src={generatedImage}
                 alt="Generated"
-                className="w-full rounded-lg border"
+                className="w-full rounded-lg border transition-transform duration-500 group-hover:scale-105"
               />
             </div>
             <div className="space-y-2">

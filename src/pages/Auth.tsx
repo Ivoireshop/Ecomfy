@@ -39,6 +39,12 @@ const Auth = () => {
   const prefillEmail = searchParams.get("email") || "";
   const isInvite = searchParams.get("invite") === "1";
   const [activeTab, setActiveTab] = useState<string>("signin");
+  const [hasError, setHasError] = useState(false);
+
+  const triggerErrorShake = useCallback(() => {
+    setHasError(true);
+    setTimeout(() => setHasError(false), 500);
+  }, []);
 
   useEffect(() => {
     if (prefillEmail) {
@@ -206,6 +212,7 @@ const Auth = () => {
       setSignUpCountry("");
       setReferralCode("");
     } catch (error) {
+      triggerErrorShake();
       console.error("Erreur lors de l'inscription:", error);
       toast({
         title: "Erreur",
@@ -291,6 +298,7 @@ const Auth = () => {
         description: "Redirection vers votre espace…",
       });
     } catch (error) {
+      triggerErrorShake();
       console.error("Erreur lors de la connexion:", error);
       const errorMessage = error instanceof Error ? error.message : "";
 
@@ -398,7 +406,7 @@ const Auth = () => {
             </div>
           </div>
 
-        <Card className="border-primary-foreground/25 bg-background/88 shadow-2xl backdrop-blur-xl md:border-white/20 md:bg-white/90 md:shadow-2xl">
+        <Card className={cn("border-primary-foreground/25 bg-background/88 shadow-2xl backdrop-blur-xl md:border-white/20 md:bg-white/90 md:shadow-2xl transition-transform", hasError && "shake-error")}>
           <CardHeader>
             <CardTitle>Bienvenue</CardTitle>
             <CardDescription>
