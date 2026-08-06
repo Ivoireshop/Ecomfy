@@ -5,12 +5,6 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.ecomfy.cloud" }],
-      "destination": "https://ecomfy.cloud/$1",
-      "permanent": true
-    },
-    {
-      "source": "/(.*)",
       "has": [{ "type": "host", "value": "visuelpro.cloud" }],
       "destination": "https://ecomfy.cloud/$1",
       "permanent": true
