@@ -70,14 +70,14 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
   </div>
   <div style="text-align:right">
     <div style="font-weight:700">Ecomfy</div>
-    <div class="muted">visuelpro.cloud</div>
+    <div class="muted">ecomfy.cloud</div>
     <div class="muted">+225 07 58 15 27 61</div>
   </div>
 </div>
 <div class="box">
   <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.04em">Facturé à</div>
   <div style="font-weight:600;margin-top:4px">${shop?.business_name || "Boutique"}</div>
-  ${shop?.slug ? `<div class="muted">${shop.slug}.visuelpro.cloud</div>` : ""}
+  ${shop?.slug ? `<div class="muted">${shop.slug}.ecomfy.cloud</div>` : ""}
 </div>
 <table>
   <thead><tr><th>Description</th><th style="text-align:right">Montant</th></tr></thead>
@@ -92,7 +92,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
   Référence : ${p.transaction_reference || "—"}
 </div>
 <div class="muted" style="margin-top:32px;font-size:12px;text-align:center">
-  Merci pour votre confiance — Ecomfy · visuelpro.cloud
+  Merci pour votre confiance — Ecomfy · ecomfy.cloud
 </div>
 </body></html>`;
     const w = window.open("", "_blank");

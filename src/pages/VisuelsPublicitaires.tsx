@@ -7,7 +7,7 @@ export default function VisuelsPublicitaires() {
       title="Création de visuels publicitaires par IA"
       metaTitle="Créer des visuels publicitaires IA en Afrique | Ecomfy"
       metaDescription="Générez des visuels publicitaires professionnels pour Facebook, Instagram, TikTok et WhatsApp en moins d'une minute, adaptés au marché africain. Essai gratuit."
-      canonical="https://visuelpro.cloud/visuels-publicitaires"
+      canonical="https://ecomfy.cloud/visuels-publicitaires"
       hero={{
         eyebrow: "Visuels publicitaires IA",
         heading: "Créez des visuels publicitaires professionnels en moins d'une minute",

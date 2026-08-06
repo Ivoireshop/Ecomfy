@@ -24,7 +24,7 @@ const PAGES: Page[] = [
   { path: "/demo", title: "Démo Ecomfy", description: "Découvrez Ecomfy en action : visuels, vidéos, sites et boutiques générés par IA." },
 ];
 
-const BASE = "https://visuelpro.cloud";
+const BASE = "https://ecomfy.cloud";
 
 function Badges({ p }: { p: Page }) {
   const titleOk = p.title.length > 10 && p.title.length <= 65;
@@ -45,7 +45,7 @@ function SerpDesktop({ p }: { p: Page }) {
     <div className="rounded-lg border bg-white p-4 max-w-2xl">
       <div className="flex items-center gap-2 text-xs text-gray-600">
         <img src="/favicon.png" alt="" className="w-4 h-4 rounded" />
-        <span>visuelpro.cloud</span>
+        <span>ecomfy.cloud</span>
         <span className="text-gray-400">›</span>
         <span>{p.path === "/" ? "" : p.path.replace(/^\//, "")}</span>
       </div>
@@ -60,7 +60,7 @@ function SerpMobile({ p }: { p: Page }) {
     <div className="rounded-lg border bg-white p-3 max-w-xs">
       <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
         <img src="/favicon.png" alt="" className="w-3.5 h-3.5 rounded" />
-        <span>visuelpro.cloud</span>
+        <span>ecomfy.cloud</span>
       </div>
       <a className="block text-[#1a0dab] text-sm mt-1 hover:underline line-clamp-2" href={`${BASE}${p.path}`} target="_blank" rel="noreferrer">{p.title}</a>
       <p className="text-[11px] text-gray-700 mt-1 line-clamp-3">{p.description}</p>

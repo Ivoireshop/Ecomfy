@@ -301,7 +301,7 @@ const ShopManager = () => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const url = `https://visuelpro.cloud/shop/${shop.slug}`;
+                        const url = `https://ecomfy.cloud/shop/${shop.slug}`;
                         navigator.clipboard.writeText(url);
                         toast({ title: "Lien copié ✓", description: url });
                       }}
@@ -309,7 +309,7 @@ const ShopManager = () => {
                       title="Copier le lien public"
                     >
                       <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="truncate">visuelpro.cloud/shop/{shop.slug}</span>
+                      <span className="truncate">ecomfy.cloud/shop/{shop.slug}</span>
                       <Copy className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity shrink-0" />
                     </button>
 

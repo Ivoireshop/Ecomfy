@@ -712,11 +712,11 @@ export default function ShowcaseBuilder() {
                     placeholder="monsite"
                     className="flex-1"
                   />
-                  <span className="text-muted-foreground whitespace-nowrap">.ecomfy.app</span>
+                  <span className="text-muted-foreground whitespace-nowrap">.ecomfy.cloud</span>
                 </div>
                 {subdomain && (
                   <p className="text-sm text-muted-foreground mt-2">
-                    Votre site sera accessible à : <strong>{subdomain}.ecomfy.app</strong>
+                    Votre site sera accessible à : <strong>{subdomain}.ecomfy.cloud</strong>
                   </p>
                 )}
                 {errors.subdomain && (

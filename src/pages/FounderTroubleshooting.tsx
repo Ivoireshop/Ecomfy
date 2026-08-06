@@ -155,7 +155,7 @@ export default function FounderTroubleshooting() {
 
   const publicShopUrl = useMemo(() => {
     const slug = linkSlug.trim().replace(/^https?:\/\//, "").replace(/\.visuelpro\.cloud\/?$/, "").replace(/\/$/, "");
-    return slug ? `https://${slug}.visuelpro.cloud` : "";
+    return slug ? `https://${slug}.ecomfy.cloud` : "";
   }, [linkSlug]);
 
   const runDiagnostics = useCallback(async () => {
@@ -626,7 +626,7 @@ export default function FounderTroubleshooting() {
                       <p className="font-medium truncate">{shop.business_name || "Sans nom"}</p>
                       <Badge variant={shop.is_published ? "default" : "secondary"}>{shop.is_published ? "Publiée" : "Brouillon"}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{shop.slug ? `${shop.slug}.visuelpro.cloud` : "Slug absent"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{shop.slug ? `${shop.slug}.ecomfy.cloud` : "Slug absent"}</p>
                     <p className="text-xs text-muted-foreground">{shop.total_orders ?? 0} commande(s) · {formatDate(shop.created_at)}</p>
                   </div>
                 ))}
@@ -666,7 +666,7 @@ export default function FounderTroubleshooting() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Input value={linkSlug} onChange={(e) => setLinkSlug(e.target.value)} placeholder="ma-boutique ou ma-boutique.visuelpro.cloud" />
+                  <Input value={linkSlug} onChange={(e) => setLinkSlug(e.target.value)} placeholder="ma-boutique ou ma-boutique.ecomfy.cloud" />
                   <Button asChild disabled={!publicShopUrl} className="gap-2">
                     <a href={publicShopUrl || "#"} target="_blank" rel="noreferrer">
                       Ouvrir <ExternalLink className="h-4 w-4" />

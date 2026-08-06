@@ -51,7 +51,7 @@ export function FeatureLandingPage({
     name: title,
     description: metaDescription,
     url: canonical,
-    provider: { "@type": "Organization", name: "Ecomfy", url: "https://visuelpro.cloud" },
+    provider: { "@type": "Organization", name: "Ecomfy", url: "https://ecomfy.cloud" },
     areaServed: "Africa",
   };
 
@@ -65,7 +65,7 @@ export function FeatureLandingPage({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Accueil", item: "https://visuelpro.cloud/" },
+      { "@type": "ListItem", position: 1, name: "Accueil", item: "https://ecomfy.cloud/" },
       { "@type": "ListItem", position: 2, name: segLabel || title, item: canonical },
     ],
   };
@@ -81,11 +81,11 @@ export function FeatureLandingPage({
         <meta property="og:url" content={canonical} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Ecomfy" />
-        <meta property="og:image" content="https://visuelpro.cloud/og-default.jpg" />
+        <meta property="og:image" content="https://ecomfy.cloud/og-default.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={metaTitle} />
         <meta name="twitter:description" content={metaDescription} />
-        <meta name="twitter:image" content="https://visuelpro.cloud/og-default.jpg" />
+        <meta name="twitter:image" content="https://ecomfy.cloud/og-default.jpg" />
         <meta name="robots" content="index, follow" />
         <script type="application/ld+json">{JSON.stringify(serviceLd)}</script>
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>

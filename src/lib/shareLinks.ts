@@ -19,7 +19,7 @@ export function buildProductShareUrl(params: {
   productSlug?: string | null;
 }): string {
   const key = params.productSlug || params.productId;
-  if (!params.shopSlug || !key) return "https://visuelpro.cloud";
+  if (!params.shopSlug || !key) return "https://ecomfy.cloud";
   const u = new URL(SHARE_BASE);
   u.searchParams.set("shop", params.shopSlug);
   u.searchParams.set("product", String(key));

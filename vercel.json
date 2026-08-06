@@ -2,6 +2,32 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.ecomfy.cloud" }],
+      "destination": "https://ecomfy.cloud/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "visuelpro.cloud" }],
+      "destination": "https://ecomfy.cloud/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.visuelpro.cloud" }],
+      "destination": "https://ecomfy.cloud/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "visualpro-african-ai-creations.vercel.app" }],
+      "destination": "https://ecomfy.cloud/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

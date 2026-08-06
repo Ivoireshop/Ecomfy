@@ -12,21 +12,21 @@ const Blog = () => {
       <Helmet>
         <title>Blog — Ecomfy</title>
         <meta name="description" content="Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy." />
-        <link rel="canonical" href="https://visuelpro.cloud/blog" />
+        <link rel="canonical" href="https://ecomfy.cloud/blog" />
         <meta property="og:title" content="Blog — Ecomfy" />
         <meta property="og:description" content="Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy." />
-        <meta property="og:url" content="https://visuelpro.cloud/blog" />
+        <meta property="og:url" content="https://ecomfy.cloud/blog" />
         <meta property="og:type" content="website" />
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Blog",
           "name": "Blog Ecomfy",
           "description": "Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy.",
-          "url": "https://visuelpro.cloud/blog",
+          "url": "https://ecomfy.cloud/blog",
           "publisher": {
             "@type": "Organization",
             "name": "Ecomfy",
-            "url": "https://visuelpro.cloud"
+            "url": "https://ecomfy.cloud"
           }
         })}</script>
       </Helmet>

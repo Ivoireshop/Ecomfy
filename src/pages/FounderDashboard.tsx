@@ -1016,12 +1016,12 @@ const FounderDashboard = () => {
                             </p>
                             {s.slug && (
                               <a
-                                href={`https://${s.slug}.visuelpro.cloud`}
+                                href={`https://${s.slug}.ecomfy.cloud`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-xs text-primary hover:underline truncate inline-block"
                               >
-                                {s.slug}.visuelpro.cloud ↗
+                                {s.slug}.ecomfy.cloud ↗
                               </a>
                             )}
                           </div>
@@ -1100,12 +1100,12 @@ const FounderDashboard = () => {
                             </p>
                             {(w.subdomain || w.custom_domain) && (
                               <a
-                                href={`https://${w.custom_domain || `${w.subdomain}.visuelpro.cloud`}`}
+                                href={`https://${w.custom_domain || `${w.subdomain}.ecomfy.cloud`}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-xs text-primary hover:underline truncate inline-block"
                               >
-                                {w.custom_domain || `${w.subdomain}.visuelpro.cloud`} ↗
+                                {w.custom_domain || `${w.subdomain}.ecomfy.cloud`} ↗
                               </a>
                             )}
                             {(w.whatsapp_number || w.phone_number) && (

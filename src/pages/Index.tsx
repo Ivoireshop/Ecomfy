@@ -538,7 +538,7 @@ const Index = () => {
           "name": "Ecomfy",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web",
-          "url": "https://visuelpro.cloud/",
+          "url": "https://ecomfy.cloud/",
           "description": "Plateforme IA tout-en-un : visuels publicitaires, vidéos, sites vitrines, boutiques e-commerce et formations pour entrepreneurs africains.",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "XOF", "availability": "https://schema.org/InStock" }
         }}

@@ -1,8 +1,16 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /admin
+Disallow: /founder
+Disallow: /dashboard
+Disallow: /settings
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin
+Disallow: /founder
+Disallow: /dashboard
+Disallow: /settings
 
 User-agent: Twitterbot
 Allow: /
@@ -12,7 +20,11 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /founder
+Disallow: /dashboard
+Disallow: /settings
 
-Sitemap: https://visuelpro.cloud/sitemap.xml
+Sitemap: https://ecomfy.cloud/sitemap.xml
 Sitemap: https://dqlbmtkaamjohgbcjwtw.supabase.co/functions/v1/dynamic-sitemap
-Host: visuelpro.cloud
+Host: ecomfy.cloud

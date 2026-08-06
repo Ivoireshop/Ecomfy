@@ -7,7 +7,7 @@ export default function BoutiquesEcommerce() {
       title="Création de boutiques e-commerce par IA"
       metaTitle="Créer une boutique e-commerce en Afrique par IA | Ecomfy"
       metaDescription="Lancez votre boutique en ligne en Côte d'Ivoire et en Afrique avec Mobile Money, paiement à la livraison et tunnel de commande optimisé. Activation à 2$."
-      canonical="https://visuelpro.cloud/boutiques-ecommerce"
+      canonical="https://ecomfy.cloud/boutiques-ecommerce"
       hero={{
         eyebrow: "Boutiques e-commerce IA",
         heading: "Votre boutique e-commerce africaine, prête à vendre",

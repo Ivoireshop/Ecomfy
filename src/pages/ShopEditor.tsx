@@ -404,7 +404,7 @@ const ShopEditor = () => {
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
       toast({ title: "✓ Sauvegardé" });
       if (shop.is_published && shop.is_activated) {
-        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${nextSlug}`);
+        triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${nextSlug}`);
       }
     }
     setSaving(false);
@@ -459,7 +459,7 @@ const ShopEditor = () => {
       resetProductForm();
       fetchData();
       if (newProduct.is_published && shop?.slug) {
-        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
+        triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${shop.slug}/p/${productSlug}`);
       }
     }
   };
@@ -546,7 +546,7 @@ const ShopEditor = () => {
         cacheInvalidate(`product:${id}:`);
       }
       if (data.is_published && shop?.slug) {
-        triggerSeoAutoIndex(`https://visuelpro.cloud/shop/${shop.slug}/p/${productSlug}`);
+        triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${shop.slug}/p/${productSlug}`);
       }
       return true;
     } catch (error: any) {

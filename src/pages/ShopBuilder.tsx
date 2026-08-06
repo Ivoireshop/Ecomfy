@@ -246,7 +246,7 @@ const ShopBuilder = () => {
               <Card className="p-4 bg-muted/30 border-dashed">
                 <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wider">Aperçu du lien</p>
                 <p className="text-sm font-mono">
-                  visuelpro.cloud/shop/<span className="text-primary font-semibold">{generateSlug(formData.businessName)}</span>
+                  ecomfy.cloud/shop/<span className="text-primary font-semibold">{generateSlug(formData.businessName)}</span>
                 </p>
               </Card>
             )}

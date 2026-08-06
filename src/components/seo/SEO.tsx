@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 export interface SEOProps {
   title: string;
   description: string;
-  /** Path only (e.g. "/visuels-publicitaires"). Canonical resolves to https://visuelpro.cloud{path}. */
+  /** Path only (e.g. "/visuels-publicitaires"). Canonical resolves to https://ecomfy.cloud{path}. */
   path: string;
   ogImage?: string;
   ogType?: "website" | "article" | "product";
@@ -11,7 +11,7 @@ export interface SEOProps {
   jsonLd?: object | object[];
 }
 
-const BASE = "https://visuelpro.cloud";
+const BASE = "https://ecomfy.cloud";
 
 export function SEO({
   title,
