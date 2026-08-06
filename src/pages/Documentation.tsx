@@ -98,7 +98,7 @@ supabase/
     body: [
       { type: "code", lang: "bash", text:
 `git clone <repo>
-cd visualpro
+cd ecomfy
 npm install
 npm run dev      # Vite — http://localhost:8080
 npm run build    # build production` },

@@ -269,7 +269,7 @@ const ApiDocumentation = () => {
   "method": "POST",
   "url": "${baseUrl}/generate-ai-image",
   "headers": {
-    "Authorization": "Bearer {{ $credentials.visualProApiKey }}",
+    "Authorization": "Bearer {{ $credentials.ecomfyApiKey }}",
     "Content-Type": "application/json"
   },
   "body": {
@@ -291,7 +291,7 @@ const ApiDocumentation = () => {
                   <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto"><code>{`// Configuration MCP Server
 {
   "mcpServers": {
-    "visualpro": {
+    "ecomfy": {
       "url": "${baseUrl}/mcp",
       "transport": "streamable-http",
       "headers": {
@@ -337,7 +337,7 @@ add_action('woocommerce_new_product', function($product_id) {
   
   $response = wp_remote_post('${baseUrl}/generate-ai-image', [
     'headers' => [
-      'Authorization' => 'Bearer ' . VISUALPRO_API_KEY,
+      'Authorization' => 'Bearer ' . ECOMFY_API_KEY,
       'Content-Type' => 'application/json',
     ],
     'body' => json_encode([

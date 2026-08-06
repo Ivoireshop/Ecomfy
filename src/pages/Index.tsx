@@ -163,7 +163,7 @@ const HeroEcomfy = ({ onStart, onDiscover }: { onStart: () => void; onDiscover: 
               <div className="relative w-[110%] md:w-[105%] -mr-6 md:-mr-10">
                 <img
                   src={heroDesktop}
-                  alt="Tableau de bord VisualPro sur ordinateur"
+                  alt="Tableau de bord Ecomfy sur ordinateur"
                   loading="eager"
                   className="w-full h-auto rounded-2xl shadow-2xl shadow-primary/20"
                 />

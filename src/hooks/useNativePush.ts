@@ -112,7 +112,7 @@ export function useNativePush(shopId?: string) {
                 notifications: [
                   {
                     id: getStableNotificationId(data.order_id),
-                    title: notification.title || "💰 Nouvelle commande VisualPro",
+                    title: notification.title || "💰 Nouvelle commande Ecomfy",
                     body: notification.body || getOrderAnnouncement(orderLike),
                     sound: "visualpro_cash.wav",
                     channelId: "visualpro_orders",

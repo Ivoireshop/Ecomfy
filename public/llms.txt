@@ -1,12 +1,12 @@
-# VisualPro
+# Ecomfy
 
 > Plateforme africaine de création de visuels et vidéos publicitaires par IA, boutiques en ligne, sites vitrines et formations.
 
-VisualPro permet aux entrepreneurs et créateurs africains de générer des visuels publicitaires professionnels en moins d'une minute, de créer des boutiques e-commerce avec paiement Mobile Money et Cash on Delivery, de publier des sites vitrines, et de vendre des formations en ligne.
+Ecomfy permet aux entrepreneurs et créateurs africains de générer des visuels publicitaires professionnels en moins d'une minute, de créer des boutiques e-commerce avec paiement Mobile Money et Cash on Delivery, de publier des sites vitrines, et de vendre des formations en ligne.
 
 ## Pages
 
-- [Accueil](/): Présentation de VisualPro et accès à toutes les fonctionnalités.
+- [Accueil](/): Présentation de Ecomfy et accès à toutes les fonctionnalités.
 - [Générateur IA](/generator): Création de visuels et vidéos publicitaires par IA.
 - [Bibliothèque](/library): Galerie des créations enregistrées.
 - [Démo](/demo): Démonstration interactive du générateur.

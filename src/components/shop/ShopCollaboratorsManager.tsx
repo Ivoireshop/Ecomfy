@@ -106,7 +106,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
         <Badge className="bg-amber-500 hover:bg-amber-500 text-white">NEW</Badge>
       </div>
       <p className="text-sm text-muted-foreground -mt-3">
-        Invitez des collaborateurs par email et choisissez précisément ce qu'ils peuvent faire sur la boutique. Ils accèdent à la boutique après avoir accepté l'invitation depuis leur compte VisualPro.
+        Invitez des collaborateurs par email et choisissez précisément ce qu'ils peuvent faire sur la boutique. Ils accèdent à la boutique après avoir accepté l'invitation depuis leur compte Ecomfy.
       </p>
 
       <Card className="p-5 space-y-4">

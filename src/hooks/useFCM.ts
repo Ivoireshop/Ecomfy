@@ -116,13 +116,13 @@ export function useFCM(shopId?: string) {
             body: body || data.body || getOrderAnnouncement(orderLike),
             icon: "/app-icon-512.png",
             badge: "/app-icon-512.png",
-            tag: data.order_id ? `visualpro-order-${data.order_id}` : "visualpro-order",
+            tag: data.order_id ? `ecomfy-order-${data.order_id}` : "ecomfy-order",
             renotify: false,
             requireInteraction: true,
             silent: false,
             vibrate: [300, 80, 300, 80, 700],
           };
-          new Notification(title || data.title || "💰 Nouvelle commande VisualPro", options);
+          new Notification(title || data.title || "💰 Nouvelle commande Ecomfy", options);
         }
       });
 

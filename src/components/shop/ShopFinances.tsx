@@ -154,11 +154,11 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       `💸 Dépenses totales : ${fmt(stats.totalExpenses)} FCFA`,
       ...Object.entries(stats.expByCat).map(([cat, val]) => `   • ${CATEGORIES.find(c => c.value === cat)?.label || cat} : ${fmt(val)} FCFA`),
       `🏦 Frais plateforme payés : ${fmt(stats.platformFees)} FCFA`,
-      `⏳ Commission due VisualPro : ${fmt(stats.commissionDue)} FCFA`,
+      `⏳ Commission due Ecomfy : ${fmt(stats.commissionDue)} FCFA`,
       ``,
       `${stats.profit >= 0 ? "📈" : "📉"} *Bénéfice net estimé : ${fmt(stats.profit)} FCFA*`,
       ``,
-      `— VisualPro Cloud`,
+      `— Ecomfy Cloud`,
     ];
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
     window.open(url, "_blank");
@@ -234,7 +234,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       {/* Plateforme + breakdown */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card className="p-5">
-          <h3 className="font-bold mb-3 flex items-center gap-2">🏦 Frais plateforme VisualPro</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2">🏦 Frais plateforme Ecomfy</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span>Activation boutique payée</span><Badge variant={shop?.activation_fee_paid ? "default" : "secondary"}>{shop?.activation_fee_paid ? "Oui" : "Non"}</Badge></div>
             <div className="flex justify-between"><span>Frais déjà payés</span><span className="font-semibold">{fmt(stats.platformFees)} FCFA</span></div>

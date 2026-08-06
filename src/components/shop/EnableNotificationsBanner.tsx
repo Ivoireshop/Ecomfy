@@ -170,7 +170,7 @@ export function EnableNotificationsBanner() {
 
         <p className="text-[10px] text-muted-foreground leading-snug pt-1 border-t">
           📱 App fermée ou écran verrouillé : le téléphone joue le son système de notification.
-          La sonnerie VisualPro personnalisée se joue quand l'app est ouverte.
+          La sonnerie Ecomfy personnalisée se joue quand l'app est ouverte.
         </p>
       </Card>
     );
@@ -187,7 +187,7 @@ export function EnableNotificationsBanner() {
       if (isIOS && !isStandalone) {
         toast({
           title: "Installation requise",
-          description: "Sur iPhone, ajoutez d'abord VisualPro à l'écran d'accueil via Safari (bouton Partager → Sur l'écran d'accueil), puis réessayez depuis l'app.",
+          description: "Sur iPhone, ajoutez d'abord Ecomfy à l'écran d'accueil via Safari (bouton Partager → Sur l'écran d'accueil), puis réessayez depuis l'app.",
         });
         return;
       }
@@ -204,7 +204,7 @@ export function EnableNotificationsBanner() {
       const token = await register();
       if (token) {
         toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte sonore à chaque commande selon les réglages du téléphone." });
-        try { new Notification("VisualPro", { body: "Notifications activées avec succès.", icon: "/app-icon-512.png", silent: false }); } catch {}
+        try { new Notification("Ecomfy", { body: "Notifications activées avec succès.", icon: "/app-icon-512.png", silent: false }); } catch {}
       } else {
         toast({
           title: "Échec de l'enregistrement",

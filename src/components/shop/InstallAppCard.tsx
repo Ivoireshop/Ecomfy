@@ -65,7 +65,7 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
       } else {
         toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte quand l'application est ouverte." });
       }
-      try { new Notification("VisualPro est prêt", { body: "Notifications de nouvelles commandes activées.", icon: "/app-icon-512.png" }); } catch {}
+      try { new Notification("Ecomfy est prêt", { body: "Notifications de nouvelles commandes activées.", icon: "/app-icon-512.png" }); } catch {}
     } else if (p === "denied") {
       toast({ title: "Notifications bloquées", description: "Activez-les dans les paramètres de votre navigateur.", variant: "destructive" });
     }
@@ -78,9 +78,9 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
           <Smartphone className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold">Installer VisualPro sur votre téléphone</h3>
+          <h3 className="font-semibold">Installer Ecomfy sur votre téléphone</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Ajoutez VisualPro à l'écran d'accueil de votre mobile pour recevoir les notifications de nouvelles commandes en temps réel.
+            Ajoutez Ecomfy à l'écran d'accueil de votre mobile pour recevoir les notifications de nouvelles commandes en temps réel.
           </p>
         </div>
       </div>
@@ -163,7 +163,7 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
                   </li>
                   <li className="flex gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">5</span>
-                    <div>Touchez <strong>« Ajouter »</strong> en haut à droite. L'icône VisualPro apparaît sur votre écran d'accueil.</div>
+                    <div>Touchez <strong>« Ajouter »</strong> en haut à droite. L'icône Ecomfy apparaît sur votre écran d'accueil.</div>
                   </li>
                 </ol>
               </section>
@@ -176,7 +176,7 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
                 <ol className="space-y-3 text-sm">
                   <li className="flex gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
-                    <div>Une fois installée, ouvrez l'app <strong>VisualPro depuis votre écran d'accueil</strong> (pas depuis Safari).</div>
+                    <div>Une fois installée, ouvrez l'app <strong>Ecomfy depuis votre écran d'accueil</strong> (pas depuis Safari).</div>
                   </li>
                   <li className="flex gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
@@ -188,7 +188,7 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
                       Si vous avez touché « Refuser » par erreur :
                       <div className="mt-1 pl-2 border-l-2 border-primary/30 text-xs space-y-1">
                         <div>• Ouvrez <strong>Réglages</strong> de l'iPhone</div>
-                        <div>• Faites défiler jusqu'à <strong>VisualPro</strong></div>
+                        <div>• Faites défiler jusqu'à <strong>Ecomfy</strong></div>
                         <div>• Touchez <strong>Notifications</strong> → activez <strong>« Autoriser les notifications »</strong></div>
                       </div>
                     </div>
@@ -242,7 +242,7 @@ export function InstallAppCard({ shopId }: { shopId?: string } = {}) {
                 <ol className="space-y-3 text-sm">
                   <li className="flex gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
-                    <div>Cliquez sur l'icône <strong>installation</strong> à droite de la barre d'adresse (un petit écran avec flèche ⤓), ou menu <strong>⋮</strong> → <strong>« Installer VisualPro »</strong>.</div>
+                    <div>Cliquez sur l'icône <strong>installation</strong> à droite de la barre d'adresse (un petit écran avec flèche ⤓), ou menu <strong>⋮</strong> → <strong>« Installer Ecomfy »</strong>.</div>
                   </li>
                   <li className="flex gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>

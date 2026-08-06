@@ -400,7 +400,7 @@ const ShopView = () => {
     }
 
     // Set favicon dynamically (shop branding first) — remove ALL existing icon links
-    // so the browser doesn't keep showing the default VisualPro favicon.
+    // so the browser doesn't keep showing the default Ecomfy favicon.
     const iconHref = shopData.favicon_url || shopData.logo_url || "/favicon.png";
     document.head
       .querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']")

@@ -10,11 +10,11 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DomainRegistrarSuggestions } from "@/components/DomainRegistrarSuggestions";
 
-// Fixed DNS configuration for VisualPro
-const VISUALPRO_CONFIG = {
-  CNAME_TARGET: 'sites.visualpro.cloud',
+// Fixed DNS configuration for Ecomfy
+const ECOMFY_CONFIG = {
+  CNAME_TARGET: 'sites.ecomfy.cloud',
   A_RECORD_IP: '185.178.193.121',
-  CLOUDFLARE_VERIFY: 'verify.visualpro.cloud',
+  CLOUDFLARE_VERIFY: 'verify.ecomfy.cloud',
 };
 
 interface DnsRecord {
@@ -219,7 +219,7 @@ export const DnsConfigurationAssistant = ({
       {/* Lovable Subdomain */}
       <Card>
         <CardHeader>
-          <CardTitle>Domaine VisualPro actuel</CardTitle>
+          <CardTitle>Domaine Ecomfy actuel</CardTitle>
           <CardDescription>
             Votre {resourceLabel} est actuellement accessible via cette adresse
           </CardDescription>
@@ -380,12 +380,12 @@ export const DnsConfigurationAssistant = ({
                       <div>
                         <p className="text-muted-foreground mb-1">Valeur / Target</p>
                         <div className="flex items-center gap-2">
-                          <p className="font-mono text-xs">{VISUALPRO_CONFIG.CNAME_TARGET}</p>
+                          <p className="font-mono text-xs">{ECOMFY_CONFIG.CNAME_TARGET}</p>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 px-2"
-                            onClick={() => copyToClipboard(VISUALPRO_CONFIG.CNAME_TARGET)}
+                            onClick={() => copyToClipboard(ECOMFY_CONFIG.CNAME_TARGET)}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -410,7 +410,7 @@ export const DnsConfigurationAssistant = ({
                           <Clock className="h-5 w-5 text-gray-400" />
                         }
                         <div>
-                          <p className="font-semibold">2. Enregistrement A (domaine principal)</p>
+                          <p className="font-semibold">2. Enregistrement A (domaine racine)</p>
                           {dnsRecords.find(r => r.type === 'A') && getStatusBadge(dnsRecords.find(r => r.type === 'A')!.status)}
                         </div>
                       </div>
@@ -437,12 +437,12 @@ export const DnsConfigurationAssistant = ({
                       <div>
                         <p className="text-muted-foreground mb-1">Valeur / IPv4</p>
                         <div className="flex items-center gap-2">
-                          <p className="font-mono">{VISUALPRO_CONFIG.A_RECORD_IP}</p>
+                          <p className="font-mono">{ECOMFY_CONFIG.A_RECORD_IP}</p>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 px-2"
-                            onClick={() => copyToClipboard(VISUALPRO_CONFIG.A_RECORD_IP)}
+                            onClick={() => copyToClipboard(ECOMFY_CONFIG.A_RECORD_IP)}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -494,12 +494,12 @@ export const DnsConfigurationAssistant = ({
                       <div>
                         <p className="text-muted-foreground mb-1">Valeur / Value</p>
                         <div className="flex items-center gap-2">
-                          <p className="font-mono text-xs break-all">visualpro-site-verification={verificationCode}</p>
+                          <p className="font-mono text-xs break-all">ecomfy-site-verification={verificationCode}</p>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 px-2"
-                            onClick={() => copyToClipboard(`visualpro-site-verification=${verificationCode}`)}
+                            onClick={() => copyToClipboard(`ecomfy-site-verification=${verificationCode}`)}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>

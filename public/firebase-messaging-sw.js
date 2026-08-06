@@ -17,11 +17,11 @@ messaging.onBackgroundMessage((payload) => {
   const data = payload.data || {};
   const orderId = data.order_id || Date.now().toString();
   if (!payload.notification) {
-    self.registration.showNotification(data.title || '💰 Nouvelle commande VisualPro', {
+    self.registration.showNotification(data.title || '💰 Nouvelle commande Ecomfy', {
       body: data.body || "Une nouvelle commande vient d'arriver.",
       icon: icon || '/app-icon-512.png',
       badge: '/app-icon-512.png',
-      tag: `visualpro-order-${orderId}`,
+      tag: `ecomfy-order-${orderId}`,
       data: { url: click_action || data.url || '/', order_id: data.order_id },
       requireInteraction: true,
       vibrate: [300, 80, 300, 80, 700],
@@ -29,7 +29,7 @@ messaging.onBackgroundMessage((payload) => {
       silent: false,
     });
   }
-  // Notify any open page so it can play the VisualPro cash sound in foreground.
+  // Notify any open page so it can play the Ecomfy cash sound in foreground.
   self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
     cs.forEach((c) => c.postMessage({ type: 'vp-new-order', order_id: data.order_id }));
   });

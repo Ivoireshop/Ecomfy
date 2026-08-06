@@ -118,7 +118,7 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
             )}
 
             <p className="text-[11px] text-center text-gray-500">
-              Vous restez connecté à VisualPro. Les fonctionnalités de la boutique sont bloquées tant
+              Vous restez connecté à Ecomfy. Les fonctionnalités de la boutique sont bloquées tant
               que le paiement n'est pas effectué.
             </p>
           </div>

@@ -45,7 +45,7 @@ export function BillingBanner({
               <p className="font-semibold text-sm">Boutique suspendue</p>
               <p className="text-xs opacity-90">
                 Votre solde dû de {fmt(balanceDue)} FCFA n'a pas été réglé dans les délais.
-                Contactez le support VisualPro pour réactiver votre boutique.
+                Contactez le support Ecomfy pour réactiver votre boutique.
               </p>
             </div>
           </div>
@@ -102,7 +102,7 @@ export function BillingBanner({
       <div className="flex items-center justify-between gap-3 text-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Wallet className="h-4 w-4" />
-          <span>Montant dû VisualPro</span>
+          <span>Montant dû Ecomfy</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-semibold">0 FCFA</span>

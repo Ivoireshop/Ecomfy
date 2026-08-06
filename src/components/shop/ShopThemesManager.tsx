@@ -108,7 +108,7 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
               <p className="text-sm text-muted-foreground mt-2">
                 {activeMeta
                   ? activeMeta.description
-                  : "Vous utilisez actuellement le design classique VisualPro. Installez un nouveau thème pour transformer l'apparence de votre boutique."}
+                  : "Vous utilisez actuellement le design classique Ecomfy. Installez un nouveau thème pour transformer l'apparence de votre boutique."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {activeMeta && (

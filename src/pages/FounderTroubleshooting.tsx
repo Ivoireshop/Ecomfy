@@ -980,7 +980,7 @@ function PatchCard({ patch, busy, onApply }: { patch: TechPatch; busy: boolean; 
 function downloadDiagnosticBundle(payload: Record<string, unknown>) {
   const bundle = {
     generated_at: new Date().toISOString(),
-    app: "visualpro",
+    app: "ecomfy",
     version: 1,
     ...payload,
   };
@@ -988,7 +988,7 @@ function downloadDiagnosticBundle(payload: Record<string, unknown>) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `visualpro-diagnostic-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  a.download = `ecomfy-diagnostic-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();

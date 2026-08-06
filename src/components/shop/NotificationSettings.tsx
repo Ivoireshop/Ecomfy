@@ -168,14 +168,14 @@ export function NotificationSettings({ shop, setShop }: Props) {
           <Card className="p-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-0 shadow-xl">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
-                VP
+                EC
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm leading-tight">{preview.title}</div>
                 <div className="text-xs text-slate-300 whitespace-pre-line mt-1 leading-snug">
                   {preview.body}
                 </div>
-                <div className="text-[10px] text-slate-400 mt-2">à l'instant • VisualPro</div>
+                <div className="text-[10px] text-slate-400 mt-2">à l'instant • Ecomfy</div>
               </div>
             </div>
           </Card>

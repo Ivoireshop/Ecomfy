@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen, MessageCircle, HelpCircle, Video, ExternalLink, Phone } from "lucide-react";
 
-const WHATSAPP = "https://wa.me/2250758152761?text=" + encodeURIComponent("Bonjour, j'ai besoin d'aide avec ma boutique VisualPro.");
+const WHATSAPP = "https://wa.me/2250758152761?text=" + encodeURIComponent("Bonjour, j'ai besoin d'aide avec ma boutique Ecomfy.");
 
 const RESOURCES = [
   {
