@@ -687,7 +687,7 @@ const Auth = () => {
       <div className="relative hidden overflow-hidden md:block md:min-h-screen">
         <img
           src={authHeroV5}
-          alt="Créateur africain utilisant VisualPro"
+          alt="Créateur africain utilisant Ecomfy"
           className="absolute inset-0 h-full w-full object-cover object-[70%_center] md:object-center"
           width={1024}
           height={1024}
@@ -704,7 +704,7 @@ const Auth = () => {
           <div className="mb-2 md:mb-3 flex items-center gap-3">
             <span className="h-px w-8 md:w-10 bg-primary" />
             <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-              VisualPro V5
+              Ecomfy V5
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl xl:text-5xl font-bold leading-tight mb-2 md:mb-4">

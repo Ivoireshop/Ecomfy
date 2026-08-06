@@ -12,6 +12,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { useCommunityNotifications } from "@/hooks/useCommunityNotifications";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Eager load: landing only (critical path)
 import Index from "./pages/Index";
@@ -406,18 +407,20 @@ const AppWithSidebar = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <IdlePrefetcher />
-          <AppWithSidebar />
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <IdlePrefetcher />
+            <AppWithSidebar />
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
