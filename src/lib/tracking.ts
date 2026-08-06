@@ -146,14 +146,25 @@ export function initShopPixels(shop: ShopTracking) {
 
   if (shop.google_analytics_code && ensureLoaded("ga_custom")) {
     try {
-      const tpl = document.createElement("template");
-      tpl.innerHTML = shop.google_analytics_code;
-      tpl.content.querySelectorAll("script").forEach((src) => {
-        const s = document.createElement("script");
-        for (const attr of Array.from(src.attributes)) s.setAttribute(attr.name, attr.value);
-        s.text = src.textContent || "";
-        document.head.appendChild(s);
-      });
+      // If user pasted a Measurement ID (e.g. G-XXXXXXX or UA-XXXXXXX-X), load it safely via loadGA4
+      const idMatch = shop.google_analytics_code.match(/\b(G-[A-Z0-9]+|UA-\d+-\d+)\b/i);
+      if (idMatch) {
+        loadGA4(idMatch[1]);
+      } else {
+        const tpl = document.createElement("template");
+        tpl.innerHTML = shop.google_analytics_code;
+        tpl.content.querySelectorAll("script").forEach((src) => {
+          // Only execute scripts hosted on trusted google analytics/tagmanager domains
+          const srcUrl = src.getAttribute("src");
+          if (srcUrl && !/https?:\/\/(www\.)?(googletagmanager|google-analytics)\.com/i.test(srcUrl)) {
+            return;
+          }
+          const s = document.createElement("script");
+          for (const attr of Array.from(src.attributes)) s.setAttribute(attr.name, attr.value);
+          s.text = src.textContent || "";
+          document.head.appendChild(s);
+        });
+      }
     } catch { /* ignore */ }
   }
 }

@@ -900,11 +900,13 @@ const ProductView = () => {
             <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 mb-3 relative group">
               {images.length > 0 ? (
                 <img 
-                  src={images[selectedImageIdx]?.image_url} 
+                  src={thumbUrl(images[selectedImageIdx]?.image_url, 800)} 
                   alt={product.name} 
                   loading="eager"
                   decoding="async"
                   fetchPriority="high"
+                  width={800}
+                  height={800}
                   className="w-full h-full object-cover"
                 />
               ) : (

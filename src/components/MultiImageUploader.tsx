@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,18 +10,26 @@ import { signGeneratedImagePath } from "@/lib/generatedImageUrl";
 
 interface MultiImageUploaderProps {
   onImagesUploaded: (imageUrls: string[]) => void;
+  initialImages?: string[];
   maxImages?: number;
   minImages?: number;
 }
 
 export function MultiImageUploader({
   onImagesUploaded,
+  initialImages = [],
   maxImages = 3,
   minImages = 1,
 }: MultiImageUploaderProps) {
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<string[]>(initialImages);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    if (initialImages && initialImages.length > 0) {
+      setUploadedImages(initialImages);
+    }
+  }, [initialImages]);
 
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
