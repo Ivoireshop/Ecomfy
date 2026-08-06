@@ -268,21 +268,21 @@ const ShopManager = () => {
             {shops.map((shop) => {
               const color = shop.primary_color || "#2563eb";
               return (
-                <Card key={shop.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300 border-transparent hover:border-primary/20">
+                <Card key={shop.id} className="overflow-hidden group card-interactive border-border/60 hover:border-emerald-500/30">
                   <div className="h-36 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}, ${color}dd)` }}>
                     {shop.banner_url ? (
-                      <img src={shop.banner_url} alt="" className="w-full h-full object-cover" />
+                      <img src={shop.banner_url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Store className="h-16 w-16 text-primary-foreground/30" />
+                        <Store className="h-16 w-16 text-primary-foreground/30 transition-transform duration-500 group-hover:scale-110" />
                       </div>
                     )}
                     <div className="absolute top-3 right-3">
                       {shop.is_activated ? (
                         shop.is_published ? (
-                          <Badge className="bg-green-500/90 text-primary-foreground shadow-sm">En ligne</Badge>
+                          <Badge className="bg-emerald-600 text-white shadow-sm font-semibold">En ligne</Badge>
                         ) : (
-                          <Badge className="bg-secondary/90 text-secondary-foreground shadow-sm">Hors ligne</Badge>
+                          <Badge className="bg-secondary/90 text-secondary-foreground shadow-sm font-semibold">Hors ligne</Badge>
                         )
                       ) : (
                         <Badge variant="outline" className="bg-background/80 backdrop-blur-sm">Non activée</Badge>
@@ -290,7 +290,7 @@ const ShopManager = () => {
                     </div>
                     {shop.logo_url && (
                       <div className="absolute bottom-3 left-4">
-                        <img src={shop.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover border-2 border-background shadow-lg" />
+                        <img src={shop.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover border-2 border-background shadow-lg transition-transform duration-300 group-hover:scale-105" />
                       </div>
                     )}
                   </div>
@@ -325,21 +325,23 @@ const ShopManager = () => {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button className="flex-1 gap-2" onClick={() => navigate(`/shop-editor/${shop.id}`)}>
+                      <Button className="flex-1 gap-2 btn-interactive" onClick={() => navigate(`/shop-editor/${shop.id}`)}>
                         <Settings className="h-4 w-4" />
                         Gérer
                       </Button>
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => window.open(shop.is_activated && shop.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank")}
+                        className="btn-interactive"
+                        onClick={() => window.open(`https://ecomfy.cloud/shop/${shop.slug}`, "_blank")}
+                        title="Voir la boutique"
                       >
-                        <ArrowUpRight className="h-4 w-4" />
+                        <ExternalLink className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="icon"
-                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground btn-interactive"
                         onClick={() => setDeleteTarget(shop)}
                       >
                         <Trash2 className="h-4 w-4" />

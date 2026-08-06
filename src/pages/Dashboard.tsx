@@ -66,11 +66,11 @@ const Dashboard = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 max-w-6xl mx-auto">
           {hubServices.map((s, idx) => (
             <Card
               key={idx}
-              className={`group relative overflow-hidden border-2 border-transparent hover:border-primary/20 transition-all duration-500 hover:shadow-2xl cursor-pointer animate-fade-in ${s.bgLight}`}
+              className={`group relative overflow-hidden card-interactive border-2 border-transparent hover:border-emerald-500/30 cursor-pointer animate-fade-in ${s.bgLight}`}
               style={{ animationDelay: `${idx * 80}ms`, animationFillMode: "both" }}
               onClick={() => navigate(s.route)}
             >
