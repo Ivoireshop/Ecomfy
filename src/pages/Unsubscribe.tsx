@@ -40,7 +40,7 @@ export default function Unsubscribe() {
         {state === "valid" && (
           <>
             <h1 className="text-xl font-bold mb-2">Se désabonner ?</h1>
-            <p className="text-sm text-muted-foreground mb-6">Vous ne recevrez plus d'emails de VisualPro Cloud à cette adresse.</p>
+            <p className="text-sm text-muted-foreground mb-6">Vous ne recevrez plus d'emails de Ecomfy à cette adresse.</p>
             <Button onClick={confirm} disabled={submitting} variant="destructive">{submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}Confirmer le désabonnement</Button>
           </>
         )}

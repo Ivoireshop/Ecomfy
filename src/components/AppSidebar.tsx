@@ -156,12 +156,12 @@ export function AppSidebar() {
               <div className="flex items-center justify-between gap-2">
                 {!isCollapsed && (
                   <span className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    VisualPro
+                    Ecomfy
                   </span>
                 )}
                 {isCollapsed && (
                   <span className="font-bold text-xs bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    VP
+                    EC
                   </span>
                 )}
                 {!isCollapsed && <UserAvatar />}

@@ -708,7 +708,7 @@ const ShopView = () => {
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   const shopTitle = shop.seo_title || shop.business_name || "Boutique";
-  const shopDescription = shop.business_description || `Boutique ${shop.business_name} sur VisualPro`;
+  const shopDescription = shop.business_description || `Boutique ${shop.business_name} sur Ecomfy`;
   const shopImage = shop.logo_url || shop.favicon_url || "https://storage.googleapis.com/gpt-engineer-file-uploads/YasR3rLLCfTPxhyVC44DaAaelxo2/social-images/social-1766315146557-T%C3%A9moignage%20(3).jpg";
 
   return (
@@ -958,7 +958,7 @@ const ShopView = () => {
           </div>
           <div className="flex items-center gap-1">
             {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
-            Propulsé par <span className="font-semibold text-foreground ml-1">VisualPro</span>
+            Propulsé par <span className="font-semibold text-foreground ml-1">Ecomfy</span>
           </div>
         </div>
       </footer>

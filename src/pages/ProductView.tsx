@@ -1506,7 +1506,7 @@ const ProductView = () => {
           </div>
           <div className="text-center text-xs text-gray-400 mt-6 flex items-center justify-center gap-1">
             {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
-            Propulsé par <span className="font-semibold text-gray-600">VisualPro</span>
+            Propulsé par <span className="font-semibold text-gray-600">Ecomfy</span>
           </div>
         </div>
       </footer>

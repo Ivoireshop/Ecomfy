@@ -112,7 +112,7 @@ const VerifyEmail = () => {
       <div className="w-full max-w-md mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            VisualPro
+            Ecomfy
           </h1>
           <p className="text-muted-foreground">
             Vérification de votre email

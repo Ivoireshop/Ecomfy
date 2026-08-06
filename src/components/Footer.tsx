@@ -53,9 +53,9 @@ export function Footer() {
           {/* À propos */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <img src={logo} alt="Logo VisualPro" className="h-8 w-8" />
+              <img src={logo} alt="Logo Ecomfy" className="h-8 w-8" />
               <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                VisualPro
+                Ecomfy
               </span>
             </div>
             <p className="text-muted-foreground mb-4">
@@ -64,7 +64,7 @@ export function Footer() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="w-4 h-4" />
-                <span>contact@visualpro.cloud</span>
+                <span>contact@ecomfy.cloud</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Phone className="w-4 h-4" />
@@ -136,7 +136,7 @@ export function Footer() {
         <div className="border-t pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} VisualPro. Tous droits réservés.
+              © {new Date().getFullYear()} Ecomfy. Tous droits réservés.
             </p>
             
             <div className="flex gap-4">

@@ -105,9 +105,8 @@ const ShopPaymentControl = lazyWithRetry(() => import("./pages/founder/ShopPayme
 const isCustomShopHost = (() => {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
-  const KNOWN = ["visuelpro.cloud", "localhost", "visualpro-african-ai-creations.lovable.app"];
-  if (KNOWN.includes(host)) return false;
-  if (host.endsWith(".lovable.app") || host.endsWith(".lovable.dev") || host.endsWith(".lovableproject.com")) return false;
+  const KNOWN = ["visuelpro.cloud", "ecomfy.cloud", "localhost", "127.0.0.1"];
+  if (KNOWN.includes(host) || host.endsWith(".vercel.app")) return false;
   return true;
 })();
 
@@ -163,7 +162,7 @@ const AppContent = () => {
             }
           />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+          <Route path="/oauth/consent" element={<OAuthConsent />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/visuels-publicitaires" element={<VisuelsPublicitaires />} />
           <Route path="/videos-publicitaires" element={<VideosPublicitaires />} />
