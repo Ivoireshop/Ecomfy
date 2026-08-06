@@ -218,20 +218,26 @@ export function EnableNotificationsBanner() {
   };
 
   return (
-    <Card className="p-3 mb-4 border-primary/30 bg-primary/5 flex items-center gap-2.5">
-      <div className="h-8 w-8 shrink-0 rounded-full bg-primary/15 flex items-center justify-center">
-        <Bell className="h-4 w-4 text-primary" />
+    <div className="bg-[#E3F1EC] border border-[#C9E5DC] rounded-[14px] p-[16px_20px] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+      <div className="flex items-center gap-[14px]">
+        <div className="w-[36px] h-[36px] rounded-[10px] bg-white flex items-center justify-center text-[#0E7C66] shrink-0 shadow-sm">
+          <Bell className="h-[18px] w-[18px]" />
+        </div>
+        <div>
+          <h4 className="m-0 text-[14px] font-semibold text-[#0F1B2C] mb-[2px]">Activez les notifications</h4>
+          <p className="m-0 text-[13px] text-[#5B6472]">
+            Recevez une alerte instantanée à chaque nouvelle commande.
+          </p>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-xs sm:text-sm leading-tight">Activez les notifications</p>
-        <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
-          Alerte instantanée à chaque commande.
-        </p>
-      </div>
-      <Button onClick={handleEnable} size="sm" disabled={busy} className="h-8 px-3 text-xs gap-1.5 shrink-0">
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+      <button 
+        onClick={handleEnable} 
+        disabled={busy} 
+        className="bg-[#0F1B2C] text-white border-none py-[9px] px-[16px] rounded-[9px] text-[13px] font-semibold flex items-center justify-center gap-[6px] cursor-pointer shrink-0 hover:bg-black transition-colors"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
         Activer
-      </Button>
-    </Card>
+      </button>
+    </div>
   );
 }

@@ -127,178 +127,187 @@ const ShopManager = () => {
   const activeShops = shops.filter(s => s?.is_activated).length;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Header */}
-      <div className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Mes Boutiques</h1>
-              <p className="text-muted-foreground mt-1">Gérez et développez votre empire e-commerce</p>
+    <div className="min-h-screen bg-[#FAFAF7] font-inter">
+      <div className="max-w-[1180px] mx-auto px-6 md:px-8 pt-12 pb-16 text-[#0F1B2C]">
+        
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
+          <div>
+            <div className="font-mono text-[11.5px] font-medium tracking-[0.09em] text-[#0E7C66] uppercase mb-2.5">
+              Espace boutiques
             </div>
-            <Button onClick={() => navigate("/shop-builder")} size="lg" className="gap-2 shadow-lg">
-              <Plus className="h-5 w-5" />
-              Créer une boutique
-            </Button>
-          </div>
-
-          {shops.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-              <Card className="p-4 bg-primary/5 border-primary/20">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Store className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{shops.length}</p>
-                    <p className="text-xs text-muted-foreground">Boutiques</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-4 bg-green-500/5 border-green-500/20">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                    <Zap className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{activeShops}</p>
-                    <p className="text-xs text-muted-foreground">Actives</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-4 bg-secondary/5 border-secondary/20">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-                    <Package className="h-5 w-5 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalOrders}</p>
-                    <p className="text-xs text-muted-foreground">Commandes</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-4 bg-purple-500/5 border-purple-500/20">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-sm">{formatPrice(totalRevenue, "FCFA")}</p>
-                    <p className="text-xs text-muted-foreground">Revenus</p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-        <EnableNotificationsBanner />
-        {/* Shops the user has been invited to collaborate on */}
-        {collabShops.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold">Boutiques où vous collaborez</h2>
-              <Badge variant="secondary" className="ml-1">{collabShops.length}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Accédez directement aux boutiques qui vous ont invité(e) à collaborer, sans repasser par l'email.
+            <h1 className="font-space text-3xl md:text-[32px] font-semibold tracking-[-0.015em] mb-2 text-[#0F1B2C]">
+              Mes boutiques
+            </h1>
+            <p className="text-[14.5px] text-[#5B6472] m-0">
+              Gérez et développez votre activité e-commerce.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {collabShops.map((cs) => {
-                if (!cs) return null;
-                const color = cs.primary_color || "#2563eb";
-                return (
-                  <Card key={cs.id || Math.random().toString()} className="overflow-hidden hover:shadow-lg transition-all">
-                    <div className="h-24 relative" style={{ background: `linear-gradient(135deg, ${color}, ${color}dd)` }}>
-                      {cs.banner_url && (
-                        <img src={cs.banner_url} alt="" className="w-full h-full object-cover" />
-                      )}
-                      {cs.logo_url && (
-                        <img src={cs.logo_url} alt="" className="absolute bottom-2 left-3 h-10 w-10 rounded-lg object-cover border-2 border-background shadow" />
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-bold truncate">{cs.business_name}</h3>
-                      <p className="text-xs text-muted-foreground mb-3">Collaborateur · {cs.roles.length} rôle{cs.roles.length > 1 ? "s" : ""}</p>
-                      <Button className="w-full gap-2" onClick={() => navigate(`/shop-editor/${cs.id}`)}>
-                        <LogIn className="h-4 w-4" />
-                        Se connecter à {cs.business_name}
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })}
+          </div>
+          <button 
+            onClick={() => navigate("/shop-builder")}
+            className="bg-[#0F1B2C] text-white border-none px-5 py-3 rounded-[10px] text-[13.5px] font-semibold font-inter flex items-center gap-2 cursor-pointer shrink-0 hover:bg-black transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Créer une boutique
+          </button>
+        </div>
+
+        {/* STATS */}
+        {shops.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[14px] mb-[34px]">
+            <div className="bg-white border border-[#E7E5DE] rounded-[14px] p-[18px_20px] flex items-center gap-[14px] shadow-sm">
+              <div className="w-[38px] h-[38px] rounded-[10px] bg-[#E3F1EC] text-[#0E7C66] flex items-center justify-center shrink-0">
+                <Store className="h-[18px] w-[18px]" />
+              </div>
+              <div>
+                <div className="font-space text-[22px] font-semibold leading-[1.1] text-[#0F1B2C]">{shops.length}</div>
+                <div className="text-[12.5px] text-[#5B6472] mt-0.5">Boutiques</div>
+              </div>
             </div>
-            <div className="border-b mt-8" />
+            <div className="bg-white border border-[#E7E5DE] rounded-[14px] p-[18px_20px] flex items-center gap-[14px] shadow-sm">
+              <div className="w-[38px] h-[38px] rounded-[10px] bg-[#E3F1EC] text-[#0E7C66] flex items-center justify-center shrink-0">
+                <Zap className="h-[18px] w-[18px]" />
+              </div>
+              <div>
+                <div className="font-space text-[22px] font-semibold leading-[1.1] text-[#0F1B2C]">{activeShops}</div>
+                <div className="text-[12.5px] text-[#5B6472] mt-0.5">Actives</div>
+              </div>
+            </div>
+            <div className="bg-white border border-[#E7E5DE] rounded-[14px] p-[18px_20px] flex items-center gap-[14px] shadow-sm">
+              <div className="w-[38px] h-[38px] rounded-[10px] bg-[#E3F1EC] text-[#0E7C66] flex items-center justify-center shrink-0">
+                <Package className="h-[18px] w-[18px]" />
+              </div>
+              <div>
+                <div className="font-space text-[22px] font-semibold leading-[1.1] text-[#0F1B2C]">{totalOrders}</div>
+                <div className="text-[12.5px] text-[#5B6472] mt-0.5">Commandes</div>
+              </div>
+            </div>
+            <div className="bg-white border border-[#E7E5DE] rounded-[14px] p-[18px_20px] flex items-center gap-[14px] shadow-sm">
+              <div className="w-[38px] h-[38px] rounded-[10px] bg-[#F7ECDC] text-[#B9761F] flex items-center justify-center shrink-0">
+                <TrendingUp className="h-[18px] w-[18px]" />
+              </div>
+              <div>
+                <div className="font-space text-[22px] font-semibold leading-[1.1] text-[#0F1B2C] whitespace-nowrap">{formatPrice(totalRevenue, "FCFA")}</div>
+                <div className="text-[12.5px] text-[#5B6472] mt-0.5">Revenus</div>
+              </div>
+            </div>
           </div>
         )}
 
+        <div className="mb-[34px]">
+          <EnableNotificationsBanner />
+        </div>
+
+        {/* Collab Shops */}
+        {collabShops.length > 0 && (
+          <div className="mb-[34px]">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-5 w-5 text-[#0E7C66]" />
+              <h2 className="text-xl font-bold font-space">Boutiques où vous collaborez</h2>
+              <Badge variant="secondary" className="ml-1 bg-white border-[#E7E5DE]">{collabShops.length}</Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {collabShops.map((cs) => {
+                if (!cs) return null;
+                const initial = cs.business_name.charAt(0).toUpperCase();
+                return (
+                  <div key={cs.id || Math.random().toString()} className="bg-white border border-[#E7E5DE] rounded-[14px] overflow-hidden flex flex-col hover:border-[#0E7C66]/30 transition-colors shadow-sm">
+                    <div className="h-[90px] bg-[#F4F3EF] flex items-center justify-between p-[14px_16px] relative">
+                      <div className="w-[44px] h-[44px] rounded-[10px] bg-[#0F1B2C] text-white flex items-center justify-center font-space font-semibold text-[17px]">
+                        {cs.logo_url ? <img src={cs.logo_url} alt="" className="w-full h-full rounded-[10px] object-cover" /> : initial}
+                      </div>
+                      <span className="text-[11.5px] font-semibold px-[11px] py-[5px] rounded-full inline-flex items-center gap-[5px] bg-[#F4F3EF] text-[#5B6472] border border-[#E7E5DE]">
+                        Collaborateur
+                      </span>
+                    </div>
+                    <div className="p-[18px_18px_16px]">
+                      <h3 className="font-space text-[17px] font-semibold m-0 mb-1 text-[#0F1B2C]">{cs.business_name}</h3>
+                      <p className="text-xs text-[#5B6472] mb-4">{cs.roles.length} rôle{cs.roles.length > 1 ? "s" : ""}</p>
+                      <button 
+                        onClick={() => navigate(`/shop-editor/${cs.id}`)}
+                        className="w-full bg-[#0F1B2C] text-white border-none rounded-[9px] py-[11px] text-[13px] font-semibold flex items-center justify-center gap-[7px] cursor-pointer hover:bg-black transition-colors"
+                      >
+                        <LogIn className="h-4 w-4" />
+                        Se connecter
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="overflow-hidden animate-pulse">
-                <div className="h-40 bg-muted" />
-                <div className="p-5">
+              <div key={i} className="bg-white border border-[#E7E5DE] rounded-[14px] overflow-hidden animate-pulse">
+                <div className="h-[110px] bg-[#F4F3EF]" />
+                <div className="p-[18px_18px_16px]">
                   <div className="h-5 bg-muted rounded w-3/4 mb-3" />
                   <div className="h-3 bg-muted rounded w-1/2" />
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
         ) : shops.length === 0 ? (
           <div className="max-w-lg mx-auto text-center py-20">
-            <div className="h-24 w-24 mx-auto rounded-3xl bg-primary/10 flex items-center justify-center mb-6">
-              <ShoppingBag className="h-12 w-12 text-primary" />
+            <div className="h-[72px] w-[72px] mx-auto rounded-[20px] bg-[#E3F1EC] flex items-center justify-center mb-6">
+              <ShoppingBag className="h-8 w-8 text-[#0E7C66]" />
             </div>
-            <h2 className="text-2xl font-bold mb-3">Lancez votre première boutique</h2>
-            <p className="text-muted-foreground mb-8 leading-relaxed">
+            <h2 className="font-space text-2xl font-semibold mb-3">Lancez votre première boutique</h2>
+            <p className="text-[#5B6472] mb-8 leading-relaxed">
               Créez votre boutique en ligne en quelques minutes grâce à l'IA. 
               Vendez vos produits physiques et digitaux sans compétences techniques.
             </p>
-            <Button onClick={() => navigate("/shop-builder")} size="lg" className="gap-2 shadow-lg">
-              <Plus className="h-5 w-5" />
+            <button 
+              onClick={() => navigate("/shop-builder")}
+              className="bg-[#0F1B2C] text-white border-none px-6 py-3 rounded-[10px] text-[13.5px] font-semibold font-inter inline-flex items-center justify-center gap-2 cursor-pointer hover:bg-black transition-colors shadow-sm mx-auto"
+            >
+              <Plus className="h-4 w-4" />
               Créer ma première boutique
-            </Button>
+            </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {shops.map((shop) => {
               if (!shop) return null;
-              const color = shop.primary_color || "#2563eb";
+              const initial = shop.business_name.charAt(0).toUpperCase();
+              
               return (
-                <Card key={shop.id} className="overflow-hidden group card-interactive border-border/60 hover:border-emerald-500/30">
-                  <div className="h-36 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}, ${color}dd)` }}>
-                    {shop.banner_url ? (
-                      <img src={shop.banner_url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Store className="h-16 w-16 text-primary-foreground/30 transition-transform duration-500 group-hover:scale-110" />
-                      </div>
-                    )}
-                    <div className="absolute top-3 right-3">
-                      {shop.is_activated ? (
-                        shop.is_published ? (
-                          <Badge className="bg-emerald-600 text-white shadow-sm font-semibold">En ligne</Badge>
-                        ) : (
-                          <Badge className="bg-secondary/90 text-secondary-foreground shadow-sm font-semibold">Hors ligne</Badge>
-                        )
+                <div key={shop.id} className="bg-white border border-[#E7E5DE] rounded-[14px] overflow-hidden flex flex-col hover:border-[#0E7C66]/30 transition-colors shadow-sm group">
+                  <div className="h-[110px] bg-[#F4F3EF] flex items-center justify-between p-[14px_16px] relative">
+                    <div className="w-[44px] h-[44px] rounded-[10px] bg-[#0F1B2C] text-white flex items-center justify-center font-space font-semibold text-[17px] shrink-0">
+                      {shop.logo_url ? (
+                        <img src={shop.logo_url} alt="" className="w-full h-full rounded-[10px] object-cover" />
                       ) : (
-                        <Badge variant="outline" className="bg-background/80 backdrop-blur-sm">Non activée</Badge>
+                        initial
                       )}
                     </div>
-                    {shop.logo_url && (
-                      <div className="absolute bottom-3 left-4">
-                        <img src={shop.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover border-2 border-background shadow-lg transition-transform duration-300 group-hover:scale-105" />
-                      </div>
+                    {shop.is_activated ? (
+                      shop.is_published ? (
+                        <span className="text-[11.5px] font-semibold px-[11px] py-[5px] rounded-full inline-flex items-center gap-[5px] bg-[#E3F1EC] text-[#0E7C66]">
+                          <span className="w-[6px] h-[6px] rounded-full bg-[#0E7C66]"></span>
+                          En ligne
+                        </span>
+                      ) : (
+                        <span className="text-[11.5px] font-semibold px-[11px] py-[5px] rounded-full inline-flex items-center gap-[5px] bg-[#F4F3EF] text-[#5B6472] border border-[#E7E5DE]">
+                          <span className="w-[6px] h-[6px] rounded-full bg-[#8A93A0]"></span>
+                          Hors ligne
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-[11.5px] font-semibold px-[11px] py-[5px] rounded-full inline-flex items-center gap-[5px] bg-[#F4F3EF] text-[#5B6472] border border-[#E7E5DE]">
+                        <span className="w-[6px] h-[6px] rounded-full bg-[#8A93A0]"></span>
+                        Non activée
+                      </span>
                     )}
                   </div>
 
-                  <div className="p-5">
-                    <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors">{shop.business_name}</h3>
+                  <div className="p-[18px_18px_16px] flex-1 flex flex-col">
+                    <h3 className="font-space text-[17px] font-semibold m-0 mb-[5px] text-[#0F1B2C] group-hover:text-[#0E7C66] transition-colors">{shop.business_name}</h3>
+                    
                     <button
                       type="button"
                       onClick={(e) => {
@@ -307,64 +316,53 @@ const ShopManager = () => {
                         navigator.clipboard.writeText(url);
                         toast({ title: "Lien copié ✓", description: url });
                       }}
-                      className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5 hover:text-primary transition-colors group/link"
+                      className="text-[12.5px] text-[#5B6472] flex items-center gap-[6px] mb-4 bg-transparent border-none p-0 cursor-pointer hover:text-[#0E7C66] transition-colors group/link text-left"
                       title="Copier le lien public"
                     >
-                      <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="w-[6px] h-[6px] rounded-full bg-[#0E7C66] shrink-0" />
                       <span className="truncate">ecomfy.cloud/shop/{shop.slug}</span>
-                      <Copy className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity shrink-0" />
+                      <Copy className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity shrink-0 ml-1" />
                     </button>
 
-                    <div className="grid grid-cols-2 gap-3 mb-5">
-                      <div className="bg-muted/50 rounded-xl p-3 text-center">
-                        <p className="text-lg font-bold">{shop.total_orders || 0}</p>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Commandes</p>
+                    <div className="grid grid-cols-2 gap-[10px] mb-4 mt-auto">
+                      <div className="bg-[#F4F3EF] rounded-[9px] p-[10px_12px]">
+                        <div className="font-space text-[17px] font-semibold text-[#0F1B2C]">{shop.total_orders || 0}</div>
+                        <div className="text-[10.5px] tracking-[0.04em] text-[#8A93A0] uppercase mt-[2px]">Commandes</div>
                       </div>
-                      <div className="bg-muted/50 rounded-xl p-3 text-center">
-                        <p className="text-lg font-bold">{formatPrice(shop.total_sales || 0, "")}</p>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Revenus</p>
+                      <div className="bg-[#F4F3EF] rounded-[9px] p-[10px_12px]">
+                        <div className="font-space text-[17px] font-semibold text-[#0F1B2C] truncate" title={formatPrice(shop.total_sales || 0, "")}>
+                          {formatPrice(shop.total_sales || 0, "")}
+                        </div>
+                        <div className="text-[10.5px] tracking-[0.04em] text-[#8A93A0] uppercase mt-[2px]">Revenus</div>
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      <Button className="flex-1 gap-2 btn-interactive" onClick={() => navigate(`/shop-editor/${shop.id}`)}>
-                        <Settings className="h-4 w-4" />
+                    <div className="flex gap-[8px]">
+                      <button 
+                        onClick={() => navigate(`/shop-editor/${shop.id}`)}
+                        className="flex-1 bg-[#0F1B2C] text-white border-none rounded-[9px] py-[11px] text-[13px] font-semibold flex items-center justify-center gap-[7px] cursor-pointer hover:bg-black transition-colors"
+                      >
+                        <Settings className="h-[14px] w-[14px]" />
                         Gérer
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="btn-interactive"
+                      </button>
+                      <button 
                         onClick={() => window.open(`https://ecomfy.cloud/shop/${shop.slug}`, "_blank")}
+                        className="w-[40px] border border-[#E7E5DE] bg-white rounded-[9px] flex items-center justify-center cursor-pointer text-[#5B6472] hover:text-[#0F1B2C] hover:bg-slate-50 transition-colors shrink-0"
                         title="Voir la boutique"
                       >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="text-destructive hover:bg-destructive hover:text-destructive-foreground btn-interactive"
+                        <ArrowUpRight className="h-4 w-4" />
+                      </button>
+                      <button 
                         onClick={() => setDeleteTarget(shop)}
+                        className="w-[40px] border border-[#E7E5DE] bg-white rounded-[9px] flex items-center justify-center cursor-pointer text-[#B23B3B] hover:bg-[#B23B3B] hover:text-white hover:border-[#B23B3B] transition-colors shrink-0"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
-
-            <Card 
-              className="overflow-hidden border-dashed border-2 hover:border-primary/50 cursor-pointer transition-all duration-300 flex items-center justify-center min-h-[320px] group"
-              onClick={() => navigate("/shop-builder")}
-            >
-              <div className="text-center p-8">
-                <div className="h-16 w-16 mx-auto rounded-2xl bg-muted group-hover:bg-primary/10 flex items-center justify-center mb-4 transition-colors">
-                  <Plus className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                </div>
-                <p className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">Nouvelle boutique</p>
-              </div>
-            </Card>
           </div>
         )}
       </div>
