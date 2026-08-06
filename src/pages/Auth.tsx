@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import authHeroV5 from "@/assets/auth-hero-v5.jpg";
 import { SEO } from "@/components/seo/SEO";
+import { cn } from "@/lib/utils";
 
 const Auth = () => {
   const navigate = useNavigate();
