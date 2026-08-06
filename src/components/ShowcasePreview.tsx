@@ -266,7 +266,7 @@ export function ShowcasePreview({ data }: ShowcasePreviewProps) {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground pt-6">
-              Prévisualisation • Votre site VisualPro
+              Prévisualisation • Votre site Ecomfy
             </p>
           </div>
         </div>

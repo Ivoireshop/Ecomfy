@@ -27,7 +27,7 @@ export function ShopPaymentCountdown({ shopId, info }: Props) {
 
   // FINAL SUSPENSION
   if (info.status === "final_suspension") {
-    const waMsg = "Bonjour VisualPro, ma boutique a été fermée pour défaut de paiement. Je souhaite la réactiver.";
+    const waMsg = "Bonjour Ecomfy, ma boutique a été fermée pour défaut de paiement. Je souhaite la réactiver.";
     return (
       <div className="bg-red-800 text-white px-4 md:px-6 py-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

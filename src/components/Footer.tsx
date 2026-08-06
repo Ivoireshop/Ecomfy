@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, Phone, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import logo from "@/assets/visualpro-logo.svg";
+import logo from "@/assets/ecomfy-logo.svg";
 
 export function Footer() {
   const navigate = useNavigate();
@@ -53,13 +53,13 @@ export function Footer() {
           {/* À propos */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <img src={logo} alt="Logo Ecomfy" className="h-8 w-8" />
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
+              <span className="text-xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 Ecomfy
               </span>
             </div>
-            <p className="text-muted-foreground mb-4">
-              La première plateforme africaine de création visuelle propulsée par l'IA.
+            <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+              La plateforme tout-en-un pour les entrepreneurs africains.
             </p>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

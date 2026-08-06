@@ -31,8 +31,8 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
   const isExtra = info.status === "locked" && info.extraDeadlineActive;
   const extraExpired = isExtra && remaining <= 0;
   const waMsg = isFinal
-    ? "Bonjour VisualPro, ma boutique a été fermée pour défaut de paiement. Je souhaite la réactiver."
-    : `Bonjour VisualPro, ma boutique est verrouillée pour un paiement de ${fmt(info.amountDue)} FCFA. Je souhaite être assisté.`;
+    ? "Bonjour Ecomfy, ma boutique a été fermée pour défaut de paiement. Je souhaite la réactiver."
+    : `Bonjour Ecomfy, ma boutique est verrouillée pour un paiement de ${fmt(info.amountDue)} FCFA. Je souhaite être assisté.`;
 
   return (
     <div className="relative min-h-[70vh]">
@@ -54,7 +54,7 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
             {isFinal ? (
               <p className="text-sm">
                 Votre boutique a été fermée définitivement pour défaut de paiement. Pour la réactiver,
-                veuillez contacter le support VisualPro sur WhatsApp.
+                veuillez contacter le support Ecomfy sur WhatsApp.
               </p>
             ) : isExtra ? (
               <>

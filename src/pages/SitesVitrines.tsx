@@ -5,7 +5,7 @@ export default function SitesVitrines() {
   return (
     <FeatureLandingPage
       title="Création de sites vitrines par IA"
-      metaTitle="Créer un site vitrine professionnel par IA | VisualPro"
+      metaTitle="Créer un site vitrine professionnel par IA | Ecomfy"
       metaDescription="Lancez votre site vitrine professionnel en quelques minutes avec un nom de domaine personnalisé. Idéal pour artisans, consultants et PME africaines."
       canonical="https://visuelpro.cloud/sites-vitrines"
       hero={{
@@ -28,7 +28,7 @@ export default function SitesVitrines() {
       ]}
       faq={[
         { question: "Le site est-il optimisé pour Google ?", answer: "Oui, chaque site vitrine est généré avec les balises SEO essentielles : titre, description, canonical et structure sémantique." },
-        { question: "Puis-je vendre directement depuis un site vitrine ?", answer: "Le site vitrine sert à présenter votre activité. Pour vendre en ligne, créez une boutique e-commerce avec VisualPro." },
+        { question: "Puis-je vendre directement depuis un site vitrine ?", answer: "Le site vitrine sert à présenter votre activité. Pour vendre en ligne, créez une boutique e-commerce avec Ecomfy." },
         { question: "Combien coûte un domaine personnalisé ?", answer: "Le sous-domaine sur visuelpro.cloud est inclus gratuitement. Pour un domaine personnalisé (ex: monentreprise.com), il suffit de pointer le DNS vers nos serveurs." },
       ]}
     />

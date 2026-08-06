@@ -360,8 +360,8 @@ const Community = () => {
   return (
     <>
       <Helmet>
-        <title>Communauté VisualPro — Salon Général</title>
-        <meta name="description" content="Discutez en temps réel avec la communauté VisualPro : posez vos questions, partagez vos idées, échangez avec d'autres entrepreneurs." />
+        <title>Communauté Ecomfy — Salon Général</title>
+        <meta name="description" content="Discutez en temps réel avec la communauté Ecomfy : posez vos questions, partagez vos idées, échangez avec d'autres entrepreneurs." />
       </Helmet>
 
       <div className="flex flex-col h-[calc(100vh-64px)] bg-background">

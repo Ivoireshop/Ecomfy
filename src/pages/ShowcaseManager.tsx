@@ -100,7 +100,7 @@ export default function ShowcaseManager() {
   };
 
   const getPublicUrl = (subdomain: string) => {
-    return `https://${subdomain}.visualpro.cloud`;
+    return `https://${subdomain}.ecomfy.cloud`;
   };
 
   const getPreviewUrl = (subdomain: string) => {
@@ -213,7 +213,7 @@ export default function ShowcaseManager() {
                       )}
                     </div>
                     <CardDescription className="font-mono text-xs">
-                      {isCoursesView ? `${site.subdomain}.visualpro.cloud/courses` : `${site.subdomain}.visualpro.cloud`}
+                      {isCoursesView ? `${site.subdomain}.ecomfy.cloud/courses` : `${site.subdomain}.ecomfy.cloud`}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">

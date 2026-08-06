@@ -48,7 +48,7 @@ const FounderRoute = ({ children }: { children: React.ReactNode }) => {
           </div>
           <h1 className="text-2xl font-semibold">Accès restreint</h1>
           <p className="text-muted-foreground">
-            Cette section est réservée aux fondateurs et co-fondateurs de VisualPro.
+            Cette section est réservée aux fondateurs et co-fondateurs de Ecomfy.
           </p>
           <Button asChild variant="outline">
             <Link to="/"><ArrowLeft className="h-4 w-4 mr-2" />Retour à l'accueil</Link>

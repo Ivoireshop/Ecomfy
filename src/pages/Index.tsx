@@ -20,7 +20,7 @@ import entrepreneur1 from "@/assets/entrepreneur-1.jpg";
 import entrepreneur2 from "@/assets/entrepreneur-2.jpg";
 import entrepreneur3 from "@/assets/entrepreneur-3.jpg";
 import entrepreneur4 from "@/assets/entrepreneur-4.jpg";
-import vpLogo from "@/assets/visualpro-logo.svg";
+import ecomfyLogo from "@/assets/ecomfy-logo.svg";
 import heroDesktop from "@/assets/hero-desktop-dashboard.jpg";
 import bentoAds from "@/assets/bento-ads.jpg";
 import bentoVideo from "@/assets/bento-video.jpg";
@@ -63,7 +63,7 @@ const FALLBACK_PODIUM: PodiumSeller[] = [
 ];
 
 /* ── EasyAfrik-style Hero with floating phone mockup + podium card ── */
-const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscover: () => void }) => {
+const HeroEcomfy = ({ onStart, onDiscover }: { onStart: () => void; onDiscover: () => void }) => {
   const { t } = useTranslation();
   const [podium, setPodium] = useState<PodiumSeller[]>(FALLBACK_PODIUM);
   useEffect(() => {
@@ -108,7 +108,7 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">business en ligne</span>{" "}en Afrique
             </h1>
             <p className="text-base md:text-lg text-muted-foreground mb-7 max-w-xl leading-relaxed">
-              VisualPro est la plateforme tout-en-un pour entrepreneurs africains :
+              Ecomfy est la plateforme tout-en-un pour entrepreneurs africains :
               visuels publicitaires IA, vidéos animées, boutique e-commerce et formations,
               sans friction.
             </p>
@@ -236,10 +236,10 @@ const HeroVisualPro = ({ onStart, onDiscover }: { onStart: () => void; onDiscove
             <div className="absolute left-1/2 -translate-x-1/2 md:left-2 md:translate-x-0 top-8 md:top-10 animate-float z-10">
               <div className="w-[210px] md:w-[250px] h-[420px] md:h-[500px] rounded-[2.4rem] bg-foreground p-2 shadow-2xl shadow-primary/30 border border-foreground/10">
                 <div className="w-full h-full rounded-[2rem] bg-background overflow-hidden flex flex-col">
-                  {/* Header with REAL VisualPro logo */}
+                  {/* Header with REAL Ecomfy logo */}
                   <div className="px-3 pt-3 pb-2 flex items-center gap-2 border-b border-border/60">
-                    <img src={vpLogo} alt="Logo VisualPro" className="w-6 h-6" />
-                    <div className="text-[11px] font-bold tracking-wide bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">VisualPro</div>
+                    <img src={ecomfyLogo} alt="Logo Ecomfy" className="w-6 h-6" />
+                    <div className="text-[11px] font-bold tracking-wide bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Ecomfy</div>
                     <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   </div>
 
@@ -371,7 +371,7 @@ const TrustStrip = () => {
 const StatsTestimonial = () => {
   const stats = [
     { v: "+10 000", l: "entrepreneurs nous font confiance" },
-    { v: "54", l: "pays où VisualPro est utilisé" },
+    { v: "54", l: "pays où Ecomfy est utilisé" },
     { v: "99,9%", l: "uptime garanti" },
     { v: "24/7", l: "support local en Afrique" },
   ];
@@ -389,7 +389,7 @@ const StatsTestimonial = () => {
           </div>
           <div className="border-l-0 md:border-l border-border/60 md:pl-8">
             <p className="text-base md:text-lg text-foreground italic leading-relaxed mb-4">
-              « VisualPro a transformé mon business. Je gère tout depuis mon téléphone,
+              « Ecomfy a transformé mon business. Je gère tout depuis mon téléphone,
               même mes livraisons et mes paiements COD. »
             </p>
             <div className="flex items-center gap-3">
@@ -529,13 +529,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="VisualPro — Créez vos visuels, vidéos et boutiques avec l'IA"
-        description="VisualPro est la plateforme tout-en-un pour entrepreneurs africains : création de visuels publicitaires IA, vidéos animées, sites vitrines, boutiques e-commerce et formations."
+        title="Ecomfy — Créez vos visuels, vidéos et boutiques avec l'IA"
+        description="Ecomfy est la plateforme tout-en-un pour entrepreneurs africains : création de visuels publicitaires IA, vidéos animées, sites vitrines, boutiques e-commerce et formations."
         path="/"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          "name": "VisualPro",
+          "name": "Ecomfy",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web",
           "url": "https://visuelpro.cloud/",
@@ -570,7 +570,7 @@ const Index = () => {
           </div>
         </section>
       ) : (
-        <HeroVisualPro onStart={() => navigate("/auth")} onDiscover={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })} />
+        <HeroEcomfy onStart={() => navigate("/auth")} onDiscover={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })} />
       )}
 
       {/* ===== CREDIBILITY STATS ===== */}
@@ -678,7 +678,7 @@ const Index = () => {
               <h2 className="text-3xl md:text-5xl font-semibold mb-4 tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>
                 {t("landing.sections.trustTitle")} <span className="italic text-primary">{t("landing.sections.trustTitleB")}</span>
               </h2>
-              <p className="text-base text-muted-foreground max-w-2xl mx-auto">Découvrez ce que nos entrepreneurs disent de VisualPro</p>
+              <p className="text-base text-muted-foreground max-w-2xl mx-auto">Découvrez ce que nos entrepreneurs disent de Ecomfy</p>
             </div>
             <TestimonialsMarquee feedbacks={publishedFeedback} />
           </div>
@@ -701,7 +701,7 @@ const Index = () => {
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl">🚀</div>
                 <div>
                   <h3 className="text-lg md:text-xl font-bold mb-1">Prêt à lancer votre boutique et à changer votre vie ?</h3>
-                  <p className="text-sm text-muted-foreground">Rejoignez des milliers d'entrepreneurs africains qui développent leur business avec VisualPro.</p>
+                  <p className="text-sm text-muted-foreground">Rejoignez des milliers d'entrepreneurs africains qui développent leur business avec Ecomfy.</p>
                 </div>
               </div>
               <Button size="lg" className="text-base px-7 py-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap shadow-lg shadow-primary/20" onClick={() => navigate("/auth")}>

@@ -162,7 +162,7 @@ export function ShopDeliveryPartners({ shopId }: { shopId: string }) {
       <Card className="p-4 bg-muted/40 text-sm">
         <p className="font-medium mb-1">Vous êtes une structure de livraison ?</p>
         <p className="text-muted-foreground text-xs mb-3">
-          Inscrivez votre entreprise et soyez visible auprès de toutes les boutiques VisualPro.
+          Inscrivez votre entreprise et soyez visible auprès de toutes les boutiques Ecomfy.
         </p>
         <Button asChild variant="outline" size="sm">
           <a href="/delivery-signup" target="_blank" rel="noopener noreferrer">Créer un compte livreur</a>

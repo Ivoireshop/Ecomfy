@@ -10,22 +10,22 @@ const Blog = () => {
   return (
     <>
       <Helmet>
-        <title>Blog — VisualPro</title>
-        <meta name="description" content="Guides, tutoriels et conseils pour tirer le meilleur de VisualPro." />
+        <title>Blog — Ecomfy</title>
+        <meta name="description" content="Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy." />
         <link rel="canonical" href="https://visuelpro.cloud/blog" />
-        <meta property="og:title" content="Blog — VisualPro" />
-        <meta property="og:description" content="Guides, tutoriels et conseils pour tirer le meilleur de VisualPro." />
+        <meta property="og:title" content="Blog — Ecomfy" />
+        <meta property="og:description" content="Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy." />
         <meta property="og:url" content="https://visuelpro.cloud/blog" />
         <meta property="og:type" content="website" />
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Blog",
-          "name": "Blog VisualPro",
-          "description": "Guides, tutoriels et conseils pour tirer le meilleur de VisualPro.",
+          "name": "Blog Ecomfy",
+          "description": "Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy.",
           "url": "https://visuelpro.cloud/blog",
           "publisher": {
             "@type": "Organization",
-            "name": "VisualPro",
+            "name": "Ecomfy",
             "url": "https://visuelpro.cloud"
           }
         })}</script>
@@ -53,7 +53,7 @@ const Blog = () => {
 
           <p className="text-muted-foreground text-lg mb-10 max-w-xl mx-auto leading-relaxed">
             Notre blog arrive très prochainement avec des guides, tutoriels et conseils
-            pour vous aider à tirer le meilleur de VisualPro. Revenez bientôt !
+            pour vous aider à tirer le meilleur de Ecomfy. Revenez bientôt !
           </p>
 
           <Button size="lg" onClick={() => navigate("/")}>

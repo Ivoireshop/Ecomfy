@@ -5,14 +5,14 @@ export default function BoutiquesEcommerce() {
   return (
     <FeatureLandingPage
       title="Création de boutiques e-commerce par IA"
-      metaTitle="Créer une boutique e-commerce en Afrique par IA | VisualPro"
+      metaTitle="Créer une boutique e-commerce en Afrique par IA | Ecomfy"
       metaDescription="Lancez votre boutique en ligne en Côte d'Ivoire et en Afrique avec Mobile Money, paiement à la livraison et tunnel de commande optimisé. Activation à 2$."
       canonical="https://visuelpro.cloud/boutiques-ecommerce"
       hero={{
         eyebrow: "Boutiques e-commerce IA",
         heading: "Votre boutique e-commerce africaine, prête à vendre",
         subheading:
-          "VisualPro crée votre boutique avec catalogue produits, paiement Mobile Money, paiement à la livraison sur Abidjan, et tunnel de commande optimisé pour la conversion.",
+          "Ecomfy crée votre boutique avec catalogue produits, paiement Mobile Money, paiement à la livraison sur Abidjan, et tunnel de commande optimisé pour la conversion.",
         ctaPrimary: { label: "Créer ma boutique", to: "/auth" },
         ctaSecondary: { label: "Voir une démo", to: "/demo" },
       }}

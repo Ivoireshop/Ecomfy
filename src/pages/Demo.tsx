@@ -14,8 +14,8 @@ type DemoVideo = {
 const DEMOS: DemoVideo[] = [
   {
     id: "intro",
-    title: "Formation complète VisualPro",
-    description: "Maîtrisez toutes les fonctionnalités de VisualPro en une seule formation.",
+    title: "Formation complète Ecomfy",
+    description: "Maîtrisez toutes les fonctionnalités de Ecomfy en une seule formation.",
     youtubeId: "z4Lko-oFNsY",
     category: "Présentation",
     duration: "1:20:00",
@@ -28,9 +28,9 @@ const Demo = () => {
       <div className="container mx-auto px-4 py-10 md:py-14">
         <div className="text-center mb-10 max-w-3xl mx-auto">
           <Badge variant="secondary" className="mb-4">Démo Vidéo</Badge>
-          <h1 className="text-3xl md:text-5xl font-bold mb-3">Découvrez VisualPro en vidéo</h1>
+          <h1 className="text-3xl md:text-5xl font-bold mb-3">Découvrez Ecomfy en vidéo</h1>
           <p className="text-base md:text-lg text-muted-foreground">
-            Suivez la formation complète pour maîtriser VisualPro de A à Z.
+            Suivez la formation complète pour maîtriser Ecomfy de A à Z.
           </p>
         </div>
 

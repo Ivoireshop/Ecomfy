@@ -64,7 +64,7 @@
   },
   "language": {
     "title": "لغة التطبيق",
-    "description": "اختر لغة واجهة VisualPro."
+    "description": "اختر لغة واجهة Ecomfy."
   },
   "dashboard": {
     "greetingMorning": "صباح الخير",
@@ -81,7 +81,7 @@
       "sites": { "title": "مواقع عرض", "desc": "أطلق موقعك الاحترافي في دقائق", "cta": "إنشاء موقع" },
       "shops": { "title": "متاجر إلكترونية", "desc": "بِع عبر الإنترنت مع وسائل دفع مدمجة", "cta": "إنشاء متجر" },
       "courses": { "title": "دورات عبر الإنترنت", "desc": "أنشئ وبِع دوراتك مع شهادات", "cta": "إنشاء دورة" },
-      "api": { "title": "API والتكاملات", "desc": "اربط VisualPro بأدواتك", "cta": "عرض وثائق API" }
+      "api": { "title": "API والتكاملات", "desc": "اربط Ecomfy بأدواتك", "cta": "عرض وثائق API" }
     }
   },
   "landing": {
@@ -116,8 +116,8 @@
       "step3Desc": "انشر، بِع وطوّر نشاطك.",
       "trustTitle": "يثقون",
       "trustTitleB": "بنا",
-      "ctaTitle": "ابدأ البيع الآن مع VisualPro",
-      "ctaSub": "جرب VisualPro الآن وأطلق نشاطك التجاري عبر الإنترنت في دقائق."
+      "ctaTitle": "ابدأ البيع الآن مع Ecomfy",
+      "ctaSub": "جرب Ecomfy الآن وأطلق نشاطك التجاري عبر الإنترنت في دقائق."
     }
   }
 }

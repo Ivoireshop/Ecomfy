@@ -99,7 +99,7 @@ const PrivacyPolicy = () => {
               <li>Droit de limitation du traitement</li>
             </ul>
             <p className="text-muted-foreground mt-4">
-              Pour exercer ces droits, contactez-nous à : privacy@visualpro.africa
+              Pour exercer ces droits, contactez-nous à : privacy@ecomfy.cloud
             </p>
           </section>
 
@@ -136,8 +136,8 @@ const PrivacyPolicy = () => {
               Pour toute question concernant cette politique de confidentialité :
             </p>
             <ul className="space-y-2 text-muted-foreground ml-4">
-              <li>Email : privacy@visualpro.africa</li>
-              <li>Support : support@visualpro.africa</li>
+              <li>Email : privacy@ecomfy.cloud</li>
+              <li>Support : support@ecomfy.cloud</li>
             </ul>
           </section>
         </Card>

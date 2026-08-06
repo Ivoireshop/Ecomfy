@@ -285,7 +285,7 @@ const Subscription = () => {
       <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            VisualPro
+            Ecomfy
           </h1>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate("/payment-history")}>
@@ -323,7 +323,7 @@ const Subscription = () => {
           
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             {isFounder
-              ? "Vous avez un accès complet et illimité à toutes les fonctionnalités premium de VisualPro"
+              ? "Vous avez un accès complet et illimité à toutes les fonctionnalités premium de Ecomfy"
               : isActive 
               ? "Profitez de toutes les fonctionnalités premium pour développer votre présence en ligne" 
               : "Transformez vos idées en publicités professionnelles avec l'IA. Rejoignez des centaines d'entrepreneurs africains qui créent déjà."}

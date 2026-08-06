@@ -37,7 +37,7 @@ i18n
     interpolation: { escapeValue: false },
     detection: {
       order: ["localStorage", "navigator"],
-      lookupLocalStorage: "visualpro_lang",
+      lookupLocalStorage: "ecomfy_lang",
       caches: ["localStorage"],
     },
   });

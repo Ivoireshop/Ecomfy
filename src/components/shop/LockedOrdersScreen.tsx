@@ -39,7 +39,7 @@ export function LockedOrdersScreen({ shopId, paymentDeadline, ordersCount, isFin
   const perOrder = Number(summary?.commission_per_order) || 50;
   const deadline = summary?.payment_deadline || paymentDeadline;
   const amountToPay = balanceDue > 0 ? balanceDue : 12000;
-  const waMsg = `Bonjour VisualPro, ma boutique est verrouillée (${fmt(amountToPay)} FCFA). Je souhaite être assisté pour le déverrouillage.`;
+  const waMsg = `Bonjour Ecomfy, ma boutique est verrouillée (${fmt(amountToPay)} FCFA). Je souhaite être assisté pour le déverrouillage.`;
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-2">

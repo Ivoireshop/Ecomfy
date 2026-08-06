@@ -633,7 +633,7 @@ const FounderDashboard = () => {
         <div className="mb-8">
           <h1 className="text-2xl md:text-4xl font-bold mb-2">Tableau de Bord Fondateurs</h1>
           <p className="text-muted-foreground">
-            Statistiques et performance de VisualPro
+            Statistiques et performance de Ecomfy
           </p>
         </div>
 

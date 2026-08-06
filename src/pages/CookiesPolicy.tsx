@@ -172,8 +172,8 @@ const CookiesPolicy = () => {
               Pour toute question concernant notre utilisation des cookies :
             </p>
             <ul className="space-y-2 text-muted-foreground ml-4">
-              <li>Email : privacy@visualpro.africa</li>
-              <li>Support : support@visualpro.africa</li>
+              <li>Email : privacy@ecomfy.cloud</li>
+              <li>Support : support@ecomfy.cloud</li>
             </ul>
           </section>
         </Card>

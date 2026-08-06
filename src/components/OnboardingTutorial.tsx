@@ -13,7 +13,7 @@ interface OnboardingTutorialProps {
 
 const tutorialSteps = [
   {
-    title: "Bienvenue sur VisualPro ! 🎉",
+    title: "Bienvenue sur Ecomfy ! 🎉",
     description: "Découvrez comment créer des visuels professionnels en quelques clics. Ce tutoriel vous guidera à travers les fonctionnalités principales.",
     icon: Sparkles,
     color: "text-primary"

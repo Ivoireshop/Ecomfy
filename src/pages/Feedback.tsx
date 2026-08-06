@@ -124,7 +124,7 @@ const Feedback = () => {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-4">Donnez-nous votre avis</h1>
             <p className="text-lg text-muted-foreground">
-              Votre feedback nous aide à améliorer VisualPro
+              Votre feedback nous aide à améliorer Ecomfy
             </p>
           </div>
 
@@ -135,7 +135,7 @@ const Feedback = () => {
                 Nouveau commentaire
               </CardTitle>
               <CardDescription>
-                Partagez votre expérience avec VisualPro
+                Partagez votre expérience avec Ecomfy
               </CardDescription>
             </CardHeader>
             <CardContent>

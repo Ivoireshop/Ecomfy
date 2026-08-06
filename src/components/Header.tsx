@@ -5,7 +5,7 @@ import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import logo from "@/assets/visualpro-logo.svg";
+import logo from "@/assets/ecomfy-logo.svg";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AICreditsBadge } from "@/components/AICreditsBadge";
@@ -64,9 +64,9 @@ export function Header() {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
           >
-            <img src={logo} alt="Logo VisualPro" className="h-6 w-6" />
-            <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              VisualPro
+            <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
+            <span className="text-xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Ecomfy
             </span>
           </div>
 
@@ -118,9 +118,9 @@ export function Header() {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <div className="flex flex-col gap-6 mt-8">
                 <div className="flex items-center gap-2 mb-4">
-                  <img src={logo} alt="Logo VisualPro" className="h-7 w-7" />
+                  <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
                   <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    VisualPro
+                    Ecomfy
                   </span>
                 </div>
 

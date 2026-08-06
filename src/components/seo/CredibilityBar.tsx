@@ -34,7 +34,7 @@ export function CredibilityBar() {
 
   return (
     <section
-      aria-label="VisualPro en chiffres"
+      aria-label="Ecomfy en chiffres"
       className="border-y bg-muted/30"
     >
       <div className="container mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 py-6 px-4">

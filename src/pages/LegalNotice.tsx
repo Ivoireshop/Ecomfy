@@ -22,10 +22,10 @@ const LegalNotice = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4">1. Éditeur du site</h2>
             <div className="space-y-2 text-muted-foreground">
-              <p><strong>Raison sociale :</strong> VisualPro</p>
+              <p><strong>Raison sociale :</strong> Ecomfy</p>
               <p><strong>Forme juridique :</strong> SARL (Société à Responsabilité Limitée)</p>
               <p><strong>Siège social :</strong> Abidjan, Côte d'Ivoire</p>
-              <p><strong>Email :</strong> contact@visualpro.africa</p>
+              <p><strong>Email :</strong> contact@ecomfy.cloud</p>
               <p><strong>Téléphone :</strong> +225 XX XX XX XX XX</p>
             </div>
           </section>
@@ -34,8 +34,8 @@ const LegalNotice = () => {
             <h2 className="text-2xl font-bold mb-4">2. Directeur de la publication</h2>
             <p className="text-muted-foreground">
               <strong>Ulrich DJATÉ</strong><br />
-              Fondateur & CEO de VisualPro<br />
-              Email : ulrich@visualpro.africa
+              Fondateur & CEO de Ecomfy<br />
+              Email : ulrich@ecomfy.cloud
             </p>
           </section>
 
@@ -52,12 +52,12 @@ const LegalNotice = () => {
             <h2 className="text-2xl font-bold mb-4">4. Propriété intellectuelle</h2>
             <p className="text-muted-foreground mb-4">
               L'ensemble du contenu de ce site (textes, images, logos, vidéos, design, structure) 
-              est la propriété exclusive de VisualPro ou de ses partenaires. Toute reproduction, 
+              est la propriété exclusive de Ecomfy ou de ses partenaires. Toute reproduction, 
               distribution, modification, adaptation, retransmission ou publication de ces 
-              différents éléments est strictement interdite sans l'accord exprès par écrit de VisualPro.
+              différents éléments est strictement interdite sans l'accord exprès par écrit de Ecomfy.
             </p>
             <p className="text-muted-foreground">
-              La marque VisualPro, son logo et tous les éléments graphiques associés sont des 
+              La marque Ecomfy, son logo et tous les éléments graphiques associés sont des 
               marques déposées. Toute utilisation non autorisée constitue une contrefaçon 
               passible de sanctions civiles et pénales.
             </p>
@@ -66,7 +66,7 @@ const LegalNotice = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4">5. Données personnelles</h2>
             <p className="text-muted-foreground mb-4">
-              VisualPro accorde une grande importance à la protection des données personnelles 
+              Ecomfy accorde une grande importance à la protection des données personnelles 
               de ses utilisateurs. Les informations collectées font l'objet d'un traitement 
               informatique destiné à :
             </p>
@@ -87,7 +87,7 @@ const LegalNotice = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4">6. Cookies</h2>
             <p className="text-muted-foreground mb-4">
-              Le site VisualPro utilise des cookies pour améliorer l'expérience utilisateur, 
+              Le site Ecomfy utilise des cookies pour améliorer l'expérience utilisateur, 
               analyser le trafic et personnaliser le contenu. En utilisant notre site, vous 
               acceptez l'utilisation de cookies conformément à notre{" "}
               <a href="/cookies-policy" className="text-primary hover:underline">
@@ -99,12 +99,12 @@ const LegalNotice = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4">7. Limitation de responsabilité</h2>
             <p className="text-muted-foreground mb-4">
-              VisualPro s'efforce d'assurer l'exactitude et la mise à jour des informations 
-              diffusées sur ce site. Toutefois, VisualPro ne peut garantir l'exactitude, 
+              Ecomfy s'efforce d'assurer l'exactitude et la mise à jour des informations 
+              diffusées sur ce site. Toutefois, Ecomfy ne peut garantir l'exactitude, 
               la précision ou l'exhaustivité des informations disponibles sur le site.
             </p>
             <p className="text-muted-foreground">
-              En conséquence, VisualPro décline toute responsabilité pour :
+              En conséquence, Ecomfy décline toute responsabilité pour :
             </p>
             <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4 mt-2">
               <li>Les inexactitudes ou omissions portant sur des informations disponibles sur le site</li>
@@ -117,7 +117,7 @@ const LegalNotice = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4">8. Liens hypertextes</h2>
             <p className="text-muted-foreground">
-              Le site VisualPro peut contenir des liens vers d'autres sites. VisualPro n'exerce 
+              Le site Ecomfy peut contenir des liens vers d'autres sites. Ecomfy n'exerce 
               aucun contrôle sur ces sites et décline toute responsabilité quant à leur contenu 
               ou à leur politique de confidentialité.
             </p>
@@ -135,7 +135,7 @@ const LegalNotice = () => {
           <section>
             <h2 className="text-2xl font-bold mb-4">10. Modification des mentions légales</h2>
             <p className="text-muted-foreground">
-              VisualPro se réserve le droit de modifier les présentes mentions légales à tout 
+              Ecomfy se réserve le droit de modifier les présentes mentions légales à tout 
               moment. Les modifications prendront effet dès leur publication sur le site. 
               Nous vous encourageons à consulter régulièrement cette page.
             </p>
@@ -147,7 +147,7 @@ const LegalNotice = () => {
               Pour toute question concernant ces mentions légales, vous pouvez nous contacter :
             </p>
             <ul className="space-y-2 text-muted-foreground ml-4">
-              <li>📧 Email : legal@visualpro.africa</li>
+              <li>📧 Email : legal@ecomfy.cloud</li>
               <li>📞 Téléphone : +225 XX XX XX XX XX</li>
               <li>📍 Adresse : Abidjan, Côte d'Ivoire</li>
             </ul>

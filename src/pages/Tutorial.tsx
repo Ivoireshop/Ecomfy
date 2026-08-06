@@ -34,7 +34,7 @@ const tutorialCards = [
   },
   {
     title: "Création de Boutique",
-    description: "Lancez votre boutique e-commerce VisualPro en quelques minutes : produits, paiements Mobile Money, livraison.",
+    description: "Lancez votre boutique e-commerce Ecomfy en quelques minutes : produits, paiements Mobile Money, livraison.",
     icon: ShoppingBag,
     color: "bg-emerald-500",
     features: [
@@ -109,7 +109,7 @@ const Tutorial = () => {
         <div className="text-center mb-12 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
             <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-medium">Apprenez à utiliser VisualPro</span>
+            <span className="text-sm font-medium">Apprenez à utiliser Ecomfy</span>
           </div>
           
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
@@ -117,7 +117,7 @@ const Tutorial = () => {
           </h2>
           
           <p className="text-lg text-muted-foreground mb-8">
-            Découvrez comment tirer le meilleur parti de VisualPro pour créer des visuels professionnels
+            Découvrez comment tirer le meilleur parti de Ecomfy pour créer des visuels professionnels
           </p>
 
           <Button 

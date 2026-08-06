@@ -397,7 +397,7 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
             </form>
             <p className="text-[10px] text-center text-gray-400 mt-2">
               <MessageCircle className="h-2.5 w-2.5 inline mr-1" />
-              Assistant IA — Propulsé par VisualPro
+              Assistant IA — Propulsé par Ecomfy
             </p>
           </div>
         </Card>

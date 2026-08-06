@@ -51,7 +51,7 @@ export function FeatureLandingPage({
     name: title,
     description: metaDescription,
     url: canonical,
-    provider: { "@type": "Organization", name: "VisualPro", url: "https://visuelpro.cloud" },
+    provider: { "@type": "Organization", name: "Ecomfy", url: "https://visuelpro.cloud" },
     areaServed: "Africa",
   };
 
@@ -80,7 +80,7 @@ export function FeatureLandingPage({
         <meta property="og:description" content={metaDescription} />
         <meta property="og:url" content={canonical} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="VisualPro" />
+        <meta property="og:site_name" content="Ecomfy" />
         <meta property="og:image" content="https://visuelpro.cloud/og-default.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={metaTitle} />
@@ -126,7 +126,7 @@ export function FeatureLandingPage({
           {/* Benefits */}
           <section className="container mx-auto px-4 py-12 md:py-16">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">
-              Pourquoi choisir VisualPro
+              Pourquoi choisir Ecomfy
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {benefits.map((b, i) => (

@@ -38,12 +38,12 @@ const SECTIONS: DocSection[] = [
   /* -------------------- Getting started -------------------- */
   {
     id: "introduction",
-    title: "Introduction à VisualPro",
+    title: "Introduction à Ecomfy",
     icon: Rocket,
     category: "Démarrage",
     summary: "Vue d'ensemble de la plateforme, des modules et de l'architecture.",
     body: [
-      { type: "p", text: "VisualPro est une plateforme tout-en-un pour entrepreneurs africains : génération de visuels et vidéos IA, sites vitrines, boutiques e-commerce, formations en ligne et API." },
+      { type: "p", text: "Ecomfy est une plateforme tout-en-un pour entrepreneurs africains : génération de visuels et vidéos IA, sites vitrines, boutiques e-commerce, formations en ligne et API." },
       { type: "h", text: "Modules principaux" },
       { type: "ul", items: [
         "Génération IA : images et vidéos publicitaires (gpt-image-1, Gemini, Minimax).",
@@ -922,7 +922,7 @@ export default function Documentation() {
           <Book className="h-5 w-5 text-primary" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-base md:text-lg truncate">Documentation VisualPro</h1>
+              <h1 className="font-semibold text-base md:text-lg truncate">Documentation Ecomfy</h1>
               <Badge variant="outline" className="hidden sm:inline-flex">Interne</Badge>
             </div>
             <p className="text-xs text-muted-foreground hidden md:block">Référence technique complète — pages, modules, API, ops.</p>

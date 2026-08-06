@@ -156,8 +156,8 @@ const TermsOfService = () => {
               Pour toute question concernant ces conditions :
             </p>
             <ul className="space-y-2 text-muted-foreground ml-4">
-              <li>Email : legal@visualpro.africa</li>
-              <li>Support : support@visualpro.africa</li>
+              <li>Email : legal@ecomfy.cloud</li>
+              <li>Support : support@ecomfy.cloud</li>
             </ul>
           </section>
         </Card>

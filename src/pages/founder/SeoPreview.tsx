@@ -14,14 +14,14 @@ type Page = {
 };
 
 const PAGES: Page[] = [
-  { path: "/", title: "VisualPro — Créez vos visuels, vidéos et boutiques avec l'IA", description: "VisualPro est la plateforme tout-en-un pour entrepreneurs africains : création de visuels publicitaires IA, vidéos animées, sites vitrines, boutiques e-commerce et formations." },
-  { path: "/visuels-publicitaires", title: "Créer des visuels publicitaires IA en Afrique | VisualPro", description: "Générez des visuels publicitaires professionnels pour Facebook, Instagram, TikTok et WhatsApp en moins d'une minute, adaptés au marché africain. Essai gratuit." },
-  { path: "/videos-publicitaires", title: "Créer des vidéos publicitaires IA en Afrique | VisualPro", description: "Transformez vos produits en vidéos publicitaires animées en quelques minutes grâce à l'intelligence artificielle. Idéal pour Facebook, Instagram Reels et TikTok." },
-  { path: "/boutiques-ecommerce", title: "Créer une boutique e-commerce en Afrique par IA | VisualPro", description: "Lancez votre boutique en ligne en Côte d'Ivoire et en Afrique avec Mobile Money, paiement à la livraison et tunnel de commande optimisé." },
-  { path: "/sites-vitrines", title: "Créer un site vitrine professionnel par IA | VisualPro", description: "Lancez votre site vitrine professionnel en quelques minutes avec un nom de domaine personnalisé. Idéal pour artisans, consultants et PME africaines." },
-  { path: "/auth", title: "Connexion & Inscription — VisualPro", description: "Connectez-vous à VisualPro ou créez votre compte gratuit pour générer vos visuels, vidéos et lancer votre boutique e-commerce IA." },
-  { path: "/blog", title: "Blog — VisualPro", description: "Guides, tutoriels et conseils pour tirer le meilleur de VisualPro." },
-  { path: "/demo", title: "Démo VisualPro", description: "Découvrez VisualPro en action : visuels, vidéos, sites et boutiques générés par IA." },
+  { path: "/", title: "Ecomfy — Créez vos visuels, vidéos et boutiques avec l'IA", description: "Ecomfy est la plateforme tout-en-un pour entrepreneurs africains : création de visuels publicitaires IA, vidéos animées, sites vitrines, boutiques e-commerce et formations." },
+  { path: "/visuels-publicitaires", title: "Créer des visuels publicitaires IA en Afrique | Ecomfy", description: "Générez des visuels publicitaires professionnels pour Facebook, Instagram, TikTok et WhatsApp en moins d'une minute, adaptés au marché africain. Essai gratuit." },
+  { path: "/videos-publicitaires", title: "Créer des vidéos publicitaires IA en Afrique | Ecomfy", description: "Transformez vos produits en vidéos publicitaires animées en quelques minutes grâce à l'intelligence artificielle. Idéal pour Facebook, Instagram Reels et TikTok." },
+  { path: "/boutiques-ecommerce", title: "Créer une boutique e-commerce en Afrique par IA | Ecomfy", description: "Lancez votre boutique en ligne en Côte d'Ivoire et en Afrique avec Mobile Money, paiement à la livraison et tunnel de commande optimisé." },
+  { path: "/sites-vitrines", title: "Créer un site vitrine professionnel par IA | Ecomfy", description: "Lancez votre site vitrine professionnel en quelques minutes avec un nom de domaine personnalisé. Idéal pour artisans, consultants et PME africaines." },
+  { path: "/auth", title: "Connexion & Inscription — Ecomfy", description: "Connectez-vous à Ecomfy ou créez votre compte gratuit pour générer vos visuels, vidéos et lancer votre boutique e-commerce IA." },
+  { path: "/blog", title: "Blog — Ecomfy", description: "Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy." },
+  { path: "/demo", title: "Démo Ecomfy", description: "Découvrez Ecomfy en action : visuels, vidéos, sites et boutiques générés par IA." },
 ];
 
 const BASE = "https://visuelpro.cloud";
@@ -87,12 +87,12 @@ export default function SeoPreview() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <Helmet>
-        <title>Aperçu SEO — VisualPro</title>
+        <title>Aperçu SEO — Ecomfy</title>
       </Helmet>
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Aperçu SEO Google</h1>
-          <p className="text-sm text-muted-foreground mt-1">Comment les pages publiques de VisualPro apparaissent sur Chrome / Google.</p>
+          <p className="text-sm text-muted-foreground mt-1">Comment les pages publiques de Ecomfy apparaissent sur Chrome / Google.</p>
         </div>
         <Button onClick={resubmit} disabled={submitting}>
           <RefreshCw className={`h-4 w-4 mr-2 ${submitting ? "animate-spin" : ""}`} />

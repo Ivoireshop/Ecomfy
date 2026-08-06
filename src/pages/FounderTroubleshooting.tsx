@@ -116,7 +116,7 @@ type Incident = {
 };
 
 const CACHE_PREFIXES = ["vp_tr_"];
-const APP_LANGUAGE_KEY = "visualpro_lang";
+const APP_LANGUAGE_KEY = "ecomfy_lang";
 
 const statusConfig: Record<CheckStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
   ok: { label: "OK", icon: CheckCircle2, className: "border-primary/30 bg-primary/10 text-primary" },

@@ -43,7 +43,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
   const openInvoice = (p: any) => {
     const date = new Date(p.created_at).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
     const isActivation = (p.notes || "").toLowerCase().includes("activation");
-    const label = isActivation ? "Activation de la boutique" : "Paiement de commission VisualPro";
+    const label = isActivation ? "Activation de la boutique" : "Paiement de commission Ecomfy";
     const invoiceNum = `FAC-${(p.id || "").slice(0, 8).toUpperCase()}`;
     const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"/>
 <title>${invoiceNum} — ${shop?.business_name || "Boutique"}</title>
@@ -69,7 +69,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
     <div class="muted">Date : ${date}</div>
   </div>
   <div style="text-align:right">
-    <div style="font-weight:700">VisualPro</div>
+    <div style="font-weight:700">Ecomfy</div>
     <div class="muted">visuelpro.cloud</div>
     <div class="muted">+225 07 58 15 27 61</div>
   </div>
@@ -92,7 +92,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
   Référence : ${p.transaction_reference || "—"}
 </div>
 <div class="muted" style="margin-top:32px;font-size:12px;text-align:center">
-  Merci pour votre confiance — VisualPro · visuelpro.cloud
+  Merci pour votre confiance — Ecomfy · visuelpro.cloud
 </div>
 </body></html>`;
     const w = window.open("", "_blank");
@@ -107,7 +107,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
           Historique de facturation
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Suivez vos commissions VisualPro : {fmt(perOrder)} FCFA prélevés par commande reçue.
+          Suivez vos commissions Ecomfy : {fmt(perOrder)} FCFA prélevés par commande reçue.
         </p>
       </div>
 

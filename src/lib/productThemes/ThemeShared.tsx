@@ -209,7 +209,7 @@ export function Guarantees({ data }: { data: ThemeData }) {
 export function ShopFooter({ data }: { data: ThemeData }) {
   return (
     <footer className="text-center text-xs text-gray-500 py-6 border-t mt-8">
-      {data.shop?.business_name || "Boutique"} — Propulsé par VisualPro
+      {data.shop?.business_name || "Boutique"} — Propulsé par Ecomfy
     </footer>
   );
 }

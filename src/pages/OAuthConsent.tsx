@@ -94,11 +94,11 @@ export default function OAuthConsent() {
     <main className="min-h-svh flex items-center justify-center p-6">
       <Card className="max-w-md w-full">
         <CardHeader>
-          <CardTitle>Connecter {clientName} à VisualPro</CardTitle>
+          <CardTitle>Connecter {clientName} à Ecomfy</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {clientName} pourra utiliser les outils VisualPro (lecture de vos boutiques, produits et commandes)
+            {clientName} pourra utiliser les outils Ecomfy (lecture de vos boutiques, produits et commandes)
             en votre nom via le protocole MCP. Vous pouvez révoquer cet accès à tout moment.
           </p>
           <div className="flex gap-2 justify-end">

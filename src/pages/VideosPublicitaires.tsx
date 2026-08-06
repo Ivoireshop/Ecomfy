@@ -5,7 +5,7 @@ export default function VideosPublicitaires() {
   return (
     <FeatureLandingPage
       title="Création de vidéos publicitaires par IA"
-      metaTitle="Créer des vidéos publicitaires IA en Afrique | VisualPro"
+      metaTitle="Créer des vidéos publicitaires IA en Afrique | Ecomfy"
       metaDescription="Transformez vos produits en vidéos publicitaires animées en quelques minutes grâce à l'intelligence artificielle. Idéal pour Facebook, Instagram Reels et TikTok."
       canonical="https://visuelpro.cloud/videos-publicitaires"
       hero={{

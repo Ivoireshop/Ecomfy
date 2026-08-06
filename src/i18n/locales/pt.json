@@ -64,7 +64,7 @@
   },
   "language": {
     "title": "Idioma do aplicativo",
-    "description": "Escolha o idioma da interface VisualPro."
+    "description": "Escolha o idioma da interface Ecomfy."
   },
   "dashboard": {
     "greetingMorning": "Bom dia",
@@ -81,7 +81,7 @@
       "sites": { "title": "Sites Vitrine", "desc": "Lance seu site pro em minutos", "cta": "Criar um site" },
       "shops": { "title": "Lojas E-commerce", "desc": "Venda online com pagamentos integrados", "cta": "Criar uma loja" },
       "courses": { "title": "Cursos Online", "desc": "Crie e venda cursos com certificados", "cta": "Criar um curso" },
-      "api": { "title": "API e Integrações", "desc": "Conecte o VisualPro às suas ferramentas", "cta": "Ver a documentação API" }
+      "api": { "title": "API e Integrações", "desc": "Conecte o Ecomfy às suas ferramentas", "cta": "Ver a documentação API" }
     }
   },
   "landing": {
@@ -116,8 +116,8 @@
       "step3Desc": "Publique, venda e cresça seu negócio.",
       "trustTitle": "Eles",
       "trustTitleB": "confiam em nós",
-      "ctaTitle": "Comece a vender agora com o VisualPro",
-      "ctaSub": "Experimente o VisualPro agora e lance seu negócio online em minutos."
+      "ctaTitle": "Comece a vender agora com o Ecomfy",
+      "ctaSub": "Experimente o Ecomfy agora e lance seu negócio online em minutos."
     }
   }
 }

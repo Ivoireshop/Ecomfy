@@ -86,7 +86,7 @@ export default function DeliverySignup() {
         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><Truck className="h-5 w-5 text-primary" /></div>
         <div>
           <h1 className="text-2xl font-bold">{existing ? "Ma fiche livreur" : "Devenir partenaire livreur"}</h1>
-          <p className="text-sm text-muted-foreground">Soyez visible auprès de toutes les boutiques VisualPro.</p>
+          <p className="text-sm text-muted-foreground">Soyez visible auprès de toutes les boutiques Ecomfy.</p>
         </div>
       </div>
 

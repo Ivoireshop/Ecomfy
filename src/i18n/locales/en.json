@@ -64,7 +64,7 @@
   },
   "language": {
     "title": "App language",
-    "description": "Choose the language for the VisualPro interface."
+    "description": "Choose the language for the Ecomfy interface."
   },
   "dashboard": {
     "greetingMorning": "Good morning",
@@ -81,7 +81,7 @@
       "sites": { "title": "Showcase Sites", "desc": "Launch a pro site in minutes", "cta": "Create a site" },
       "shops": { "title": "E-commerce Shops", "desc": "Sell online with built-in payments", "cta": "Create a shop" },
       "courses": { "title": "Online Courses", "desc": "Create and sell courses with certificates", "cta": "Create a course" },
-      "api": { "title": "API & Integrations", "desc": "Connect VisualPro to your tools", "cta": "View API docs" }
+      "api": { "title": "API & Integrations", "desc": "Connect Ecomfy to your tools", "cta": "View API docs" }
     }
   },
   "landing": {
@@ -116,8 +116,8 @@
       "step3Desc": "Publish, sell and grow your business.",
       "trustTitle": "They",
       "trustTitleB": "trust us",
-      "ctaTitle": "Start selling now with VisualPro",
-      "ctaSub": "Try VisualPro now and launch your online business in minutes."
+      "ctaTitle": "Start selling now with Ecomfy",
+      "ctaSub": "Try Ecomfy now and launch your online business in minutes."
     }
   }
 }

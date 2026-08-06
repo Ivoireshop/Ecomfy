@@ -36,7 +36,7 @@ export function SEO({
       <meta property="og:url" content={url} />
       <meta property="og:type" content={ogType} />
       <meta property="og:image" content={ogImage} />
-      <meta property="og:site_name" content="VisualPro" />
+      <meta property="og:site_name" content="Ecomfy" />
       <meta property="og:locale" content="fr_FR" />
 
       <meta name="twitter:card" content="summary_large_image" />

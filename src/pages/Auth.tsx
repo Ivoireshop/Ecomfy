@@ -83,19 +83,19 @@ const Auth = () => {
           if (!refError && refResult) {
             toast({
               title: "Félicitations ! 🎉",
-              description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) ! Bienvenue sur VisualPro !",
+              description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) ! Bienvenue sur Ecomfy !",
             });
           } else {
             toast({
               title: "Félicitations ! 🎉",
-              description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+              description: "Votre compte a été créé avec succès. Bienvenue sur Ecomfy !",
             });
           }
         } catch (error) {
           console.error("Erreur lors du traitement du parrainage:", error);
           toast({
             title: "Félicitations ! 🎉",
-            description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+            description: "Votre compte a été créé avec succès. Bienvenue sur Ecomfy !",
           });
         } finally {
           localStorage.removeItem(referralKey);
@@ -103,7 +103,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Félicitations ! 🎉",
-          description: "Votre compte a été créé avec succès. Bienvenue sur VisualPro !",
+          description: "Votre compte a été créé avec succès. Bienvenue sur Ecomfy !",
         });
       }
     }
@@ -343,8 +343,8 @@ const Auth = () => {
   return (
     <>
     <SEO
-      title="Connexion & Inscription — VisualPro"
-      description="Connectez-vous à VisualPro ou créez votre compte gratuit pour générer vos visuels, vidéos et lancer votre boutique e-commerce IA."
+      title="Connexion & Inscription — Ecomfy"
+      description="Connectez-vous à Ecomfy ou créez votre compte gratuit pour générer vos visuels, vidéos et lancer votre boutique e-commerce IA."
       path="/auth"
       noIndex={false}
     />
@@ -352,7 +352,7 @@ const Auth = () => {
       <div className="absolute inset-0 hidden md:block">
         <img
           src={authHeroV5}
-          alt="Créateur africain utilisant VisualPro"
+          alt="Créateur africain utilisant Ecomfy"
           className="h-full w-full object-cover object-[68%_center]"
           width={1024}
           height={1024}
@@ -364,7 +364,7 @@ const Auth = () => {
         <div className="w-full max-w-md mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              VisualPro
+              Ecomfy
             </h1>
             <Badge variant="secondary" className="rounded-full border border-primary/30 bg-background/80 text-primary text-[10px] font-semibold tracking-wider backdrop-blur-md md:border-white/40 md:bg-white/15 md:text-white">
               V5 · Nouvelle version
@@ -377,7 +377,7 @@ const Auth = () => {
               <div className="flex items-center gap-3">
                 <span className="h-px w-8 bg-primary" />
                 <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                  VisualPro V5
+                  Ecomfy V5
                 </span>
               </div>
               <p className="text-lg font-bold leading-tight text-foreground">

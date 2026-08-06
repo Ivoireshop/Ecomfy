@@ -122,7 +122,7 @@ const ApiDocumentation = () => {
         </div>
         <div className="text-center mb-12">
           <Code className="w-16 h-16 mx-auto mb-4 text-primary" />
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Console API VisualPro</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Console API Ecomfy</h1>
           <p className="text-muted-foreground text-lg">Gestion des clés et endpoints — accès développeur uniquement</p>
         </div>
 
@@ -144,7 +144,7 @@ const ApiDocumentation = () => {
                 <h2 className="text-2xl font-bold">Vos Clés API</h2>
                 <Badge variant="secondary">Gratuit</Badge>
               </div>
-              <p className="text-muted-foreground mb-6">Créez et gérez vos clés API pour accéder aux services VisualPro depuis vos applications.</p>
+              <p className="text-muted-foreground mb-6">Créez et gérez vos clés API pour accéder aux services Ecomfy depuis vos applications.</p>
 
               {user ? (
                 <>
@@ -194,8 +194,8 @@ const ApiDocumentation = () => {
           {/* GETTING STARTED */}
           <TabsContent value="getting-started" className="space-y-6">
             <Card className="p-8">
-              <h2 className="text-2xl font-bold mb-4">Premiers pas avec l'API VisualPro</h2>
-              <p className="text-muted-foreground mb-6">L'API VisualPro vous permet de générer des visuels publicitaires et des vidéos depuis vos applications. Disponible pour tous les utilisateurs, y compris le plan gratuit.</p>
+              <h2 className="text-2xl font-bold mb-4">Premiers pas avec l'API Ecomfy</h2>
+              <p className="text-muted-foreground mb-6">L'API Ecomfy vous permet de générer des visuels publicitaires et des vidéos depuis vos applications. Disponible pour tous les utilisateurs, y compris le plan gratuit.</p>
 
               <div className="space-y-6">
                 <div>
@@ -287,7 +287,7 @@ const ApiDocumentation = () => {
                     <h3 className="text-xl font-bold">MCP (Model Context Protocol)</h3>
                     <Badge variant="secondary">AI Integration</Badge>
                   </div>
-                  <p className="text-muted-foreground mb-4">Connectez VisualPro comme serveur MCP pour permettre aux assistants IA de générer des visuels.</p>
+                  <p className="text-muted-foreground mb-4">Connectez Ecomfy comme serveur MCP pour permettre aux assistants IA de générer des visuels.</p>
                   <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto"><code>{`// Configuration MCP Server
 {
   "mcpServers": {
@@ -314,7 +314,7 @@ const ApiDocumentation = () => {
                     <h3 className="text-xl font-bold">Zapier / Make</h3>
                     <Badge variant="secondary">No-Code</Badge>
                   </div>
-                  <p className="text-muted-foreground mb-4">Utilisez les webhooks VisualPro avec Zapier ou Make pour créer des automatisations sans code.</p>
+                  <p className="text-muted-foreground mb-4">Utilisez les webhooks Ecomfy avec Zapier ou Make pour créer des automatisations sans code.</p>
                   <ol className="list-decimal list-inside space-y-2 text-muted-foreground ml-4">
                     <li>Créez un Zap avec un déclencheur (ex: nouveau fichier Google Drive)</li>
                     <li>Ajoutez une action "Webhooks by Zapier" → "POST"</li>
@@ -395,7 +395,7 @@ add_action('woocommerce_new_product', function($product_id) {
                 </div>
 
                 <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">
-                  <p className="text-sm"><strong>🔒 Sécurité :</strong> Chaque webhook inclut un header <code>X-VisualPro-Signature</code> que vous pouvez vérifier avec votre clé secrète.</p>
+                  <p className="text-sm"><strong>🔒 Sécurité :</strong> Chaque webhook inclut un header <code>X-Ecomfy-Signature</code> que vous pouvez vérifier avec votre clé secrète.</p>
                 </div>
               </div>
             </Card>
@@ -485,7 +485,7 @@ echo $result['imageUrl'];`}</code></pre>
           <h2 className="text-2xl font-bold mb-4">Besoin d'aide ?</h2>
           <p className="text-muted-foreground mb-4">Notre équipe est disponible pour vous aider avec l'intégration de l'API.</p>
           <div className="space-y-2">
-            <p>📧 Email : api@visualpro.africa</p>
+            <p>📧 Email : api@ecomfy.cloud</p>
             <p>💬 WhatsApp : <a href="https://wa.me/2250758152761" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80">+225 07 58 15 27 61</a></p>
             <p>📚 Clés API : Rendez-vous dans <strong>Paramètres → Espace Développeur</strong> pour gérer vos clés API.</p>
           </div>

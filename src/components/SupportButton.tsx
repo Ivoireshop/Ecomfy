@@ -152,7 +152,7 @@ export function SupportButton() {
                 className="resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                Vos suggestions nous aident à améliorer VisualPro
+                Vos suggestions nous aident à améliorer Ecomfy
               </p>
             </div>
             <Button
