@@ -45,14 +45,14 @@ const NavItem = ({ item, isCollapsed }: NavItemProps) => (
             to={item.url}
             end={item.url === "/"}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+              `flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 transition-colors font-inter text-[13.5px] font-medium ${
                 isActive 
-                  ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary" 
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-accent/10 text-foreground font-semibold" 
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               }`
             }
           >
-            <item.icon className="h-4 w-4 shrink-0" />
+            <item.icon className="h-[18px] w-[18px] shrink-0 opacity-75" />
             <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
           </NavLink>
         </SidebarMenuButton>
@@ -73,9 +73,9 @@ interface NavSectionProps {
 }
 
 const NavSection = ({ label, items, isCollapsed }: NavSectionProps) => (
-  <SidebarGroup>
+  <SidebarGroup className="mb-2">
     {!isCollapsed && (
-      <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 px-3 mb-1">
+      <SidebarGroupLabel className="font-inter text-[11px] font-semibold tracking-[0.08em] uppercase text-muted-foreground/70 px-2.5 mb-1">
         {label}
       </SidebarGroupLabel>
     )}
@@ -151,23 +151,24 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full">
         <TooltipProvider>
       {/* Header */}
-          <SidebarGroup className="pb-2 pt-3">
+          <SidebarGroup className="pb-4 pt-5">
             <div className={isCollapsed ? "flex flex-col items-center gap-3 px-1" : "flex flex-col gap-3 px-3"}>
               <div className="flex items-center justify-between gap-2">
                 {!isCollapsed && (
-                  <span className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  <div className="flex items-center gap-2.5 font-space font-bold text-[17px] tracking-tight">
+                    <div className="w-[26px] h-[26px] rounded-[7px] bg-foreground text-background flex items-center justify-center text-[14px]">
+                      E
+                    </div>
                     Ecomfy
-                  </span>
+                  </div>
                 )}
                 {isCollapsed && (
-                  <span className="font-bold text-xs bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    EC
-                  </span>
+                  <div className="w-[26px] h-[26px] rounded-[7px] bg-foreground text-background flex items-center justify-center text-[14px] font-space font-bold">
+                    E
+                  </div>
                 )}
-                {!isCollapsed && <UserAvatar />}
               </div>
-              <SidebarTrigger className="h-9 w-9 min-h-[36px] min-w-[36px] rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted flex items-center justify-center" />
-              {isCollapsed && <UserAvatar />}
+              <SidebarTrigger className="mt-2 h-8 w-8 min-h-[32px] min-w-[32px] rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted flex items-center justify-center" />
             </div>
           </SidebarGroup>
 
@@ -184,15 +185,17 @@ export function AppSidebar() {
 
           {/* Footer */}
           <SidebarGroup className="mt-auto pb-4">
-            <SidebarGroupContent>
-              <div className={isCollapsed ? "flex flex-col items-center gap-2" : "flex items-center justify-between gap-2 px-3"}>
-                <div className="flex items-center gap-2">
-                  <ThemeToggle />
-                  {!isCollapsed && <span className="text-sm text-muted-foreground">{t("common.theme")}</span>}
+            <div className="mx-3 pt-3 border-t border-border/60">
+              <SidebarGroupContent>
+                <div className={isCollapsed ? "flex flex-col items-center gap-2" : "flex items-center justify-between gap-2"}>
+                  <div className="flex items-center gap-2">
+                    <ThemeToggle />
+                    {!isCollapsed && <span className="font-inter text-[12.5px] text-muted-foreground">{t("common.theme")}</span>}
+                  </div>
+                  <LanguageSelector />
                 </div>
-                <LanguageSelector />
-              </div>
-            </SidebarGroupContent>
+              </SidebarGroupContent>
+            </div>
           </SidebarGroup>
         </TooltipProvider>
       </SidebarContent>

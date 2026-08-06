@@ -215,9 +215,21 @@ const Auth = () => {
     } catch (error) {
       triggerErrorShake();
       console.error("Erreur lors de l'inscription:", error);
+      
+      let errMsg = error instanceof Error ? error.message : "Une erreur est survenue lors de l'inscription";
+      const lowerMsg = errMsg.toLowerCase();
+      
+      if (lowerMsg.includes("password is known to be weak")) {
+        errMsg = "Le mot de passe est trop faible ou facile à deviner. Veuillez en choisir un autre plus complexe.";
+      } else if (lowerMsg.includes("user already registered") || lowerMsg.includes("already exists")) {
+        errMsg = "Un compte existe déjà avec cette adresse email.";
+      } else if (lowerMsg.includes("invalid") && lowerMsg.includes("email")) {
+        errMsg = "L'adresse email saisie n'est pas valide.";
+      }
+
       toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur est survenue lors de l'inscription",
+        title: "Erreur d'inscription",
+        description: errMsg,
         variant: "destructive",
       });
     } finally {

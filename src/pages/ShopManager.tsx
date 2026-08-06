@@ -122,9 +122,9 @@ const ShopManager = () => {
     return new Intl.NumberFormat("fr-FR").format(amount) + " " + currency;
   };
 
-  const totalRevenue = shops.reduce((sum, s) => sum + (s.total_sales || 0), 0);
-  const totalOrders = shops.reduce((sum, s) => sum + (s.total_orders || 0), 0);
-  const activeShops = shops.filter(s => s.is_activated).length;
+  const totalRevenue = shops.reduce((sum, s) => sum + (s?.total_sales || 0), 0);
+  const totalOrders = shops.reduce((sum, s) => sum + (s?.total_orders || 0), 0);
+  const activeShops = shops.filter(s => s?.is_activated).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -209,9 +209,10 @@ const ShopManager = () => {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {collabShops.map((cs) => {
+                if (!cs) return null;
                 const color = cs.primary_color || "#2563eb";
                 return (
-                  <Card key={cs.id} className="overflow-hidden hover:shadow-lg transition-all">
+                  <Card key={cs.id || Math.random().toString()} className="overflow-hidden hover:shadow-lg transition-all">
                     <div className="h-24 relative" style={{ background: `linear-gradient(135deg, ${color}, ${color}dd)` }}>
                       {cs.banner_url && (
                         <img src={cs.banner_url} alt="" className="w-full h-full object-cover" />
@@ -266,6 +267,7 @@ const ShopManager = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {shops.map((shop) => {
+              if (!shop) return null;
               const color = shop.primary_color || "#2563eb";
               return (
                 <Card key={shop.id} className="overflow-hidden group card-interactive border-border/60 hover:border-emerald-500/30">
