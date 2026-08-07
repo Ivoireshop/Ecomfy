@@ -192,7 +192,7 @@ export function VideoGenerator({
                 videoUrl: row.video_url,
                 videoId,
                 message: "Vidéo générée avec succès !",
-                isImage: row.video_url?.endsWith(".mp4") ? false : !row.video_url?.includes("/videos/"),
+                isImage: !row.video_url?.includes(".mp4"),
               });
               setTimeout(() => {
                 setProgress(null);
@@ -234,7 +234,7 @@ export function VideoGenerator({
               videoUrl: row.video_url,
               videoId,
               message: "Vidéo générée avec succès !",
-              isImage: row.video_url?.endsWith(".mp4") ? false : !row.video_url?.includes("/videos/"),
+              isImage: !row.video_url?.includes(".mp4"),
             });
             setTimeout(() => {
               setProgress(null);
@@ -508,6 +508,9 @@ export function VideoGenerator({
               {generatedVideo.isImage ? "🖼️ Image générée (vidéo indisponible)" : "🎉 Votre vidéo MP4 est prête !"}
             </CardTitle>
             <CardDescription>{generatedVideo.message}</CardDescription>
+            <pre className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap break-all border p-2 rounded bg-secondary">
+              DEBUG URL: {generatedVideo.videoUrl}
+            </pre>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg overflow-hidden bg-black">
