@@ -2,9 +2,11 @@ import { useScrollReveal } from "@/hooks/useScrollReveal";
 import bentoFormation from "@/assets/bento-formation.jpg";
 import bentoCommunity from "@/assets/bento-community.jpg";
 import bentoAds from "@/assets/bento-ads.jpg";
+import { useSoundIdentity } from "@/hooks/useSoundIdentity";
 
 export function LandingGallery() {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.2 });
+  const { playHoverSound, playClickSound } = useSoundIdentity();
 
   const items = [
     {
@@ -45,7 +47,9 @@ export function LandingGallery() {
         {items.map((item, idx) => (
           <div 
             key={idx} 
-            className="snap-center shrink-0 w-[85vw] md:w-[600px] h-[400px] rounded-[2rem] overflow-hidden relative group cursor-pointer border border-slate-100 shadow-sm hover:shadow-2xl transition-all duration-500"
+            className="snap-center shrink-0 w-[85vw] md:w-[600px] h-[400px] rounded-[2rem] overflow-hidden relative group cursor-pointer border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+            onMouseEnter={playHoverSound}
+            onClick={playClickSound}
           >
             <img 
               src={item.img} 

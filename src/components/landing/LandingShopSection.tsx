@@ -1,12 +1,30 @@
+import { useState, useRef } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useNavigate } from "react-router-dom";
 import bentoEcom from "@/assets/bento-ecommerce.jpg";
+import { useSoundIdentity } from "@/hooks/useSoundIdentity";
 
 export function LandingShopSection() {
   const navigate = useNavigate();
   const { ref, isVisible } = useScrollReveal({ threshold: 0.2 });
+  const { playHoverSound, playClickSound } = useSoundIdentity();
+  
+  const parallaxRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!parallaxRef.current) return;
+    const rect = parallaxRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setMousePos({ x, y });
+  };
+
+  const handleMouseLeave = () => {
+    setMousePos({ x: 0, y: 0 });
+  };
 
   const benefits = [
     "Éditeur visuel glisser-déposer sans code",
@@ -44,8 +62,9 @@ export function LandingShopSection() {
 
             <Button 
               size="lg" 
-              className="bg-[#0F1B2C] text-white hover:bg-[#0F1B2C]/90 px-8 rounded-full text-base font-semibold group"
-              onClick={() => navigate("/auth")}
+              className="bg-[#0F1B2C] text-white hover:bg-[#0F1B2C]/90 px-8 rounded-full text-base font-semibold group hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+              onMouseEnter={playHoverSound}
+              onClick={() => { playClickSound(); navigate("/auth"); }}
             >
               Créer ma boutique
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -53,9 +72,25 @@ export function LandingShopSection() {
           </div>
 
           {/* Right: Visual/Mockup */}
-          <div className="order-1 lg:order-2 relative">
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#0E7C66]/10 to-transparent rounded-3xl transform -rotate-3 scale-105"></div>
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-black/5 bg-white">
+          <div 
+            className="order-1 lg:order-2 relative perspective-1000"
+            ref={parallaxRef}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div 
+              className="absolute inset-0 bg-gradient-to-tr from-[#0E7C66]/10 to-transparent rounded-3xl transition-transform duration-200 ease-out"
+              style={{
+                transform: `rotate(-3deg) scale(1.05) translate(${mousePos.x * -20}px, ${mousePos.y * -20}px)`
+              }}
+            ></div>
+            <div 
+              className="relative rounded-2xl overflow-hidden shadow-2xl border border-black/5 bg-white transition-transform duration-200 ease-out"
+              style={{
+                transform: `rotateX(${mousePos.y * -10}deg) rotateY(${mousePos.x * 10}deg)`
+              }}
+              onMouseEnter={playHoverSound}
+            >
               {/* Fake browser bar */}
               <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
                 <div className="flex gap-1.5">
@@ -73,7 +108,10 @@ export function LandingShopSection() {
             </div>
             
             {/* Floating stats card */}
-            <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-xl border border-slate-100 flex items-center gap-4 animate-bounce" style={{ animationDuration: '3s' }}>
+            <div 
+              className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-xl border border-slate-100 flex items-center gap-4 animate-bounce" 
+              style={{ animationDuration: '3s' }}
+            >
               <div className="bg-emerald-100 p-3 rounded-full text-emerald-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               </div>

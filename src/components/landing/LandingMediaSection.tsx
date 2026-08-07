@@ -4,10 +4,12 @@ import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useNavigate } from "react-router-dom";
 import bentoAds from "@/assets/bento-ads.jpg";
 import bentoVideo from "@/assets/bento-video.jpg";
+import { useSoundIdentity } from "@/hooks/useSoundIdentity";
 
 export function LandingMediaSection() {
   const navigate = useNavigate();
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  const { playHoverSound, playClickSound } = useSoundIdentity();
 
   return (
     <section className="py-24 md:py-32 bg-white overflow-hidden">
@@ -27,7 +29,11 @@ export function LandingMediaSection() {
 
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12 max-w-6xl mx-auto">
             {/* Image Generator Card */}
-            <div className="group rounded-[2rem] bg-slate-50 p-6 md:p-10 border border-slate-100 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+            <div 
+              className={`group rounded-[2rem] bg-slate-50 p-6 md:p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all duration-700 hover:-translate-y-3 transform ${isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
+              style={{ transitionDelay: '100ms' }}
+              onMouseEnter={playHoverSound}
+            >
               <div className="w-14 h-14 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center mb-6">
                 <ImageIcon className="w-7 h-7" />
               </div>
@@ -40,7 +46,7 @@ export function LandingMediaSection() {
                 <img 
                   src={bentoAds} 
                   alt="Générateur de visuels" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" 
                 />
                 <div className="absolute top-4 left-4 bg-white/90 backdrop-blur text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-orange-500" /> IA générative
@@ -49,16 +55,21 @@ export function LandingMediaSection() {
               
               <Button 
                 variant="ghost" 
-                className="w-full justify-between hover:bg-white bg-white/50 border border-slate-200 text-[#0F1B2C] font-semibold rounded-xl h-12"
-                onClick={() => navigate("/generator")}
+                className="w-full justify-between hover:bg-white bg-white/50 border border-slate-200 text-[#0F1B2C] font-semibold rounded-xl h-12 transition-all duration-300 hover:shadow-md"
+                onMouseEnter={playHoverSound}
+                onClick={() => { playClickSound(); navigate("/generator"); }}
               >
                 Découvrir le générateur
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>
 
             {/* Video Generator Card */}
-            <div className="group rounded-[2rem] bg-slate-50 p-6 md:p-10 border border-slate-100 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+            <div 
+              className={`group rounded-[2rem] bg-slate-50 p-6 md:p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all duration-700 hover:-translate-y-3 transform ${isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
+              style={{ transitionDelay: '300ms' }}
+              onMouseEnter={playHoverSound}
+            >
               <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mb-6">
                 <Video className="w-7 h-7" />
               </div>
@@ -71,10 +82,10 @@ export function LandingMediaSection() {
                 <img 
                   src={bentoVideo} 
                   alt="Générateur de vidéos" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" 
                 />
                 <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500 flex items-center justify-center">
-                  <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                  <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-500">
                     <div className="w-0 h-0 border-t-8 border-t-transparent border-l-[14px] border-l-blue-600 border-b-8 border-b-transparent ml-1"></div>
                   </div>
                 </div>
@@ -82,11 +93,12 @@ export function LandingMediaSection() {
 
               <Button 
                 variant="ghost" 
-                className="w-full justify-between hover:bg-white bg-white/50 border border-slate-200 text-[#0F1B2C] font-semibold rounded-xl h-12"
-                onClick={() => navigate("/video-creator")}
+                className="w-full justify-between hover:bg-white bg-white/50 border border-slate-200 text-[#0F1B2C] font-semibold rounded-xl h-12 transition-all duration-300 hover:shadow-md"
+                onMouseEnter={playHoverSound}
+                onClick={() => { playClickSound(); navigate("/video-creator"); }}
               >
                 Explorer la vidéo
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>
           </div>

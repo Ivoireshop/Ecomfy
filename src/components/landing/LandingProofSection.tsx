@@ -1,8 +1,10 @@
 import { Star } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useSoundIdentity } from "@/hooks/useSoundIdentity";
 
 export function LandingProofSection({ feedbacks = [] }: { feedbacks?: any[] }) {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.2 });
+  const { playHoverSound } = useSoundIdentity();
 
   // Use dummy data if none provided (for the preview)
   const displayFeedbacks = feedbacks.length > 0 ? feedbacks : [
@@ -61,12 +63,13 @@ export function LandingProofSection({ feedbacks = [] }: { feedbacks?: any[] }) {
         <div className="absolute inset-y-0 left-0 w-16 md:w-32 bg-gradient-to-r from-[#FAFAF7] to-transparent z-10 pointer-events-none" />
         <div className="absolute inset-y-0 right-0 w-16 md:w-32 bg-gradient-to-l from-[#FAFAF7] to-transparent z-10 pointer-events-none" />
         
-        <div className="overflow-hidden group py-4">
-          <div className="flex animate-marquee group-hover:[animation-play-state:paused]">
+        <div className="overflow-hidden group py-10 -my-10">
+          <div className="flex animate-marquee group-hover:[animation-play-state:paused] py-4">
             {loop.map((f, i) => (
               <article
                 key={`${f.id}-${i}`}
-                className="shrink-0 w-[300px] md:w-[380px] mx-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                className="shrink-0 w-[300px] md:w-[380px] mx-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 hover:scale-105"
+                onMouseEnter={playHoverSound}
               >
                 <div className="flex items-center gap-4 mb-4">
                   {f.photo_url ? (

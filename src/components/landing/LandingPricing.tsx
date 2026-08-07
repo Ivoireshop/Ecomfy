@@ -2,10 +2,12 @@ import { Check, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useNavigate } from "react-router-dom";
+import { useSoundIdentity } from "@/hooks/useSoundIdentity";
 
 export function LandingPricing() {
   const navigate = useNavigate();
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  const { playHoverSound, playClickSound } = useSoundIdentity();
 
   return (
     <section className="py-24 md:py-32 bg-[#FAFAF7]" id="pricing">
@@ -25,7 +27,10 @@ export function LandingPricing() {
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {/* Free Tier */}
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-8 md:p-10 shadow-sm relative transition-transform hover:-translate-y-1 duration-300">
+          <div 
+            className="rounded-[2rem] border border-slate-200 bg-white p-8 md:p-10 shadow-sm relative transition-all duration-500 hover:-translate-y-3 hover:shadow-2xl hover:scale-[1.02]"
+            onMouseEnter={playHoverSound}
+          >
             <h3 className="text-2xl font-bold text-[#0F1B2C] mb-2">Essai Gratuit</h3>
             <p className="text-slate-500 mb-6">Pour découvrir la plateforme et lancer votre projet.</p>
             <div className="flex items-baseline gap-2 mb-8">
@@ -36,8 +41,9 @@ export function LandingPricing() {
             <Button 
               variant="outline" 
               size="lg" 
-              className="w-full rounded-full border-slate-300 text-slate-700 font-bold mb-8 hover:bg-slate-50"
-              onClick={() => navigate("/auth")}
+              className="w-full rounded-full border-slate-300 text-slate-700 font-bold mb-8 hover:bg-slate-50 transition-all"
+              onMouseEnter={playHoverSound}
+              onClick={() => { playClickSound(); navigate("/auth"); }}
             >
               Commencer gratuitement
             </Button>
@@ -60,8 +66,11 @@ export function LandingPricing() {
           </div>
 
           {/* Pro Tier */}
-          <div className="rounded-[2rem] border-2 border-[#0E7C66] bg-[#0F1B2C] p-8 md:p-10 shadow-2xl relative transition-transform hover:-translate-y-1 duration-300">
-            <div className="absolute top-0 right-8 transform -translate-y-1/2 bg-[#F7C04A] text-[#0F1B2C] text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+          <div 
+            className="rounded-[2rem] border-2 border-[#0E7C66] bg-[#0F1B2C] p-8 md:p-10 shadow-2xl relative transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_20px_50px_rgba(14,124,102,0.3)] hover:scale-[1.02]"
+            onMouseEnter={playHoverSound}
+          >
+            <div className="absolute top-0 right-8 transform -translate-y-1/2 bg-[#F7C04A] text-[#0F1B2C] text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-pulse">
               Le plus populaire
             </div>
             <h3 className="text-2xl font-bold text-white mb-2">Pro Ecomfy</h3>
@@ -73,8 +82,9 @@ export function LandingPricing() {
             
             <Button 
               size="lg" 
-              className="w-full rounded-full bg-[#0E7C66] hover:bg-[#0A5F4F] text-white font-bold mb-8 shadow-lg shadow-[#0E7C66]/20"
-              onClick={() => navigate("/auth")}
+              className="w-full rounded-full bg-[#0E7C66] hover:bg-[#0A5F4F] text-white font-bold mb-8 shadow-lg shadow-[#0E7C66]/20 transition-all hover:scale-105"
+              onMouseEnter={playHoverSound}
+              onClick={() => { playClickSound(); navigate("/auth"); }}
             >
               Passer en Pro
             </Button>
