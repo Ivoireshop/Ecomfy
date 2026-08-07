@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, ExternalLink, Zap, Trash2, Loader2, Copy, Users, LogIn } from "lucide-react";
+import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, ExternalLink, Zap, Trash2, Loader2, Copy, Users, LogIn, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
@@ -131,6 +131,13 @@ const ShopManager = () => {
       <div className="max-w-[1180px] mx-auto px-6 md:px-8 pt-12 pb-16 text-[#0F1B2C]">
         
         {/* HEADER */}
+        <button 
+          onClick={() => navigate("/dashboard")} 
+          className="flex items-center gap-2 text-[13.5px] text-[#5B6472] hover:text-[#0F1B2C] mb-8 transition-colors font-medium bg-transparent border-none cursor-pointer p-0"
+        >
+          <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
+        </button>
+
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
           <div>
             <div className="font-mono text-[11.5px] font-medium tracking-[0.09em] text-[#0E7C66] uppercase mb-2.5">

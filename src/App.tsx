@@ -381,9 +381,13 @@ const AppWithSidebar = () => {
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
+  
+  const isShopManagement = location.pathname.startsWith("/shop-manager") || 
+                           location.pathname.startsWith("/shop-editor") || 
+                           location.pathname.startsWith("/shop-builder");
 
   // Showcase/shop/public pages: no sidebar at all
-  if (isShowcaseView || isShopView || isPublicPage) {
+  if (isShowcaseView || isShopView || isPublicPage || isShopManagement) {
     return (
       <main className="w-full">
         <AppContent />
@@ -393,7 +397,7 @@ const AppWithSidebar = () => {
 
   // Authenticated dashboard pages: with sidebar
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <main className="flex-1 min-w-0">
