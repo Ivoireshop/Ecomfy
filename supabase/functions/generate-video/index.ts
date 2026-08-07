@@ -455,6 +455,9 @@ Le visuel doit être:
       await serviceClient.from("generated_videos").update({ progress_step: "finalizing", progress_percentage: 90 }).eq("id", videoData.id);
 
       const videoResp = await fetch(videoUrl);
+      if (!videoResp.ok) {
+        throw new Error(`Failed to download video from provider: ${videoResp.status} ${videoResp.statusText}`);
+      }
       const videoBlob = await videoResp.arrayBuffer();
 
       const videoFileName = `${userId}/videos/${videoData.id}.mp4`;

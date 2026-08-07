@@ -419,6 +419,7 @@ const Library = () => {
                       <p className="text-sm text-muted-foreground mb-4">
                         {new Date(video.created_at).toLocaleDateString("fr-FR")}
                       </p>
+                      <pre className="text-[10px] break-all overflow-hidden text-muted-foreground mb-4">{video.video_url}</pre>
                       {video.status !== "processing" && (
                         <div className="flex gap-2">
                           <Button
