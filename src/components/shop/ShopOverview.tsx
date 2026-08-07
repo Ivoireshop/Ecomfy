@@ -148,8 +148,8 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Chart Section */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
+        <div className="lg:col-span-2">
+          <Card className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm h-full">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="font-bold text-slate-800 text-lg">Revenus (7 derniers jours)</h3>
@@ -200,12 +200,10 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
               </ResponsiveContainer>
             </div>
           </Card>
-          
-          <ShopResources />
         </div>
 
         {/* Recent Orders Section */}
-        <div className="space-y-6">
+        <div>
           <Card className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm h-full flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-slate-800 text-lg">Commandes récentes</h3>
@@ -223,8 +221,8 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
                 <p className="text-xs text-slate-400 mt-1">Vos dernières commandes apparaîtront ici.</p>
               </div>
             ) : (
-              <div className="space-y-3 flex-1">
-                {orders.slice(0, 6).map(order => (
+              <div className="space-y-3 flex-1 overflow-y-auto pr-1">
+                {orders.slice(0, 4).map(order => (
                   <div key={order.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-colors group cursor-default">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!order.is_read ? 'bg-[#0E7C66]/10 text-[#0E7C66]' : 'bg-slate-100 text-slate-400'}`}>
@@ -253,6 +251,11 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
           </Card>
         </div>
         
+      </div>
+
+      {/* Full Width Resources Section */}
+      <div className="pt-2">
+        <ShopResources />
       </div>
     </div>
   );
