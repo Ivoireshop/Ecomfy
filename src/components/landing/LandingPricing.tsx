@@ -31,11 +31,11 @@ export function LandingPricing() {
             className="rounded-[2rem] border border-slate-200 bg-white p-8 md:p-10 shadow-sm relative transition-all duration-500 hover:-translate-y-3 hover:shadow-2xl hover:scale-[1.02]"
             onMouseEnter={playHoverSound}
           >
-            <h3 className="text-2xl font-bold text-[#0F1B2C] mb-2">Essai Gratuit</h3>
-            <p className="text-slate-500 mb-6">Pour découvrir la plateforme et lancer votre projet.</p>
+            <h3 className="text-2xl font-bold text-[#0F1B2C] mb-2">Démarrage Gratuit</h3>
+            <p className="text-slate-500 mb-6">Commencez sans frais fixes, payez uniquement à la vente.</p>
             <div className="flex items-baseline gap-2 mb-8">
               <span className="text-5xl font-extrabold text-[#0F1B2C]">0 FCFA</span>
-              <span className="text-slate-500 font-medium">/ 14 jours</span>
+              <span className="text-slate-500 font-medium">/ mois</span>
             </div>
             
             <Button 
@@ -45,21 +45,22 @@ export function LandingPricing() {
               onMouseEnter={playHoverSound}
               onClick={() => { playClickSound(); navigate("/auth"); }}
             >
-              Commencer gratuitement
+              Créer ma boutique gratuite
             </Button>
 
             <ul className="space-y-4">
               {[
-                "Création d'une boutique vitrine",
-                "Génération de 5 visuels IA",
-                "Accès à la communauté (lecture)",
-                "Support par email",
+                { text: "Boutique e-commerce standard", included: true },
+                { text: "Commission de 50 FCFA / commande", included: true },
+                { text: "Domaine personnalisé", included: false },
+                { text: "Création de visuels et vidéos IA", included: false },
+                { text: "Outils IA Pro", included: false },
               ].map((feature, idx) => (
                 <li key={idx} className="flex items-center gap-3">
-                  <div className="bg-[#E3F1EC] p-1 rounded-full text-[#0E7C66] shrink-0">
-                    <Check className="w-3.5 h-3.5" />
+                  <div className={`p-1 rounded-full shrink-0 ${feature.included ? 'bg-[#E3F1EC] text-[#0E7C66]' : 'bg-red-50 text-red-500'}`}>
+                    {feature.included ? <Check className="w-3.5 h-3.5" /> : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}
                   </div>
-                  <span className="text-slate-700 font-medium">{feature}</span>
+                  <span className={`font-medium ${feature.included ? 'text-slate-700' : 'text-slate-400 line-through'}`}>{feature.text}</span>
                 </li>
               ))}
             </ul>
@@ -76,7 +77,7 @@ export function LandingPricing() {
             <h3 className="text-2xl font-bold text-white mb-2">Pro Ecomfy</h3>
             <p className="text-slate-400 mb-6">Pour les e-commerçants qui veulent scaler.</p>
             <div className="flex items-baseline gap-2 mb-8">
-              <span className="text-5xl font-extrabold text-white">9 900 FCFA</span>
+              <span className="text-5xl font-extrabold text-white">12 000 FCFA</span>
               <span className="text-slate-400 font-medium">/ mois</span>
             </div>
             
@@ -92,6 +93,8 @@ export function LandingPricing() {
             <ul className="space-y-4">
               {[
                 "Boutique illimitée + Domaine personnalisé",
+                "Aucune commission par commande (0 FCFA)",
+                "Commandes illimitées",
                 "Visuels IA en illimité",
                 "10 vidéos animées IA / mois",
                 "Accès complet aux formations",

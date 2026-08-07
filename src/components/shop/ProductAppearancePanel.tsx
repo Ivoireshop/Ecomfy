@@ -119,14 +119,13 @@ export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlu
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="themes">
-        <TabsList className="grid grid-cols-3 w-full h-9">
-          <TabsTrigger value="themes" className="text-xs">Thèmes</TabsTrigger>
-          <TabsTrigger value="colors" className="text-xs">Couleurs & Fond</TabsTrigger>
-          <TabsTrigger value="audios" className="text-xs">Audios</TabsTrigger>
+      <Tabs defaultValue="themes" className="w-full">
+        <TabsList className="grid grid-cols-2 w-full h-10 p-1 bg-muted/50 rounded-lg">
+          <TabsTrigger value="themes" className="text-xs font-medium rounded-md">Thèmes</TabsTrigger>
+          <TabsTrigger value="colors" className="text-xs font-medium rounded-md">Couleurs & Fond</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="themes" className="mt-3">
+        <TabsContent value="themes" className="mt-4">
           <ProductThemePicker
             productId={productId}
             shopId={shopId}
@@ -136,19 +135,19 @@ export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlu
           />
         </TabsContent>
 
-        <TabsContent value="colors" className="mt-3 space-y-3">
+        <TabsContent value="colors" className="mt-4 space-y-4">
           <div>
-            <Label className="text-xs">Mode de fond</Label>
-            <div className="grid grid-cols-3 gap-1.5 mt-1">
+            <Label className="text-xs font-semibold text-muted-foreground">Mode de fond</Label>
+            <div className="grid grid-cols-3 gap-2 mt-2">
               {(["solid", "gradient", "image"] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => update({ background_mode: m })}
-                  className={`h-8 text-xs rounded-md border transition ${
+                  className={`h-9 text-xs font-medium rounded-md border transition-colors ${
                     settings.background_mode === m
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card hover:bg-muted"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background hover:bg-muted"
                   }`}
                 >
                   {m === "solid" ? "Uni" : m === "gradient" ? "Dégradé" : "Image"}
@@ -158,25 +157,25 @@ export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlu
           </div>
 
           {settings.background_mode === "gradient" && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-4">
               <ColorField label="Dégradé départ" value={settings.gradient_from || "#FFFFFF"} onChange={(v) => update({ gradient_from: v })} />
               <ColorField label="Dégradé arrivée" value={settings.gradient_to || "#EC4899"} onChange={(v) => update({ gradient_to: v })} />
             </div>
           )}
 
           {settings.background_mode === "image" && (
-            <div className="space-y-1">
-              <Label className="text-xs">URL image de fond</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">URL image de fond</Label>
               <Input
                 value={settings.background_image_url || ""}
                 onChange={(e) => update({ background_image_url: e.target.value })}
                 placeholder="https://…"
-                className="h-8 text-xs"
+                className="h-9 text-xs"
               />
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-4">
             {COLOR_FIELDS.map((f) => (
               <ColorField
                 key={f.key as string}
@@ -186,10 +185,6 @@ export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlu
               />
             ))}
           </div>
-        </TabsContent>
-
-        <TabsContent value="audios" className="mt-3">
-          <ProductAudioManager productId={productId} shopId={shopId} />
         </TabsContent>
       </Tabs>
 
@@ -259,18 +254,18 @@ export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlu
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button size="sm" variant="ghost" onClick={reset} className="text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <Button size="sm" variant="outline" onClick={reset} className="text-xs">
           Design par défaut
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {previewUrl && (
-            <a href={previewUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+            <a href={previewUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline font-medium">
               Voir comme client →
             </a>
           )}
-          <Button size="sm" onClick={save} disabled={saving} className="gap-1.5">
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          <Button size="sm" onClick={save} disabled={saving} className="gap-2 shadow-sm">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Enregistrer l'apparence
           </Button>
         </div>
@@ -290,21 +285,21 @@ function ColorField({
 }) {
   const safe = isValidHex(value) ? value : "#FFFFFF";
   return (
-    <div className="space-y-1">
-      <Label className="text-[11px]">{label}</Label>
-      <div className="flex items-center gap-1.5">
+    <div className="space-y-1.5">
+      <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
+      <div className="flex items-center gap-2 bg-background border rounded-md p-1 shadow-sm">
         <input
           type="color"
           value={safe}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
-          className="h-8 w-10 rounded border cursor-pointer p-0.5"
+          className="h-7 w-8 rounded cursor-pointer p-0 border-0 flex-shrink-0"
           aria-label={label}
         />
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="#FFFFFF"
-          className="h-8 text-xs font-mono"
+          className="h-7 text-xs font-mono border-0 focus-visible:ring-0 px-1 bg-transparent"
         />
       </div>
     </div>

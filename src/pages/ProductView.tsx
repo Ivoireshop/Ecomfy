@@ -68,28 +68,28 @@ const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; 
   const Box = ({ val, label }: { val: number; label: string }) => (
     <div className="flex flex-col items-center">
       <div
-        className="w-9 h-9 sm:w-12 sm:h-12 rounded-md sm:rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-lg tabular-nums"
-        style={{ backgroundColor: color }}
+        className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-black text-base sm:text-xl tabular-nums shadow-sm border-b-[3px]"
+        style={{ backgroundColor: color, borderColor: "rgba(0,0,0,0.2)" }}
       >
         {String(val).padStart(2, '0')}
       </div>
-      <span className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">{label}</span>
+      <span className="text-[10px] sm:text-xs text-gray-500 mt-1 font-semibold uppercase tracking-wider">{label}</span>
     </div>
   );
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2 w-full">
-      <div className="flex items-center gap-1.5 whitespace-nowrap">
-        <Clock className="w-4 h-4 shrink-0" style={{ color }} />
-        <span className="text-sm font-semibold" style={{ color }}>Offre expire dans :</span>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 w-full bg-gray-50 border border-gray-100 rounded-2xl shadow-sm">
+      <div className="flex items-center gap-2">
+        <Clock className="w-5 h-5 shrink-0 animate-pulse" style={{ color }} />
+        <span className="text-sm sm:text-base font-bold" style={{ color }}>L'offre expire bientôt !</span>
       </div>
-      <div className="flex items-start gap-1 sm:gap-2">
+      <div className="flex items-start gap-1 sm:gap-1.5">
         <Box val={timeLeft.d} label="Jours" />
-        <span className="text-base sm:text-xl font-bold mt-2 sm:mt-3" style={{ color }}>:</span>
+        <span className="text-xl font-bold mt-1.5 sm:mt-2 text-gray-300">:</span>
         <Box val={timeLeft.h} label="Heures" />
-        <span className="text-base sm:text-xl font-bold mt-2 sm:mt-3" style={{ color }}>:</span>
+        <span className="text-xl font-bold mt-1.5 sm:mt-2 text-gray-300">:</span>
         <Box val={timeLeft.m} label="Min" />
-        <span className="text-base sm:text-xl font-bold mt-2 sm:mt-3" style={{ color }}>:</span>
+        <span className="text-xl font-bold mt-1.5 sm:mt-2 text-gray-300">:</span>
         <Box val={timeLeft.s} label="Sec" />
       </div>
     </div>
@@ -100,12 +100,13 @@ const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; 
 const StockUrgencyBarInline = ({ stock, maxStock, color, text }: { stock: number; maxStock: number; color: string; text?: string }) => {
   const pct = Math.min((stock / maxStock) * 100, 100);
   return (
-    <div className="space-y-1.5 py-1">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium" style={{ color }}>{text || `🔥 Dépêchez-vous ! Il ne reste que ${stock} en stock`}</span>
+    <div className="space-y-2 py-1">
+      <div className="flex items-center gap-2 text-sm font-bold" style={{ color }}>
+        <span className="animate-pulse">🔥</span> 
+        <span>{text || `Dépêchez-vous ! Il ne reste que ${stock} article${stock > 1 ? "s" : ""} en stock.`}</span>
       </div>
-      <div className="w-full h-2.5 rounded-full bg-gray-200 overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: `${pct}%`, backgroundColor: color }} />
+      <div className="w-full h-2.5 rounded-full bg-gray-100 overflow-hidden shadow-inner border border-gray-200/50">
+        <div className="h-full rounded-full transition-all duration-1000 shadow-sm" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
   );
@@ -813,8 +814,8 @@ const ProductView = () => {
       <ShopReviewBar themeConfig={themeConfig} placement="above" />
 
       {!hasReviewBar && (
-        <div className="text-white text-center py-2 px-4 text-xs sm:text-sm font-medium" style={{ backgroundColor: primaryColor }}>
-          🔥 Offre spéciale en cours — Profitez de nos meilleurs prix ! 📦 Livraison disponible
+        <div className="text-white text-center py-2.5 px-4 text-xs sm:text-sm font-semibold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-md">
+          🎁 Livraison gratuite &amp; Offre spéciale en cours — Profitez de nos meilleurs prix !
         </div>
       )}
 
@@ -897,7 +898,7 @@ const ProductView = () => {
           {/* Left/Right: Images */}
           <div className={imageRight ? "md:order-2" : ""}>
             {/* Main Image */}
-            <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 mb-3 relative group">
+            <div className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 relative group shadow-sm border border-gray-100">
               {images.length > 0 ? (
                 <img 
                   src={thumbUrl(images[selectedImageIdx]?.image_url, 800)} 
@@ -907,7 +908,7 @@ const ProductView = () => {
                   fetchPriority="high"
                   width={800}
                   height={800}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -915,7 +916,7 @@ const ProductView = () => {
                 </div>
               )}
               {discount > 0 && (
-                <Badge className="absolute top-3 left-3 bg-red-600 text-white text-sm px-3 py-1 rounded-lg font-bold">
+                <Badge className="absolute top-4 left-4 bg-red-600 text-white text-sm md:text-base px-3.5 py-1.5 rounded-xl font-black shadow-lg border-2 border-white/20">
                   -{discount}%
                 </Badge>
               )}
@@ -924,27 +925,28 @@ const ProductView = () => {
                 <>
                   <button 
                     onClick={() => setSelectedImageIdx(i => i > 0 ? i - 1 : images.length - 1)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-white/80 shadow flex items-center justify-center hover:bg-white transition opacity-0 group-hover:opacity-100"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 shadow-md flex items-center justify-center hover:bg-white transition opacity-0 group-hover:opacity-100"
                   >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="h-6 w-6" />
                   </button>
                   <button 
                     onClick={() => setSelectedImageIdx(i => i < images.length - 1 ? i + 1 : 0)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-white/80 shadow flex items-center justify-center hover:bg-white transition opacity-0 group-hover:opacity-100"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 shadow-md flex items-center justify-center hover:bg-white transition opacity-0 group-hover:opacity-100"
                   >
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="h-6 w-6" />
                   </button>
                 </>
               )}
             </div>
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
                 {images.map((img, i) => (
                   <button 
                     key={img.id}
                     onClick={() => setSelectedImageIdx(i)} 
-                    className={`h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition ${i === selectedImageIdx ? "border-gray-900" : "border-transparent hover:border-gray-300"}`}
+                    className={`h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden flex-shrink-0 transition-all ${i === selectedImageIdx ? "border-[3px] shadow-md scale-95" : "border border-gray-200 hover:border-gray-400 hover:opacity-80"}`}
+                    style={i === selectedImageIdx ? { borderColor: primaryColor } : undefined}
                   >
                     <img src={thumbUrl(img.image_url, 160)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   </button>
@@ -954,8 +956,8 @@ const ProductView = () => {
           </div>
 
           {/* Right: Product Info */}
-          <div className="space-y-4">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">{product.name}</h1>
+          <div className="space-y-5 lg:pl-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight text-gray-900 tracking-tight">{product.name}</h1>
 
             {/* Reviews (rating + count) */}
             {shop.theme_config?.reviews_enabled !== false && (() => {
@@ -979,23 +981,23 @@ const ProductView = () => {
               const rating = Math.min(5, Math.max(1, Number(shop.theme_config?.reviews_rating ?? 5)));
               return (
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center">
+                  <div className="flex items-center gap-0.5">
                     {[1,2,3,4,5].map(i => (
-                      <Star key={i} className={`h-4 w-4 ${i <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                      <Star key={i} className={`h-4 w-4 sm:h-5 sm:w-5 ${i <= rating ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
                     ))}
                   </div>
-                  <span className="text-xs text-gray-600">({count.toLocaleString("fr-FR")} avis)</span>
+                  <span className="text-sm font-medium text-gray-500 hover:underline cursor-pointer">({count.toLocaleString("fr-FR")} avis)</span>
                 </div>
               );
             })()}
 
             {/* Price */}
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl sm:text-3xl font-bold" style={{ color: primaryColor }}>
+            <div className="flex items-end gap-3 pb-2 border-b border-gray-100">
+              <span className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight" style={{ color: primaryColor }}>
                 {formatPrice(product.price)} FCFA
               </span>
               {product.compare_at_price && product.compare_at_price > product.price && (
-                <span className="text-lg text-gray-400 line-through">
+                <span className="text-lg sm:text-xl text-gray-400 line-through font-medium mb-1">
                   {formatPrice(product.compare_at_price)} FCFA
                 </span>
               )}
@@ -1005,9 +1007,12 @@ const ProductView = () => {
             {sectionOrder.blocks.map((key: ProductSectionKey) => {
               if (key === "bundle_offers") {
                 return Array.isArray(product.bundle_offers) && product.bundle_offers.length > 0 ? (
-                  <div key="bundle_offers" className="space-y-2 rounded-xl border-2 p-3" style={{ borderColor: primaryColor + "30" }}>
-                    <p className="text-sm font-bold" style={{ color: primaryColor }}>🎁 Offres en lot</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div key="bundle_offers" className="space-y-3 rounded-2xl border p-4 shadow-sm bg-white" style={{ borderColor: primaryColor + "20" }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="h-6 w-6 rounded-full flex items-center justify-center text-white text-xs" style={{ backgroundColor: primaryColor }}>🎁</div>
+                      <p className="text-base font-bold" style={{ color: primaryColor }}>Offres en lot</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {product.bundle_offers.map((b, i) => {
                         const active = selectedBundleIdx === i;
                         return (
@@ -1018,14 +1023,18 @@ const ProductView = () => {
                               setSelectedBundleIdx(active ? null : i);
                               setQuantity(active ? 1 : Math.max(1, Number(b.quantity) || 1));
                             }}
-                            className={`text-left p-3 rounded-lg border-2 transition ${active ? "shadow-md" : "border-gray-200 hover:border-gray-400"}`}
-                            style={active ? { borderColor: primaryColor, background: primaryColor + "10" } : undefined}
+                            className={`text-left p-3.5 rounded-xl border-2 transition-all duration-200 relative overflow-hidden ${active ? "shadow-md scale-[1.02]" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
+                            style={active ? { borderColor: primaryColor, backgroundColor: primaryColor + "08" } : undefined}
                           >
-                            <div className="font-bold text-sm">
+                            {active && <div className="absolute top-0 right-0 w-8 h-8 flex items-center justify-center text-white font-bold" style={{ backgroundColor: primaryColor, borderBottomLeftRadius: "0.75rem" }}>✓</div>}
+                            <div className="font-bold text-base text-gray-900 mb-1">
                               {b.label || `${b.quantity} unité${b.quantity > 1 ? "s" : ""}`}
                             </div>
-                            <div className="text-xs text-gray-600">
-                              {b.quantity} × produit · <span className="font-bold" style={{ color: primaryColor }}>{formatPrice(b.price)} FCFA</span>
+                            <div className="text-xs text-gray-500 mb-1">
+                              {b.quantity} × produit
+                            </div>
+                            <div className="font-black text-lg" style={{ color: active ? primaryColor : "#374151" }}>
+                              {formatPrice(b.price)} FCFA
                             </div>
                           </button>
                         );
@@ -1125,66 +1134,68 @@ const ProductView = () => {
             })}
 
             {/* Quantity + Add to Cart */}
-            <div className="pt-2 space-y-3">
-              <div className="flex items-center gap-3">
-                <Label className="text-sm font-medium text-gray-700">Quantité</Label>
-                <div className="flex items-center border rounded-lg">
-                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="h-10 w-10 flex items-center justify-center hover:bg-gray-50 transition">
-                    <Minus className="h-4 w-4" />
+            <div className="pt-4 space-y-4">
+              <div className="flex items-center gap-4">
+                <Label className="text-base font-bold text-gray-700">Quantité</Label>
+                <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden bg-white">
+                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="h-11 w-11 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-600">
+                    <Minus className="h-5 w-5" />
                   </button>
-                  <span className="w-12 text-center font-semibold text-sm">{quantity}</span>
-                  <button onClick={() => setQuantity(q => q + 1)} className="h-10 w-10 flex items-center justify-center hover:bg-gray-50 transition">
-                    <Plus className="h-4 w-4" />
+                  <span className="w-14 text-center font-bold text-lg">{quantity}</span>
+                  <button onClick={() => setQuantity(q => q + 1)} className="h-11 w-11 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-600">
+                    <Plus className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
-              {shop._isPreview ? (
-                <PreviewLockedNotice primaryColor={primaryColor} />
-              ) : shop.theme_config?.single_page_checkout ? (
-                <Button 
-                  className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
-                  style={{ backgroundColor: primaryColor }}
-                  onClick={() => {
-                    addToCart(product, quantity, true, true);
-                    setShowInlineCheckout(true);
-                    setTimeout(() => {
-                      document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }, 80);
-                  }}
-                  disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant · ${formatPrice(product.price * quantity)} FCFA`}
-                </Button>
-              ) : (
-                <Button 
-                  className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all"
-                  style={{ backgroundColor: primaryColor }}
-                  onClick={() => {
-                    addToCart(product, quantity, true, true);
-                    setCheckoutOpen(true);
-                    setCheckoutStep("info");
-                    setOrderSuccess(false);
-                  }}
-                  disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant · ${formatPrice(product.price * quantity)} FCFA`}
-                </Button>
-              )}
-
-              {!shop._isPreview && shop.whatsapp_number && (
-                <a 
-                  href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par "${product.name}" à ${formatPrice(product.price)} FCFA`)}`} 
-                  target="_blank" rel="noopener noreferrer" 
-                  className="block"
-                >
-                  <Button variant="outline" className="w-full h-12 rounded-xl text-base font-semibold gap-2 border-green-500 text-green-600 hover:bg-green-50">
-                    <MessageCircle className="h-5 w-5" /> Commander via WhatsApp
+              <div className="flex flex-col gap-3">
+                {shop._isPreview ? (
+                  <PreviewLockedNotice primaryColor={primaryColor} />
+                ) : shop.theme_config?.single_page_checkout ? (
+                  <Button 
+                    className="w-full h-14 sm:h-16 rounded-2xl text-lg sm:text-xl font-bold gap-3 text-white shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+                    style={{ backgroundColor: primaryColor }}
+                    onClick={() => {
+                      addToCart(product, quantity, true, true);
+                      setShowInlineCheckout(true);
+                      setTimeout(() => {
+                        document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 80);
+                    }}
+                    disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+                  >
+                    <ShoppingCart className="h-6 w-6" />
+                    {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant - ${formatPrice(product.price * quantity)} FCFA`}
                   </Button>
-                </a>
-              )}
+                ) : (
+                  <Button 
+                    className="w-full h-14 sm:h-16 rounded-2xl text-lg sm:text-xl font-bold gap-3 text-white shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+                    style={{ backgroundColor: primaryColor }}
+                    onClick={() => {
+                      addToCart(product, quantity, true, true);
+                      setCheckoutOpen(true);
+                      setCheckoutStep("info");
+                      setOrderSuccess(false);
+                    }}
+                    disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+                  >
+                    <ShoppingCart className="h-6 w-6" />
+                    {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant - ${formatPrice(product.price * quantity)} FCFA`}
+                  </Button>
+                )}
+
+                {!shop._isPreview && shop.whatsapp_number && (
+                  <a 
+                    href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par "${product.name}" à ${formatPrice(product.price)} FCFA`)}`} 
+                    target="_blank" rel="noopener noreferrer" 
+                    className="block"
+                  >
+                    <Button variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold gap-2 border-[3px] border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 transition-colors">
+                      <MessageCircle className="h-6 w-6" /> Commander via WhatsApp
+                    </Button>
+                  </a>
+                )}
+              </div>
 
               {/* Inline Single-Page Checkout */}
               {shop.theme_config?.single_page_checkout && showInlineCheckout && cart.length > 0 && (
@@ -1364,21 +1375,21 @@ const ProductView = () => {
             </div>
 
             {/* Trust badges */}
-            <div className="border-t pt-4 mt-4 grid grid-cols-2 gap-3 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-gray-400" />
+            <div className="border-t pt-5 mt-5 grid grid-cols-2 gap-4 text-sm font-medium text-gray-700">
+              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
+                <Truck className="h-5 w-5 text-gray-500" />
                 <span>Livraison disponible</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-gray-400" />
+              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
+                <Shield className="h-5 w-5 text-gray-500" />
                 <span>Paiement sécurisé</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-400" />
+              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
+                <Clock className="h-5 w-5 text-gray-500" />
                 <span>Expédition rapide</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-gray-400" />
+              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
+                <CheckCircle2 className="h-5 w-5 text-gray-500" />
                 <span>Qualité garantie</span>
               </div>
             </div>

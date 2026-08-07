@@ -154,7 +154,7 @@ export default function FounderTroubleshooting() {
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
 
   const publicShopUrl = useMemo(() => {
-    const slug = linkSlug.trim().replace(/^https?:\/\//, "").replace(/\.visuelpro\.cloud\/?$/, "").replace(/\/$/, "");
+    const slug = linkSlug.trim().replace(/^https?:\/\//, "").replace(/\.ecomfy\.cloud\/?$/, "").replace(/\/$/, "");
     return slug ? `https://${slug}.ecomfy.cloud` : "";
   }, [linkSlug]);
 

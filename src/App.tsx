@@ -98,6 +98,7 @@ const DeliveryDashboard = lazyWithRetry(() => import("./pages/DeliveryDashboard"
 const FounderRoute = lazyWithRetry(() => import("./components/FounderRoute"));
 const SeoPreview = lazyWithRetry(() => import("./pages/founder/SeoPreview"));
 const ShopPaymentControl = lazyWithRetry(() => import("./pages/founder/ShopPaymentControl"));
+const PricingDashboard = lazyWithRetry(() => import("./pages/PricingDashboard"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
@@ -105,7 +106,7 @@ const ShopPaymentControl = lazyWithRetry(() => import("./pages/founder/ShopPayme
 const isCustomShopHost = (() => {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
-  const KNOWN = ["visuelpro.cloud", "ecomfy.cloud", "localhost", "127.0.0.1"];
+  const KNOWN = ["ecomfy.cloud", "localhost", "127.0.0.1"];
   if (KNOWN.includes(host) || host.endsWith(".vercel.app")) return false;
   return true;
 })();
@@ -171,6 +172,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Subscription />
+              </ProtectedRoute>
+            } 
+          />
+          <Route
+            path="/pricing" 
+            element={
+              <ProtectedRoute>
+                <PricingDashboard />
               </ProtectedRoute>
             } 
           />

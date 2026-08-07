@@ -12,7 +12,8 @@ import { ProductLivePreview } from "./ProductLivePreview";
 import { ProductGifGenerator } from "./ProductGifGenerator";
 import { ProductWizard } from "./ProductWizard";
 import { ProductAppearancePanel } from "./ProductAppearancePanel";
-import { Palette as PaletteIcon } from "lucide-react";
+import { ProductAudioManager } from "./ProductAudioManager";
+import { Palette as PaletteIcon, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
@@ -1091,54 +1092,37 @@ export function ProductEditor({
       )}
 
       {/* Content */}
-      <div className={`flex flex-col lg:flex-row gap-0 ${editorMode === "assistant" ? "hidden" : ""}`}>
-        {/* Main Editor */}
-        <div className="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto">
-          {/* Product URL */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
-            <LinkIcon className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">https://votreboutique.shop/produit/{product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "..."}</span>
-          </div>
+      <div className={`bg-muted/10 min-h-screen ${editorMode === "assistant" ? "hidden" : ""}`}>
+        <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-6 lg:gap-8 p-4 md:p-6 lg:p-8">
+          {/* Main Editor */}
+          <div className="flex-1 space-y-6">
+            {/* Product URL */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card border shadow-sm rounded-xl px-4 py-3">
+              <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate">https://votreboutique.shop/produit/{product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "..."}</span>
+            </div>
 
-          {/* Appearance + audios (additif, n'altère pas l'existant) */}
-          {isEditing && productId && shop?.id && (
-            <details className="group border rounded-lg bg-card overflow-hidden" open>
-              <summary className="list-none cursor-pointer flex items-center justify-between gap-2 px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition">
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <PaletteIcon className="h-4 w-4 text-primary" />
-                  Apparence, thèmes & témoignages audio
-                </span>
-                <span className="text-[11px] text-muted-foreground group-open:hidden">Ouvrir</span>
-                <span className="text-[11px] text-muted-foreground hidden group-open:inline">Fermer</span>
-              </summary>
-              <div className="p-3">
-                <ProductAppearancePanel
-                  productId={productId}
-                  shopId={shop.id}
-                  shopSlug={shopSlug}
-                  productSlug={savedProductSlug || product.slug || undefined}
-                />
-              </div>
-            </details>
-          )}
+
 
           {/* Short Description */}
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Courte description du produit</Label>
+          <div className="bg-card border shadow-sm rounded-xl p-5 space-y-3">
+            <Label className="text-base font-semibold">Courte description du produit</Label>
             <Input
               value={product.short_description}
               onChange={(e) => setProduct({ ...product, short_description: e.target.value })}
               placeholder="Résumé court du produit"
-              className="h-10"
+              className="h-11 bg-background focus-visible:ring-primary"
             />
           </div>
 
           {/* Rich Text Editor */}
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Description complète</Label>
-            <div className="border rounded-lg overflow-hidden">
+          <div className="bg-card border shadow-sm rounded-xl overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b bg-muted/5">
+              <Label className="text-base font-semibold">Description complète</Label>
+            </div>
+            <div className="relative">
               {/* Toolbar Row 1 */}
-              <div className="bg-muted/30 border-b px-2 py-1.5 flex flex-wrap items-center gap-0.5">
+              <div className="bg-muted/30 backdrop-blur-md border-b px-3 py-2 flex flex-wrap items-center gap-1 sticky top-0 z-10">
                 {/* Fullscreen placeholder */}
                 <ToolbarButton icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
                 <ToolbarDivider />
@@ -1293,7 +1277,7 @@ export function ProductEditor({
               </div>
 
               {/* Editor Area */}
-              <div className="relative">
+              <div className="relative bg-background">
                 {/* Image Toolbar */}
                 {selectedEditorImage && imageToolbar && (
                   <div 
@@ -1315,7 +1299,7 @@ export function ProductEditor({
                 <div
                   ref={editorRef}
                   contentEditable
-                  className="min-h-[350px] p-4 text-sm focus:outline-none [&>*]:mb-2"
+                  className="min-h-[400px] p-5 sm:p-6 text-sm focus:outline-none [&>*]:mb-3 prose max-w-none"
                   style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                   onInput={handleEditorInput}
                   onKeyDown={handleEditorKeyDown}
@@ -1328,20 +1312,38 @@ export function ProductEditor({
             </div>
           </div>
 
+          {/* Témoignages Audio & Apparence */}
+          {isEditing && productId && shop?.id && (
+            <>
+              <CollapsibleSection title="Témoignages audio" icon={<Mic className="h-5 w-5" />} defaultOpen={false}>
+                <ProductAudioManager productId={productId} shopId={shop.id} />
+              </CollapsibleSection>
+
+              <CollapsibleSection title="Thème & Apparence" icon={<PaletteIcon className="h-5 w-5" />} defaultOpen={false}>
+                <ProductAppearancePanel
+                  productId={productId}
+                  shopId={shop.id}
+                  shopSlug={shopSlug}
+                  productSlug={savedProductSlug || product.slug || undefined}
+                />
+              </CollapsibleSection>
+            </>
+          )}
+
           {/* Tarification */}
-          <CollapsibleSection title="Tarification" icon={<DollarSign className="h-4 w-4" />} defaultOpen>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
+          <CollapsibleSection title="Tarification" icon={<DollarSign className="h-5 w-5" />} defaultOpen>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="space-y-2">
                 <Label className="text-sm">Prix</Label>
-                <Input type="number" value={product.price || ""} onChange={(e) => setProduct({ ...product, price: Number(e.target.value) })} placeholder="0" className="h-10" />
+                <Input type="number" value={product.price || ""} onChange={(e) => setProduct({ ...product, price: Number(e.target.value) })} placeholder="0" className="h-11" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm">Comparer au prix</Label>
-                <Input type="number" value={product.compare_at_price || ""} onChange={(e) => setProduct({ ...product, compare_at_price: Number(e.target.value) })} placeholder="0" className="h-10" />
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Comparer au prix (Ancien prix)</Label>
+                <Input type="number" value={product.compare_at_price || ""} onChange={(e) => setProduct({ ...product, compare_at_price: Number(e.target.value) })} placeholder="0" className="h-11 border-dashed" />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label className="text-sm">Prix de revient</Label>
-                <Input type="number" value={costPrice || ""} onChange={(e) => setCostPrice(Number(e.target.value))} placeholder="0" className="h-10" />
+                <Input type="number" value={costPrice || ""} onChange={(e) => setCostPrice(Number(e.target.value))} placeholder="0" className="h-11" />
               </div>
             </div>
             {product.compare_at_price > 0 && product.price > 0 && product.compare_at_price > product.price && (
@@ -1812,7 +1814,7 @@ export function ProductEditor({
                   {shopSlug && (
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs text-muted-foreground truncate">
-                        visuelpro.cloud/shop/{shopSlug}/p/{shareableSlug || "mon-produit"}
+                        ecomfy.cloud/shop/{shopSlug}/p/{shareableSlug || "mon-produit"}
                       </p>
                       <Button
                         type="button"
@@ -1847,43 +1849,48 @@ export function ProductEditor({
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-full lg:w-[240px] border-t lg:border-t-0 lg:border-l bg-muted/10 p-5 space-y-6">
+        <div className="w-full lg:w-[320px] shrink-0 space-y-6">
           {/* Visibility */}
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Visibilité</h4>
-            <label className="flex items-center gap-2.5 text-sm cursor-pointer">
-              <Switch checked={product.is_published} onCheckedChange={(v) => setProduct({ ...product, is_published: v })} />
-              <span>{product.is_published ? "Visible en ligne" : "Brouillon"}</span>
-            </label>
+          <div className="bg-card border shadow-sm rounded-xl p-5">
+            <h4 className="font-semibold text-base mb-4 flex items-center gap-2">Visibilité</h4>
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-muted-foreground cursor-pointer flex-1" htmlFor="visibility-switch">
+                {product.is_published ? (
+                  <span className="flex items-center gap-2 text-emerald-600 font-medium"><div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Visible en ligne</span>
+                ) : (
+                  <span className="flex items-center gap-2 font-medium"><div className="h-2 w-2 rounded-full bg-muted-foreground" /> Brouillon</span>
+                )}
+              </label>
+              <Switch id="visibility-switch" checked={product.is_published} onCheckedChange={(v) => setProduct({ ...product, is_published: v })} />
+            </div>
           </div>
 
-          {/* Storage */}
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Détails de stockage</h4>
+          {/* Storage & Inventory */}
+          <div className="bg-card border shadow-sm rounded-xl p-5 space-y-5">
+            <h4 className="font-semibold text-base">Inventaire & Stockage</h4>
+            
             <div className="space-y-2">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">SKU</Label>
-                <Input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU" className="h-9 text-sm" />
+              <Label className="text-xs font-medium text-muted-foreground">Inventaire (Stock disponible)</Label>
+              <Input type="number" value={product.stock_quantity} onChange={(e) => setProduct({ ...product, stock_quantity: Number(e.target.value) })} className="h-10" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">SKU</Label>
+                <Input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU" className="h-10 text-sm" />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Poids (g)</Label>
-                <Input type="number" value={product.weight || ""} onChange={(e) => setProduct({ ...product, weight: Number(e.target.value) })} placeholder="0" className="h-9 text-sm" />
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">Poids (g)</Label>
+                <Input type="number" value={product.weight || ""} onChange={(e) => setProduct({ ...product, weight: Number(e.target.value) })} placeholder="0" className="h-10 text-sm" />
               </div>
             </div>
           </div>
 
-          {/* Inventory */}
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Inventaire</h4>
-            <Input type="number" value={product.stock_quantity} onChange={(e) => setProduct({ ...product, stock_quantity: Number(e.target.value) })} className="h-9 text-sm" />
-            <p className="text-xs text-muted-foreground mt-1">Suivre la quantité</p>
-          </div>
-
           {/* Category */}
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Catégorie</h4>
+          <div className="bg-card border shadow-sm rounded-xl p-5">
+            <h4 className="font-semibold text-base mb-4">Catégorie</h4>
             <Select value={product.category} onValueChange={(v) => setProduct({ ...product, category: v })}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
               </SelectContent>
@@ -1891,20 +1898,21 @@ export function ProductEditor({
           </div>
 
           {/* Name */}
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Nom du produit</h4>
-            <Input value={product.name} onChange={(e) => setProduct({ ...product, name: e.target.value })} placeholder="Nom du produit" className="h-9 text-sm" />
+          <div className="bg-card border shadow-sm rounded-xl p-5">
+            <h4 className="font-semibold text-base mb-4">Nom du produit</h4>
+            <Input value={product.name} onChange={(e) => setProduct({ ...product, name: e.target.value })} placeholder="Nom du produit" className="h-10" />
           </div>
 
           {/* Vendeur */}
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Vendeur</h4>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
-              <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">V</div>
-              <span>Propriétaire</span>
+          <div className="bg-card border shadow-sm rounded-xl p-5">
+            <h4 className="font-semibold text-base mb-4">Vendeur</h4>
+            <div className="flex items-center gap-3 bg-muted/30 rounded-lg px-4 py-3 border">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">V</div>
+              <span className="font-medium">Propriétaire</span>
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Bottom Bar */}
@@ -2047,16 +2055,23 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger asChild>
-        <button className="w-full flex items-center justify-between py-3 border-b hover:bg-muted/20 transition-colors px-1">
-          <span className="flex items-center gap-2 font-semibold text-sm">{icon}{title}</span>
-          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-4 pb-2">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
+    <div className="bg-card border shadow-sm rounded-xl overflow-hidden transition-all duration-300">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger asChild>
+          <button className="w-full flex items-center justify-between py-4 px-5 hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                {icon}
+              </div>
+              <span className="font-semibold text-sm sm:text-base">{title}</span>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-5 pb-5 pt-2 border-t bg-muted/5">
+          {children}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }

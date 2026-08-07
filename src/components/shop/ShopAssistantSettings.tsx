@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Save, Sparkles, Volume2, Lock } from "lucide-react";
+import { 
+  Loader2, Save, Sparkles, Volume2, Lock, 
+  Package, Layers, Type, Check, Bot, Languages, MessageSquare, Settings2
+} from "lucide-react";
 
 interface Props { shopId: string; isActivated: boolean }
 
@@ -31,10 +33,10 @@ const GREETING_LANGS = [
 ];
 
 const CONV_LANGS = [
-  { value: "auto", label: "Auto (détection de la langue du visiteur)" },
+  { value: "auto", label: "Auto (détection du visiteur)" },
   { value: "fr", label: "Français uniquement" },
   { value: "en", label: "English only" },
-  { value: "es", label: "Español solamente" },
+  { value: "es", label: "Español seulement" },
   { value: "pt", label: "Apenas Português" },
 ];
 
@@ -122,164 +124,247 @@ export function ShopAssistantSettings({ shopId, isActivated }: Props) {
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" /> Assistant IA Vocal
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            Un assistant IA premium qui accueille vos visiteurs en plusieurs langues, leur parle à la voix, et les guide vers l'achat.
-          </p>
+    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+      {/* Header & Status Banner */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 bg-card border shadow-sm p-6 rounded-2xl">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-primary/10 rounded-xl text-primary shrink-0 mt-1 md:mt-0">
+            <Sparkles className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Assistant IA Vocal</h2>
+            <p className="text-muted-foreground mt-2 max-w-xl text-sm md:text-base leading-relaxed">
+              Un agent intelligent ultra-performant pour accueillir vos visiteurs, répondre à leurs questions vocalement, et stimuler vos ventes.
+            </p>
+          </div>
         </div>
-        <Button onClick={save} disabled={saving} className="gap-2">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Enregistrer
-        </Button>
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          <label className="flex items-center gap-3 px-5 py-2.5 bg-muted/30 border rounded-full shadow-sm cursor-pointer hover:bg-muted/50 transition">
+            <Switch checked={cfg.enabled} onCheckedChange={(v) => setCfg({ ...cfg, enabled: v })} />
+            <span className={`text-sm font-semibold ${cfg.enabled ? "text-primary" : "text-muted-foreground"}`}>
+              {cfg.enabled ? "Assistant Actif" : "Désactivé"}
+            </span>
+          </label>
+          <Button onClick={save} disabled={saving} className="gap-2 shadow-sm rounded-full px-6 flex-1 md:flex-none">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Enregistrer
+          </Button>
+        </div>
       </div>
 
       {!isActivated && (
-        <Card className="p-5 bg-amber-50 border-amber-200">
-          <div className="flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 mt-0.5" />
-            <div>
-              <p className="font-semibold text-amber-900">Activez votre boutique pour mettre l'assistant en ligne</p>
-              <p className="text-sm text-amber-800 mt-1">Vous pouvez configurer l'assistant dès maintenant. Il deviendra visible pour vos visiteurs après activation.</p>
-            </div>
+        <div className="flex items-start gap-3 p-5 bg-amber-50 border border-amber-200 rounded-xl">
+          <Lock className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-amber-900">Activez votre boutique pour mettre l'assistant en ligne</p>
+            <p className="text-sm text-amber-800 mt-1">Vous pouvez configurer l'assistant dès maintenant. Il deviendra visible pour vos visiteurs après l'activation de votre boutique.</p>
           </div>
-        </Card>
+        </div>
       )}
 
-      <Card className="p-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-semibold">Activer l'assistant</p>
-            <p className="text-sm text-muted-foreground">Affiche le widget flottant sur votre boutique et vos fiches produits.</p>
-          </div>
-          <Switch checked={cfg.enabled} onCheckedChange={(v) => setCfg({ ...cfg, enabled: v })} />
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <Label>Nom de l'assistant</Label>
-            <Input value={cfg.name} onChange={(e) => setCfg({ ...cfg, name: e.target.value })} placeholder="Ramina" />
-          </div>
-          <div>
-            <Label>Personnalité</Label>
-            <Select value={cfg.personality} onValueChange={(v) => setCfg({ ...cfg, personality: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PERSONALITIES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-6 space-y-4">
-        <p className="font-semibold">Source des informations</p>
-        <div className="space-y-3">
-          {[
-            { v: "auto_products", l: "S'inspirer automatiquement de mes fiches produits", d: "L'assistant lit votre catalogue et recommande vos produits." },
-            { v: "manual", l: "Saisie manuelle uniquement", d: "Vous écrivez vous-même ce que l'assistant doit savoir." },
-            { v: "hybrid", l: "Les deux (recommandé)", d: "Combine vos fiches produits et vos informations personnalisées." },
-          ].map((o) => (
-            <label key={o.v} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${cfg.source_mode === o.v ? "border-primary bg-primary/5" : "border-border"}`}>
-              <input type="radio" name="source_mode" checked={cfg.source_mode === o.v} onChange={() => setCfg({ ...cfg, source_mode: o.v })} className="mt-1" />
-              <div>
-                <p className="font-medium text-sm">{o.l}</p>
-                <p className="text-xs text-muted-foreground">{o.d}</p>
+      {/* Grid Layout for settings */}
+      <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
+        
+        {/* Left Column: Core Identity & Behavior */}
+        <div className="lg:col-span-7 space-y-6">
+          
+          {/* Identity */}
+          <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-50 text-blue-500 rounded-lg"><Bot className="h-5 w-5" /></div>
+              <h3 className="text-lg font-bold">Identité de l'agent</h3>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="space-y-2.5">
+                <Label className="text-sm font-semibold">Nom de l'assistant</Label>
+                <Input value={cfg.name} onChange={(e) => setCfg({ ...cfg, name: e.target.value })} placeholder="Ex: Ramina" className="h-11" />
               </div>
-            </label>
-          ))}
-        </div>
-        {(cfg.source_mode === "manual" || cfg.source_mode === "hybrid") && (
-          <div>
-            <Label>Informations à transmettre</Label>
-            <Textarea
-              rows={6}
-              value={cfg.manual_context || ""}
-              onChange={(e) => setCfg({ ...cfg, manual_context: e.target.value })}
-              placeholder="Ex: Notre offre la plus recommandée est le Pack Découverte à 15 000 FCFA. Best-seller: la Crème Coco. Livraison gratuite à Abidjan dès 20 000 FCFA. FAQ courantes..."
-            />
-          </div>
-        )}
-      </Card>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-semibold">Personnalité & Ton</Label>
+                <Select value={cfg.personality} onValueChange={(v) => setCfg({ ...cfg, personality: v })}>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PERSONALITIES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
 
-      <Card className="p-6 space-y-4">
-        <p className="font-semibold">Langues de salutation</p>
-        <p className="text-sm text-muted-foreground">L'assistant saluera dans toutes les langues cochées au moment de l'accueil.</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {GREETING_LANGS.map((l) => (
-            <label key={l.code} className="flex items-center gap-2 cursor-pointer">
-              <Checkbox checked={cfg.greeting_languages?.includes(l.code)} onCheckedChange={() => toggleLang(l.code)} />
-              <span className="text-sm">{l.label}</span>
-            </label>
-          ))}
-        </div>
-        <div>
-          <Label>Langue de la conversation</Label>
-          <Select value={cfg.conversation_language} onValueChange={(v) => setCfg({ ...cfg, conversation_language: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {CONV_LANGS.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground mt-1.5">En mode Auto, l'assistant détecte la langue du visiteur et lui répond dans cette langue.</p>
-        </div>
-      </Card>
+          {/* Source des infos */}
+          <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-emerald-50 text-emerald-500 rounded-lg"><Settings2 className="h-5 w-5" /></div>
+              <div>
+                <h3 className="text-lg font-bold">Source des connaissances</h3>
+                <p className="text-sm text-muted-foreground mt-1">D'où l'IA tire-t-elle ses réponses ?</p>
+              </div>
+            </div>
+            
+            <div className="grid gap-3">
+              {[
+                { v: "auto_products", l: "Catalogue produits uniquement", d: "Recommandé si vous avez beaucoup d'articles.", icon: <Package className="h-5 w-5"/> },
+                { v: "hybrid", l: "Hybride (Catalogue + Manuel)", d: "La meilleure option. Produits + vos consignes.", icon: <Layers className="h-5 w-5"/> },
+                { v: "manual", l: "Saisie manuelle stricte", d: "Contrôle total, ignore les fiches produits.", icon: <Type className="h-5 w-5"/> },
+              ].map(o => (
+                <div 
+                  key={o.v} 
+                  onClick={() => setCfg({...cfg, source_mode: o.v})}
+                  className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                    cfg.source_mode === o.v 
+                      ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/10" 
+                      : "border-border/60 hover:border-border hover:bg-muted/30"
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-lg shrink-0 ${cfg.source_mode === o.v ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    {o.icon}
+                  </div>
+                  <div className="flex-1 mt-0.5">
+                    <p className={`font-semibold ${cfg.source_mode === o.v ? "text-primary" : ""}`}>{o.l}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{o.d}</p>
+                  </div>
+                  <div className="shrink-0 mt-1">
+                    <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${cfg.source_mode === o.v ? "border-primary" : "border-muted-foreground/30"}`}>
+                      {cfg.source_mode === o.v && <div className="h-2.5 w-2.5 bg-primary rounded-full" />}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-      <Card className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-semibold">Voix de l'agent</p>
-            <p className="text-sm text-muted-foreground">Choisissez une voix pour le mode vocal.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch checked={cfg.voice_enabled} onCheckedChange={(v) => setCfg({ ...cfg, voice_enabled: v })} />
-            <span className="text-sm">Vocal</span>
-          </div>
-        </div>
-        {cfg.voice_enabled && (
-          <div className="flex gap-2">
-            <Select value={cfg.voice_id} onValueChange={(v) => setCfg({ ...cfg, voice_id: v })}>
-              <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {VOICES.map((v) => <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={previewVoice} disabled={previewing} className="gap-2">
-              {previewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
-              Aperçu
-            </Button>
-          </div>
-        )}
-      </Card>
+            {(cfg.source_mode === "manual" || cfg.source_mode === "hybrid") && (
+              <div className="mt-6 space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                <Label className="text-sm font-semibold">Consignes personnalisées pour l'IA</Label>
+                <Textarea
+                  rows={5}
+                  value={cfg.manual_context || ""}
+                  onChange={(e) => setCfg({ ...cfg, manual_context: e.target.value })}
+                  placeholder="Ex: Pousse la Crème Coco pour les peaux sèches. Livraison gratuite à Abidjan. Ton de voix très enthousiaste..."
+                  className="resize-none bg-muted/20"
+                />
+              </div>
+            )}
+          </Card>
+          
+          {/* Comportement */}
+          <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-violet-50 text-violet-500 rounded-lg"><MessageSquare className="h-5 w-5" /></div>
+              <h3 className="text-lg font-bold">Comportement & Accueil</h3>
+            </div>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
+                <div>
+                  <p className="text-sm font-semibold">Ouverture automatique</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">La fenêtre de chat s'ouvre d'elle-même après 5s.</p>
+                </div>
+                <Switch checked={cfg.auto_open} onCheckedChange={(v) => setCfg({ ...cfg, auto_open: v })} />
+              </div>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-semibold">Bulle d'accroche (Widget fermé)</Label>
+                <Input value={cfg.welcome_bubble || ""} onChange={(e) => setCfg({ ...cfg, welcome_bubble: e.target.value })} placeholder="Ex: Besoin d'aide pour choisir ? 💬" className="h-11" />
+              </div>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-semibold">Premier message (Widget ouvert)</Label>
+                <Textarea
+                  rows={3}
+                  value={cfg.custom_greeting || ""}
+                  onChange={(e) => setCfg({ ...cfg, custom_greeting: e.target.value })}
+                  placeholder="Ex: Bienvenue ! Que recherchez-vous aujourd'hui ?"
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground">Laissez vide pour que l'IA génère une phrase d'accueil selon sa personnalité.</p>
+              </div>
+            </div>
+          </Card>
 
-      <Card className="p-6 space-y-4">
-        <p className="font-semibold">Comportement & accueil</p>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Ouverture automatique</p>
-            <p className="text-xs text-muted-foreground">La fenêtre s'ouvre toute seule après quelques secondes.</p>
-          </div>
-          <Switch checked={cfg.auto_open} onCheckedChange={(v) => setCfg({ ...cfg, auto_open: v })} />
         </div>
-        <div>
-          <Label>Bulle d'accueil (visible avant ouverture)</Label>
-          <Input value={cfg.welcome_bubble || ""} onChange={(e) => setCfg({ ...cfg, welcome_bubble: e.target.value })} placeholder="Ex: Besoin d'aide pour choisir ? 💬" />
+
+        {/* Right Column: Voice & Languages */}
+        <div className="lg:col-span-5 space-y-6">
+          
+          {/* Voix */}
+          <Card className="p-6 rounded-2xl shadow-sm border-border/50 overflow-hidden relative">
+            {/* Background decoration */}
+            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="flex items-center justify-between mb-6 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-pink-50 text-pink-500 rounded-lg"><Volume2 className="h-5 w-5" /></div>
+                <h3 className="text-lg font-bold">Voix & Audio</h3>
+              </div>
+              <Switch checked={cfg.voice_enabled} onCheckedChange={(v) => setCfg({ ...cfg, voice_enabled: v })} />
+            </div>
+
+            <div className={`space-y-5 transition-opacity duration-300 relative z-10 ${!cfg.voice_enabled ? "opacity-40 pointer-events-none" : ""}`}>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-semibold">Timbre vocal</Label>
+                <Select value={cfg.voice_id} onValueChange={(v) => setCfg({ ...cfg, voice_id: v })}>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {VOICES.map((v) => <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="secondary" onClick={previewVoice} disabled={previewing || !cfg.voice_enabled} className="w-full gap-2 h-11 bg-primary/10 text-primary hover:bg-primary/20 border-none font-semibold">
+                {previewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+                Écouter un extrait vocal
+              </Button>
+            </div>
+          </Card>
+
+          {/* Languages */}
+          <Card className="p-6 rounded-2xl shadow-sm border-border/50">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-orange-50 text-orange-500 rounded-lg"><Languages className="h-5 w-5" /></div>
+              <div>
+                <h3 className="text-lg font-bold">Multilinguisme</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Gérez les langues de l'IA</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <Label className="text-sm font-semibold block mb-3">Langues d'accroche vocale</Label>
+                <div className="flex flex-wrap gap-2">
+                  {GREETING_LANGS.map(l => {
+                    const active = cfg.greeting_languages?.includes(l.code);
+                    return (
+                      <button
+                        key={l.code}
+                        type="button"
+                        onClick={() => toggleLang(l.code)}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                          active 
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm" 
+                            : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                        }`}
+                      >
+                        {active && <Check className="h-3.5 w-3.5" />}
+                        {l.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-2 border-t">
+                <Label className="text-sm font-semibold">Langue principale de discussion</Label>
+                <Select value={cfg.conversation_language} onValueChange={(v) => setCfg({ ...cfg, conversation_language: v })}>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CONV_LANGS.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground leading-relaxed mt-1.5">
+                  En mode Auto, l'IA détecte la langue tapée/parlée par le visiteur et s'adapte instantanément.
+                </p>
+              </div>
+            </div>
+          </Card>
+          
         </div>
-        <div>
-          <Label>Message d'accueil personnalisé (optionnel)</Label>
-          <Textarea
-            rows={3}
-            value={cfg.custom_greeting || ""}
-            onChange={(e) => setCfg({ ...cfg, custom_greeting: e.target.value })}
-            placeholder="Ex: Bienvenue chez Terminus Coco ! Notre best-seller est la Crème Coco. Tapez votre question 👇"
-          />
-          <p className="text-xs text-muted-foreground mt-1.5">Si vide, un message sera généré automatiquement.</p>
-        </div>
-      </Card>
+      </div>
     </div>
   );
 }

@@ -35,39 +35,59 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
   const themeConfig = shop.theme_config || {};
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold">Thème</h2>
-
-      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-700 dark:text-blue-300">
-        ℹ️ À l'exception des paramètres de paiement, tous les autres paramètres sur cette page personnalisent l'apparence de votre boutique.
+    <div className="max-w-7xl mx-auto space-y-8 pb-12">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-primary/10 rounded-xl text-primary shrink-0">
+            <Layout className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Apparence & Thème</h2>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">
+              Personnalisez le design de votre boutique pour refléter votre identité.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-xl p-4 flex items-start gap-3">
+        <div className="mt-0.5 text-blue-500"><Settings className="h-5 w-5" /></div>
+        <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+          <strong>À l'exception des paramètres de paiement</strong>, tous les paramètres sur cette page personnalisent l'apparence publique de votre boutique.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         {/* Sidebar */}
-        <Card className="p-4 lg:col-span-1 h-fit">
-          <p className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2"><Settings className="h-4 w-4" /> Réglage des thèmes</p>
-          <nav className="space-y-1">
-            {THEME_SECTIONS.map(section => (
-              <button
-                key={section.id}
-                onClick={() => setActiveThemeSection(section.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all text-left ${
-                  activeThemeSection === section.id
-                    ? "bg-primary/10 text-primary font-semibold border-l-3 border-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
-              >
-                <section.icon className="h-4 w-4 shrink-0" />
-                {section.label}
-              </button>
-            ))}
-          </nav>
-        </Card>
+        <div className="lg:col-span-3">
+          <Card className="p-4 rounded-2xl shadow-sm border-border/50 sticky top-24">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4 px-2">Réglages</p>
+            <nav className="space-y-1.5">
+              {THEME_SECTIONS.map(section => {
+                const isActive = activeThemeSection === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveThemeSection(section.id)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-all text-left group ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <section.icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"}`} />
+                    {section.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </Card>
+        </div>
 
         {/* Content */}
-        <Card className="p-6 lg:col-span-3">
+        <div className="lg:col-span-9 space-y-6">
           {activeThemeSection === "header" && (
-            <div className="space-y-6">
+            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <Tabs defaultValue="mobile">
                 <TabsList className="w-full justify-start bg-transparent border-b rounded-none p-0 h-auto gap-0">
                   {["En-tête mobile", "En-tête Ordinateur", "Bas de page", "Barre d'avis ordinateur", "Barre d'avis mobile"].map((tab, i) => {
@@ -210,155 +230,223 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   />
                 </TabsContent>
               </Tabs>
-            </div>
+            </Card>
           )}
 
           {activeThemeSection === "product" && (
-            <div className="space-y-6">
-              <h3 className="font-bold">Paramètres du produit</h3>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Tag className="h-5 w-5" /></div>
+                <h3 className="text-xl font-bold">Fiche Produit</h3>
+              </div>
 
-              {/* Countdown */}
-              <Card className="p-5 space-y-4 border-dashed">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center">
-                      <Timer className="h-5 w-5 text-orange-600" />
+              {/* Compte à rebours */}
+              <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 overflow-hidden relative">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                      <Timer className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">Compte à rebours</p>
-                      <p className="text-xs text-muted-foreground">Crée un sentiment d'urgence pour accélérer les achats</p>
+                      <p className="text-lg font-bold">Compte à rebours</p>
+                      <p className="text-sm text-muted-foreground">Crée un sentiment d'urgence pour accélérer les achats.</p>
                     </div>
                   </div>
                   <Switch checked={themeConfig.countdown_enabled || false} onCheckedChange={v => updateThemeConfig("countdown_enabled", v)} />
                 </div>
                 {themeConfig.countdown_enabled && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pl-13">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Jours</Label>
-                      <Input type="number" min={0} max={30} value={themeConfig.countdown_days || 0} onChange={e => updateThemeConfig("countdown_days", parseInt(e.target.value) || 0)} />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 bg-muted/20 border rounded-xl animate-in fade-in">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Jours</Label>
+                      <Input type="number" min={0} max={30} value={themeConfig.countdown_days || 0} onChange={e => updateThemeConfig("countdown_days", parseInt(e.target.value) || 0)} className="h-11 bg-background" />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Heures</Label>
-                      <Input type="number" min={0} max={23} value={themeConfig.countdown_hours || 12} onChange={e => updateThemeConfig("countdown_hours", parseInt(e.target.value) || 0)} />
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Heures</Label>
+                      <Input type="number" min={0} max={23} value={themeConfig.countdown_hours || 12} onChange={e => updateThemeConfig("countdown_hours", parseInt(e.target.value) || 0)} className="h-11 bg-background" />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Minutes</Label>
-                      <Input type="number" min={0} max={59} value={themeConfig.countdown_minutes || 0} onChange={e => updateThemeConfig("countdown_minutes", parseInt(e.target.value) || 0)} />
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Minutes</Label>
+                      <Input type="number" min={0} max={59} value={themeConfig.countdown_minutes || 0} onChange={e => updateThemeConfig("countdown_minutes", parseInt(e.target.value) || 0)} className="h-11 bg-background" />
                     </div>
-                    <ColorField label="Couleur" value={themeConfig.countdown_color || "#dc2626"} onChange={v => updateThemeConfig("countdown_color", v)} />
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Couleur d'accentuation</Label>
+                      <div className="flex items-center gap-2 border bg-background rounded-lg p-1 h-11">
+                        <input type="color" value={(themeConfig.countdown_color || "#dc2626").substring(0, 7)} onChange={e => updateThemeConfig("countdown_color", e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0 p-0" />
+                        <Input value={themeConfig.countdown_color || "#dc2626"} onChange={e => updateThemeConfig("countdown_color", e.target.value)} className="border-0 shadow-none h-8 text-sm font-mono p-0 focus-visible:ring-0 bg-transparent" />
+                      </div>
+                    </div>
                   </div>
                 )}
               </Card>
 
-              {/* Stock urgency */}
-              <Card className="p-5 space-y-4 border-dashed">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
-                      <TrendingDown className="h-5 w-5 text-red-600" />
+              {/* Indicateur de stock */}
+              <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 overflow-hidden relative">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                      <TrendingDown className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">Indicateur de stock</p>
-                      <p className="text-xs text-muted-foreground">Affiche un compteur de stock animé pour mettre la pression</p>
+                      <p className="text-lg font-bold">Indicateur de stock</p>
+                      <p className="text-sm text-muted-foreground">Affiche un compteur de stock animé pour mettre la pression.</p>
                     </div>
                   </div>
                   <Switch checked={themeConfig.stock_urgency_enabled !== false} onCheckedChange={v => updateThemeConfig("stock_urgency_enabled", v)} />
                 </div>
                 {themeConfig.stock_urgency_enabled !== false && (
-                  <div className="grid grid-cols-2 gap-4 pl-13">
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs">Style d'affichage du stock</Label>
-                      <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-6 pt-2 animate-in fade-in">
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold block">Style d'affichage du stock</Label>
+                      <div className="grid md:grid-cols-2 gap-3">
                         <button type="button" onClick={() => updateThemeConfig("stock_display_style", "bar")}
-                          className={`p-3 rounded-lg border-2 text-sm text-left ${(!themeConfig.stock_display_style || themeConfig.stock_display_style === "bar") ? "border-primary bg-primary/5 font-semibold" : "border-muted"}`}>
-                          📊 Barre d'urgence
-                          <div className="text-[11px] text-muted-foreground font-normal">Diminue à chaque commande</div>
+                          className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${(!themeConfig.stock_display_style || themeConfig.stock_display_style === "bar") ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60 hover:border-border hover:bg-muted/30"}`}>
+                          <div className={`p-2 rounded-lg shrink-0 ${(!themeConfig.stock_display_style || themeConfig.stock_display_style === "bar") ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}><Layout className="h-4 w-4" /></div>
+                          <div>
+                            <p className={`font-bold ${(!themeConfig.stock_display_style || themeConfig.stock_display_style === "bar") ? "text-primary" : ""}`}>📊 Barre d'urgence</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Diminue visuellement à chaque commande</p>
+                          </div>
                         </button>
                         <button type="button" onClick={() => updateThemeConfig("stock_display_style", "text")}
-                          className={`p-3 rounded-lg border-2 text-sm text-left ${themeConfig.stock_display_style === "text" ? "border-primary bg-primary/5 font-semibold" : "border-muted"}`}>
-                          ✓ Étiquette « En stock »
-                          <div className="text-[11px] text-muted-foreground font-normal">Texte coloré avec quantité</div>
+                          className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${themeConfig.stock_display_style === "text" ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60 hover:border-border hover:bg-muted/30"}`}>
+                          <div className={`p-2 rounded-lg shrink-0 ${themeConfig.stock_display_style === "text" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}><Type className="h-4 w-4" /></div>
+                          <div>
+                            <p className={`font-bold ${themeConfig.stock_display_style === "text" ? "text-primary" : ""}`}>✓ Étiquette « En stock »</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Texte coloré avec quantité restante</p>
+                          </div>
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Texte personnalisé</Label>
-                      <Input value={themeConfig.stock_urgency_text || "🔥 Dépêchez-vous ! Seulement {stock} restant(s) en stock"} onChange={e => updateThemeConfig("stock_urgency_text", e.target.value)} placeholder="Utilisez {stock} pour le nombre" />
+
+                    <div className="grid md:grid-cols-12 gap-6 p-5 bg-muted/20 border rounded-xl">
+                      <div className="md:col-span-12 space-y-2">
+                        <Label className="text-xs font-semibold">Texte personnalisé</Label>
+                        <Input value={themeConfig.stock_urgency_text || "🔥 Dépêchez-vous ! Seulement {stock} restant(s) en stock"} onChange={e => updateThemeConfig("stock_urgency_text", e.target.value)} placeholder="Utilisez {stock} pour le nombre" className="h-11 bg-background" />
+                        <p className="text-[11px] text-muted-foreground">La variable <code>{`{stock}`}</code> sera remplacée par le chiffre dynamique.</p>
+                      </div>
+                      <div className="md:col-span-6 space-y-2">
+                        <Label className="text-xs font-semibold">Couleur barre / texte urgence</Label>
+                        <div className="flex items-center gap-2 border bg-background rounded-lg p-1 h-11">
+                          <input type="color" value={(themeConfig.stock_urgency_color || "#ef4444").substring(0, 7)} onChange={e => updateThemeConfig("stock_urgency_color", e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0 p-0" />
+                          <Input value={themeConfig.stock_urgency_color || "#ef4444"} onChange={e => updateThemeConfig("stock_urgency_color", e.target.value)} className="border-0 shadow-none h-8 text-sm font-mono p-0 focus-visible:ring-0 bg-transparent" />
+                        </div>
+                      </div>
+                      <div className="md:col-span-6 space-y-2">
+                        <Label className="text-xs font-semibold">Couleur étiquette « En stock »</Label>
+                        <div className="flex items-center gap-2 border bg-background rounded-lg p-1 h-11">
+                          <input type="color" value={(themeConfig.stock_text_color || "#16a34a").substring(0, 7)} onChange={e => updateThemeConfig("stock_text_color", e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0 p-0" />
+                          <Input value={themeConfig.stock_text_color || "#16a34a"} onChange={e => updateThemeConfig("stock_text_color", e.target.value)} className="border-0 shadow-none h-8 text-sm font-mono p-0 focus-visible:ring-0 bg-transparent" />
+                        </div>
+                      </div>
                     </div>
-                    <ColorField label="Couleur barre" value={themeConfig.stock_urgency_color || "#ef4444"} onChange={v => updateThemeConfig("stock_urgency_color", v)} />
-                    <ColorField label="Couleur étiquette « En stock »" value={themeConfig.stock_text_color || "#16a34a"} onChange={v => updateThemeConfig("stock_text_color", v)} />
                   </div>
                 )}
               </Card>
 
-              {/* Reviews stars + count */}
-              <Card className="p-5 space-y-3 border-dashed">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-sm">Avis & étoiles sur la fiche produit</p>
-                    <p className="text-xs text-muted-foreground">Affiche 5 étoiles + un nombre d'avis sous le nom du produit. Le compteur augmente automatiquement avec les commandes.</p>
+              {/* Avis & Etoiles */}
+              <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center shrink-0">
+                      <Plus className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold">Avis & Étoiles</p>
+                      <p className="text-sm text-muted-foreground">Affiche 5 étoiles et un compteur d'avis pour renforcer la confiance.</p>
+                    </div>
                   </div>
                   <Switch checked={themeConfig.reviews_enabled !== false} onCheckedChange={v => updateThemeConfig("reviews_enabled", v)} />
                 </div>
+
                 {themeConfig.reviews_enabled !== false && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Nombre d'avis de départ</Label>
-                      <Input type="number" min={0} value={themeConfig.reviews_base_count ?? 128} onChange={e => updateThemeConfig("reviews_base_count", Number(e.target.value) || 0)} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Note (étoiles, 1-5)</Label>
-                      <Input type="number" min={1} max={5} value={themeConfig.reviews_rating ?? 5} onChange={e => updateThemeConfig("reviews_rating", Math.min(5, Math.max(1, Number(e.target.value) || 5)))} />
-                    </div>
-                    <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
-                      <div>
-                        <p className="text-sm font-medium">Augmenter automatiquement avec les commandes</p>
-                        <p className="text-[11px] text-muted-foreground">Ajoute +1 avis pour chaque commande passée sur la boutique.</p>
+                  <div className="space-y-6 animate-in fade-in">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold">Nombre d'avis de départ</Label>
+                        <Input type="number" min={0} value={themeConfig.reviews_base_count ?? 128} onChange={e => updateThemeConfig("reviews_base_count", Number(e.target.value) || 0)} className="h-11" />
                       </div>
-                      <Switch checked={themeConfig.reviews_increment_with_orders !== false} onCheckedChange={v => updateThemeConfig("reviews_increment_with_orders", v)} />
-                    </div>
-                    <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
-                      <div>
-                        <p className="text-sm font-medium">Mode réaliste (variation quotidienne)</p>
-                        <p className="text-[11px] text-muted-foreground">Le nombre d'avis varie chaque jour dans un intervalle défini, pour paraître plus crédible.</p>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold">Note moyenne (sur 5)</Label>
+                        <Input type="number" min={1} max={5} step={0.1} value={themeConfig.reviews_rating ?? 5} onChange={e => updateThemeConfig("reviews_rating", Math.min(5, Math.max(1, Number(e.target.value) || 5)))} className="h-11" />
                       </div>
-                      <Switch checked={!!themeConfig.reviews_realistic_mode} onCheckedChange={v => updateThemeConfig("reviews_realistic_mode", v)} />
                     </div>
-                    {themeConfig.reviews_realistic_mode && (
-                      <>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Avis minimum</Label>
-                          <Input type="number" min={0} value={themeConfig.reviews_min ?? 120} onChange={e => updateThemeConfig("reviews_min", Math.max(0, Number(e.target.value) || 0))} />
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">Augmentation automatique</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Ajoute +1 avis pour chaque commande passée sur la boutique.</p>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Avis maximum</Label>
-                          <Input type="number" min={0} value={themeConfig.reviews_max ?? 180} onChange={e => updateThemeConfig("reviews_max", Math.max(0, Number(e.target.value) || 0))} />
+                        <Switch checked={themeConfig.reviews_increment_with_orders !== false} onCheckedChange={v => updateThemeConfig("reviews_increment_with_orders", v)} />
+                      </div>
+                      
+                      <div className={`p-4 rounded-xl border transition-colors ${themeConfig.reviews_realistic_mode ? "bg-primary/5 border-primary/20" : "bg-muted/10"}`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-foreground">Mode de variation réaliste</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Le nombre d'avis varie légèrement chaque jour pour paraître crédible.</p>
+                          </div>
+                          <Switch checked={!!themeConfig.reviews_realistic_mode} onCheckedChange={v => updateThemeConfig("reviews_realistic_mode", v)} />
                         </div>
-                      </>
-                    )}
+                        
+                        {themeConfig.reviews_realistic_mode && (
+                          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50">
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold">Avis minimum</Label>
+                              <Input type="number" min={0} value={themeConfig.reviews_min ?? 120} onChange={e => updateThemeConfig("reviews_min", Math.max(0, Number(e.target.value) || 0))} className="h-10 bg-background" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold">Avis maximum</Label>
+                              <Input type="number" min={0} value={themeConfig.reviews_max ?? 180} onChange={e => updateThemeConfig("reviews_max", Math.max(0, Number(e.target.value) || 0))} className="h-10 bg-background" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </Card>
 
-              {/* Product page layout */}
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold">Mise en page</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {["standard", "large_image", "gallery"].map(layout => (
-                    <button key={layout} onClick={() => updateThemeConfig("product_layout", layout)}
-                      className={`p-4 rounded-xl border-2 text-center transition-all text-sm ${themeConfig.product_layout === layout ? "border-primary bg-primary/5 font-semibold" : "border-muted hover:border-muted-foreground/30"}`}>
-                      {layout === "standard" ? "Standard" : layout === "large_image" ? "Grande image" : "Galerie"}
+              {/* Mise en page */}
+              <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Monitor className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">Mise en page des images</p>
+                    <p className="text-sm text-muted-foreground">Définissez comment les images du produit sont présentées.</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { id: "standard", label: "Standard", desc: "Image fixe + miniatures", icon: <Monitor className="h-5 w-5"/> },
+                    { id: "large_image", label: "Grande image", desc: "Mise en avant maximale", icon: <Layout className="h-5 w-5"/> },
+                    { id: "gallery", label: "Galerie défilante", desc: "Plusieurs images visibles", icon: <Home className="h-5 w-5"/> },
+                  ].map(layout => (
+                    <button key={layout.id} onClick={() => updateThemeConfig("product_layout", layout.id)}
+                      className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 text-center transition-all ${themeConfig.product_layout === layout.id || (!themeConfig.product_layout && layout.id === "standard") ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20 text-primary" : "border-border/60 hover:border-border hover:bg-muted/30 text-muted-foreground"}`}>
+                      <div className={`p-3 rounded-full mb-1 ${themeConfig.product_layout === layout.id || (!themeConfig.product_layout && layout.id === "standard") ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                        {layout.icon}
+                      </div>
+                      <span className="font-bold text-sm text-foreground">{layout.label}</span>
+                      <span className="text-[11px] leading-tight">{layout.desc}</span>
                     </button>
                   ))}
                 </div>
-              </div>
+              </Card>
 
-              {/* Related products toggle */}
-              <Card className="p-5 space-y-2 border-dashed">
+              {/* Suggestions Autres produits */}
+              <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-sm">Suggestions « Autres produits »</p>
-                    <p className="text-xs text-muted-foreground">Affiche d'autres produits de la boutique sous chaque fiche produit. Désactivez pour focaliser le visiteur sur le produit de la publicité.</p>
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                      <Tag className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold">Suggestions « Autres produits »</p>
+                      <p className="text-sm text-muted-foreground">Affiche d'autres produits de la boutique sous la fiche produit.</p>
+                    </div>
                   </div>
                   <Switch checked={!!themeConfig.show_related_products} onCheckedChange={v => updateThemeConfig("show_related_products", v)} />
                 </div>
@@ -367,7 +455,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
           )}
 
           {activeThemeSection === "checkout" && (
-            <div className="space-y-6">
+            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <h3 className="font-bold">Paramètres du check-out</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <ColorField label="Couleur bouton" value={themeConfig.checkout_btn_color || shop.primary_color || "#2563eb"} onChange={v => updateThemeConfig("checkout_btn_color", v)} />
@@ -375,11 +463,11 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 <ColorField label="Arrière-plan" value={themeConfig.checkout_bg || "#FFFFFF"} onChange={v => updateThemeConfig("checkout_bg", v)} />
                 <ColorField label="Couleur texte" value={themeConfig.checkout_text || "#000000"} onChange={v => updateThemeConfig("checkout_text", v)} />
               </div>
-            </div>
+            </Card>
           )}
 
           {activeThemeSection === "banner" && (
-            <div className="space-y-6">
+            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <h3 className="font-bold">Bannière inférieure du panier</h3>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Activer la bannière</span>
@@ -397,11 +485,11 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   </div>
                 </>
               )}
-            </div>
+            </Card>
           )}
 
           {activeThemeSection === "homepage" && (
-            <div className="space-y-6">
+            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <h3 className="font-bold">Paramètres de la page d'accueil</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -428,9 +516,9 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   );

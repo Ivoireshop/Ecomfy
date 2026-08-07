@@ -237,7 +237,7 @@ export function ProductsTable({
                       {shopSlug && product.slug && (
                         <DropdownMenuItem
                           onClick={() => {
-                            const url = `https://visuelpro.cloud/shop/${shopSlug}/p/${product.slug}`;
+                            const url = `https://ecomfy.cloud/shop/${shopSlug}/p/${product.slug}`;
                             navigator.clipboard.writeText(url);
                             toast({ title: "Lien copié ✓", description: url });
                           }}
@@ -341,7 +341,7 @@ export function ProductsTable({
                               className="h-8 w-8"
                               title="Copier le lien produit"
                               onClick={() => {
-                                const url = `https://visuelpro.cloud/shop/${shopSlug}/p/${product.slug}`;
+                                const url = `https://ecomfy.cloud/shop/${shopSlug}/p/${product.slug}`;
                                 navigator.clipboard.writeText(url);
                                 toast({ title: "Lien copié ✓", description: url });
                               }}

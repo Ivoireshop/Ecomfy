@@ -728,59 +728,64 @@ const ShopView = () => {
         {shopImage && <meta name="twitter:image" content={shopImage} />}
       </Helmet>
       <div className="min-h-screen bg-background">
+      {/* Top Promo Banner */}
+      <div className="text-white text-center py-2 px-4 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase flex items-center justify-center gap-2 shadow-sm relative z-50" style={{ backgroundColor: primaryColor }}>
+        <span>Livraison gratuite partout</span>
+        <span className="text-base sm:text-lg">🎁</span>
+      </div>
+
+      <ShopReviewBar themeConfig={themeConfig} placement="above" />
       {/* Preview Mode Banner */}
       {shop._isPreview && (
-        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-50">
+        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-[60] shadow-sm">
           ⚠️ Mode prévisualisation — Cette boutique n'est pas encore en ligne
         </div>
       )}
-      <ShopReviewBar themeConfig={themeConfig} placement="above" />
-      {/* Sticky Header */}
+
+      {/* Sticky Header - Premium Glassmorphism */}
       <header
-        className="border-b sticky top-0 z-40 backdrop-blur bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)]"
+        className="border-b sticky top-0 z-40 bg-white/85 backdrop-blur-xl shadow-sm transition-all duration-300"
         style={{
-          "--shop-header-mobile-bg": themeConfig.header_mobile_bg || "hsl(var(--background))",
-          "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg || "hsl(var(--background))",
-          borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "hsl(var(--border))",
+          borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "rgba(0,0,0,0.05)",
         } as CSSProperties}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-4 sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             {shop.logo_url ? (
-              <img src={shop.logo_url} alt="" loading="eager" decoding="async" width={36} height={36} className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover flex-shrink-0" />
+              <img src={shop.logo_url} alt="" loading="eager" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl object-cover flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform" />
             ) : (
-              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: primaryColor + "15" }}>
-                <Store className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: primaryColor }} />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: primaryColor + "15" }}>
+                <Store className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: primaryColor }} />
               </div>
             )}
-            <span className="font-bold text-base sm:text-lg truncate">{tShop.business_name}</span>
+            <span className="font-extrabold text-lg sm:text-xl md:text-2xl truncate tracking-tight text-gray-900 group-hover:opacity-80 transition-opacity">{tShop.business_name}</span>
           </div>
           
           {/* Search - Desktop */}
-          <div className="hidden md:flex relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="hidden md:flex relative flex-1 max-w-xl mx-auto group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
             <Input 
               placeholder="Rechercher un produit..." 
               value={searchQuery} 
               onChange={e => setSearchQuery(e.target.value)} 
-              className="pl-10 bg-muted/50 border-0 focus-visible:ring-1"
+              className="pl-12 bg-gray-100/80 border-transparent focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary rounded-full h-12 text-base shadow-inner transition-all hover:bg-gray-100"
             />
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             {enabledLanguages.length > 1 && (
               <ShopLanguageSelector value={shopLang} onChange={handleLangChange} enabled={enabledLanguages} />
             )}
             {shop.whatsapp_number && (
-              <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9">
-                  <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
+              <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="hidden sm:flex">
+                <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 sm:h-12 sm:w-12 bg-gray-50 hover:bg-green-50 hover:text-green-600 transition-colors">
+                  <Phone className="h-5 w-5" />
                 </Button>
               </a>
             )}
             <Button 
-              variant="outline" 
-              className="gap-1.5 sm:gap-2 rounded-xl relative h-9 px-3 sm:px-4" 
+              className="gap-2 rounded-full relative h-10 sm:h-12 px-4 sm:px-6 font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5" 
+              style={{ backgroundColor: primaryColor, color: "#fff" }}
               onClick={() => {
                 if (shop._isPreview) return;
                 setCheckoutOpen(true);
@@ -790,9 +795,9 @@ const ShopView = () => {
               title={shop._isPreview ? "Disponible une fois la boutique activée" : undefined}
             >
               <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="hidden sm:inline text-sm">Panier</span>
+              <span className="hidden sm:inline text-sm sm:text-base">Panier</span>
               {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center text-primary-foreground" style={{ backgroundColor: primaryColor }}>
+                <span className="absolute -top-2 -right-2 h-6 w-6 rounded-full text-[11px] sm:text-xs font-extrabold flex items-center justify-center bg-red-500 text-white shadow-sm ring-2 ring-white animate-in zoom-in bounce">
                   {cartCount}
                 </span>
               )}
@@ -802,51 +807,69 @@ const ShopView = () => {
       </header>
       <ShopReviewBar themeConfig={themeConfig} placement="below" />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden" style={{ background: `linear-gradient(145deg, ${primaryColor}, ${secondaryColor})` }}>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gray-950 w-full min-h-[500px] sm:min-h-[600px] flex items-center justify-center">
         {shop.banner_url ? (
           <div className="absolute inset-0">
-            <img src={shop.banner_url} alt="" loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20" />
+            <img src={shop.banner_url} alt="" loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover mix-blend-overlay opacity-80" />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-950/80 via-transparent to-transparent" />
           </div>
         ) : (
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/20 -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-white/20 translate-y-1/2 -translate-x-1/2" />
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-950 to-black">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2 blur-[100px]" />
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-y-1/2 -translate-x-1/2 blur-[80px]" />
           </div>
         )}
-        <div className="relative max-w-7xl mx-auto px-4 py-12 sm:py-16 md:py-24 text-center text-primary-foreground">
+        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-16 text-center text-white flex flex-col items-center">
           {shop.logo_url && (
-            <img src={shop.logo_url} alt={tShop.business_name} loading="eager" decoding="async" width={80} height={80} className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" />
+            <img src={shop.logo_url} alt={tShop.business_name} loading="eager" decoding="async" width={96} height={96} className="h-20 w-20 sm:h-24 sm:w-24 rounded-3xl object-cover mx-auto mb-6 shadow-2xl border-4 border-white/10" />
           )}
-          <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-3xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-4 tracking-tight">{tShop.business_name}</h1>
+          <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tighter drop-shadow-2xl leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-300">
+            {tShop.business_name}
+          </h1>
           {tShop.business_description && (
-            <p dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto leading-relaxed">{tShop.business_description}</p>
+            <p dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed font-medium mb-10 text-balance">
+              {tShop.business_description}
+            </p>
           )}
-          <div className="flex gap-3 justify-center mt-6 sm:mt-8 flex-wrap">
-            <Button size="lg" variant="secondary" className="rounded-xl gap-2 font-semibold shadow-lg h-11 sm:h-12 text-sm sm:text-base" onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>
-              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" /> Voir les produits
+          <div className="flex gap-4 sm:gap-5 justify-center flex-wrap">
+            <Button 
+              size="lg" 
+              className="rounded-full gap-2 font-bold shadow-xl shadow-black/20 h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg hover:scale-105 transition-transform" 
+              style={{ backgroundColor: primaryColor, color: "#fff" }} 
+              onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}
+            >
+              <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" /> Voir les produits
             </Button>
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="rounded-xl gap-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 h-11 sm:h-12 text-sm sm:text-base">
-                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" /> Nous contacter
+                <Button size="lg" variant="outline" className="rounded-full gap-2 border-white/20 text-white bg-white/5 hover:bg-white/10 backdrop-blur-md h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg shadow-xl transition-all">
+                  <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" /> Nous contacter
                 </Button>
               </a>
             )}
+          </div>
+        </div>
+        
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block opacity-50">
+          <div className="w-8 h-12 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
+            <div className="w-1 h-3 bg-white rounded-full" />
           </div>
         </div>
       </section>
 
       {/* Featured Products */}
       {featuredProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">⭐ Produits en vedette</h2>
+        <section className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
+          <div className="flex flex-col items-center justify-center mb-10 sm:mb-14 text-center">
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Produits vedettes</h2>
+            <div className="w-24 h-1.5 rounded-full" style={{ backgroundColor: primaryColor }} />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {featuredProducts.slice(0, 4).map(product => (
-              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} onView={(p) => {
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            {featuredProducts.slice(0, 4).map((product, idx) => (
+              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
                 const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
                 navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
               }} formatPrice={formatPrice} />
@@ -856,85 +879,95 @@ const ShopView = () => {
       )}
 
       {/* All Products */}
-      <section id="products" className="max-w-7xl mx-auto px-4 py-12">
-        <h2 className="text-2xl font-bold mb-6">Tous les produits</h2>
-        
-        {/* Mobile Search */}
-        <div className="md:hidden relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
+      <section id="products" className="max-w-7xl mx-auto px-4 py-12 sm:py-16 pb-24 bg-gray-50/50 rounded-3xl mb-12 border border-gray-100">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Tous les produits</h2>
+            <p className="text-muted-foreground text-lg">Découvrez l'intégralité de notre catalogue</p>
+          </div>
+          
+          {/* Mobile Search */}
+          <div className="md:hidden relative w-full mt-2">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-12 bg-white border-gray-200 rounded-full h-14 text-base shadow-sm focus-visible:ring-primary" />
+          </div>
         </div>
 
-        {/* Categories */}
-        {categories.length > 2 && (
-          <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide">
-            {categories.map(cat => (
-              <Button
-                key={cat}
-                variant={selectedCategory === cat ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(cat)}
-                className="rounded-full whitespace-nowrap"
-                style={selectedCategory === cat ? { backgroundColor: primaryColor } : {}}
-              >
-                {cat === "all" ? "Tout voir" : cat}
-              </Button>
-            ))}
+        {/* Categories Chips */}
+        {categories.length > 1 && (
+          <div className="flex gap-3 overflow-x-auto pb-6 mb-4 scrollbar-hide snap-x">
+            {categories.map(cat => {
+              const isActive = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`snap-start whitespace-nowrap px-6 py-3 rounded-full text-sm sm:text-base font-bold transition-all duration-300 shadow-sm ${isActive ? "text-white shadow-md ring-2 ring-offset-2 ring-offset-gray-50 scale-105" : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"}`}
+                  style={isActive ? { backgroundColor: primaryColor, ringColor: primaryColor } : {}}
+                >
+                  {cat === "all" ? "Tout voir" : cat}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {visibleProducts.map((product, idx) => (
-            <ProductCard key={product.id} product={product} primaryColor={primaryColor} eager={idx < 4} onAddToCart={addToCart} onView={(p) => {
+            <ProductCard key={product.id} product={product} primaryColor={primaryColor} eager={idx < 4 && featuredProducts.length === 0} onAddToCart={addToCart} onView={(p) => {
               const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
               navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
             }} formatPrice={formatPrice} />
           ))}
         </div>
         {hasMore && (
-          <div ref={loadMoreRef} className="flex justify-center py-8">
+          <div ref={loadMoreRef} className="flex justify-center py-12">
             <Button
               variant="outline"
-              className="rounded-full"
+              size="lg"
+              className="rounded-full h-14 px-8 font-bold border-2 hover:bg-gray-100"
               onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
             >
-              Voir plus de produits ({filteredProducts.length - visibleCount} restants)
+              Afficher plus de produits ({filteredProducts.length - visibleCount} restants)
             </Button>
           </div>
         )}
         {filteredProducts.length === 0 && (
-          <div className="text-center py-16">
-            <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
-            <p className="text-lg font-medium">Aucun produit trouvé</p>
-            <p className="text-sm text-muted-foreground">Essayez une autre catégorie ou recherche</p>
+          <div className="text-center py-24 bg-white rounded-3xl border border-gray-100 shadow-sm mt-8">
+            <ShoppingBag className="h-20 w-20 mx-auto text-gray-200 mb-6" />
+            <p className="text-2xl font-bold text-gray-800 mb-2">Aucun produit trouvé</p>
+            <p className="text-gray-500 text-lg">Essayez de modifier vos filtres ou votre recherche.</p>
+            <Button variant="outline" className="mt-6 rounded-full" onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }}>
+              Réinitialiser la recherche
+            </Button>
           </div>
         )}
       </section>
 
       {/* Contact Section */}
-      <section className="border-t bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-          <h2 className="text-2xl font-bold mb-2">Une question ?</h2>
-          <p className="text-muted-foreground mb-6">N'hésitez pas à nous contacter</p>
-          <div className="flex flex-wrap gap-4 justify-center">
+      <section className="bg-gray-900 text-white py-16 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <h2 className="text-3xl sm:text-4xl font-black mb-4">Besoin d'aide ?</h2>
+          <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">Notre équipe est à votre disposition pour répondre à toutes vos questions.</p>
+          <div className="flex flex-wrap gap-4 sm:gap-6 justify-center">
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" className="rounded-xl gap-2" style={{ backgroundColor: "#25D366" }}>
-                  <MessageCircle className="h-5 w-5" /> WhatsApp
+                <Button size="lg" className="rounded-full gap-2 h-14 px-8 text-base font-bold hover:scale-105 transition-transform" style={{ backgroundColor: "#25D366", color: "white" }}>
+                  <MessageCircle className="h-5 w-5" /> Discuter sur WhatsApp
                 </Button>
               </a>
             )}
             {shop.phone_number && (
               <a href={`tel:${shop.phone_number}`}>
-                <Button size="lg" variant="outline" className="rounded-xl gap-2">
+                <Button size="lg" variant="outline" className="rounded-full gap-2 h-14 px-8 text-base font-bold border-gray-700 hover:bg-gray-800 hover:text-white">
                   <Phone className="h-5 w-5" /> {shop.phone_number}
                 </Button>
               </a>
             )}
             {shop.email && (
               <a href={`mailto:${shop.email}`}>
-                <Button size="lg" variant="outline" className="rounded-xl gap-2">
-                  <Mail className="h-5 w-5" /> Email
+                <Button size="lg" variant="outline" className="rounded-full gap-2 h-14 px-8 text-base font-bold border-gray-700 hover:bg-gray-800 hover:text-white">
+                  <Mail className="h-5 w-5" /> Nous écrire
                 </Button>
               </a>
             )}
@@ -944,21 +977,21 @@ const ShopView = () => {
 
       {/* Footer */}
       <footer
-        className="border-t py-8 px-4"
+        className="border-t border-gray-100 py-10 px-4 bg-white"
         style={themeConfig.footer_custom ? {
-          backgroundColor: themeConfig.footer_bg || "hsl(var(--background))",
-          color: themeConfig.footer_text || "hsl(var(--muted-foreground))",
-          borderColor: themeConfig.footer_border === false ? "transparent" : themeConfig.footer_border_color || "hsl(var(--border))",
+          backgroundColor: themeConfig.footer_bg || "#ffffff",
+          color: themeConfig.footer_text || "#6b7280",
+          borderColor: themeConfig.footer_border === false ? "transparent" : themeConfig.footer_border_color || "#f3f4f6",
         } : undefined}
       >
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-6 w-6 rounded" /> : <Store className="h-4 w-4" style={{ color: primaryColor }} />}
-            <span>© {new Date().getFullYear()} {tShop.business_name}</span>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
+          <div className="flex items-center gap-3">
+            {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-8 w-8 rounded-lg grayscale opacity-70" /> : <Store className="h-5 w-5 opacity-70" style={{ color: primaryColor }} />}
+            <span className="font-semibold opacity-80">© {new Date().getFullYear()} {tShop.business_name}</span>
           </div>
-          <div className="flex items-center gap-1">
-            {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
-            Propulsé par <span className="font-semibold text-foreground ml-1">Ecomfy</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 opacity-80">
+            {shop.city && <><MapPin className="h-4 w-4" /> {shop.city}, {shop.country || "Côte d'Ivoire"} <span className="mx-2 opacity-30">|</span></>}
+            Créé avec <a href="https://ecomfy.cloud" target="_blank" rel="noopener noreferrer" className="font-extrabold text-foreground ml-1 hover:underline decoration-2 underline-offset-2">Ecomfy</a>
           </div>
         </div>
       </footer>

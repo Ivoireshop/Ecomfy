@@ -41,7 +41,7 @@ export function LandingFinalCta() {
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
-          <p className="mt-6 text-sm text-slate-400 relative z-10">14 jours d'essai • Sans engagement • Annulation à tout moment</p>
+          <p className="mt-6 text-sm text-slate-400 relative z-10">Démarrage gratuit • 50 FCFA/commande • Évoluez à votre rythme</p>
         </div>
       </div>
     </section>

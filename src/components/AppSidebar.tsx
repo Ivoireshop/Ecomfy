@@ -1,5 +1,5 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -18,7 +18,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -125,6 +124,8 @@ export function AppSidebar() {
     { title: "Vidéos", url: "/video-creator", icon: Video },
     { title: "Boutique", url: "/shop-manager", icon: Store },
     { title: "Statistiques", url: "/statistics", icon: BarChart2 },
+    { title: "Communauté", url: "/community", icon: Users },
+    { title: "Tarifs", url: "/pricing", icon: CreditCard },
   ];
 
   const bottomItems = [
@@ -160,25 +161,24 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="icon" className="bg-white border-r border-slate-200">
+    <Sidebar collapsible="none" className="bg-white border-r border-slate-200">
       <SidebarContent className="flex flex-col h-full bg-white">
         <TooltipProvider>
           {/* Header */}
           <SidebarGroup className="pb-4 pt-5">
             <div className={isCollapsed ? "flex flex-col items-center gap-3 px-1" : "flex flex-col gap-3 px-3"}>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 mb-2">
                 {!isCollapsed && (
-                  <div className="flex items-center gap-2.5 font-space font-bold text-[22px] tracking-tight text-[#E85C3A]">
+                  <div className="flex items-center gap-2.5 font-space font-bold text-[22px] tracking-tight text-[#0E7C66]">
                     Ecomfy
                   </div>
                 )}
                 {isCollapsed && (
-                  <div className="w-[26px] h-[26px] rounded-[7px] text-[#E85C3A] flex items-center justify-center text-[18px] font-space font-bold">
+                  <div className="w-[26px] h-[26px] rounded-[7px] text-[#0E7C66] flex items-center justify-center text-[18px] font-space font-bold">
                     E
                   </div>
                 )}
               </div>
-              <SidebarTrigger className="mt-2 h-8 w-8 min-h-[32px] min-w-[32px] rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted flex items-center justify-center" />
             </div>
           </SidebarGroup>
 

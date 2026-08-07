@@ -10,7 +10,7 @@ export default function Health() {
   const [serverHtml, setServerHtml] = useState<string>("checking...");
 
   useEffect(() => {
-    document.title = "Health · VisuelPro";
+    document.title = "Health · Ecomfy";
     // Verify the HTML currently served matches this build by fetching index.html
     fetch("/", { cache: "no-store" })
       .then((r) => r.text())

@@ -3,6 +3,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 
 const ALLOWED_ROLES = new Set([
   'view_orders', 'edit_shop', 'manage_expenses', 'manage_delivered_orders',
+  'manage_catalog', 'view_stats', 'manage_customers', 'full_admin'
 ])
 
 function randomToken() {
@@ -75,6 +76,10 @@ Deno.serve(async (req) => {
       edit_shop: 'Modifier la boutique',
       manage_expenses: 'Gérer les dépenses',
       manage_delivered_orders: 'Gérer les commandes livrées',
+      manage_catalog: 'Gérer le catalogue',
+      view_stats: 'Voir les statistiques',
+      manage_customers: 'Service client',
+      full_admin: 'Accès total (Admin)',
     }
     const rolesHtml = roles.map((r: string) => `<li>${rolesLabels[r] || r}</li>`).join('')
     const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#fff;padding:24px;color:#0f172a">
