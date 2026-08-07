@@ -1,15 +1,90 @@
+import { useState, useEffect, useRef } from "react";
 import { ArrowRight, PlayCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import heroDesktop from "@/assets/hero-desktop-dashboard.jpg";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
+// Utilitaires pour l'identité sonore (Web Audio API)
+const playHoverSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    // Un son très doux, futuriste (Sine wave pitch bend)
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+    
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.03, ctx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {
+    // Ignorer si le navigateur bloque l'audio
+  }
+};
+
+const playClickSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(300, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+    
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.02);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+  } catch (e) {}
+};
+
 export function LandingHero() {
   const navigate = useNavigate();
   const { ref: heroRef, isVisible } = useScrollReveal({ threshold: 0.1 });
+  
+  // État pour l'effet 3D
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const sectionRef = useRef<HTMLElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!sectionRef.current) return;
+    const { innerWidth, innerHeight } = window;
+    // Calcule la position de la souris par rapport au centre de l'écran (-1 à 1)
+    const x = (e.clientX / innerWidth - 0.5) * 2;
+    const y = (e.clientY / innerHeight - 0.5) * 2;
+    // Rotation max de 15 degrés
+    setMousePos({ x: x * 15, y: -y * 15 });
+  };
+
+  const handleMouseLeave = () => {
+    // Retour doux à la position initiale
+    setMousePos({ x: 0, y: 0 });
+  };
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#0F1B2C] text-white pt-24 md:pt-32 pb-20 md:pb-32">
+    <section 
+      ref={sectionRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative w-full overflow-hidden bg-[#0F1B2C] text-white pt-24 md:pt-32 pb-20 md:pb-32 [perspective:2000px]"
+    >
       {/* Background gradients */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#0E7C66] rounded-full mix-blend-screen filter blur-[120px] opacity-20 animate-pulse"></div>
@@ -22,7 +97,7 @@ export function LandingHero() {
           className={`flex flex-col items-center text-center max-w-5xl mx-auto transition-all duration-1000 transform ${isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
         >
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-semibold mb-8 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-semibold mb-8 backdrop-blur-sm animate-bounce">
             <Sparkles className="w-3.5 h-3.5 text-[#F7C04A]" />
             <span>L'avenir du e-commerce en Afrique</span>
           </div>
@@ -42,16 +117,22 @@ export function LandingHero() {
           <div className="flex flex-col sm:flex-row gap-4 mb-16">
             <Button 
               size="lg" 
-              className="bg-white text-[#0F1B2C] hover:bg-gray-100 px-8 py-7 text-lg rounded-full font-bold transition-transform hover:scale-105"
-              onClick={() => navigate("/auth")}
+              className="bg-white text-[#0F1B2C] hover:bg-gray-100 px-8 py-7 text-lg rounded-full font-bold transition-all hover:scale-110 hover:shadow-[0_0_40px_rgba(14,124,102,0.4)]"
+              onMouseEnter={playHoverSound}
+              onClick={() => {
+                playClickSound();
+                navigate("/auth");
+              }}
             >
               Démarrer gratuitement
             </Button>
             <Button 
               size="lg" 
               variant="outline" 
-              className="bg-white/5 border-white/20 text-white hover:bg-white/10 px-8 py-7 text-lg rounded-full font-semibold backdrop-blur-sm transition-transform hover:scale-105"
+              className="bg-white/5 border-white/20 text-white hover:bg-white/10 px-8 py-7 text-lg rounded-full font-semibold backdrop-blur-sm transition-all hover:scale-105"
+              onMouseEnter={playHoverSound}
               onClick={() => {
+                playClickSound();
                 const el = document.getElementById("demo-video");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
@@ -60,23 +141,36 @@ export function LandingHero() {
               Voir comment ça marche
             </Button>
           </div>
-
-          <div className="text-sm text-slate-400 mb-16">
-            Aucune carte de crédit requise. Essai gratuit 14 jours.
-          </div>
         </div>
 
-        {/* Dashboard Mockup - floats in slightly after text */}
-        <div className={`relative mx-auto max-w-5xl transition-all duration-1000 delay-300 transform ${isVisible ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0"}`}>
-          <div className="rounded-2xl md:rounded-[2rem] border border-white/10 bg-white/5 p-2 md:p-4 shadow-2xl backdrop-blur-md">
+        {/* Dashboard Mockup - 3D Parallax effect */}
+        <div 
+          className={`relative mx-auto max-w-5xl transition-all duration-1000 delay-300 transform ${isVisible ? "opacity-100" : "translate-y-24 opacity-0"}`}
+          style={{
+            transform: isVisible 
+              ? `translateY(0) rotateX(${mousePos.y}deg) rotateY(${mousePos.x}deg) scale3d(1, 1, 1)` 
+              : `translateY(6rem) rotateX(20deg) rotateY(0deg) scale3d(0.9, 0.9, 0.9)`,
+            transformStyle: "preserve-3d",
+            transition: "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+          }}
+        >
+          <div 
+            className="rounded-2xl md:rounded-[2rem] border border-white/10 bg-white/5 p-2 md:p-4 shadow-2xl backdrop-blur-md"
+            style={{ transform: "translateZ(30px)" }} // Fait ressortir le cadre en 3D
+          >
             <div className="rounded-xl md:rounded-2xl overflow-hidden border border-white/10 bg-[#0a0f18] relative">
               <img 
                 src={heroDesktop} 
                 alt="Ecomfy Dashboard" 
                 className="w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500"
               />
-              {/* Overlay glow on the image */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0F1B2C]/80 via-transparent to-transparent pointer-events-none"></div>
+              {/* Dynamic light reflection based on mouse */}
+              <div 
+                className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-50"
+                style={{
+                  background: `radial-gradient(circle at ${50 + mousePos.x}% ${50 - mousePos.y}%, rgba(255,255,255,0.4) 0%, transparent 50%)`
+                }}
+              ></div>
             </div>
           </div>
         </div>
