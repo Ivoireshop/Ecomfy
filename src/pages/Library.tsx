@@ -400,7 +400,7 @@ const Library = () => {
                           muted
                           playsInline
                           preload="metadata"
-                          poster={!video.video_url.endsWith('.mp4') ? video.video_url : undefined}
+                          poster={!video.video_url.includes('.mp4') ? video.video_url : undefined}
                         >
                           <source src={video.video_url} />
                           {/* Fallback to image if not a video */}
@@ -426,7 +426,7 @@ const Library = () => {
                             variant="outline"
                             className="flex-1"
                             onClick={() => {
-                              const extension = video.video_url.endsWith('.mp4') ? 'mp4' : 'png';
+                              const extension = video.video_url.includes('.mp4') ? 'mp4' : 'png';
                               handleDownload(
                                 video.video_url, 
                                 `${video.product_details?.productName || 'video'}.${extension}`
@@ -434,7 +434,7 @@ const Library = () => {
                             }}
                           >
                             <Download className="h-4 w-4 mr-1" />
-                            {video.video_url.endsWith('.mp4') ? 'Télécharger MP4' : 'Télécharger PNG'}
+                            {video.video_url.includes('.mp4') ? 'Télécharger MP4' : 'Télécharger PNG'}
                           </Button>
                           <Button
                             size="sm"
