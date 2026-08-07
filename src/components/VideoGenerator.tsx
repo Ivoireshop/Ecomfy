@@ -511,7 +511,7 @@ export function VideoGenerator({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg overflow-hidden bg-black">
-              {generatedVideo.videoUrl.endsWith('.mp4') ? (
+              {generatedVideo?.videoUrl?.endsWith('.mp4') ? (
                 <video
                   src={generatedVideo.videoUrl}
                   controls
@@ -533,7 +533,7 @@ export function VideoGenerator({
               <Button
                 className="flex-1"
                 onClick={() => {
-                  const ext = generatedVideo.videoUrl.endsWith('.mp4') ? 'mp4' : 'png';
+                  const ext = generatedVideo?.videoUrl?.endsWith('.mp4') ? 'mp4' : 'png';
                   const link = document.createElement('a');
                   link.href = generatedVideo.videoUrl;
                   link.download = `video-${generatedVideo.videoId}.${ext}`;
