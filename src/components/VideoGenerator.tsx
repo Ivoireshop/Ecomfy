@@ -345,8 +345,8 @@ export function VideoGenerator({
         )}
       </div>
 
-      {/* Image Upload Zone */}
-      <Card>
+      {/* Upload Images Section */}
+      <Card className="border-primary/10 shadow-xl bg-white/60 backdrop-blur-md overflow-hidden rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <ImageIcon className="h-5 w-5" />
@@ -358,8 +358,8 @@ export function VideoGenerator({
         </CardHeader>
         <CardContent className="space-y-4">
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-              isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 cursor-pointer ${
+              isDragging ? "border-primary bg-primary/10 scale-[1.02]" : "border-slate-300 hover:border-primary/50 hover:bg-white/50"
             }`}
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -412,7 +412,7 @@ export function VideoGenerator({
       </Card>
 
       {/* Prompt & Options */}
-      <Card>
+      <Card className="border-primary/10 shadow-xl bg-white/60 backdrop-blur-md overflow-hidden rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Video className="h-5 w-5" />
@@ -467,7 +467,7 @@ export function VideoGenerator({
 
       {/* Progress */}
       {progress && (
-        <Card>
+        <Card className="border-primary/20 shadow-xl bg-white/80 backdrop-blur-md rounded-2xl border-2">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Progression</span>
@@ -484,7 +484,7 @@ export function VideoGenerator({
       {/* Generate Button */}
       <Button
         onClick={handleGenerate}
-        className="w-full text-lg py-6"
+        className="w-full text-lg py-7 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold"
         size="lg"
         disabled={isGenerating || !prompt.trim() || (!isFounder && videoGenerationsRemaining <= 0)}
       >

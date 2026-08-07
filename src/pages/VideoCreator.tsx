@@ -68,10 +68,10 @@ const VideoCreator = () => {
               <Clapperboard className="w-3.5 h-3.5 mr-1.5 text-primary" />
               Studio Vidéo IA
             </Badge>
-            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight tracking-tight text-foreground break-words">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight tracking-tight bg-gradient-to-br from-primary via-purple-600 to-secondary bg-clip-text text-transparent break-words drop-shadow-sm pb-1">
               Créez votre vidéo publicitaire
             </h1>
-            <p className="text-xs sm:text-sm md:text-base text-foreground/75 max-w-xl mx-auto">
+            <p className="text-sm md:text-lg text-foreground/80 max-w-xl mx-auto font-medium">
               Importez vos images, décrivez votre idée, recevez une vidéo HD, 2K ou 4K en 1 à 2 minutes.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -112,7 +112,7 @@ const VideoCreator = () => {
             {demoVideos.map((v, i) => (
               <Card
                 key={i}
-                className="w-[28%] sm:w-36 md:w-44 max-w-[10rem] flex-shrink-0 overflow-hidden shadow-md"
+                className="w-[28%] sm:w-36 md:w-44 max-w-[10rem] flex-shrink-0 overflow-hidden shadow-lg hover:shadow-2xl hover:scale-105 hover:-translate-y-1 transition-all duration-300 border-primary/10 ring-1 ring-black/5"
               >
                 <div className="aspect-[9/16] bg-black relative">
                   <video

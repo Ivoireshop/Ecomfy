@@ -5,7 +5,6 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Models OpenRouter routes to for image generation, in order of preference.
 const OPENROUTER_IMAGE_MODELS = [
-  "google/gemini-2.5-flash-image-preview",
   "google/gemini-2.5-flash-image",
 ];
 

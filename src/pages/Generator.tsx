@@ -937,7 +937,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               <Atom className="w-3.5 h-3.5 mr-1.5 text-sky-600" />
               Studio Visuels IA
             </Badge>
-            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900 break-words">
+            <h1 className="text-xl sm:text-2xl md:text-5xl font-extrabold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-primary to-purple-600 break-words drop-shadow-sm">
               Créez votre visuel publicitaire
             </h1>
             <p className="text-xs sm:text-sm md:text-base text-slate-600 max-w-xl mx-auto">
@@ -1055,19 +1055,28 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           <Tabs
             value={generationType === "video" ? "image" : generationType}
             onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")}
-            className="mb-4 md:mb-6 sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-2 -mx-3 px-3 md:mx-0 md:px-0"
+            className="mb-6 md:mb-10 sticky top-0 z-30 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 py-4 -mx-3 px-3 md:mx-0 md:px-0 border-b md:border-none md:bg-transparent md:backdrop-blur-none transition-all"
           >
-            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 h-auto">
-              <TabsTrigger value="image" className="flex-col gap-1 py-2 text-xs sm:text-sm sm:flex-row sm:gap-2">
-                <ImageIcon className="h-4 w-4 shrink-0 text-rose-600" />
+            <TabsList className="flex w-full max-w-3xl mx-auto h-auto bg-white/40 backdrop-blur-md rounded-2xl p-1.5 shadow-inner border border-primary/10">
+              <TabsTrigger 
+                value="image" 
+                className="flex-1 flex-col gap-1 py-3 text-sm sm:text-base sm:flex-row sm:gap-2 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-medium"
+              >
+                <ImageIcon className="h-5 w-5 shrink-0 data-[state=active]:text-white text-rose-600" />
                 <span>Classique</span>
               </TabsTrigger>
-              <TabsTrigger value="advanced" className="flex-col gap-1 py-2 text-xs sm:text-sm sm:flex-row sm:gap-2">
-                <Atom className="h-4 w-4 shrink-0 text-sky-600" />
+              <TabsTrigger 
+                value="advanced" 
+                className="flex-1 flex-col gap-1 py-3 text-sm sm:text-base sm:flex-row sm:gap-2 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-medium"
+              >
+                <Atom className="h-5 w-5 shrink-0 data-[state=active]:text-white text-sky-600" />
                 <span>Avancé</span>
               </TabsTrigger>
-              <TabsTrigger value="pro" className="flex-col gap-1 py-2 text-xs sm:text-sm sm:flex-row sm:gap-2">
-                <Aperture className="h-4 w-4 shrink-0 text-amber-600" />
+              <TabsTrigger 
+                value="pro" 
+                className="flex-1 flex-col gap-1 py-3 text-sm sm:text-base sm:flex-row sm:gap-2 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl transition-all duration-300 font-medium"
+              >
+                <Aperture className="h-5 w-5 shrink-0 data-[state=active]:text-white text-amber-600" />
                 <span>Pro</span>
               </TabsTrigger>
             </TabsList>
@@ -1170,7 +1179,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
 
           {/* Mode Classique - Formulaire */}
           {generationType === "image" && (
-          <div className="bg-card rounded-xl shadow-lg p-8 border">
+          <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-primary/10">
             <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}>
               <div className="space-y-2">
                 <Label htmlFor="productName">Nom du produit *</Label>
@@ -1436,7 +1445,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               <Button
                 type="button"
                 onClick={openTextPreview}
-                className="w-full text-lg py-6"
+                className="w-full text-lg py-7 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold"
                 size="lg"
                 disabled={isLoading || (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0)}
               >

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -111,6 +112,15 @@ const toSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
+
+const productValidationSchema = z.object({
+  name: z.string().min(1, "Le nom du produit est requis").max(200, "Le nom est trop long"),
+  price: z.number({ invalid_type_error: "Le prix doit être un nombre" }).min(0, "Le prix ne peut pas être négatif"),
+  compare_at_price: z.number().min(0, "Le prix barré ne peut pas être négatif").nullable().optional(),
+  stock_quantity: z.number().min(0, "Le stock ne peut pas être négatif").int("Le stock doit être un entier"),
+  category: z.string().min(1, "La catégorie est requise"),
+  weight: z.number().min(0, "Le poids ne peut pas être négatif").nullable().optional(),
+});
 
 const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -432,6 +442,21 @@ const ShopEditor = () => {
 
   const saveProduct = async () => {
     if (!id) return;
+    try {
+      productValidationSchema.parse({
+        name: newProduct.name,
+        price: Number(newProduct.price),
+        compare_at_price: newProduct.compare_at_price ? Number(newProduct.compare_at_price) : null,
+        stock_quantity: Number(newProduct.stock_quantity),
+        category: newProduct.category,
+        weight: newProduct.weight ? Number(newProduct.weight) : null,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({ title: "Erreur", description: error.errors[0].message, variant: "destructive" });
+        return;
+      }
+    }
     const productSlug = editingProduct?.slug || await getUniqueProductSlug((newProduct as any).slug || newProduct.name, editingProduct?.id);
     const productData = {
       name: newProduct.name, description: newProduct.description, short_description: newProduct.short_description,
@@ -466,6 +491,23 @@ const ShopEditor = () => {
 
   const handleProductEditorSave = async (data: any, newImgs: File[]): Promise<boolean> => {
     if (!id) return false;
+    
+    try {
+      productValidationSchema.parse({
+        name: data.name,
+        price: Number(data.price),
+        compare_at_price: data.compare_at_price ? Number(data.compare_at_price) : null,
+        stock_quantity: Number(data.stock_quantity),
+        category: data.category,
+        weight: data.weight ? Number(data.weight) : null,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({ title: "Erreur de validation", description: error.errors[0].message, variant: "destructive" });
+        return false;
+      }
+    }
+    
     setSaving(true);
     try {
       const productSlug = editingProduct?.slug || await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
@@ -585,6 +627,16 @@ const ShopEditor = () => {
   const deleteProductImage = async (imageId: string) => {
     const productId = editingProduct?.id;
     const imageToDelete = editingProduct?.product_images?.find(img => img.id === imageId);
+    
+    if (imageToDelete?.image_url) {
+      try {
+        const path = imageToDelete.image_url.split('/shop-images/').pop();
+        if (path) await supabase.storage.from("shop-images").remove([path]);
+      } catch (e) {
+        console.error("Failed to delete image from storage", e);
+      }
+    }
+
     const { error } = await supabase.from("product_images").delete().eq("id", imageId) as any;
     if (error) {
       toast({ title: "Image non supprimée", description: error.message, variant: "destructive" });
@@ -651,6 +703,21 @@ const ShopEditor = () => {
 
   const deleteProduct = async (productId: string) => {
     if (!confirm("Supprimer ce produit ?")) return;
+    
+    try {
+      const productToDelete = products.find(p => p.id === productId);
+      if (productToDelete?.product_images?.length) {
+        const paths = productToDelete.product_images
+          .map(img => img.image_url?.split('/shop-images/').pop())
+          .filter(Boolean) as string[];
+        if (paths.length > 0) {
+          await supabase.storage.from("shop-images").remove(paths);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to purge product images", e);
+    }
+
     await supabase.from("products").delete().eq("id", productId) as any;
     toast({ title: "Produit supprimé" });
     fetchData();

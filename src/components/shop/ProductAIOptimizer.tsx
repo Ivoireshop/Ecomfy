@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Brain, Loader2, Sparkles, TrendingUp, Users, ShoppingCart, AlertTriangle, CheckCircle2, Copy } from "lucide-react";
+import { z } from "zod";
+import { Brain, Copy, CheckCircle2, AlertTriangle, ArrowRight, RefreshCcw, Save, Loader2, Sparkles, TrendingUp, Users, ShoppingCart } from "lucide-react";
 import { handleCreditsRequired } from "@/lib/creditsDialog";
 
 type Product = { id: string; name: string; price: number; is_published: boolean };
@@ -70,24 +71,53 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
     })();
   }, [productId]);
 
+  const aiOptimizerSchema = z.object({
+    success: z.boolean().optional(),
+    error: z.string().optional(),
+    message: z.string().optional(),
+    credits_required: z.boolean().optional(),
+    analysis: z.record(z.any()).optional(),
+    parsed: z.object({
+      score: z.number().optional(),
+      weaknesses: z.array(z.string()).optional(),
+      improvements: z.array(z.string()).optional(),
+      optimized_title: z.string().optional(),
+      optimized_description: z.string().optional(),
+      seo_keywords: z.array(z.string()).optional(),
+    }).passthrough().optional(),
+  }).passthrough();
+
   const runAnalysis = async () => {
     if (!productId) { toast.error("Choisissez un produit"); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("product-ai-optimizer", {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Délai d'attente dépassé (20s). L'IA est surchargée.")), 20000)
+      );
+
+      const fetchPromise = supabase.functions.invoke("product-ai-optimizer", {
         body: { shop_id: shop.id, product_id: productId, framework },
       });
+
+      const { data: rawData, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
       if (error) throw error;
+      
+      const data = aiOptimizerSchema.parse(rawData);
+
       if (!data?.success) {
         if (handleCreditsRequired(data)) return;
-        throw new Error(data?.message || data?.error || "Erreur");
+        throw new Error(data?.message || data?.error || "Erreur lors de l'analyse");
       }
       const a = { ...data.analysis, ...data.parsed } as Analysis;
       setAnalysis(a);
       setHistory((h) => [a, ...h].slice(0, 5));
       toast.success("Analyse terminée");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'analyse");
+      if (e instanceof z.ZodError) {
+        toast.error("Format de réponse IA invalide");
+      } else {
+        toast.error(e?.message || "Erreur lors de l'analyse");
+      }
     } finally {
       setLoading(false);
     }

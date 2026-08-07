@@ -437,7 +437,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
     
     for (let attempt = 1; attempt <= maxRetries && !imageUrl; attempt++) {
       try {
-        console.log(`GPT-image-1 generation attempt ${attempt}/${maxRetries}`);
+        console.log(`DALL-E 3 generation attempt ${attempt}/${maxRetries}`);
         
         const gptImageResponse = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
           method: "POST",
@@ -446,28 +446,28 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "gpt-image-1",
+            model: "dall-e-3",
             prompt: prompt,
             size: gptImageSize,
-            quality: "high", // High quality for professional ads
+            quality: "hd", // HD quality for professional ads
             n: 1,
           }),
-          timeoutMs: 90000, // GPT-image-1 can take longer for high quality
+          timeoutMs: 90000, // DALL-E 3 can take longer for high quality
         });
 
         if (gptImageResponse.ok) {
           const gptImageData = await gptImageResponse.json();
-          // GPT-image-1 returns base64 directly
+          // DALL-E 3 returns base64 directly
           const b64Image = gptImageData.data?.[0]?.b64_json;
           
           if (b64Image) {
             imageUrl = `data:image/png;base64,${b64Image}`;
-            console.log("GPT-image-1 generation successful on attempt", attempt);
+            console.log("DALL-E 3 generation successful on attempt", attempt);
           } else {
             // Fallback to URL if b64_json not present
             const generatedUrl = gptImageData.data?.[0]?.url;
             if (generatedUrl) {
-              console.log("GPT-image-1 returned URL, converting to base64...");
+              console.log("DALL-E 3 returned URL, converting to base64...");
               const imageResponse = await fetch(generatedUrl);
               const imageBlob = await imageResponse.blob();
               const arrayBuffer = await imageBlob.arrayBuffer();
@@ -480,14 +480,14 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
               }
               const base64 = btoa(binary);
               imageUrl = `data:image/png;base64,${base64}`;
-              console.log("GPT-image-1 URL converted to base64 on attempt", attempt);
+              console.log("DALL-E 3 URL converted to base64 on attempt", attempt);
             } else {
-              console.warn("GPT-image-1 response missing image data:", gptImageData);
+              console.warn("DALL-E 3 response missing image data:", gptImageData);
             }
           }
         } else {
           const errorText = await gptImageResponse.text();
-          console.error(`GPT-image-1 error (attempt ${attempt}):`, gptImageResponse.status, errorText);
+          console.error(`DALL-E 3 error (attempt ${attempt}):`, gptImageResponse.status, errorText);
           
           // Handle rate limits with exponential backoff
           if (gptImageResponse.status === 429 && attempt < maxRetries) {
@@ -516,7 +516,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
           }
         }
       } catch (err) {
-        console.error(`GPT-image-1 attempt ${attempt} failed:`, err);
+        console.error(`DALL-E 3 attempt ${attempt} failed:`, err);
         if (attempt < maxRetries) {
           const delay = retryDelayMs * Math.pow(2, attempt - 1);
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -580,7 +580,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
         prompt_hash: promptHash,
         prompt: prompt.substring(0, 1000),
         image_url: imageUrl,
-        model: "gpt-image-1",
+        model: "dall-e-3",
         platform: platform || "all",
         size: gptImageSize,
         user_id: userId,
@@ -629,74 +629,9 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       ];
 
       for (const format of formats) {
-        try {
-          const resizePrompt = `Resize and adapt this advertising visual to ${format.size} pixels for ${format.name}. Maintain all text readability and ensure the product is prominently displayed. Optimize the layout for the aspect ratio without losing important information.`;
-
-          // Primary: OpenRouter
-          let formatImageUrl: string | null = null;
-          if (openRouterKey) {
-            try {
-              formatImageUrl = await generateImageWithOpenRouter(openRouterKey, {
-                prompt: resizePrompt,
-                referenceImages: [imageUrl],
-                timeoutMs: 25000,
-              });
-            } catch (e) {
-              console.warn(`OpenRouter format ${format.name} failed, fallback:`, e);
-            }
-          }
-
-          const resizeResponse = formatImageUrl ? null : await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash-image-preview",
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    { type: "text", text: resizePrompt },
-                    { type: "image_url", image_url: { url: imageUrl } },
-                  ],
-                },
-              ],
-              modalities: ["image", "text"],
-            }),
-            timeoutMs: 20000,
-          });
-
-          if (!formatImageUrl && resizeResponse && resizeResponse.ok) {
-            const resizeData = await resizeResponse.json();
-            formatImageUrl = resizeData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          }
-
-          if (formatImageUrl) {
-              // Save format to database
-              await supabaseClient
-                .from("image_formats")
-                .insert({
-                  image_id: savedImage.id,
-                  format_name: format.name,
-                  format_size: format.size,
-                  platform: format.platform,
-                  image_url: formatImageUrl,
-                });
-              
-              additionalFormats.push({
-                name: format.name,
-                size: format.size,
-                url: formatImageUrl,
-              });
-              
-              console.log(`Generated ${format.name} format`);
-            }
-        } catch (formatError) {
-          console.error(`Error generating ${format.name}:`, formatError);
-          // Continue with other formats even if one fails
-        }
+        // Multi-format generation using LLM resizing is temporarily disabled
+        // because it degrades image quality significantly.
+        console.log(`[Multi-format] Skipping ${format.name} to preserve image quality.`);
       }
     }
 

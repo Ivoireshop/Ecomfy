@@ -229,7 +229,10 @@ const ShopView = () => {
     let lastErr: any = null;
     for (let i = 0; i < attempts; i++) {
       try {
-        const res = await fn();
+        const res = await Promise.race([
+          Promise.resolve(fn()),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 9000)),
+        ]) as any;
         if (!res?.error) return res;
         lastErr = res.error;
       } catch (e) {
@@ -752,7 +755,7 @@ const ShopView = () => {
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-4 sm:gap-6">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             {shop.logo_url ? (
-              <img src={shop.logo_url} alt="" loading="eager" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl object-cover flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform" />
+              <img src={thumbUrl(shop.logo_url, 128)} alt="" loading="eager" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl object-cover flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform" />
             ) : (
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: primaryColor + "15" }}>
                 <Store className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: primaryColor }} />
@@ -811,7 +814,7 @@ const ShopView = () => {
       <section className="relative overflow-hidden bg-gray-950 w-full min-h-[500px] sm:min-h-[600px] flex items-center justify-center">
         {shop.banner_url ? (
           <div className="absolute inset-0">
-            <img src={shop.banner_url} alt="" loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover mix-blend-overlay opacity-80" />
+            <img src={thumbUrl(shop.banner_url, 1200)} alt="" loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover mix-blend-overlay opacity-80" />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-gray-950/80 via-transparent to-transparent" />
           </div>
@@ -823,7 +826,7 @@ const ShopView = () => {
         )}
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-16 text-center text-white flex flex-col items-center">
           {shop.logo_url && (
-            <img src={shop.logo_url} alt={tShop.business_name} loading="eager" decoding="async" width={96} height={96} className="h-20 w-20 sm:h-24 sm:w-24 rounded-3xl object-cover mx-auto mb-6 shadow-2xl border-4 border-white/10" />
+            <img src={thumbUrl(shop.logo_url, 256)} alt={tShop.business_name} loading="eager" decoding="async" width={96} height={96} className="h-20 w-20 sm:h-24 sm:w-24 rounded-3xl object-cover mx-auto mb-6 shadow-2xl border-4 border-white/10" />
           )}
           <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tighter drop-shadow-2xl leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-300">
             {tShop.business_name}
@@ -986,7 +989,7 @@ const ShopView = () => {
       >
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
           <div className="flex items-center gap-3">
-            {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-8 w-8 rounded-lg grayscale opacity-70" /> : <Store className="h-5 w-5 opacity-70" style={{ color: primaryColor }} />}
+            {shop.logo_url ? <img src={thumbUrl(shop.logo_url, 128)} alt="" className="h-8 w-8 rounded-lg grayscale opacity-70" /> : <Store className="h-5 w-5 opacity-70" style={{ color: primaryColor }} />}
             <span className="font-semibold opacity-80">© {new Date().getFullYear()} {tShop.business_name}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 opacity-80">
@@ -1429,7 +1432,7 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
             width={400}
             height={400}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            {...(eager ? { fetchpriority: "high" as any } : {})}
+            {...(eager ? { fetchPriority: "high" as any } : {})}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center"><Store className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30" /></div>

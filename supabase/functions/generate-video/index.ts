@@ -285,7 +285,7 @@ Le visuel doit être:
             } else if (repData.id && (repData.status === "processing" || repData.status === "starting")) {
               // Poll briefly, then fall back so users are not left waiting beyond ~2 minutes.
               const predictionId = repData.id;
-              const pollEnd = Date.now() + 75000;
+              const pollEnd = Date.now() + 300000; // 5 minutes max polling
               while (Date.now() < pollEnd) {
                 await new Promise((r) => setTimeout(r, 5000));
                 const pollResp = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
@@ -337,7 +337,7 @@ Le visuel doit être:
           if (runwayResponse.ok) {
             const runwayData = await runwayResponse.json();
             const taskId = runwayData.id;
-            const pollEnd = Date.now() + 45000;
+            const pollEnd = Date.now() + 300000; // 5 minutes max polling
             while (Date.now() < pollEnd) {
               await new Promise((r) => setTimeout(r, 5000));
               const statusResp = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
@@ -403,7 +403,7 @@ Le visuel doit être:
                   console.log("Cloudinary animated URL:", animatedVideoUrl);
 
                   // Fetch and verify the video
-                  await new Promise(r => setTimeout(r, 3000)); // Give Cloudinary time to process
+                  await new Promise(r => setTimeout(r, 15000)); // Give Cloudinary time to process
                   const videoCheckResp = await fetch(animatedVideoUrl, { method: "HEAD" });
                   if (videoCheckResp.ok) {
                     videoUrl = animatedVideoUrl;
@@ -425,25 +425,29 @@ Le visuel doit être:
       }
 
       if (!videoUrl) {
-        // Last resort: return image as fallback
+        console.error("All video generation methods failed. Refunding credit if applicable.");
+        
+        // Refund the user if they spent a credit (and are not a founder)
+        if (!isFounder) {
+          await serviceClient.rpc('increment_video_generations', {
+            user_id: userId,
+            amount: 1
+          }).catch(e => console.error("Could not refund user via RPC:", e));
+          
+          // Alternatively, since we might not have the RPC, just update directly
+          await serviceClient.from("profiles").update({
+            video_generations_remaining: Math.max(0, videoGenerationsRemaining), // restored
+          }).eq("id", userId);
+        }
+
+        // Mark as failed instead of saving the image as completed
         await serviceClient.from("generated_videos").update({
-          video_url: imagePublicUrl,
-          status: "completed",
-          progress_step: "completed",
-          progress_percentage: 100,
+          status: "failed",
+          progress_step: "failed",
+          progress_percentage: 0,
         }).eq("id", videoData.id);
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            videoId: videoData.id,
-            videoUrl: imagePublicUrl,
-            isImage: true,
-            message: "Génération vidéo indisponible pour le moment. L'image de base est disponible.",
-            videoGenerationsRemaining: isFounder ? null : Math.max(0, videoGenerationsRemaining - 1),
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return; // Exit background work early
       }
 
 

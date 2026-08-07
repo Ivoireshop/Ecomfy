@@ -50,15 +50,17 @@ const NavItem = ({ item, isCollapsed }: NavItemProps) => (
             <NavLink
               to={item.url}
               end={item.url === "/"}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 transition-colors font-inter text-[13.5px] font-medium ${
-                  isActive 
-                    ? "bg-[#0E7C66]/10 text-[#0E7C66] font-semibold" 
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                }`
-              }
+              className={({ isActive }) => {
+                // Determine if we are on this route or a child route (if needed, but NavLink handles it mostly)
+                const isCurrent = isActive;
+                return `flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 ${
+                  isCurrent
+                    ? "bg-primary/10 text-primary font-semibold border-primary"
+                    : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                }`;
+              }}
             >
-              <item.icon className="h-[18px] w-[18px] shrink-0 opacity-75" />
+              <item.icon className={`h-[18px] w-[18px] shrink-0 transition-opacity ${isCollapsed ? '' : 'opacity-75'}`} />
               <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
             </NavLink>
           )}

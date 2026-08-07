@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -82,6 +83,22 @@ export function ProductWizard({
   const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
 
+  const aiResponseSchema = z.object({
+    success: z.boolean().optional(),
+    error: z.string().optional(),
+    message: z.string().optional(),
+    credits_required: z.boolean().optional(),
+    sheet: z.object({
+      headline: z.string().optional(),
+      subheadline: z.string().optional(),
+      short_description: z.string().optional(),
+      long_description: z.string().optional(),
+      benefits: z.array(z.string()).optional(),
+      features: z.array(z.string()).optional(),
+      cta: z.string().optional(),
+    }).optional(),
+  }).passthrough();
+
   const runAi = async () => {
     if (!product.name.trim()) {
       toast.error("Renseignez d'abord le nom du produit");
@@ -89,7 +106,11 @@ export function ProductWizard({
     }
     setAiLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-product-sheet", {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Délai d'attente dépassé (20s). L'IA est surchargée.")), 20000)
+      );
+
+      const fetchPromise = supabase.functions.invoke("generate-product-sheet", {
         body: {
           name: product.name.trim(),
           price: product.price || undefined,
@@ -101,13 +122,18 @@ export function ProductWizard({
           generate_images: false,
         },
       });
+
+      const { data: rawData, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
       if (error) throw error;
+      
+      const data = aiResponseSchema.parse(rawData);
+
       if (!data?.success) {
         if (data?.error === "credits_required" || data?.credits_required) {
           toast.error("Crédits IA insuffisants. Achetez un pack pour continuer.");
           return;
         }
-        throw new Error(data?.message || data?.error || "Erreur");
+        throw new Error(data?.message || data?.error || "Erreur lors de la génération");
       }
       const sheet = data.sheet || {};
       const shortDesc: string = sheet.subheadline || sheet.short_description || "";
@@ -130,7 +156,11 @@ export function ProductWizard({
       }));
       toast.success("Description et SEO générés avec succès");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de la génération");
+      if (e instanceof z.ZodError) {
+        toast.error("Format de réponse IA invalide");
+      } else {
+        toast.error(e?.message || "Erreur lors de la génération");
+      }
     } finally {
       setAiLoading(false);
     }

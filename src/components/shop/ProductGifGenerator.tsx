@@ -24,18 +24,18 @@ interface Props {
 }
 
 const SIZE_OPTIONS = [
-  { value: "480", label: "480 x 480 (carré, léger)" },
-  { value: "640", label: "640 x 640 (carré, recommandé)" },
-  { value: "800", label: "800 x 800 (carré, HD)" },
+  { value: "320", label: "320 x 320 (carré, très léger)" },
+  { value: "480", label: "480 x 480 (carré, recommandé)" },
+  { value: "640", label: "640 x 640 (carré, HD max)" },
 ];
 
-const MAX_FRAMES = 6;
+const MAX_FRAMES = 4;
 const MIN_FRAMES = 2;
 
 export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) {
   const [frames, setFrames] = useState<Frame[]>([]);
   const [delayMs, setDelayMs] = useState(700);
-  const [size, setSize] = useState("640");
+  const [size, setSize] = useState("480");
   const [fit, setFit] = useState<"cover" | "contain">("cover");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -43,7 +43,7 @@ export function ProductGifGenerator({ open, onOpenChange, onGenerated }: Props) 
   const reset = () => {
     setFrames([]);
     setDelayMs(700);
-    setSize("640");
+    setSize("480");
     setFit("cover");
   };
 

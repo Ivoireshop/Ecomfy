@@ -313,7 +313,7 @@ const Subscription = () => {
             Plateforme de création visuelle pour l'Afrique
           </Badge>
           
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-600 to-secondary bg-clip-text text-transparent leading-tight">
+          <h1 className="text-4xl md:text-6xl font-extrabold mb-6 bg-gradient-to-br from-primary via-purple-500 to-secondary bg-clip-text text-transparent leading-tight drop-shadow-sm">
             {isFounder
               ? "Accès Illimité Fondateur"
               : isActive 
@@ -321,7 +321,7 @@ const Subscription = () => {
               : "Créez des Visuels Pros en Quelques Secondes"}
           </h1>
           
-          <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto font-medium">
             {isFounder
               ? "Vous avez un accès complet et illimité à toutes les fonctionnalités premium de Ecomfy"
               : isActive 
@@ -331,19 +331,21 @@ const Subscription = () => {
 
           {/* Social Proof Stats */}
           {!isFounder && !isActive && (
-            <div className="grid grid-cols-3 gap-4 md:gap-8 mb-8 max-w-2xl mx-auto">
+            <div className="grid grid-cols-3 gap-4 md:gap-8 mb-8 max-w-3xl mx-auto bg-white/40 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/50">
               <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold text-primary mb-1">500+</div>
-                <div className="text-xs md:text-sm text-muted-foreground">Utilisateurs actifs</div>
+                <div className="text-3xl md:text-4xl font-extrabold text-primary mb-1 drop-shadow-sm">500+</div>
+                <div className="text-xs md:text-sm font-medium text-muted-foreground">Utilisateurs actifs</div>
+              </div>
+              <div className="text-center relative">
+                <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-primary/20 to-transparent -ml-2 md:-ml-4"></div>
+                <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-primary/20 to-transparent -mr-2 md:-mr-4"></div>
+                <div className="text-3xl md:text-4xl font-extrabold text-primary mb-1 drop-shadow-sm">10k+</div>
+                <div className="text-xs md:text-sm font-medium text-muted-foreground">Visuels créés</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold text-primary mb-1">10k+</div>
-                <div className="text-xs md:text-sm text-muted-foreground">Visuels créés</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold text-primary mb-1">4.8/5</div>
-                <div className="text-xs md:text-sm text-muted-foreground flex items-center justify-center gap-1">
-                  <Star className="w-3 h-3 fill-primary text-primary" />
+                <div className="text-3xl md:text-4xl font-extrabold text-primary mb-1 drop-shadow-sm">4.8/5</div>
+                <div className="text-xs md:text-sm font-medium text-muted-foreground flex items-center justify-center gap-1.5">
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                   Satisfaction
                 </div>
               </div>
@@ -429,37 +431,42 @@ const Subscription = () => {
                 {creditPacks.map((pack) => (
                   <Card 
                     key={pack.size} 
-                    className={`relative cursor-pointer transition-all hover:shadow-lg ${
-                      selectedPack?.size === pack.size ? 'border-primary border-2' : ''
-                    } ${pack.popular ? 'border-purple-500/50' : ''}`}
+                    className={`relative cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
+                      selectedPack?.size === pack.size 
+                        ? 'border-primary border-2 shadow-[0_0_20px_rgba(14,124,102,0.2)]' 
+                        : 'border-slate-200'
+                    } ${pack.popular ? 'ring-2 ring-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.15)] bg-gradient-to-b from-white to-purple-50/30' : 'bg-white'}`}
                     onClick={() => setSelectedPack(pack)}
                   >
                     {pack.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-gradient-to-r from-purple-500 to-pink-500">
+                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                        <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1 shadow-md border-none text-[10px] md:text-xs font-bold uppercase tracking-wider">
                           ⭐ Recommandé
                         </Badge>
                       </div>
                     )}
-                    <CardContent className="pt-6 pb-6">
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-primary mb-2">
+                    <CardContent className="pt-8 pb-6 text-center">
+                      <div className="flex justify-center items-baseline gap-1 mb-2">
+                        <div className="text-5xl font-extrabold bg-gradient-to-br from-primary to-primary/70 bg-clip-text text-transparent">
                           {pack.size}
                         </div>
-                        <div className="text-sm text-muted-foreground mb-4">créations d'images</div>
-                        <div className="text-2xl font-bold mb-4">
-                          {pack.price.toLocaleString()} FCFA
-                        </div>
-                        <div className="text-xs text-muted-foreground mb-4">
-                          {Math.round(pack.price / pack.size)} FCFA / création
-                        </div>
-                        <Button 
-                          variant={selectedPack?.size === pack.size ? "default" : "outline"}
-                          className="w-full"
-                        >
-                          {selectedPack?.size === pack.size ? "Sélectionné ✓" : "Choisir"}
-                        </Button>
                       </div>
+                      <div className="text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wide">créations d'images</div>
+                      
+                      <div className="text-2xl font-bold mb-1 text-slate-800">
+                        {pack.price.toLocaleString()} FCFA
+                      </div>
+                      <div className="text-xs font-medium text-muted-foreground/80 mb-6 bg-slate-100 py-1.5 px-3 rounded-full inline-block">
+                        Soit {Math.round(pack.price / pack.size)} FCFA / création
+                      </div>
+                      
+                      <Button 
+                        variant={selectedPack?.size === pack.size ? "default" : pack.popular ? "default" : "outline"}
+                        className={`w-full font-semibold ${pack.popular && selectedPack?.size !== pack.size ? "bg-purple-600 hover:bg-purple-700 text-white" : ""}`}
+                        size="lg"
+                      >
+                        {selectedPack?.size === pack.size ? "Sélectionné ✓" : "Choisir ce pack"}
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
