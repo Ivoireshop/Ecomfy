@@ -7,7 +7,6 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
 import { SupportButton } from "@/components/SupportButton";
-import { BackButton } from "@/components/BackButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
@@ -147,7 +146,6 @@ const AppContent = () => {
 
   return (
     <div className={hideChrome ? "overflow-x-hidden" : "pb-16 md:pb-0 overflow-x-hidden"}>
-      {!hideChrome && <BackButton />}
       {showSupport && <SupportButton />}
       {!isOrderConfirmed && <MobileBottomNav />}
       <Suspense fallback={<PageLoader />}>
