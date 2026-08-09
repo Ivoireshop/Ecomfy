@@ -60,6 +60,7 @@ serve(async (req) => {
 
     const hasActiveSubscription = isFounder || subData?.status === "active";
 
+    /* TEMPORARILY DISABLED
     if (!hasActiveSubscription && !isFounder) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
@@ -77,6 +78,7 @@ serve(async (req) => {
         );
       }
     }
+    */
 
     const body = await req.json();
     const { mode, prompt, style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;

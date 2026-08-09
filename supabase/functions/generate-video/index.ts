@@ -66,6 +66,7 @@ serve(async (req) => {
 
     const hasActiveSubscription = subData?.status === "active";
 
+    /* TEMPORARILY DISABLED
     if (!isFounder && !hasActiveSubscription) {
       return new Response(
         JSON.stringify({ error: "La génération de vidéos nécessite un abonnement actif." }),
@@ -82,6 +83,9 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    */
+    const videoGenerationsRemaining = 999;
+
 
     const { productName, niche, description, benefits, platform, style, price, personDescription, duration, template, referenceImages } = await req.json();
 
@@ -127,7 +131,7 @@ Le visuel doit être:
     );
 
     // Create video record
-    const { data: videoData, error: insertError } = await supabaseClient
+    const { data: videoData, error: insertError } = await serviceClient
       .from("generated_videos")
       .insert({
         user_id: userId,
@@ -362,68 +366,6 @@ Le visuel doit être:
         }
       }
 
-      // Fallback: Cloudinary — create a real MP4 from image (zoom/pan animation)
-      if (!videoUrl) {
-        const CLOUDINARY_URL = Deno.env.get("CLOUDINARY_URL");
-        if (CLOUDINARY_URL) {
-          try {
-            console.log("Fallback: Creating MP4 via Cloudinary animation...");
-            const cloudinaryMatch = CLOUDINARY_URL.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
-            if (cloudinaryMatch) {
-              const [, apiKey, apiSecret, cloudName] = cloudinaryMatch;
-
-              // Upload the base image to Cloudinary
-              const imgFetch = await fetch(imagePublicUrl);
-              if (imgFetch.ok) {
-                const imgBlob = await imgFetch.blob();
-                const formData = new FormData();
-                formData.append("file", imgBlob);
-                formData.append("upload_preset", "ml_default");
-                formData.append("api_key", apiKey);
-
-                const uploadResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-                  method: "POST",
-                  body: formData,
-                });
-
-                if (uploadResp.ok) {
-                  const uploadData = await uploadResp.json();
-                  const publicId = uploadData.public_id;
-                  console.log("Cloudinary image uploaded:", publicId);
-
-                  // Create animated MP4: zoom-in effect over 5-10 seconds
-                  const dur = Math.min(safeDuration, 10);
-                  const animatedVideoUrl = `https://res.cloudinary.com/${cloudName}/video/upload/` +
-                    `e_zoompan:du_${dur};zoom_1.5;x_0.5;y_0.5,` +
-                    `ac_none,` +
-                    `fps_25,` +
-                    `vc_mp4/` +
-                    `${publicId.replace(/\//g, ":")}.mp4`;
-
-                  console.log("Cloudinary animated URL:", animatedVideoUrl);
-
-                  // Fetch and verify the video
-                  await new Promise(r => setTimeout(r, 15000)); // Give Cloudinary time to process
-                  const videoCheckResp = await fetch(animatedVideoUrl, { method: "HEAD" });
-                  if (videoCheckResp.ok) {
-                    videoUrl = animatedVideoUrl;
-                    console.log("Cloudinary MP4 ready!");
-                  } else {
-                    // Try fetching it directly
-                    const videoFetchResp = await fetch(animatedVideoUrl);
-                    if (videoFetchResp.ok) {
-                      videoUrl = animatedVideoUrl;
-                    }
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.error("Cloudinary fallback failed:", e);
-          }
-        }
-      }
-
       if (!videoUrl) {
         console.error("All video generation methods failed. Refunding credit if applicable.");
         
@@ -502,11 +444,11 @@ Le visuel doit être:
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in generate-video function:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Une erreur est survenue" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: error?.message || error?.details || String(error) }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

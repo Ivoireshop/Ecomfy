@@ -187,6 +187,7 @@ const Generator = () => {
       return;
     }
 
+    /* TEMPORARILY DISABLED
     if (!hasActiveSubscription) {
       toast({
         title: "Abonnement requis",
@@ -196,6 +197,7 @@ const Generator = () => {
       navigate("/subscription");
       return;
     }
+    */
 
     setIsGeneratingVideo(true);
 
@@ -310,6 +312,7 @@ const Generator = () => {
   };
 
   const openTextPreview = () => {
+    /* TEMPORARILY DISABLED
     // Bloquer si plus de générations gratuites
     if (!hasActiveSubscription && freeGenerationsRemaining === 0) {
       toast({
@@ -320,6 +323,7 @@ const Generator = () => {
       setTimeout(() => navigate("/subscription"), 2000);
       return;
     }
+    */
 
     // Validate required fields - price is optional if showPrice is false
     const missingFields = [];
@@ -487,6 +491,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
   };
 
   const handleGenerate = async () => {
+    /* TEMPORARILY DISABLED
     // Vérifier l'abonnement et les générations gratuites avant de générer
     if (!hasActiveSubscription && freeGenerationsRemaining === 0) {
       setShowTextPreview(false);
@@ -498,6 +503,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
       setTimeout(() => navigate("/subscription"), 2000);
       return;
     }
+    */
 
     setShowTextPreview(false);
     setIsLoading(true);
@@ -671,7 +677,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
             variant: "destructive",
             duration: 5000,
           });
-          setTimeout(() => navigate("/subscription"), 3000);
+          // setTimeout(() => navigate("/subscription"), 3000);
           return;
         } else if (totalRemaining === 1) {
           toast({
@@ -1006,6 +1012,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
               </Alert>
             )}
 
+            {/* TEMPORARILY DISABLED
             {!hasActiveSubscription && (freeGenerationsRemaining !== null || purchasedCredits > 0) && (
               <Alert className={`mt-4 max-w-2xl mx-auto ${(freeGenerationsRemaining === 0 && purchasedCredits === 0) ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
                 <AlertDescription className="text-center">
@@ -1042,6 +1049,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 </AlertDescription>
               </Alert>
             )}
+            */}
 
             {hasActiveSubscription && !isFounder && (
               <Alert className="mt-4 max-w-2xl mx-auto">
@@ -1086,6 +1094,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           {/* Mode Pro - Workflow Omneky-style */}
           {generationType === "pro" && (
             <div className="container mx-auto px-4 max-w-6xl">
+              {/* TEMPORARILY DISABLED
               {!hasActiveSubscription && !isFounder ? (
                 <Card className="border-primary/20">
                   <CardHeader>
@@ -1117,6 +1126,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                   </CardContent>
                 </Card>
               ) : (
+              */}
                 <SimpleWorkflow
                   productData={{
                     productName,
@@ -1148,7 +1158,9 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                     }
                   }}
                 />
+              {/* TEMPORARILY DISABLED
               )}
+              */}
             </div>
           )}
 
@@ -1423,6 +1435,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                 />
               </div>
 
+              {/* TEMPORARILY DISABLED
               {!hasActiveSubscription && freeGenerationsRemaining === 0 && (
                 <Alert className="border-destructive bg-destructive/10">
                   <AlertDescription className="text-center space-y-2">
@@ -1442,20 +1455,19 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
                   </AlertDescription>
                 </Alert>
               )}
+              */}
               <Button
                 type="button"
                 onClick={openTextPreview}
                 className="w-full text-lg py-7 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold"
                 size="lg"
-                disabled={isLoading || (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0)}
+                disabled={isLoading}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Génération en cours...
                   </>
-                ) : (!hasActiveSubscription && !isFounder && freeGenerationsRemaining !== null && freeGenerationsRemaining <= 0 && purchasedCredits <= 0) ? (
-                  "Quota épuisé - Prenez un abonnement"
                 ) : (
                   <>
                      <Atom className="mr-2 h-5 w-5 shrink-0 text-primary-foreground" />

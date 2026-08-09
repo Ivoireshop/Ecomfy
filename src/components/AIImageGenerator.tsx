@@ -213,11 +213,12 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       return;
     }
 
-    // Check if user can create video
+    /* TEMPORARILY DISABLED
     if (!isFounder && !hasActiveSubscription && freeVideoGenerationsRemaining <= 0) {
       toast.error("Vous avez utilisé votre essai gratuit. Veuillez souscrire à un abonnement pour continuer.");
       return;
     }
+    */
 
     setIsCreatingVideo(true);
     try {
@@ -282,7 +283,7 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
     }
   };
 
-  const canCreateVideo = isFounder || hasActiveSubscription || freeVideoGenerationsRemaining > 0;
+  const canCreateVideo = true; // isFounder || hasActiveSubscription || freeVideoGenerationsRemaining > 0;
 
   return (
     <Card>

@@ -127,9 +127,11 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
     return <Navigate to="/auth" replace />;
   }
 
+  /* TEMPORARILY DISABLED
   if (requireActiveSubscription && !isFounder && !hasActiveSubscription && freeGenerationsRemaining <= 0) {
     return <Navigate to="/subscription" replace />;
   }
+  */
 
   return <>{children}</>;
 };

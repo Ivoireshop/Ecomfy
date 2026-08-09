@@ -92,6 +92,7 @@ serve(async (req) => {
 
     hasActiveSubscription = isFounder || subData?.status === "active";
 
+    /* TEMPORARILY DISABLED
     // Check free generations (only for non-subscribed users)
     let freeGenerationsRemaining = 0;
     let purchasedCredits = 0;
@@ -119,6 +120,8 @@ serve(async (req) => {
         );
       }
     }
+    */
+
 
     const body = await req.json();
     const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast, template, tagline, callToAction, queueItemId, userId: requestUserId } = body;

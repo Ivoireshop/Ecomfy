@@ -87,6 +87,7 @@ export function VideoGenerator({
       return;
     }
 
+    /* TEMPORARILY DISABLED
     if (!hasActiveSubscription && !isFounder) {
       toast.error("La génération de vidéos nécessite un abonnement actif");
       navigate("/subscription");
@@ -97,6 +98,7 @@ export function VideoGenerator({
       toast.error("Vous avez épuisé vos générations de vidéos ce mois-ci");
       return;
     }
+    */
 
     setIsGenerating(true);
     setProgress({ step: "uploading", percentage: 5 });
@@ -295,6 +297,7 @@ export function VideoGenerator({
     completed: "✨ Terminé !",
   };
 
+  /* TEMPORARILY DISABLED
   if (!hasActiveSubscription && !isFounder) {
     return (
       <div className="container mx-auto px-4 max-w-3xl">
@@ -326,6 +329,7 @@ export function VideoGenerator({
       </div>
     );
   }
+  */
 
   return (
     <div className="container mx-auto px-4 max-w-3xl space-y-6">
@@ -486,7 +490,7 @@ export function VideoGenerator({
         onClick={handleGenerate}
         className="w-full text-lg py-7 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold"
         size="lg"
-        disabled={isGenerating || !prompt.trim() || (!isFounder && videoGenerationsRemaining <= 0)}
+        disabled={isGenerating || !prompt.trim()}
       >
         {isGenerating ? (
           <>
