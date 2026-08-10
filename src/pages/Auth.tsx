@@ -372,7 +372,7 @@ const Auth = () => {
     <div className="min-h-screen w-full md:grid md:grid-cols-2 bg-background">
 
       {/* Left: form column */}
-      <div className="flex min-h-full flex-col justify-center px-4 py-8 sm:px-12 lg:px-20 xl:px-24 bg-white z-10 relative">
+      <div className="flex min-h-full flex-col justify-center px-4 py-8 sm:px-12 lg:px-20 xl:px-24 bg-gradient-to-br from-[#0E7C66]/5 via-white to-[#0E7C66]/10 z-10 relative">
         <div className="w-full max-w-md mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold text-slate-900 flex items-center">
