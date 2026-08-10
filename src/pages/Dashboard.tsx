@@ -48,7 +48,8 @@ const Dashboard = () => {
       .then(({ data }) => setProfile(data ?? null));
   }, [isReady, session, navigate]);
 
-  const firstName = profile?.full_name?.split(" ")[0] || "Utilisateur";
+  const rawFullName = profile?.full_name || session?.user?.user_metadata?.full_name;
+  const firstName = rawFullName?.split(" ")[0] || "Utilisateur";
   const initials = firstName.substring(0, 2).toUpperCase();
   const currentDate = format(new Date(), "dd MMM yyyy", { locale: fr });
 
@@ -66,7 +67,7 @@ const Dashboard = () => {
           </button>
           <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
             <div className="text-right hidden md:block">
-              <p className="text-sm font-bold text-slate-800">{profile?.full_name || "Utilisateur"}</p>
+              <p className="text-sm font-bold text-slate-800">{rawFullName || "Utilisateur"}</p>
               <p className="text-xs text-slate-500">Admin</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-[#0E7C66] text-white flex items-center justify-center font-bold text-sm overflow-hidden border-2 border-white shadow-sm">

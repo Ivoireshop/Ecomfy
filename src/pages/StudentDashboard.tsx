@@ -118,7 +118,7 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">
-                  Bonjour, {profile?.full_name?.split(" ")[0] || "Étudiant"} 👋
+                  Bonjour, {(profile?.full_name || user?.user_metadata?.full_name)?.split(" ")[0] || "Étudiant"} 👋
                 </h1>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>

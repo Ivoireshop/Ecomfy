@@ -37,7 +37,10 @@ export function UserAvatar() {
         .eq("id", user.id)
         .single();
 
-      setProfile(data);
+      setProfile({
+        ...data,
+        full_name: data?.full_name || user.user_metadata?.full_name || null
+      });
     } catch (error) {
       console.error("Erreur chargement profil:", error);
     }
