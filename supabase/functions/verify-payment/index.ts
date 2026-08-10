@@ -188,7 +188,7 @@ serve(async (req) => {
         const { data: profileRow } = await supabase
           .from("profiles").select("email").eq("id", userId).maybeSingle();
         if (profileRow?.email) {
-          const shopUrl = shopRow?.slug ? `https://visuelpro.cloud/shop/${shopRow.slug}` : undefined;
+          const shopUrl = shopRow?.slug ? `https://ecomfy.cloud/shop/${shopRow.slug}` : undefined;
           await supabase.functions.invoke("send-transactional-email", {
             body: {
               templateName: "shop-activation",
@@ -217,7 +217,7 @@ serve(async (req) => {
           .from("profiles").select("email").eq("id", userId).maybeSingle();
         if (profileRow?.email) {
           const unlocked = !shopRow || shopRow.shop_payment_status === "active" || Number(shopRow.commission_balance_due || 0) <= 0;
-          const shopUrl = shopRow?.slug ? `https://visuelpro.cloud/shop/${shopRow.slug}` : undefined;
+          const shopUrl = shopRow?.slug ? `https://ecomfy.cloud/shop/${shopRow.slug}` : undefined;
           await supabase.functions.invoke("send-transactional-email", {
             body: {
               templateName: "commission-payment",

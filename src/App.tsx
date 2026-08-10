@@ -326,7 +326,7 @@ const AppContent = () => {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/cookies-policy" element={<CookiesPolicy />} />
-          <Route path="/api-documentation" element={<FounderRoute><ApiDocumentation /></FounderRoute>} />
+          <Route path="/api-documentation" element={<ProtectedRoute><ApiDocumentation /></ProtectedRoute>} />
           <Route path="/legal-notice" element={<LegalNotice />} />
           <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
           <Route path="/courses-manager" element={<ProtectedRoute><CoursesManager /></ProtectedRoute>} />

@@ -318,7 +318,7 @@ serve(async (req) => {
             .maybeSingle();
           if (profileRow?.email) {
             const shopUrl = shopRow?.slug
-              ? `https://visuelpro.cloud/shop/${shopRow.slug}`
+              ? `https://ecomfy.cloud/shop/${shopRow.slug}`
               : undefined;
             await supabase.functions.invoke("send-transactional-email", {
               body: {
@@ -425,7 +425,8 @@ serve(async (req) => {
       );
     }
 
-    const baseReturnUrl = "https://visuelpro.cloud";
+    const origin = req.headers.get("origin");
+    const baseReturnUrl = origin && !origin.includes("lovable.app") ? origin : "https://ecomfy.cloud";
     const typePrefix = payment_type === 'credits' ? 'credits'
       : payment_type === 'shop_activation' ? 'shop'
       : payment_type === 'commission_payment' ? 'commission'

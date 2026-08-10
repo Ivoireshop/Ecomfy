@@ -434,8 +434,8 @@ CREATE POLICY "owner_rw" ON public.exemple FOR ALL TO authenticated
     category: "API",
     summary: "Console API, clés vp_..., N8N/Zapier, webhooks.",
     body: [
-      { type: "p", text: "La gestion des clés API (création, rotation, révocation) et les exemples d'endpoints sont regroupés dans la Console API interne, accessible uniquement à l'équipe développeur." },
-      { type: "callout", tone: "info", text: "Ouvrir la Console API : /api-documentation (réservée fondateur / co-fondateur)." },
+      { type: "p", text: "La gestion des clés API (création, rotation, révocation), les statistiques d'utilisation et les exemples d'endpoints sont regroupés dans le Portail Développeur Ecomfy." },
+      { type: "callout", tone: "info", text: "Ouvrir le Portail Développeur : /api-documentation" },
       { type: "p", text: "Format des clés : vp_XXXXXXXXXXXXXXXX. Guides d'intégration N8N et Zapier inclus dans la console." },
       { type: "h", text: "Authentification" },
       { type: "code", lang: "http", text:
