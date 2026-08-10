@@ -369,31 +369,22 @@ const Auth = () => {
       path="/auth"
       noIndex={false}
     />
-    <div className="relative min-h-svh overflow-x-hidden bg-background md:grid md:min-h-screen md:grid-cols-2">
-      <div className="absolute inset-0 hidden md:block">
-        <img
-          src={authHeroV5}
-          alt="Créateur africain utilisant Ecomfy"
-          className="h-full w-full object-cover object-[68%_center]"
-          width={1024}
-          height={1024}
-        />
-      </div>
+    <div className="min-h-screen w-full md:grid md:grid-cols-2 bg-background">
 
       {/* Left: form column */}
-      <div className="relative z-10 flex min-h-svh flex-col justify-center px-4 py-6 sm:px-8 md:min-h-screen md:px-10 lg:px-16 auth-glass-bg">
+      <div className="flex min-h-full flex-col justify-center px-4 py-8 sm:px-12 lg:px-20 xl:px-24 bg-white z-10 relative">
         <div className="w-full max-w-md mx-auto">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Ecomfy
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center">
+              Ecom<span className="text-[#0E7C66]">fy</span>
             </h1>
-            <Badge variant="secondary" className="rounded-full border border-primary/30 bg-background/80 text-primary text-[10px] font-semibold tracking-wider backdrop-blur-md md:border-white/40 md:bg-white/15 md:text-white">
+            <Badge variant="secondary" className="rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold tracking-wider ml-3 hover:bg-slate-200 border-0">
               V5 · Nouvelle version
             </Badge>
           </div>
 
           <div className="mb-6">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-foreground md:text-white">Bienvenue</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-slate-900">Bienvenue</h2>
             <div className="mb-4 space-y-2 rounded-2xl border border-primary/20 bg-background/70 p-4 shadow-lg backdrop-blur-md md:hidden">
               <div className="flex items-center gap-3">
                 <span className="h-px w-8 bg-primary" />
@@ -408,18 +399,18 @@ const Auth = () => {
                 Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
               </p>
             </div>
-            <p className="text-muted-foreground md:text-white/80">
+            <p className="text-slate-500">
               Créez un compte ou connectez-vous pour commencer
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 backdrop-blur-md md:border md:border-white/30 md:bg-white/15 md:backdrop-blur-md">
-              <GitPullRequestCreate className="h-4 w-4 text-primary md:text-white text-slate-500" />
-              <span className="text-xs font-medium text-primary md:text-white">
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 border border-green-100">
+              <GitPullRequestCreate className="h-4 w-4 text-green-600" />
+              <span className="text-xs font-medium text-green-700">
                 🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
               </span>
             </div>
           </div>
 
-        <Card className={cn("border-primary-foreground/25 bg-background/88 shadow-2xl backdrop-blur-xl md:border-white/20 md:bg-white/90 md:shadow-2xl transition-transform", hasError && "shake-error")}>
+        <Card className={cn("border-slate-100 bg-white shadow-sm md:shadow-md transition-transform", hasError && "shake-error")}>
           <CardHeader>
             <CardTitle>Bienvenue</CardTitle>
             <CardDescription>
@@ -697,7 +688,7 @@ const Auth = () => {
       </div>
 
       {/* Right: hero image column */}
-      <div className="relative hidden overflow-hidden md:block md:min-h-screen">
+      <div className="relative hidden md:block h-full w-full">
         <img
           src={authHeroV5}
           alt="Créateur africain utilisant Ecomfy"
@@ -705,7 +696,7 @@ const Auth = () => {
           width={1024}
           height={1024}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
 
         <div className="absolute top-4 right-4 md:top-6 md:right-6">
           <div className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-medium text-white">
