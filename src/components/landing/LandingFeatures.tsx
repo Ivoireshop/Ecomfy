@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { Store, Palette, Globe, CheckCircle2, TrendingUp, Sparkles, Box, ShieldCheck, Wallet, Bot } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
-import fashionImg from "@/assets/example-fashion-ad.jpg";
-import handbagImg from "@/assets/example-handbag-ad.jpg";
-import aiGeneratedImg from "@/assets/example-beauty-ad.jpg";
+import createImg from "@/assets/showcase-site-preview.jpg";
+import sellImg from "@/assets/ecommerce-shopping.jpg";
+import aiImg from "@/assets/feature-ia.jpg";
+import manageImg from "@/assets/ecommerce-dashboard.jpg";
+import secureImg from "@/assets/feature-afrique.jpg";
 
 const features = [
   {
@@ -15,54 +17,7 @@ const features = [
     description: "Ne payez plus de développeur. Obtenez une boutique au design premium, prête à encaisser, parfaitement adaptée au mobile.",
     icon: <Palette className="w-5 h-5 text-[#0E7C66]" />,
     visual: (
-      <div className="relative w-full h-full bg-slate-50 rounded-2xl flex items-center justify-center p-8 overflow-hidden">
-        {/* Background blob */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-green-100 rounded-full filter blur-3xl opacity-50"></div>
-        {/* Mockup */}
-        <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-10 animate-float">
-          <div className="bg-slate-50 border-b border-slate-100 p-3 flex items-center gap-2">
-            <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-red-400"></div>
-              <div className="w-3 h-3 rounded-full bg-amber-400"></div>
-              <div className="w-3 h-3 rounded-full bg-green-400"></div>
-            </div>
-            <div className="mx-auto bg-white border border-slate-200 rounded-md px-3 py-1 text-xs text-slate-400 w-1/2 text-center truncate">
-              maboutique.ecomfy.cloud
-            </div>
-          </div>
-          <div className="p-4 bg-slate-50">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 mb-4">
-              <div className="flex justify-between items-center mb-6">
-                <div className="w-16 h-6 bg-slate-200 rounded animate-pulse"></div>
-                <div className="flex gap-2">
-                  <div className="w-4 h-4 bg-slate-200 rounded-full animate-pulse"></div>
-                  <div className="w-4 h-4 bg-slate-200 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              <div className="w-full h-32 bg-green-50 rounded-lg mb-4 flex items-center justify-center">
-                <span className="text-green-600 font-medium">Bannière Promo</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="h-24 bg-slate-100 rounded-lg overflow-hidden">
-                  <img src={fashionImg} alt="Mode" className="w-full h-full object-cover" />
-                </div>
-                <div className="h-24 bg-slate-100 rounded-lg overflow-hidden">
-                  <img src={handbagImg} alt="Accessoire" className="w-full h-full object-cover" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Floating elements */}
-        <div className="absolute -left-4 bottom-1/4 bg-white p-3 rounded-xl shadow-xl border border-slate-100 z-20 animate-float-slow">
-          <p className="text-xs font-semibold text-slate-500 mb-2">Thème principal</p>
-          <div className="flex gap-2">
-            <div className="w-6 h-6 rounded-full bg-[#0E7C66] border-2 border-white ring-2 ring-slate-200"></div>
-            <div className="w-6 h-6 rounded-full bg-blue-600"></div>
-            <div className="w-6 h-6 rounded-full bg-orange-500"></div>
-          </div>
-        </div>
-      </div>
+      <img src={createImg} alt="Créer une vitrine" className="w-full h-full object-cover" />
     )
   },
   {
@@ -73,34 +28,7 @@ const features = [
     description: "Encaissez via Mobile Money ou Carte Bancaire partout en Afrique. Proposez des paiements à la livraison et laissez vos clients acheter directement sur WhatsApp.",
     icon: <Store className="w-5 h-5 text-blue-600" />,
     visual: (
-      <div className="relative w-full h-full bg-slate-50 rounded-2xl flex items-center justify-center p-8 overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-100 rounded-full filter blur-3xl opacity-50"></div>
-        <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-10 animate-float" style={{ animationDelay: '0.2s' }}>
-          <div className="bg-[#0F1B2C] p-6 text-white text-center">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-8 h-8 text-green-400" />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Paiement Validé</h3>
-            <p className="text-slate-400 text-sm">Commande #1042</p>
-          </div>
-          <div className="p-6 bg-white space-y-4">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Montant payé</span>
-              <span className="font-bold">25 000 FCFA</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Méthode</span>
-              <span className="font-medium flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-orange-500"></span> Mobile Money
-              </span>
-            </div>
-            <div className="pt-4 border-t border-slate-100 flex gap-2">
-              <div className="flex-1 h-10 bg-slate-100 rounded-lg"></div>
-              <div className="flex-1 h-10 bg-[#0E7C66] rounded-lg"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <img src={sellImg} alt="Vendre en ligne" className="w-full h-full object-cover" />
     )
   },
   {
@@ -111,34 +39,7 @@ const features = [
     description: "Générez des photos produits professionnelles, des vidéos publicitaires captivantes et des descriptions SEO grâce à notre IA.",
     icon: <Bot className="w-5 h-5 text-purple-600" />,
     visual: (
-      <div className="relative w-full h-full bg-slate-50 rounded-2xl flex items-center justify-center p-8 overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-100 rounded-full filter blur-3xl opacity-50"></div>
-        <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-10 animate-float" style={{ animationDelay: '0.4s' }}>
-          <div className="p-4 border-b border-slate-100 flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-purple-600" />
-            <h3 className="font-bold text-slate-800">Générateur IA</h3>
-          </div>
-          <div className="p-4 space-y-4">
-            <div className="flex gap-2">
-              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-                <Bot className="w-4 h-4 text-purple-600" />
-              </div>
-              <div className="bg-slate-100 rounded-2xl rounded-tl-none p-3 text-sm text-slate-600">
-                Génère un visuel publicitaire pour ce sac en cuir...
-              </div>
-            </div>
-            <div className="flex gap-2 flex-row-reverse">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
-              </div>
-              <div className="bg-purple-600 text-white rounded-2xl rounded-tr-none p-2 text-sm shadow-md">
-                <img src={aiGeneratedImg} className="w-full rounded-xl object-cover mb-2" alt="AI Generated" />
-                <p className="px-1">Voici le résultat professionnel !</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <img src={aiImg} alt="Intelligence Artificielle" className="w-full h-full object-cover" />
     )
   },
   {
@@ -149,45 +50,7 @@ const features = [
     description: "Gérez vos commandes, suivez vos stocks, relancez les paniers abandonnés et gardez un œil sur vos statistiques en temps réel.",
     icon: <Box className="w-5 h-5 text-orange-600" />,
     visual: (
-      <div className="relative w-full h-full bg-slate-50 rounded-2xl flex items-center justify-center p-8 overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-orange-100 rounded-full filter blur-3xl opacity-50"></div>
-        <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-10 animate-float" style={{ animationDelay: '0.1s' }}>
-          <div className="p-4 border-b border-slate-100 bg-slate-50">
-            <h3 className="font-bold text-slate-800">Tableau de bord</h3>
-          </div>
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-                <p className="text-xs text-slate-500 mb-1">Visiteurs</p>
-                <p className="text-xl font-bold">1,204</p>
-                <p className="text-xs text-green-500 flex items-center gap-1 mt-1"><TrendingUp className="w-3 h-3"/> +12%</p>
-              </div>
-              <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-                <p className="text-xs text-slate-500 mb-1">Ventes</p>
-                <p className="text-xl font-bold">45</p>
-                <p className="text-xs text-green-500 flex items-center gap-1 mt-1"><TrendingUp className="w-3 h-3"/> +5%</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-slate-700">Dernières commandes</p>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Store className="w-4 h-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium">Commande #{2040 + i}</p>
-                      <p className="text-[10px] text-slate-500">Il y a {i*15} min</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">Payée</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <img src={manageImg} alt="Gérer l'activité" className="w-full h-full object-cover" />
     )
   },
   {
@@ -198,37 +61,7 @@ const features = [
     description: "Zéro frais cachés. Retirez vos fonds facilement, consultez votre historique de facturation et profitez d'une infrastructure sécurisée.",
     icon: <ShieldCheck className="w-5 h-5 text-slate-700" />,
     visual: (
-      <div className="relative w-full h-full bg-slate-50 rounded-2xl flex items-center justify-center p-8 overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-slate-200 rounded-full filter blur-3xl opacity-50"></div>
-        <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-10 animate-float" style={{ animationDelay: '0.5s' }}>
-          <div className="p-6 bg-[#0F1B2C] text-white">
-            <p className="text-slate-400 text-sm mb-1">Solde disponible</p>
-            <h3 className="text-3xl font-extrabold flex items-baseline gap-2">
-              145 000 <span className="text-lg font-medium text-slate-400">FCFA</span>
-            </h3>
-          </div>
-          <div className="p-4 border-b border-slate-100">
-            <button className="w-full bg-[#0E7C66] text-white font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
-              <Wallet className="w-4 h-4" /> Demander un retrait
-            </button>
-          </div>
-          <div className="p-4">
-            <p className="text-sm font-semibold text-slate-700 mb-3">Historique récent</p>
-            <div className="space-y-3">
-              {[
-                { type: "Vente", amount: "+ 25 000 FCFA", color: "text-green-600" },
-                { type: "Vente", amount: "+ 12 000 FCFA", color: "text-green-600" },
-                { type: "Retrait", amount: "- 50 000 FCFA", color: "text-slate-600" }
-              ].map((tx, idx) => (
-                <div key={idx} className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">{tx.type}</span>
-                  <span className={`font-semibold ${tx.color}`}>{tx.amount}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <img src={secureImg} alt="Gestion financière" className="w-full h-full object-cover" />
     )
   }
 ];
@@ -314,7 +147,7 @@ export function LandingFeatures() {
                 </div>
 
                 {/* Mobile visual fallback (only visible on small screens when this feature is active) */}
-                <div className="block lg:hidden mt-8 h-[400px] w-full rounded-2xl overflow-hidden shadow-lg border border-slate-100">
+                <div className="block lg:hidden mt-8 h-[400px] w-full rounded-2xl overflow-hidden shadow-lg border border-slate-100 bg-slate-100">
                   {feature.visual}
                 </div>
               </div>
@@ -322,7 +155,7 @@ export function LandingFeatures() {
           </div>
 
           {/* Right: Sticky Visuals (Desktop only) */}
-          <div className="hidden lg:block w-1/2 h-[600px] sticky top-32 rounded-3xl overflow-hidden shadow-2xl border border-slate-100 bg-white">
+          <div className="hidden lg:block w-1/2 h-[600px] sticky top-32 rounded-3xl overflow-hidden shadow-2xl border border-slate-100 bg-slate-100">
             {features.map((feature, idx) => (
               <div 
                 key={`visual-${feature.id}`}
