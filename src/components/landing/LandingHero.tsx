@@ -51,10 +51,10 @@ export function LandingHero() {
   );
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#0a0f18] text-white pt-32 pb-24 md:pt-40 md:pb-32">
+    <section className="relative w-full overflow-hidden bg-slate-50 text-slate-900 pt-32 pb-24 md:pt-40 md:pb-32">
       {/* Background gradients */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#0E7C66] rounded-full mix-blend-screen filter blur-[150px] opacity-15"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#0E7C66] rounded-full mix-blend-multiply filter blur-[150px] opacity-10"></div>
       </div>
 
       <div className="container relative z-10 mx-auto px-4 md:px-6 mb-20">
@@ -63,20 +63,20 @@ export function LandingHero() {
           className={`flex flex-col items-center text-center max-w-4xl mx-auto transition-all duration-1000 transform ${isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
         >
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 text-sm font-semibold mb-8 backdrop-blur-md hover:bg-white/10 transition-colors cursor-default">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-slate-600 text-sm font-semibold mb-8 hover:bg-slate-50 transition-colors cursor-default">
             <Sparkles className="w-4 h-4 text-[#F7C04A]" />
-            <span>Le système d'exploitation du e-commerce moderne</span>
+            <span>La plateforme tout-en-un pour vendre en ligne</span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[1.05] mb-8 text-white">
-            Tout pour <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] to-[#4ADE80]">vendre.</span><br />
-            Simplement.
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[1.05] mb-8 text-slate-900">
+            Pour tout <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] to-[#0A5F4F]">vendre</span><br />
+            simplement.
           </h1>
 
           {/* Subtitle */}
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-            Ecomfy réunit la création de boutique, la génération de visuels IA, la gestion des stocks et les paiements en une seule plateforme premium.
+          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed">
+            Créez votre boutique, concevez vos contenus avec l'IA, gérez vos commandes, votre stock, vos finances et développez vos ventes depuis une seule plateforme.
           </p>
 
           {/* CTA Buttons */}
@@ -95,7 +95,7 @@ export function LandingHero() {
             <Button 
               size="lg" 
               variant="outline" 
-              className="bg-white/5 border-white/20 text-white hover:bg-white/10 px-8 py-7 text-lg rounded-full font-semibold backdrop-blur-sm transition-all hover:scale-105"
+              className="bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 px-8 py-7 text-lg rounded-full font-semibold transition-all hover:scale-105 shadow-sm"
               onMouseEnter={playHoverSound}
               onClick={() => {
                 playClickSound();
@@ -114,8 +114,8 @@ export function LandingHero() {
       <div className={`relative w-full max-w-[100vw] overflow-hidden flex flex-col gap-6 transition-all duration-1000 delay-300 transform ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-24"}`}>
         
         {/* Overlay Gradients for smooth edges */}
-        <div className="absolute inset-y-0 left-0 w-16 md:w-40 bg-gradient-to-r from-[#0a0f18] to-transparent z-20 pointer-events-none"></div>
-        <div className="absolute inset-y-0 right-0 w-16 md:w-40 bg-gradient-to-l from-[#0a0f18] to-transparent z-20 pointer-events-none"></div>
+        <div className="absolute inset-y-0 left-0 w-16 md:w-40 bg-gradient-to-r from-slate-50 to-transparent z-20 pointer-events-none"></div>
+        <div className="absolute inset-y-0 right-0 w-16 md:w-40 bg-gradient-to-l from-slate-50 to-transparent z-20 pointer-events-none"></div>
 
         {/* Row 1 - Left to Right (Default scroll) */}
         <div className="flex w-max animate-scroll hover:[animation-play-state:paused]">
