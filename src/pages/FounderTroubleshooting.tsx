@@ -75,8 +75,7 @@ type PaymentRow = {
 };
 
 type ModuleStats = {
-  showcaseTotal: number;
-  showcasePublished: number;
+  
   coursesTotal: number;
   coursesPublished: number;
   enrollments7d: number;
@@ -224,7 +223,7 @@ export default function FounderTroubleshooting() {
       const since1 = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       const soon = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
       const [
-        showcaseTotal, showcasePublished,
+        
         coursesTotal, coursesPublished, enrollments7d,
         images24h, videos7d,
         queueProcessing, queueFailed24h,
@@ -245,7 +244,7 @@ export default function FounderTroubleshooting() {
         safeCount("student_access", (q) => q.eq("is_active", true)),
       ]);
       setModules({
-        showcaseTotal, showcasePublished,
+        
         coursesTotal, coursesPublished, enrollments7d,
         images24h, videos7d,
         queueProcessing, queueFailed24h,

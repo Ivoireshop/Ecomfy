@@ -358,7 +358,7 @@ export const GalleryManager = ({ showcaseId }: GalleryManagerProps) => {
               Gestionnaire de Galerie d'Images
             </CardTitle>
             <CardDescription>
-              Ajoutez des images pour différentes sections de votre site vitrine
+              Ajoutez des images pour différentes sections de votre boutique
             </CardDescription>
           </div>
           {images.length > 0 && (

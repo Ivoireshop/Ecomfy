@@ -125,7 +125,6 @@ const AiQuota = () => {
       "generate-feature-image": "Image mise en avant",
       "generate-ad-visual": "Visuel publicitaire",
       "generate-shop-content": "Contenu boutique",
-      "generate-showcase-site": "Site vitrine",
       "generate-video": "Génération vidéo",
       "create-video-from-image": "Vidéo depuis image",
       "generate-voiceover": "Voix off",

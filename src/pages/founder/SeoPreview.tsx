@@ -18,7 +18,6 @@ const PAGES: Page[] = [
   { path: "/visuels-publicitaires", title: "Créer des visuels publicitaires IA en Afrique | Ecomfy", description: "Générez des visuels publicitaires professionnels pour Facebook, Instagram, TikTok et WhatsApp en moins d'une minute, adaptés au marché africain. Essai gratuit." },
   { path: "/videos-publicitaires", title: "Créer des vidéos publicitaires IA en Afrique | Ecomfy", description: "Transformez vos produits en vidéos publicitaires animées en quelques minutes grâce à l'intelligence artificielle. Idéal pour Facebook, Instagram Reels et TikTok." },
   { path: "/boutiques-ecommerce", title: "Créer une boutique e-commerce en Afrique par IA | Ecomfy", description: "Lancez votre boutique en ligne en Côte d'Ivoire et en Afrique avec Mobile Money, paiement à la livraison et tunnel de commande optimisé." },
-  { path: "/sites-vitrines", title: "Créer un site vitrine professionnel par IA | Ecomfy", description: "Lancez votre site vitrine professionnel en quelques minutes avec un nom de domaine personnalisé. Idéal pour artisans, consultants et PME africaines." },
   { path: "/auth", title: "Connexion & Inscription — Ecomfy", description: "Connectez-vous à Ecomfy ou créez votre compte gratuit pour générer vos visuels, vidéos et lancer votre boutique e-commerce IA." },
   { path: "/blog", title: "Blog — Ecomfy", description: "Guides, tutoriels et conseils pour tirer le meilleur de Ecomfy." },
   { path: "/demo", title: "Démo Ecomfy", description: "Découvrez Ecomfy en action : visuels, vidéos, sites et boutiques générés par IA." },

@@ -293,7 +293,7 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
           Génération d'images IA
         </CardTitle>
         <CardDescription>
-          Créez des images personnalisées pour votre site vitrine avec l'IA
+          Créez des images personnalisées pour votre boutique avec l'IA
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

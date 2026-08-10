@@ -54,7 +54,6 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazyWithRetry(() => import("./pages/VerifyEmail"));
 const OAuthConsent = lazyWithRetry(() => import("./pages/OAuthConsent"));
-const ShowcaseView = lazyWithRetry(() => import("./pages/ShowcaseView"));
 const PaymentHistory = lazyWithRetry(() => import("./pages/PaymentHistory"));
 const PromoCodeManager = lazyWithRetry(() => import("./pages/PromoCodeManager"));
 const FounderDashboard = lazyWithRetry(() => import("./pages/FounderDashboard"));
@@ -144,12 +143,11 @@ const PageLoader = () => (
 const AppContent = () => {
   const location = useLocation();
   useCommunityNotifications();
-  const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
+    const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
-  const showSidebar = !isPublicPage && !isShowcaseView && !isShopView;
-  const showSupport = !isPublicPage && !isShowcaseView && !isShopView;
+  const showSidebar = !isPublicPage && !isShopView;
+  const showSupport = !isPublicPage && !isShopView;
   const hideChrome = isShopView || isOrderConfirmed;
 
   return (
@@ -294,9 +292,7 @@ const AppContent = () => {
             path="/demo" 
             element={<Demo />} 
           />
-          <Route path="/showcase/:subdomain" element={<ShowcaseView />} />
-          <Route path="/showcase/:subdomain/:page" element={<ShowcaseView />} />
-          <Route path="/enroll/:courseId" element={<EnrollmentCheckout />} />
+                              <Route path="/enroll/:courseId" element={<EnrollmentCheckout />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route 
             path="/student" 
@@ -393,8 +389,7 @@ const IdlePrefetcher = () => {
 
 const AppWithSidebar = () => {
   const location = useLocation();
-  const isShowcaseView = location.pathname.startsWith("/showcase/");
-  const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
+    const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
   
@@ -403,7 +398,7 @@ const AppWithSidebar = () => {
                            location.pathname.startsWith("/shop-builder");
 
   // Showcase/shop/public pages: no sidebar at all
-  if (isShowcaseView || isShopView || isPublicPage || isShopManagement) {
+  if (isShopView || isPublicPage || isShopManagement) {
     return (
       <main className="w-full">
         <AppContent />

@@ -313,7 +313,7 @@ export const VideoGalleryManager = ({ showcaseId }: VideoGalleryManagerProps) =>
               Gestionnaire de Galerie de Vidéos
             </CardTitle>
             <CardDescription>
-              Ajoutez des vidéos pour différentes sections de votre site vitrine
+              Ajoutez des vidéos pour différentes sections de votre boutique
             </CardDescription>
           </div>
         </div>

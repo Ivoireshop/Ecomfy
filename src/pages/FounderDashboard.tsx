@@ -961,7 +961,7 @@ const FounderDashboard = () => {
           <CardHeader>
             <CardTitle>Créations des utilisateurs</CardTitle>
             <CardDescription>
-              Toutes les boutiques, cours en ligne et sites vitrines créés sur la plateforme
+              Toutes les boutiques et cours en ligne créés sur la plateforme
             </CardDescription>
           </CardHeader>
           <CardContent>

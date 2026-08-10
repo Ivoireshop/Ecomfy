@@ -54,7 +54,7 @@ export const DnsConfigurationAssistant = ({
 }: DnsConfigurationAssistantProps) => {
   const effectiveResourceId = resourceId || showcaseId!;
   const effectiveResourceType = resourceType;
-  const resourceLabel = effectiveResourceType === 'shop' ? 'boutique' : 'site vitrine';
+  const resourceLabel = 'boutique';
   const [customDomain, setCustomDomain] = useState(currentDomain);
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);

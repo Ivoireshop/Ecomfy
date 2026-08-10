@@ -36,7 +36,7 @@ export function LandingPillarCreate() {
             </div>
             
             <h2 className="text-3xl md:text-5xl font-bold text-slate-900 leading-tight">
-              Une vitrine <br />
+              Une boutique <br />
               <span className="text-[#0E7C66]">professionnelle</span> <br />
               en 3 minutes.
             </h2>
