@@ -7,13 +7,19 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 
 // Nouveaux composants de la landing page
 import { LandingHero } from "@/components/landing/LandingHero";
-import { LandingGallery } from "@/components/landing/LandingGallery";
-import { LandingShopSection } from "@/components/landing/LandingShopSection";
-import { LandingMediaSection } from "@/components/landing/LandingMediaSection";
-import { LandingScrollStory } from "@/components/landing/LandingScrollStory";
-import { LandingAiSection } from "@/components/landing/LandingAiSection";
-import { LandingProofSection } from "@/components/landing/LandingProofSection";
-import { LandingPricing } from "@/components/landing/LandingPricing";
+import { LandingTrust } from "@/components/landing/LandingTrust";
+import { LandingPositioning } from "@/components/landing/LandingPositioning";
+import { LandingPillarCreate } from "@/components/landing/LandingPillarCreate";
+import { LandingPillarSell } from "@/components/landing/LandingPillarSell";
+import { LandingPillarAI } from "@/components/landing/LandingPillarAI";
+import { LandingPillarManage } from "@/components/landing/LandingPillarManage";
+import { LandingPillarFinance } from "@/components/landing/LandingPillarFinance";
+import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
+import { LandingEcosystem } from "@/components/landing/LandingEcosystem";
+import { LandingPersonas } from "@/components/landing/LandingPersonas";
+import { LandingStats } from "@/components/landing/LandingStats";
+import { LandingTestimonials } from "@/components/landing/LandingTestimonials";
+import { LandingFaq } from "@/components/landing/LandingFaq";
 import { LandingFinalCta } from "@/components/landing/LandingFinalCta";
 
 const Index = () => {
@@ -51,34 +57,44 @@ const Index = () => {
       {/* Header existant (conserve la logique multilingue, thème, auth) */}
       <Header />
 
-      {/* Hero Section */}
-      <LandingHero />
+      <main>
+        {/* Hero Section */}
+        <LandingHero />
 
-      {/* Galerie Horizontale (Vitrines) */}
-      <LandingGallery />
+        {/* Logos partenaires */}
+        <LandingTrust />
 
-      {/* Section Boutique en 60s */}
-      <LandingShopSection />
+        {/* Positionnement global */}
+        <LandingPositioning />
 
-      {/* Section IA Médias (Visuels & Vidéos) */}
-      <LandingMediaSection />
+        {/* Piliers du produit */}
+        <LandingPillarCreate />
+        <LandingPillarSell />
+        <LandingPillarAI />
+        <LandingPillarManage />
+        <LandingPillarFinance />
 
-      {/* Narrative Sticky: De zéro à l'empire */}
-      <LandingScrollStory />
+        {/* Personas (Cibles) */}
+        <LandingPersonas />
 
-      {/* Assistant IA Temps réel */}
-      <LandingAiSection />
+        {/* Comment ça marche */}
+        <LandingHowItWorks />
 
-      {/* Preuve sociale (Témoignages) */}
-      <LandingProofSection />
+        {/* Ecosystème d'intégration */}
+        <LandingEcosystem />
 
-      {/* Tarifs (Essai vs Pro) */}
-      <LandingPricing />
+        {/* Chiffres & Confiance */}
+        <LandingStats />
+        <LandingTestimonials />
 
-      {/* Appel à l'action Final */}
-      <LandingFinalCta />
+        {/* FAQ */}
+        <LandingFaq />
 
-      {/* Footer Existant */}
+        {/* Appel à l'action Final */}
+        <LandingFinalCta />
+      </main>
+
+      {/* Footer */}
       <Footer />
     </div>
   );

@@ -266,15 +266,14 @@ Le visuel doit être:
       // Try Replicate first (minimax/video-01-live)
       if (replicateApiKey) {
         try {
-          console.log("Using Replicate minimax/video-01-live...");
-          const replicateResp = await fetch("https://api.replicate.com/v1/models/minimax/video-01-live/predictions", {
+          console.log("Using Replicate wavespeedai/wan-2.1-i2v-480p...");
+          const replicateResp = await fetch("https://api.replicate.com/v1/models/wavespeedai/wan-2.1-i2v-480p/predictions", {
             method: "POST",
             headers: { Authorization: `Bearer ${replicateApiKey}`, "Content-Type": "application/json", Prefer: "wait=60" },
             body: JSON.stringify({
               input: {
                 prompt: enhancedPrompt,
-                first_frame_image: imagePublicUrl,
-                prompt_optimizer: true,
+                image: imagePublicUrl,
               },
             }),
           });

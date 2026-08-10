@@ -105,9 +105,16 @@ const PricingDashboard = lazyWithRetry(() => import("./pages/PricingDashboard"))
 // instead of the marketing landing page.
 const isCustomShopHost = (() => {
   if (typeof window === "undefined") return false;
+  
+  // En environnement de développement (Vite), on désactive la redirection vers le shop
+  // pour vous permettre de voir la landing page et le dashboard normalement.
+  if (import.meta.env.DEV) return false;
+
   const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
   const KNOWN = ["ecomfy.cloud", "localhost", "127.0.0.1"];
+  
   if (KNOWN.includes(host) || host.endsWith(".vercel.app")) return false;
+  
   return true;
 })();
 

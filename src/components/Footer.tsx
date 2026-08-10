@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, Phone, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import logo from "@/assets/ecomfy-logo.svg";
+import logo from "@/assets/ecomfy-logo.png";
 
 export function Footer() {
   const navigate = useNavigate();
@@ -22,70 +22,62 @@ export function Footer() {
     }
   };
 
-  const socialLinks = [
-    { icon: Facebook, href: "#", label: "Facebook" },
-    { icon: Twitter, href: "#", label: "Twitter" },
-    { icon: Instagram, href: "#", label: "Instagram" },
-    { icon: Linkedin, href: "#", label: "LinkedIn" },
-    { icon: Youtube, href: "#", label: "YouTube" },
+  const productLinks = [
+    { label: "Créer une boutique", path: "/#features" },
+    { label: "Intelligence Artificielle", path: "/#ai" },
+    { label: "Gestion des commandes", path: "/#manage" },
+    { label: "Catalogue produits", path: "/#features" },
+    { label: "Statistiques et Finances", path: "/#finance" },
   ];
 
-  const quickLinks = [
-    { label: "Accueil", path: "/" },
-    { label: "Catalogue", path: "/catalogue" },
-    { label: "Formations", path: "/formations" },
-    { label: "Services", path: "/services" },
-    { label: "Galerie", path: "/galerie" },
-    { label: "Contact", path: "/contact" },
+  const resourcesLinks = [
+    { label: "Documentation", path: "/docs" },
+    { label: "Tutoriels", path: "/tutorial" },
+    { label: "Centre d'aide", path: "/community" },
   ];
 
   const legalLinks = [
     { label: "Politique de confidentialité", path: "/privacy-policy" },
     { label: "Conditions d'utilisation", path: "/terms-of-service" },
-    { label: "Politique de cookies", path: "/cookies-policy" },
     { label: "Mentions légales", path: "/legal-notice" },
   ];
 
   return (
-    <footer className="bg-muted/30 border-t mt-20">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* À propos */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
-              <span className="text-xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+    <footer className="bg-[#0F1B2C] text-slate-300 border-t border-slate-800 pt-20 pb-10">
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 mb-16">
+          {/* ECOMFY */}
+          <div className="col-span-2 lg:col-span-2">
+            <div className="flex items-center gap-2 mb-6">
+              <img src={logo} alt="Logo Ecomfy" className="h-8 w-8 brightness-0 invert" />
+              <span className="text-2xl font-extrabold text-white">
                 Ecomfy
               </span>
             </div>
-            <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-              La plateforme tout-en-un pour les entrepreneurs africains.
+            <p className="text-sm text-slate-400 mb-6 max-w-sm leading-relaxed">
+              Le système d'exploitation du e-commerce moderne. Créez, vendez, gérez et développez votre activité depuis une seule plateforme propulsée par l'IA.
             </p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="w-4 h-4" />
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-sm text-slate-400">
+                <Mail className="w-4 h-4 text-[#0E7C66]" />
                 <span>contact@ecomfy.cloud</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="w-4 h-4" />
+              <div className="flex items-center gap-3 text-sm text-slate-400">
+                <Phone className="w-4 h-4 text-[#0E7C66]" />
                 <span>+225 07 58 15 27 61</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                <span>Abidjan, Côte d'Ivoire</span>
               </div>
             </div>
           </div>
 
-          {/* Liens rapides */}
+          {/* Produit */}
           <div>
-            <h3 className="font-bold text-lg mb-4">Liens rapides</h3>
-            <ul className="space-y-2">
-              {quickLinks.map((link, idx) => (
+            <h3 className="font-semibold text-white mb-5">Produit</h3>
+            <ul className="space-y-3">
+              {productLinks.map((link, idx) => (
                 <li key={idx}>
                   <button
                     onClick={() => navigate(link.path)}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                    className="text-slate-400 hover:text-white transition-colors text-sm"
                   >
                     {link.label}
                   </button>
@@ -94,15 +86,32 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Informations légales */}
+          {/* Ressources */}
           <div>
-            <h3 className="font-bold text-lg mb-4">Informations légales</h3>
-            <ul className="space-y-2">
+            <h3 className="font-semibold text-white mb-5">Ressources</h3>
+            <ul className="space-y-3">
+              {resourcesLinks.map((link, idx) => (
+                <li key={idx}>
+                  <button
+                    onClick={() => navigate(link.path)}
+                    className="text-slate-400 hover:text-white transition-colors text-sm"
+                  >
+                    {link.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Légal */}
+          <div>
+            <h3 className="font-semibold text-white mb-5">Légal</h3>
+            <ul className="space-y-3">
               {legalLinks.map((link, idx) => (
                 <li key={idx}>
                   <button
                     onClick={() => navigate(link.path)}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                    className="text-slate-400 hover:text-white transition-colors text-sm"
                   >
                     {link.label}
                   </button>
@@ -112,47 +121,37 @@ export function Footer() {
           </div>
 
           {/* Newsletter */}
-          <div>
-            <h3 className="font-bold text-lg mb-4">Newsletter</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Recevez nos dernières actualités et offres exclusives
+          <div className="col-span-2 lg:col-span-1">
+            <h3 className="font-semibold text-white mb-5">Newsletter</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              Conseils e-commerce et nouveautés Ecomfy.
             </p>
-            <form onSubmit={handleNewsletterSubmit} className="space-y-2">
+            <form onSubmit={handleNewsletterSubmit} className="space-y-3">
               <Input
                 type="email"
                 placeholder="votre@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-[#0E7C66]"
               />
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full bg-[#0E7C66] hover:bg-[#0A5F4F] text-white">
                 S'inscrire
               </Button>
             </form>
           </div>
         </div>
 
-        {/* Réseaux sociaux & Copyright */}
-        <div className="border-t pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Ecomfy. Tous droits réservés.
-            </p>
-            
-            <div className="flex gap-4">
-              {socialLinks.map((social, idx) => (
-                <a
-                  key={idx}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-primary/10 hover:bg-primary hover:text-primary-foreground flex items-center justify-center transition-all hover:scale-110"
-                  aria-label={social.label}
-                >
-                  <social.icon className="w-5 h-5" />
-                </a>
-              ))}
-            </div>
+        <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-sm text-slate-500">
+            © {new Date().getFullYear()} Ecomfy. Tous droits réservés.
+          </p>
+          
+          <div className="flex items-center gap-4 text-sm text-slate-500">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              Tous les systèmes sont opérationnels
+            </span>
           </div>
         </div>
       </div>

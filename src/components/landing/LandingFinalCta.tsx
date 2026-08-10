@@ -24,10 +24,10 @@ export function LandingFinalCta() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-32 bg-[#0E7C66] rounded-[100%] filter blur-[80px] opacity-40 animate-pulse"></div>
           
           <h2 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight relative z-10">
-            Prêt à changer la donne ?
+            Votre prochain client pourrait <br /> commander aujourd'hui.
           </h2>
           <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-10 relative z-10">
-            Rejoignez des milliers d'entrepreneurs africains. Lancez votre boutique, créez vos publicités avec l'IA et commencez à vendre dès aujourd'hui.
+            Rejoignez des milliers d'entrepreneurs africains. Lancez votre boutique, créez vos produits avec l'IA et commencez à vendre en quelques minutes.
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">

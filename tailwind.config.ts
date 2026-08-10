@@ -101,17 +101,13 @@ export default {
             transform: "scale(1.02)" 
           },
         },
-        "float": {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-14px)" },
+        "scroll": {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
         },
-        "float-slow": {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-10px)" },
-        },
-        "shimmer-glow": {
-          "0%, 100%": { opacity: "0.5" },
-          "50%": { opacity: "1" },
+        "scan": {
+          "0%": { transform: "translateY(-100%)" },
+          "100%": { transform: "translateY(100%)" },
         },
       },
       animation: {
@@ -122,8 +118,11 @@ export default {
         "float": "float 4s ease-in-out infinite",
         "float-slow": "float-slow 6s ease-in-out infinite 0.8s",
         "shimmer-glow": "shimmer-glow 3s ease-in-out infinite",
+        "scroll": "scroll 40s linear infinite",
+        "scan": "scan 2s linear infinite",
       },
     },
+
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

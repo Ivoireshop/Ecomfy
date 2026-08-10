@@ -5,7 +5,7 @@ import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import logo from "@/assets/ecomfy-logo.svg";
+import logo from "@/assets/ecomfy-logo.png";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { AICreditsBadge } from "@/components/AICreditsBadge";
@@ -21,12 +21,11 @@ export function Header() {
   const communityUnread = useCommunityUnread();
 
   const menuItems = [
-    { label: t("header.home"), href: "/" },
-    { label: t("header.features"), href: "/#services" },
-    { label: t("header.pricing"), href: "/subscription" },
-    { label: t("header.tutorial"), href: "/tutorial" },
-    { label: t("header.demo"), href: "/demo" },
-    { label: t("header.community", "Communauté"), href: "/community", key: "community" },
+    { label: "Fonctionnalités", href: "/#features" },
+    { label: "Solutions", href: "/#solutions" },
+    { label: "Comment ça marche", href: "/#how-it-works" },
+    { label: "Tarifs", href: "/#pricing" },
+    { label: "Ressources", href: "/#resources" },
   ];
 
   const scrollToHash = (hash: string) => {
@@ -57,7 +56,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div
@@ -65,12 +64,12 @@ export function Header() {
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
           >
             <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
-            <span className="text-xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <span className="text-xl font-extrabold text-[#0E7C66]">
               Ecomfy
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-8">
             {menuItems.map((item) => (
               <a
                 key={item.href}
@@ -82,11 +81,6 @@ export function Header() {
                 className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}
-                {(item as any).key === "community" && communityUnread > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse">
-                    {communityUnread > 99 ? "99+" : communityUnread}
-                  </span>
-                )}
               </a>
             ))}
           </nav>
@@ -96,12 +90,15 @@ export function Header() {
             <LanguageSelector />
             {isAuthenticated && <AICreditsBadge />}
             {!isAuthenticated && (
-              <Button variant="ghost" onClick={() => navigate("/auth")}>
-                {t("common.login")}
+              <Button variant="ghost" onClick={() => navigate("/auth")} className="font-medium">
+                Se connecter
               </Button>
             )}
-            <Button onClick={() => navigate(isAuthenticated ? "/" : "/auth")}>
-              {isAuthenticated ? t("common.myAccount") : t("common.start")}
+            <Button 
+              onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
+              className="bg-[#0E7C66] hover:bg-[#0A5F4F] text-white rounded-full px-6 font-semibold shadow-sm hover:shadow-md transition-all btn-interactive"
+            >
+              {isAuthenticated ? "Accéder à mon espace" : "Créer mon compte"}
             </Button>
           </div>
 
@@ -111,7 +108,7 @@ export function Header() {
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Menu className="h-6 w-6" />
-                  <span className="sr-only">{t("header.openMenu")}</span>
+                  <span className="sr-only">Ouvrir le menu</span>
                 </Button>
               </SheetTrigger>
             </div>
@@ -119,7 +116,7 @@ export function Header() {
               <div className="flex flex-col gap-6 mt-8">
                 <div className="flex items-center gap-2 mb-4">
                   <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
-                  <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  <span className="text-xl font-bold text-[#0E7C66]">
                     Ecomfy
                   </span>
                 </div>
@@ -137,44 +134,39 @@ export function Header() {
                       }}
                     >
                       {item.label}
-                      {(item as any).key === "community" && communityUnread > 0 && (
-                        <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
-                          {communityUnread > 99 ? "99+" : communityUnread}
-                        </span>
-                      )}
                     </a>
                   ))}
                 </nav>
 
                 <div className="flex flex-col gap-3 mt-6 pt-6 border-t">
                   <div className="flex items-center justify-between px-2 mb-2">
-                    <span className="text-sm text-muted-foreground">{t("common.theme")}</span>
+                    <span className="text-sm text-muted-foreground">Thème</span>
                     <ThemeToggle />
                   </div>
                   <div className="flex items-center justify-between px-2 mb-2">
-                    <span className="text-sm text-muted-foreground">{t("common.language")}</span>
+                    <span className="text-sm text-muted-foreground">Langue</span>
                     <LanguageSelector showLabel />
                   </div>
                   {!isAuthenticated && (
                     <Button
                       variant="outline"
-                      className="w-full"
+                      className="w-full rounded-full"
                       onClick={() => {
                         navigate("/auth");
                         setIsOpen(false);
                       }}
                     >
-                      {t("common.login")}
+                      Se connecter
                     </Button>
                   )}
                   <Button
-                    className="w-full"
+                    className="w-full bg-[#0E7C66] hover:bg-[#0A5F4F] text-white rounded-full font-semibold"
                     onClick={() => {
-                      navigate(isAuthenticated ? "/" : "/auth");
+                      navigate(isAuthenticated ? "/dashboard" : "/auth");
                       setIsOpen(false);
                     }}
                   >
-                    {isAuthenticated ? t("common.myAccount") : t("common.start")}
+                    {isAuthenticated ? "Accéder à mon espace" : "Créer mon compte"}
                   </Button>
                 </div>
               </div>

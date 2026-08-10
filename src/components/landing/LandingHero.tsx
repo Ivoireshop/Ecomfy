@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { ArrowRight, PlayCircle, Sparkles } from "lucide-react";
+import { useState, useRef } from "react";
+import { ArrowRight, PlayCircle, Sparkles, ShoppingBag, TrendingUp, ImageIcon, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import heroDesktop from "@/assets/hero-desktop-dashboard.jpg";
@@ -18,15 +18,12 @@ export function LandingHero() {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!sectionRef.current) return;
     const { innerWidth, innerHeight } = window;
-    // Calcule la position de la souris par rapport au centre de l'écran (-1 à 1)
     const x = (e.clientX / innerWidth - 0.5) * 2;
     const y = (e.clientY / innerHeight - 0.5) * 2;
-    // Rotation max de 15 degrés
     setMousePos({ x: x * 15, y: -y * 15 });
   };
 
   const handleMouseLeave = () => {
-    // Retour doux à la position initiale
     setMousePos({ x: 0, y: 0 });
   };
 
@@ -35,7 +32,7 @@ export function LandingHero() {
       ref={sectionRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="relative w-full overflow-hidden bg-[#0F1B2C] text-white pt-24 md:pt-32 pb-20 md:pb-32 [perspective:2000px]"
+      className="relative w-full overflow-hidden bg-[#0F1B2C] text-white pt-24 md:pt-32 pb-20 md:pb-40 [perspective:2000px]"
     >
       {/* Background gradients */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -49,34 +46,36 @@ export function LandingHero() {
           className={`flex flex-col items-center text-center max-w-5xl mx-auto transition-all duration-1000 transform ${isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"}`}
         >
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-semibold mb-8 backdrop-blur-sm animate-bounce">
-            <Sparkles className="w-3.5 h-3.5 text-[#F7C04A]" />
-            <span>L'avenir du e-commerce en Afrique</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0E7C66]/20 border border-[#0E7C66]/50 text-[#E3F1EC] text-sm font-semibold mb-8 backdrop-blur-sm">
+            <Sparkles className="w-4 h-4 text-[#F7C04A]" />
+            <span>La plateforme tout-en-un pour vendre en ligne</span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-[5rem] font-extrabold tracking-tight leading-[1.05] mb-6">
-            Votre business en ligne, <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E3F1EC] to-[#0E7C66]">propulsé par l'IA.</span>
+          <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] font-extrabold tracking-tight leading-[1.05] mb-8">
+            Créez. Vendez. Gérez. <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E3F1EC] to-[#0E7C66]">
+              Développez votre business.
+            </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-lg md:text-xl text-slate-300 max-w-2xl mb-10 leading-relaxed">
-            Créez des visuels percutants, des vidéos engageantes et lancez votre boutique e-commerce en quelques minutes. Une seule plateforme pour tout gérer.
+          <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto mb-12 leading-relaxed">
+            Créez votre boutique, concevez vos contenus avec l'IA, gérez vos commandes, votre stock, vos finances et développez vos ventes depuis une seule plateforme.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-16">
+          <div className="flex flex-col sm:flex-row gap-4 mb-20 justify-center">
             <Button 
               size="lg" 
-              className="bg-white text-[#0F1B2C] hover:bg-gray-100 px-8 py-7 text-lg rounded-full font-bold transition-all hover:scale-110 hover:shadow-[0_0_40px_rgba(14,124,102,0.4)]"
+              className="bg-[#0E7C66] text-white hover:bg-[#0A5F4F] px-8 py-7 text-lg rounded-full font-bold transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(14,124,102,0.5)]"
               onMouseEnter={playHoverSound}
               onClick={() => {
                 playClickSound();
                 navigate("/auth");
               }}
             >
-              Démarrer gratuitement
+              Créer mon compte
             </Button>
             <Button 
               size="lg" 
@@ -85,17 +84,17 @@ export function LandingHero() {
               onMouseEnter={playHoverSound}
               onClick={() => {
                 playClickSound();
-                const el = document.getElementById("demo-video");
+                const el = document.getElementById("solutions");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              <PlayCircle className="mr-2 h-5 w-5" />
-              Voir comment ça marche
+              <ArrowRight className="mr-2 h-5 w-5" />
+              Découvrir Ecomfy
             </Button>
           </div>
         </div>
 
-        {/* Dashboard Mockup - 3D Parallax effect */}
+        {/* Dashboard Mockup - 3D Parallax effect avec Micro-cartes */}
         <div 
           className={`relative mx-auto max-w-5xl transition-all duration-1000 delay-300 transform ${isVisible ? "opacity-100" : "translate-y-24 opacity-0"}`}
           style={{
@@ -106,15 +105,16 @@ export function LandingHero() {
             transition: "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
           }}
         >
+          {/* Main Dashboard Image */}
           <div 
-            className="rounded-2xl md:rounded-[2rem] border border-white/10 bg-white/5 p-2 md:p-4 shadow-2xl backdrop-blur-md"
-            style={{ transform: "translateZ(30px)" }} // Fait ressortir le cadre en 3D
+            className="rounded-2xl md:rounded-[2rem] border border-white/10 bg-white/5 p-2 md:p-4 shadow-2xl backdrop-blur-md relative"
+            style={{ transform: "translateZ(30px)" }}
           >
-            <div className="rounded-xl md:rounded-2xl overflow-hidden border border-white/10 bg-[#0a0f18] relative">
+            <div className="rounded-xl md:rounded-2xl overflow-hidden border border-slate-800 bg-[#0a0f18] relative shadow-[0_0_50px_rgba(0,0,0,0.5)]">
               <img 
                 src={heroDesktop} 
                 alt="Ecomfy Dashboard" 
-                className="w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500"
+                className="w-full h-auto opacity-90"
               />
               {/* Dynamic light reflection based on mouse */}
               <div 
@@ -124,6 +124,55 @@ export function LandingHero() {
                 }}
               ></div>
             </div>
+            
+            {/* Widget: Nouvelle commande */}
+            <div 
+              className="absolute -left-12 top-1/4 animate-float bg-white rounded-xl p-4 shadow-xl border border-slate-100 flex items-center gap-4 z-20 hidden lg:flex"
+              style={{ transform: "translateZ(60px)" }}
+            >
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <ShoppingBag className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">À l'instant</p>
+                <p className="text-sm font-bold text-slate-900">Nouvelle commande</p>
+                <p className="text-xs text-green-600 font-semibold">+ 45 000 FCFA</p>
+              </div>
+            </div>
+
+            {/* Widget: Visuel généré */}
+            <div 
+              className="absolute -right-8 top-1/3 animate-float-slow bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex items-center gap-3 z-20 hidden md:flex"
+              style={{ transform: "translateZ(80px)" }}
+            >
+              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <ImageIcon className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="pr-4">
+                <p className="text-sm font-bold text-slate-900">Visuel IA généré</p>
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-green-500" /> Prêt pour Instagram
+                </p>
+              </div>
+            </div>
+
+            {/* Widget: Chiffre d'affaires */}
+            <div 
+              className="absolute -right-16 bottom-1/4 animate-float bg-white rounded-xl p-4 shadow-xl border border-slate-100 flex flex-col gap-2 z-20 hidden lg:flex"
+              style={{ transform: "translateZ(50px)" }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-orange-600" />
+                </div>
+                <p className="text-sm font-bold text-slate-900">Chiffre d'affaires</p>
+              </div>
+              <p className="text-xl font-black text-slate-900">2,450,000 FCFA</p>
+              <p className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                +18% <span className="text-slate-400 font-normal">cette semaine</span>
+              </p>
+            </div>
+            
           </div>
         </div>
       </div>
