@@ -3,6 +3,10 @@ import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
+import step1Img from "@/assets/ecommerce-shopping.jpg";
+import step2Img from "@/assets/feature-ia.jpg";
+import step3Img from "@/assets/ecommerce-product-page.jpg";
+
 export function LandingHowItWorks() {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
   const navigate = useNavigate();
@@ -12,21 +16,21 @@ export function LandingHowItWorks() {
       icon: <UserPlus className="w-6 h-6 text-[#0E7C66]" />,
       title: "1. Créez votre compte",
       description: "Inscrivez-vous en 30 secondes. Aucune carte bancaire requise, aucun engagement.",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=400&h=300",
+      image: step1Img,
       delay: "0ms"
     },
     {
       icon: <Settings className="w-6 h-6 text-blue-600" />,
       title: "2. Personnalisez",
       description: "Choisissez vos couleurs, générez vos produits avec l'IA et ajoutez vos moyens de paiement.",
-      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=400&h=300",
+      image: step2Img,
       delay: "150ms"
     },
     {
       icon: <Rocket className="w-6 h-6 text-orange-600" />,
       title: "3. Lancez vos ventes",
       description: "Partagez votre lien et encaissez vos premiers clients partout dans le monde.",
-      image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&q=80&w=400&h=300",
+      image: step3Img,
       delay: "300ms"
     }
   ];

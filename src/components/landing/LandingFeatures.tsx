@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { Store, Palette, Globe, CheckCircle2, TrendingUp, Sparkles, Box, ShieldCheck, Wallet, Bot } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
+import fashionImg from "@/assets/example-fashion-ad.jpg";
+import handbagImg from "@/assets/example-handbag-ad.jpg";
+import aiGeneratedImg from "@/assets/example-beauty-ad.jpg";
+
 const features = [
   {
     id: "create",
@@ -40,10 +44,10 @@ const features = [
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="h-24 bg-slate-100 rounded-lg overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200&h=200" alt="Sneakers" className="w-full h-full object-cover" />
+                  <img src={fashionImg} alt="Mode" className="w-full h-full object-cover" />
                 </div>
                 <div className="h-24 bg-slate-100 rounded-lg overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=200&h=200" alt="Montre" className="w-full h-full object-cover" />
+                  <img src={handbagImg} alt="Accessoire" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
@@ -128,7 +132,7 @@ const features = [
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
               </div>
               <div className="bg-purple-600 text-white rounded-2xl rounded-tr-none p-2 text-sm shadow-md">
-                <img src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&q=80&w=300&h=200" className="w-full rounded-xl object-cover mb-2" alt="AI Generated" />
+                <img src={aiGeneratedImg} className="w-full rounded-xl object-cover mb-2" alt="AI Generated" />
                 <p className="px-1">Voici le résultat professionnel !</p>
               </div>
             </div>
