@@ -23,7 +23,7 @@ export function LandingPillarFinance() {
   ];
 
   return (
-    <section className="py-24 bg-white overflow-hidden border-t border-slate-100">
+    <section id="finance" className="py-24 bg-white overflow-hidden border-t border-slate-100">
       <div className="container mx-auto px-4">
         <div 
           ref={ref}

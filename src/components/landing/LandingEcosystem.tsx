@@ -15,7 +15,7 @@ export function LandingEcosystem() {
   ];
 
   return (
-    <section className="py-24 bg-slate-50 border-t border-slate-100 overflow-hidden">
+    <section id="resources" className="py-24 bg-slate-50 border-t border-slate-100 overflow-hidden">
       <div className="container mx-auto px-4">
         <div 
           ref={ref}

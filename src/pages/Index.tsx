@@ -20,6 +20,7 @@ import { LandingPersonas } from "@/components/landing/LandingPersonas";
 import { LandingStats } from "@/components/landing/LandingStats";
 import { LandingTestimonials } from "@/components/landing/LandingTestimonials";
 import { LandingFaq } from "@/components/landing/LandingFaq";
+import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFinalCta } from "@/components/landing/LandingFinalCta";
 
 const Index = () => {
@@ -86,6 +87,9 @@ const Index = () => {
         {/* Chiffres & Confiance */}
         <LandingStats />
         <LandingTestimonials />
+
+        {/* Tarifs */}
+        <LandingPricing />
 
         {/* FAQ */}
         <LandingFaq />

@@ -29,7 +29,7 @@ export function LandingHowItWorks() {
   ];
 
   return (
-    <section className="py-24 bg-[#0F1B2C] text-white">
+    <section id="how-it-works" className="py-24 bg-[#0F1B2C] text-white">
       <div className="container mx-auto px-4">
         <div 
           ref={ref}
