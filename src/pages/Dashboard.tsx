@@ -48,7 +48,7 @@ const Dashboard = () => {
       .then(({ data }) => setProfile(data ?? null));
   }, [isReady, session, navigate]);
 
-  const firstName = profile?.full_name?.split(" ")[0] ?? "Utilisateur";
+  const firstName = profile?.full_name?.split(" ")[0] || "Utilisateur";
   const initials = firstName.substring(0, 2).toUpperCase();
   const currentDate = format(new Date(), "dd MMM yyyy", { locale: fr });
 

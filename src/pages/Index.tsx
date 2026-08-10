@@ -9,11 +9,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingTrust } from "@/components/landing/LandingTrust";
 import { LandingPositioning } from "@/components/landing/LandingPositioning";
-import { LandingPillarCreate } from "@/components/landing/LandingPillarCreate";
-import { LandingPillarSell } from "@/components/landing/LandingPillarSell";
-import { LandingPillarAI } from "@/components/landing/LandingPillarAI";
-import { LandingPillarManage } from "@/components/landing/LandingPillarManage";
-import { LandingPillarFinance } from "@/components/landing/LandingPillarFinance";
+import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingEcosystem } from "@/components/landing/LandingEcosystem";
 import { LandingPersonas } from "@/components/landing/LandingPersonas";
@@ -68,12 +64,8 @@ const Index = () => {
         {/* Positionnement global */}
         <LandingPositioning />
 
-        {/* Piliers du produit */}
-        <LandingPillarCreate />
-        <LandingPillarSell />
-        <LandingPillarAI />
-        <LandingPillarManage />
-        <LandingPillarFinance />
+        {/* Fonctionnalités principales (Sticky Scroll) */}
+        <LandingFeatures />
 
         {/* Personas (Cibles) */}
         <LandingPersonas />

@@ -88,7 +88,7 @@ export function UserAvatar() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-semibold truncate">
-                {profile?.full_name || "Utilisateur"}
+                {profile?.full_name?.split(" ")[0] || "Utilisateur"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 {profile?.email}
