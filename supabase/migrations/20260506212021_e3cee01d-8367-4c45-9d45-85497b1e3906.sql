@@ -39,37 +39,37 @@ WITH CHECK (bucket_id = 'generated-content');
 
 -- 2. Realtime RLS — restreindre subscriptions aux propriétaires
 -- realtime.messages = canal de broadcast Postgres Changes
-ALTER TABLE IF EXISTS realtime.messages ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE IF EXISTS realtime.messages ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Shop owners receive their order changes" ON realtime.messages;
-CREATE POLICY "Shop owners receive their order changes"
-ON realtime.messages FOR SELECT
-TO authenticated
-USING (
-  -- topic format attendu: "shop:<shop_id>"
-  (
-    extension = 'postgres_changes'
-    AND (
-      -- Restreint l'écoute aux topics commençant par shop:<id> dont l'utilisateur est propriétaire
-      EXISTS (
-        SELECT 1 FROM public.shops s
-        WHERE s.user_id = auth.uid()
-          AND topic = 'shop:' || s.id::text
-      )
-      OR EXISTS (
-        SELECT 1 FROM public.generated_videos v
-        WHERE v.user_id = auth.uid()
-          AND topic = 'user:' || v.user_id::text
-      )
-      OR EXISTS (
-        SELECT 1 FROM public.generation_queue q
-        WHERE q.user_id = auth.uid()
-          AND topic = 'user:' || q.user_id::text
-      )
-    )
-  )
-  OR extension <> 'postgres_changes'
-);
+-- DROP POLICY IF EXISTS "Shop owners receive their order changes" ON realtime.messages;
+-- CREATE POLICY "Shop owners receive their order changes"
+-- ON realtime.messages FOR SELECT
+-- TO authenticated
+-- USING (
+--   -- topic format attendu: "shop:<shop_id>"
+--   (
+--     extension = 'postgres_changes'
+--     AND (
+--       -- Restreint l'écoute aux topics commençant par shop:<id> dont l'utilisateur est propriétaire
+--       EXISTS (
+--         SELECT 1 FROM public.shops s
+--         WHERE s.user_id = auth.uid()
+--           AND topic = 'shop:' || s.id::text
+--       )
+--       OR EXISTS (
+--         SELECT 1 FROM public.generated_videos v
+--         WHERE v.user_id = auth.uid()
+--           AND topic = 'user:' || v.user_id::text
+--       )
+--       OR EXISTS (
+--         SELECT 1 FROM public.generation_queue q
+--         WHERE q.user_id = auth.uid()
+--           AND topic = 'user:' || q.user_id::text
+--       )
+--     )
+--   )
+--   OR extension <> 'postgres_changes'
+-- );
 
 -- 3. Search path mutable — sécuriser fonctions restantes
 ALTER FUNCTION public.update_bookings_updated_at() SET search_path = public;
