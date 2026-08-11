@@ -20,7 +20,7 @@ export function LandingFaq() {
     },
     {
       question: "Comment puis-je recevoir mes paiements ?",
-      answer: "Nous intégrons nativement les moyens de paiement locaux via CinetPay (Wave, Orange Money, MTN, Moov) et internationaux via Stripe (Visa, Mastercard, Apple Pay). L'argent va directement sur votre compte, Ecomfy ne prend aucune commission sur vos ventes."
+      answer: "Nous intégrons nativement les moyens de paiement locaux via Genius Pay (Wave, Orange Money, MTN, Moov) et vos expéditions via les Structures de livraison. L'argent va directement sur votre compte, Ecomfy ne prend aucune commission sur vos ventes."
     },
     {
       question: "Puis-je gérer Ecomfy depuis mon téléphone ?",

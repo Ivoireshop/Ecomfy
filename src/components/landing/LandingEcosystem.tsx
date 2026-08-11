@@ -5,8 +5,8 @@ export function LandingEcosystem() {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
 
   const integrations = [
-    { name: "CinetPay", type: "Paiement" },
-    { name: "Stripe", type: "Paiement" },
+    { name: "Genius Pay", type: "Paiement" },
+    { name: "Structures de livraison", type: "Logistique" },
     { name: "Wave", type: "Mobile Money" },
     { name: "Orange Money", type: "Mobile Money" },
     { name: "WhatsApp", type: "Support & Vente" },
@@ -44,27 +44,27 @@ export function LandingEcosystem() {
 
             {/* Integration Nodes (using CSS positioning for a simple orbit look) */}
             <div className="absolute top-[10%] left-[25%] animate-float">
-              <div className="bg-white px-4 py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-blue-600">Wave</div>
+              <div className="bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-xs md:text-base text-blue-600 whitespace-nowrap">Wave</div>
             </div>
             
             <div className="absolute top-[20%] right-[20%] animate-float-slow">
-              <div className="bg-white px-4 py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-orange-500">Orange Money</div>
+              <div className="bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-xs md:text-base text-orange-500 whitespace-nowrap">Orange Money</div>
             </div>
 
             <div className="absolute bottom-[20%] left-[15%] animate-float">
-              <div className="bg-white px-4 py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-green-500">WhatsApp</div>
+              <div className="bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-xs md:text-base text-green-500 whitespace-nowrap">WhatsApp</div>
             </div>
 
-            <div className="absolute bottom-[10%] right-[25%] animate-float-slow">
-              <div className="bg-white px-4 py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-[#635BFF]">Stripe</div>
+            <div className="absolute bottom-[10%] right-[25%] animate-float-slow z-30">
+              <div className="bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-xs md:text-sm text-[#635BFF] whitespace-nowrap">Structures de livraison</div>
             </div>
 
-            <div className="absolute top-[50%] left-[10%] -translate-y-1/2 animate-float-slow">
-              <div className="bg-white px-4 py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-slate-800">CinetPay</div>
+            <div className="absolute top-[50%] left-[5%] md:left-[10%] -translate-y-1/2 animate-float-slow z-30">
+              <div className="bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-xs md:text-base text-slate-800 whitespace-nowrap">Genius Pay</div>
             </div>
 
-            <div className="absolute top-[50%] right-[10%] -translate-y-1/2 animate-float">
-              <div className="bg-white px-4 py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-blue-500">Meta Pixel</div>
+            <div className="absolute top-[50%] right-[5%] md:right-[10%] -translate-y-1/2 animate-float z-30">
+              <div className="bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-lg border border-slate-100 font-bold text-xs md:text-base text-blue-500 whitespace-nowrap">Meta Pixel</div>
             </div>
           </div>
         </div>

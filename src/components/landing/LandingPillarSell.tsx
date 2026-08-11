@@ -18,7 +18,7 @@ export function LandingPillarSell() {
     {
       icon: <Smartphone className="w-5 h-5 text-blue-500" />,
       title: "Paiement Mobile Money",
-      description: "Intégration CinetPay pour accepter Wave, Orange Money et MTN."
+      description: "Intégration Genius Pay pour accepter Wave, Orange Money et MTN."
     }
   ];
 
