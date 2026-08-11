@@ -6,7 +6,7 @@
  * Critical for low-bandwidth visitors (2G/3G/Android entry-level): a 1.5 MB
  * product photo becomes ~30-80 KB when requested at 200-400 px.
  */
-export function thumbUrl(url: string | null | undefined, width = 320, quality = 70): string {
+export function thumbUrl(url: string | null | undefined, width = 320, quality = 85): string {
   if (!url) return "";
   // Only rewrite Supabase Storage public object URLs
   // e.g. https://xxx.supabase.co/storage/v1/object/public/<bucket>/<path>

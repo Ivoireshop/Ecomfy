@@ -733,6 +733,313 @@ const ProductView = () => {
   // Optional professional themes — only activates when a known theme_slug is set
   // on themeSettings and the URL does not force classic mode. Falls back to the
   // legacy view on error via internal reload.
+  const globalOverlays = (
+    <>
+      {/* ====== CHECKOUT DIALOG ====== */}
+      <Dialog open={checkoutOpen} onOpenChange={(open) => { setCheckoutOpen(open); if (!open) { setCheckoutStep("cart"); setOrderSuccess(false); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-0">
+          {orderSuccess ? (
+            <div className="text-center py-12 px-6">
+              <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: primaryColor + "15" }}>
+                <CheckCircle2 className="h-10 w-10" style={{ color: primaryColor }} />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Commande confirmée ! 🎉</h2>
+              <p className="text-gray-500 mb-6">Le vendeur vous contactera sous peu.</p>
+              <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); setCheckoutStep("cart"); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
+                Continuer mes achats
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="px-6 pt-6 pb-2">
+                <div className="flex items-center justify-between mb-1">
+                  {[
+                    { key: "cart", label: "Panier", icon: ShoppingBag },
+                    { key: "info", label: "Livraison", icon: Truck },
+                    { key: "confirm", label: "Paiement", icon: CreditCard },
+                  ].map((step, i) => {
+                    const steps = ["cart", "info", "confirm"];
+                    const currentIdx = steps.indexOf(checkoutStep);
+                    const isActive = i === currentIdx;
+                    const isDone = i < currentIdx;
+                    return (
+                      <div key={step.key} className="flex items-center flex-1">
+                        <div className="flex flex-col items-center flex-1">
+                          <div className={`h-9 w-9 rounded-full flex items-center justify-center mb-1 transition-colors ${!isDone && !isActive ? "bg-gray-100 text-gray-400" : "text-white"}`} style={isDone || isActive ? { backgroundColor: primaryColor } : {}}>
+                            {isDone ? <CheckCircle2 className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
+                          </div>
+                          <span className={`text-[11px] font-medium ${isActive ? "text-gray-900" : "text-gray-400"}`}>{step.label}</span>
+                        </div>
+                        {i < 2 && <div className={`h-0.5 flex-1 mx-1 rounded-full mt-[-14px] ${isDone ? "" : "bg-gray-200"}`} style={isDone ? { backgroundColor: primaryColor } : {}} />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {checkoutStep === "cart" && (
+                <div className="px-6 pb-6">
+                  {cart.length === 0 ? (
+                    <div className="text-center py-12">
+                      <ShoppingBag className="h-16 w-16 mx-auto text-gray-200 mb-4" />
+                      <p className="font-medium">Votre panier est vide</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {cart.map(item => (
+                        <div key={item.product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="h-16 w-16 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+                            {item.product.product_images?.[0] && <img src={thumbUrl(item.product.product_images[0].image_url, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{item.product.name}</p>
+                            <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
+                            <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-red-500" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="border-t pt-3 mt-3 flex justify-between">
+                        <span className="font-semibold text-lg">Total</span>
+                        <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                      </div>
+                      <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
+                        Continuer <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(checkoutStep === "info" || checkoutStep === "confirm") && (() => {
+                const cf: any[] = shop.checkout_fields || [];
+                const enabled = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+                };
+                const required = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.required : ["first_name","phone","city"].includes(id);
+                };
+                const showFullName = enabled("first_name") && enabled("last_name");
+                const showFirstOnly = enabled("first_name") && !enabled("last_name");
+                const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
+                const canSubmit =
+                  (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
+                  (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
+                  (!enabled("city") || !required("city") || !!customerInfo.city) &&
+                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
+                  (!enabled("address") || !required("address") || !!customerInfo.address);
+                const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
+                const methods = isInterior
+                  ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
+                  : [
+                      { value: "cash_on_delivery", label: "À la livraison", icon: "💵" },
+                      { value: "mobile_money", label: "Mobile Money", icon: "📱" },
+                    ];
+                if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
+                  setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
+                }
+                return (
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
+                  <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
+                    <ArrowLeft className="h-3.5 w-3.5" /> Retour au panier
+                  </button>
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-xs">
+                    {cart.map(item => (
+                      <div key={item.product.id} className="flex justify-between">
+                        <span className="text-gray-500">{item.product.name} × {item.quantity}</span>
+                        <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
+                      <span>Total</span>
+                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2"><User className="h-3.5 w-3.5" style={{ color: primaryColor }} /><h4 className="font-bold text-xs">Vos informations</h4></div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {enabled("first_name") && (
+                        <div className="space-y-0.5 col-span-2">
+                          <Label className="text-[11px] text-gray-500">{nameLabel} {required("first_name") && "*"}</Label>
+                          <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                      {enabled("phone") && (
+                        <div className="space-y-0.5 col-span-2">
+                          <Label className="text-[11px] text-gray-500">Téléphone {required("phone") && "*"}</Label>
+                          <PhoneInput
+                            value={customerInfo.phone}
+                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                            defaultCountryHint={shop?.country}
+                            required={required("phone")}
+                          />
+                        </div>
+                      )}
+                      {enabled("email") && (
+                        <div className="space-y-0.5 col-span-2">
+                          <Label className="text-[11px] text-gray-500">Email {required("email") && "*"}</Label>
+                          <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                      {enabled("city") && (
+                        <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                          <Label className="text-[11px] text-gray-500">Ville {required("city") && "*"}</Label>
+                          <Input value={customerInfo.city} onChange={(e) => {
+                            const raw = e.target.value;
+                            const cleaned = stripDigits(raw);
+                            setCustomerInfo({ ...customerInfo, city: cleaned });
+                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                            else if (cityError) setCityError("");
+                          }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                          {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
+                        </div>
+                      )}
+                      {enabled("address") && (
+                        <div className={`space-y-0.5 col-span-2 ${enabled("city") ? "sm:col-span-1" : ""}`}>
+                          <Label className="text-[11px] text-gray-500">Adresse {required("address") && "*"}</Label>
+                          <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-lg h-10 text-sm" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-xs">Mode de paiement</h4></div>
+                    {isInterior && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-800">
+                        ⚠️ Hors Abidjan : Mobile Money obligatoire.
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      {methods.map(method => (
+                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200"}`}
+                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+                        >
+                          <span className="text-lg">{method.icon}</span>
+                          <p className="font-semibold text-xs">{method.label}</p>
+                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto" style={{ color: primaryColor }} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button className="w-full h-11 rounded-xl text-sm font-bold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
+                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
+                  </Button>
+                </div>
+                );
+              })()}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Chatbot */}
+      {shop.chatbot_enabled && (
+        <>
+          <button onClick={() => setChatOpen(!chatOpen)} className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-xl flex items-center justify-center z-50 text-white transition-transform hover:scale-110" style={{ backgroundColor: primaryColor }}>
+            {chatOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+          </button>
+          {chatOpen && (
+            <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-white border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden" style={{ height: "420px" }}>
+              <div className="px-4 py-3 border-b text-white font-semibold flex items-center gap-2" style={{ backgroundColor: primaryColor }}>
+                <MessageCircle className="h-5 w-5" /> Assistant {shop.business_name}
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${msg.role === "user" ? "text-white rounded-br-md" : "bg-gray-100 rounded-bl-md"}`} style={msg.role === "user" ? { backgroundColor: primaryColor } : {}}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">
+                      <div className="flex gap-1"><div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" /><div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0.1s" }} /><div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0.2s" }} /></div>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="p-3 border-t flex gap-2">
+                <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Votre message..." onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} className="flex-1 rounded-xl" />
+                <Button size="icon" onClick={sendChatMessage} disabled={chatLoading} className="rounded-xl text-white" style={{ backgroundColor: primaryColor }}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Floating Cart - Mobile */}
+      {!shop._isPreview && cartCount > 0 && !checkoutOpen && !shop.theme_config?.sticky_order_button && (
+        <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
+          <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}>
+            <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
+            <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
+          </Button>
+        </div>
+      )}
+
+      {/* Sticky Order Button - always visible when enabled */}
+      {!shop._isPreview && shop.theme_config?.sticky_order_button && product && (
+        <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3">
+          <div className="max-w-6xl mx-auto flex items-center gap-3">
+            <div className="flex-1 min-w-0 hidden sm:block">
+              <p className="font-bold text-sm truncate">{product.name}</p>
+              <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
+            </div>
+            <Button 
+              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none"
+              style={{ backgroundColor: primaryColor }}
+              onClick={() => {
+                if (shop.theme_config?.single_page_checkout) {
+                  addToCart(product, quantity, true, true);
+                  setShowInlineCheckout(true);
+                  setTimeout(() => {
+                    document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 80);
+                } else {
+                  addToCart(product, quantity, true, true);
+                  setCheckoutOpen(true);
+                  setCheckoutStep("info");
+                  setOrderSuccess(false);
+                }
+              }}
+              disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander maintenant"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {deferredReady && (
+        <Suspense fallback={null}>
+          <SocialProofNotification
+            shopId={shop.id}
+            enabled={shop.social_proof_enabled || false}
+            productName={product?.name}
+          />
+          <ShopAIAssistant
+            shopId={shop.id}
+            shopName={shop.business_name}
+            primaryColor={shop.primary_color}
+            secondaryColor={shop.secondary_color}
+          />
+        </Suspense>
+      )}
+    </>
+  );
+
   if (
     themeSettings?.theme_slug &&
     !new URLSearchParams(window.location.search).get("classic")
@@ -756,8 +1063,13 @@ const ProductView = () => {
             audios={productAudios}
             settings={themeSettings}
             fallback={null}
+            onCheckout={() => {
+              setCheckoutOpen(true);
+              setOrderSuccess(false);
+            }}
           />
         </Suspense>
+        {globalOverlays}
       </>
     );
   }
@@ -901,7 +1213,7 @@ const ProductView = () => {
             <div className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 relative group shadow-sm border border-gray-100">
               {images.length > 0 ? (
                 <img 
-                  src={thumbUrl(images[selectedImageIdx]?.image_url, 800)} 
+                  src={thumbUrl(images[selectedImageIdx]?.image_url, 1200)} 
                   alt={product.name} 
                   loading="eager"
                   decoding="async"
@@ -1522,308 +1834,7 @@ const ProductView = () => {
         </div>
       </footer>
 
-      {/* ====== CHECKOUT DIALOG ====== */}
-      <Dialog open={checkoutOpen} onOpenChange={(open) => { setCheckoutOpen(open); if (!open) { setCheckoutStep("cart"); setOrderSuccess(false); } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-0">
-          {orderSuccess ? (
-            <div className="text-center py-12 px-6">
-              <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: primaryColor + "15" }}>
-                <CheckCircle2 className="h-10 w-10" style={{ color: primaryColor }} />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Commande confirmée ! 🎉</h2>
-              <p className="text-gray-500 mb-6">Le vendeur vous contactera sous peu.</p>
-              <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); setCheckoutStep("cart"); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
-                Continuer mes achats
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="px-6 pt-6 pb-2">
-                <div className="flex items-center justify-between mb-1">
-                  {[
-                    { key: "cart", label: "Panier", icon: ShoppingBag },
-                    { key: "info", label: "Livraison", icon: Truck },
-                    { key: "confirm", label: "Paiement", icon: CreditCard },
-                  ].map((step, i) => {
-                    const steps = ["cart", "info", "confirm"];
-                    const currentIdx = steps.indexOf(checkoutStep);
-                    const isActive = i === currentIdx;
-                    const isDone = i < currentIdx;
-                    return (
-                      <div key={step.key} className="flex items-center flex-1">
-                        <div className="flex flex-col items-center flex-1">
-                          <div className={`h-9 w-9 rounded-full flex items-center justify-center mb-1 transition-colors ${!isDone && !isActive ? "bg-gray-100 text-gray-400" : "text-white"}`} style={isDone || isActive ? { backgroundColor: primaryColor } : {}}>
-                            {isDone ? <CheckCircle2 className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
-                          </div>
-                          <span className={`text-[11px] font-medium ${isActive ? "text-gray-900" : "text-gray-400"}`}>{step.label}</span>
-                        </div>
-                        {i < 2 && <div className={`h-0.5 flex-1 mx-1 rounded-full mt-[-14px] ${isDone ? "" : "bg-gray-200"}`} style={isDone ? { backgroundColor: primaryColor } : {}} />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {checkoutStep === "cart" && (
-                <div className="px-6 pb-6">
-                  {cart.length === 0 ? (
-                    <div className="text-center py-12">
-                      <ShoppingBag className="h-16 w-16 mx-auto text-gray-200 mb-4" />
-                      <p className="font-medium">Votre panier est vide</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {cart.map(item => (
-                        <div key={item.product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <div className="h-16 w-16 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                            {item.product.product_images?.[0] && <img src={thumbUrl(item.product.product_images[0].image_url, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                            <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
-                            <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-red-500" /></Button>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="border-t pt-3 mt-3 flex justify-between">
-                        <span className="font-semibold text-lg">Total</span>
-                        <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                      </div>
-                      <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
-                        Continuer <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(checkoutStep === "info" || checkoutStep === "confirm") && (() => {
-                const cf: any[] = shop.checkout_fields || [];
-                const enabled = (id: string) => {
-                  const f = cf.find((x: any) => x.id === id);
-                  return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
-                };
-                const required = (id: string) => {
-                  const f = cf.find((x: any) => x.id === id);
-                  return f ? !!f.required : ["first_name","phone","city"].includes(id);
-                };
-                const showFullName = enabled("first_name") && enabled("last_name");
-                const showFirstOnly = enabled("first_name") && !enabled("last_name");
-                const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
-                const canSubmit =
-                  (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
-                  (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
-                  (!enabled("city") || !required("city") || !!customerInfo.city) &&
-                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
-                  (!enabled("address") || !required("address") || !!customerInfo.address);
-                const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
-                const methods = isInterior
-                  ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
-                  : [
-                      { value: "cash_on_delivery", label: "À la livraison", icon: "💵" },
-                      { value: "mobile_money", label: "Mobile Money", icon: "📱" },
-                    ];
-                if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
-                  setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
-                }
-                return (
-                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
-                  <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
-                    <ArrowLeft className="h-3.5 w-3.5" /> Retour au panier
-                  </button>
-                  <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-xs">
-                    {cart.map(item => (
-                      <div key={item.product.id} className="flex justify-between">
-                        <span className="text-gray-500">{item.product.name} × {item.quantity}</span>
-                        <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
-                      </div>
-                    ))}
-                    <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
-                      <span>Total</span>
-                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2"><User className="h-3.5 w-3.5" style={{ color: primaryColor }} /><h4 className="font-bold text-xs">Vos informations</h4></div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {enabled("first_name") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-gray-500">{nameLabel} {required("first_name") && "*"}</Label>
-                          <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                      {enabled("phone") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-gray-500">Téléphone {required("phone") && "*"}</Label>
-                          <PhoneInput
-                            value={customerInfo.phone}
-                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
-                            defaultCountryHint={shop?.country}
-                            required={required("phone")}
-                          />
-                        </div>
-                      )}
-                      {enabled("email") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-gray-500">Email {required("email") && "*"}</Label>
-                          <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                      {enabled("city") && (
-                        <div className="space-y-0.5 col-span-2 sm:col-span-1">
-                          <Label className="text-[11px] text-gray-500">Ville {required("city") && "*"}</Label>
-                          <Input value={customerInfo.city} onChange={(e) => {
-                            const raw = e.target.value;
-                            const cleaned = stripDigits(raw);
-                            setCustomerInfo({ ...customerInfo, city: cleaned });
-                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
-                            else if (cityError) setCityError("");
-                          }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
-                          {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
-                        </div>
-                      )}
-                      {enabled("address") && (
-                        <div className={`space-y-0.5 col-span-2 ${enabled("city") ? "sm:col-span-1" : ""}`}>
-                          <Label className="text-[11px] text-gray-500">Adresse {required("address") && "*"}</Label>
-                          <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-xs">Mode de paiement</h4></div>
-                    {isInterior && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-800">
-                        ⚠️ Hors Abidjan : Mobile Money obligatoire.
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2">
-                      {methods.map(method => (
-                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200"}`}
-                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
-                        >
-                          <span className="text-lg">{method.icon}</span>
-                          <p className="font-semibold text-xs">{method.label}</p>
-                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto" style={{ color: primaryColor }} />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <Button className="w-full h-11 rounded-xl text-sm font-bold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
-                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
-                  </Button>
-                </div>
-                );
-              })()}
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Chatbot */}
-      {shop.chatbot_enabled && (
-        <>
-          <button onClick={() => setChatOpen(!chatOpen)} className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-xl flex items-center justify-center z-50 text-white transition-transform hover:scale-110" style={{ backgroundColor: primaryColor }}>
-            {chatOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-          </button>
-          {chatOpen && (
-            <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-white border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden" style={{ height: "420px" }}>
-              <div className="px-4 py-3 border-b text-white font-semibold flex items-center gap-2" style={{ backgroundColor: primaryColor }}>
-                <MessageCircle className="h-5 w-5" /> Assistant {shop.business_name}
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${msg.role === "user" ? "text-white rounded-br-md" : "bg-gray-100 rounded-bl-md"}`} style={msg.role === "user" ? { backgroundColor: primaryColor } : {}}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">
-                      <div className="flex gap-1"><div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" /><div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0.1s" }} /><div className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0.2s" }} /></div>
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-              <div className="p-3 border-t flex gap-2">
-                <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Votre message..." onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} className="flex-1 rounded-xl" />
-                <Button size="icon" onClick={sendChatMessage} disabled={chatLoading} className="rounded-xl text-white" style={{ backgroundColor: primaryColor }}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Floating Cart - Mobile */}
-      {!shop._isPreview && cartCount > 0 && !checkoutOpen && !shop.theme_config?.sticky_order_button && (
-        <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
-          <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}>
-            <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
-            <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
-          </Button>
-        </div>
-      )}
-
-      {/* Sticky Order Button - always visible when enabled */}
-      {!shop._isPreview && shop.theme_config?.sticky_order_button && product && (
-        <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3">
-          <div className="max-w-6xl mx-auto flex items-center gap-3">
-            <div className="flex-1 min-w-0 hidden sm:block">
-              <p className="font-bold text-sm truncate">{product.name}</p>
-              <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
-            </div>
-            <Button 
-              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none"
-              style={{ backgroundColor: primaryColor }}
-              onClick={() => {
-                if (shop.theme_config?.single_page_checkout) {
-                  addToCart(product, quantity, true, true);
-                  setShowInlineCheckout(true);
-                  setTimeout(() => {
-                    document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 80);
-                } else {
-                  addToCart(product, quantity, true, true);
-                  setCheckoutOpen(true);
-                  setCheckoutStep("info");
-                  setOrderSuccess(false);
-                }
-              }}
-              disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander maintenant"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {deferredReady && (
-        <Suspense fallback={null}>
-          <SocialProofNotification
-            shopId={shop.id}
-            enabled={shop.social_proof_enabled || false}
-            productName={product?.name}
-          />
-          <ShopAIAssistant
-            shopId={shop.id}
-            shopName={shop.business_name}
-            primaryColor={shop.primary_color}
-            secondaryColor={shop.secondary_color}
-          />
-        </Suspense>
-      )}
+      {globalOverlays}
     </div>
   );
 };

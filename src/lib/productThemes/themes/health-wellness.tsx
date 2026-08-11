@@ -13,7 +13,7 @@ import {
   LongDescription,
 } from "../ThemeShared";
 
-export default function HealthWellness({ data }: ThemeProps) {
+export default function HealthWellness({ data, onCheckout }: ThemeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-emerald-50/40 text-slate-800">
       <header className="max-w-4xl mx-auto px-4 pt-6 pb-8 sm:pt-10 grid md:grid-cols-2 gap-6 items-center">
@@ -25,7 +25,7 @@ export default function HealthWellness({ data }: ThemeProps) {
           {data.shortDescription && <p className="text-lg text-slate-600">{data.shortDescription}</p>}
           <PriceBlock data={data} />
           <div className="flex flex-wrap gap-2">
-            <CTAButton data={data} big style={{ background: "#059669" }} />
+            <CTAButton data={data} onCheckout={onCheckout} big style={{ background: "#059669" }} />
             <WhatsAppButton data={data} />
           </div>
         </div>
@@ -55,11 +55,11 @@ export default function HealthWellness({ data }: ThemeProps) {
         <Guarantees data={data} />
         <section className="text-center space-y-3 py-6">
           <h2 className="text-2xl font-bold">Prenez soin de vous dès aujourd'hui</h2>
-          <CTAButton data={data} big style={{ background: "#059669" }} />
+          <CTAButton data={data} onCheckout={onCheckout} big style={{ background: "#059669" }} />
         </section>
       </main>
       <ShopFooter data={data} />
-      <StickyMobileCTA data={data} />
+      <StickyMobileCTA data={data} onCheckout={onCheckout} />
       <div className="h-16 md:hidden" />
     </div>
   );

@@ -10,7 +10,7 @@ import {
 } from "../ThemeShared";
 import { formatPrice } from "../dataAdapter";
 
-export default function LuxuryDark({ data }: ThemeProps) {
+export default function LuxuryDark({ data, onCheckout }: ThemeProps) {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <section className="relative">
@@ -35,7 +35,7 @@ export default function LuxuryDark({ data }: ThemeProps) {
             )}
           </div>
           <div className="mt-5">
-            <CTAButton data={data} big className="!bg-white !text-neutral-900 hover:!bg-neutral-100" />
+            <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-neutral-900 hover:!bg-neutral-100" />
           </div>
         </div>
       </section>
@@ -67,12 +67,12 @@ export default function LuxuryDark({ data }: ThemeProps) {
         <section className="text-center border-t border-neutral-800 pt-10">
           <h2 className="text-2xl font-light tracking-wide">Une pièce d'exception</h2>
           <div className="mt-5">
-            <CTAButton data={data} big className="!bg-white !text-neutral-900" />
+            <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-neutral-900" />
           </div>
         </section>
       </main>
       <ShopFooter data={data} />
-      <StickyMobileCTA data={data} />
+      <StickyMobileCTA data={data} onCheckout={onCheckout} />
       <div className="h-16 md:hidden" />
     </div>
   );

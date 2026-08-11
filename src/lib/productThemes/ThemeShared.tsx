@@ -8,13 +8,28 @@ export function CTAButton({
   className = "",
   style,
   big,
+  onCheckout,
 }: {
   data: ThemeData;
   label?: string;
   className?: string;
   style?: React.CSSProperties;
   big?: boolean;
+  onCheckout?: () => void;
 }) {
+  if (onCheckout) {
+    return (
+      <button
+        onClick={onCheckout}
+        className={`inline-flex items-center justify-center font-bold rounded-md transition active:scale-95 ${
+          big ? "px-6 py-4 text-base sm:text-lg" : "px-5 py-3 text-sm sm:text-base"
+        } ${className}`}
+        style={{ background: data.primaryColor, color: "#fff", ...style }}
+      >
+        {label || data.ctaText}
+      </button>
+    );
+  }
   return (
     <a
       href={data.classicCheckoutUrl}
@@ -214,10 +229,10 @@ export function ShopFooter({ data }: { data: ThemeData }) {
   );
 }
 
-export function StickyMobileCTA({ data }: { data: ThemeData }) {
+export function StickyMobileCTA({ data, onCheckout }: { data: ThemeData; onCheckout?: () => void }) {
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 p-2 bg-white/95 backdrop-blur border-t flex gap-2 md:hidden">
-      <CTAButton data={data} className="flex-1" />
+      <CTAButton data={data} className="flex-1" onCheckout={onCheckout} />
       {data.whatsappUrl && (
         <a
           href={data.whatsappUrl}

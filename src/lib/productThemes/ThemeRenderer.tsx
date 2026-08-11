@@ -9,6 +9,7 @@ interface Props {
   audios: ProductAudio[];
   settings: ProductThemeSettings | null;
   fallback: React.ReactNode;
+  onCheckout?: () => void;
 }
 
 class ThemeErrorBoundary extends React.Component<
@@ -36,7 +37,7 @@ class ThemeErrorBoundary extends React.Component<
   }
 }
 
-export default function ThemeRenderer({ product, shop, audios, settings, fallback }: Props) {
+export default function ThemeRenderer({ product, shop, audios, settings, fallback, onCheckout }: Props) {
   const slug = settings?.theme_slug || null;
 
   // Force classic render: query ?classic=1 or no theme selected
@@ -50,7 +51,7 @@ export default function ThemeRenderer({ product, shop, audios, settings, fallbac
   return (
     <ThemeErrorBoundary>
       <Suspense fallback={<div className="min-h-screen bg-white" />}>
-        <Theme data={data} />
+        <Theme data={data} onCheckout={onCheckout} />
       </Suspense>
     </ThemeErrorBoundary>
   );

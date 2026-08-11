@@ -1006,7 +1006,7 @@ const ShopView = () => {
             <>
               <div className="aspect-square rounded-xl overflow-hidden bg-muted mb-4">
                 {selectedProduct.product_images?.[0] ? (
-                  <img src={thumbUrl(selectedProduct.product_images[0].image_url, 600)} alt={selectedProduct.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                  <img src={thumbUrl(selectedProduct.product_images[0].image_url, 1200)} alt={selectedProduct.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"><Store className="h-16 w-16 text-muted-foreground/30" /></div>
                 )}

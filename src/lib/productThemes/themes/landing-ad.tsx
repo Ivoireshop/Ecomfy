@@ -12,7 +12,7 @@ import {
   StickyMobileCTA,
 } from "../ThemeShared";
 
-export default function LandingAd({ data }: ThemeProps) {
+export default function LandingAd({ data, onCheckout }: ThemeProps) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <section
@@ -37,7 +37,7 @@ export default function LandingAd({ data }: ThemeProps) {
           <div className="bg-white/10 backdrop-blur rounded-xl p-4 inline-flex flex-col gap-3">
             <PriceBlock data={data} alignment="center" />
             <div className="flex flex-wrap gap-2 justify-center">
-              <CTAButton data={data} big className="shadow-xl" />
+              <CTAButton data={data} onCheckout={onCheckout} big className="shadow-xl" />
               <WhatsAppButton data={data} />
             </div>
           </div>
@@ -72,13 +72,13 @@ export default function LandingAd({ data }: ThemeProps) {
           <h2 className="text-2xl font-extrabold">Passez commande maintenant</h2>
           <PriceBlock data={data} alignment="center" />
           <div className="flex flex-wrap gap-2 justify-center">
-            <CTAButton data={data} big />
+            <CTAButton data={data} onCheckout={onCheckout} big />
             <WhatsAppButton data={data} />
           </div>
         </section>
       </main>
       <ShopFooter data={data} />
-      <StickyMobileCTA data={data} />
+      <StickyMobileCTA data={data} onCheckout={onCheckout} />
       <div className="h-16 md:hidden" />
     </div>
   );

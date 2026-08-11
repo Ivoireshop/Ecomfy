@@ -14,7 +14,7 @@ import {
   StickyMobileCTA,
 } from "../ThemeShared";
 
-export default function ClassicPremium({ data }: ThemeProps) {
+export default function ClassicPremium({ data, onCheckout }: ThemeProps) {
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">
@@ -35,7 +35,7 @@ export default function ClassicPremium({ data }: ThemeProps) {
             {data.shortDescription && <p className="text-gray-600">{data.shortDescription}</p>}
             <PriceBlock data={data} />
             <div className="flex flex-wrap gap-2 pt-2">
-              <CTAButton data={data} big />
+              <CTAButton data={data} onCheckout={onCheckout} big />
               <WhatsAppButton data={data} />
             </div>
             <Guarantees data={data} />
@@ -50,12 +50,12 @@ export default function ClassicPremium({ data }: ThemeProps) {
 
           <section className="text-center space-y-3 py-6 rounded-xl bg-gray-50">
             <h2 className="text-xl sm:text-2xl font-bold">Prêt à passer commande ?</h2>
-            <CTAButton data={data} big />
+            <CTAButton data={data} onCheckout={onCheckout} big />
           </section>
         </div>
       </div>
       <ShopFooter data={data} />
-      <StickyMobileCTA data={data} />
+      <StickyMobileCTA data={data} onCheckout={onCheckout} />
       <div className="h-16 md:hidden" />
     </div>
   );

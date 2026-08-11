@@ -34,6 +34,7 @@ export interface ThemeData {
 
 export interface ThemeProps {
   data: ThemeData;
+  onCheckout?: () => void;
 }
 
 export interface ThemeMeta {

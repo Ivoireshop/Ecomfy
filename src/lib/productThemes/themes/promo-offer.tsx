@@ -35,7 +35,7 @@ function Countdown() {
   );
 }
 
-export default function PromoOffer({ data }: ThemeProps) {
+export default function PromoOffer({ data, onCheckout }: ThemeProps) {
   const discount = data.discount || 30;
   return (
     <div className="min-h-screen bg-red-50 text-slate-900">
@@ -69,7 +69,7 @@ export default function PromoOffer({ data }: ThemeProps) {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <CTAButton data={data} big className="!bg-red-600" />
+              <CTAButton data={data} onCheckout={onCheckout} big className="!bg-red-600" />
               <WhatsAppButton data={data} />
             </div>
           </div>
@@ -85,11 +85,11 @@ export default function PromoOffer({ data }: ThemeProps) {
         <FAQ data={data} />
         <section className="text-center rounded-2xl bg-red-600 text-white p-6 space-y-3">
           <h2 className="text-2xl font-extrabold">Ne ratez pas cette offre</h2>
-          <CTAButton data={data} big className="!bg-white !text-red-600 hover:!bg-red-50" />
+          <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-red-600 hover:!bg-red-50" />
         </section>
       </main>
       <ShopFooter data={data} />
-      <StickyMobileCTA data={data} />
+      <StickyMobileCTA data={data} onCheckout={onCheckout} />
       <div className="h-16 md:hidden" />
     </div>
   );

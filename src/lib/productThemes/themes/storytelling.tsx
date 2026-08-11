@@ -23,7 +23,7 @@ function Chapter({ index, title, children }: { index: number; title: string; chi
   );
 }
 
-export default function Storytelling({ data }: ThemeProps) {
+export default function Storytelling({ data, onCheckout }: ThemeProps) {
   return (
     <div className="min-h-screen bg-rose-50/40 text-slate-800">
       <section className="max-w-3xl mx-auto px-4 pt-8 pb-6 text-center space-y-3">
@@ -54,14 +54,14 @@ export default function Storytelling({ data }: ThemeProps) {
         <Chapter index={5} title="À votre tour">
           <PriceBlock data={data} />
           <div className="flex flex-wrap gap-2 mt-3">
-            <CTAButton data={data} big />
+            <CTAButton data={data} onCheckout={onCheckout} big />
             <WhatsAppButton data={data} />
           </div>
         </Chapter>
         <FAQ data={data} />
       </main>
       <ShopFooter data={data} />
-      <StickyMobileCTA data={data} />
+      <StickyMobileCTA data={data} onCheckout={onCheckout} />
       <div className="h-16 md:hidden" />
     </div>
   );
