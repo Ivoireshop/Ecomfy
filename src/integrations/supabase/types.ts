@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.15"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -1130,6 +1155,201 @@ export type Database = {
           },
         ]
       }
+      delivery_company_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          provider_id: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider_id: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider_id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_company_members_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_company_members_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_driver_sessions: {
+        Row: {
+          created_at: string
+          driver_id: string
+          end_time: string | null
+          id: string
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          end_time?: string | null
+          id?: string
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          end_time?: string | null
+          id?: string
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_driver_sessions_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_company_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_fees: {
+        Row: {
+          base_fee: number
+          created_at: string
+          id: string
+          is_active: boolean
+          provider_id: string
+          updated_at: string
+          weight_fee_per_kg: number | null
+          zone_id: string
+        }
+        Insert: {
+          base_fee?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider_id: string
+          updated_at?: string
+          weight_fee_per_kg?: number | null
+          zone_id: string
+        }
+        Update: {
+          base_fee?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider_id?: string
+          updated_at?: string
+          weight_fee_per_kg?: number | null
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_fees_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_fees_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_fees_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_payments: {
+        Row: {
+          amount_collected: number
+          collected_at: string
+          created_at: string
+          delivery_id: string
+          id: string
+          payment_method: string
+          remitted_to_company_at: string | null
+          remitted_to_shop_at: string | null
+          session_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_collected?: number
+          collected_at?: string
+          created_at?: string
+          delivery_id: string
+          id?: string
+          payment_method?: string
+          remitted_to_company_at?: string | null
+          remitted_to_shop_at?: string | null
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_collected?: number
+          collected_at?: string
+          created_at?: string
+          delivery_id?: string
+          id?: string
+          payment_method?: string
+          remitted_to_company_at?: string | null
+          remitted_to_shop_at?: string | null
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_payments_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: true
+            referencedRelation: "order_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_payments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_driver_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_providers: {
         Row: {
           base_price: number | null
@@ -1189,6 +1409,106 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Relationships: []
+      }
+      delivery_vehicles: {
+        Row: {
+          created_at: string
+          default_driver_id: string | null
+          id: string
+          plate_number: string | null
+          provider_id: string
+          status: string
+          updated_at: string
+          vehicle_type: string
+        }
+        Insert: {
+          created_at?: string
+          default_driver_id?: string | null
+          id?: string
+          plate_number?: string | null
+          provider_id: string
+          status?: string
+          updated_at?: string
+          vehicle_type: string
+        }
+        Update: {
+          created_at?: string
+          default_driver_id?: string | null
+          id?: string
+          plate_number?: string | null
+          provider_id?: string
+          status?: string
+          updated_at?: string
+          vehicle_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_vehicles_default_driver_id_fkey"
+            columns: ["default_driver_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_company_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_vehicles_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_vehicles_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_zones: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          provider_id: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          provider_id: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          provider_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_zones_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_zones_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       device_tokens: {
         Row: {
@@ -1655,6 +1975,51 @@ export type Database = {
           },
         ]
       }
+      inventory_levels: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          reserved_quantity: number
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          reserved_quantity?: number
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          reserved_quantity?: number
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_levels_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_levels_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       module_contents: {
         Row: {
           content_order: number
@@ -1704,6 +2069,96 @@ export type Database = {
             columns: ["module_id"]
             isOneToOne: false
             referencedRelation: "course_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_deliveries: {
+        Row: {
+          created_at: string
+          delivered_at: string | null
+          driver_id: string | null
+          failure_reason: string | null
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          order_id: string
+          picked_up_at: string | null
+          pod_photo_url: string | null
+          pod_signature_url: string | null
+          provider_id: string
+          status: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          delivered_at?: string | null
+          driver_id?: string | null
+          failure_reason?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          order_id: string
+          picked_up_at?: string | null
+          pod_photo_url?: string | null
+          pod_signature_url?: string | null
+          provider_id: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          delivered_at?: string | null
+          driver_id?: string | null
+          failure_reason?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          order_id?: string
+          picked_up_at?: string | null
+          pod_photo_url?: string | null
+          pod_signature_url?: string | null
+          provider_id?: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_deliveries_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_company_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_deliveries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_deliveries_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_deliveries_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_providers_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_deliveries_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_vehicles"
             referencedColumns: ["id"]
           },
         ]
@@ -4231,6 +4686,57 @@ export type Database = {
         }
         Relationships: []
       }
+      warehouses: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          shop_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          shop_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          shop_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouses_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouses_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_events: {
         Row: {
           amount: number | null
@@ -4627,7 +5133,6 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
-      email_queue_dispatch: { Args: never; Returns: undefined }
       enforce_shop_payment_state: { Args: never; Returns: Json }
       enforce_shop_payment_state_for: {
         Args: { _shop_id: string }
@@ -5066,6 +5571,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "user", "founder", "co_founder", "delivery"],

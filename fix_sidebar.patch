@@ -1,0 +1,16 @@
+--- src/components/AppSidebar.tsx
++++ src/components/AppSidebar.tsx
+@@ -120,6 +120,13 @@
+     }
+   };
+ 
++  const mainItems = [
++    { title: "Accueil", url: "/dashboard", icon: Home },
++    { title: "Studio IA", url: "/studio", icon: Image },
++    { title: "Boutique", url: "/shop-manager", icon: Store },
++    { title: "Bibliothèque", url: "/library", icon: FolderHeart },
++  ];
++
+   const publicItems = [
+     { title: "Accueil", url: "/", icon: Home },
+     { title: "Studio IA", url: "/studio", icon: Image },

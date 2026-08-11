@@ -1,0 +1,35 @@
+--- src/App.tsx
++++ src/App.tsx
+@@ -187,21 +187,7 @@
+               </ProtectedRoute>
+             } 
+           />
+-          <Route 
+-            path="/generator" 
+-            element={
+-              <ProtectedRoute requireActiveSubscription>
+-                <Generator />
+-              </ProtectedRoute>
+-            } 
+-          />
+-          <Route
+-            path="/video-creator"
+-            element={
+-              <ProtectedRoute requireActiveSubscription>
+-                <VideoCreator />
+-              </ProtectedRoute>
+-            }
+-          />
++          <Route path="/generator" element={<Navigate to="/studio" replace />} />
+           <Route path="/video-creator" element={<Navigate to="/studio" replace />} />
+           <Route 
+             path="/library" 
+@@ -378,8 +364,6 @@
+     const run = () => {
+       import("./pages/Studio");
+       import("./pages/Library");
+-      import("./pages/Generator");
+-      import("./pages/ShopManager");
++      import("./pages/ShopManager");
+       import("./components/ProtectedRoute");
+     };

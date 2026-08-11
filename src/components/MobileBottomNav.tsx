@@ -6,13 +6,13 @@ import { Video, Globe, Store, GraduationCap, HelpCircle, PlayCircle, Gift, Messa
 
 const mainNav = [
   { title: "Accueil", url: "/", icon: Home },
-  { title: "Générateur", url: "/generator", icon: Image },
+  { title: "Studio IA", url: "/studio", icon: Image },
   { title: "Abonnement", url: "/subscription", icon: CreditCard },
 ];
 
 const allItems = [
   { title: "Accueil", url: "/", icon: Home },
-  { title: "Générateur", url: "/generator", icon: Image },
+  { title: "Studio IA", url: "/studio", icon: Image },
   { title: "Bibliothèque", url: "/library", icon: Video },
   { title: "Formations", url: "/courses-manager", icon: BookOpen },
   { title: "Boutiques", url: "/shop-manager", icon: Store },

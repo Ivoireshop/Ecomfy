@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
@@ -97,10 +97,6 @@ const FounderRoute = lazyWithRetry(() => import("./components/FounderRoute"));
 const SeoPreview = lazyWithRetry(() => import("./pages/founder/SeoPreview"));
 const ShopPaymentControl = lazyWithRetry(() => import("./pages/founder/ShopPaymentControl"));
 const PricingDashboard = lazyWithRetry(() => import("./pages/PricingDashboard"));
-const DriverApp = lazyWithRetry(() => import("./pages/driver/DriverApp"));
-const DriverHome = lazyWithRetry(() => import("./pages/driver/DriverHome"));
-const DriverScanner = lazyWithRetry(() => import("./pages/driver/DriverScanner"));
-const DriverMission = lazyWithRetry(() => import("./pages/driver/DriverMission"));
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
@@ -149,10 +145,9 @@ const AppContent = () => {
     const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
-  const isDriverApp = location.pathname.startsWith("/delivery/driver");
-  const showSidebar = !isPublicPage && !isShopView && !isDriverApp;
-  const showSupport = !isPublicPage && !isShopView && !isDriverApp;
-  const hideChrome = isShopView || isOrderConfirmed || isDriverApp;
+  const showSidebar = !isPublicPage && !isShopView;
+  const showSupport = !isPublicPage && !isShopView;
+  const hideChrome = isShopView || isOrderConfirmed;
 
   return (
     <div className={hideChrome ? "overflow-x-hidden" : "pb-16 md:pb-0 overflow-x-hidden"}>
@@ -192,16 +187,23 @@ const AppContent = () => {
               </ProtectedRoute>
             } 
           />
-          <Route path="/generator" element={<Navigate to="/studio" replace />} />
-          <Route path="/video-creator" element={<Navigate to="/studio" replace />} />
           <Route 
-            path="/library" 
+            path="/generator" 
             element={
-              <ProtectedRoute>
-                <Library />
+              <ProtectedRoute requireActiveSubscription>
+                <Generator />
               </ProtectedRoute>
             } 
           />
+          <Route
+            path="/video-creator"
+            element={
+              <ProtectedRoute requireActiveSubscription>
+                <VideoCreator />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/video-creator" element={<Navigate to="/studio" replace />} />
           <Route 
             path="/feedback" 
             element={
@@ -337,12 +339,6 @@ const AppContent = () => {
           <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
           <Route path="/delivery-signup" element={<ProtectedRoute><DeliverySignup /></ProtectedRoute>} />
           <Route path="/delivery-dashboard" element={<ProtectedRoute><DeliveryDashboard /></ProtectedRoute>} />
-          
-          <Route path="/delivery/driver" element={<ProtectedRoute><DriverApp /></ProtectedRoute>}>
-            <Route index element={<DriverHome />} />
-            <Route path="scanner" element={<DriverScanner />} />
-            <Route path="mission/:deliveryId" element={<DriverMission />} />
-          </Route>
           <Route path="/docs" element={<FounderRoute><Documentation /></FounderRoute>} />
           <Route path="/health" element={<Health />} />
           <Route path="/healthz" element={<Health />} />
@@ -376,6 +372,7 @@ const IdlePrefetcher = () => {
     const run = () => {
       import("./pages/Studio");
       import("./pages/Library");
+      import("./pages/Generator");
       import("./pages/ShopManager");
       import("./components/ProtectedRoute");
     };
@@ -397,10 +394,9 @@ const AppWithSidebar = () => {
   const isShopManagement = location.pathname.startsWith("/shop-manager") || 
                            location.pathname.startsWith("/shop-editor") || 
                            location.pathname.startsWith("/shop-builder");
-  const isDriverApp = location.pathname.startsWith("/delivery/driver");
 
   // Showcase/shop/public pages: no sidebar at all
-  if (isShopView || isPublicPage || isShopManagement || isDriverApp) {
+  if (isShopView || isPublicPage || isShopManagement) {
     return (
       <main className="w-full">
         <AppContent />

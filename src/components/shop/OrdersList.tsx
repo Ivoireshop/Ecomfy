@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
@@ -33,8 +33,17 @@ interface Order {
   created_at: string;
   products_summary?: string | null;
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; selected_variants?: Record<string, string> | null }[];
+  order_deliveries?: {
+    status: string;
+    driver?: {
+      name: string;
+      phone: string;
+    } | null;
+    provider?: {
+      company_name: string;
+    } | null;
+  }[] | null;
 }
-
 interface OrdersListProps {
   orders: Order[];
   onUpdateStatus: (orderId: string, status: string) => void;
@@ -282,6 +291,47 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                     ))}
                   </div>
                 ) : null}
+                
+                {order.order_deliveries && order.order_deliveries.length > 0 && (
+                  <div className="mb-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-3 sm:p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-300">Suivi Livraison</h4>
+                    </div>
+                    {order.order_deliveries.map((delivery, i) => (
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-white dark:bg-background">
+                            {delivery.status === "pending" ? "En attente d'assignation" :
+                             delivery.status === "assigned" ? "Assigné au livreur" :
+                             delivery.status === "picked_up" ? "Récupéré" :
+                             delivery.status === "in_transit" ? "En route" :
+                             delivery.status === "delivered" ? "Livré" :
+                             delivery.status === "returned" ? "Retourné" :
+                             delivery.status === "failed" ? "Échec" : delivery.status}
+                          </Badge>
+                          {delivery.provider && (
+                            <span className="text-muted-foreground text-xs font-medium">via {delivery.provider.company_name}</span>
+                          )}
+                        </div>
+                        {delivery.driver ? (
+                          <div className="flex items-center gap-2 text-xs font-medium bg-white dark:bg-background px-3 py-1.5 rounded-lg border shadow-sm w-fit">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{delivery.driver.name}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <a href={`tel:${delivery.driver.phone}`} className="text-primary hover:underline flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <Phone className="h-3 w-3" />
+                              {delivery.driver.phone}
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Aucun livreur assigné</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <Select value={order.order_status} onValueChange={(v) => onUpdateStatus(order.id, v)}>
                     <SelectTrigger className="w-full sm:w-44 h-10 min-h-10"><SelectValue /></SelectTrigger>

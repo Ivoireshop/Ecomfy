@@ -1,0 +1,9 @@
+--- src/components/AppSidebar.tsx
++++ src/components/AppSidebar.tsx
+@@ -1,5 +1,5 @@
+ import { 
+-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard
++  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart
+ } from "lucide-react";
+ import { NavLink, useLocation, useNavigate } from "react-router-dom";
+ import { useEffect, useState } from "react";
