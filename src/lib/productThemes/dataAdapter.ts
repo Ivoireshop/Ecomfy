@@ -69,11 +69,16 @@ export function buildThemeData(input: {
   const phone: string | null = shop?.whatsapp_number || shop?.phone || null;
   const phoneTel = phone ? phone.replace(/[^\d+]/g, "") : null;
 
-  const productUrl = typeof window !== "undefined" ? window.location.href.split("?")[0] : "";
-  const baseUrl = productUrl || "";
-  // Force classic render path for the checkout/order flow — keeps all
-  // existing order tracking and pixel events intact.
-  const classicCheckoutUrl = `${baseUrl}?classic=1#order`;
+  let productUrl = "";
+  let classicCheckoutUrl = "?classic=1#order";
+  
+  if (typeof window !== "undefined") {
+    const url = new URL(window.location.href);
+    productUrl = url.origin + url.pathname + url.search;
+    url.searchParams.set("classic", "1");
+    url.hash = "order";
+    classicCheckoutUrl = url.toString();
+  }
 
   const whatsappUrl = buildWhatsappUrl(
     phone,

@@ -1,11 +1,11 @@
 // Image compression / size-guard used by all product/shop/rich-text image
 // uploads. Heavy phone photos are the #1 cause of slow / broken shops. We
-// use browser-image-compression to target < 300 Ko before upload.
+// use browser-image-compression to target < 2 Mo before upload.
 
 import imageCompression from 'browser-image-compression';
 
-export const MAX_IMAGE_BYTES = 300 * 1024; // 300 Ko final cap
-export const IMAGE_LIMIT_MESSAGE = "Visual Pro n'accepte que les images de moins de 300 Ko. Compressez votre image puis réessayez.";
+export const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 Mo final cap
+export const IMAGE_LIMIT_MESSAGE = "Visual Pro n'accepte que les images de moins de 2 Mo. Compressez votre image puis réessayez.";
 
 export const formatSize = (bytes: number) =>
   bytes < 1024 * 1024
@@ -27,7 +27,7 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
     if (file.size > MAX_IMAGE_BYTES) {
       return {
         ok: false,
-        reason: `Ce GIF fait ${formatSize(file.size)}. Les GIFs doivent faire moins de 300 Ko.`,
+        reason: `Ce GIF fait ${formatSize(file.size)}. Les GIFs doivent faire moins de 2 Mo.`,
       } as PrepareResult;
     }
     return { ok: true, file, wasCompressed: false, originalSize, finalSize: file.size } as PrepareResult;
@@ -40,10 +40,10 @@ export async function prepareImageForUpload(file: File): Promise<PrepareResult> 
 
   try {
     const options = {
-      maxSizeMB: 0.28, // Targeting strictly under 300 Ko
-      maxWidthOrHeight: 1200,
+      maxSizeMB: 1.9, // Targeting strictly under 2 Mo
+      maxWidthOrHeight: 1600,
       useWebWorker: true,
-      initialQuality: 0.8
+      initialQuality: 0.85
     };
 
     const compressedBlob = await imageCompression(file, options);
