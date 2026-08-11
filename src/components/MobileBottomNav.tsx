@@ -1,4 +1,4 @@
-import { Home, Image, CreditCard, Menu } from "lucide-react";
+import { Home, Image, CreditCard, Menu, Truck } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -16,6 +16,7 @@ const allItems = [
   { title: "Bibliothèque", url: "/library", icon: Video },
   { title: "Formations", url: "/courses-manager", icon: BookOpen },
   { title: "Boutiques", url: "/shop-manager", icon: Store },
+  { title: "Livraison", url: "/delivery-dashboard", icon: Truck },
   { title: "Espace Étudiant", url: "/student", icon: GraduationCap },
   { title: "Tutoriel", url: "/tutorial", icon: HelpCircle },
   { title: "Démo Vidéo", url: "/demo", icon: PlayCircle },

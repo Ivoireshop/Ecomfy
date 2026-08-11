@@ -83,9 +83,10 @@ serve(async (req) => {
     const body = await req.json();
     const { mode, prompt, style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") || "";
+    if (!LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
+      throw new Error("Aucune clé API configurée pour la génération");
     }
 
     let imageUrl: string = "";
