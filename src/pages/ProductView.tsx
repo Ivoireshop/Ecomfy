@@ -1000,7 +1000,7 @@ const ProductView = () => {
               className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none"
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
-                if (shop.theme_config?.single_page_checkout) {
+                if (!useNewThemes && shop.theme_config?.single_page_checkout) {
                   addToCart(product, quantity, true, true);
                   setShowInlineCheckout(true);
                   setTimeout(() => {
