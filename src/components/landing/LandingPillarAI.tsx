@@ -61,81 +61,81 @@ export function LandingPillarAI() {
           </div>
 
           {/* Visual Composite */}
-          <div className="flex-1 relative w-full h-[500px]">
-            {/* Background Blob */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-100 rounded-full filter blur-3xl opacity-50"></div>
-            
-            {/* Main Window (AI Studio Mockup) */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[#0F1B2C] rounded-2xl shadow-2xl border border-slate-800 overflow-hidden z-10 animate-float-slow">
+          <div className="flex-1 w-full flex items-center justify-center py-12 lg:py-0">
+            <div className="relative w-[85%] max-w-[340px] lg:max-w-[420px]">
+              {/* Background Blob */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-purple-100 rounded-full filter blur-3xl opacity-50"></div>
               
-              {/* Header */}
-              <div className="border-b border-white/10 p-4 flex items-center gap-3">
-                <Wand2 className="w-5 h-5 text-purple-400" />
-                <span className="text-white font-medium">Assistant Ecomfy IA</span>
-              </div>
-              
-              {/* Chat Area */}
-              <div className="p-4 space-y-4">
-                {/* User Message */}
-                <div className="flex justify-end">
-                  <div className="bg-purple-600/20 text-purple-100 border border-purple-500/30 rounded-2xl rounded-tr-sm px-4 py-2 max-w-[80%] text-sm">
-                    Génère un avatar vidéo qui présente ma nouvelle collection.
-                  </div>
+              {/* Main Window (AI Studio Mockup) */}
+              <div className="relative w-full bg-[#0F1B2C] rounded-2xl shadow-2xl border border-slate-800 overflow-hidden z-10 animate-float-slow">
+                
+                {/* Header */}
+                <div className="border-b border-white/10 p-4 flex items-center gap-3">
+                  <Wand2 className="w-5 h-5 text-purple-400" />
+                  <span className="text-white font-medium">Assistant Ecomfy IA</span>
                 </div>
                 
-                {/* AI Response Generating */}
-                <div className="flex justify-start">
-                  <div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm p-4 w-full max-w-[90%]">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Wand2 className="w-4 h-4 text-purple-400 animate-pulse" />
-                      <span className="text-slate-300 text-xs font-medium uppercase tracking-wider">Vidéo générée</span>
+                {/* Chat Area */}
+                <div className="p-4 space-y-4">
+                  {/* User Message */}
+                  <div className="flex justify-end">
+                    <div className="bg-purple-600/20 text-purple-100 border border-purple-500/30 rounded-2xl rounded-tr-sm px-4 py-2 max-w-[80%] text-sm">
+                      Génère un avatar vidéo qui présente ma nouvelle collection.
                     </div>
-                    
-                    {/* Video with Scan Effect overlay */}
-                    <div className="w-full h-40 bg-slate-800/50 rounded-lg relative overflow-hidden flex items-center justify-center">
-                      <video 
-                        className="w-full h-full object-cover" 
-                        autoPlay 
-                        loop 
-                        muted 
-                        playsInline
-                        poster="/src/assets/video-preview-1.jpg"
-                      >
-                        <source src="https://assets.mixkit.co/videos/preview/mixkit-woman-speaking-in-front-of-the-camera-42998-large.mp4" type="video/mp4" />
-                        <source src="https://cdn.coverr.co/videos/coverr-a-woman-talking-on-her-phone-while-looking-at-her-laptop-2815/1080p.mp4" type="video/mp4" />
-                        <img src="/src/assets/video-preview-1.jpg" alt="Video fallback" className="w-full h-full object-cover" />
-                      </video>
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/20 to-transparent h-[200%] animate-scan pointer-events-none"></div>
+                  </div>
+                  
+                  {/* AI Response Generating */}
+                  <div className="flex justify-start">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm p-4 w-full max-w-[90%]">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Wand2 className="w-4 h-4 text-purple-400 animate-pulse" />
+                        <span className="text-slate-300 text-xs font-medium uppercase tracking-wider">Vidéo générée</span>
+                      </div>
+                      
+                      {/* Video with Scan Effect overlay */}
+                      <div className="w-full h-40 bg-slate-800/50 rounded-lg relative overflow-hidden flex items-center justify-center">
+                        <video 
+                          className="w-full h-full object-cover" 
+                          autoPlay 
+                          loop 
+                          muted 
+                          playsInline 
+                          poster="/src/assets/example-handbag-ad.jpg"
+                        >
+                          <source src="/src/assets/avatar-demo.mp4" type="video/mp4" />
+                        </video>
+                        <div className="absolute inset-0 bg-gradient-to-t from-purple-500/20 to-transparent mix-blend-overlay"></div>
+                        <div className="absolute inset-x-0 top-0 h-1 bg-purple-400/50 blur-[2px] animate-scan"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Floating Widget 1: Video Gen */}
-            <div className="absolute -left-4 bottom-1/4 bg-[#0a0f18] p-3 rounded-xl shadow-xl border border-slate-800 z-20 flex items-center gap-3 animate-float text-white">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                <Video className="w-5 h-5 text-blue-400" />
+              {/* Floating Widget 1: Video Format Settings */}
+              <div className="absolute -left-6 md:-left-10 bottom-8 md:bottom-12 bg-[#0F1B2C] p-3 rounded-xl shadow-xl border border-white/10 z-20 flex items-center gap-3 animate-float">
+                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex justify-center items-center shrink-0">
+                  <Video className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] md:text-sm font-bold text-white">Vidéo publicitaire</p>
+                  <p className="text-[9px] md:text-xs text-slate-400">Format TikTok (9:16)</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold">Vidéo publicitaire</p>
-                <p className="text-xs text-slate-400">Format TikTok (9:16)</p>
-              </div>
-            </div>
 
-            {/* Floating Widget 2: Copywriting */}
-            <div className="absolute -right-8 top-1/4 bg-[#0a0f18] p-4 rounded-xl shadow-xl border border-slate-800 z-20 w-48 animate-float text-white">
-              <div className="flex gap-2 items-center mb-2">
-                <FileText className="w-4 h-4 text-green-400" />
-                <p className="text-xs font-bold">Titre Accrocheur</p>
-              </div>
-              <div className="space-y-2">
-                <div className="h-2 bg-slate-700 rounded w-full"></div>
-                <div className="h-2 bg-slate-700 rounded w-4/5"></div>
-                <div className="h-2 bg-slate-700 rounded w-2/3"></div>
+              {/* Floating Widget 2: Copywriting */}
+              <div className="absolute -right-6 md:-right-10 top-8 md:top-12 bg-[#0F1B2C] p-3 rounded-xl shadow-xl border border-white/10 z-20 animate-float-slower">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-green-400" />
+                  <span className="text-[10px] md:text-xs font-bold text-white">Titre Accrocheur</span>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="w-24 md:w-32 h-1.5 md:h-2 bg-slate-700 rounded-full"></div>
+                  <div className="w-16 md:w-24 h-1.5 md:h-2 bg-slate-700 rounded-full"></div>
+                  <div className="w-12 md:w-20 h-1.5 md:h-2 bg-slate-700 rounded-full"></div>
+                </div>
               </div>
             </div>
-            
           </div>
         </div>
       </div>
