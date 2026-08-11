@@ -1,12 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { PushToDeliveryModal } from "./PushToDeliveryModal";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -46,14 +47,18 @@ interface Order {
 }
 interface OrdersListProps {
   orders: Order[];
+  shopId: string;
   onUpdateStatus: (orderId: string, status: string) => void;
   onMarkRead: (orderId: string) => void;
+  onOrderUpdated?: () => void;
 }
 
-export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListProps) {
+export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrderUpdated }: OrdersListProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [orderToPush, setOrderToPush] = useState<string | null>(null);
 
   const normalized = (v: string | null | undefined) =>
     (v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -358,6 +363,18 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
                   </Button>
                   {order.customer_phone && (
                     <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-10 min-h-10 flex-1 sm:flex-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOrderToPush(order.id);
+                          setPushModalOpen(true);
+                        }}
+                      >
+                        <Send className="h-4 w-4 mr-1" /> Expédier
+                      </Button>
                       <Button asChild size="sm" variant="outline" className="h-10 min-h-10 flex-1 sm:flex-none">
                         <a href={`tel:${order.customer_phone.replace(/[^0-9+]/g, "")}`} onClick={(e) => e.stopPropagation()}>
                           <Phone className="h-4 w-4 mr-1" /> Appeler
@@ -380,6 +397,21 @@ export function OrdersList({ orders, onUpdateStatus, onMarkRead }: OrdersListPro
             </Card>
           ))}
         </div>
+      )}
+      
+      {pushModalOpen && orderToPush && (
+        <PushToDeliveryModal
+          isOpen={pushModalOpen}
+          onClose={() => {
+            setPushModalOpen(false);
+            setOrderToPush(null);
+          }}
+          orderId={orderToPush}
+          shopId={shopId}
+          onSuccess={() => {
+            if (onOrderUpdated) onOrderUpdated();
+          }}
+        />
       )}
     </div>
   );

@@ -21,6 +21,7 @@ interface ShopSidebarProps {
   isPublished: boolean;
   allowedSections?: ActiveSection[];
   isOwner?: boolean;
+  onMobileClose?: () => void;
 }
 
 const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; isNew?: boolean; ownerOnly?: boolean }[] = [
@@ -44,7 +45,7 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; is
 export function ShopSidebar({
   shopName, slug, primaryColor, logoUrl, activeSection, onSectionChange,
   unreadOrders, productCount, isActivated, onBack, onSave, saving, onPreview, isPublished,
-  allowedSections, isOwner = true,
+  allowedSections, isOwner = true, onMobileClose,
 }: ShopSidebarProps) {
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.ownerOnly && !isOwner) return false;
@@ -80,7 +81,10 @@ export function ShopSidebar({
           return (
             <button
               key={item.id}
-              onClick={() => onSectionChange(item.id)}
+              onClick={() => {
+                onSectionChange(item.id);
+                if (onMobileClose) onMobileClose();
+              }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[9px] text-[13.5px] font-inter transition-all ${
                 isActive
                   ? "bg-[#0E7C66]/10 text-[#0E7C66] font-semibold"

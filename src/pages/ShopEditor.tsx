@@ -161,9 +161,12 @@ const ShopEditor = () => {
       supabase.from("shops").select("*").eq("id", id).single() as any,
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
-      supabase.from("orders").select("*, order_items(*), order_deliveries(*, driver:delivery_company_members(*), provider:delivery_providers(*))").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any,
+      supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any,
       supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
+    if (ordersRes.error) {
+      console.error("FAILED TO FETCH ORDERS:", ordersRes.error);
+    }
     if (shopRes.data) {
       const secrets = (secretsRes as any)?.data || {};
       setShop({
@@ -185,8 +188,27 @@ const ShopEditor = () => {
       })));
     }
     if (ordersRes.data) {
-      setOrders(ordersRes.data);
-      setUnreadOrders(ordersRes.data.filter((o: Order) => !o.is_read).length);
+      let finalOrders = ordersRes.data;
+      if (finalOrders.length > 0) {
+        try {
+          const orderIds = finalOrders.map((o: any) => o.id);
+          const deliveriesRes = await supabase
+            .from("order_deliveries")
+            .select("*, driver:delivery_company_members(*), provider:delivery_providers(*)")
+            .in("order_id", orderIds);
+          
+          if (deliveriesRes.data) {
+            finalOrders = finalOrders.map((o: any) => ({
+              ...o,
+              order_deliveries: deliveriesRes.data.filter((d: any) => d.order_id === o.id)
+            }));
+          }
+        } catch (e) {
+          console.error("Failed to fetch order deliveries", e);
+        }
+      }
+      setOrders(finalOrders);
+      setUnreadOrders(finalOrders.filter((o: Order) => !o.is_read).length);
     }
     if (visitsRes?.data) setVisits(visitsRes.data as any);
     setLoading(false);
@@ -875,7 +897,7 @@ const ShopEditor = () => {
             <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-[260px]">
-            <ShopSidebar {...sidebarProps} />
+            <ShopSidebar {...sidebarProps} onMobileClose={() => setMobileSidebarOpen(false)} />
           </SheetContent>
         </Sheet>
         <span className="font-semibold text-sm truncate">{shop.business_name}</span>
@@ -1093,7 +1115,7 @@ const ShopEditor = () => {
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked
               ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
-              : <OrdersList orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} />;
+              : <OrdersList shopId={shop.id} orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={() => {}} />;
           })()}
 
           {activeSection === "abandoned" && shop?.id && (() => {
