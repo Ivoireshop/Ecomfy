@@ -125,6 +125,8 @@ export function AppSidebar() {
     { title: "Studio IA", url: "/studio", icon: Image },
     { title: "Boutique", url: "/shop-manager", icon: Store },
     { title: "Livraison", url: "/delivery-dashboard", icon: Truck },
+    { title: "Communauté", url: "/community", icon: Users },
+    { title: "Tarifs", url: "/pricing", icon: CreditCard },
     { title: "Bibliothèque", url: "/library", icon: FolderHeart },
   ];
 
