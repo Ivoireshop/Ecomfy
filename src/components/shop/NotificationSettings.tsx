@@ -1,9 +1,22 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { Bell, Loader2, Volume2, VolumeX, Play } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { useFCM } from "@/hooks/useFCM";
+import {
+  requestNotificationPermission,
+  NOTIFICATION_SOUNDS,
+  getSavedSoundId,
+  getSavedVolume,
+  getSoundFile,
+  type NotificationSoundId,
+} from "@/hooks/useOrderNotifications";
 import {
   buildOrderNotification,
   mergeNotifSettings,
@@ -53,6 +66,87 @@ export function NotificationSettings({ shop, setShop }: Props) {
   const preview = buildOrderNotification(DEMO_ORDER, shop?.business_name || "Ma boutique", settings);
   const isCustom = settings.template === "custom";
 
+  // Device-specific Notification Settings (Local Storage)
+  const [perm, setPerm] = useState<NotificationPermission>(
+    typeof Notification !== "undefined" ? Notification.permission : "default",
+  );
+  const [busy, setBusy] = useState(false);
+  const [voiceOn, setVoiceOn] = useState<boolean>(
+    typeof window !== "undefined" ? (localStorage.getItem("ecomfy_voice_notify") || localStorage.getItem("vp_voice_notify")) === "on" : false,
+  );
+  const [soundId, setSoundId] = useState<NotificationSoundId>(getSavedSoundId());
+  const [volume, setVolume] = useState<number>(getSavedVolume());
+  const { status, register } = useFCM();
+
+  const previewSound = (id: NotificationSoundId, vol: number) => {
+    try {
+      const a = new Audio(getSoundFile(id));
+      a.preload = "auto";
+      a.volume = vol;
+      a.play().catch(() => {});
+    } catch {}
+  };
+
+  const testNotification = () => {
+    previewSound(soundId, volume);
+    if (Notification.permission === "granted") {
+      try {
+        const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
+          body: "Test du son système pour les commandes.",
+          icon: "/app-icon-512.png",
+          badge: "/app-icon-512.png",
+          tag: `ecomfy-test-${Date.now()}`,
+          renotify: true,
+          requireInteraction: true,
+          silent: false,
+          vibrate: [300, 80, 300, 80, 700],
+        };
+        new Notification("💰 Ecomfy", options);
+      } catch {}
+    }
+  };
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isStandalone =
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true;
+
+  const handleEnableNotifications = async () => {
+    setBusy(true);
+    try {
+      if (isIOS && !isStandalone) {
+        toast({
+          title: "Installation requise",
+          description: "Sur iPhone, ajoutez d'abord Ecomfy à l'écran d'accueil via Safari (bouton Partager → Sur l'écran d'accueil), puis réessayez depuis l'app.",
+        });
+        return;
+      }
+      const p = await requestNotificationPermission();
+      setPerm(p);
+      if (p !== "granted") {
+        toast({
+          title: "Notifications refusées",
+          description: "Activez-les dans les paramètres du navigateur pour recevoir les commandes.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const token = await register();
+      if (token) {
+        toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte sonore à chaque commande selon les réglages du téléphone." });
+        try { new Notification("Ecomfy", { body: "Notifications activées avec succès.", icon: "/app-icon-512.png", silent: false }); } catch {}
+      } else {
+        toast({
+          title: "Échec de l'enregistrement",
+          description: "Token non créé. Réinstallez l'app depuis l'écran d'accueil ou réessayez.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <div className="flex items-center gap-2">
@@ -64,14 +158,142 @@ export function NotificationSettings({ shop, setShop }: Props) {
         à chaque nouvelle commande.
       </p>
 
+      {/* Push Notifications Registration Banner */}
+      {status !== "registered" && (
+        <Card className="bg-[#E3F1EC] border-[#C9E5DC] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[#0E7C66] shrink-0 shadow-sm">
+              <Bell className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="m-0 text-sm font-semibold text-[#0F1B2C] mb-0.5">Activez les notifications</h4>
+              <p className="m-0 text-xs text-[#5B6472]">
+                Recevez une alerte instantanée à chaque nouvelle commande.
+              </p>
+            </div>
+          </div>
+          <Button 
+            onClick={handleEnableNotifications} 
+            disabled={busy} 
+            className="bg-[#0F1B2C] text-white hover:bg-black font-semibold shrink-0"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Bell className="h-4 w-4 mr-2" />}
+            Activer
+          </Button>
+        </Card>
+      )}
+
+      {status === "registered" && (
+        <Card className="p-6 mb-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">
+              <Bell className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-lg leading-tight">🔔 Notifications sur cet appareil activées</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Personnalisez la sonnerie et le volume pour cet appareil.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+            {/* Sound picker */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Sonnerie Ecomfy</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={soundId}
+                  onValueChange={(v) => {
+                    const id = v as NotificationSoundId;
+                    setSoundId(id);
+                    localStorage.setItem("ecomfy_notif_sound", id);
+                    previewSound(id, volume);
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NOTIFICATION_SOUNDS.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  onClick={testNotification}
+                  className="gap-2 shrink-0"
+                >
+                  <Play className="h-4 w-4" />
+                  Tester
+                </Button>
+              </div>
+            </div>
+
+            {/* Volume slider */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  {volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  Volume
+                </Label>
+                <span className="text-sm font-medium">{Math.round(volume * 100)}%</span>
+              </div>
+              <Slider
+                value={[volume * 100]}
+                min={0}
+                max={100}
+                step={5}
+                onValueChange={(v) => {
+                  const next = (v[0] || 0) / 100;
+                  setVolume(next);
+                  localStorage.setItem("ecomfy_notif_volume", String(next));
+                }}
+                onValueCommit={() => previewSound(soundId, volume)}
+                className="py-2"
+              />
+            </div>
+          </div>
+
+          {/* Voice toggle */}
+          <div className="flex items-center justify-between gap-4 pt-4 border-t">
+            <div>
+              <p className="font-semibold">Annonce vocale (Synthèse vocale)</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Dicte : "Tu as une nouvelle commande de X à Y."
+              </p>
+            </div>
+            <Switch
+              checked={voiceOn}
+              onCheckedChange={(next) => {
+                setVoiceOn(next);
+                localStorage.setItem("ecomfy_voice_notify", next ? "on" : "off");
+                if (next && "speechSynthesis" in window) {
+                  try {
+                    const u = new SpeechSynthesisUtterance("Annonce vocale activée");
+                    u.lang = "fr-FR";
+                    window.speechSynthesis.speak(u);
+                  } catch {}
+                }
+                toast({ title: next ? "🔊 Voix activée" : "🔇 Voix désactivée" });
+              }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground italic pt-2">
+            * Ces réglages s'appliquent uniquement à cet appareil.
+          </p>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
         <div className="space-y-4 min-w-0">
           <Card className="p-6 space-y-5">
             <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/30">
               <div>
-                <Label className="font-semibold">Notifications activées</Label>
+                <Label className="font-semibold">Format des notifications (pour les clients et vendeurs)</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Si désactivé, aucune notification push n'est envoyée pour les nouvelles commandes.
+                  Configurez le format du message envoyé lors d'une nouvelle commande.
                 </p>
               </div>
               <Switch

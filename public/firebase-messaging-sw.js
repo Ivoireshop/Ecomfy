@@ -31,7 +31,7 @@ messaging.onBackgroundMessage((payload) => {
   }
   // Notify any open page so it can play the Ecomfy cash sound in foreground.
   self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
-    cs.forEach((c) => c.postMessage({ type: 'vp-new-order', order_id: data.order_id }));
+    cs.forEach((c) => c.postMessage({ type: 'ecomfy-new-order', order_id: data.order_id }));
   });
 });
 

@@ -10,7 +10,7 @@ import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, 
 import { toast } from "@/hooks/use-toast";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
-import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
+
 import { useAuthReady } from "@/hooks/useAuthReady";
 
 interface Shop {
@@ -200,10 +200,6 @@ const ShopManager = () => {
             </div>
           </div>
         )}
-
-        <div className="mb-[34px]">
-          <EnableNotificationsBanner />
-        </div>
 
         {/* Collab Shops */}
         {collabShops.length > 0 && (

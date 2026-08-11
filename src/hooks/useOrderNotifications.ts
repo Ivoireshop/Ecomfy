@@ -3,10 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { buildOrderNotification } from "@/lib/notificationFormat";
 
 export const NOTIFICATION_SOUNDS = [
-  { id: "cash", label: "💰 Caisse enregistreuse (Ka-ching)", file: "/sounds/visualpro-cash.mp3" },
-  { id: "coins", label: "🪙 Pluie de pièces", file: "/sounds/visualpro-coins.mp3" },
-  { id: "bell", label: "🔔 Cloche de boutique", file: "/sounds/visualpro-bell.mp3" },
-  { id: "chime", label: "🎶 Carillon élégant", file: "/sounds/visualpro-chime.mp3" },
+  { id: "cash", label: "💰 Caisse enregistreuse (Ka-ching)", file: "/sounds/ecomfy-cash.mp3" },
+  { id: "coins", label: "🪙 Pluie de pièces", file: "/sounds/ecomfy-coins.mp3" },
+  { id: "bell", label: "🔔 Cloche de boutique", file: "/sounds/ecomfy-bell.mp3" },
+  { id: "chime", label: "🎶 Carillon élégant", file: "/sounds/ecomfy-chime.mp3" },
 ] as const;
 
 export type NotificationSoundId = typeof NOTIFICATION_SOUNDS[number]["id"];
@@ -20,13 +20,13 @@ export function getSoundFile(id?: string | null): string {
 
 export function getSavedSoundId(): NotificationSoundId {
   if (typeof window === "undefined") return DEFAULT_SOUND;
-  const v = localStorage.getItem("vp_notif_sound") as NotificationSoundId | null;
+  const v = (localStorage.getItem("ecomfy_notif_sound") || localStorage.getItem("vp_notif_sound")) as NotificationSoundId | null;
   return NOTIFICATION_SOUNDS.some(s => s.id === v) ? (v as NotificationSoundId) : DEFAULT_SOUND;
 }
 
 export function getSavedVolume(): number {
   if (typeof window === "undefined") return 1;
-  const v = parseFloat(localStorage.getItem("vp_notif_volume") || "1");
+  const v = parseFloat(localStorage.getItem("ecomfy_notif_volume") || localStorage.getItem("vp_notif_volume") || "1");
   return isNaN(v) ? 1 : Math.min(1, Math.max(0, v));
 }
 
@@ -90,7 +90,7 @@ export function playNotificationSound() {
 
 export function speakOrderNotification(order: any) {
   if (typeof window === "undefined") return;
-  if (localStorage.getItem("vp_voice_notify") !== "on") return;
+  if ((localStorage.getItem("ecomfy_voice_notify") || localStorage.getItem("vp_voice_notify")) !== "on") return;
   if (!("speechSynthesis" in window)) return;
   try {
     const u = new SpeechSynthesisUtterance(getOrderAnnouncement(order));
@@ -120,7 +120,7 @@ export function useOrderNotifications(shopId?: string) {
     // Play sound when the FCM service worker posts a "new-order" event
     // (covers the case where the order arrives via push, not realtime).
     const onSwMessage = (e: MessageEvent) => {
-      if (e.data?.type === "vp-new-order") {
+      if (e.data?.type === "ecomfy-new-order" || e.data?.type === "vp-new-order") {
         playNotificationSound();
       }
     };

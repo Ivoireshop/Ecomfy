@@ -39,12 +39,12 @@ export function useNativePush(shopId?: string) {
         if (Capacitor.getPlatform() === "android") {
           try {
             await PushNotifications.createChannel({
-              id: "visualpro_orders",
-              name: "Nouvelles commandes",
-              description: "Notification sonore forte à chaque nouvelle commande",
+              id: "ecomfy_orders",
+              name: "Commandes Ecomfy",
+              description: "Alertes lors de nouvelles commandes",
               importance: 5, // IMPORTANCE_HIGH → ringtone, heads-up, screen wake
               visibility: 1,
-              sound: "visualpro_cash.wav",
+              sound: "ecomfy_cash.wav",
               vibration: true,
               lights: true,
               lightColor: "#000000",
@@ -114,8 +114,8 @@ export function useNativePush(shopId?: string) {
                     id: getStableNotificationId(data.order_id),
                     title: notification.title || "💰 Nouvelle commande Ecomfy",
                     body: notification.body || getOrderAnnouncement(orderLike),
-                    sound: "visualpro_cash.wav",
-                    channelId: "visualpro_orders",
+                    sound: "ecomfy_cash.wav",
+                    channelId: "ecomfy_orders",
                     smallIcon: "ic_stat_icon_config_sample",
                     extra: data,
                   },

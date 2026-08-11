@@ -47,7 +47,7 @@ const SectionFallback = () => (
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useFCM } from "@/hooks/useFCM";
 import { useNativePush } from "@/hooks/useNativePush";
-import { EnableNotificationsBanner } from "@/components/shop/EnableNotificationsBanner";
+
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
@@ -944,9 +944,6 @@ const ShopEditor = () => {
             />
           );
         })()}
-        <div className="px-4 md:px-6 pt-4">
-          <EnableNotificationsBanner />
-        </div>
         {/* Activation Banner */}
         {!isActivated && (
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 md:px-6 py-3">
