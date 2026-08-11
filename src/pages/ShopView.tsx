@@ -1424,7 +1424,7 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
       <div className="aspect-square bg-muted relative overflow-hidden">
         {product.product_images?.[0] ? (
           <img
-            src={thumbUrl(product.product_images[0].image_url, eager ? 600 : 400)}
+            src={thumbUrl(product.product_images[0].image_url, 1200)}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             loading={eager ? "eager" : "lazy"}

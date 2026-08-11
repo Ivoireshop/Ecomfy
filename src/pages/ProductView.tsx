@@ -1064,7 +1064,9 @@ const ProductView = () => {
             settings={themeSettings}
             fallback={null}
             onCheckout={() => {
+              addToCart(product, quantity, true, true);
               setCheckoutOpen(true);
+              setCheckoutStep("info");
               setOrderSuccess(false);
             }}
           />
@@ -1775,7 +1777,7 @@ const ProductView = () => {
                   >
                     <div className="aspect-square bg-gray-100 overflow-hidden">
                       {rpImg ? (
-                        <img src={thumbUrl(rpImg, 400)} alt={rp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                        <img src={thumbUrl(rpImg, 800)} alt={rp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center"><Store className="h-8 w-8 text-gray-300" /></div>
                       )}
