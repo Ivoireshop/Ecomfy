@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Gift, Eye, EyeOff, GitPullRequestCreate } from "lucide-react";
+import { Loader2, Sparkles, Gift, Eye, EyeOff, GitPullRequestCreate, UserPlus } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -474,7 +474,7 @@ const Auth = () => {
                         </button>
                       </div>
                     </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full bg-[#0E7C66] hover:bg-[#0A5C4C] text-white" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -632,7 +632,7 @@ const Auth = () => {
                        </Badge>
                      )}
                    </div>
-                   <Button type="submit" className="w-full" disabled={isLoading}>
+                   <Button type="submit" className="w-full bg-[#0E7C66] hover:bg-[#0A5C4C] text-white" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -640,7 +640,7 @@ const Auth = () => {
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-2 h-4 w-4" />
+                        <UserPlus className="mr-2 h-4 w-4" />
                         Créer mon compte
                       </>
                     )}
