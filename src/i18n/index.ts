@@ -12,9 +12,6 @@ import { setAutoTranslateLanguage } from "@/lib/autoTranslateDOM";
 export const SUPPORTED_LANGUAGES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
   { code: "en", label: "English", flag: "🇬🇧" },
-  { code: "es", label: "Español", flag: "🇪🇸" },
-  { code: "pt", label: "Português", flag: "🇵🇹" },
-  { code: "ar", label: "العربية", flag: "🇸🇦" },
 ] as const;
 
 export type SupportedLang = (typeof SUPPORTED_LANGUAGES)[number]["code"];
