@@ -375,49 +375,58 @@ const Auth = () => {
       <div className="flex min-h-full flex-col justify-center px-4 py-8 sm:px-12 lg:px-20 xl:px-24 bg-gradient-to-br from-[#0E7C66]/5 via-white to-[#0E7C66]/10 z-10 relative">
         <div className="w-full max-w-md mx-auto">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center">
+            <h1 className="text-3xl font-extrabold text-slate-900 flex items-center tracking-tight">
               Ecom<span className="text-[#0E7C66]">fy</span>
             </h1>
-            <Badge variant="secondary" className="rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold tracking-wider ml-3 hover:bg-slate-200 border-0">
+            <Badge variant="secondary" className="rounded-full bg-[#0E7C66]/10 text-[#0E7C66] text-[10px] font-bold tracking-wider ml-3 border-0 px-3 py-1">
               V5 · Nouvelle version
             </Badge>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-6 md:mb-8">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2 text-slate-900">Bienvenue</h2>
-            <div className="mb-4 space-y-2 rounded-2xl border border-primary/20 bg-background/70 p-4 shadow-lg backdrop-blur-md md:hidden">
-              <div className="flex items-center gap-3">
-                <span className="h-px w-8 bg-primary" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                  Ecomfy V5
-                </span>
+            
+            {/* Mobile Premium Banner */}
+            <div className="mb-6 mt-4 relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0E7C66] to-[#0A5C4C] p-5 shadow-lg shadow-[#0E7C66]/20 md:hidden">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
+              <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-16 w-16 rounded-full bg-white/10 blur-lg"></div>
+              
+              <div className="relative z-10 flex flex-col gap-2">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="h-px w-6 bg-white/50" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">
+                    Ecomfy V5
+                  </span>
+                </div>
+                <p className="text-xl font-bold leading-tight text-white drop-shadow-sm">
+                  Plateforme pour tout vendre simplement.
+                </p>
               </div>
-              <p className="text-lg font-bold leading-tight text-foreground">
-                Créez des visuels publicitaires et vendez. Lancez votre boutique.
-              </p>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
-              </p>
             </div>
-            <p className="text-slate-500">
+
+            <p className="text-slate-500 text-sm md:text-base hidden md:block">
               Créez un compte ou connectez-vous pour commencer
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 border border-green-100">
-              <GitPullRequestCreate className="h-4 w-4 text-green-600" />
-              <span className="text-xs font-medium text-green-700">
-                🎁 {referralCode ? '5' : '3'} générations gratuites à l'inscription
+            
+            <div className="mt-2 md:mt-4 inline-flex items-center gap-2.5 rounded-full bg-emerald-50 px-3.5 py-2 border border-emerald-100 shadow-sm">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-xs font-semibold text-emerald-800">
+                {referralCode ? '5' : '3'} générations gratuites à l'inscription
               </span>
             </div>
           </div>
 
-        <Card className={cn("border-slate-100 bg-white shadow-sm md:shadow-md transition-transform", hasError && "shake-error")}>
-          <CardHeader>
-            <CardTitle>Bienvenue</CardTitle>
-            <CardDescription>
-              Créez un compte ou connectez-vous pour commencer
+        <Card className={cn("border-slate-100 bg-white/80 backdrop-blur-sm shadow-xl md:shadow-2xl shadow-slate-200/50 transition-transform rounded-3xl overflow-hidden", hasError && "shake-error")}>
+          <CardHeader className="bg-slate-50/50 border-b border-slate-100/50 pb-6 md:pb-6">
+            <CardTitle className="text-xl font-bold text-slate-800 md:hidden">Connexion</CardTitle>
+            <CardDescription className="text-slate-500 font-medium mt-1">
+              Connectez-vous ou créez un compte pour continuer
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {isInvite && prefillEmail && (
               <div className="mb-4 rounded-md border bg-primary/5 p-3 text-sm">
                 Vous êtes invité(e) à rejoindre une boutique avec <strong>{prefillEmail}</strong>. Connectez-vous ou créez votre compte pour y accéder.
