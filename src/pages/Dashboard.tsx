@@ -56,8 +56,8 @@ const Dashboard = () => {
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
       {/* Topbar for Dashboard */}
-      <header className="h-[70px] flex items-center justify-end px-8 bg-white border-b border-slate-200 sticky top-0 z-10 shrink-0">
-        <div className="flex items-center gap-6">
+      <header className="h-[70px] flex items-center justify-end px-4 md:px-8 bg-white border-b border-slate-200 sticky top-0 z-10 shrink-0">
+        <div className="flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-100">
             <span>📅 {currentDate}</span>
           </div>
@@ -81,7 +81,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <div className="flex-1 p-8 max-w-7xl mx-auto w-full">
+      <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
         {/* Greeting */}
         <div className="mb-8">
           <div className="font-mono text-[11px] font-semibold tracking-[0.08em] uppercase text-muted-foreground mb-3">

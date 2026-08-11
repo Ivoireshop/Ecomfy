@@ -170,7 +170,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="none" className="bg-white border-r border-slate-200">
+    <Sidebar collapsible="none" className="hidden md:flex bg-white border-r border-slate-200">
       <SidebarContent className="flex flex-col h-full bg-white">
         <TooltipProvider>
           {/* Header */}

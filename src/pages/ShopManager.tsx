@@ -127,8 +127,8 @@ const ShopManager = () => {
   const activeShops = shops.filter(s => s?.is_activated).length;
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] font-inter">
-      <div className="max-w-[1180px] mx-auto px-6 md:px-8 pt-12 pb-16 text-[#0F1B2C]">
+    <div className="min-h-screen bg-[#F5F5F0]">
+      <div className="max-w-[1180px] mx-auto px-4 md:px-8 pt-8 md:pt-12 pb-16 text-[#0F1B2C]">
         
         {/* HEADER */}
         <button 
