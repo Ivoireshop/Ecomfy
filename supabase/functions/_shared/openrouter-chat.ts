@@ -7,8 +7,8 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 // Gemini model order (OpenRouter first, then Lovable Cloud).
-const OPENROUTER_TEXT_MODEL = "google/gemini-2.5-flash";
-const LOVABLE_TEXT_MODEL = "google/gemini-2.5-flash";
+const OPENROUTER_TEXT_MODEL = "google/gemini-1.5-flash";
+const LOVABLE_TEXT_MODEL = "google/gemini-1.5-flash";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -140,7 +140,7 @@ export async function geminiImage(
 
   // 1) OpenRouter
   if (openRouterKey) {
-    const models = ["google/gemini-2.5-flash-image-preview", "google/gemini-2.5-flash-image"];
+    const models = ["google/gemini-1.5-flash", "google/gemini-1.5-flash"];
     for (const model of models) {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -183,7 +183,7 @@ export async function geminiImage(
       Authorization: `Bearer ${lovableKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model: "google/gemini-3.1-flash-image-preview", ...body }),
+    body: JSON.stringify({ model: "google/gemini-1.5-flash", ...body }),
   });
   if (!resp.ok) {
     const errText = await resp.text();

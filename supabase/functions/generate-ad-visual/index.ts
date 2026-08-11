@@ -540,7 +540,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash-image-preview",
+              model: "google/gemini-1.5-flash",
               messages: [
                 { role: "user", content: prompt },
               ],

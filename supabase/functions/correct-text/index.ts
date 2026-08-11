@@ -76,7 +76,7 @@ Le texte corrigé doit être prêt à être utilisé directement dans un context
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-mini-2025-08-07",
+        model: "google/gemini-1.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: text },
