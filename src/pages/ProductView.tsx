@@ -858,46 +858,62 @@ const ProductView = () => {
                     <div className="flex items-center gap-1.5"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Informations de livraison</h4></div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {isEnabled("first_name") && (
-                        <div className="space-y-1 sm:col-span-2">
-                          <Label className="text-[13px] font-semibold text-gray-700">{nameLabel} {isRequired("first_name") && "*"}</Label>
-                          <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" />
+                        <div className="sm:col-span-2">
+                          <Input 
+                            value={customerInfo.name} 
+                            onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} 
+                            placeholder={`${nameLabel} ${isRequired("first_name") ? "*" : ""}`} 
+                            className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
+                          />
                         </div>
                       )}
                       {isEnabled("phone") && (
-                        <div className="space-y-1">
-                          <Label className="text-[13px] font-semibold text-gray-700">Téléphone {isRequired("phone") && "*"}</Label>
+                        <div>
                           <PhoneInput
                             value={customerInfo.phone}
                             onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
                             defaultCountryHint={shop?.country}
                             required={isRequired("phone")}
-                            inputClassName="h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                            inputClassName="h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors w-full"
                           />
                         </div>
                       )}
                       {isEnabled("email") && (
-                        <div className="space-y-1">
-                          <Label className="text-[13px] font-semibold text-gray-700">Email {isRequired("email") && "*"}</Label>
-                          <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" />
+                        <div>
+                          <Input 
+                            type="email" 
+                            value={customerInfo.email} 
+                            onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} 
+                            placeholder={`Email ${isRequired("email") ? "*" : ""}`} 
+                            className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
+                          />
                         </div>
                       )}
                       {isEnabled("city") && (
-                        <div className="space-y-1">
-                          <Label className="text-[13px] font-semibold text-gray-700">Ville {isRequired("city") && "*"}</Label>
-                          <Input value={customerInfo.city} onChange={(e) => {
-                            const raw = e.target.value;
-                            const cleaned = stripDigits(raw);
-                            setCustomerInfo({ ...customerInfo, city: cleaned });
-                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
-                            else if (cityError) setCityError("");
-                          }} placeholder="Abidjan" className={`rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
-                          {cityError && <p className="text-xs text-red-500">{cityError}</p>}
+                        <div>
+                          <Input 
+                            value={customerInfo.city} 
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const cleaned = stripDigits(raw);
+                              setCustomerInfo({ ...customerInfo, city: cleaned });
+                              if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                              else if (cityError) setCityError("");
+                            }} 
+                            placeholder={`Ville ${isRequired("city") ? "*" : ""}`} 
+                            className={`rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} 
+                          />
+                          {cityError && <p className="text-xs text-red-500 mt-1">{cityError}</p>}
                         </div>
                       )}
                       {isEnabled("address") && (
-                        <div className="space-y-1 sm:col-span-2">
-                          <Label className="text-[13px] font-semibold text-gray-700">Adresse détaillée {isRequired("address") && "*"}</Label>
-                          <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Ex: Cocody, Riviera 3, Rue L25" className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" />
+                        <div className="sm:col-span-2">
+                          <Input 
+                            value={customerInfo.address} 
+                            onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} 
+                            placeholder={`Adresse détaillée ${isRequired("address") ? "*" : ""}`} 
+                            className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
+                          />
                         </div>
                       )}
                     </div>
