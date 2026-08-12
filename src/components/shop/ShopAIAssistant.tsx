@@ -121,7 +121,7 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
       : "Bonjour 👋";
     const custom = config.custom_greeting?.trim();
     const greet = custom
-      ? `${greetingHead}\n\n${custom}`
+      ? custom
       : `${greetingHead}\n\nJe suis ${config.name}, l'assistante de **${shopName}**. Comment puis-je vous aider à choisir le produit qui vous correspond ?`;
     setMessages([{ role: "assistant", content: greet }]);
   }, [open, config]);
