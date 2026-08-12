@@ -730,215 +730,189 @@ const ProductView = () => {
   const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
   const customPageStyle = buildProductPageStyle(themeSettings);
 
+  const checkoutContainer = (
+    <div className="max-w-3xl mx-auto w-full px-4 pb-12">
+      {/* Inline Checkout */}
+      {(showInlineCheckout || cart.length > 0) && !orderSuccess && (
+        <div id="inline-checkout" className="mt-8 bg-white border shadow-xl rounded-2xl p-4 sm:p-8 space-y-6 scroll-mt-24 relative z-50" style={{ borderColor: primaryColor + "30" }}>
+          <h3 className="font-bold text-xl flex items-center gap-2" style={{ color: primaryColor }}>
+            <CreditCard className="h-6 w-6" /> Finaliser votre commande
+          </h3>
+
+          {/* Cart Summary */}
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+            {cart.map(item => (
+              <div key={item.product.id} className="flex items-center justify-between text-base">
+                <div className="flex items-center gap-3">
+                  {item.product.product_images?.[0] && (
+                    <img src={thumbUrl(item.product.product_images[0].image_url, 96)} alt="" loading="lazy" decoding="async" width={48} height={48} className="h-12 w-12 rounded-lg object-cover" />
+                  )}
+                  <span className="font-semibold">{item.product.name} × {item.quantity}</span>
+                </div>
+                <span className="font-bold">{formatPrice(item.product.price * item.quantity)} FCFA</span>
+              </div>
+            ))}
+            <div className="border-t pt-3 mt-3 flex justify-between font-bold text-lg">
+              <span>Total</span>
+              <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+            </div>
+          </div>
+
+          {/* Contact - respects checkout_fields */}
+          {(() => {
+            const cf: any[] = shop.checkout_fields || [];
+            const isEnabled = (id: string) => {
+              const f = cf.find((x: any) => x.id === id);
+              return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+            };
+            const isRequired = (id: string) => {
+              const f = cf.find((x: any) => x.id === id);
+              return f ? !!f.required : ["first_name","phone","city"].includes(id);
+            };
+            const showFullName = isEnabled("first_name") && isEnabled("last_name");
+            const showFirstOnly = isEnabled("first_name") && !isEnabled("last_name");
+            const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2"><User className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base">Informations de livraison</h4></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {isEnabled("first_name") && (
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-sm font-medium text-gray-700">{nameLabel} {isRequired("first_name") && "*"}</Label>
+                      <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-12" />
+                    </div>
+                  )}
+                  {isEnabled("phone") && (
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-gray-700">Téléphone {isRequired("phone") && "*"}</Label>
+                      <PhoneInput
+                        value={customerInfo.phone}
+                        onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                        defaultCountryHint={shop?.country}
+                        required={isRequired("phone")}
+                        inputClassName="h-12"
+                      />
+                    </div>
+                  )}
+                  {isEnabled("email") && (
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-gray-700">Email {isRequired("email") && "*"}</Label>
+                      <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-12" />
+                    </div>
+                  )}
+                  {isEnabled("city") && (
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-gray-700">Ville {isRequired("city") && "*"}</Label>
+                      <Input value={customerInfo.city} onChange={(e) => {
+                        const raw = e.target.value;
+                        const cleaned = stripDigits(raw);
+                        setCustomerInfo({ ...customerInfo, city: cleaned });
+                        if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                        else if (cityError) setCityError("");
+                      }} placeholder="Abidjan" className={`rounded-xl h-12 ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                      {cityError && <p className="text-xs text-red-500">{cityError}</p>}
+                    </div>
+                  )}
+                  {isEnabled("address") && (
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-sm font-medium text-gray-700">Adresse détaillée {isRequired("address") && "*"}</Label>
+                      <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Ex: Cocody, Riviera 3, Rue L25" className="rounded-xl h-12" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Payment Method */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2"><CreditCard className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base">Méthode de paiement</h4></div>
+            
+            {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
+              </div>
+            )}
+
+            {(() => {
+              const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
+              const methods = isInterior
+                ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
+                : [
+                    { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
+                    { value: "mobile_money", label: "Mobile Money", icon: "📱" },
+                  ];
+              
+              if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
+                setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {methods.map(method => (
+                    <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                      className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-md bg-slate-50" : "border-gray-200 hover:border-gray-300"}`}
+                      style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+                    >
+                      <span className="text-2xl">{method.icon}</span>
+                      <span className="font-semibold text-base">{method.label}</span>
+                      {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-5 w-5 ml-auto" style={{ color: primaryColor }} />}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          {(() => {
+            const cf: any[] = shop.checkout_fields || [];
+            const isEnabled = (id: string) => {
+              const f = cf.find((x: any) => x.id === id);
+              return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+            };
+            const isRequired = (id: string) => {
+              const f = cf.find((x: any) => x.id === id);
+              return f ? !!f.required : ["first_name","phone","city"].includes(id);
+            };
+            const canSubmit =
+              (!isEnabled("first_name") || !isRequired("first_name") || !!customerInfo.name) &&
+              (!isEnabled("phone") || (!isRequired("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
+              (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
+              (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
+              (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
+              (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
+            return (
+          <Button 
+            className="w-full h-14 sm:h-16 rounded-xl text-lg font-bold gap-3 text-white shadow-lg hover:shadow-xl transition-all"
+            style={{ backgroundColor: primaryColor }}
+            onClick={placeOrder} 
+            disabled={orderLoading || !canSubmit}
+          >
+            {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-6 w-6" /> Confirmer ma commande · {formatPrice(cartTotal)} FCFA</>}
+          </Button>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Inline order success */}
+      {orderSuccess && (
+        <div id="inline-checkout" className="mt-8 border-2 border-green-200 rounded-2xl p-8 text-center bg-green-50 shadow-lg relative z-50 scroll-mt-24">
+          <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6 bg-green-100">
+            <CheckCircle2 className="h-10 w-10 text-green-600" />
+          </div>
+          <h3 className="text-2xl font-bold mb-3 text-green-800">Commande confirmée ! 🎉</h3>
+          <p className="text-green-700 text-lg">Le vendeur vous contactera sous peu pour la livraison.</p>
+        </div>
+      )}
+    </div>
+  );
+
   // Optional professional themes — only activates when a known theme_slug is set
   // on themeSettings and the URL does not force classic mode. Falls back to the
   // legacy view on error via internal reload.
   const globalOverlays = (
     <>
-      {/* ====== CHECKOUT DIALOG ====== */}
-      <Dialog open={checkoutOpen} onOpenChange={(open) => { setCheckoutOpen(open); if (!open) { setCheckoutStep("cart"); setOrderSuccess(false); } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-0">
-          {orderSuccess ? (
-            <div className="text-center py-12 px-6">
-              <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: primaryColor + "15" }}>
-                <CheckCircle2 className="h-10 w-10" style={{ color: primaryColor }} />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Commande confirmée ! 🎉</h2>
-              <p className="text-gray-500 mb-6">Le vendeur vous contactera sous peu.</p>
-              <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); setCheckoutStep("cart"); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
-                Continuer mes achats
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="px-6 pt-6 pb-2">
-                <div className="flex items-center justify-between mb-1">
-                  {[
-                    { key: "cart", label: "Panier", icon: ShoppingBag },
-                    { key: "info", label: "Livraison", icon: Truck },
-                    { key: "confirm", label: "Paiement", icon: CreditCard },
-                  ].map((step, i) => {
-                    const steps = ["cart", "info", "confirm"];
-                    const currentIdx = steps.indexOf(checkoutStep);
-                    const isActive = i === currentIdx;
-                    const isDone = i < currentIdx;
-                    return (
-                      <div key={step.key} className="flex items-center flex-1">
-                        <div className="flex flex-col items-center flex-1">
-                          <div className={`h-9 w-9 rounded-full flex items-center justify-center mb-1 transition-colors ${!isDone && !isActive ? "bg-gray-100 text-gray-400" : "text-white"}`} style={isDone || isActive ? { backgroundColor: primaryColor } : {}}>
-                            {isDone ? <CheckCircle2 className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
-                          </div>
-                          <span className={`text-[11px] font-medium ${isActive ? "text-gray-900" : "text-gray-400"}`}>{step.label}</span>
-                        </div>
-                        {i < 2 && <div className={`h-0.5 flex-1 mx-1 rounded-full mt-[-14px] ${isDone ? "" : "bg-gray-200"}`} style={isDone ? { backgroundColor: primaryColor } : {}} />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {checkoutStep === "cart" && (
-                <div className="px-6 pb-6">
-                  {cart.length === 0 ? (
-                    <div className="text-center py-12">
-                      <ShoppingBag className="h-16 w-16 mx-auto text-gray-200 mb-4" />
-                      <p className="font-medium">Votre panier est vide</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {cart.map(item => (
-                        <div key={item.product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <div className="h-16 w-16 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                            {item.product.product_images?.[0] && <img src={thumbUrl(item.product.product_images[0].image_url, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                            <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
-                            <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3 text-red-500" /></Button>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="border-t pt-3 mt-3 flex justify-between">
-                        <span className="font-semibold text-lg">Total</span>
-                        <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                      </div>
-                      <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
-                        Continuer <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(checkoutStep === "info" || checkoutStep === "confirm") && (() => {
-                const cf: any[] = shop.checkout_fields || [];
-                const enabled = (id: string) => {
-                  const f = cf.find((x: any) => x.id === id);
-                  return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
-                };
-                const required = (id: string) => {
-                  const f = cf.find((x: any) => x.id === id);
-                  return f ? !!f.required : ["first_name","phone","city"].includes(id);
-                };
-                const showFullName = enabled("first_name") && enabled("last_name");
-                const showFirstOnly = enabled("first_name") && !enabled("last_name");
-                const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
-                const canSubmit =
-                  (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
-                  (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
-                  (!enabled("city") || !required("city") || !!customerInfo.city) &&
-                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
-                  (!enabled("address") || !required("address") || !!customerInfo.address);
-                const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
-                const methods = isInterior
-                  ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
-                  : [
-                      { value: "cash_on_delivery", label: "À la livraison", icon: "💵" },
-                      { value: "mobile_money", label: "Mobile Money", icon: "📱" },
-                    ];
-                if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
-                  setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
-                }
-                return (
-                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
-                  <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
-                    <ArrowLeft className="h-3.5 w-3.5" /> Retour au panier
-                  </button>
-                  <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-xs">
-                    {cart.map(item => (
-                      <div key={item.product.id} className="flex justify-between">
-                        <span className="text-gray-500">{item.product.name} × {item.quantity}</span>
-                        <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
-                      </div>
-                    ))}
-                    <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
-                      <span>Total</span>
-                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2"><User className="h-3.5 w-3.5" style={{ color: primaryColor }} /><h4 className="font-bold text-xs">Vos informations</h4></div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {enabled("first_name") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-gray-500">{nameLabel} {required("first_name") && "*"}</Label>
-                          <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                      {enabled("phone") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-gray-500">Téléphone {required("phone") && "*"}</Label>
-                          <PhoneInput
-                            value={customerInfo.phone}
-                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
-                            defaultCountryHint={shop?.country}
-                            required={required("phone")}
-                          />
-                        </div>
-                      )}
-                      {enabled("email") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-gray-500">Email {required("email") && "*"}</Label>
-                          <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                      {enabled("city") && (
-                        <div className="space-y-0.5 col-span-2 sm:col-span-1">
-                          <Label className="text-[11px] text-gray-500">Ville {required("city") && "*"}</Label>
-                          <Input value={customerInfo.city} onChange={(e) => {
-                            const raw = e.target.value;
-                            const cleaned = stripDigits(raw);
-                            setCustomerInfo({ ...customerInfo, city: cleaned });
-                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
-                            else if (cityError) setCityError("");
-                          }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
-                          {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
-                        </div>
-                      )}
-                      {enabled("address") && (
-                        <div className={`space-y-0.5 col-span-2 ${enabled("city") ? "sm:col-span-1" : ""}`}>
-                          <Label className="text-[11px] text-gray-500">Adresse {required("address") && "*"}</Label>
-                          <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-xs">Mode de paiement</h4></div>
-                    {isInterior && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-800">
-                        ⚠️ Hors Abidjan : Mobile Money obligatoire.
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2">
-                      {methods.map(method => (
-                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200"}`}
-                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
-                        >
-                          <span className="text-lg">{method.icon}</span>
-                          <p className="font-semibold text-xs">{method.label}</p>
-                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto" style={{ color: primaryColor }} />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <Button className="w-full h-11 rounded-xl text-sm font-bold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
-                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
-                  </Button>
-                </div>
-                );
-              })()}
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Chatbot */}
       {shop.chatbot_enabled && (
         <>
@@ -979,9 +953,9 @@ const ProductView = () => {
       )}
 
       {/* Floating Cart - Mobile */}
-      {!shop._isPreview && cartCount > 0 && !checkoutOpen && !shop.theme_config?.sticky_order_button && (
+      {!shop._isPreview && cartCount > 0 && !showInlineCheckout && !shop.theme_config?.sticky_order_button && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
-          <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}>
+          <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setShowInlineCheckout(true); setOrderSuccess(false); setTimeout(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }}>
             <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
             <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
           </Button>
@@ -1000,18 +974,12 @@ const ProductView = () => {
               className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none"
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
-                if (!useNewThemes && shop.theme_config?.single_page_checkout) {
-                  addToCart(product, quantity, true, true);
-                  setShowInlineCheckout(true);
-                  setTimeout(() => {
-                    document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 80);
-                } else {
-                  addToCart(product, quantity, true, true);
-                  setCheckoutOpen(true);
-                  setCheckoutStep("info");
-                  setOrderSuccess(false);
-                }
+                addToCart(product, quantity, true, true);
+                setShowInlineCheckout(true);
+                setOrderSuccess(false);
+                setTimeout(() => {
+                  document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 150);
               }}
               disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
             >
@@ -1065,9 +1033,11 @@ const ProductView = () => {
             fallback={null}
             onCheckout={() => {
               addToCart(product, quantity, true, true);
-              setCheckoutOpen(true);
-              setCheckoutStep("info");
+              setShowInlineCheckout(true);
               setOrderSuccess(false);
+              setTimeout(() => {
+                document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 150);
             }}
           />
         </Suspense>
@@ -1173,7 +1143,7 @@ const ProductView = () => {
               <Button 
                 variant="outline" 
                 className="gap-1.5 rounded-lg relative h-9 px-3" 
-                onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
+                onClick={() => { setShowInlineCheckout(true); setOrderSuccess(false); setTimeout(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }}
               >
                 <ShoppingBag className="h-4 w-4" />
                 <span className="hidden sm:inline text-sm">Panier</span>
@@ -1465,7 +1435,7 @@ const ProductView = () => {
               <div className="flex flex-col gap-3">
                 {shop._isPreview ? (
                   <PreviewLockedNotice primaryColor={primaryColor} />
-                ) : shop.theme_config?.single_page_checkout ? (
+                ) : (
                   <Button 
                     className="w-full h-14 sm:h-16 rounded-2xl text-lg sm:text-xl font-bold gap-3 text-white shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
                     style={{ backgroundColor: primaryColor }}
@@ -1474,22 +1444,7 @@ const ProductView = () => {
                       setShowInlineCheckout(true);
                       setTimeout(() => {
                         document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }, 80);
-                    }}
-                    disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
-                  >
-                    <ShoppingCart className="h-6 w-6" />
-                    {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant - ${formatPrice(product.price * quantity)} FCFA`}
-                  </Button>
-                ) : (
-                  <Button 
-                    className="w-full h-14 sm:h-16 rounded-2xl text-lg sm:text-xl font-bold gap-3 text-white shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
-                    style={{ backgroundColor: primaryColor }}
-                    onClick={() => {
-                      addToCart(product, quantity, true, true);
-                      setCheckoutOpen(true);
-                      setCheckoutStep("info");
-                      setOrderSuccess(false);
+                      }, 150);
                     }}
                     disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
                   >
@@ -1512,180 +1467,7 @@ const ProductView = () => {
               </div>
 
               {/* Inline Single-Page Checkout */}
-              {shop.theme_config?.single_page_checkout && showInlineCheckout && cart.length > 0 && (
-                <div id="inline-checkout" className="mt-4 border-2 rounded-2xl p-4 sm:p-6 space-y-5 scroll-mt-24" style={{ borderColor: primaryColor + "30" }}>
-                  <h3 className="font-bold text-lg flex items-center gap-2" style={{ color: primaryColor }}>
-                    <CreditCard className="h-5 w-5" /> Finaliser votre commande
-                  </h3>
-
-                  {/* Cart Summary */}
-                  <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-                    {cart.map(item => (
-                      <div key={item.product.id} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          {item.product.product_images?.[0] && (
-                            <img src={thumbUrl(item.product.product_images[0].image_url, 96)} alt="" loading="lazy" decoding="async" width={40} height={40} className="h-10 w-10 rounded-lg object-cover" />
-                          )}
-                          <span className="font-medium">{item.product.name} × {item.quantity}</span>
-                        </div>
-                        <span className="font-bold">{formatPrice(item.product.price * item.quantity)} FCFA</span>
-                      </div>
-                    ))}
-                    <div className="border-t pt-2 mt-2 flex justify-between font-bold">
-                      <span>Total</span>
-                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                    </div>
-                  </div>
-
-                  {/* Contact - respects checkout_fields */}
-                  {(() => {
-                    const cf: any[] = shop.checkout_fields || [];
-                    const isEnabled = (id: string) => {
-                      const f = cf.find((x: any) => x.id === id);
-                      return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
-                    };
-                    const isRequired = (id: string) => {
-                      const f = cf.find((x: any) => x.id === id);
-                      return f ? !!f.required : ["first_name","phone","city"].includes(id);
-                    };
-                    const showFullName = isEnabled("first_name") && isEnabled("last_name");
-                    const showFirstOnly = isEnabled("first_name") && !isEnabled("last_name");
-                    const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
-                    return (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Informations</h4></div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {isEnabled("first_name") && (
-                            <div className="space-y-1 sm:col-span-2">
-                              <Label className="text-xs text-gray-500">{nameLabel} {isRequired("first_name") && "*"}</Label>
-                              <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-11" />
-                            </div>
-                          )}
-                          {isEnabled("phone") && (
-                            <div className="space-y-1">
-                              <Label className="text-xs text-gray-500">Téléphone {isRequired("phone") && "*"}</Label>
-                              <PhoneInput
-                                value={customerInfo.phone}
-                                onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
-                                defaultCountryHint={shop?.country}
-                                required={isRequired("phone")}
-                                inputClassName="h-11"
-                              />
-                            </div>
-                          )}
-                          {isEnabled("email") && (
-                            <div className="space-y-1">
-                              <Label className="text-xs text-gray-500">Email {isRequired("email") && "*"}</Label>
-                              <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-11" />
-                            </div>
-                          )}
-                          {isEnabled("city") && (
-                            <div className="space-y-1">
-                              <Label className="text-xs text-gray-500">Ville {isRequired("city") && "*"}</Label>
-                              <Input value={customerInfo.city} onChange={(e) => {
-                                const raw = e.target.value;
-                                const cleaned = stripDigits(raw);
-                                setCustomerInfo({ ...customerInfo, city: cleaned });
-                                if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
-                                else if (cityError) setCityError("");
-                              }} placeholder="Abidjan" className={`rounded-xl h-11 ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
-                              {cityError && <p className="text-xs text-red-500">{cityError}</p>}
-                            </div>
-                          )}
-                          {isEnabled("address") && (
-                            <div className="space-y-1">
-                              <Label className="text-xs text-gray-500">Adresse {isRequired("address") && "*"}</Label>
-                              <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-xl h-11" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Payment Method */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-sm">Paiement</h4></div>
-                    
-                    {/* Interior city warning */}
-                    {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-sm text-amber-800">
-                        <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
-                      </div>
-                    )}
-
-                    {(() => {
-                      const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
-                      const methods = isInterior
-                        ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
-                        : [
-                            { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
-                            { value: "mobile_money", label: "Mobile Money", icon: "📱" },
-                          ];
-                      
-                      // Auto-select mobile_money for interior
-                      if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
-                        setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
-                      }
-
-                      return (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {methods.map(method => (
-                            <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                              className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-gray-200"}`}
-                              style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
-                            >
-                              <span className="text-xl">{method.icon}</span>
-                              <span className="font-semibold text-sm">{method.label}</span>
-                              {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto" style={{ color: primaryColor }} />}
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {(() => {
-                    const cf: any[] = shop.checkout_fields || [];
-                    const isEnabled = (id: string) => {
-                      const f = cf.find((x: any) => x.id === id);
-                      return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
-                    };
-                    const isRequired = (id: string) => {
-                      const f = cf.find((x: any) => x.id === id);
-                      return f ? !!f.required : ["first_name","phone","city"].includes(id);
-                    };
-                    const canSubmit =
-                      (!isEnabled("first_name") || !isRequired("first_name") || !!customerInfo.name) &&
-                      (!isEnabled("phone") || (!isRequired("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
-                      (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
-                      (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
-                      (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
-                      (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
-                    return (
-                  <Button 
-                    className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg"
-                    style={{ backgroundColor: primaryColor }}
-                    onClick={placeOrder} 
-                    disabled={orderLoading || !canSubmit}
-                  >
-                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
-                  </Button>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* Inline order success */}
-              {shop.theme_config?.single_page_checkout && orderSuccess && (
-                <div className="mt-4 border-2 border-green-200 rounded-2xl p-6 text-center bg-green-50">
-                  <div className="h-16 w-16 mx-auto rounded-full flex items-center justify-center mb-4 bg-green-100">
-                    <CheckCircle2 className="h-8 w-8 text-green-600" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Commande confirmée ! 🎉</h3>
-                  <p className="text-gray-500 text-sm">Le vendeur vous contactera sous peu.</p>
-                </div>
-              )}
+              {/* (Inline checkout removed from here since it's now in globalOverlays) */}
             </div>
 
             {/* Trust badges */}
