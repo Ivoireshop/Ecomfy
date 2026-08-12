@@ -3707,6 +3707,8 @@ export type Database = {
           updated_at: string
           user_id: string
           whatsapp_number: string | null
+          cta_animation_type: string | null
+          cta_animation_speed: string | null
         }
         Insert: {
           activation_fee_paid?: boolean | null
@@ -3784,6 +3786,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           whatsapp_number?: string | null
+          cta_animation_type?: string | null
+          cta_animation_speed?: string | null
         }
         Update: {
           activation_fee_paid?: boolean | null
@@ -3861,6 +3865,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           whatsapp_number?: string | null
+          cta_animation_type?: string | null
+          cta_animation_speed?: string | null
         }
         Relationships: [
           {
@@ -4930,6 +4936,8 @@ export type Database = {
           tracking_enabled: boolean | null
           updated_at: string | null
           whatsapp_number: string | null
+          cta_animation_type: string | null
+          cta_animation_speed: string | null
         }
         Insert: {
           address?: string | null
@@ -4971,6 +4979,8 @@ export type Database = {
           tracking_enabled?: boolean | null
           updated_at?: string | null
           whatsapp_number?: string | null
+          cta_animation_type?: string | null
+          cta_animation_speed?: string | null
         }
         Update: {
           address?: string | null
@@ -5012,6 +5022,8 @@ export type Database = {
           tracking_enabled?: boolean | null
           updated_at?: string | null
           whatsapp_number?: string | null
+          cta_animation_type?: string | null
+          cta_animation_speed?: string | null
         }
         Relationships: []
       }

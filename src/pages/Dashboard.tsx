@@ -9,6 +9,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
+import { InstallPwaBanner } from "@/components/InstallPwaBanner";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -253,6 +254,8 @@ const Dashboard = () => {
             Voici un aperçu de votre activité aujourd'hui.
           </p>
         </div>
+
+        <InstallPwaBanner />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">

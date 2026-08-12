@@ -1064,7 +1064,24 @@ const ProductView = () => {
       {/* Floating Cart - Mobile */}
       {!isCustomTheme && !shop._isPreview && cartCount > 0 && !showInlineCheckout && !shop.theme_config?.sticky_order_button && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
-          <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setShowInlineCheckout(true); setOrderSuccess(false); setTimeout(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }}>
+          <Button 
+            className={`w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white ${
+              shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
+              shop.cta_animation_type === 'slide' ? 'hover:translate-x-2 transition-transform' :
+              shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
+              shop.cta_animation_type === 'static' ? '' :
+              'animate-pulse hover:animate-none'
+            } ${
+              shop.cta_animation_speed === 'fast' ? 'duration-150' : 
+              shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+            }`} 
+            style={{ backgroundColor: primaryColor }} 
+            onClick={() => { 
+              setShowInlineCheckout(true); 
+              setOrderSuccess(false); 
+              requestAnimationFrame(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" })); 
+            }}
+          >
             <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
             <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
           </Button>
@@ -1080,15 +1097,24 @@ const ProductView = () => {
               <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
             </div>
             <Button 
-              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl font-bold flex items-center justify-between px-3 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none group"
+              className={`flex-1 sm:flex-none h-12 sm:h-14 rounded-xl font-bold flex items-center justify-between px-3 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all group ${
+                shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
+                shop.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
+                shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
+                shop.cta_animation_type === 'static' ? '' :
+                'animate-pulse hover:animate-none'
+              } ${
+                shop.cta_animation_speed === 'fast' ? 'duration-150' : 
+                shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+              }`}
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 addToCart(product, quantity, true, true);
                 setShowInlineCheckout(true);
                 setOrderSuccess(false);
-                setTimeout(() => {
+                requestAnimationFrame(() => {
                   document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }, 150);
+                });
               }}
               disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
             >
@@ -1152,9 +1178,9 @@ const ProductView = () => {
               addToCart(product, quantity, true, true);
               setShowInlineCheckout(true);
               setOrderSuccess(false);
-              setTimeout(() => {
+              requestAnimationFrame(() => {
                 document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }, 150);
+              });
             }}
           />
         </Suspense>
@@ -1258,12 +1284,25 @@ const ProductView = () => {
                 </a>
               )}
               <Button 
-                variant="outline" 
-                className="gap-1.5 rounded-lg relative h-9 px-3" 
-                onClick={() => { setShowInlineCheckout(true); setOrderSuccess(false); setTimeout(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }}
+                className={`w-auto h-9 rounded-lg text-sm font-semibold gap-1.5 text-white shadow-lg transition-all ${
+                  shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
+                  shop.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
+                  shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
+                  shop.cta_animation_type === 'static' ? '' :
+                  'animate-pulse hover:animate-none'
+                } ${
+                  shop.cta_animation_speed === 'fast' ? 'duration-150' : 
+                  shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+                }`} 
+                style={{ backgroundColor: primaryColor }} 
+                onClick={() => { 
+                  setShowInlineCheckout(true); 
+                  setOrderSuccess(false); 
+                  requestAnimationFrame(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" })); 
+                }}
               >
                 <ShoppingBag className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm">Panier</span>
+                <span className="hidden sm:inline">Panier</span>
                 {cartCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
                     {cartCount}
@@ -1554,14 +1593,23 @@ const ProductView = () => {
                   <PreviewLockedNotice primaryColor={primaryColor} />
                 ) : (
                   <Button 
-                    className="w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-between px-4 sm:px-6 text-white shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all group"
+                    className={`w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-between px-4 sm:px-6 text-white shadow-xl hover:shadow-2xl transition-all group ${
+                      shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
+                      shop.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
+                      shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
+                      shop.cta_animation_type === 'static' ? 'hover:-translate-y-0.5' :
+                      'animate-pulse hover:animate-none hover:-translate-y-0.5'
+                    } ${
+                      shop.cta_animation_speed === 'fast' ? 'duration-150' : 
+                      shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+                    }`}
                     style={{ backgroundColor: primaryColor }}
                     onClick={() => {
                       addToCart(product, quantity, true, true);
                       setShowInlineCheckout(true);
-                      setTimeout(() => {
+                      requestAnimationFrame(() => {
                         document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }, 150);
+                      });
                     }}
                     disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
                   >
