@@ -783,17 +783,59 @@ const ProductView = () => {
           {/* Main Checkout Fields - Hide if Custom Theme and Cart is empty (requires variant selection) */}
           {(!isCustomTheme || cart.length > 0) && (
             <>
-              {/* Cart Summary (Compact) */}
-              <div className="bg-gray-50/80 rounded-xl p-3 flex flex-col gap-1.5 border border-gray-100">
+              {/* Order Summary (Rich) */}
+              <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-3 border border-gray-100 mb-6">
+                <div className="flex items-center gap-1.5 mb-1"><ShoppingCart className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Récapitulatif</h4></div>
+                
                 {cart.map(item => (
-                  <div key={item.product.id} className="flex items-center justify-between text-[13px] sm:text-sm">
-                    <span className="text-gray-600 truncate">{item.quantity}x {item.product.name}</span>
-                    <span className="font-semibold whitespace-nowrap ml-2 text-gray-900">{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                  <div key={item.product.id} className="flex gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                    {/* Image */}
+                    {item.product.images?.[0] ? (
+                      <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                        <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : primaryImage ? (
+                      <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                        <img src={primaryImage} alt={item.product.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <ShoppingBag className="h-6 w-6 text-gray-300" />
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col flex-1 justify-center min-w-0">
+                      <p className="font-bold text-[14px] text-gray-900 truncate leading-tight">{item.product.name}</p>
+                      
+                      {/* Variants & Bundles */}
+                      {(Object.keys(item.variants || {}).length > 0 || item.bundle) && (
+                        <div className="text-[12px] text-gray-500 mt-0.5 line-clamp-1">
+                          {item.bundle && <span className="font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mr-1">Offre : {item.bundle.name}</span>}
+                          {Object.entries(item.variants || {}).map(([k, v]) => `${v}`).join(", ")}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="font-black text-[15px]" style={{ color: primaryColor }}>{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                        
+                        {/* Quantity Selector */}
+                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg h-7">
+                          <button type="button" onClick={() => updateQuantity(item.product.id, -1)} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors">
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-7 text-center text-[13px] font-bold text-gray-900">{item.quantity}</span>
+                          <button type="button" onClick={() => updateQuantity(item.product.id, 1)} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors">
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ))}
-                <div className="border-t border-gray-200 pt-1.5 mt-1 flex justify-between items-center">
-                  <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Total à payer</span>
-                  <span className="font-black text-base" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                
+                <div className="border-t border-gray-200 pt-3 mt-1 flex justify-between items-end">
+                  <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total à payer</span>
+                  <span className="font-black text-xl leading-none" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
                 </div>
               </div>
 
@@ -887,15 +929,15 @@ const ProductView = () => {
                   }
 
                   return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {methods.map(method => (
                         <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                          className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm bg-gray-50/50" : "border-gray-100 hover:border-gray-200 bg-transparent"}`}
+                          className={`relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${customerInfo.paymentMethod === method.value ? "shadow-sm bg-gray-50/50" : "border-gray-100 hover:border-gray-200 bg-transparent"}`}
                           style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor, backgroundColor: primaryColor + "08" } : {}}
                         >
-                          <span className="text-xl">{method.icon}</span>
-                          <span className="font-semibold text-[14px] flex-1 text-gray-800">{method.label}</span>
-                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4" style={{ color: primaryColor }} />}
+                          {customerInfo.paymentMethod === method.value && <div className="absolute top-1.5 right-1.5"><CheckCircle2 className="h-4 w-4" style={{ color: primaryColor }} /></div>}
+                          <span className="text-2xl mb-0.5">{method.icon}</span>
+                          <span className="font-bold text-[13px] text-gray-800 leading-tight">{method.label}</span>
                         </button>
                       ))}
                     </div>
@@ -1030,7 +1072,7 @@ const ProductView = () => {
       )}
 
       {/* Sticky Order Button - always visible when enabled */}
-      {!isCustomTheme && !shop._isPreview && shop.theme_config?.sticky_order_button && product && (
+      {!isCustomTheme && !shop._isPreview && shop.theme_config?.sticky_order_button && product && !showInlineCheckout && (
         <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="flex-1 min-w-0 hidden sm:block">
@@ -1038,7 +1080,7 @@ const ProductView = () => {
               <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
             </div>
             <Button 
-              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none"
+              className="flex-1 sm:flex-none h-12 sm:h-14 rounded-xl font-bold flex items-center justify-between px-3 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all animate-pulse hover:animate-none group"
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 addToCart(product, quantity, true, true);
@@ -1050,8 +1092,15 @@ const ProductView = () => {
               }}
               disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
             >
-              <ShoppingCart className="h-5 w-5" />
-              {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander maintenant"}
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 group-hover:scale-110 transition-transform" />
+                <span className="text-[15px] sm:text-lg whitespace-nowrap">
+                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander"}
+                </span>
+              </div>
+              <div className="sm:hidden bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-lg text-[14px] font-extrabold whitespace-nowrap flex items-center">
+                {formatPrice(product.price)} FCFA
+              </div>
             </Button>
           </div>
         </div>
@@ -1505,7 +1554,7 @@ const ProductView = () => {
                   <PreviewLockedNotice primaryColor={primaryColor} />
                 ) : (
                   <Button 
-                    className="w-full h-14 sm:h-16 rounded-2xl text-lg sm:text-xl font-bold gap-3 text-white shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+                    className="w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-between px-4 sm:px-6 text-white shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all group"
                     style={{ backgroundColor: primaryColor }}
                     onClick={() => {
                       addToCart(product, quantity, true, true);
@@ -1516,8 +1565,17 @@ const ProductView = () => {
                     }}
                     disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
                   >
-                    <ShoppingCart className="h-6 w-6" />
-                    {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : `Commander maintenant - ${formatPrice(product.price * quantity)} FCFA`}
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="text-[15px] sm:text-lg whitespace-nowrap">
+                        {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander"}
+                      </span>
+                    </div>
+                    {(product.stock_quantity === null || product.stock_quantity > 0) && (
+                      <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-xl text-[14px] sm:text-base font-extrabold whitespace-nowrap flex items-center">
+                        {formatPrice(product.price * quantity)} FCFA
+                      </div>
+                    )}
                   </Button>
                 )}
 
@@ -1527,8 +1585,9 @@ const ProductView = () => {
                     target="_blank" rel="noopener noreferrer" 
                     className="block"
                   >
-                    <Button variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold gap-2 border-[3px] border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 transition-colors">
-                      <MessageCircle className="h-6 w-6" /> Commander via WhatsApp
+                    <Button variant="outline" className="w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-center gap-2 border-[3px] border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 transition-colors text-[15px] sm:text-lg shadow-sm">
+                      <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" /> 
+                      <span>Commander via WhatsApp</span>
                     </Button>
                   </a>
                 )}
