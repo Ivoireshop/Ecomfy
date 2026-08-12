@@ -418,6 +418,8 @@ const ShopEditor = () => {
       facebook_test_event_code: shop.facebook_test_event_code,
       ga4_measurement_id: shop.ga4_measurement_id,
       notification_settings: shop.notification_settings ?? {},
+      cta_animation_type: shop.cta_animation_type,
+      cta_animation_speed: shop.cta_animation_speed,
     }).eq("id", shop.id) as any;
 
     // Upsert sensitive credentials into the private shop_secrets table.
