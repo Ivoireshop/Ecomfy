@@ -1063,6 +1063,7 @@ const ProductView = () => {
             shopId={shop.id}
             enabled={shop.social_proof_enabled || false}
             productName={product?.name}
+            productImage={images?.[0]?.image_url}
           />
           <ShopAIAssistant
             shopId={shop.id}
