@@ -470,6 +470,49 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                         <Switch checked={shop.theme_config?.sticky_order_button || false} onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), sticky_order_button: v } })} />
                       </div>
                       
+                      <div className="flex flex-col gap-4 p-4 rounded-xl border bg-muted/10">
+                        <div>
+                          <p className="font-bold">Animation du bouton d'achat (CTA)</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">Choisissez comment le bouton d'ajout au panier attire l'œil de vos clients.</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Style d'animation</Label>
+                            <Select 
+                              value={shop.cta_animation_type || "pulse"} 
+                              onValueChange={(v) => setShop({ ...shop, cta_animation_type: v })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choisir une animation" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pulse">Pulsation (Doux)</SelectItem>
+                                <SelectItem value="shake">Secousse (Urgent)</SelectItem>
+                                <SelectItem value="slide">Glissement (Au survol)</SelectItem>
+                                <SelectItem value="bounce">Rebond (Attractif)</SelectItem>
+                                <SelectItem value="static">Aucune animation</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Vitesse</Label>
+                            <Select 
+                              value={shop.cta_animation_speed || "normal"} 
+                              onValueChange={(v) => setShop({ ...shop, cta_animation_speed: v })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choisir la vitesse" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="slow">Lente</SelectItem>
+                                <SelectItem value="normal">Normale</SelectItem>
+                                <SelectItem value="fast">Rapide</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                      
                       <div className="flex items-center justify-between p-4 rounded-xl border bg-orange-50/50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/30 hover:bg-orange-50 dark:hover:bg-orange-900/40 transition-colors">
                         <div className="pr-4">
                           <p className="font-bold text-orange-900 dark:text-orange-200">Paiement anticipé obligatoire (Intérieur)</p>
