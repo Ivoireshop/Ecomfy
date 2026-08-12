@@ -736,9 +736,9 @@ const ProductView = () => {
     <>
       {/* Inline Checkout */}
       {(showInlineCheckout || cart.length > 0) && !orderSuccess && (
-        <div id="inline-checkout" className={isCustomTheme ? "space-y-6 relative" : "mt-8 bg-white border shadow-xl rounded-2xl p-4 sm:p-8 space-y-6 scroll-mt-24 relative z-50"} style={isCustomTheme ? {} : { borderColor: primaryColor + "30" }}>
-          <h3 className="font-bold text-xl flex items-center gap-2" style={{ color: primaryColor }}>
-            <CreditCard className="h-6 w-6" /> Finaliser votre commande
+        <div id="inline-checkout" className={isCustomTheme ? "space-y-5 sm:space-y-6 relative" : "mt-6 sm:mt-8 bg-white border shadow-xl rounded-3xl p-5 sm:p-8 space-y-5 sm:space-y-6 scroll-mt-24 relative z-50"} style={isCustomTheme ? {} : { borderColor: primaryColor + "30" }}>
+          <h3 className="font-bold text-xl sm:text-2xl flex items-center gap-2 mb-2" style={{ color: primaryColor }}>
+            <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" /> Finaliser votre commande
           </h3>
 
           {/* Variants for Custom Themes where they can't be selected outside */}
@@ -784,19 +784,19 @@ const ProductView = () => {
           {(!isCustomTheme || cart.length > 0) && (
             <>
               {/* Cart Summary */}
-              <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <div className="bg-gray-50 rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3">
             {cart.map(item => (
-              <div key={item.product.id} className="flex items-center justify-between text-base">
-                <div className="flex items-center gap-3">
+              <div key={item.product.id} className="flex items-center justify-between text-sm sm:text-base">
+                <div className="flex items-center gap-2 sm:gap-3">
                   {item.product.product_images?.[0] && (
-                    <img src={thumbUrl(item.product.product_images[0].image_url, 96)} alt="" loading="lazy" decoding="async" width={48} height={48} className="h-12 w-12 rounded-lg object-cover" />
+                    <img src={thumbUrl(item.product.product_images[0].image_url, 96)} alt="" loading="lazy" decoding="async" width={40} height={40} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
                   )}
                   <span className="font-semibold">{item.product.name} × {item.quantity}</span>
                 </div>
                 <span className="font-bold">{formatPrice(item.product.price * item.quantity)} FCFA</span>
               </div>
             ))}
-            <div className="border-t pt-3 mt-3 flex justify-between font-bold text-lg">
+            <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3 flex justify-between font-bold text-base sm:text-lg">
               <span>Total</span>
               <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
             </div>
@@ -818,34 +818,34 @@ const ProductView = () => {
             const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
             return (
               <div className="space-y-4">
-                <div className="flex items-center gap-2"><User className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base">Informations de livraison</h4></div>
+                <div className="flex items-center gap-2"><User className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base sm:text-lg">Informations de livraison</h4></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {isEnabled("first_name") && (
-                    <div className="space-y-1.5 sm:col-span-2">
+                    <div className="space-y-1 sm:space-y-1.5 sm:col-span-2">
                       <Label className="text-sm font-medium text-gray-700">{nameLabel} {isRequired("first_name") && "*"}</Label>
-                      <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-12" />
+                      <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-12 text-base sm:text-sm" />
                     </div>
                   )}
                   {isEnabled("phone") && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1 sm:space-y-1.5">
                       <Label className="text-sm font-medium text-gray-700">Téléphone {isRequired("phone") && "*"}</Label>
                       <PhoneInput
                         value={customerInfo.phone}
                         onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
                         defaultCountryHint={shop?.country}
                         required={isRequired("phone")}
-                        inputClassName="h-12"
+                        inputClassName="h-12 text-base sm:text-sm"
                       />
                     </div>
                   )}
                   {isEnabled("email") && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1 sm:space-y-1.5">
                       <Label className="text-sm font-medium text-gray-700">Email {isRequired("email") && "*"}</Label>
-                      <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-12" />
+                      <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-12 text-base sm:text-sm" />
                     </div>
                   )}
                   {isEnabled("city") && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1 sm:space-y-1.5">
                       <Label className="text-sm font-medium text-gray-700">Ville {isRequired("city") && "*"}</Label>
                       <Input value={customerInfo.city} onChange={(e) => {
                         const raw = e.target.value;
@@ -853,14 +853,14 @@ const ProductView = () => {
                         setCustomerInfo({ ...customerInfo, city: cleaned });
                         if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
                         else if (cityError) setCityError("");
-                      }} placeholder="Abidjan" className={`rounded-xl h-12 ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                      }} placeholder="Abidjan" className={`rounded-xl h-12 text-base sm:text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
                       {cityError && <p className="text-xs text-red-500">{cityError}</p>}
                     </div>
                   )}
                   {isEnabled("address") && (
-                    <div className="space-y-1.5 sm:col-span-2">
+                    <div className="space-y-1 sm:space-y-1.5 sm:col-span-2">
                       <Label className="text-sm font-medium text-gray-700">Adresse détaillée {isRequired("address") && "*"}</Label>
-                      <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Ex: Cocody, Riviera 3, Rue L25" className="rounded-xl h-12" />
+                      <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Ex: Cocody, Riviera 3, Rue L25" className="rounded-xl h-12 text-base sm:text-sm" />
                     </div>
                   )}
                 </div>
@@ -870,10 +870,10 @@ const ProductView = () => {
 
           {/* Payment Method */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2"><CreditCard className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base">Méthode de paiement</h4></div>
+            <div className="flex items-center gap-2"><CreditCard className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base sm:text-lg">Méthode de paiement</h4></div>
             
             {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-amber-800">
                 <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
               </div>
             )}
@@ -892,15 +892,15 @@ const ProductView = () => {
               }
 
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {methods.map(method => (
                     <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                      className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-md bg-slate-50" : "border-gray-200 hover:border-gray-300"}`}
+                      className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-md bg-slate-50" : "border-gray-200 hover:border-gray-300"}`}
                       style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
                     >
-                      <span className="text-2xl">{method.icon}</span>
-                      <span className="font-semibold text-base">{method.label}</span>
-                      {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-5 w-5 ml-auto" style={{ color: primaryColor }} />}
+                      <span className="text-xl sm:text-2xl">{method.icon}</span>
+                      <span className="font-semibold text-sm sm:text-base">{method.label}</span>
+                      {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 ml-auto" style={{ color: primaryColor }} />}
                     </button>
                   ))}
                 </div>
@@ -927,12 +927,12 @@ const ProductView = () => {
               (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
             return (
           <Button 
-            className="w-full h-14 sm:h-16 rounded-xl text-lg font-bold gap-3 text-white shadow-lg hover:shadow-xl transition-all"
+            className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 sm:gap-3 text-white shadow-lg hover:shadow-xl transition-all"
             style={{ backgroundColor: primaryColor }}
             onClick={placeOrder} 
             disabled={orderLoading || !canSubmit}
           >
-            {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-6 w-6" /> Confirmer ma commande · {formatPrice(cartTotal)} FCFA</>}
+            {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" /> Confirmer ma commande · {formatPrice(cartTotal)} FCFA</>}
           </Button>
             );
           })()}
@@ -956,7 +956,7 @@ const ProductView = () => {
 
   const checkoutContainer = isCustomTheme ? (
     <Dialog open={showInlineCheckout} onOpenChange={setShowInlineCheckout}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-white z-[99999]" style={{ zIndex: 99999 }}>
+      <DialogContent className="w-[95vw] max-w-lg mx-auto rounded-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-white z-[99999]" style={{ zIndex: 99999 }}>
         <DialogHeader className="sr-only">
           <DialogTitle>Finaliser votre commande</DialogTitle>
         </DialogHeader>
