@@ -6,6 +6,7 @@ import {
   TrendingUp, ShoppingCart, DollarSign, Package, Monitor, 
   Smartphone, Tablet, Globe, Clock, Target, Activity, Users, Filter, ArrowUpRight
 } from "lucide-react";
+import { TrafficGlobe } from "./TrafficGlobe";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, BarChart, Bar, ComposedChart, Line
@@ -132,6 +133,38 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
     return sorted;
   }, [filteredVisits]);
 
+  const guessCountryFromPhone = (phone: string | null | undefined): string => {
+    if (!phone) return "Inconnu";
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.startsWith("225") || (cleanPhone.length === 10 && cleanPhone.startsWith("0"))) return "Côte d'Ivoire";
+    if (cleanPhone.startsWith("226") || (cleanPhone.length === 8 && (cleanPhone.startsWith("5") || cleanPhone.startsWith("6") || cleanPhone.startsWith("7")))) return "Burkina Faso";
+    if (cleanPhone.startsWith("221") || (cleanPhone.length === 9 && cleanPhone.startsWith("7"))) return "Sénégal";
+    if (cleanPhone.startsWith("223") || (cleanPhone.length === 8 && (cleanPhone.startsWith("7") || cleanPhone.startsWith("9")))) return "Mali";
+    if (cleanPhone.startsWith("237") || cleanPhone.startsWith("6")) return "Cameroun";
+    return "Inconnu";
+  };
+
+  const getCountryCoordinates = (countryName: string): [number, number] | null => {
+    const coords: Record<string, [number, number]> = {
+      "Côte d'Ivoire": [7.54, -5.5471],
+      "Burkina Faso": [12.2383, -1.5616],
+      "Sénégal": [14.4974, -14.4524],
+      "Mali": [17.5707, -3.9962],
+      "Cameroun": [7.3697, 12.3547],
+      "France": [46.2276, 2.2137],
+      "Bénin": [9.3077, 2.3158],
+      "Togo": [8.6195, 0.8248],
+      "Guinée": [9.9456, -9.6966],
+      "Maroc": [31.7917, -7.0926],
+      "Canada": [56.1304, -106.3468],
+      "États-Unis": [37.0902, -95.7129],
+    };
+    // Also try checking keys for partial matches
+    const key = Object.keys(coords).find(k => countryName.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(countryName.toLowerCase()));
+    if (key) return coords[key];
+    return null;
+  };
+
   const countryStats = useMemo(() => {
     const stats: Record<string, { visitors: number, orders: number, revenue: number }> = {};
     
@@ -151,14 +184,27 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
 
     // Process orders
     filteredOrders.forEach(o => {
-      let c = o.customer_country || "Inconnu";
-      if (c === "Unknown") c = "Inconnu";
+      let c = o.customer_country;
+      if (!c || c === "Unknown" || c === "Inconnu") {
+        c = guessCountryFromPhone(o.customer_phone);
+      }
       if (!stats[c]) stats[c] = { visitors: 0, orders: 0, revenue: 0 };
       stats[c].orders += 1;
       stats[c].revenue += o.total;
     });
 
-    return Object.entries(stats).map(([country, data]) => ({ country, ...data })).sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
+    // Handle "Inconnu" slightly differently to make it less prominent if it's an artifact
+    let result = Object.entries(stats).map(([country, data]) => ({ country, ...data })).sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
+    
+    // If we have an "Inconnu" but it's empty, remove it. If it has only visitors, we keep it as "Autres/Anonyme"
+    result = result.map(item => {
+      if (item.country === "Inconnu") {
+        return { ...item, country: "Autres / Non spécifié" };
+      }
+      return item;
+    });
+
+    return result;
   }, [filteredVisits, filteredOrders]);
 
 
@@ -533,7 +579,7 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
         </Card>
 
         {/* Geo Breakdown */}
-        <Card className="lg:col-span-2 p-6 rounded-2xl border-slate-100 shadow-sm bg-white">
+        <Card className="lg:col-span-2 p-6 rounded-2xl border-slate-100 shadow-sm bg-white overflow-hidden flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
@@ -548,40 +594,57 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
               <p className="text-sm text-slate-500 font-medium">Aucune donnée géographique disponible.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 bg-slate-50/80 rounded-lg">
-                  <tr>
-                    <th className="px-4 py-3 rounded-l-lg font-semibold">Pays</th>
-                    <th className="px-4 py-3 font-semibold text-center">Visiteurs uniques</th>
-                    <th className="px-4 py-3 font-semibold text-center">Commandes</th>
-                    <th className="px-4 py-3 font-semibold text-center">Taux Conv.</th>
-                    <th className="px-4 py-3 rounded-r-lg font-semibold text-right">Revenus</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {countryStats.map((country, i) => {
-                    const conv = country.visitors > 0 ? (country.orders / country.visitors) * 100 : 0;
-                    return (
-                      <tr key={country.country} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">
-                          {country.country}
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-600 font-medium">{country.visitors}</td>
-                        <td className="px-4 py-3 text-center text-slate-600 font-medium">{country.orders}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${conv >= 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {conv.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold" style={{ color: primaryColor }}>
-                          {fmt(country.revenue)} <span className="text-xs font-normal text-slate-400">FCFA</span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start flex-1">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-slate-500 bg-slate-50/80 rounded-lg">
+                    <tr>
+                      <th className="px-4 py-3 rounded-l-lg font-semibold">Pays</th>
+                      <th className="px-4 py-3 font-semibold text-center">Visiteurs uniques</th>
+                      <th className="px-4 py-3 font-semibold text-center">Commandes</th>
+                      <th className="px-4 py-3 font-semibold text-center">Taux Conv.</th>
+                      <th className="px-4 py-3 rounded-r-lg font-semibold text-right">Revenus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {countryStats.map((country, i) => {
+                      const conv = country.visitors > 0 ? (country.orders / country.visitors) * 100 : 0;
+                      return (
+                        <tr key={country.country} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">
+                            {country.country}
+                          </td>
+                          <td className="px-4 py-3 text-center text-slate-600 font-medium">{country.visitors}</td>
+                          <td className="px-4 py-3 text-center text-slate-600 font-medium">{country.orders}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${conv >= 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {conv.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold" style={{ color: primaryColor }}>
+                            {fmt(country.revenue)} <span className="text-xs font-normal text-slate-400">FCFA</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-center h-[350px]">
+                <TrafficGlobe 
+                  themeColor={primaryColor}
+                  markers={countryStats
+                    .map(c => {
+                      const loc = getCountryCoordinates(c.country);
+                      if (!loc) return null;
+                      // Base size on visitors + orders
+                      let size = 0.05 + (c.visitors / Math.max(...countryStats.map(s => s.visitors))) * 0.1;
+                      if (isNaN(size)) size = 0.1;
+                      return { location: loc, size };
+                    })
+                    .filter(Boolean) as { location: [number, number], size: number }[]} 
+                />
+              </div>
             </div>
           )}
         </Card>

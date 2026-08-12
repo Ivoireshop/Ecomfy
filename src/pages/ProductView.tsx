@@ -294,7 +294,7 @@ const ProductView = () => {
                   sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
                   sessionStorage.setItem("vp_visit_session", sid);
                 }
-                supabase.functions.invoke("track-shop-visit", { body: { shop_id: shopData.id, product_id: productData.id, session_id: sid, referrer: document.referrer, page_path: window.location.pathname } }).then(() => {}, () => {});
+                supabase.functions.invoke("track-shop-visit", { body: { shop_id: shopData.id, product_id: productData.id, session_id: sid, referrer: document.referrer, page_path: window.location.pathname, url_search: window.location.search } }).then(() => {}, () => {});
               } catch {}
               if (shopData.chatbot_enabled) {
                 setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
@@ -346,7 +346,7 @@ const ProductView = () => {
                 sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
                 sessionStorage.setItem("vp_visit_session", sid);
               }
-              supabase.functions.invoke("track-shop-visit", { body: { shop_id: shopData.id, product_id: productData.id, session_id: sid, referrer: document.referrer, page_path: window.location.pathname } }).then(() => {}, () => {});
+              supabase.functions.invoke("track-shop-visit", { body: { shop_id: shopData.id, product_id: productData.id, session_id: sid, referrer: document.referrer, page_path: window.location.pathname, url_search: window.location.search } }).then(() => {}, () => {});
             } catch {}
             try {
               const iconHref = String(shopData.favicon_url || shopData.logo_url || "/favicon.png");
@@ -466,7 +466,7 @@ const ProductView = () => {
             sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
             sessionStorage.setItem("vp_visit_session", sid);
           }
-          supabase.functions.invoke("track-shop-visit", { body: { shop_id: shopData.id, product_id: productData.id, session_id: sid, referrer: document.referrer, page_path: window.location.pathname } }).then(() => {}, () => {});
+          supabase.functions.invoke("track-shop-visit", { body: { shop_id: shopData.id, product_id: productData.id, session_id: sid, referrer: document.referrer, page_path: window.location.pathname, url_search: window.location.search } }).then(() => {}, () => {});
         } catch {}
       }
 

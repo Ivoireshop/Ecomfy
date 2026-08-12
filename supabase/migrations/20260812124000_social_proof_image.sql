@@ -1,4 +1,5 @@
 DROP VIEW IF EXISTS public.shop_social_proof_orders;
+DROP FUNCTION IF EXISTS public.get_shop_social_proof_orders(uuid, integer);
 
 CREATE OR REPLACE FUNCTION public.get_shop_social_proof_orders(_shop_id uuid, _limit integer DEFAULT 5)
 RETURNS TABLE(customer_name text, product_name text, product_image_url text, created_at timestamptz)

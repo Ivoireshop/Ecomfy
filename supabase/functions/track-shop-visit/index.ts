@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
   
   try {
     const body = await req.json();
-    const { shop_id, product_id, session_id, referrer, page_path } = body || {};
+    const { shop_id, product_id, session_id, referrer, page_path, url_search } = body || {};
     
     if (!shop_id) return fail("Missing shop_id", 400);
 
@@ -56,14 +56,45 @@ Deno.serve(async (req) => {
     else if (ua.includes("edge") || ua.includes("edg/")) browser = "Edge";
     
     let cleanReferrer = referrer || "Direct";
-    if (cleanReferrer.includes("facebook.com") || cleanReferrer.includes("fb.com") || cleanReferrer.includes("instagram.com")) {
-      cleanReferrer = "Meta (Facebook/Instagram)";
-    } else if (cleanReferrer.includes("tiktok.com")) {
-      cleanReferrer = "TikTok";
-    } else if (cleanReferrer.includes("google.")) {
-      cleanReferrer = "Google";
-    } else if (cleanReferrer.includes("snapchat.com")) {
-      cleanReferrer = "Snapchat";
+    
+    // Check UTMs first for 100% reliable source attribution
+    if (url_search) {
+      const params = new URLSearchParams(url_search);
+      const utmSource = params.get("utm_source")?.toLowerCase();
+      const ref = params.get("ref")?.toLowerCase();
+      const source = utmSource || ref;
+      
+      if (source) {
+        if (source.includes("facebook") || source.includes("fb") || source.includes("ig") || source.includes("instagram")) {
+          cleanReferrer = "Meta (Facebook/Instagram)";
+        } else if (source.includes("tiktok")) {
+          cleanReferrer = "TikTok";
+        } else if (source.includes("google")) {
+          cleanReferrer = "Google";
+        } else if (source.includes("snapchat")) {
+          cleanReferrer = "Snapchat";
+        } else if (source.includes("whatsapp")) {
+          cleanReferrer = "WhatsApp";
+        } else {
+          // Capitalize first letter of custom source
+          cleanReferrer = source.charAt(0).toUpperCase() + source.slice(1);
+        }
+      }
+    }
+
+    // Fallback to referrer parsing if UTMs didn't set a clear known source
+    if (cleanReferrer === referrer || cleanReferrer === "Direct") {
+      if (cleanReferrer.includes("facebook.com") || cleanReferrer.includes("fb.com") || cleanReferrer.includes("instagram.com")) {
+        cleanReferrer = "Meta (Facebook/Instagram)";
+      } else if (cleanReferrer.includes("tiktok.com")) {
+        cleanReferrer = "TikTok";
+      } else if (cleanReferrer.includes("google.")) {
+        cleanReferrer = "Google";
+      } else if (cleanReferrer.includes("snapchat.com")) {
+        cleanReferrer = "Snapchat";
+      } else if (cleanReferrer.includes("android-app://com.whatsapp")) {
+        cleanReferrer = "WhatsApp";
+      }
     }
 
     const visitData = {

@@ -400,7 +400,8 @@ const ShopView = () => {
             shop_id: shopData.id,
             session_id: sid,
             referrer: document.referrer,
-            page_path: window.location.pathname
+            page_path: window.location.pathname,
+            url_search: window.location.search
           }
         }).then(() => {}, () => {});
       } catch {}
