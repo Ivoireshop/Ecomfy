@@ -14,7 +14,7 @@ import {
   ChevronRight, Share2, Heart, Truck, Shield, Clock, CheckCircle2,
   CreditCard, User, ArrowRight, Trash2, Send, X
 } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
@@ -730,17 +730,57 @@ const ProductView = () => {
   const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
   const customPageStyle = buildProductPageStyle(themeSettings);
 
-  const checkoutContainer = (
-    <div className="max-w-3xl mx-auto w-full px-4 pb-12">
+  const isCustomTheme = !!themeSettings?.theme_slug && !new URLSearchParams(window.location.search).get("classic");
+
+  const checkoutContent = (
+    <>
       {/* Inline Checkout */}
       {(showInlineCheckout || cart.length > 0) && !orderSuccess && (
-        <div id="inline-checkout" className="mt-8 bg-white border shadow-xl rounded-2xl p-4 sm:p-8 space-y-6 scroll-mt-24 relative z-50" style={{ borderColor: primaryColor + "30" }}>
+        <div id="inline-checkout" className={isCustomTheme ? "space-y-6 relative" : "mt-8 bg-white border shadow-xl rounded-2xl p-4 sm:p-8 space-y-6 scroll-mt-24 relative z-50"} style={isCustomTheme ? {} : { borderColor: primaryColor + "30" }}>
           <h3 className="font-bold text-xl flex items-center gap-2" style={{ color: primaryColor }}>
             <CreditCard className="h-6 w-6" /> Finaliser votre commande
           </h3>
 
-          {/* Cart Summary */}
-          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+          {/* Variants for Custom Themes where they can't be selected outside */}
+          {isCustomTheme && variantGroups.length > 0 && cart.length === 0 && (
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-4 mb-6">
+              <h4 className="font-bold text-orange-800">Veuillez choisir vos options avant de commander :</h4>
+              {variantGroups.map((group, idx) => (
+                <div key={idx} className="space-y-2">
+                  <Label className="font-bold">{group.name}</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {group.options?.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setChosen({ ...chosen, [group.name]: opt })}
+                        className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
+                          chosen[group.name] === opt
+                            ? "bg-gray-900 text-white shadow-md scale-105"
+                            : "bg-white border text-gray-700 hover:bg-gray-50"
+                        }`}
+                        style={chosen[group.name] === opt ? { backgroundColor: primaryColor } : {}}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <Button 
+                className="w-full h-12 text-white font-bold" 
+                style={{ backgroundColor: primaryColor }}
+                onClick={() => addToCart(product, quantity, true, true)}
+              >
+                Valider mes choix
+              </Button>
+            </div>
+          )}
+
+          {/* Main Checkout Fields - Hide if Custom Theme and Cart is empty (requires variant selection) */}
+          {(!isCustomTheme || cart.length > 0) && (
+            <>
+              {/* Cart Summary */}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-3">
             {cart.map(item => (
               <div key={item.product.id} className="flex items-center justify-between text-base">
                 <div className="flex items-center gap-3">
@@ -892,6 +932,8 @@ const ProductView = () => {
           </Button>
             );
           })()}
+            </>
+          )}
         </div>
       )}
 
@@ -905,6 +947,21 @@ const ProductView = () => {
           <p className="text-green-700 text-lg">Le vendeur vous contactera sous peu pour la livraison.</p>
         </div>
       )}
+    </>
+  );
+
+  const checkoutContainer = isCustomTheme ? (
+    <Dialog open={showInlineCheckout} onOpenChange={setShowInlineCheckout}>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-white z-[99999]" style={{ zIndex: 99999 }}>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Finaliser votre commande</DialogTitle>
+        </DialogHeader>
+        {checkoutContent}
+      </DialogContent>
+    </Dialog>
+  ) : (
+    <div className="max-w-3xl mx-auto w-full px-4 pb-12">
+      {checkoutContent}
     </div>
   );
 
