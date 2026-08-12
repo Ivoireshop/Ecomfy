@@ -1066,14 +1066,14 @@ const ProductView = () => {
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
           <Button 
             className={`w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white ${
-              shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
-              shop.cta_animation_type === 'slide' ? 'hover:translate-x-2 transition-transform' :
-              shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
-              shop.cta_animation_type === 'static' ? '' :
+              shop.theme_config?.cta_animation_type === 'shake' ? 'animate-wiggle' :
+              shop.theme_config?.cta_animation_type === 'slide' ? 'hover:translate-x-2 transition-transform' :
+              shop.theme_config?.cta_animation_type === 'bounce' ? 'animate-bounce' :
+              shop.theme_config?.cta_animation_type === 'static' ? '' :
               'animate-pulse hover:animate-none'
             } ${
-              shop.cta_animation_speed === 'fast' ? 'duration-150' : 
-              shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+              shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
+              shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
             }`} 
             style={{ backgroundColor: primaryColor }} 
             onClick={() => { 
@@ -1098,14 +1098,14 @@ const ProductView = () => {
             </div>
             <Button 
               className={`flex-1 sm:flex-none h-12 sm:h-14 rounded-xl font-bold flex items-center justify-between px-3 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all group ${
-                shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
-                shop.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
-                shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
-                shop.cta_animation_type === 'static' ? '' :
+                shop.theme_config?.cta_animation_type === 'shake' ? 'animate-wiggle' :
+                shop.theme_config?.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
+                shop.theme_config?.cta_animation_type === 'bounce' ? 'animate-bounce' :
+                shop.theme_config?.cta_animation_type === 'static' ? '' :
                 'animate-pulse hover:animate-none'
               } ${
-                shop.cta_animation_speed === 'fast' ? 'duration-150' : 
-                shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+                shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
+                shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
               }`}
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
@@ -1285,14 +1285,14 @@ const ProductView = () => {
               )}
               <Button 
                 className={`w-auto h-9 rounded-lg text-sm font-semibold gap-1.5 text-white shadow-lg transition-all ${
-                  shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
-                  shop.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
-                  shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
-                  shop.cta_animation_type === 'static' ? '' :
+                  shop.theme_config?.cta_animation_type === 'shake' ? 'animate-wiggle' :
+                  shop.theme_config?.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
+                  shop.theme_config?.cta_animation_type === 'bounce' ? 'animate-bounce' :
+                  shop.theme_config?.cta_animation_type === 'static' ? '' :
                   'animate-pulse hover:animate-none'
                 } ${
-                  shop.cta_animation_speed === 'fast' ? 'duration-150' : 
-                  shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+                  shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
+                  shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
                 }`} 
                 style={{ backgroundColor: primaryColor }} 
                 onClick={() => { 
@@ -1594,14 +1594,14 @@ const ProductView = () => {
                 ) : (
                   <Button 
                     className={`w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-between px-4 sm:px-6 text-white shadow-xl hover:shadow-2xl transition-all group ${
-                      shop.cta_animation_type === 'shake' ? 'animate-wiggle' :
-                      shop.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
-                      shop.cta_animation_type === 'bounce' ? 'animate-bounce' :
-                      shop.cta_animation_type === 'static' ? 'hover:-translate-y-0.5' :
+                      shop.theme_config?.cta_animation_type === 'shake' ? 'animate-wiggle' :
+                      shop.theme_config?.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
+                      shop.theme_config?.cta_animation_type === 'bounce' ? 'animate-bounce' :
+                      shop.theme_config?.cta_animation_type === 'static' ? 'hover:-translate-y-0.5' :
                       'animate-pulse hover:animate-none hover:-translate-y-0.5'
                     } ${
-                      shop.cta_animation_speed === 'fast' ? 'duration-150' : 
-                      shop.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
+                      shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
+                      shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
                     }`}
                     style={{ backgroundColor: primaryColor }}
                     onClick={() => {

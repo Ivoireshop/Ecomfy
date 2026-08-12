@@ -479,8 +479,8 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                           <div className="space-y-2">
                             <Label>Style d'animation</Label>
                             <Select 
-                              value={shop.cta_animation_type || "pulse"} 
-                              onValueChange={(v) => setShop({ ...shop, cta_animation_type: v })}
+                              value={shop.theme_config?.cta_animation_type || "pulse"} 
+                              onValueChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), cta_animation_type: v } })}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Choisir une animation" />
@@ -497,8 +497,8 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                           <div className="space-y-2">
                             <Label>Vitesse</Label>
                             <Select 
-                              value={shop.cta_animation_speed || "normal"} 
-                              onValueChange={(v) => setShop({ ...shop, cta_animation_speed: v })}
+                              value={shop.theme_config?.cta_animation_speed || "normal"} 
+                              onValueChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), cta_animation_speed: v } })}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Choisir la vitesse" />
