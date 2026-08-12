@@ -736,28 +736,28 @@ const ProductView = () => {
     <>
       {/* Inline Checkout */}
       {(showInlineCheckout || cart.length > 0) && !orderSuccess && (
-        <div id="inline-checkout" className={isCustomTheme ? "space-y-5 sm:space-y-6 relative" : "mt-6 sm:mt-8 bg-white border shadow-xl rounded-3xl p-5 sm:p-8 space-y-5 sm:space-y-6 scroll-mt-24 relative z-50"} style={isCustomTheme ? {} : { borderColor: primaryColor + "30" }}>
-          <h3 className="font-bold text-xl sm:text-2xl flex items-center gap-2 mb-2" style={{ color: primaryColor }}>
-            <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" /> Finaliser votre commande
+        <div id="inline-checkout" className={isCustomTheme ? "space-y-4 relative" : "mt-6 sm:mt-8 bg-white border shadow-xl rounded-3xl p-5 sm:p-8 space-y-5 sm:space-y-6 scroll-mt-24 relative z-50"} style={isCustomTheme ? {} : { borderColor: primaryColor + "30" }}>
+          <h3 className="font-bold text-lg sm:text-xl flex items-center gap-2 mb-1" style={{ color: primaryColor }}>
+            <CreditCard className="h-5 w-5" /> Finaliser votre commande
           </h3>
 
           {/* Variants for Custom Themes where they can't be selected outside */}
           {isCustomTheme && Array.isArray(product?.variants) && product.variants.length > 0 && cart.length === 0 && (
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-4 mb-6">
-              <h4 className="font-bold text-orange-800">Veuillez choisir vos options avant de commander :</h4>
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-4 mb-4">
+              <h4 className="font-bold text-sm text-orange-800">Veuillez choisir vos options avant de commander :</h4>
               {product.variants.map((group: any, idx: number) => (
                 group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
-                  <div key={idx} className="space-y-2">
-                    <Label className="font-bold">{group.name}</Label>
+                  <div key={idx} className="space-y-1.5">
+                    <Label className="font-bold text-xs">{group.name}</Label>
                     <div className="flex flex-wrap gap-2">
                       {group.options.map((opt: string) => (
                         <button
                           key={opt}
                           type="button"
                           onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
-                          className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
+                          className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all ${
                             selectedVariants[group.name] === opt
-                              ? "bg-gray-900 text-white shadow-md scale-105"
+                              ? "bg-gray-900 text-white shadow-sm"
                               : "bg-white border text-gray-700 hover:bg-gray-50"
                           }`}
                           style={selectedVariants[group.name] === opt ? { backgroundColor: primaryColor } : {}}
@@ -771,7 +771,7 @@ const ProductView = () => {
               ))}
               <Button 
                 type="button"
-                className="w-full h-12 text-white font-bold" 
+                className="w-full h-11 text-white font-bold rounded-xl" 
                 style={{ backgroundColor: primaryColor }}
                 onClick={() => addToCart(product, quantity, true, false)}
               >
@@ -783,159 +783,156 @@ const ProductView = () => {
           {/* Main Checkout Fields - Hide if Custom Theme and Cart is empty (requires variant selection) */}
           {(!isCustomTheme || cart.length > 0) && (
             <>
-              {/* Cart Summary */}
-              <div className="bg-gray-50 rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3">
-            {cart.map(item => (
-              <div key={item.product.id} className="flex items-center justify-between text-sm sm:text-base">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  {item.product.product_images?.[0] && (
-                    <img src={thumbUrl(item.product.product_images[0].image_url, 96)} alt="" loading="lazy" decoding="async" width={40} height={40} className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg object-cover" />
-                  )}
-                  <span className="font-semibold">{item.product.name} × {item.quantity}</span>
-                </div>
-                <span className="font-bold">{formatPrice(item.product.price * item.quantity)} FCFA</span>
-              </div>
-            ))}
-            <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3 flex justify-between font-bold text-base sm:text-lg">
-              <span>Total</span>
-              <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-            </div>
-          </div>
-
-          {/* Contact - respects checkout_fields */}
-          {(() => {
-            const cf: any[] = shop.checkout_fields || [];
-            const isEnabled = (id: string) => {
-              const f = cf.find((x: any) => x.id === id);
-              return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
-            };
-            const isRequired = (id: string) => {
-              const f = cf.find((x: any) => x.id === id);
-              return f ? !!f.required : ["first_name","phone","city"].includes(id);
-            };
-            const showFullName = isEnabled("first_name") && isEnabled("last_name");
-            const showFirstOnly = isEnabled("first_name") && !isEnabled("last_name");
-            const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
-            return (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2"><User className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base sm:text-lg">Informations de livraison</h4></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {isEnabled("first_name") && (
-                    <div className="space-y-1 sm:space-y-1.5 sm:col-span-2">
-                      <Label className="text-sm font-medium text-gray-700">{nameLabel} {isRequired("first_name") && "*"}</Label>
-                      <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-12 text-base sm:text-sm" />
-                    </div>
-                  )}
-                  {isEnabled("phone") && (
-                    <div className="space-y-1 sm:space-y-1.5">
-                      <Label className="text-sm font-medium text-gray-700">Téléphone {isRequired("phone") && "*"}</Label>
-                      <PhoneInput
-                        value={customerInfo.phone}
-                        onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
-                        defaultCountryHint={shop?.country}
-                        required={isRequired("phone")}
-                        inputClassName="h-12 text-base sm:text-sm"
-                      />
-                    </div>
-                  )}
-                  {isEnabled("email") && (
-                    <div className="space-y-1 sm:space-y-1.5">
-                      <Label className="text-sm font-medium text-gray-700">Email {isRequired("email") && "*"}</Label>
-                      <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-12 text-base sm:text-sm" />
-                    </div>
-                  )}
-                  {isEnabled("city") && (
-                    <div className="space-y-1 sm:space-y-1.5">
-                      <Label className="text-sm font-medium text-gray-700">Ville {isRequired("city") && "*"}</Label>
-                      <Input value={customerInfo.city} onChange={(e) => {
-                        const raw = e.target.value;
-                        const cleaned = stripDigits(raw);
-                        setCustomerInfo({ ...customerInfo, city: cleaned });
-                        if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
-                        else if (cityError) setCityError("");
-                      }} placeholder="Abidjan" className={`rounded-xl h-12 text-base sm:text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
-                      {cityError && <p className="text-xs text-red-500">{cityError}</p>}
-                    </div>
-                  )}
-                  {isEnabled("address") && (
-                    <div className="space-y-1 sm:space-y-1.5 sm:col-span-2">
-                      <Label className="text-sm font-medium text-gray-700">Adresse détaillée {isRequired("address") && "*"}</Label>
-                      <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Ex: Cocody, Riviera 3, Rue L25" className="rounded-xl h-12 text-base sm:text-sm" />
-                    </div>
-                  )}
+              {/* Cart Summary (Compact) */}
+              <div className="bg-gray-50/80 rounded-xl p-3 flex flex-col gap-1.5 border border-gray-100">
+                {cart.map(item => (
+                  <div key={item.product.id} className="flex items-center justify-between text-[13px] sm:text-sm">
+                    <span className="text-gray-600 truncate">{item.quantity}x {item.product.name}</span>
+                    <span className="font-semibold whitespace-nowrap ml-2 text-gray-900">{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                  </div>
+                ))}
+                <div className="border-t border-gray-200 pt-1.5 mt-1 flex justify-between items-center">
+                  <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Total à payer</span>
+                  <span className="font-black text-base" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
                 </div>
               </div>
-            );
-          })()}
 
-          {/* Payment Method */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2"><CreditCard className="h-5 w-5" style={{ color: primaryColor }} /><h4 className="font-bold text-base sm:text-lg">Méthode de paiement</h4></div>
-            
-            {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-amber-800">
-                <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
+              {/* Contact - respects checkout_fields */}
+              {(() => {
+                const cf: any[] = shop.checkout_fields || [];
+                const isEnabled = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+                };
+                const isRequired = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.required : ["first_name","phone","city"].includes(id);
+                };
+                const showFullName = isEnabled("first_name") && isEnabled("last_name");
+                const showFirstOnly = isEnabled("first_name") && !isEnabled("last_name");
+                const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-1.5"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Informations de livraison</h4></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {isEnabled("first_name") && (
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-[13px] font-semibold text-gray-700">{nameLabel} {isRequired("first_name") && "*"}</Label>
+                          <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" />
+                        </div>
+                      )}
+                      {isEnabled("phone") && (
+                        <div className="space-y-1">
+                          <Label className="text-[13px] font-semibold text-gray-700">Téléphone {isRequired("phone") && "*"}</Label>
+                          <PhoneInput
+                            value={customerInfo.phone}
+                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                            defaultCountryHint={shop?.country}
+                            required={isRequired("phone")}
+                            inputClassName="h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                          />
+                        </div>
+                      )}
+                      {isEnabled("email") && (
+                        <div className="space-y-1">
+                          <Label className="text-[13px] font-semibold text-gray-700">Email {isRequired("email") && "*"}</Label>
+                          <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" />
+                        </div>
+                      )}
+                      {isEnabled("city") && (
+                        <div className="space-y-1">
+                          <Label className="text-[13px] font-semibold text-gray-700">Ville {isRequired("city") && "*"}</Label>
+                          <Input value={customerInfo.city} onChange={(e) => {
+                            const raw = e.target.value;
+                            const cleaned = stripDigits(raw);
+                            setCustomerInfo({ ...customerInfo, city: cleaned });
+                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                            else if (cityError) setCityError("");
+                          }} placeholder="Abidjan" className={`rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                          {cityError && <p className="text-xs text-red-500">{cityError}</p>}
+                        </div>
+                      )}
+                      {isEnabled("address") && (
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-[13px] font-semibold text-gray-700">Adresse détaillée {isRequired("address") && "*"}</Label>
+                          <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Ex: Cocody, Riviera 3, Rue L25" className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Payment Method */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-1.5"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Méthode de paiement</h4></div>
+                
+                {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-[13px] text-amber-800">
+                    <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
+                  </div>
+                )}
+
+                {(() => {
+                  const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
+                  const methods = isInterior
+                    ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
+                    : [
+                        { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
+                        { value: "mobile_money", label: "Mobile Money", icon: "📱" },
+                      ];
+                  
+                  if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
+                    setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {methods.map(method => (
+                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                          className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm bg-gray-50/50" : "border-gray-100 hover:border-gray-200 bg-transparent"}`}
+                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor, backgroundColor: primaryColor + "08" } : {}}
+                        >
+                          <span className="text-xl">{method.icon}</span>
+                          <span className="font-semibold text-[14px] flex-1 text-gray-800">{method.label}</span>
+                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4" style={{ color: primaryColor }} />}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
-            )}
 
-            {(() => {
-              const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
-              const methods = isInterior
-                ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
-                : [
-                    { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
-                    { value: "mobile_money", label: "Mobile Money", icon: "📱" },
-                  ];
-              
-              if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
-                setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
-              }
-
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                  {methods.map(method => (
-                    <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                      className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-md bg-slate-50" : "border-gray-200 hover:border-gray-300"}`}
-                      style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+              {(() => {
+                const cf: any[] = shop.checkout_fields || [];
+                const isEnabled = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+                };
+                const isRequired = (id: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f ? !!f.required : ["first_name","phone","city"].includes(id);
+                };
+                const canSubmit =
+                  (!isEnabled("first_name") || !isRequired("first_name") || !!customerInfo.name) &&
+                  (!isEnabled("phone") || (!isRequired("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
+                  (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
+                  (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
+                  (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
+                  (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
+                return (
+                  <div className="pt-2">
+                    <Button 
+                      className="w-full h-12 sm:h-14 rounded-xl text-[15px] sm:text-lg font-bold gap-2 text-white shadow-md hover:shadow-lg transition-all"
+                      style={{ backgroundColor: primaryColor }}
+                      onClick={placeOrder} 
+                      disabled={orderLoading || !canSubmit}
                     >
-                      <span className="text-xl sm:text-2xl">{method.icon}</span>
-                      <span className="font-semibold text-sm sm:text-base">{method.label}</span>
-                      {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 ml-auto" style={{ color: primaryColor }} />}
-                    </button>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-
-          {(() => {
-            const cf: any[] = shop.checkout_fields || [];
-            const isEnabled = (id: string) => {
-              const f = cf.find((x: any) => x.id === id);
-              return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
-            };
-            const isRequired = (id: string) => {
-              const f = cf.find((x: any) => x.id === id);
-              return f ? !!f.required : ["first_name","phone","city"].includes(id);
-            };
-            const canSubmit =
-              (!isEnabled("first_name") || !isRequired("first_name") || !!customerInfo.name) &&
-              (!isEnabled("phone") || (!isRequired("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
-              (!isEnabled("email") || !isRequired("email") || !!customerInfo.email) &&
-              (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
-              (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
-              (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
-            return (
-          <Button 
-            className="w-full h-12 sm:h-14 rounded-xl text-base sm:text-lg font-bold gap-2 sm:gap-3 text-white shadow-lg hover:shadow-xl transition-all"
-            style={{ backgroundColor: primaryColor }}
-            onClick={placeOrder} 
-            disabled={orderLoading || !canSubmit}
-          >
-            {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" /> Confirmer ma commande · {formatPrice(cartTotal)} FCFA</>}
-          </Button>
-            );
-          })()}
+                      {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-5 w-5" /> Confirmer ma commande</>}
+                    </Button>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
@@ -978,11 +975,19 @@ const ProductView = () => {
       {/* Chatbot */}
       {shop.chatbot_enabled && (
         <>
-          <button onClick={() => setChatOpen(!chatOpen)} className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-xl flex items-center justify-center z-50 text-white transition-transform hover:scale-110" style={{ backgroundColor: primaryColor }}>
+          <button 
+            onClick={() => setChatOpen(!chatOpen)} 
+            className={`fixed right-4 sm:right-6 h-14 w-14 rounded-2xl shadow-xl flex items-center justify-center z-50 text-white transition-transform hover:scale-110 ${
+              isCustomTheme 
+                ? "bottom-24" 
+                : (shop.theme_config?.sticky_order_button ? "bottom-24" : "bottom-6")
+            }`} 
+            style={{ backgroundColor: primaryColor }}
+          >
             {chatOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
           </button>
           {chatOpen && (
-            <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-white border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden" style={{ height: "420px" }}>
+            <div className="fixed bottom-24 right-4 sm:right-6 w-80 md:w-96 bg-white border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden" style={{ height: "420px" }}>
               <div className="px-4 py-3 border-b text-white font-semibold flex items-center gap-2" style={{ backgroundColor: primaryColor }}>
                 <MessageCircle className="h-5 w-5" /> Assistant {shop.business_name}
               </div>
@@ -1015,7 +1020,7 @@ const ProductView = () => {
       )}
 
       {/* Floating Cart - Mobile */}
-      {!shop._isPreview && cartCount > 0 && !showInlineCheckout && !shop.theme_config?.sticky_order_button && (
+      {!isCustomTheme && !shop._isPreview && cartCount > 0 && !showInlineCheckout && !shop.theme_config?.sticky_order_button && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
           <Button className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white" style={{ backgroundColor: primaryColor }} onClick={() => { setShowInlineCheckout(true); setOrderSuccess(false); setTimeout(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }}>
             <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
@@ -1025,7 +1030,7 @@ const ProductView = () => {
       )}
 
       {/* Sticky Order Button - always visible when enabled */}
-      {!shop._isPreview && shop.theme_config?.sticky_order_button && product && (
+      {!isCustomTheme && !shop._isPreview && shop.theme_config?.sticky_order_button && product && (
         <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="flex-1 min-w-0 hidden sm:block">
