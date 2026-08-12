@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import * as THREE from "three";
 
 export interface TrafficGlobeProps {
-  markers: { location: [number, number], size: number, name: string }[];
+  markers: { location: [number, number], size: number, name: string, color?: string }[];
   className?: string;
   themeColor?: string;
 }
@@ -28,8 +28,8 @@ export function TrafficGlobe({ markers, className, themeColor = "#0f172a" }: Tra
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        background-color: ${themeColor};
-        box-shadow: 0 0 10px ${themeColor};
+        background-color: var(--marker-color, ${themeColor});
+        box-shadow: 0 0 10px var(--marker-color, ${themeColor});
         animation: globe-blink 1.5s infinite ease-in-out;
         pointer-events: none;
       }
@@ -86,7 +86,8 @@ export function TrafficGlobe({ markers, className, themeColor = "#0f172a" }: Tra
     maxR: Math.max(m.size * 20, 5), // Size adjustment
     propagationSpeed: 1,
     repeatPeriod: 1000,
-    name: m.name
+    name: m.name,
+    color: m.color
   }));
 
   const hexColor = themeColor;
@@ -107,7 +108,7 @@ export function TrafficGlobe({ markers, className, themeColor = "#0f172a" }: Tra
           polygonStrokeColor={() => "#cbd5e1"} // Slate-300 for borders
           
           ringsData={ringsData}
-          ringColor={() => hexColor}
+          ringColor={(d: any) => d.color || hexColor}
           ringMaxRadius="maxR"
           ringPropagationSpeed="propagationSpeed"
           ringRepeatPeriod="repeatPeriod"
@@ -118,7 +119,7 @@ export function TrafficGlobe({ markers, className, themeColor = "#0f172a" }: Tra
           labelText={d => (d as any).name}
           labelSize={d => (d as any).size * 5 + 1.5}
           labelDotRadius={1}
-          labelColor={() => hexColor}
+          labelColor={(d: any) => d.color || hexColor}
           labelResolution={2}
           labelAltitude={0.02}
           
@@ -128,6 +129,9 @@ export function TrafficGlobe({ markers, className, themeColor = "#0f172a" }: Tra
           htmlElement={d => {
             const el = document.createElement('div');
             el.className = 'globe-marker-blinking';
+            if ((d as any).color) {
+              el.style.setProperty('--marker-color', (d as any).color);
+            }
             return el;
           }}
           htmlAltitude={0.03}

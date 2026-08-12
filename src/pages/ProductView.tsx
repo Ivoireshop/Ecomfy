@@ -874,7 +874,7 @@ const ProductView = () => {
                             onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
                             defaultCountryHint={shop?.country}
                             required={isRequired("phone")}
-                            inputClassName="h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors w-full"
+                            inputClassName="h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors"
                           />
                         </div>
                       )}

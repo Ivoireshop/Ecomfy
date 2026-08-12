@@ -183,6 +183,37 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
     return sorted;
   }, [filteredVisits]);
 
+  const trafficGlobeMarkers = useMemo(() => {
+    const total = trafficSourcesData.reduce((acc, curr) => acc + curr.value, 0);
+    return trafficSourcesData.map((src) => {
+      const percentage = total > 0 ? (src.value / total) : 0;
+      const lName = src.name.toLowerCase();
+      let location: [number, number] = [5, 20]; // Default center (Africa)
+      let color = primaryColor;
+      
+      if (lName.includes("facebook") || lName.includes("fb")) {
+        location = [37.4529, -122.1817];
+        color = "#1877F2";
+      } else if (lName.includes("google") || lName.includes("seo")) {
+        location = [39.0, -120.0]; // Offset to not overlap with FB
+        color = "#EA4335";
+      } else if (lName.includes("instagram") || lName.includes("ig")) {
+        location = [35.0, -124.0]; // Offset 
+        color = "#ec4899";
+      } else if (lName.includes("tiktok")) {
+        location = [39.9042, 116.4074]; // Beijing
+        color = "#000000";
+      }
+      
+      return {
+        name: src.name,
+        location,
+        size: percentage,
+        color
+      };
+    });
+  }, [trafficSourcesData, primaryColor]);
+
   const guessCountryFromPhone = (phone: string | null | undefined): string => {
     if (!phone) return "Inconnu";
     const cleanPhone = phone.replace(/\D/g, "");
@@ -621,6 +652,13 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
                <div className="flex items-center justify-center h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                  <p className="text-sm text-slate-500 font-medium">Aucune source disponible.</p>
                </div>
+            )}
+            
+            {/* The new interactive traffic globe */}
+            {trafficSourcesData.length > 0 && (
+              <div className="mt-8 relative h-[250px] w-full rounded-xl overflow-hidden bg-slate-50/50 border border-slate-100 flex items-center justify-center">
+                <TrafficGlobe markers={trafficGlobeMarkers} themeColor={primaryColor} />
+              </div>
             )}
           </div>
         </Card>

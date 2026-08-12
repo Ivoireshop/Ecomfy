@@ -101,9 +101,7 @@ export function PhoneInput({
       <select
         value={country.code}
         onChange={(e) => setCountry(e.target.value)}
-        className={`appearance-none w-full h-12 sm:h-10 rounded-lg border border-input bg-background px-2 pr-6 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
-          inputClassName || ""
-        }`}
+        className={`appearance-none w-full h-12 sm:h-10 rounded-lg border border-input bg-background px-2 pr-6 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2`}
         aria-label="Pays"
       >
         {PHONE_COUNTRIES.map((c) => (
@@ -124,7 +122,7 @@ export function PhoneInput({
   ) : (
     <Select value={country.code} onValueChange={setCountry}>
       <SelectTrigger
-        className={`w-[96px] shrink-0 rounded-lg ${inputClassName || "h-10 text-sm"}`}
+        className="w-[96px] shrink-0 rounded-lg h-10 text-sm"
       >
         <SelectValue>
           <span className="flex items-center gap-1.5">
