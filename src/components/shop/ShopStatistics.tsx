@@ -42,6 +42,56 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("30d");
 
+  // Define icon helper for traffic sources
+  const renderSourceIcon = (name: string) => {
+    const lName = name.toLowerCase();
+    if (lName.includes("facebook") || lName.includes("fb")) {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-[#1877F2]/10 flex items-center justify-center shrink-0">
+          <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
+          </svg>
+        </div>
+      );
+    }
+    if (lName.includes("google") || lName.includes("seo")) {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0112 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115z"/>
+            <path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.076 7.076 0 01-6.725-4.962L1.248 17.24C3.12 21.268 7.222 24 12 24c3.084 0 5.864-1.01 7.828-2.738l-3.788-3.249z"/>
+            <path fill="#4A90E2" d="M23.633 12.27c0-.79-.068-1.554-.195-2.296H12v4.512h6.617c-.302 1.545-1.18 2.85-2.43 3.738l3.788 3.25C22.213 19.4 23.633 16.14 23.633 12.27z"/>
+            <path fill="#FBBC05" d="M5.275 14.129a7.074 7.074 0 010-4.364L1.249 6.65C.45 8.24 0 10.05 0 12s.45 3.76 1.25 5.35l4.025-3.22z"/>
+          </svg>
+        </div>
+      );
+    }
+    if (lName.includes("instagram") || lName.includes("ig")) {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center shrink-0">
+          <svg className="w-5 h-5 text-pink-500" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path fillRule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clipRule="evenodd" />
+          </svg>
+        </div>
+      );
+    }
+    if (lName.includes("tiktok")) {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-black/10 flex items-center justify-center shrink-0">
+          <svg className="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 15.68a6.34 6.34 0 006.34 6.34 6.3 6.3 0 006.28-5.35c.01-.17.02-.34.02-.51V7.75a8.4 8.4 0 004.28 1.18V5.53a5.2 5.2 0 01-2.33-.84z" />
+          </svg>
+        </div>
+      );
+    }
+    // Direct / Unknown / Fallback
+    return (
+      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+        <Globe className="w-4 h-4 text-slate-500" />
+      </div>
+    );
+  };
+
   // Filter orders based on selected period
   const filteredOrders = useMemo(() => {
     if (period === "all") return orders;
@@ -549,16 +599,19 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
               const percentage = ((source.value / total) * 100).toFixed(1);
               
               return (
-                <div key={source.name} className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-700 font-medium">{source.name}</span>
-                    <span className="font-semibold text-slate-900">{percentage}% <span className="text-slate-400 font-normal ml-1">({source.value})</span></span>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-1000" 
-                      style={{ width: `${percentage}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} 
-                    />
+                <div key={source.name} className="flex items-center gap-3">
+                  {renderSourceIcon(source.name)}
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-800 font-bold">{source.name}</span>
+                      <span className="font-bold text-slate-900 text-[13px]">{percentage}% <span className="text-slate-400 font-normal ml-1">({source.value})</span></span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-1000" 
+                        style={{ width: `${percentage}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} 
+                      />
+                    </div>
                   </div>
                 </div>
               );
@@ -589,9 +642,9 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start flex-1">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto pb-4">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-50/80 rounded-lg">
+                  <thead className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-50/80 rounded-lg whitespace-nowrap">
                     <tr>
                       <th className="px-5 py-3.5 rounded-l-lg font-bold">Pays</th>
                       <th className="px-5 py-3.5 font-bold text-center">Visiteurs</th>
@@ -604,7 +657,7 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
                     {countryStats.map((country, i) => {
                       const conv = country.visitors > 0 ? (country.orders / country.visitors) * 100 : 0;
                       return (
-                        <tr key={country.country} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                        <tr key={country.country} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors whitespace-nowrap">
                           <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">
                             {country.country}
                           </td>

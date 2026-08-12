@@ -14,6 +14,29 @@ export function TrafficGlobe({ markers, className, themeColor = "#0f172a" }: Tra
   const globeEl = useRef<any>();
   const [dimensions, setDimensions] = useState({ width: 350, height: 350 });
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Create a blinking style
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes globe-blink {
+        0% { opacity: 0.2; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+        100% { opacity: 0.2; transform: scale(0.8); }
+      }
+      .globe-marker-blinking {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: ${themeColor};
+        box-shadow: 0 0 10px ${themeColor};
+        animation: globe-blink 1.5s infinite ease-in-out;
+        pointer-events: none;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, [themeColor]);
 
   useEffect(() => {
     // Resize observer to make the globe responsive
@@ -98,6 +121,16 @@ export function TrafficGlobe({ markers, className, themeColor = "#0f172a" }: Tra
           labelColor={() => hexColor}
           labelResolution={2}
           labelAltitude={0.02}
+          
+          htmlElementsData={markers}
+          htmlLat={d => (d as any).location[0]}
+          htmlLng={d => (d as any).location[1]}
+          htmlElement={d => {
+            const el = document.createElement('div');
+            el.className = 'globe-marker-blinking';
+            return el;
+          }}
+          htmlAltitude={0.03}
         />
       )}
     </div>
