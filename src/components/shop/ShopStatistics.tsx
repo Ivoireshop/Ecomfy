@@ -534,7 +534,7 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Traffic Sources */}
         <Card className="col-span-1 p-6 rounded-2xl border-slate-100 shadow-sm bg-white">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
                 <Globe className="h-5 w-5 text-blue-500" /> Sources de Trafic
@@ -542,39 +542,33 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
               <p className="text-xs text-slate-500">Provenance de vos visiteurs</p>
             </div>
           </div>
-          <div className="h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={trafficSourcesData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {trafficSourcesData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: number) => [`${value} visiteurs`, ""]}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 space-y-2">
-            {trafficSourcesData.slice(0, 4).map((source, i) => (
-              <div key={source.name} className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                  <span className="text-slate-600 font-medium truncate w-32">{source.name}</span>
+          
+          <div className="space-y-5">
+            {trafficSourcesData.slice(0, 5).map((source, i) => {
+              const total = trafficSourcesData.reduce((acc, curr) => acc + curr.value, 0);
+              const percentage = ((source.value / total) * 100).toFixed(1);
+              
+              return (
+                <div key={source.name} className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-700 font-medium">{source.name}</span>
+                    <span className="font-semibold text-slate-900">{percentage}% <span className="text-slate-400 font-normal ml-1">({source.value})</span></span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-1000" 
+                      style={{ width: `${percentage}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} 
+                    />
+                  </div>
                 </div>
-                <span className="font-bold text-slate-900">{source.value}</span>
-              </div>
-            ))}
+              );
+            })}
+            
+            {trafficSourcesData.length === 0 && (
+               <div className="flex items-center justify-center h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                 <p className="text-sm text-slate-500 font-medium">Aucune source disponible.</p>
+               </div>
+            )}
           </div>
         </Card>
 
@@ -597,13 +591,13 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start flex-1">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-500 bg-slate-50/80 rounded-lg">
+                  <thead className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-50/80 rounded-lg">
                     <tr>
-                      <th className="px-4 py-3 rounded-l-lg font-semibold">Pays</th>
-                      <th className="px-4 py-3 font-semibold text-center">Visiteurs uniques</th>
-                      <th className="px-4 py-3 font-semibold text-center">Commandes</th>
-                      <th className="px-4 py-3 font-semibold text-center">Taux Conv.</th>
-                      <th className="px-4 py-3 rounded-r-lg font-semibold text-right">Revenus</th>
+                      <th className="px-5 py-3.5 rounded-l-lg font-bold">Pays</th>
+                      <th className="px-5 py-3.5 font-bold text-center">Visiteurs</th>
+                      <th className="px-5 py-3.5 font-bold text-center">Commandes</th>
+                      <th className="px-5 py-3.5 font-bold text-center">Conv.</th>
+                      <th className="px-5 py-3.5 rounded-r-lg font-bold text-right">Revenus</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -640,9 +634,9 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
                       // Base size on visitors + orders
                       let size = 0.05 + (c.visitors / Math.max(...countryStats.map(s => s.visitors))) * 0.1;
                       if (isNaN(size)) size = 0.1;
-                      return { location: loc, size };
+                      return { location: loc, size, name: c.country };
                     })
-                    .filter(Boolean) as { location: [number, number], size: number }[]} 
+                    .filter(Boolean) as { location: [number, number], size: number, name: string }[]} 
                 />
               </div>
             </div>
