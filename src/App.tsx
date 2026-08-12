@@ -155,7 +155,7 @@ const AppContent = () => {
   const hideChrome = isShopView || isOrderConfirmed || isDriverApp;
 
   return (
-    <div className={hideChrome ? "overflow-x-hidden" : "pb-16 md:pb-0 overflow-x-hidden"}>
+    <div className={hideChrome ? "" : "pb-16 md:pb-0"}>
       {showSupport && <SupportButton />}
       {!isOrderConfirmed && <MobileBottomNav />}
       <Suspense fallback={<PageLoader />}>

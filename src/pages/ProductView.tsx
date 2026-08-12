@@ -1247,7 +1247,7 @@ const ProductView = () => {
           return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
           {/* Left/Right: Images */}
-          <div className={`md:sticky md:top-24 md:self-start ${imageRight ? "md:order-2" : ""}`}>
+          <div className={`md:sticky md:top-24 md:self-start h-max ${imageRight ? "md:order-2" : ""}`}>
             {/* Main Image */}
             <div className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 relative group shadow-sm border border-gray-100">
               {images.length > 0 ? (
