@@ -913,6 +913,7 @@ const ProductView = () => {
   // legacy view on error via internal reload.
   const globalOverlays = (
     <>
+      {checkoutContainer}
       {/* Chatbot */}
       {shop.chatbot_enabled && (
         <>
