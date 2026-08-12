@@ -323,7 +323,7 @@ function ThemeCard({
           <div className="font-semibold">{meta.name}</div>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{meta.category}</span>
         </div>
-        <div className="text-xs text-muted-foreground mt-1">par VisualPro</div>
+        <div className="text-xs text-muted-foreground mt-1">par Ecomfy</div>
         <p className="text-sm text-muted-foreground mt-2 line-clamp-2 flex-1">{meta.description}</p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button size="sm" variant="outline" onClick={onPreview}>
