@@ -14,6 +14,8 @@ import {
   Trash2, Plus, GripVertical, Facebook, Globe, AlertTriangle, Loader2, ShieldCheck, Link2, Copy, Check, Bell, Languages, Truck,
   Store, Phone, MapPin, Mail, MessageSquare, Eye, Box, HeartHandshake, ShieldAlert, Rocket, Search, Smartphone, Zap, X
 } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+import { isPremiumShop } from "@/lib/premium";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CheckoutMobilePreview } from "./CheckoutMobilePreview";
@@ -547,22 +549,38 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
               <p className="text-muted-foreground text-sm mb-6">
                 Connectez votre propre nom de domaine (acheté sur OVH, Hostinger, GoDaddy, etc.) pour remplacer ecomfy.cloud.
               </p>
-              <DnsConfigurationAssistant
-                resourceId={shop.id}
-                resourceType="shop"
-                currentBaseUrl={`ecomfy.cloud/shop/${shop.slug || ""}`}
-                currentDomain={shop.custom_domain || ""}
-                verificationCode={shop.domain_verification_code || ""}
-                domainStatus={shop.domain_status || "not_configured"}
-                propagationPercentage={shop.dns_propagation_percentage || 0}
-                sslStatus={shop.ssl_status || "pending"}
-                onDomainSave={async (domain) => {
-                  const cleaned = domain.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
-                  const { data, error } = await supabase.from("shops").update({ custom_domain: cleaned }).eq("id", shop.id).select().single();
-                  if (error) throw error;
-                  if (data) setShop({ ...shop, ...data });
-                }}
-              />
+              
+              {!isPremiumShop(shop) ? (
+                <Card className="p-8 text-center bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background border-emerald-200 dark:border-emerald-900/50">
+                  <div className="mx-auto w-12 h-12 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                    <Globe className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Fonctionnalité Premium</h3>
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                    La connexion d'un nom de domaine personnalisé nécessite un abonnement Premium. Mettez à niveau votre boutique pour débloquer cette fonctionnalité et renforcer votre image de marque.
+                  </p>
+                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    Passer à l'abonnement Premium
+                  </Button>
+                </Card>
+              ) : (
+                <DnsConfigurationAssistant
+                  resourceId={shop.id}
+                  resourceType="shop"
+                  currentBaseUrl={`ecomfy.cloud/shop/${shop.slug || ""}`}
+                  currentDomain={shop.custom_domain || ""}
+                  verificationCode={shop.domain_verification_code || ""}
+                  domainStatus={shop.domain_status || "not_configured"}
+                  propagationPercentage={shop.dns_propagation_percentage || 0}
+                  sslStatus={shop.ssl_status || "pending"}
+                  onDomainSave={async (domain) => {
+                    const cleaned = domain.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+                    const { data, error } = await supabase.from("shops").update({ custom_domain: cleaned }).eq("id", shop.id).select().single();
+                    if (error) throw error;
+                    if (data) setShop({ ...shop, ...data });
+                  }}
+                />
+              )}
             </div>
           )}
 

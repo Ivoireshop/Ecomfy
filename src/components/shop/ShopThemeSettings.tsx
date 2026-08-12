@@ -147,6 +147,40 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     </div>
                     <ColorField label="Couleur bordure" value={themeConfig.footer_border_color || "#4A4A4AFF"} onChange={v => updateThemeConfig("footer_border_color", v)} />
                   </div>
+                  
+                  {/* Option Premium : Masquer le branding Ecomfy */}
+                  <div className="pt-6 mt-6 border-t border-border">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20">
+                      <div>
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <span className="text-emerald-600 dark:text-emerald-400">👑 Premium :</span>
+                          Masquer "Propulsé par Ecomfy"
+                        </h4>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-lg">
+                          Retirez la mention Ecomfy du pied de page de votre boutique pour une apparence 100% en marque blanche.
+                        </p>
+                      </div>
+                      <Switch 
+                        checked={themeConfig.hide_ecomfy_branding === true} 
+                        onCheckedChange={v => {
+                          import("@/lib/premium").then(({ isPremiumShop }) => {
+                            if (!isPremiumShop(shop)) {
+                              import("@/hooks/use-toast").then(({ toast }) => {
+                                toast({
+                                  title: "Fonctionnalité Premium",
+                                  description: "Cette option est réservée aux abonnements Premium.",
+                                  variant: "destructive"
+                                });
+                              });
+                              return;
+                            }
+                            updateThemeConfig("hide_ecomfy_branding", v);
+                          });
+                        }} 
+                      />
+                    </div>
+                  </div>
+
                 </TabsContent>
 
                 <TabsContent value="review_desktop" className="mt-6 space-y-6">

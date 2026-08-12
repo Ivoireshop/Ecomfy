@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ExternalLink, Copy, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw, Save } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw, Save, ArrowRight, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DomainRegistrarSuggestions } from "@/components/DomainRegistrarSuggestions";
@@ -55,6 +55,7 @@ export const DnsConfigurationAssistant = ({
   const effectiveResourceId = resourceId || showcaseId!;
   const effectiveResourceType = resourceType;
   const resourceLabel = 'boutique';
+  
   const [customDomain, setCustomDomain] = useState(currentDomain);
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
@@ -62,22 +63,22 @@ export const DnsConfigurationAssistant = ({
   const [localPropagation, setLocalPropagation] = useState(propagationPercentage);
   const [localStatus, setLocalStatus] = useState(domainStatus);
   const [localSslStatus, setLocalSslStatus] = useState(sslStatus);
+  const [currentStep, setCurrentStep] = useState(currentDomain && verificationCode ? 3 : 1);
 
   const lovableSubdomain = currentBaseUrl || (subdomain ? `${subdomain}.lovable.app` : '');
 
-  // Auto-check DNS every 30 seconds when domain is configured
+  // Auto-check DNS every 30 seconds when domain is configured and on step 3
   useEffect(() => {
-    if (customDomain && verificationCode && localStatus !== 'verified') {
+    if (customDomain && verificationCode && localStatus !== 'verified' && currentStep === 3) {
       checkDnsRecords();
       const interval = setInterval(() => {
         checkDnsRecords();
-      }, 30000); // Check every 30 seconds
+      }, 30000);
 
       return () => clearInterval(interval);
     }
-  }, [customDomain, verificationCode, localStatus]);
+  }, [customDomain, verificationCode, localStatus, currentStep]);
 
-  // Update local state when props change
   useEffect(() => {
     setLocalPropagation(propagationPercentage);
     setLocalStatus(domainStatus);
@@ -112,8 +113,6 @@ export const DnsConfigurationAssistant = ({
 
         if (data.propagationPercentage === 100) {
           toast.success("Configuration DNS complète ! SSL en cours d'activation...");
-        } else if (data.propagationPercentage > 0) {
-          toast.info(`Propagation DNS : ${data.propagationPercentage}%`);
         }
       }
     } catch (error) {
@@ -129,16 +128,15 @@ export const DnsConfigurationAssistant = ({
       toast.error("Veuillez entrer un nom de domaine");
       return;
     }
-
     const domainRegex = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i;
     if (!domainRegex.test(customDomain)) {
       toast.error("Format de domaine invalide");
       return;
     }
-
     try {
       await onDomainSave(customDomain);
       toast.success("Domaine personnalisé enregistré");
+      setCurrentStep(2);
     } catch (error) {
       toast.error("Erreur lors de l'enregistrement du domaine");
     }
@@ -151,407 +149,215 @@ export const DnsConfigurationAssistant = ({
 
   const getStatusIcon = (status: DnsRecord['status']) => {
     switch (status) {
-      case 'success':
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case 'error':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'pending':
-        return <Clock className="h-5 w-5 text-yellow-500" />;
-      case 'checking':
-        return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
-      default:
-        return <AlertCircle className="h-5 w-5 text-gray-500" />;
+      case 'success': return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case 'error': return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'pending': return <Clock className="h-5 w-5 text-yellow-500" />;
+      case 'checking': return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
+      default: return <AlertCircle className="h-5 w-5 text-gray-500" />;
     }
   };
 
   const getStatusBadge = (status: DnsRecord['status']) => {
     switch (status) {
-      case 'success':
-        return <Badge className="bg-green-500">Configuré</Badge>;
-      case 'error':
-        return <Badge variant="destructive">Erreur</Badge>;
-      case 'pending':
-        return <Badge variant="secondary">En attente</Badge>;
-      case 'checking':
-        return <Badge variant="outline">Vérification...</Badge>;
-      default:
-        return <Badge variant="outline">Non vérifié</Badge>;
+      case 'success': return <Badge className="bg-green-500">Configuré</Badge>;
+      case 'error': return <Badge variant="destructive">Erreur</Badge>;
+      case 'pending': return <Badge variant="secondary">En attente</Badge>;
+      case 'checking': return <Badge variant="outline">Vérification...</Badge>;
+      default: return <Badge variant="outline">Non vérifié</Badge>;
     }
   };
-
-  const getOverallStatusMessage = () => {
-    switch (localStatus) {
-      case 'verified':
-        return {
-          title: '✓ Configuration terminée',
-          description: 'Votre domaine est correctement configuré et le SSL est actif.',
-          variant: 'default' as const,
-        };
-      case 'partial_propagation':
-        return {
-          title: '⏳ Propagation DNS en cours',
-          description: `${localPropagation}% complété - La propagation peut prendre jusqu'à 72 heures.`,
-          variant: 'default' as const,
-        };
-      case 'pending_verification':
-        return {
-          title: '🔍 En attente de configuration',
-          description: 'Ajoutez les enregistrements DNS ci-dessous dans votre gestionnaire de domaine.',
-          variant: 'default' as const,
-        };
-      default:
-        return {
-          title: 'Configuration non démarrée',
-          description: 'Entrez votre domaine personnalisé pour commencer.',
-          variant: 'secondary' as const,
-        };
-    }
-  };
-
-  const allRecordsConfigured = localStatus === 'verified';
-  const statusMessage = getOverallStatusMessage();
 
   return (
     <div className="space-y-6">
-      {/* Where to buy a domain */}
-      <DomainRegistrarSuggestions />
-
-      {/* Lovable Subdomain */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Domaine Ecomfy actuel</CardTitle>
-          <CardDescription>
-            Votre {resourceLabel} est actuellement accessible via cette adresse
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <Input 
-              value={lovableSubdomain} 
-              readOnly 
-              className="font-mono text-sm bg-muted"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => copyToClipboard(lovableSubdomain)}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => window.open(`https://${lovableSubdomain}`, "_blank")}
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
+      <div className="flex items-center justify-between mb-8 relative">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted rounded-full z-0"></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary rounded-full z-0 transition-all duration-300" style={{ width: `${((currentStep - 1) / 2) * 100}%` }}></div>
+        {[1, 2, 3].map((step) => (
+          <div key={step} className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors ${currentStep >= step ? 'bg-primary border-primary text-primary-foreground' : 'bg-background border-muted text-muted-foreground'}`}>
+            {step}
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
 
-      {/* Custom Domain Input */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Domaine Personnalisé</CardTitle>
-          <CardDescription>
-            Connectez votre propre nom de domaine à votre {resourceLabel}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="custom-domain">Nom de domaine</Label>
-            <div className="flex gap-2">
-              <Input
-                id="custom-domain"
-                placeholder="monsite.com"
-                value={customDomain}
-                onChange={(e) => setCustomDomain(e.target.value.toLowerCase())}
-              />
-              <Button onClick={handleSaveDomain} disabled={!customDomain}>
-                <Save className="h-4 w-4 mr-2" />
-                Enregistrer
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Entrez votre domaine sans "www" (exemple: maboutique.com)
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {customDomain && verificationCode && (
-        <Card>
+      {currentStep === 1 && (
+        <Card className="animate-in fade-in slide-in-from-right-2 duration-300">
           <CardHeader>
-            <CardTitle>Assistant de Configuration DNS</CardTitle>
+            <CardTitle>Étape 1 : Saisissez votre domaine</CardTitle>
             <CardDescription>
-              Vérification automatique toutes les 30 secondes • Configuration universelle compatible avec tous les registrars
+              Avez-vous déjà un nom de domaine (ex: ovh.com, godaddy.com) ?
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Overall Status */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">{statusMessage.title}</h3>
-                {localStatus === 'verified' && <CheckCircle2 className="h-6 w-6 text-green-500" />}
+            <DomainRegistrarSuggestions />
+            <div className="space-y-2 pt-4 border-t">
+              <Label htmlFor="custom-domain">Nom de domaine à connecter</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="custom-domain"
+                  placeholder="monsite.com"
+                  value={customDomain}
+                  onChange={(e) => setCustomDomain(e.target.value.toLowerCase())}
+                />
               </div>
-              <p className="text-sm text-muted-foreground">{statusMessage.description}</p>
-              
-              {/* Propagation Progress */}
-              {localStatus !== 'not_configured' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progression de la propagation DNS</span>
-                    <span className="font-semibold">{localPropagation}%</span>
-                  </div>
-                  <Progress value={localPropagation} className="h-2" />
-                </div>
-              )}
+              <p className="text-sm text-muted-foreground">
+                Entrez votre domaine sans "www" ni "https://"
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="justify-end gap-2 border-t pt-4">
+            <Button onClick={handleSaveDomain} disabled={!customDomain}>
+              Suivant <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
 
-              {/* SSL Status */}
-              {localPropagation > 0 && (
-                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <span className="text-sm font-medium">Statut SSL (HTTPS)</span>
-                  <Badge variant={localSslStatus === 'active' ? 'default' : 'secondary'}>
-                    {localSslStatus === 'active' ? '✓ Actif' : '⏳ En attente'}
-                  </Badge>
-                </div>
-              )}
+      {currentStep === 2 && (
+        <Card className="animate-in fade-in slide-in-from-right-2 duration-300">
+          <CardHeader>
+            <CardTitle>Étape 2 : Configuration DNS</CardTitle>
+            <CardDescription>
+              Ajoutez ces enregistrements dans l'espace client de votre fournisseur de domaine (OVH, GoDaddy, Hostinger...).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg space-y-2 mb-4">
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                📋 Instructions : Supprimez les anciens enregistrements A et CNAME avant d'ajouter ceux-ci.
+              </p>
             </div>
 
-            <div className="border-t pt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Configuration DNS Universelle</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={checkDnsRecords}
-                  disabled={isChecking}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isChecking ? 'animate-spin' : ''}`} />
-                  {isChecking ? 'Vérification...' : 'Vérifier maintenant'}
-                </Button>
+            <div className="space-y-4">
+              <Card className="bg-muted/50">
+                <CardContent className="pt-6 pb-6">
+                  <p className="font-semibold mb-3 flex items-center gap-2"><Badge variant="outline">1</Badge> Enregistrement CNAME</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Type</p>
+                      <p className="font-mono">CNAME</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Nom / Host</p>
+                      <p className="font-mono">www <Copy onClick={() => copyToClipboard('www')} className="inline h-3 w-3 cursor-pointer ml-1 text-muted-foreground hover:text-primary" /></p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Valeur / Cible</p>
+                      <p className="font-mono">{ECOMFY_CONFIG.CNAME_TARGET} <Copy onClick={() => copyToClipboard(ECOMFY_CONFIG.CNAME_TARGET)} className="inline h-3 w-3 cursor-pointer ml-1 text-muted-foreground hover:text-primary" /></p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-muted/50">
+                <CardContent className="pt-6 pb-6">
+                  <p className="font-semibold mb-3 flex items-center gap-2"><Badge variant="outline">2</Badge> Enregistrement A</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Type</p>
+                      <p className="font-mono">A</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Nom / Host</p>
+                      <p className="font-mono">@ <Copy onClick={() => copyToClipboard('@')} className="inline h-3 w-3 cursor-pointer ml-1 text-muted-foreground hover:text-primary" /></p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Valeur / IPv4</p>
+                      <p className="font-mono">{ECOMFY_CONFIG.A_RECORD_IP} <Copy onClick={() => copyToClipboard(ECOMFY_CONFIG.A_RECORD_IP)} className="inline h-3 w-3 cursor-pointer ml-1 text-muted-foreground hover:text-primary" /></p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-muted/50">
+                <CardContent className="pt-6 pb-6">
+                  <p className="font-semibold mb-3 flex items-center gap-2"><Badge variant="outline">3</Badge> Enregistrement TXT</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Type</p>
+                      <p className="font-mono">TXT</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Nom / Host</p>
+                      <p className="font-mono">@ <Copy onClick={() => copyToClipboard('@')} className="inline h-3 w-3 cursor-pointer ml-1 text-muted-foreground hover:text-primary" /></p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs mb-1">Valeur</p>
+                      <p className="font-mono text-xs break-all">ecomfy-site-verification={verificationCode} <Copy onClick={() => copyToClipboard(`ecomfy-site-verification=${verificationCode}`)} className="inline h-3 w-3 cursor-pointer ml-1 text-muted-foreground hover:text-primary" /></p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
+          <CardFooter className="justify-between border-t pt-4">
+            <Button variant="ghost" onClick={() => setCurrentStep(1)}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+            </Button>
+            <Button onClick={() => { setCurrentStep(3); checkDnsRecords(); }}>
+              J'ai ajouté ces enregistrements <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {currentStep === 3 && (
+        <Card className="animate-in fade-in slide-in-from-right-2 duration-300">
+          <CardHeader>
+            <CardTitle>Étape 3 : Vérification et Validation</CardTitle>
+            <CardDescription>
+              Ecomfy vérifie la propagation de vos DNS (Cela peut prendre jusqu'à 72h).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="p-6 bg-muted/30 rounded-xl border flex flex-col items-center justify-center min-h-[200px] text-center space-y-4">
+              {localStatus === 'verified' ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-green-600 mb-2">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-bold text-green-700 dark:text-green-400">Domaine connecté avec succès !</h3>
+                  <p className="text-sm text-muted-foreground max-w-md">Votre domaine pointe correctement vers nos serveurs. Le certificat SSL est en cours d'installation.</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-2">
+                    <RefreshCw className="w-8 h-8 animate-spin" />
+                  </div>
+                  <h3 className="text-xl font-bold">Vérification en cours...</h3>
+                  <div className="w-full max-w-md space-y-2 mt-4">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span>Propagation DNS</span>
+                      <span>{localPropagation}%</span>
+                    </div>
+                    <Progress value={localPropagation} className="h-2" />
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-sm mt-4">La vérification est automatique toutes les 30s. Vous pouvez fermer cette page et revenir plus tard.</p>
+                </>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 border rounded-lg flex justify-between items-center bg-card">
+                <span className="text-sm font-medium">Statut DNS</span>
+                {getStatusBadge(localStatus as any)}
               </div>
-
-              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg space-y-2">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  📋 Instructions pour votre gestionnaire de domaine
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  Compatible avec GoDaddy, OVH, Namecheap, Hostinger, Cloudflare, Google Domains, etc.
-                </p>
-              </div>
-
-              {/* DNS Records */}
-              <div className="space-y-4">
-                {/* CNAME Record for www */}
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        {dnsRecords.find(r => r.type === 'CNAME') ? 
-                          getStatusIcon(dnsRecords.find(r => r.type === 'CNAME')!.status) : 
-                          <Clock className="h-5 w-5 text-gray-400" />
-                        }
-                        <div>
-                          <p className="font-semibold">1. Enregistrement CNAME (sous-domaine www)</p>
-                          {dnsRecords.find(r => r.type === 'CNAME') && getStatusBadge(dnsRecords.find(r => r.type === 'CNAME')!.status)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm bg-muted p-3 rounded-md">
-                      <div>
-                        <p className="text-muted-foreground mb-1">Type</p>
-                        <p className="font-mono">CNAME</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1">Nom / Host</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono">www</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => copyToClipboard('www')}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1">Valeur / Target</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono text-xs">{ECOMFY_CONFIG.CNAME_TARGET}</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => copyToClipboard(ECOMFY_CONFIG.CNAME_TARGET)}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    {dnsRecords.find(r => r.type === 'CNAME')?.message && (
-                      <p className="text-sm text-muted-foreground mt-3">
-                        {dnsRecords.find(r => r.type === 'CNAME')!.message}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* A Record for root domain */}
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        {dnsRecords.find(r => r.type === 'A') ? 
-                          getStatusIcon(dnsRecords.find(r => r.type === 'A')!.status) : 
-                          <Clock className="h-5 w-5 text-gray-400" />
-                        }
-                        <div>
-                          <p className="font-semibold">2. Enregistrement A (domaine racine)</p>
-                          {dnsRecords.find(r => r.type === 'A') && getStatusBadge(dnsRecords.find(r => r.type === 'A')!.status)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm bg-muted p-3 rounded-md">
-                      <div>
-                        <p className="text-muted-foreground mb-1">Type</p>
-                        <p className="font-mono">A</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1">Nom / Host</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono">@</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => copyToClipboard('@')}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1">Valeur / IPv4</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono">{ECOMFY_CONFIG.A_RECORD_IP}</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => copyToClipboard(ECOMFY_CONFIG.A_RECORD_IP)}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    {dnsRecords.find(r => r.type === 'A')?.message && (
-                      <p className="text-sm text-muted-foreground mt-3">
-                        {dnsRecords.find(r => r.type === 'A')!.message}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* TXT Record for verification */}
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        {dnsRecords.find(r => r.type === 'TXT') ? 
-                          getStatusIcon(dnsRecords.find(r => r.type === 'TXT')!.status) : 
-                          <Clock className="h-5 w-5 text-gray-400" />
-                        }
-                        <div>
-                          <p className="font-semibold">3. Enregistrement TXT (vérification du domaine)</p>
-                          {dnsRecords.find(r => r.type === 'TXT') && getStatusBadge(dnsRecords.find(r => r.type === 'TXT')!.status)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm bg-muted p-3 rounded-md">
-                      <div>
-                        <p className="text-muted-foreground mb-1">Type</p>
-                        <p className="font-mono">TXT</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1">Nom / Host</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono">@</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => copyToClipboard('@')}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1">Valeur / Value</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono text-xs break-all">ecomfy-site-verification={verificationCode}</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => copyToClipboard(`ecomfy-site-verification=${verificationCode}`)}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    {dnsRecords.find(r => r.type === 'TXT')?.message && (
-                      <p className="text-sm text-muted-foreground mt-3">
-                        {dnsRecords.find(r => r.type === 'TXT')!.message}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Additional Information */}
-              <div className="space-y-3">
-                <Card className="bg-yellow-50 dark:bg-yellow-950 border-yellow-200">
-                  <CardContent className="pt-6">
-                    <div className="flex gap-3">
-                      <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <div className="space-y-2 text-sm">
-                        <p className="font-semibold text-yellow-900 dark:text-yellow-100">
-                          ⚠️ Si vous utilisez Cloudflare
-                        </p>
-                        <p className="text-yellow-800 dark:text-yellow-200">
-                          Désactivez le mode "Proxied" (orange → gris) pour les enregistrements lors de la première configuration.
-                          Vous pourrez le réactiver une fois le SSL provisionné.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-                  <p className="font-medium">💡 Informations importantes :</p>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
-                    <li>La propagation DNS peut prendre de 5 minutes à 72 heures</li>
-                    <li>Le certificat SSL est généré automatiquement une fois les DNS validés</li>
-                    <li>Vérification automatique toutes les 30 secondes pendant la propagation</li>
-                    <li>Supprimez tout ancien enregistrement A ou CNAME existant pour ce domaine</li>
-                  </ul>
-                </div>
-
-                {lastCheck && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Dernière vérification: {lastCheck.toLocaleTimeString()}
-                  </p>
-                )}
+              <div className="p-4 border rounded-lg flex justify-between items-center bg-card">
+                <span className="text-sm font-medium">Statut SSL</span>
+                <Badge variant={localSslStatus === 'active' ? 'default' : 'secondary'}>
+                  {localSslStatus === 'active' ? '✓ Sécurisé' : '⏳ En attente'}
+                </Badge>
               </div>
             </div>
           </CardContent>
+          <CardFooter className="justify-between border-t pt-4">
+            <Button variant="ghost" onClick={() => setCurrentStep(2)}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Revoir la configuration
+            </Button>
+            <Button variant="outline" onClick={checkDnsRecords} disabled={isChecking}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isChecking ? 'animate-spin' : ''}`} />
+              Forcer la vérification
+            </Button>
+          </CardFooter>
         </Card>
       )}
     </div>

@@ -5,7 +5,8 @@ export type ShopThemeSlug =
   | "tech-shop"
   | "luxury-shop"
   | "mobile-first-shop"
-  | "landing-shop";
+  | "landing-shop"
+  | "dynamic-builder";
 
 export interface ShopThemeProduct {
   id: string;

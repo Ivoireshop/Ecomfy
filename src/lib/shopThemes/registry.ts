@@ -85,6 +85,15 @@ export const SHOP_THEME_REGISTRY: Record<ShopThemeSlug, ThemeEntry> = {
     },
     Component: lazy(() => import("./themes/LandingShop")),
   },
+  "dynamic-builder": {
+    meta: {
+      slug: "dynamic-builder",
+      name: "Constructeur Dynamique",
+      category: "premium",
+      description: "Thème généré via l'Éditeur Visuel Ecomfy (Drag & Drop).",
+    },
+    Component: lazy(() => import("./themes/DynamicShop")),
+  }
 };
 
 export const SHOP_THEME_LIST = Object.values(SHOP_THEME_REGISTRY).map((e) => e.meta);

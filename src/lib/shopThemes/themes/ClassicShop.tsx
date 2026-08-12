@@ -49,7 +49,9 @@ export default function ClassicShop({ data }: ShopThemeProps) {
       <footer className="border-t mt-10">
         <div className="max-w-7xl mx-auto px-4 py-8 text-sm text-gray-500 flex flex-wrap justify-between gap-4">
           <div>© {new Date().getFullYear()} {shop.business_name}</div>
-          <div className="opacity-70">Propulsé par Ecomfy</div>
+          {!(shop.theme_config?.hide_ecomfy_branding === true) && (
+            <div className="opacity-70">Propulsé par Ecomfy</div>
+          )}
         </div>
       </footer>
     </div>

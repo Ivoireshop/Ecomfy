@@ -38,6 +38,7 @@ const ReviewsModeration = lazy(() => import("@/components/shop/ReviewsModeration
 const ShopFinances = lazy(() => import("@/components/shop/ShopFinances").then(m => ({ default: m.ShopFinances })));
 const ProductAIOptimizer = lazy(() => import("@/components/shop/ProductAIOptimizer").then(m => ({ default: m.ProductAIOptimizer })));
 const ShopCollaboratorsManager = lazy(() => import("@/components/shop/ShopCollaboratorsManager").then(m => ({ default: m.ShopCollaboratorsManager })));
+const DragDropEditor = lazy(() => import("@/components/shop/DragDropEditor/DragDropEditor").then(m => ({ default: m.DragDropEditor })));
 
 const SectionFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -140,6 +141,7 @@ const ShopEditor = () => {
   const [activationPhone, setActivationPhone] = useState("");
   const [activationProvider, setActivationProvider] = useState("");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [showVisualEditor, setShowVisualEditor] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
@@ -1077,6 +1079,7 @@ const ShopEditor = () => {
               setShop={setShop}
               products={products}
               onCustomize={() => setActiveSection("theme")}
+              onOpenVisualEditor={() => setShowVisualEditor(true)}
             />
           )}
 
@@ -1248,6 +1251,16 @@ const ShopEditor = () => {
           );
         })()}
       </main>
+
+      {showVisualEditor && (
+        <Suspense fallback={<SectionFallback />}>
+          <DragDropEditor 
+            shop={shop} 
+            setShop={setShop} 
+            onClose={() => setShowVisualEditor(false)} 
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

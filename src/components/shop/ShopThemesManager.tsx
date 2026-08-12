@@ -10,14 +10,15 @@ import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
 import classicDesktopPreview from "@/assets/themes/classic-shop.jpg";
 import classicMobilePreview from "@/assets/themes/classic-shop-mobile.jpg";
 
-interface Props {
+interface ShopThemesManagerProps {
   shop: any;
-  setShop: (s: any) => void;
+  setShop: (shop: any) => void;
   products: any[];
   onCustomize?: () => void;
+  onOpenVisualEditor?: () => void;
 }
 
-export default function ShopThemesManager({ shop, setShop, products, onCustomize }: Props) {
+export default function ShopThemesManager({ shop, setShop, products, onCustomize, onOpenVisualEditor }: ShopThemesManagerProps) {
   const themeConfig = shop?.theme_config || {};
   const activeSlug: string | null = themeConfig.active_theme_slug || null;
   const installed: string[] = Array.isArray(themeConfig.installed_themes) ? themeConfig.installed_themes : [];
@@ -118,9 +119,26 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
                 )}
                 {onCustomize && (
                   <Button size="sm" variant="outline" onClick={onCustomize}>
-                    <Paintbrush className="h-4 w-4 mr-1.5" /> Personnaliser
+                    <Paintbrush className="h-4 w-4 mr-1.5" /> Paramètres
                   </Button>
                 )}
+                <Button 
+                  size="sm" 
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white" 
+                  onClick={() => {
+                    import("@/lib/premium").then(({ isPremiumShop }) => {
+                      if (!isPremiumShop(shop)) {
+                        import("@/hooks/use-toast").then(({ toast }) => {
+                          toast({ title: "Premium", description: "L'éditeur visuel nécessite un compte Premium.", variant: "destructive" });
+                        });
+                        return;
+                      }
+                      if (onOpenVisualEditor) onOpenVisualEditor();
+                    });
+                  }}
+                >
+                  <Paintbrush className="h-4 w-4 mr-1.5" /> Éditeur Visuel (Pro)
+                </Button>
                 {activeMeta && (
                   <Button size="sm" variant="ghost" onClick={resetToClassic} disabled={saving === "__classic__"}>
                     {saving === "__classic__" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ArrowLeft className="h-4 w-4 mr-1.5" />}
