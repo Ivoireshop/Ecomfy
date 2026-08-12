@@ -34,7 +34,7 @@ interface ShopStatisticsProps {
   orders: Order[];
   products: Product[];
   primaryColor: string;
-  visits?: { visited_at: string; product_id?: string | null; session_id?: string | null }[];
+  visits?: { visited_at: string; product_id?: string | null; session_id?: string | null; visitor_country?: string | null; referrer?: string | null; device_type?: string | null; }[];
 }
 
 export function ShopStatistics({ orders, products, primaryColor, visits = [] }: ShopStatisticsProps) {
@@ -110,6 +110,58 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
     return days;
   }, [filteredOrders, period]);
 
+  const realtimeVisitors = useMemo(() => {
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60000);
+    const recent = visits.filter(v => new Date(v.visited_at) > fifteenMinsAgo);
+    return new Set(recent.map(v => v.session_id || Math.random().toString())).size;
+  }, [visits]);
+
+  const trafficSourcesData = useMemo(() => {
+    const sources: Record<string, number> = {};
+    const sessions = new Set<string>();
+    filteredVisits.forEach(v => {
+      const sid = v.session_id || v.visited_at;
+      if (!sessions.has(sid)) {
+        sessions.add(sid);
+        const src = v.referrer || "Direct";
+        sources[src] = (sources[src] || 0) + 1;
+      }
+    });
+    const sorted = Object.entries(sources).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    if (sorted.length === 0) return [{ name: "Direct", value: 1 }];
+    return sorted;
+  }, [filteredVisits]);
+
+  const countryStats = useMemo(() => {
+    const stats: Record<string, { visitors: number, orders: number, revenue: number }> = {};
+    
+    // Process visits
+    const sessionsByCountry: Record<string, Set<string>> = {};
+    filteredVisits.forEach(v => {
+      let c = v.visitor_country || "Inconnu";
+      if (c === "Unknown") c = "Inconnu";
+      if (!sessionsByCountry[c]) sessionsByCountry[c] = new Set();
+      sessionsByCountry[c].add(v.session_id || Math.random().toString());
+    });
+    
+    Object.entries(sessionsByCountry).forEach(([country, sessions]) => {
+      if (!stats[country]) stats[country] = { visitors: 0, orders: 0, revenue: 0 };
+      stats[country].visitors = sessions.size;
+    });
+
+    // Process orders
+    filteredOrders.forEach(o => {
+      let c = o.customer_country || "Inconnu";
+      if (c === "Unknown") c = "Inconnu";
+      if (!stats[c]) stats[c] = { visitors: 0, orders: 0, revenue: 0 };
+      stats[c].orders += 1;
+      stats[c].revenue += o.total;
+    });
+
+    return Object.entries(stats).map(([country, data]) => ({ country, ...data })).sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
+  }, [filteredVisits, filteredOrders]);
+
+
   // Peak Hours (Heures d'affluence)
   const peakHoursData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => ({ hour: `${i}h`, orders: 0, revenue: 0 }));
@@ -165,7 +217,15 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-space font-bold text-slate-900 tracking-tight">Analytiques Détaillées</h2>
-          <p className="text-sm text-slate-500 mt-1">Données et performances en temps réel de votre activité.</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <p className="text-sm font-semibold text-emerald-600">
+              {realtimeVisitors} visiteur{realtimeVisitors !== 1 ? 's' : ''} en ce moment
+            </p>
+          </div>
         </div>
         
         {/* Premium Segmented Control */}
@@ -419,6 +479,109 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
                   </div>
                 );
               })}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Trafic et Répartition Géographique */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Traffic Sources */}
+        <Card className="col-span-1 p-6 rounded-2xl border-slate-100 shadow-sm bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                <Globe className="h-5 w-5 text-blue-500" /> Sources de Trafic
+              </h3>
+              <p className="text-xs text-slate-500">Provenance de vos visiteurs</p>
+            </div>
+          </div>
+          <div className="h-[200px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={trafficSourcesData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {trafficSourcesData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: number) => [`${value} visiteurs`, ""]}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 space-y-2">
+            {trafficSourcesData.slice(0, 4).map((source, i) => (
+              <div key={source.name} className="flex justify-between items-center text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className="text-slate-600 font-medium truncate w-32">{source.name}</span>
+                </div>
+                <span className="font-bold text-slate-900">{source.value}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Geo Breakdown */}
+        <Card className="lg:col-span-2 p-6 rounded-2xl border-slate-100 shadow-sm bg-white">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                <Target className="h-5 w-5 text-rose-500" /> Ventes par Pays
+              </h3>
+              <p className="text-xs text-slate-500">Répartition géographique de votre clientèle</p>
+            </div>
+          </div>
+          
+          {countryStats.length === 0 ? (
+            <div className="flex items-center justify-center h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <p className="text-sm text-slate-500 font-medium">Aucune donnée géographique disponible.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 bg-slate-50/80 rounded-lg">
+                  <tr>
+                    <th className="px-4 py-3 rounded-l-lg font-semibold">Pays</th>
+                    <th className="px-4 py-3 font-semibold text-center">Visiteurs uniques</th>
+                    <th className="px-4 py-3 font-semibold text-center">Commandes</th>
+                    <th className="px-4 py-3 font-semibold text-center">Taux Conv.</th>
+                    <th className="px-4 py-3 rounded-r-lg font-semibold text-right">Revenus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {countryStats.map((country, i) => {
+                    const conv = country.visitors > 0 ? (country.orders / country.visitors) * 100 : 0;
+                    return (
+                      <tr key={country.country} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">
+                          {country.country}
+                        </td>
+                        <td className="px-4 py-3 text-center text-slate-600 font-medium">{country.visitors}</td>
+                        <td className="px-4 py-3 text-center text-slate-600 font-medium">{country.orders}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${conv >= 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {conv.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold" style={{ color: primaryColor }}>
+                          {fmt(country.revenue)} <span className="text-xs font-normal text-slate-400">FCFA</span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </Card>

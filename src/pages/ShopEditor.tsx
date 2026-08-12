@@ -164,7 +164,7 @@ const ShopEditor = () => {
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
       supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any,
-      supabase.from("shop_visits" as any).select("visited_at, product_id, session_id").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(5000) as any,
+      supabase.from("shop_visits" as any).select("visited_at, product_id, session_id, visitor_country, referrer, device_type").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
     if (ordersRes.error) {
       console.error("FAILED TO FETCH ORDERS:", ordersRes.error);

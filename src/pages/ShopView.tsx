@@ -395,10 +395,14 @@ const ShopView = () => {
           sid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
           sessionStorage.setItem("vp_visit_session", sid);
         }
-        supabase.from("shop_visits" as any).insert({
-          shop_id: shopData.id,
-          session_id: sid,
-        } as any).then(() => {}, () => {});
+        supabase.functions.invoke("track-shop-visit", {
+          body: {
+            shop_id: shopData.id,
+            session_id: sid,
+            referrer: document.referrer,
+            page_path: window.location.pathname
+          }
+        }).then(() => {}, () => {});
       } catch {}
     }
 
