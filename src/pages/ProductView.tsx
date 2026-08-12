@@ -742,34 +742,38 @@ const ProductView = () => {
           </h3>
 
           {/* Variants for Custom Themes where they can't be selected outside */}
-          {isCustomTheme && variantGroups.length > 0 && cart.length === 0 && (
+          {isCustomTheme && Array.isArray(product?.variants) && product.variants.length > 0 && cart.length === 0 && (
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-4 mb-6">
               <h4 className="font-bold text-orange-800">Veuillez choisir vos options avant de commander :</h4>
-              {variantGroups.map((group, idx) => (
-                <div key={idx} className="space-y-2">
-                  <Label className="font-bold">{group.name}</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {group.options?.map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setChosen({ ...chosen, [group.name]: opt })}
-                        className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
-                          chosen[group.name] === opt
-                            ? "bg-gray-900 text-white shadow-md scale-105"
-                            : "bg-white border text-gray-700 hover:bg-gray-50"
-                        }`}
-                        style={chosen[group.name] === opt ? { backgroundColor: primaryColor } : {}}
-                      >
-                        {opt}
-                      </button>
-                    ))}
+              {product.variants.map((group: any, idx: number) => (
+                group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
+                  <div key={idx} className="space-y-2">
+                    <Label className="font-bold">{group.name}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {group.options.map((opt: string) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
+                          className={`px-4 py-2 text-sm rounded-xl font-medium transition-all ${
+                            selectedVariants[group.name] === opt
+                              ? "bg-gray-900 text-white shadow-md scale-105"
+                              : "bg-white border text-gray-700 hover:bg-gray-50"
+                          }`}
+                          style={selectedVariants[group.name] === opt ? { backgroundColor: primaryColor } : {}}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : null
               ))}
               <Button 
+                type="button"
                 className="w-full h-12 text-white font-bold" 
                 style={{ backgroundColor: primaryColor }}
-                onClick={() => addToCart(product, quantity, true, true)}
+                onClick={() => addToCart(product, quantity, true, false)}
               >
                 Valider mes choix
               </Button>
