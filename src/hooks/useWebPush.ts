@@ -32,14 +32,39 @@ export const useWebPush = () => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
       setPermission(Notification.permission);
-      checkSubscription();
+      if (session?.user) {
+        checkSubscription();
+      }
     }
-  }, []);
+  }, [session?.user]);
 
   const checkSubscription = async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
+      
+      if (subscription && session?.user) {
+        // Vérifier si la souscription existe dans notre nouvelle base de données Supabase (VAPID)
+        const subJSON = subscription.toJSON();
+        if (subJSON.endpoint) {
+          const { data, error } = await supabase
+            .from('push_subscriptions')
+            .select('id')
+            .eq('endpoint', subJSON.endpoint)
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+            
+          if (!data) {
+            // C'est une ancienne souscription (ex: Firebase FCM) ou orpheline
+            // On la supprime pour forcer l'utilisateur à se réinscrire avec VAPID
+            console.log("Ancienne souscription détectée, désinscription forcée...");
+            await subscription.unsubscribe();
+            setIsSubscribed(false);
+            return;
+          }
+        }
+      }
+      
       setIsSubscribed(!!subscription);
     } catch (error) {
       console.error('Erreur lors de la vérification de la souscription:', error);
