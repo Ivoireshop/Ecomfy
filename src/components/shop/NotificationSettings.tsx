@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Bell, Loader2, Volume2, VolumeX, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useFCM } from "@/hooks/useFCM";
+import { useWebPush } from "@/hooks/useWebPush";
 import {
   requestNotificationPermission,
   NOTIFICATION_SOUNDS,
@@ -76,7 +76,7 @@ export function NotificationSettings({ shop, setShop }: Props) {
   );
   const [soundId, setSoundId] = useState<NotificationSoundId>(getSavedSoundId());
   const [volume, setVolume] = useState<number>(getSavedVolume());
-  const { status, register } = useFCM();
+  const { isSubscribed, subscribe } = useWebPush();
 
   const previewSound = (id: NotificationSoundId, vol: number) => {
     try {
@@ -131,16 +131,11 @@ export function NotificationSettings({ shop, setShop }: Props) {
         });
         return;
       }
-      const token = await register();
-      if (token) {
-        toast({ title: "🔔 Notifications activées", description: "Vous recevrez une alerte sonore à chaque commande selon les réglages du téléphone." });
+      await subscribe();
+      // Le toast de succès ou d'erreur est géré à l'intérieur de `subscribe()`
+      // On teste quand même si c'est activé après
+      if (Notification.permission === 'granted') {
         try { new Notification("Ecomfy", { body: "Notifications activées avec succès.", icon: "/app-icon-512.png", silent: false }); } catch {}
-      } else {
-        toast({
-          title: "Échec de l'enregistrement",
-          description: "Token non créé. Réinstallez l'app depuis l'écran d'accueil ou réessayez.",
-          variant: "destructive",
-        });
       }
     } finally {
       setBusy(false);
@@ -159,7 +154,7 @@ export function NotificationSettings({ shop, setShop }: Props) {
       </p>
 
       {/* Push Notifications Registration Banner */}
-      {status !== "registered" && (
+      {!isSubscribed && (
         <Card className="bg-[#E3F1EC] border-[#C9E5DC] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-6">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[#0E7C66] shrink-0 shadow-sm">
@@ -183,7 +178,7 @@ export function NotificationSettings({ shop, setShop }: Props) {
         </Card>
       )}
 
-      {status === "registered" && (
+      {isSubscribed && (
         <Card className="p-6 mb-6 space-y-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 shrink-0 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">

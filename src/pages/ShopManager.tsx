@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, ExternalLink, Zap, Trash2, Loader2, Copy, Users, LogIn, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
-import { useFCM } from "@/hooks/useFCM";
-
 import { useAuthReady } from "@/hooks/useAuthReady";
 
 interface Shop {
@@ -49,10 +47,9 @@ const ShopManager = () => {
   const [deleting, setDeleting] = useState(false);
   const { user, isReady } = useAuthReady();
 
-  // Global notifications: realtime in-app + push FCM for ALL the user's shops.
+  // Global notifications: realtime in-app for ALL the user's shops.
   // Realtime is filtered server-side by RLS (only this user's shops are returned).
   useOrderNotifications();
-  useFCM();
 
   const fetchShops = useCallback(async (userId?: string) => {
     if (!userId) {

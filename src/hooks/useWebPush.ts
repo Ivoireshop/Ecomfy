@@ -156,7 +156,7 @@ export const useWebPush = () => {
       console.error('Erreur de souscription push:', error);
       toast({
         title: "Erreur d'activation",
-        description: error.message || "Une erreur est survenue lors de l'activation des notifications.",
+        description: (error?.message || error?.toString() || "Une erreur est survenue lors de l'activation des notifications.") + (error?.details ? ` - ${error.details}` : '') + (error?.hint ? ` - ${error.hint}` : ''),
         variant: "destructive"
       });
     } finally {

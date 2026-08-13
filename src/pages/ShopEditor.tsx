@@ -46,7 +46,6 @@ const SectionFallback = () => (
   </div>
 );
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
-import { useFCM } from "@/hooks/useFCM";
 import { useNativePush } from "@/hooks/useNativePush";
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -232,8 +231,6 @@ const ShopEditor = () => {
   // Native browser/PWA notifications + sound for new orders
   useOrderNotifications(id);
 
-  // Auto-register FCM push token (so notifications arrive even when PWA is closed)
-  useFCM(id);
   // Native iOS/Android push registration (rings even when app is closed/locked)
   useNativePush(id);
 
