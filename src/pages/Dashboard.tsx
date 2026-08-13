@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Cell
 } from "recharts";
 import { InstallPwaBanner } from "@/components/InstallPwaBanner";
+import { WebPushBanner } from "@/components/WebPushBanner";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -256,6 +257,7 @@ const Dashboard = () => {
         </div>
 
         <InstallPwaBanner />
+        <WebPushBanner />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">

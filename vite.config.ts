@@ -14,7 +14,7 @@ export default defineConfig(() => ({
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
-      filename: 'firebase-messaging-sw.js',
+      filename: 'sw.js',
       injectRegister: 'auto',
       registerType: 'prompt',
       manifest: false, // We're using the existing manifest.webmanifest in public/
