@@ -27,7 +27,7 @@ const RESOURCES = [
 
 export function ShopResources() {
   return (
-    <Card className="p-8 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm">
+    <Card className="p-5 md:p-8 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h3 className="font-bold text-slate-900 text-xl">Ressources & Support</h3>
@@ -56,9 +56,9 @@ export function ShopResources() {
               <Icon className="h-6 w-6" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-bold text-slate-900 leading-tight flex items-center gap-1">
-                <span className="truncate">{title}</span>
-                <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-[#0E7C66] transition-opacity shrink-0" />
+              <p className="text-[15px] font-bold text-slate-900 leading-snug flex items-start gap-1.5">
+                <span className="whitespace-normal">{title}</span>
+                <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-[#0E7C66] transition-opacity shrink-0 mt-0.5" />
               </p>
               <p className="text-[12px] text-slate-500 mt-1.5 leading-snug font-medium">{description}</p>
             </div>
