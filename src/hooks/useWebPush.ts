@@ -147,6 +147,17 @@ export const useWebPush = () => {
         throw new Error("La souscription générée est invalide.");
       }
 
+      // Vérifier et créer le profil s'il n'existe pas (pour éviter l'erreur de Foreign Key)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
+        
+      if (!profile) {
+        await supabase.from('profiles').insert({ id: session.user.id });
+      }
+
       // Sauvegarder dans Supabase
       const { error } = await supabase
         .from('push_subscriptions')
