@@ -21,6 +21,10 @@ export default defineConfig(() => ({
       injectManifest: {
         maximumFileSizeToCacheInBytes: 5000000,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ttf,eot,json}']
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module'
       }
     })
   ].filter(Boolean),

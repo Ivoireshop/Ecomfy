@@ -113,9 +113,17 @@ export const useWebPush = () => {
 
       let registration = await navigator.serviceWorker.getRegistration();
       if (!registration) {
-        registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        const { registerSW } = await import('virtual:pwa-register');
+        await registerSW({ immediate: true })();
+        // Wait a small bit for registration to propagate
+        await new Promise(resolve => setTimeout(resolve, 500));
+        registration = await navigator.serviceWorker.getRegistration();
       }
-      registration = await navigator.serviceWorker.ready;
+      if (registration) {
+        registration = await navigator.serviceWorker.ready;
+      } else {
+        throw new Error("Impossible d'installer le Service Worker. Veuillez rafraîchir la page.");
+      }
 
       // Clé publique VAPID (à remplacer par la vraie clé générée ou injectée via env)
       // On utilise import.meta.env pour récupérer la clé publique
