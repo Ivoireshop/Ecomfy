@@ -12,7 +12,7 @@ import {
   ShoppingCart, Plus, Minus, Store, Phone, MessageCircle, 
   Star, MapPin, Mail, ShoppingBag, ArrowLeft, ChevronLeft, 
   ChevronRight, Share2, Heart, Truck, Shield, Clock, CheckCircle2,
-  CreditCard, User, ArrowRight, Trash2, Send, X
+  CreditCard, User, ArrowRight, Trash2, Send, X, Lock
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
@@ -554,22 +554,52 @@ const ProductView = () => {
 
   const placeOrder = async () => {
     if (submittingOrderRef.current) return;
-    if (!shop || !customerInfo.name || !customerInfo.phone || cart.length === 0) {
-      toast({ title: "Erreur", description: "Remplissez tous les champs obligatoires", variant: "destructive" });
+    if (!shop) return;
+    
+    const cf: any[] = shop.checkout_fields || [];
+    const isEnabled = (id: string) => {
+      const f = cf.find((x: any) => x.id === id);
+      return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+    };
+    const isRequired = (id: string) => {
+      const f = cf.find((x: any) => x.id === id);
+      return f ? !!f.required : ["first_name","phone","city"].includes(id);
+    };
+
+    if (cart.length === 0) {
+      toast({ title: "Panier vide", description: "Votre panier est vide.", variant: "destructive" });
       return;
     }
-    if (!isValidFullPhone(customerInfo.phone)) {
-      toast({
-        title: "Numéro invalide",
-        description: "Veuillez saisir un numéro de téléphone valide pour votre pays.",
-        variant: "destructive",
-      });
+
+    if (isEnabled("first_name") && isRequired("first_name") && !customerInfo.name) {
+      toast({ title: "Nom manquant", description: "Veuillez renseigner votre nom complet.", variant: "destructive" });
       return;
     }
-    if (customerInfo.city && containsDigits(customerInfo.city)) {
+    if (isEnabled("phone") && isRequired("phone") && !customerInfo.phone) {
+      toast({ title: "Téléphone manquant", description: "Veuillez renseigner votre numéro de téléphone.", variant: "destructive" });
+      return;
+    }
+    if (isEnabled("phone") && customerInfo.phone && !isValidFullPhone(customerInfo.phone)) {
+      toast({ title: "Numéro invalide", description: "Veuillez saisir un numéro de téléphone valide.", variant: "destructive" });
+      return;
+    }
+    if (isEnabled("email") && isRequired("email") && !customerInfo.email) {
+      toast({ title: "Email manquant", description: "Veuillez renseigner votre adresse email.", variant: "destructive" });
+      return;
+    }
+    if (isEnabled("city") && isRequired("city") && !customerInfo.city) {
+      toast({ title: "Ville manquante", description: "Veuillez renseigner votre ville.", variant: "destructive" });
+      return;
+    }
+    if (isEnabled("city") && customerInfo.city && containsDigits(customerInfo.city)) {
       toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
       return;
     }
+    if (isEnabled("address") && isRequired("address") && !customerInfo.address) {
+      toast({ title: "Adresse manquante", description: "Veuillez renseigner votre adresse détaillée.", variant: "destructive" });
+      return;
+    }
+
     submittingOrderRef.current = true;
     setOrderLoading(true);
     try {
@@ -984,10 +1014,14 @@ const ProductView = () => {
                       className="w-full h-12 sm:h-14 rounded-xl text-[15px] sm:text-lg font-bold gap-2 text-white shadow-md hover:shadow-lg transition-all"
                       style={{ backgroundColor: primaryColor }}
                       onClick={placeOrder} 
-                      disabled={orderLoading || !canSubmit}
+                      disabled={orderLoading}
                     >
                       {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-5 w-5" /> Confirmer ma commande</>}
                     </Button>
+                    <div className="flex items-center justify-center gap-4 mt-3 text-gray-500">
+                      <div className="flex items-center gap-1 text-[11px] font-medium"><Shield className="h-3.5 w-3.5" /> Paiement sécurisé</div>
+                      <div className="flex items-center gap-1 text-[11px] font-medium"><CheckCircle2 className="h-3.5 w-3.5" /> Satisfait ou remboursé</div>
+                    </div>
                   </div>
                 );
               })()}
@@ -1077,8 +1111,8 @@ const ProductView = () => {
         </>
       )}
 
-      {/* Floating Cart - Mobile */}
-      {!isCustomTheme && !shop._isPreview && cartCount > 0 && !showInlineCheckout && !shop.theme_config?.sticky_order_button && (
+      {/* Floating Cart - Mobile (Disabled in favor of sticky order button) */}
+      {false && !isCustomTheme && !shop._isPreview && cartCount > 0 && !showInlineCheckout && !shop.theme_config?.sticky_order_button && (
         <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
           <Button 
             className={`w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 text-white ${
@@ -1098,15 +1132,15 @@ const ProductView = () => {
               requestAnimationFrame(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" })); 
             }}
           >
-            <ShoppingBag className="h-5 w-5" /> Voir le panier · {formatPrice(cartTotal)} FCFA
+            <Lock className="h-5 w-5" /> Valider ma commande · {formatPrice(cartTotal)} FCFA
             <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
           </Button>
         </div>
       )}
 
-      {/* Sticky Order Button - always visible when enabled */}
-      {!isCustomTheme && !shop._isPreview && shop.theme_config?.sticky_order_button && product && !showInlineCheckout && (
-        <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3">
+      {/* Sticky Order Button - always visible when enabled, forced on mobile */}
+      {!isCustomTheme && !shop._isPreview && (shop.theme_config?.sticky_order_button || true) && product && !showInlineCheckout && (
+        <div className={`fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3 ${!shop.theme_config?.sticky_order_button ? "md:hidden" : ""}`}>
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="flex-1 min-w-0 hidden sm:block">
               <p className="font-bold text-sm truncate">{product.name}</p>
