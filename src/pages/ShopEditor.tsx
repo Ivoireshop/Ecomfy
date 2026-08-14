@@ -45,9 +45,6 @@ const SectionFallback = () => (
     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
   </div>
 );
-import { useOrderNotifications } from "@/hooks/useOrderNotifications";
-import { useNativePush } from "@/hooks/useNativePush";
-
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
@@ -227,12 +224,6 @@ const ShopEditor = () => {
       if (collab?.roles) setCollabRoles(collab.roles as string[]);
     })();
   }, [id]);
-
-  // Native browser/PWA notifications + sound for new orders
-  useOrderNotifications(id);
-
-  // Native iOS/Android push registration (rings even when app is closed/locked)
-  useNativePush(id);
 
   useEffect(() => {
     if (!id) return;

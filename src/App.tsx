@@ -11,6 +11,8 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useLocation } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { useCommunityNotifications } from "@/hooks/useCommunityNotifications";
+import { useOrderNotifications } from "@/hooks/useOrderNotifications";
+import { useNativePush } from "@/hooks/useNativePush";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Eager load: landing only (critical path)
@@ -146,6 +148,8 @@ const PageLoader = () => (
 const AppContent = () => {
   const location = useLocation();
   useCommunityNotifications();
+  useOrderNotifications();
+  useNativePush();
     const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;

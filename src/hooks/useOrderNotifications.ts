@@ -143,13 +143,43 @@ export function useOrderNotifications(shopId?: string) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", ...(filter ? { filter } : {}) },
-        (payload) => {
+        async (payload) => {
           const order: any = payload.new;
           playNotificationSound();
           speakOrderNotification(order);
-          // NOTE: la notification système visuelle est gérée UNIQUEMENT par le push FCM
-          // (useFCM / service worker / native push) afin d'éviter les doublons.
-          // Ici on ne joue que le son + la voix pour un feedback immédiat dans l'onglet.
+          
+          const title = "🛍️ Nouvelle Commande !";
+          const body = getOrderNotificationBody(order) || getOrderAnnouncement(order);
+
+          try {
+            // Trigger visual system notification directly here (fallback if FCM is missing)
+            if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform()) {
+              const { LocalNotifications } = await import("@capacitor/local-notifications");
+              await LocalNotifications.schedule({
+                notifications: [
+                  {
+                    title,
+                    body,
+                    id: new Date().getTime(),
+                    schedule: { at: new Date(Date.now() + 500) },
+                    sound: undefined, 
+                    actionTypeId: "",
+                    extra: null
+                  }
+                ]
+              });
+            } else if (typeof window !== "undefined" && "Notification" in window) {
+              if (Notification.permission === "granted") {
+                new Notification(title, {
+                  body,
+                  icon: "/favicon.png",
+                  vibrate: [200, 100, 200]
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Failed to show local notification:", err);
+          }
         },
       )
       .subscribe();

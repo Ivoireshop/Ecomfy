@@ -894,8 +894,10 @@ const ProductView = () => {
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
-                        </div>
-                      ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
                       
                       <div className="border-t border-gray-200 pt-3 mt-1 flex justify-between items-end">
                         <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total à payer</span>
