@@ -40,7 +40,12 @@ export const useWebPush = () => {
 
   const checkSubscription = async () => {
     try {
-      const registration = await navigator.serviceWorker.ready;
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        setIsSubscribed(false);
+        return;
+      }
+      registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       
       if (subscription && session?.user) {
@@ -106,7 +111,11 @@ export const useWebPush = () => {
         return;
       }
 
-      const registration = await navigator.serviceWorker.ready;
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      }
+      registration = await navigator.serviceWorker.ready;
 
       // Clé publique VAPID (à remplacer par la vraie clé générée ou injectée via env)
       // On utilise import.meta.env pour récupérer la clé publique
@@ -167,7 +176,13 @@ export const useWebPush = () => {
   const unsubscribe = async () => {
     setIsLoading(true);
     try {
-      const registration = await navigator.serviceWorker.ready;
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        setIsSubscribed(false);
+        setIsLoading(false);
+        return;
+      }
+      registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       
       if (subscription) {
