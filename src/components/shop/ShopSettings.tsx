@@ -479,6 +479,15 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                         </div>
                         <Switch checked={shop.theme_config?.hide_product_header || false} onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), hide_product_header: v } })} />
                       </div>
+
+                      <div className="flex items-center justify-between p-4 rounded-xl border hover:bg-muted/20 transition-colors">
+                        <div className="pr-4">
+                          <p className="font-bold">Visiteurs en temps réel (Urgence)</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">Affiche un nombre de visiteurs généré dynamiquement pour inciter à l'achat rapide.</p>
+                        </div>
+                        <Switch checked={shop.theme_config?.live_visitors_enabled || false} onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), live_visitors_enabled: v } })} />
+                      </div>
+
                       
                       <div className="flex items-center justify-between p-4 rounded-xl border hover:bg-muted/20 transition-colors">
                         <div className="pr-4">

@@ -75,7 +75,7 @@ export default function LuxuryDark({ data, onCheckout, checkoutContent }: ThemeP
           <div className="mt-5">
             <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-neutral-900" />
           </div>
-          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+          {data.shop?.theme_config?.checkout_form_position !== "top" && (
             <div className="mt-8 text-left text-neutral-900">
               <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
             </div>

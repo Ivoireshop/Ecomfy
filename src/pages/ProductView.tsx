@@ -18,6 +18,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
+import { StockUrgencyBarInline } from "@/components/shop/StockUrgencyBarInline";
+import { LiveVisitorCounter } from "@/components/shop/LiveVisitorCounter";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
@@ -1390,6 +1392,11 @@ const ProductView = () => {
           <div className="space-y-5 lg:pl-4">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight text-gray-900 tracking-tight">{product.name}</h1>
 
+            <LiveVisitorCounter 
+              enabled={shop.theme_config?.live_visitors_enabled || false} 
+              color={primaryColor} 
+            />
+
             {/* Reviews (rating + count) */}
             {shop.theme_config?.reviews_enabled !== false && (() => {
               const base = Number(shop.theme_config?.reviews_base_count ?? 128);
@@ -1560,6 +1567,13 @@ const ProductView = () => {
                     style={{ whiteSpace: "pre-wrap" }}
                   />
                 ) : null;
+              }
+              if (key === "checkout_form") {
+                return (
+                  <div key="checkout_form" id="inline-checkout-form" className="w-full mt-4">
+                    {checkoutContent}
+                  </div>
+                );
               }
               return null;
             })}

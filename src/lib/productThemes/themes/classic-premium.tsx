@@ -57,7 +57,7 @@ export default function ClassicPremium({ data, onCheckout, checkoutContent }: Th
           <section className="text-center space-y-3 py-6 rounded-xl bg-gray-50">
             <h2 className="text-xl sm:text-2xl font-bold">Prêt à passer commande ?</h2>
             <CTAButton data={data} onCheckout={onCheckout} big />
-            {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+            {data.shop?.theme_config?.checkout_form_position !== "top" && (
               <div className="mt-6 text-left">
                 <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
               </div>

@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { isPremiumShop } from "@/lib/premium";
 import type { ProductAudio, ProductThemeSettings } from "@/lib/productAppearance";
 import type { ThemeData } from "./types";
 
@@ -80,10 +81,10 @@ export function buildThemeData(input: {
     classicCheckoutUrl = url.toString();
   }
 
-  const whatsappUrl = buildWhatsappUrl(
+  const whatsappUrl = (shop?.theme_config?.enable_whatsapp_checkout && isPremiumShop(shop)) ? buildWhatsappUrl(
     phone,
     `Bonjour, je suis intéressé par "${product?.name}" — ${productUrl}`
-  );
+  ) : null;
 
   const shortDescription = String(product?.short_description || "").trim();
   const longDescriptionRaw = String(product?.description || "").trim();

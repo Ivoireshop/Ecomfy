@@ -4,6 +4,7 @@ export type ProductSectionKey =
   | "short_description"
   | "variants"
   | "bundle_offers"
+  | "checkout_form"
   | "long_description";
 
 export type ProductImageLayout = "image_left" | "image_right";
@@ -19,6 +20,7 @@ export const DEFAULT_PRODUCT_BLOCKS: ProductSectionKey[] = [
   "short_description",
   "bundle_offers",
   "variants",
+  "checkout_form",
   "long_description",
 ];
 
@@ -28,6 +30,7 @@ export const PRODUCT_SECTION_LABELS: Record<ProductSectionKey, string> = {
   short_description: "Description courte",
   variants: "Variantes (taille, couleur…)",
   bundle_offers: "Offres en lot (variantes de prix)",
+  checkout_form: "Formulaire de commande",
   long_description: "Description détaillée",
 };
 

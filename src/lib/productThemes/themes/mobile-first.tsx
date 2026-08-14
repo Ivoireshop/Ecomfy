@@ -44,7 +44,7 @@ export default function MobileFirst({ data, onCheckout, checkoutContent }: Theme
           <div className="text-sm font-semibold opacity-80">Prêt à commander ?</div>
           <CTAButton data={data} onCheckout={onCheckout} big className="w-full" />
         </div>
-        {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+        {data.shop?.theme_config?.checkout_form_position !== "top" && (
           <div className="pt-2 text-slate-900">
             <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
           </div>

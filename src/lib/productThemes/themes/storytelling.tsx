@@ -63,7 +63,7 @@ export default function Storytelling({ data, onCheckout, checkoutContent }: Them
             <CTAButton data={data} onCheckout={onCheckout} big />
             <WhatsAppButton data={data} />
           </div>
-          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+          {data.shop?.theme_config?.checkout_form_position !== "top" && (
             <div className="pt-4 text-left text-slate-900">
               <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
             </div>

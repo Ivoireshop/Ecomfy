@@ -81,7 +81,7 @@ export default function LandingAd({ data, onCheckout, checkoutContent }: ThemePr
             <CTAButton data={data} onCheckout={onCheckout} big />
             <WhatsAppButton data={data} />
           </div>
-          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+          {data.shop?.theme_config?.checkout_form_position !== "top" && (
             <div className="mt-8 text-left text-slate-900">
               <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
             </div>

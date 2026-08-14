@@ -62,7 +62,7 @@ export default function HealthWellness({ data, onCheckout, checkoutContent }: Th
         <section className="text-center space-y-3 py-6">
           <h2 className="text-2xl font-bold">Prenez soin de vous dès aujourd'hui</h2>
           <CTAButton data={data} onCheckout={onCheckout} big style={{ background: "#059669" }} />
-          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+          {data.shop?.theme_config?.checkout_form_position !== "top" && (
             <div className="mt-6 text-left">
               <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
             </div>
