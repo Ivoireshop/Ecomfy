@@ -507,6 +507,23 @@ const ProductView = () => {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
+  const scrollToCheckout = () => {
+    setShowInlineCheckout(true);
+    const tryScroll = (attempts = 0) => {
+      const el = document.getElementById("inline-checkout") || document.getElementById("inline-checkout-form");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        const firstInput = el.querySelector("input:not([type='hidden'])") as HTMLInputElement;
+        if (firstInput) {
+          setTimeout(() => firstInput.focus({ preventScroll: true }), 300);
+        }
+      } else if (attempts < 5) {
+        setTimeout(() => tryScroll(attempts + 1), 50);
+      }
+    };
+    tryScroll();
+  };
+
   const addToCart = (prod: Product, qty: number = 1, replace: boolean = false, silent: boolean = false) => {
     // Validate variants
     const variantGroups = Array.isArray(prod.variants) ? prod.variants : [];
@@ -557,9 +574,22 @@ const ProductView = () => {
       return f ? !!f.required : ["first_name","phone","city"].includes(id);
     };
 
+    let effectiveOrderCart = cart;
+    let effectiveOrderCartTotal = cartTotal;
+
     if (cart.length === 0) {
-      toast({ title: "Panier vide", description: "Votre panier est vide.", variant: "destructive" });
-      return;
+      if (!product) return;
+      const basePrice = selectedBundleIdx !== null && product.bundles && product.bundles[selectedBundleIdx] 
+         ? (product.bundles[selectedBundleIdx].price / product.bundles[selectedBundleIdx].quantity) 
+         : (product.price || 0);
+      const itemPrice = basePrice * quantity;
+      effectiveOrderCart = [{ 
+        product, 
+        quantity, 
+        selectedVariants: selectedVariants, 
+        bundle: selectedBundleIdx !== null && product.bundles ? product.bundles[selectedBundleIdx] : undefined 
+      }];
+      effectiveOrderCartTotal = itemPrice;
     }
 
     if (isEnabled("first_name") && isRequired("first_name") && !customerInfo.name) {
@@ -596,11 +626,11 @@ const ProductView = () => {
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
       const detectedCountry = parseFullPhone(normalizedPhone).country?.name || shop?.country || null;
-      const commissionAmount = cartTotal * (shop.commission_rate || 0.025);
+      const commissionAmount = effectiveOrderCartTotal * (shop.commission_rate || 0.025);
       const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
       const orderId = (crypto as any).randomUUID();
       const orderNumber = orderNumData || `VP-${Date.now()}`;
-      const productsSummary = cart
+      const productsSummary = effectiveOrderCart
         .map(item => {
           const v = item.selectedVariants && Object.keys(item.selectedVariants).length > 0
             ? ` (${Object.entries(item.selectedVariants).map(([k, val]) => `${k}: ${val}`).join(", ")})`
@@ -615,14 +645,14 @@ const ProductView = () => {
         customer_phone: normalizedPhone, customer_address: customerInfo.address,
         customer_city: customerInfo.city,
         customer_country: detectedCountry,
-        subtotal: cartTotal,
-        commission_amount: commissionAmount, total: cartTotal,
+        subtotal: effectiveOrderCartTotal,
+        commission_amount: commissionAmount, total: effectiveOrderCartTotal,
         payment_method: customerInfo.paymentMethod,
         products_summary: productsSummary,
       }) as any;
       if (error) throw error;
       const order = { id: orderId, order_number: orderNumber };
-      const orderItems = cart.map(item => ({
+      const orderItems = effectiveOrderCart.map(item => ({
         order_id: order.id, product_id: item.product.id, product_name: item.product.name,
         product_image_url: item.product.product_images?.[0]?.image_url || null,
         quantity: item.quantity, unit_price: item.product.price,
@@ -632,9 +662,8 @@ const ProductView = () => {
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems) as any;
       if (itemsError) console.error("[ProductView] order_items insert failed", itemsError);
       trackEvent(shop, "Purchase", {
-        value: cartTotal,
+        value: effectiveOrderCartTotal,
         order_id: order.order_number,
-        content_ids: cart.map((c) => c.product.id),
         contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
         num_items: cart.reduce((s, c) => s + c.quantity, 0),
         email: customerInfo.email,
@@ -735,11 +764,12 @@ const ProductView = () => {
   const customPageStyle = buildProductPageStyle(themeSettings);
 
   const isCustomTheme = !!themeSettings?.theme_slug && !new URLSearchParams(window.location.search).get("classic");
+  const isInlineCheckout = shop?.theme_config?.checkout_form_position !== 'modal';
 
   const checkoutContent = (
     <>
       {/* Inline Checkout */}
-      {(showInlineCheckout || cart.length > 0) && !orderSuccess && (
+      {(isInlineCheckout || showInlineCheckout || cart.length > 0) && !orderSuccess && (
         <div id="inline-checkout" className={isCustomTheme ? "space-y-4 relative" : "mt-6 sm:mt-8 bg-white border shadow-xl rounded-3xl p-5 sm:p-8 space-y-5 sm:space-y-6 scroll-mt-24 relative z-50"} style={isCustomTheme ? {} : { borderColor: primaryColor + "30" }}>
           <h3 className="font-bold text-lg sm:text-xl flex items-center gap-2 mb-1" style={{ color: primaryColor }}>
             <CreditCard className="h-5 w-5" /> Finaliser votre commande
@@ -791,11 +821,29 @@ const ProductView = () => {
               <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-3 border border-gray-100 mb-6">
                 <div className="flex items-center gap-1.5 mb-1"><ShoppingCart className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Récapitulatif</h4></div>
                 
-                {cart.map(item => (
-                  <div key={item.product.id} className="flex gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                    {/* Image */}
-                    {item.product.images?.[0] ? (
-                      <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                {(() => {
+                  let effectiveCart = cart;
+                  let effectiveTotal = cartTotal;
+                  if (cart.length === 0 && product) {
+                    const basePrice = selectedBundleIdx !== null && product.bundles && product.bundles[selectedBundleIdx] 
+                      ? (product.bundles[selectedBundleIdx].price / product.bundles[selectedBundleIdx].quantity) 
+                      : (product.price || 0);
+                    effectiveCart = [{ 
+                      product, 
+                      quantity, 
+                      selectedVariants: selectedVariants, 
+                      bundle: selectedBundleIdx !== null && product.bundles ? product.bundles[selectedBundleIdx] : undefined 
+                    }];
+                    effectiveTotal = basePrice * quantity;
+                  }
+                  
+                  return (
+                    <>
+                      {effectiveCart.map((item, idx) => (
+                        <div key={item.product.id + idx} className="flex gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                          {/* Image */}
+                          {item.product.images?.[0] ? (
+                            <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
                         <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
                       </div>
                     ) : primaryImage ? (
@@ -812,10 +860,10 @@ const ProductView = () => {
                       <p className="font-bold text-[14px] text-gray-900 truncate leading-tight">{item.product.name}</p>
                       
                       {/* Variants & Bundles */}
-                      {(Object.keys(item.variants || {}).length > 0 || item.bundle) && (
+                      {(Object.keys(item.selectedVariants || item.variants || {}).length > 0 || item.bundle) && (
                         <div className="text-[12px] text-gray-500 mt-0.5 line-clamp-1">
                           {item.bundle && <span className="font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mr-1">Offre : {item.bundle.name}</span>}
-                          {Object.entries(item.variants || {}).map(([k, v]) => `${v}`).join(", ")}
+                          {Object.entries(item.selectedVariants || item.variants || {}).map(([k, v]) => `${v}`).join(", ")}
                         </div>
                       )}
                       
@@ -832,15 +880,16 @@ const ProductView = () => {
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
+                        </div>
+                      ))}
+                      
+                      <div className="border-t border-gray-200 pt-3 mt-1 flex justify-between items-end">
+                        <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total à payer</span>
+                        <span className="font-black text-xl leading-none" style={{ color: primaryColor }}>{formatPrice(effectiveTotal)} FCFA</span>
                       </div>
-                    </div>
-                  </div>
-                ))}
-                
-                <div className="border-t border-gray-200 pt-3 mt-1 flex justify-between items-end">
-                  <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total à payer</span>
-                  <span className="font-black text-xl leading-none" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Contact - respects checkout_fields */}
@@ -1098,13 +1147,7 @@ const ProductView = () => {
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 addToCart(product, quantity, true, true);
-                if (shop.theme_config?.checkout_form_position === 'top' || shop.theme_config?.checkout_form_position === 'bottom') {
-                  const el = document.getElementById("inline-checkout-form");
-                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                  else setShowInlineCheckout(true);
-                } else {
-                  setShowInlineCheckout(true);
-                }
+                scrollToCheckout();
                 setOrderSuccess(false);
               }}
               disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
@@ -1166,13 +1209,7 @@ const ProductView = () => {
             settings={themeSettings}
             fallback={<div className="min-h-screen bg-white" />}
             onCheckout={() => {
-              if (shop.theme_config?.checkout_form_position === 'top' || shop.theme_config?.checkout_form_position === 'bottom') {
-                const el = document.getElementById("inline-checkout-form");
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                else setShowInlineCheckout(true);
-              } else {
-                setShowInlineCheckout(true);
-              }
+              scrollToCheckout();
             }}
             checkoutContent={checkoutContent}
           />
@@ -1611,10 +1648,7 @@ const ProductView = () => {
                     style={{ backgroundColor: primaryColor }}
                     onClick={() => {
                       addToCart(product, quantity, true, true);
-                      setShowInlineCheckout(true);
-                      requestAnimationFrame(() => {
-                        document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      });
+                      scrollToCheckout();
                     }}
                     disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
                   >
