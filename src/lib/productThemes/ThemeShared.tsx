@@ -233,6 +233,25 @@ export function ShopFooter({ data }: { data: ThemeData }) {
 }
 
 export function StickyMobileCTA({ data, onCheckout }: { data: ThemeData; onCheckout?: () => void }) {
+  const [isCheckoutVisible, setIsCheckoutVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]) setIsCheckoutVisible(entries[0].isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
+    const formEl1 = document.getElementById("inline-checkout-form");
+    const formEl2 = document.getElementById("inline-checkout");
+    if (formEl1) observer.observe(formEl1);
+    if (formEl2) observer.observe(formEl2);
+    
+    return () => observer.disconnect();
+  }, []);
+
+  if (isCheckoutVisible) return null;
+
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 p-2 bg-white/95 backdrop-blur border-t flex gap-2 md:hidden">
       <CTAButton data={data} className="flex-1" onCheckout={onCheckout} />

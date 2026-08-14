@@ -170,6 +170,7 @@ const ProductView = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirm">("cart");
   const [showInlineCheckout, setShowInlineCheckout] = useState(false);
+  const [isCheckoutVisible, setIsCheckoutVisible] = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
@@ -182,6 +183,21 @@ const ProductView = () => {
   // Guard against duplicate order submissions (double-tap on mobile, double-click,
   // Enter key spam). Uses a ref so state updates cannot race the second click.
   const submittingOrderRef = useRef(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]) {
+          setIsCheckoutVisible(entries[0].isIntersecting);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    const formEl = document.getElementById("inline-checkout");
+    if (formEl) observer.observe(formEl);
+    
+    return () => observer.disconnect();
+  }, [showInlineCheckout, deferredReady, cart.length]);
 
   // Sync cart with current quantity when user changes quantity while inline checkout is open
   useEffect(() => {
@@ -220,10 +236,6 @@ const ProductView = () => {
     };
   }, [product?.id]);
 
-  // NOTE: re-fetch on tab focus/visibility was removed (2026-06) — it caused
-  // unnecessary full reloads when the user simply switched tabs and made the
-  // page feel slow. The in-memory cache + mount fetch are sufficient.
-
   const fetchWithRetry = async (fn: () => any, attempts = 3): Promise<any> => {
     let lastErr: any = null;
     for (let i = 0; i < attempts; i++) {
@@ -248,8 +260,10 @@ const ProductView = () => {
     // Stale-while-revalidate from in-memory cache so jumping back from the
     // shop to a product (or product → product) feels instant.
     const shopCacheK = id ? shopKey(id, "id") : slug ? shopKey(slug, "slug") : null;
+    
+    // Attempt cache hit
     let hydrated = false;
-    if (shopCacheK) {
+    if (shopCacheK && cacheIsFresh(shopCacheK)) {
       const cachedShop = cacheGet<any>(shopCacheK);
       if (cachedShop) {
         setShop(cachedShop);
@@ -1126,7 +1140,7 @@ const ProductView = () => {
       )}
 
       {/* Sticky Order Button - always visible when enabled, forced on mobile */}
-      {!isCustomTheme && !shop._isPreview && (shop.theme_config?.sticky_order_button || true) && product && !showInlineCheckout && (
+      {!isCustomTheme && !shop._isPreview && (shop.theme_config?.sticky_order_button || true) && product && !isCheckoutVisible && (
         <div className={`fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3 ${!shop.theme_config?.sticky_order_button ? "md:hidden" : ""}`}>
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="flex-1 min-w-0 hidden sm:block">
