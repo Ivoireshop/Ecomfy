@@ -852,9 +852,14 @@ const ProductView = () => {
                   const f = cf.find((x: any) => x.id === id);
                   return f ? !!f.required : ["first_name","phone","city"].includes(id);
                 };
+                const getLabel = (id: string, defaultLabel: string) => {
+                  const f = cf.find((x: any) => x.id === id);
+                  return f && f.label ? f.label : defaultLabel;
+                };
                 const showFullName = isEnabled("first_name") && isEnabled("last_name");
                 const showFirstOnly = isEnabled("first_name") && !isEnabled("last_name");
-                const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
+                const defaultNameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : isEnabled("last_name") ? "Nom" : "Nom";
+                const nameLabel = getLabel("first_name", defaultNameLabel);
                 return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-1.5"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Informations de livraison</h4></div>
@@ -886,7 +891,7 @@ const ProductView = () => {
                             type="email" 
                             value={customerInfo.email} 
                             onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} 
-                            placeholder={`Email ${isRequired("email") ? "*" : ""}`} 
+                            placeholder={`${getLabel("email", "Email")} ${isRequired("email") ? "*" : ""}`} 
                             className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
                           />
                         </div>
@@ -902,7 +907,7 @@ const ProductView = () => {
                               if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
                               else if (cityError) setCityError("");
                             }} 
-                            placeholder={`Ville ${isRequired("city") ? "*" : ""}`} 
+                            placeholder={`${getLabel("city", "Ville")} ${isRequired("city") ? "*" : ""}`} 
                             className={`rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} 
                           />
                           {cityError && <p className="text-xs text-red-500 mt-1">{cityError}</p>}
@@ -913,7 +918,7 @@ const ProductView = () => {
                           <Input 
                             value={customerInfo.address} 
                             onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} 
-                            placeholder={`Adresse détaillée ${isRequired("address") ? "*" : ""}`} 
+                            placeholder={`${getLabel("address", "Adresse détaillée")} ${isRequired("address") ? "*" : ""}`} 
                             className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
                           />
                         </div>
@@ -1053,9 +1058,14 @@ const ProductView = () => {
             }`} 
             style={{ backgroundColor: primaryColor }} 
             onClick={() => { 
-              setShowInlineCheckout(true); 
+              if (shop.theme_config?.checkout_form_position === 'top' || shop.theme_config?.checkout_form_position === 'bottom') {
+                const el = document.getElementById("inline-checkout-form");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                else setShowInlineCheckout(true);
+              } else {
+                setShowInlineCheckout(true); 
+              }
               setOrderSuccess(false); 
-              requestAnimationFrame(() => document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" })); 
             }}
           >
             <Lock className="h-5 w-5" /> Valider ma commande · {formatPrice(cartTotal)} FCFA
@@ -1086,11 +1096,14 @@ const ProductView = () => {
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 addToCart(product, quantity, true, true);
-                setShowInlineCheckout(true);
+                if (shop.theme_config?.checkout_form_position === 'top' || shop.theme_config?.checkout_form_position === 'bottom') {
+                  const el = document.getElementById("inline-checkout-form");
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  else setShowInlineCheckout(true);
+                } else {
+                  setShowInlineCheckout(true);
+                }
                 setOrderSuccess(false);
-                requestAnimationFrame(() => {
-                  document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                });
               }}
               disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
             >
@@ -1149,18 +1162,20 @@ const ProductView = () => {
             shop={shop}
             audios={productAudios}
             settings={themeSettings}
-            fallback={null}
+            fallback={<div className="min-h-screen bg-white" />}
             onCheckout={() => {
-              addToCart(product, quantity, true, true);
-              setShowInlineCheckout(true);
-              setOrderSuccess(false);
-              requestAnimationFrame(() => {
-                document.getElementById("inline-checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              });
+              if (shop.theme_config?.checkout_form_position === 'top' || shop.theme_config?.checkout_form_position === 'bottom') {
+                const el = document.getElementById("inline-checkout-form");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                else setShowInlineCheckout(true);
+              } else {
+                setShowInlineCheckout(true);
+              }
             }}
+            checkoutContent={checkoutContent}
           />
         </Suspense>
-        {globalOverlays}
+        {shop.theme_config?.checkout_form_position !== 'top' && shop.theme_config?.checkout_form_position !== 'bottom' && globalOverlays}
       </>
     );
   }

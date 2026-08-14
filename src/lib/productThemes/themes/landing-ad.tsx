@@ -10,9 +10,10 @@ import {
   Guarantees,
   ShopFooter,
   StickyMobileCTA,
+  InlineCheckoutContainer,
 } from "../ThemeShared";
 
-export default function LandingAd({ data, onCheckout }: ThemeProps) {
+export default function LandingAd({ data, onCheckout, checkoutContent }: ThemeProps) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <section
@@ -40,6 +41,11 @@ export default function LandingAd({ data, onCheckout }: ThemeProps) {
               <CTAButton data={data} onCheckout={onCheckout} big className="shadow-xl" />
               <WhatsAppButton data={data} />
             </div>
+            {data.shop?.theme_config?.checkout_form_position === "top" && (
+              <div className="mt-4 text-left text-slate-900">
+                <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -75,6 +81,11 @@ export default function LandingAd({ data, onCheckout }: ThemeProps) {
             <CTAButton data={data} onCheckout={onCheckout} big />
             <WhatsAppButton data={data} />
           </div>
+          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+            <div className="mt-8 text-left text-slate-900">
+              <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+            </div>
+          )}
         </section>
       </main>
       <ShopFooter data={data} />

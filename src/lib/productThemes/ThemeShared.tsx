@@ -250,3 +250,18 @@ export function StickyMobileCTA({ data, onCheckout }: { data: ThemeData; onCheck
     </div>
   );
 }
+
+export function InlineCheckoutContainer({
+  data,
+  checkoutContent,
+}: {
+  data: ThemeData;
+  checkoutContent?: React.ReactNode;
+}) {
+  if (!checkoutContent) return null;
+  return (
+    <div id="inline-checkout-form" className="w-full bg-white rounded-2xl shadow-sm border p-4 sm:p-6 scroll-mt-24">
+      {checkoutContent}
+    </div>
+  );
+}

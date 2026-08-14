@@ -9,6 +9,7 @@ import {
   FAQ,
   ShopFooter,
   StickyMobileCTA,
+  InlineCheckoutContainer,
 } from "../ThemeShared";
 
 function Chapter({ index, title, children }: { index: number; title: string; children: React.ReactNode }) {
@@ -23,7 +24,7 @@ function Chapter({ index, title, children }: { index: number; title: string; chi
   );
 }
 
-export default function Storytelling({ data, onCheckout }: ThemeProps) {
+export default function Storytelling({ data, onCheckout, checkoutContent }: ThemeProps) {
   return (
     <div className="min-h-screen bg-rose-50/40 text-slate-800">
       <section className="max-w-3xl mx-auto px-4 pt-8 pb-6 text-center space-y-3">
@@ -37,6 +38,11 @@ export default function Storytelling({ data, onCheckout }: ThemeProps) {
           alt={data.product?.name}
           className="w-full aspect-[4/3] object-cover rounded-2xl shadow-md"
         />
+        {data.shop?.theme_config?.checkout_form_position === "top" && (
+          <div className="pt-4 text-left text-slate-900">
+            <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+          </div>
+        )}
       </div>
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-10">
         <Chapter index={1} title="Au départ…">
@@ -57,6 +63,11 @@ export default function Storytelling({ data, onCheckout }: ThemeProps) {
             <CTAButton data={data} onCheckout={onCheckout} big />
             <WhatsAppButton data={data} />
           </div>
+          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+            <div className="pt-4 text-left text-slate-900">
+              <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+            </div>
+          )}
         </Chapter>
         <FAQ data={data} />
       </main>

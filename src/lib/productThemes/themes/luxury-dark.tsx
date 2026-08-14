@@ -7,10 +7,11 @@ import {
   FAQ,
   ShopFooter,
   StickyMobileCTA,
+  InlineCheckoutContainer,
 } from "../ThemeShared";
 import { formatPrice } from "../dataAdapter";
 
-export default function LuxuryDark({ data, onCheckout }: ThemeProps) {
+export default function LuxuryDark({ data, onCheckout, checkoutContent }: ThemeProps) {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <section className="relative">
@@ -34,9 +35,14 @@ export default function LuxuryDark({ data, onCheckout }: ThemeProps) {
               <span className="text-sm text-neutral-500 line-through">{formatPrice(data.oldPrice, data.currency)}</span>
             )}
           </div>
-          <div className="mt-5">
-            <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-neutral-900 hover:!bg-neutral-100" />
-          </div>
+            <div className="mt-5">
+              <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-neutral-900 hover:!bg-neutral-100" />
+            </div>
+            {data.shop?.theme_config?.checkout_form_position === "top" && (
+              <div className="mt-6 text-neutral-900">
+                <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+              </div>
+            )}
         </div>
       </section>
       <main className="max-w-3xl mx-auto px-6 py-16 space-y-16">
@@ -69,6 +75,11 @@ export default function LuxuryDark({ data, onCheckout }: ThemeProps) {
           <div className="mt-5">
             <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-neutral-900" />
           </div>
+          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+            <div className="mt-8 text-left text-neutral-900">
+              <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+            </div>
+          )}
         </section>
       </main>
       <ShopFooter data={data} />

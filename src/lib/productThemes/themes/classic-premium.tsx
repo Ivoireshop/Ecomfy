@@ -12,9 +12,10 @@ import {
   Guarantees,
   ShopFooter,
   StickyMobileCTA,
+  InlineCheckoutContainer,
 } from "../ThemeShared";
 
-export default function ClassicPremium({ data, onCheckout }: ThemeProps) {
+export default function ClassicPremium({ data, onCheckout, checkoutContent }: ThemeProps) {
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">
@@ -39,6 +40,11 @@ export default function ClassicPremium({ data, onCheckout }: ThemeProps) {
               <WhatsAppButton data={data} />
             </div>
             <Guarantees data={data} />
+            {data.shop?.theme_config?.checkout_form_position === "top" && (
+              <div className="pt-4">
+                <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -51,6 +57,11 @@ export default function ClassicPremium({ data, onCheckout }: ThemeProps) {
           <section className="text-center space-y-3 py-6 rounded-xl bg-gray-50">
             <h2 className="text-xl sm:text-2xl font-bold">Prêt à passer commande ?</h2>
             <CTAButton data={data} onCheckout={onCheckout} big />
+            {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+              <div className="mt-6 text-left">
+                <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+              </div>
+            )}
           </section>
         </div>
       </div>

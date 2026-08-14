@@ -35,6 +35,7 @@ export interface ThemeData {
 export interface ThemeProps {
   data: ThemeData;
   onCheckout?: () => void;
+  checkoutContent?: React.ReactNode;
 }
 
 export interface ThemeMeta {

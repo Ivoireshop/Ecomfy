@@ -490,6 +490,28 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                       
                       <div className="flex flex-col gap-4 p-4 rounded-xl border bg-muted/10">
                         <div>
+                          <p className="font-bold">Position du formulaire</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">Choisissez où afficher le formulaire d'achat sur la fiche produit.</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Select 
+                            value={shop.theme_config?.checkout_form_position || "modal"} 
+                            onValueChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), checkout_form_position: v } })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Position du formulaire" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="modal">Fenêtre pop-up classique (Modal)</SelectItem>
+                              <SelectItem value="top">Incrusté en haut (Avant la description)</SelectItem>
+                              <SelectItem value="bottom">Incrusté en bas (Après la description)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-4 p-4 rounded-xl border bg-muted/10">
+                        <div>
                           <p className="font-bold">Animation du bouton d'achat (CTA)</p>
                           <p className="text-sm text-muted-foreground mt-0.5">Choisissez comment le bouton d'ajout au panier attire l'œil de vos clients.</p>
                         </div>
@@ -544,32 +566,36 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   {/* Champs du formulaire */}
                   <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 bg-card">
                     <h3 className="font-bold text-lg mb-2">Champs du formulaire client</h3>
-                    <p className="text-sm text-muted-foreground mb-6">Activez uniquement les champs dont vous avez réellement besoin. Moins il y a de champs, plus vous aurez de commandes.</p>
+                    <p className="text-sm text-muted-foreground mb-6">Personnalisez les étiquettes et activez uniquement les champs dont vous avez réellement besoin. Moins il y a de champs, plus vous aurez de commandes.</p>
                     
                     <div className="space-y-3">
                       {checkoutFields.map(field => (
                         <div key={field.id} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${field.enabled ? "bg-background shadow-sm border-border" : "bg-muted/40 border-dashed border-border/60 opacity-70"}`}>
-                          <GripVertical className="h-5 w-5 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing hover:text-foreground transition-colors" />
+                          <GripVertical className="h-5 w-5 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing hover:text-foreground transition-colors hidden sm:block" />
                           <Switch
                             checked={field.enabled}
                             onCheckedChange={(v) => updateCheckoutField(field.id, "enabled", v)}
-                            className="data-[state=checked]:bg-primary"
+                            className="data-[state=checked]:bg-primary shrink-0"
                           />
                           <div className="flex-1 min-w-0">
-                            <span className={`font-semibold ${field.enabled ? "text-foreground" : "text-muted-foreground line-through decoration-muted-foreground/40"}`}>{field.label}</span>
-                            <Badge variant="outline" className="ml-3 text-[10px] font-mono tracking-wider">{(field.type || "").toUpperCase()}</Badge>
+                            <Input
+                              value={field.label}
+                              onChange={(e) => updateCheckoutField(field.id, "label" as any, e.target.value as any)}
+                              className={`h-9 font-medium text-[15px] ${field.enabled ? "" : "opacity-50"}`}
+                              placeholder="Texte du champ (ex: ☎️ Votre numéro)"
+                            />
                           </div>
                           
                           {/* Required Checkbox Styled as a nice toggle button */}
-                          <div className={`flex items-center gap-2 ${!field.enabled ? "opacity-50 pointer-events-none" : ""}`}>
-                             <label className="flex items-center gap-2 cursor-pointer bg-muted/40 hover:bg-muted/80 px-3 py-1.5 rounded-lg border border-border/50 transition-colors">
+                          <div className={`flex items-center shrink-0 ${!field.enabled ? "opacity-50 pointer-events-none" : ""}`}>
+                             <label className="flex items-center gap-2 cursor-pointer bg-muted/40 hover:bg-muted/80 px-2 sm:px-3 py-1.5 rounded-lg border border-border/50 transition-colors">
                               <Checkbox 
                                 checked={field.required} 
                                 onCheckedChange={(v) => updateCheckoutField(field.id, "required", v as boolean)}
                                 disabled={!field.enabled}
                                 className="h-4 w-4"
                               />
-                              <span className="text-xs font-semibold select-none">Obligatoire</span>
+                              <span className="text-xs font-semibold select-none hidden sm:inline">Obligatoire</span>
                              </label>
                           </div>
                         </div>

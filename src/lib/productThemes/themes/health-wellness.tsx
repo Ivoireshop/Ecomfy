@@ -11,9 +11,10 @@ import {
   ShopFooter,
   StickyMobileCTA,
   LongDescription,
+  InlineCheckoutContainer,
 } from "../ThemeShared";
 
-export default function HealthWellness({ data, onCheckout }: ThemeProps) {
+export default function HealthWellness({ data, onCheckout, checkoutContent }: ThemeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-emerald-50/40 text-slate-800">
       <header className="max-w-4xl mx-auto px-4 pt-6 pb-8 sm:pt-10 grid md:grid-cols-2 gap-6 items-center">
@@ -28,6 +29,11 @@ export default function HealthWellness({ data, onCheckout }: ThemeProps) {
             <CTAButton data={data} onCheckout={onCheckout} big style={{ background: "#059669" }} />
             <WhatsAppButton data={data} />
           </div>
+          {data.shop?.theme_config?.checkout_form_position === "top" && (
+            <div className="mt-4">
+              <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+            </div>
+          )}
         </div>
         <div className="order-1 md:order-2">
           <HeroImage
@@ -56,6 +62,11 @@ export default function HealthWellness({ data, onCheckout }: ThemeProps) {
         <section className="text-center space-y-3 py-6">
           <h2 className="text-2xl font-bold">Prenez soin de vous dès aujourd'hui</h2>
           <CTAButton data={data} onCheckout={onCheckout} big style={{ background: "#059669" }} />
+          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+            <div className="mt-6 text-left">
+              <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+            </div>
+          )}
         </section>
       </main>
       <ShopFooter data={data} />

@@ -11,9 +11,10 @@ import {
   ShopFooter,
   StickyMobileCTA,
   LongDescription,
+  InlineCheckoutContainer,
 } from "../ThemeShared";
 
-export default function MobileFirst({ data, onCheckout }: ThemeProps) {
+export default function MobileFirst({ data, onCheckout, checkoutContent }: ThemeProps) {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <div className="max-w-md mx-auto px-3 pt-3 pb-6 space-y-4">
@@ -29,6 +30,11 @@ export default function MobileFirst({ data, onCheckout }: ThemeProps) {
           <PriceBlock data={data} />
           <CTAButton data={data} onCheckout={onCheckout} />
         </div>
+        {data.shop?.theme_config?.checkout_form_position === "top" && (
+          <div className="pt-2">
+            <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+          </div>
+        )}
         <Guarantees data={data} />
         <Benefits data={data} title="Pourquoi l'acheter" />
         <LongDescription data={data} title="Description complète" />
@@ -38,6 +44,11 @@ export default function MobileFirst({ data, onCheckout }: ThemeProps) {
           <div className="text-sm font-semibold opacity-80">Prêt à commander ?</div>
           <CTAButton data={data} onCheckout={onCheckout} big className="w-full" />
         </div>
+        {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+          <div className="pt-2 text-slate-900">
+            <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+          </div>
+        )}
       </div>
       <ShopFooter data={data} />
       <StickyMobileCTA data={data} onCheckout={onCheckout} />

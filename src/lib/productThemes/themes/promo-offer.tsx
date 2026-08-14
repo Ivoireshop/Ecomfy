@@ -10,6 +10,7 @@ import {
   Guarantees,
   ShopFooter,
   StickyMobileCTA,
+  InlineCheckoutContainer,
 } from "../ThemeShared";
 import { formatPrice } from "../dataAdapter";
 
@@ -35,7 +36,7 @@ function Countdown() {
   );
 }
 
-export default function PromoOffer({ data, onCheckout }: ThemeProps) {
+export default function PromoOffer({ data, onCheckout, checkoutContent }: ThemeProps) {
   const discount = data.discount || 30;
   return (
     <div className="min-h-screen bg-red-50 text-slate-900">
@@ -72,6 +73,11 @@ export default function PromoOffer({ data, onCheckout }: ThemeProps) {
               <CTAButton data={data} onCheckout={onCheckout} big className="!bg-red-600" />
               <WhatsAppButton data={data} />
             </div>
+            {data.shop?.theme_config?.checkout_form_position === "top" && (
+              <div className="pt-2 text-slate-900">
+                <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+              </div>
+            )}
           </div>
         </section>
         <section className="rounded-xl bg-white p-5 text-center space-y-3 shadow-sm border border-red-200">
@@ -86,6 +92,11 @@ export default function PromoOffer({ data, onCheckout }: ThemeProps) {
         <section className="text-center rounded-2xl bg-red-600 text-white p-6 space-y-3">
           <h2 className="text-2xl font-extrabold">Ne ratez pas cette offre</h2>
           <CTAButton data={data} onCheckout={onCheckout} big className="!bg-white !text-red-600 hover:!bg-red-50" />
+          {data.shop?.theme_config?.checkout_form_position === "bottom" && (
+            <div className="pt-4 text-left text-slate-900">
+              <InlineCheckoutContainer data={data} checkoutContent={checkoutContent} />
+            </div>
+          )}
         </section>
       </main>
       <ShopFooter data={data} />
