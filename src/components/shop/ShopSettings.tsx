@@ -280,9 +280,27 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold flex items-center gap-1.5"><MessageSquare className="h-4 w-4 text-green-500" /> WhatsApp</Label>
-                    <Input value={shop.whatsapp_number || ""} onChange={(e) => setShop({ ...shop, whatsapp_number: e.target.value })} className="h-11" placeholder="+225 00 00 00 00" />
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold flex items-center gap-1.5"><MessageSquare className="h-4 w-4 text-green-500" /> WhatsApp</Label>
+                      <Input value={shop.whatsapp_number || ""} onChange={(e) => setShop({ ...shop, whatsapp_number: e.target.value })} className="h-11" placeholder="+225 00 00 00 00" />
+                    </div>
+                    <div className="flex items-center justify-between p-3 border rounded-xl bg-card">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-semibold flex items-center gap-2">
+                          Commandes via WhatsApp
+                          {!isPremiumShop(shop) && <Badge variant="secondary" className="text-[10px] bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200">⭐ Premium</Badge>}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Autoriser les commandes par WhatsApp
+                        </p>
+                      </div>
+                      <Switch 
+                        checked={shop.theme_config?.enable_whatsapp_checkout || false} 
+                        disabled={!isPremiumShop(shop)}
+                        onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), enable_whatsapp_checkout: v } })} 
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold flex items-center gap-1.5"><Phone className="h-4 w-4 text-muted-foreground" /> Téléphone classique</Label>

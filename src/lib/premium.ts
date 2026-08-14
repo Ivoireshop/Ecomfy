@@ -14,7 +14,6 @@ export function isPremiumShop(shop: any): boolean {
     return true;
   }
 
-  // TODO: Retirer ceci si on veut strictement bloquer les fonctionnalités premium
-  // Pour l'instant on peut l'activer globalement en attendant de savoir quel plan exact est utilisé
-  return true;
+  // Si aucun forfait payant n'est détecté, on retourne false.
+  return false;
 }

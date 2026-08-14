@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 const LazyThemeRenderer = lazy(() => import("@/lib/productThemes/ThemeRenderer"));
 import { thumbUrl } from "@/lib/imageUrl";
+import { isPremiumShop } from "@/lib/premium";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1677,7 +1678,7 @@ const ProductView = () => {
                   </Button>
                 )}
 
-                {!shop._isPreview && shop.whatsapp_number && (
+                {!shop._isPreview && shop.whatsapp_number && shop.theme_config?.enable_whatsapp_checkout && isPremiumShop(shop) && (
                   <a 
                     href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par "${product.name}" à ${formatPrice(product.price)} FCFA`)}`} 
                     target="_blank" rel="noopener noreferrer" 
