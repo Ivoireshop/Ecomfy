@@ -311,16 +311,16 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
               </div>
               <button
                 onClick={() => setMuted((m) => { if (!m) stopAudio(); return !m; })}
-                className="h-9 w-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
+                className="h-10 w-10 sm:h-9 sm:w-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
                 title={muted ? "Activer le son" : "Couper le son"}
               >
-                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                {muted ? <VolumeX className="h-5 w-5 sm:h-4 sm:w-4" /> : <Volume2 className="h-5 w-5 sm:h-4 sm:w-4" />}
               </button>
               <button
                 onClick={() => { setOpen(false); stopAudio(); stopListening(); }}
-                className="h-9 w-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
+                className="h-10 w-10 sm:h-9 sm:w-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
               >
-                <X className="h-4 w-4" />
+                <X className="h-6 w-6 sm:h-5 sm:w-5" />
               </button>
             </div>
           </div>

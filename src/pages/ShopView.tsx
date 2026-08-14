@@ -71,10 +71,6 @@ const ShopView = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirm">("cart");
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [orderLoading, setOrderLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -426,10 +422,6 @@ const ShopView = () => {
 
     // Page title and social meta are handled by <Helmet> in the main render
 
-    if (shopData.chatbot_enabled) {
-      setChatMessages([{ role: "assistant", content: shopData.chatbot_welcome_message || "Bienvenue ! Comment puis-je vous aider ?" }]);
-    }
-
     // ---- Tracking pixels (skip in preview/owner mode) ----
     if (!shopData._isPreview) {
       initShopPixels(shopData);
@@ -619,25 +611,6 @@ const ShopView = () => {
       submittingOrderRef.current = false;
     }
   };
-
-  const sendChatMessage = async () => {
-    if (!chatInput.trim() || !shop) return;
-    const userMsg = chatInput.trim();
-    setChatInput("");
-    setChatMessages(prev => [...prev, { role: "user", content: userMsg }]);
-    setChatLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("shop-chatbot", {
-        body: { message: userMsg, shopName: shop.business_name, shopDescription: shop.business_description, products: products.map(p => ({ name: p.name, price: p.price, description: p.short_description })) },
-      });
-      if (error) throw error;
-      setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
-    } catch {
-      setChatMessages(prev => [...prev, { role: "assistant", content: "Désolé, je ne peux pas répondre. Contactez le vendeur directement." }]);
-    } finally { setChatLoading(false); }
-  };
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
   if (loading) return (
     <div className="min-h-screen bg-white">
@@ -1321,50 +1294,7 @@ const ShopView = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Chatbot */}
-      {shop.chatbot_enabled && (
-        <>
-          <button
-            onClick={() => setChatOpen(!chatOpen)}
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-xl flex items-center justify-center z-50 text-primary-foreground transition-transform hover:scale-110"
-            style={{ backgroundColor: primaryColor }}
-          >
-            {chatOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-          </button>
 
-          {chatOpen && (
-            <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-background border rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden" style={{ height: "420px" }}>
-              <div className="px-4 py-3 border-b text-primary-foreground font-semibold flex items-center gap-2" style={{ backgroundColor: primaryColor }}>
-                <MessageCircle className="h-5 w-5" />
-                Assistant {shop.business_name}
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${msg.role === "user" ? "text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md"}`} style={msg.role === "user" ? { backgroundColor: primaryColor } : {}}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">
-                      <div className="flex gap-1"><div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" /><div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0.1s" }} /><div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0.2s" }} /></div>
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-              <div className="p-3 border-t flex gap-2">
-                <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Votre message..." onKeyDown={(e) => e.key === "Enter" && sendChatMessage()} className="flex-1 rounded-xl" />
-                <Button size="icon" onClick={sendChatMessage} disabled={chatLoading} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
-                  <Send className="h-4 w-4 text-primary-foreground" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
 
       {/* Floating Cart Button - Mobile */}
       {!shop._isPreview && cartCount > 0 && !checkoutOpen && (

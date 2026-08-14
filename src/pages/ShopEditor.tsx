@@ -1198,16 +1198,7 @@ const ShopEditor = () => {
                 </div>
               </Card>
 
-              <Card className="p-6 space-y-5">
-                <h3 className="font-bold text-lg flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Chatbot IA</h3>
-                <div className="flex items-center justify-between">
-                  <div><p className="font-medium">Assistant intelligent</p><p className="text-sm text-muted-foreground">Un chatbot IA aide vos visiteurs en temps réel</p></div>
-                  <Switch checked={shop.chatbot_enabled} onCheckedChange={(v) => setShop({ ...shop, chatbot_enabled: v })} />
-                </div>
-                {shop.chatbot_enabled && (
-                  <div className="space-y-1.5"><Label>Message d'accueil</Label><Input value={shop.chatbot_welcome_message || ""} onChange={(e) => setShop({ ...shop, chatbot_welcome_message: e.target.value })} /></div>
-                )}
-              </Card>
+
             </div>
           )}
 
