@@ -264,6 +264,20 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                       placeholder="Décrivez votre boutique en quelques mots..."
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Objectif mensuel de revenus (FCFA)</Label>
+                    <Input 
+                      type="number"
+                      value={shop.monthly_goal || 1000000} 
+                      onChange={(e) => setShop({ ...shop, monthly_goal: Number(e.target.value) })} 
+                      className="h-11 bg-muted/30 focus-visible:bg-background transition-colors"
+                      placeholder="Ex: 1000000"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Définissez votre propre objectif de chiffre d'affaires mensuel pour suivre votre progression.
+                    </p>
+                  </div>
                 </div>
               </Card>
 

@@ -1054,7 +1054,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "statistics" && (
-            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} />
+            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} />
           )}
 
           {activeSection === "theme" && (

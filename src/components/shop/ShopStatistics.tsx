@@ -35,10 +35,11 @@ interface ShopStatisticsProps {
   orders: Order[];
   products: Product[];
   primaryColor: string;
+  monthlyGoal: number;
   visits?: { visited_at: string; product_id?: string | null; session_id?: string | null; visitor_country?: string | null; referrer?: string | null; device_type?: string | null; }[];
 }
 
-export function ShopStatistics({ orders, products, primaryColor, visits = [] }: ShopStatisticsProps) {
+export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, visits = [] }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("30d");
 
@@ -521,7 +522,7 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="font-bold text-white text-lg">Objectif Mensuel</h3>
-                <p className="text-xs text-slate-400">Objectif: 1,000,000 FCFA</p>
+                <p className="text-xs text-slate-400">Objectif: {fmt(monthlyGoal)} FCFA</p>
               </div>
               <div className="bg-white/10 p-2 rounded-lg">
                 <Target className="h-4 w-4 text-[#0E7C66]" />
@@ -531,12 +532,12 @@ export function ShopStatistics({ orders, products, primaryColor, visits = [] }: 
             <div className="mt-6">
               <div className="flex justify-between text-sm font-medium mb-2">
                 <span>{fmt(stats.totalRevenue)}</span>
-                <span className="text-[#0E7C66] font-bold">{Math.min(Math.round((stats.totalRevenue / 1000000) * 100), 100)}%</span>
+                <span className="text-[#0E7C66] font-bold">{Math.min(Math.round((stats.totalRevenue / monthlyGoal) * 100), 100)}%</span>
               </div>
               <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div 
                   className="h-full rounded-full shadow-[0_0_10px_rgba(14,124,102,0.8)] transition-all duration-1000 ease-out" 
-                  style={{ width: `${Math.min((stats.totalRevenue / 1000000) * 100, 100)}%`, backgroundColor: primaryColor }} 
+                  style={{ width: `${Math.min((stats.totalRevenue / monthlyGoal) * 100, 100)}%`, backgroundColor: primaryColor }} 
                 />
               </div>
             </div>

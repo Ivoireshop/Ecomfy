@@ -703,14 +703,14 @@ const Auth = () => {
 
         <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-10 text-white">
           <div className="mb-2 md:mb-3 flex items-center gap-3">
-            <span className="h-px w-8 md:w-10 bg-primary" />
-            <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+            <span className="h-px w-8 md:w-10 bg-white/50" />
+            <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] text-white/70 uppercase">
               Ecomfy V5
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl xl:text-5xl font-bold leading-tight mb-2 md:mb-4">
             Créez des visuels publicitaires.<br />
-            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-white to-secondary bg-clip-text text-transparent">
               Vendez, lancez votre boutique.
             </span>
           </h2>

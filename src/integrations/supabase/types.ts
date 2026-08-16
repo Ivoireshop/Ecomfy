@@ -3661,6 +3661,7 @@ export type Database = {
           enabled_languages: string[]
           extra_deadline_active: boolean
           extra_deadline_ends_at: string | null
+          monthly_goal: number | null
           extra_deadline_granted_by: string | null
           extra_deadline_started_at: string | null
           facebook_pixels: string[] | null
@@ -3738,6 +3739,7 @@ export type Database = {
           domain_verification_code?: string | null
           email?: string | null
           enabled_languages?: string[]
+          monthly_goal?: number | null
           extra_deadline_active?: boolean
           extra_deadline_ends_at?: string | null
           extra_deadline_granted_by?: string | null
@@ -3817,6 +3819,7 @@ export type Database = {
           domain_verification_code?: string | null
           email?: string | null
           enabled_languages?: string[]
+          monthly_goal?: number | null
           extra_deadline_active?: boolean
           extra_deadline_ends_at?: string | null
           extra_deadline_granted_by?: string | null
