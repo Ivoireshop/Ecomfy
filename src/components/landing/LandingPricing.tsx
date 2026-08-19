@@ -114,12 +114,15 @@ export function LandingPricing() {
               <h3 className="text-2xl font-bold text-white mb-2">Ecomfy Pro</h3>
               <p className="text-slate-300 mb-6 text-sm">Pour les marchands qui vendent chaque jour avec zéro commission.</p>
               
-              <div className="flex items-baseline gap-2 mb-6">
-                <span className="text-5xl font-extrabold text-white">{isAnnual ? "9 900" : "12 000"}</span>
-                <div className="flex flex-col">
-                  <span className="text-slate-200 font-bold">FCFA</span>
-                  <span className="text-slate-400 text-xs">/ mois {isAnnual && "(facturé annuellement)"}</span>
+              <div className="flex flex-col mb-6">
+                <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+                  <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">{isAnnual ? "9 900" : "12 000"}</span>
+                  <span className="text-sm font-bold text-emerald-400">FCFA</span>
+                  <span className="text-xs text-slate-400">/ mois</span>
                 </div>
+                <span className="text-[11px] text-emerald-400 font-medium block mt-1">
+                  {isAnnual ? "Facturé 118 800 FCFA / an (Économisez 20%)" : "Facturation mensuelle sans engagement"}
+                </span>
               </div>
               
               <Button 
@@ -168,15 +171,13 @@ export function LandingPricing() {
               <p className="text-slate-300 mb-6 text-sm">L'écosystème ultime : Formations vidéo Masterclasses, 20 vidéos + 40 images IA/mois & Communauté.</p>
               
               <div className="flex flex-col mb-6">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-extrabold text-amber-300">{isAnnual ? "28 500" : "35 000"}</span>
-                  <div className="flex flex-col">
-                    <span className="text-slate-200 font-bold">FCFA</span>
-                    <span className="text-slate-400 text-xs">/ mois {isAnnual && "(facturé annuellement)"}</span>
-                  </div>
+                <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+                  <span className="text-3xl sm:text-4xl font-extrabold text-amber-300 tracking-tight">{isAnnual ? "28 500" : "35 000"}</span>
+                  <span className="text-sm font-bold text-amber-300">FCFA</span>
+                  <span className="text-xs text-slate-400">/ mois</span>
                 </div>
                 <p className="text-xs text-emerald-400 font-semibold mt-1">
-                  {isAnnual ? "Économisez 20% en engagement annuel !" : "Abonnement mensuel renouvelable"}
+                  {isAnnual ? "Facturé 342 000 FCFA / an (Économisez 20%)" : "Abonnement mensuel renouvelable"}
                 </p>
               </div>
               
