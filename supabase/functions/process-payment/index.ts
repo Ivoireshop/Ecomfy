@@ -105,7 +105,7 @@ const PaymentSchema = z.object({
   promo_code: z.string().optional(),
   payment_type: z.enum(["subscription", "credits", "shop_activation", "commission_payment", "shop_subscription"]).default("subscription"),
   shop_id: z.string().uuid().optional(),
-  plan: z.enum(["starter", "business", "premium"]).optional(),
+  plan: z.string().optional(),
   credits_pack: z.object({
     size: z.number(),
     price: z.number()
@@ -215,22 +215,32 @@ serve(async (req) => {
     const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
     const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
 
+    let targetShopId = shop_id;
     if (payment_type === "shop_subscription") {
-      if (!shop_id) {
+      if (!targetShopId) {
+        const { data: firstShop } = await supabase
+          .from("shops")
+          .select("id")
+          .eq("user_id", user_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (firstShop?.id) {
+          targetShopId = firstShop.id;
+        }
+      }
+
+      if (!targetShopId) {
         return new Response(
-          JSON.stringify({ success: false, error: "Sélectionnez la boutique à abonner." }),
+          JSON.stringify({ success: false, error: "Veuillez d'abord créer votre boutique avant d'activer l'abonnement." }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (!plan) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Plan d'abonnement manquant." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+
       // Verify ownership
       const { data: ownedShop } = await supabase
-        .from("shops").select("id").eq("id", shop_id).eq("user_id", user_id).maybeSingle();
+        .from("shops").select("id").eq("id", targetShopId).eq("user_id", user_id).maybeSingle();
       if (!ownedShop) {
         return new Response(
           JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
