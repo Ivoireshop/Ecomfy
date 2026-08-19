@@ -15,6 +15,7 @@ import { LandingPillarAI } from "@/components/landing/LandingPillarAI";
 import { LandingPillarManage } from "@/components/landing/LandingPillarManage";
 import { LandingPillarFinance } from "@/components/landing/LandingPillarFinance";
 import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
+import { LandingAcademy } from "@/components/landing/LandingAcademy";
 import { LandingEcosystem } from "@/components/landing/LandingEcosystem";
 import { LandingPersonas } from "@/components/landing/LandingPersonas";
 import { LandingStats } from "@/components/landing/LandingStats";
@@ -80,6 +81,9 @@ const Index = () => {
 
         {/* Comment ça marche */}
         <LandingHowItWorks />
+
+        {/* Académie Ecomfy & Formations */}
+        <LandingAcademy />
 
         {/* Ecosystème d'intégration */}
         <LandingEcosystem />

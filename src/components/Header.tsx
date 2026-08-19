@@ -24,6 +24,7 @@ export function Header() {
     { label: "Fonctionnalités", href: "/#features" },
     { label: "Solutions", href: "/#solutions" },
     { label: "Comment ça marche", href: "/#how-it-works" },
+    { label: "Académie 🎓", href: "/#academy" },
     { label: "Tarifs", href: "/#pricing" },
     { label: "Ressources", href: "/#resources" },
   ];
