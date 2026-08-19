@@ -271,7 +271,7 @@ export default function Academy() {
                 Académie Ecomfy • Formations & Tutoriels
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-xs font-bold">
-                👑 Pass Premium Académie : 35 000 FCFA (Puis 5 000 FCFA / 3 mois)
+                👑 Pass Premium Académie : 35 000 FCFA / mois (ou 28 500 FCFA / mois en annuel)
               </div>
             </div>
             

@@ -151,7 +151,7 @@ export function LandingPricing() {
             </div>
           </div>
 
-          {/* 3. Plan Premium Académie & VIP (35 000 FCFA initial, 5 000 FCFA / 3 mois) */}
+          {/* 3. Plan Premium Académie & VIP (35 000 FCFA / mois - ou 28 500 FCFA / mois en annuel) */}
           <div 
             className="rounded-[2.5rem] border-2 border-amber-400/60 bg-gradient-to-b from-[#0F1B2C] via-[#0b1422] to-[#080d16] p-8 shadow-[0_20px_50px_rgba(247,192,74,0.15)] relative flex flex-col justify-between transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(247,192,74,0.25)] text-white"
             onMouseEnter={playHoverSound}
@@ -169,11 +169,14 @@ export function LandingPricing() {
               
               <div className="flex flex-col mb-6">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-extrabold text-amber-300">35 000</span>
-                  <span className="text-slate-200 font-bold">FCFA</span>
+                  <span className="text-5xl font-extrabold text-amber-300">{isAnnual ? "28 500" : "35 000"}</span>
+                  <div className="flex flex-col">
+                    <span className="text-slate-200 font-bold">FCFA</span>
+                    <span className="text-slate-400 text-xs">/ mois {isAnnual && "(facturé annuellement)"}</span>
+                  </div>
                 </div>
                 <p className="text-xs text-emerald-400 font-semibold mt-1">
-                  1er trimestre d'accès • Puis seulement <strong className="text-white">5 000 FCFA / 3 mois</strong> lors du renouvellement !
+                  {isAnnual ? "Économisez 20% en engagement annuel !" : "Abonnement mensuel renouvelable"}
                 </p>
               </div>
               
@@ -194,8 +197,8 @@ export function LandingPricing() {
                   "👥 Accès VIP à la Communauté des Marchands Ecomfy",
                   "🛒 Zéro commission sur vos ventes (0 FCFA)",
                   "🌐 Boutique illimitée + Domaine personnalisé (.com, .net)",
-                  "🔄 Renouvellement à seulement 5 000 FCFA tous les 3 mois",
                   "💬 Support prioritaire VIP WhatsApp 24/7",
+                  "🏷️ Réduction annuelle à 28 500 FCFA / mois (-20%)",
                 ].map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <div className="bg-amber-400/20 p-1 rounded-full text-amber-300 shrink-0 mt-0.5">

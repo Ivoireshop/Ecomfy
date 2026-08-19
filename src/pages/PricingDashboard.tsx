@@ -159,7 +159,7 @@ export default function PricingDashboard() {
             </div>
           </div>
 
-          {/* Plan 3: Premium Académie & VIP (35 000 FCFA initial, 5 000 FCFA/3 mois) */}
+          {/* Plan 3: Premium Académie & VIP (35 000 FCFA / mois - ou 28 500 FCFA / mois en annuel) */}
           <div className="bg-gradient-to-b from-[#0F1B2C] via-[#0b1422] to-[#080d16] text-white rounded-3xl p-8 border-2 border-amber-400/60 shadow-2xl relative flex flex-col justify-between">
             <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-amber-400 text-slate-950 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
               <Crown className="w-3.5 h-3.5" />
@@ -176,9 +176,10 @@ export default function PricingDashboard() {
               <div className="flex flex-col">
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold text-amber-300">35 000 FCFA</span>
+                  <span className="text-xs text-slate-400">/ mois</span>
                 </div>
                 <p className="text-[11px] text-emerald-400 font-semibold mt-1">
-                  1er trimestre d'accès • Puis seulement <strong className="text-white">5 000 FCFA / 3 mois</strong> !
+                  Ou <strong>28 500 FCFA / mois</strong> en annuel (Économisez 20%) !
                 </p>
               </div>
 
@@ -214,7 +215,7 @@ export default function PricingDashboard() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                  <span>🔄 Renouvellement à seulement 5 000 FCFA tous les 3 mois</span>
+                  <span>🏷️ Option annuelle avantageuse à 28 500 FCFA / mois</span>
                 </li>
               </ul>
             </div>
