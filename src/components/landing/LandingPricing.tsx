@@ -98,48 +98,52 @@ export function LandingPricing() {
             </ul>
           </div>
 
-          {/* Pro Tier */}
+          {/* Pro / Premium Académie Tier */}
           <div 
-            className="rounded-[2.5rem] border border-[#0E7C66]/20 bg-[#0F1B2C] p-8 md:p-12 shadow-[0_20px_50px_rgba(14,124,102,0.15)] relative transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(14,124,102,0.25)] md:scale-105 z-10"
+            className="rounded-[2.5rem] border border-[#0E7C66]/40 bg-[#0F1B2C] p-8 md:p-12 shadow-[0_20px_50px_rgba(14,124,102,0.2)] relative transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(14,124,102,0.3)] md:scale-105 z-10"
             onMouseEnter={playHoverSound}
           >
-            <div className="absolute top-0 right-10 transform -translate-y-1/2 bg-gradient-to-r from-[#F7C04A] to-[#F59E0B] text-[#0F1B2C] text-xs font-extrabold px-4 py-1.5 rounded-full shadow-lg shadow-amber-500/30">
-              LE PLUS POPULAIRE
+            <div className="absolute top-0 right-10 transform -translate-y-1/2 bg-gradient-to-r from-[#F7C04A] to-[#F59E0B] text-[#0F1B2C] text-xs font-extrabold px-4 py-1.5 rounded-full shadow-lg shadow-amber-500/30 tracking-wide uppercase">
+              👑 OFFRE MEMBRE PRO & ACADÉMIE
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Pro Ecomfy</h3>
-            <p className="text-slate-400 mb-8 h-12">Pour les e-commerçants qui génèrent des ventes régulières.</p>
+            <h3 className="text-2xl font-bold text-white mb-2">Premium Académie & Pro</h3>
+            <p className="text-slate-400 mb-6 h-12">L'écosystème ultime : Formations vidéo, quotas IA renforcés et zéro commission.</p>
             
-            <div className="flex items-baseline gap-2 mb-8">
-              <span className="text-6xl font-extrabold text-white">{isAnnual ? "9 900" : "12 000"}</span>
-              <div className="flex flex-col">
+            <div className="flex flex-col mb-6">
+              <div className="flex items-baseline gap-2">
+                <span className="text-5xl font-extrabold text-white">35 000</span>
                 <span className="text-slate-200 font-bold">FCFA</span>
-                <span className="text-slate-400 text-sm">/ mois {isAnnual && "(facturé annuellement)"}</span>
               </div>
+              <p className="text-xs text-emerald-400 font-semibold mt-1">
+                Abonnement initial • Puis seulement <strong className="text-white">5 000 FCFA / 3 mois</strong> lors du renouvellement !
+              </p>
             </div>
             
             <Button 
               size="lg" 
-              className="w-full rounded-full bg-[#0E7C66] hover:bg-[#0A5F4F] text-white font-bold mb-10 shadow-lg shadow-[#0E7C66]/20 transition-all hover:scale-[1.02] h-14 text-lg"
+              className="w-full rounded-full bg-[#0E7C66] hover:bg-[#0A5F4F] text-white font-bold mb-8 shadow-lg shadow-[#0E7C66]/30 transition-all hover:scale-[1.02] h-14 text-lg"
               onMouseEnter={playHoverSound}
               onClick={() => { playClickSound(); navigate("/auth"); }}
             >
-              Passer en Pro
+              Rejoindre le Pass Premium
             </Button>
 
-            <ul className="space-y-5">
+            <ul className="space-y-4">
               {[
-                "Zéro commission sur vos ventes (0 FCFA)",
-                "Boutique illimitée + Domaine personnalisé",
-                "Visuels IA & Textes SEO en illimité",
-                "10 vidéos animées IA / mois",
-                "Tableau de bord financier avancé",
-                "Support prioritaire WhatsApp 24/7",
+                "🎓 Accès illimité aux Masterclasses Académie Ecomfy",
+                "🎬 Jusqu'à 20 vidéos publicitaires animées IA par mois",
+                "🖼️ Jusqu'à 40 images HD studio IA par mois",
+                "👥 Espace Membre VIP & Communauté Marchande",
+                "🛒 Zéro commission sur vos ventes (0 FCFA)",
+                "🌐 Boutique illimitée + Domaine personnalisé (.com, .net)",
+                "🔄 Renouvellement à seulement 5 000 FCFA tous les 3 mois",
+                "💬 Support prioritaire WhatsApp 24/7",
               ].map((feature, idx) => (
-                <li key={idx} className="flex items-start gap-4">
-                  <div className="bg-[#0E7C66]/20 p-1.5 rounded-full text-[#0E7C66] shrink-0 mt-0.5">
+                <li key={idx} className="flex items-start gap-3">
+                  <div className="bg-[#0E7C66]/30 p-1 rounded-full text-[#0E7C66] shrink-0 mt-0.5">
                     <Check className="w-4 h-4 text-[#4ade80]" />
                   </div>
-                  <span className="text-slate-200 font-medium">{feature}</span>
+                  <span className="text-slate-200 text-sm font-medium">{feature}</span>
                 </li>
               ))}
             </ul>

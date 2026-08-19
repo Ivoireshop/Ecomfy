@@ -57,14 +57,20 @@ export default function PricingDashboard() {
         </div>
 
         <div className="rounded-[2rem] border-2 border-[#0E7C66] bg-[#0F1B2C] p-8 md:p-10 shadow-2xl relative max-w-xl mx-auto">
-          <div className="absolute top-0 right-8 transform -translate-y-1/2 bg-[#F7C04A] text-[#0F1B2C] text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-            Abonnement Pro
+          <div className="absolute top-0 right-8 transform -translate-y-1/2 bg-[#F7C04A] text-[#0F1B2C] text-xs font-bold px-4 py-1 rounded-full shadow-lg tracking-wide uppercase">
+            👑 Premium Académie & Pro
           </div>
-          <h3 className="text-2xl font-bold text-white mb-2">Pro Ecomfy</h3>
-          <p className="text-slate-400 mb-6">Pour les e-commerçants qui veulent scaler.</p>
-          <div className="flex items-baseline gap-2 mb-8">
-            <span className="text-5xl font-extrabold text-white">12 000 FCFA</span>
-            <span className="text-slate-400 font-medium">/ mois</span>
+          <h3 className="text-2xl font-bold text-white mb-2">Offre Membre VIP Ecomfy</h3>
+          <p className="text-slate-400 mb-6">Formations Académie complètes, quotas IA renforcés et zéro commission.</p>
+          
+          <div className="flex flex-col mb-8">
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-extrabold text-white">35 000 FCFA</span>
+              <span className="text-slate-400 text-sm font-medium">(1er trimestre)</span>
+            </div>
+            <p className="text-xs text-emerald-400 font-semibold mt-1">
+              Renouvelable à seulement <strong>5 000 FCFA tous les 3 mois</strong> !
+            </p>
           </div>
           
           <Button 
@@ -74,25 +80,25 @@ export default function PricingDashboard() {
             disabled={loading}
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <ShieldCheck className="h-5 w-5 mr-2" />}
-            Activer l'abonnement
+            Activer l'Offre Premium (35 000 FCFA)
           </Button>
 
           <ul className="space-y-4">
             {[
-              "Boutique illimitée + Domaine personnalisé",
-              "Aucune commission par commande (0 FCFA)",
-              "Commandes illimitées",
-              "Visuels IA en illimité",
-              "10 vidéos animées IA / mois",
-              "Accès complet aux formations",
-              "Intégration Mobile Money native",
-              "Support prioritaire WhatsApp 24/7",
+              "🎓 Accès illimité à toutes les Masterclasses de l'Académie",
+              "🎬 Jusqu'à 20 vidéos animées IA par mois",
+              "🖼️ Jusqu'à 40 images HD studio IA par mois",
+              "👥 Accès VIP à la Communauté des marchands Ecomfy",
+              "🛒 Zéro commission par commande (0 FCFA)",
+              "🌐 Boutique illimitée + Domaine personnalisé (.com, .net)",
+              "🔄 Renouvellement à seulement 5 000 FCFA tous les 3 mois",
+              "💬 Support prioritaire WhatsApp 24/7",
             ].map((feature, idx) => (
               <li key={idx} className="flex items-start gap-3">
                 <div className="bg-[#0E7C66]/20 p-1 rounded-full text-[#E3F1EC] shrink-0 mt-0.5">
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-3.5 h-3.5 text-[#4ade80]" />
                 </div>
-                <span className="text-slate-300 font-medium">{feature}</span>
+                <span className="text-slate-300 text-sm font-medium">{feature}</span>
               </li>
             ))}
           </ul>

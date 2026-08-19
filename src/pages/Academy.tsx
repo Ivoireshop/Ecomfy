@@ -265,9 +265,14 @@ export default function Academy() {
           </div>
           
           <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-emerald-100 text-xs font-semibold tracking-wide uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-              Académie Ecomfy • Formations & Tutoriels
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-emerald-100 text-xs font-semibold tracking-wide uppercase">
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                Académie Ecomfy • Formations & Tutoriels
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-xs font-bold">
+                👑 Pass Premium Académie : 35 000 FCFA (Puis 5 000 FCFA / 3 mois)
+              </div>
             </div>
             
             <h1 className="text-2xl sm:text-4xl font-space font-bold tracking-tight text-white leading-tight">
