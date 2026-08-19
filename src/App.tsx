@@ -62,6 +62,7 @@ const FounderDashboard = lazyWithRetry(() => import("./pages/FounderDashboard"))
 const FounderTroubleshooting = lazyWithRetry(() => import("./pages/FounderTroubleshooting"));
 const Referral = lazyWithRetry(() => import("./pages/Referral"));
 const Tutorial = lazyWithRetry(() => import("./pages/Tutorial"));
+const Academy = lazyWithRetry(() => import("./pages/Academy"));
 const Demo = lazyWithRetry(() => import("./pages/Demo"));
 const StudentDashboard = lazyWithRetry(() => import("./pages/StudentDashboard"));
 const StudentCourse = lazyWithRetry(() => import("./pages/StudentCourse"));
@@ -287,6 +288,18 @@ const AppContent = () => {
           <Route 
             path="/tutorial" 
             element={<Tutorial />} 
+          />
+          <Route 
+            path="/academy" 
+            element={
+              <ProtectedRoute>
+                <Academy />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/academie" 
+            element={<Navigate to="/academy" replace />} 
           />
           <Route 
             path="/demo" 

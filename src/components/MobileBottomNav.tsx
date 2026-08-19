@@ -1,4 +1,4 @@
-import { Home, Image, Store, Truck, Menu, Users, CreditCard, FolderHeart, BarChart2, Settings, LogOut } from "lucide-react";
+import { Home, Image, Store, Truck, Menu, Users, CreditCard, FolderHeart, BarChart2, Settings, LogOut, GraduationCap } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -13,8 +13,9 @@ const mainNav = [
 
 const allItems = [
   { title: "Accueil", url: "/dashboard", icon: Home },
-  { title: "Studio IA", url: "/studio", icon: Image },
   { title: "Boutique", url: "/shop-manager", icon: Store },
+  { title: "Académie", url: "/academy", icon: GraduationCap },
+  { title: "Studio IA", url: "/studio", icon: Image },
   { title: "Livraison", url: "/delivery-dashboard", icon: Truck },
   { title: "Communauté", url: "/community", icon: Users },
   { title: "Tarifs", url: "/pricing", icon: CreditCard },
