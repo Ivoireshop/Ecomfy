@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical, SlidersHorizontal } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical, SlidersHorizontal, Power } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,6 +38,7 @@ interface ProductsTableProps {
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
+  onToggleStatus?: (id: string, currentPublishedState: boolean) => void;
   onUploadImage: (productId: string, file: File) => void;
   onPreviewProduct?: (product: Product) => void;
   primaryColor: string;
@@ -46,7 +48,7 @@ interface ProductsTableProps {
 
 export function ProductsTable({
   products, searchQuery, onSearchChange, onAddProduct,
-  onEditProduct, onDeleteProduct, onUploadImage, onPreviewProduct, primaryColor, orders, shopSlug,
+  onEditProduct, onDeleteProduct, onToggleStatus, onUploadImage, onPreviewProduct, primaryColor, orders, shopSlug,
 }: ProductsTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -201,16 +203,22 @@ export function ProductsTable({
                         <p className="text-[11px] text-muted-foreground">{product.category}</p>
                       )}
                     </button>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       <span className="text-sm font-semibold whitespace-nowrap">{formatPrice(product.price)}</span>
                       {product.compare_at_price && product.compare_at_price > product.price && (
                         <span className="text-[11px] text-muted-foreground line-through">{formatPrice(product.compare_at_price)}</span>
                       )}
-                      {product.is_published ? (
-                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 text-[10px] px-1.5 py-0">Visible</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Brouillon</Badge>
-                      )}
+                      
+                      <div className="flex items-center gap-1.5 ml-auto sm:ml-0 bg-muted/40 px-2 py-0.5 rounded-full border">
+                        <Switch
+                          checked={product.is_published}
+                          onCheckedChange={() => onToggleStatus?.(product.id, product.is_published)}
+                        />
+                        <span className={`text-[10px] font-bold ${product.is_published ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
+                          {product.is_published ? "Actif" : "Masqué"}
+                        </span>
+                      </div>
+
                       <span className={`text-[11px] ${product.stock_quantity <= 0 ? "text-destructive font-semibold" : product.stock_quantity < 5 ? "text-orange-500" : "text-muted-foreground"}`}>
                         Stock: {product.stock_quantity <= 0 ? "Rupture" : product.stock_quantity}
                       </span>
@@ -228,6 +236,9 @@ export function ProductsTable({
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem onClick={() => onEditProduct(product)}>
                         <Edit className="h-4 w-4 mr-2" /> Modifier
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onToggleStatus?.(product.id, product.is_published)}>
+                        <Power className="h-4 w-4 mr-2" /> {product.is_published ? "Désactiver" : "Activer"}
                       </DropdownMenuItem>
                       {onPreviewProduct && (
                         <DropdownMenuItem onClick={() => onPreviewProduct(product)}>
@@ -269,7 +280,7 @@ export function ProductsTable({
                   <TableHead className="text-right whitespace-nowrap text-xs">Prix</TableHead>
                   <TableHead className="text-center whitespace-nowrap text-xs">Inventaire</TableHead>
                   <TableHead className="text-center whitespace-nowrap text-xs">Commandes</TableHead>
-                  <TableHead className="text-center whitespace-nowrap text-xs">Visibilité</TableHead>
+                  <TableHead className="text-center whitespace-nowrap text-xs">Visibilité (Actif/Masqué)</TableHead>
                   <TableHead className="whitespace-nowrap text-xs">Date de création</TableHead>
                   <TableHead className="text-center whitespace-nowrap text-xs">Actions</TableHead>
                 </TableRow>
@@ -316,13 +327,15 @@ export function ProductsTable({
                         {prodOrders}
                       </TableCell>
                       <TableCell className="text-center whitespace-nowrap">
-                        {product.is_published ? (
-                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 text-xs whitespace-nowrap">
-                            Visible
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs whitespace-nowrap">Brouillon</Badge>
-                        )}
+                        <div className="flex items-center justify-center gap-2">
+                          <Switch
+                            checked={product.is_published}
+                            onCheckedChange={() => onToggleStatus?.(product.id, product.is_published)}
+                          />
+                          <span className={`text-xs font-bold ${product.is_published ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
+                            {product.is_published ? "Actif" : "Désactivé"}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {formatDate(product.created_at)}

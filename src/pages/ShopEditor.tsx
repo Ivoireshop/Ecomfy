@@ -714,10 +714,15 @@ const ShopEditor = () => {
   };
 
   const deleteProduct = async (productId: string) => {
-    if (!confirm("Supprimer ce produit ?")) return;
+    if (!confirm("Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.")) return;
+
+    // Optimistic removal from UI state
+    const previousProducts = [...products];
+    setProducts(prev => prev.filter(p => p.id !== productId));
     
     try {
-      const productToDelete = products.find(p => p.id === productId);
+      // 1. Purge product images from storage bucket
+      const productToDelete = previousProducts.find(p => p.id === productId);
       if (productToDelete?.product_images?.length) {
         const paths = productToDelete.product_images
           .map(img => img.image_url?.split('/shop-images/').pop())
@@ -726,13 +731,69 @@ const ShopEditor = () => {
           await supabase.storage.from("shop-images").remove(paths);
         }
       }
-    } catch (e) {
-      console.error("Failed to purge product images", e);
+
+      // 2. Delete child SQL records to prevent Foreign Key constraints error
+      await Promise.allSettled([
+        supabase.from("product_images").delete().eq("product_id", productId),
+        supabase.from("product_bundles").delete().eq("product_id", productId),
+        supabase.from("product_reviews").delete().eq("product_id", productId),
+        supabase.from("product_variants").delete().eq("product_id", productId),
+        supabase.from("cart_items").delete().eq("product_id", productId),
+      ]);
+
+      // 3. Delete product main record
+      const { error } = await supabase.from("products").delete().eq("id", productId);
+
+      if (error) {
+        console.error("Failed to delete product record:", error);
+        setProducts(previousProducts); // Restore state on error
+        toast({
+          title: "Erreur lors de la suppression",
+          description: error.message || "Impossible de supprimer ce produit.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({ title: "Produit supprimé avec succès ✓" });
+    } catch (e: any) {
+      console.error("Product deletion exception:", e);
+      setProducts(previousProducts);
+      toast({
+        title: "Erreur",
+        description: e?.message || "Erreur inattendue lors de la suppression.",
+        variant: "destructive"
+      });
+    } finally {
+      fetchData();
+    }
+  };
+
+  const toggleProductStatus = async (productId: string, currentPublishedState: boolean) => {
+    const nextPublishedState = !currentPublishedState;
+    // Optimistic UI state update
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, is_published: nextPublishedState } : p));
+
+    const { error } = await supabase
+      .from("products")
+      .update({ is_published: nextPublishedState })
+      .eq("id", productId);
+
+    if (error) {
+      console.error("Failed to toggle product published state:", error);
+      // Rollback on error
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, is_published: currentPublishedState } : p));
+      toast({
+        title: "Erreur de modification",
+        description: "Impossible de modifier la visibilité du produit.",
+        variant: "destructive"
+      });
+      return;
     }
 
-    await supabase.from("products").delete().eq("id", productId) as any;
-    toast({ title: "Produit supprimé" });
-    fetchData();
+    toast({
+      title: nextPublishedState ? "Produit activé & visible sur la boutique" : "Produit désactivé (masqué)",
+    });
   };
 
   const uploadProductImage = async (
@@ -1082,6 +1143,7 @@ const ShopEditor = () => {
                 setShowProductEditor(true);
               }}
               onDeleteProduct={deleteProduct}
+              onToggleStatus={toggleProductStatus}
               onUploadImage={uploadProductImage}
               onPreviewProduct={
                 shop?.is_activated && shop?.is_published

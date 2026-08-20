@@ -52,28 +52,58 @@ export function ShopDeliveryPartners({ shopId }: { shopId: string }) {
 
   const connect = async (providerId: string) => {
     setBusyId(providerId);
-    const { error } = await supabase.from("shop_delivery_connections")
-      .insert({ shop_id: shopId, delivery_provider_id: providerId, status: "active", auto_transfer: true });
+    // Optimistic local state connection update
+    const tempId = `temp-${Date.now()}`;
+    const newConn: Connection = { id: tempId, delivery_provider_id: providerId, status: "active", auto_transfer: true };
+    setConnections(prev => [...prev, newConn]);
+
+    const { data, error } = await supabase.from("shop_delivery_connections")
+      .insert({ shop_id: shopId, delivery_provider_id: providerId, status: "active", auto_transfer: true })
+      .select()
+      .single();
+
     setBusyId(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Livreur connecté ✓");
-    load();
+    if (error) {
+      setConnections(prev => prev.filter(c => c.id !== tempId));
+      toast.error(error.message || "Impossible d'activer ce livreur.");
+      return;
+    }
+
+    if (data) {
+      setConnections(prev => prev.map(c => c.id === tempId ? (data as Connection) : c));
+    }
+    toast.success("Livreur connecté & activé ✓");
   };
 
   const disconnect = async (connectionId: string) => {
     setBusyId(connectionId);
+    // Optimistic removal
+    const previous = [...connections];
+    setConnections(prev => prev.filter(c => c.id !== connectionId));
+
     const { error } = await supabase.from("shop_delivery_connections").delete().eq("id", connectionId);
     setBusyId(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Connexion supprimée");
-    load();
+    if (error) {
+      setConnections(previous);
+      toast.error(error.message || "Impossible de déconnecter ce livreur.");
+      return;
+    }
+    toast.success("Livreur déconnecté & désactivé ✓");
   };
 
   const toggleAuto = async (conn: Connection) => {
+    const nextValue = !conn.auto_transfer;
+    setConnections(prev => prev.map(c => c.id === conn.id ? { ...c, auto_transfer: nextValue } : c));
+
     const { error } = await supabase.from("shop_delivery_connections")
-      .update({ auto_transfer: !conn.auto_transfer }).eq("id", conn.id);
-    if (error) { toast.error(error.message); return; }
-    load();
+      .update({ auto_transfer: nextValue }).eq("id", conn.id);
+
+    if (error) {
+      setConnections(prev => prev.map(c => c.id === conn.id ? { ...c, auto_transfer: conn.auto_transfer } : c));
+      toast.error(error.message);
+      return;
+    }
+    toast.success(nextValue ? "Transfert automatique activé ✓" : "Transfert automatique désactivé");
   };
 
   const q = query.trim().toLowerCase();
