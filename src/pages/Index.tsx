@@ -12,6 +12,7 @@ import { LandingPositioning } from "@/components/landing/LandingPositioning";
 import { LandingPillarCreate } from "@/components/landing/LandingPillarCreate";
 import { LandingPillarSell } from "@/components/landing/LandingPillarSell";
 import { LandingPillarAI } from "@/components/landing/LandingPillarAI";
+import { LandingConnectUsSection } from "@/components/landing/LandingConnectUsSection";
 import { LandingPillarManage } from "@/components/landing/LandingPillarManage";
 import { LandingPillarFinance } from "@/components/landing/LandingPillarFinance";
 import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
@@ -73,6 +74,10 @@ const Index = () => {
         <LandingPillarCreate />
         <LandingPillarSell />
         <LandingPillarAI />
+
+        {/* Section Phare ConnectUs */}
+        <LandingConnectUsSection />
+
         <LandingPillarManage />
         <LandingPillarFinance />
 

@@ -21,12 +21,11 @@ export function Header() {
   const communityUnread = useCommunityUnread();
 
   const menuItems = [
-    { label: "Fonctionnalités", href: "/#features" },
-    { label: "Solutions", href: "/#solutions" },
-    { label: "Comment ça marche", href: "/#how-it-works" },
+    { label: "Boutique", href: "/#pillar-sell" },
+    { label: "IA Créative", href: "/#pillar-ai" },
+    { label: "ConnectUs 🌐", href: "/#connectus", isNew: true },
     { label: "Académie 🎓", href: "/#academy" },
     { label: "Tarifs", href: "/#pricing" },
-    { label: "Ressources", href: "/#resources" },
   ];
 
   const scrollToHash = (hash: string) => {
@@ -79,9 +78,14 @@ export function Header() {
                   e.preventDefault();
                   handleNavClick(item.href);
                 }}
-                className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
               >
                 {item.label}
+                {item.isNew && (
+                  <span className="bg-emerald-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
+                    Nouveau
+                  </span>
+                )}
               </a>
             ))}
           </nav>
