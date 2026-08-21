@@ -9,7 +9,7 @@ const seen = new Set<string>();
 const firstNameToken = (name: string | null | undefined) => {
   if (!name) return "";
   const t = name.trim().split(/\s+/)[0] || "";
-  return t.replace(/[^\p{L}0-9_.-]/gu, "").toLowerCase();
+  return t.replace(/[^a-zA-ZÀ-ÿ0-9_.-]/g, "").toLowerCase();
 };
 
 export const useCommunityNotifications = () => {
@@ -56,7 +56,7 @@ export const useCommunityNotifications = () => {
 
           const token = meRef.current.token;
           if (token) {
-            const mentions = Array.from(String(m.body || "").matchAll(/@([\p{L}0-9_.-]+)/gu))
+            const mentions = Array.from(String(m.body || "").matchAll(/@([a-zA-ZÀ-ÿ0-9_.-]+)/g))
               .map((x) => x[1].toLowerCase());
             if (mentions.includes(token)) reason = "mention";
           }

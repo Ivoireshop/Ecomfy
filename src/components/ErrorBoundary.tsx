@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, LogIn } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -27,7 +27,17 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReload = () => {
+    this.setState({ hasError: false, error: null });
     window.location.reload();
+  };
+
+  private handleResetAuth = () => {
+    try {
+      // Clear session keys in case of corrupted local auth state
+      sessionStorage.clear();
+    } catch (e) {}
+    this.setState({ hasError: false, error: null });
+    window.location.href = "/auth";
   };
 
   public render() {
@@ -45,12 +55,19 @@ export class ErrorBoundary extends Component<Props, State> {
             Une erreur inattendue est survenue
           </h1>
           <p className="text-muted-foreground max-w-md mb-6 leading-relaxed text-sm sm:text-base">
-            Une interruption temporaire d'affichage s'est produite. Veuillez rafraîchir la page pour reprendre votre navigation sur Ecomfy.
+            Une interruption temporaire d'affichage s'est produite. Veuillez rafraîchir la page ou réaccéder à l'espace de connexion Ecomfy.
           </p>
-          <Button onClick={this.handleReload} size="lg" className="btn-interactive shadow-md gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Rafraîchir la page
-          </Button>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button onClick={this.handleReload} size="lg" className="btn-interactive shadow-md gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Rafraîchir la page
+            </Button>
+            <Button onClick={this.handleResetAuth} variant="outline" size="lg" className="shadow-xs gap-2">
+              <LogIn className="w-4 h-4" />
+              Page de Connexion
+            </Button>
+          </div>
         </div>
       );
     }

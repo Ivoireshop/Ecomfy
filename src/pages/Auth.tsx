@@ -296,19 +296,9 @@ const Auth = () => {
 
       if (error) throw error;
 
-      if (data.user && !data.user.email_confirmed_at) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Email non vérifié",
-          description: "Veuillez vérifier votre boîte mail et cliquer sur le lien de confirmation avant de vous connecter.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       toast({
-        title: "Connexion réussie",
-        description: "Redirection vers votre espace…",
+        title: "Connexion réussie ! 🎉",
+        description: "Redirection vers votre espace Ecomfy…",
       });
     } catch (error) {
       triggerErrorShake();

@@ -55,7 +55,7 @@ const Avatar = ({ p, size = 40 }: { p?: ProfileLite | null; size?: number }) => 
 
 const renderBody = (body: string) => {
   // Highlight @mentions
-  const parts = body.split(/(@[\p{L}0-9_.-]+)/gu);
+  const parts = body.split(/(@[a-zA-ZÀ-ÿ0-9_.-]+)/g);
   return parts.map((p, i) =>
     p.startsWith("@") ? (
       <span key={i} className="text-primary font-medium bg-primary/10 px-1 rounded">{p}</span>
@@ -274,7 +274,7 @@ const Community = () => {
     setBody(v);
     const cursor = e.target.selectionStart;
     const before = v.slice(0, cursor);
-    const m = before.match(/@([\p{L}0-9_.-]*)$/u);
+    const m = before.match(/@([a-zA-ZÀ-ÿ0-9_.-]*)$/);
     if (m) {
       setShowMentions(true);
       setMentionQuery(m[1].toLowerCase());
@@ -293,8 +293,8 @@ const Community = () => {
   }, [showMentions, mentionQuery]);
 
   const insertMention = (p: ProfileLite) => {
-    const name = (p.full_name || "").split(/\s+/)[0].replace(/[^\p{L}0-9_.-]/gu, "");
-    setBody((b) => b.replace(/@([\p{L}0-9_.-]*)$/u, `@${name} `));
+    const name = (p.full_name || "").split(/\s+/)[0].replace(/[^a-zA-ZÀ-ÿ0-9_.-]/g, "");
+    setBody((b) => b.replace(/@([a-zA-ZÀ-ÿ0-9_.-]*)$/, `@${name} `));
     setShowMentions(false);
     textareaRef.current?.focus();
   };
