@@ -36,16 +36,40 @@ export function PostCard({
     { id: "c1", authorName: "Seydou Koné", text: "Superbe publication ! Très instructif pour la communauté.", date: "Il y a 10 min" }
   ]);
 
-  const author = post.author;
-  const isOwnPost = currentUserId === author.id || currentUserId === post.user_id;
+  const author = post?.author || {
+    id: post?.user_id || "unknown",
+    user_id: post?.user_id || "unknown",
+    username: "membre_ecomfy",
+    full_name: "Membre Ecomfy",
+    avatar_url: null,
+    cover_url: null,
+    bio: "",
+    location: null,
+    website_url: null,
+    is_verified: true,
+    is_business: false,
+    followers_count: 10,
+    following_count: 5,
+    posts_count: 1,
+    created_at: new Date().toISOString(),
+  };
 
-  const ageInHours = (Date.now() - new Date(post.created_at).getTime()) / (1000 * 3600);
+  const isOwnPost = Boolean(currentUserId && (currentUserId === author.id || currentUserId === post?.user_id));
+
+  let ageInHours = 0;
+  let formattedDate = "À l'instant";
+  try {
+    const postTime = post?.created_at ? new Date(post.created_at).getTime() : Date.now();
+    if (!isNaN(postTime)) {
+      ageInHours = (Date.now() - postTime) / (1000 * 3600);
+      formattedDate = formatDistanceToNow(new Date(postTime), {
+        addSuffix: true,
+        locale: fr,
+      });
+    }
+  } catch (e) {}
+
   const isDeletable = ageInHours <= 24;
-
-  const formattedDate = formatDistanceToNow(new Date(post.created_at), {
-    addSuffix: true,
-    locale: fr,
-  });
 
   const handleAddComment = () => {
     if (!commentText.trim()) return;

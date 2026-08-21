@@ -211,23 +211,53 @@ export class ConnectUsService {
         cloudPosts = dbMessages
           .map((msg: any) => {
             try {
-              const parsed = JSON.parse(msg.body);
-              if (parsed && parsed.connectus_type === "post") {
+              if (!msg || !msg.body) return null;
+              let parsed: any = null;
+              try {
+                parsed = typeof msg.body === "string" ? JSON.parse(msg.body) : msg.body;
+              } catch (e) {
+                return null;
+              }
+
+              if (parsed && (parsed.connectus_type === "post" || parsed.content)) {
+                const rawDate = parsed.created_at || msg.created_at;
+                const validDate = rawDate && !isNaN(new Date(rawDate).getTime())
+                  ? new Date(rawDate).toISOString()
+                  : new Date().toISOString();
+
+                const fallbackAuthor: ConnectUsProfile = {
+                  id: msg.user_id || "user-anon",
+                  user_id: msg.user_id || "user-anon",
+                  username: parsed.author?.username || `user_${(msg.user_id || "").slice(0, 6)}`,
+                  full_name: parsed.author?.full_name || "Membre Ecomfy",
+                  avatar_url: parsed.author?.avatar_url || null,
+                  cover_url: parsed.author?.cover_url || null,
+                  bio: parsed.author?.bio || "Membre de la communauté ConnectUs",
+                  location: parsed.author?.location || null,
+                  website_url: parsed.author?.website_url || null,
+                  is_verified: true,
+                  is_business: !!parsed.author?.is_business,
+                  followers_count: parsed.author?.followers_count || 10,
+                  following_count: parsed.author?.following_count || 5,
+                  posts_count: parsed.author?.posts_count || 1,
+                  created_at: validDate,
+                };
+
                 return {
-                  id: parsed.id || msg.id,
-                  user_id: msg.user_id,
-                  author: parsed.author,
+                  id: parsed.id || msg.id || `post-${Math.random()}`,
+                  user_id: msg.user_id || fallbackAuthor.id,
+                  author: parsed.author && parsed.author.id ? { ...fallbackAuthor, ...parsed.author } : fallbackAuthor,
                   content: parsed.content || "",
-                  media_urls: parsed.media_urls || [],
+                  media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
                   video_url: parsed.video_url || null,
                   link_preview: parsed.link_preview || null,
                   attached_product: parsed.attached_product || null,
                   visibility: parsed.visibility || "public",
-                  likes_count: parsed.likes_count || 0,
-                  comments_count: parsed.comments_count || 0,
-                  shares_count: parsed.shares_count || 0,
+                  likes_count: Number(parsed.likes_count) || 0,
+                  comments_count: Number(parsed.comments_count) || 0,
+                  shares_count: Number(parsed.shares_count) || 0,
                   user_reaction: null,
-                  created_at: parsed.created_at || msg.created_at,
+                  created_at: validDate,
                 } as ConnectUsPost;
               }
             } catch (e) {
@@ -235,7 +265,7 @@ export class ConnectUsService {
             }
             return null;
           })
-          .filter((p): p is ConnectUsPost => p !== null);
+          .filter((p): p is ConnectUsPost => p !== null && !!p.author && !!p.id);
       }
     } catch (e) {
       console.warn("Could not load cloud community posts:", e);

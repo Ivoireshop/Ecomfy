@@ -46,16 +46,16 @@ export default function ConnectUsPage() {
     setFollowingMap(prev => ({ ...prev, [targetId]: isNowFollowing }));
   };
 
-  const filteredPosts = posts.filter(p => {
+  const filteredPosts = posts.filter((p) => {
+    if (!p) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    return (
-      p.content.toLowerCase().includes(q) ||
-      p.author.full_name?.toLowerCase().includes(q) ||
-      p.author.username.toLowerCase().includes(q) ||
-      p.attached_product?.name.toLowerCase().includes(q) ||
-      p.link_preview?.domain.toLowerCase().includes(q)
-    );
+    const contentMatch = (p.content || "").toLowerCase().includes(q);
+    const nameMatch = (p.author?.full_name || "").toLowerCase().includes(q);
+    const usernameMatch = (p.author?.username || "").toLowerCase().includes(q);
+    const productMatch = (p.attached_product?.name || "").toLowerCase().includes(q);
+    const linkMatch = (p.link_preview?.domain || "").toLowerCase().includes(q);
+    return contentMatch || nameMatch || usernameMatch || productMatch || linkMatch;
   });
 
   return (
