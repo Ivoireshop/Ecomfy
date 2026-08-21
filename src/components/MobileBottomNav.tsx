@@ -1,4 +1,4 @@
-import { Home, Image, Store, Truck, Menu, Users, CreditCard, FolderHeart, BarChart2, Settings, LogOut, GraduationCap } from "lucide-react";
+import { Home, Image, Store, Truck, Menu, Users, CreditCard, FolderHeart, BarChart2, Settings, LogOut, GraduationCap, Globe } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -6,13 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 const mainNav = [
   { title: "Accueil", url: "/dashboard", icon: Home },
+  { title: "ConnectUs", url: "/connectus", icon: Globe },
   { title: "Studio", url: "/studio", icon: Image },
   { title: "Boutique", url: "/shop-manager", icon: Store },
-  { title: "Livraison", url: "/delivery-dashboard", icon: Truck },
 ];
 
 const allItems = [
   { title: "Accueil", url: "/dashboard", icon: Home },
+  { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
   { title: "Boutique", url: "/shop-manager", icon: Store },
   { title: "Académie", url: "/academy", icon: GraduationCap },
   { title: "Studio IA", url: "/studio", icon: Image },

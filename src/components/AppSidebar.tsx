@@ -1,5 +1,5 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -122,6 +122,7 @@ export function AppSidebar() {
 
   const mainItems = [
     { title: "Accueil", url: "/dashboard", icon: Home },
+    { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
     { title: "Boutique", url: "/shop-manager", icon: Store },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Studio IA", url: "/studio", icon: Image },

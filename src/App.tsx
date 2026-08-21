@@ -97,6 +97,7 @@ const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const DeliverySignup = lazyWithRetry(() => import("./pages/DeliverySignup"));
 const DeliveryDashboard = lazyWithRetry(() => import("./pages/DeliveryDashboard"));
 const FounderRoute = lazyWithRetry(() => import("./components/FounderRoute"));
+const ConnectUsPage = lazyWithRetry(() => import("./pages/ConnectUsPage"));
 const SeoPreview = lazyWithRetry(() => import("./pages/founder/SeoPreview"));
 const ShopPaymentControl = lazyWithRetry(() => import("./pages/founder/ShopPaymentControl"));
 const PricingDashboard = lazyWithRetry(() => import("./pages/PricingDashboard"));
@@ -298,6 +299,22 @@ const AppContent = () => {
             } 
           />
           <Route 
+            path="/connectus" 
+            element={
+              <ProtectedRoute>
+                <ConnectUsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/connectus/*" 
+            element={
+              <ProtectedRoute>
+                <ConnectUsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/academie" 
             element={<Navigate to="/academy" replace />} 
           />
@@ -415,9 +432,10 @@ const AppWithSidebar = () => {
                            location.pathname.startsWith("/shop-editor") || 
                            location.pathname.startsWith("/shop-builder");
   const isDriverApp = location.pathname.startsWith("/delivery/driver");
+  const isConnectUs = location.pathname.startsWith("/connectus");
 
-  // Showcase/shop/public pages: no sidebar at all
-  if (isShopView || isPublicPage || isShopManagement || isDriverApp) {
+  // Showcase/shop/public pages and ConnectUs dedicated layout: no sidebar at all
+  if (isShopView || isPublicPage || isShopManagement || isDriverApp || isConnectUs) {
     return (
       <main className="w-full">
         <AppContent />
