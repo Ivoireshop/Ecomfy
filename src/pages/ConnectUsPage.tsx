@@ -142,7 +142,7 @@ export default function ConnectUsPage() {
                             onToggleReaction={toggleReaction}
                             onToggleFollow={handleToggleFollowUser}
                             onDeletePost={deletePost}
-                            isFollowingAuthor={!!followingMap[post.author.id]}
+                            isFollowingAuthor={Boolean(post.author?.id && followingMap[post.author.id])}
                           />
                         ))}
                       </div>

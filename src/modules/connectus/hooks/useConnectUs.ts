@@ -24,20 +24,20 @@ export function useConnectUs() {
 
   // 1. Initial Load & Ecomfy Account Auto-Binding
   const loadConnectUsData = useCallback(async () => {
-    if (!userId) return;
     setLoading(true);
     try {
+      const activeId = userId || "guest_visitor";
       const [userProfile, feedPosts, products] = await Promise.all([
-        ConnectUsService.getProfile(userId),
-        ConnectUsService.getFeedPosts(userId),
-        ConnectUsService.getMerchantProducts(userId),
+        ConnectUsService.getProfile(activeId),
+        ConnectUsService.getFeedPosts(activeId),
+        ConnectUsService.getMerchantProducts(activeId),
       ]);
 
       setProfile(userProfile);
-      setPosts(feedPosts);
-      setMerchantProducts(products);
+      setPosts(feedPosts || []);
+      setMerchantProducts(products || []);
 
-      if (!userProfile.is_onboarded) {
+      if (userProfile && !userProfile.is_onboarded && userId) {
         setShowOnboarding(true);
       }
     } catch (e) {
@@ -48,10 +48,10 @@ export function useConnectUs() {
   }, [userId]);
 
   useEffect(() => {
-    if (isReady && userId) {
+    if (isReady) {
       loadConnectUsData();
     }
-  }, [isReady, userId, loadConnectUsData]);
+  }, [isReady, loadConnectUsData]);
 
   // 2. Persistent Profile Update Handler
   const handleUpdateProfile = (updatedData: Partial<ConnectUsProfile>) => {
