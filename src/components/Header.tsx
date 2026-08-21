@@ -132,7 +132,7 @@ export function Header() {
                     <a
                       key={item.href}
                       href={item.href}
-                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
                       onClick={(e) => {
                         e.preventDefault();
                         handleNavClick(item.href);
@@ -140,6 +140,11 @@ export function Header() {
                       }}
                     >
                       {item.label}
+                      {item.isNew && (
+                        <span className="bg-emerald-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
+                          Nouveau
+                        </span>
+                      )}
                     </a>
                   ))}
                 </nav>
