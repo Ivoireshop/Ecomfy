@@ -376,6 +376,57 @@ export default function ConnectUsPage() {
         merchantProducts={merchantProducts}
         submitting={submitting}
       />
+
+      {/* Mobile Navigation Sticky Bottom Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2 flex items-center justify-around shadow-lg pb-safe">
+        <button
+          onClick={() => setActiveTab("feed")}
+          className={`flex flex-col items-center gap-0.5 text-[10px] font-bold transition-all ${
+            activeTab === "feed" ? "text-[#0E7C66] scale-105" : "text-slate-500"
+          }`}
+        >
+          <Globe className="h-5 w-5" />
+          <span>Accueil</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("explore")}
+          className={`flex flex-col items-center gap-0.5 text-[10px] font-bold transition-all ${
+            activeTab === "explore" ? "text-[#0E7C66] scale-105" : "text-slate-500"
+          }`}
+        >
+          <Compass className="h-5 w-5" />
+          <span>Explorer</span>
+        </button>
+
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex flex-col items-center justify-center h-11 w-11 rounded-full bg-[#0E7C66] text-white shadow-md -mt-5 active:scale-95 transition-transform border-2 border-white"
+          title="Créer une publication"
+        >
+          <PlusCircle className="h-6 w-6" />
+        </button>
+
+        <button
+          onClick={() => setActiveTab("stories")}
+          className={`flex flex-col items-center gap-0.5 text-[10px] font-bold transition-all ${
+            activeTab === "stories" ? "text-[#0E7C66] scale-105" : "text-slate-500"
+          }`}
+        >
+          <Film className="h-5 w-5 text-amber-500" />
+          <span>Stories</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("profile")}
+          className={`flex flex-col items-center gap-0.5 text-[10px] font-bold transition-all ${
+            activeTab === "profile" ? "text-[#0E7C66] scale-105" : "text-slate-500"
+          }`}
+        >
+          <User className="h-5 w-5" />
+          <span>Profil</span>
+        </button>
+      </div>
     </div>
   );
 }

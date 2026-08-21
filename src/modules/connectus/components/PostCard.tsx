@@ -219,9 +219,9 @@ export function PostCard({
 
       {/* Ecomfy Social Commerce Attached Product Card */}
       {post.attached_product && (
-        <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-16 w-16 rounded-xl bg-white overflow-hidden shrink-0 border border-emerald-100 shadow-2xs">
+        <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-white p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xs overflow-hidden max-w-full">
+          <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+            <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-white overflow-hidden shrink-0 border border-emerald-100 shadow-2xs">
               {post.attached_product.image_url ? (
                 <img src={post.attached_product.image_url} alt="" className="h-full w-full object-cover" />
               ) : (
@@ -231,24 +231,24 @@ export function PostCard({
               )}
             </div>
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Badge className="bg-emerald-600 text-white text-[9px] font-extrabold uppercase tracking-wider border-0">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                <Badge className="bg-emerald-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider border-0 shrink-0">
                   🛒 PRODUIT ECOMFY
                 </Badge>
                 {post.attached_product.category && (
-                  <span className="text-[10px] text-slate-500">{post.attached_product.category}</span>
+                  <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{post.attached_product.category}</span>
                 )}
               </div>
-              <h4 className="font-bold text-sm text-slate-900 truncate">
+              <h4 className="font-bold text-xs sm:text-sm text-slate-900 truncate max-w-full">
                 {post.attached_product.name}
               </h4>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-base font-extrabold text-[#0E7C66]">
+              <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
+                <span className="text-sm sm:text-base font-extrabold text-[#0E7C66]">
                   {post.attached_product.price.toLocaleString("fr-FR")} FCFA
                 </span>
                 {post.attached_product.compare_at_price && post.attached_product.compare_at_price > post.attached_product.price && (
-                  <span className="text-xs text-slate-400 line-through">
+                  <span className="text-[11px] text-slate-400 line-through">
                     {post.attached_product.compare_at_price.toLocaleString("fr-FR")} FCFA
                   </span>
                 )}
@@ -258,7 +258,7 @@ export function PostCard({
 
           <Button
             asChild
-            className="w-full sm:w-auto rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs h-10 px-5 shadow-md shrink-0 gap-1.5"
+            className="w-full sm:w-auto rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs h-9 sm:h-10 px-4 sm:px-5 shadow-md shrink-0 gap-1.5"
           >
             <a
               href={

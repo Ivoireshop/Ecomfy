@@ -194,29 +194,83 @@ export class ConnectUsService {
   }
 
   /**
-   * Fetch Feed Posts
+   * Fetch Feed Posts from Supabase cloud & local storage (Real user posts displayed first!)
    */
   static async getFeedPosts(currentUserId: string): Promise<ConnectUsPost[]> {
+    let cloudPosts: ConnectUsPost[] = [];
+
+    // 1. Query real posts from Supabase database so all members see each other's posts
+    try {
+      const { data: dbMessages } = await supabase
+        .from("community_messages")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (dbMessages && dbMessages.length > 0) {
+        cloudPosts = dbMessages
+          .map((msg: any) => {
+            try {
+              const parsed = JSON.parse(msg.body);
+              if (parsed && parsed.connectus_type === "post") {
+                return {
+                  id: parsed.id || msg.id,
+                  user_id: msg.user_id,
+                  author: parsed.author,
+                  content: parsed.content || "",
+                  media_urls: parsed.media_urls || [],
+                  video_url: parsed.video_url || null,
+                  link_preview: parsed.link_preview || null,
+                  attached_product: parsed.attached_product || null,
+                  visibility: parsed.visibility || "public",
+                  likes_count: parsed.likes_count || 0,
+                  comments_count: parsed.comments_count || 0,
+                  shares_count: parsed.shares_count || 0,
+                  user_reaction: null,
+                  created_at: parsed.created_at || msg.created_at,
+                } as ConnectUsPost;
+              }
+            } catch (e) {
+              return null;
+            }
+            return null;
+          })
+          .filter((p): p is ConnectUsPost => p !== null);
+      }
+    } catch (e) {
+      console.warn("Could not load cloud community posts:", e);
+    }
+
+    // 2. Load local posts
+    let localPosts: ConnectUsPost[] = [];
     try {
       const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-      let localPosts: ConnectUsPost[] = [];
       if (localStoredJson) {
-        try {
-          localPosts = JSON.parse(localStoredJson);
-        } catch (e) {
-          localPosts = [];
-        }
+        localPosts = JSON.parse(localStoredJson);
       }
+    } catch (e) {}
 
-      const allPosts = [...localPosts, ...INITIAL_DEMO_POSTS];
-      return allPosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } catch (e) {
-      return INITIAL_DEMO_POSTS;
-    }
+    // 3. Merge real user posts (cloud + local) removing duplicates
+    const realPostsMap = new Map<string, ConnectUsPost>();
+    [...localPosts, ...cloudPosts].forEach((p) => realPostsMap.set(p.id, p));
+
+    const realPosts = Array.from(realPostsMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    // 4. REAL USER POSTS DISPLAYED AT THE VERY TOP FIRST!
+    const finalFeed = [...realPosts];
+    INITIAL_DEMO_POSTS.forEach((demo) => {
+      if (!realPostsMap.has(demo.id)) {
+        finalFeed.push(demo);
+      }
+    });
+
+    return finalFeed;
   }
 
   /**
-   * Create a new post in ConnectUs with QuotaExceededError protection
+   * Create a new post in ConnectUs with Cloud database sync & Quota protection
    */
   static async createPost(
     userId: string,
@@ -249,6 +303,7 @@ export class ConnectUsService {
       created_at: new Date().toISOString(),
     };
 
+    // Save locally
     const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
     let existingPosts: ConnectUsPost[] = [];
     if (existingJson) {
@@ -260,8 +315,32 @@ export class ConnectUsService {
     }
 
     existingPosts.unshift(newPost);
-    // Use safeLocalStorageSet to automatically prune and prevent QuotaExceededError crashes
     safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, existingPosts);
+
+    // Sync globally to Supabase cloud so all real users see this post immediately!
+    try {
+      const postPayload = JSON.stringify({
+        connectus_type: "post",
+        id: newPost.id,
+        author: newPost.author,
+        content: newPost.content,
+        media_urls: newPost.media_urls,
+        video_url: newPost.video_url,
+        link_preview: newPost.link_preview,
+        attached_product: newPost.attached_product,
+        visibility: newPost.visibility,
+        created_at: newPost.created_at,
+      });
+
+      await supabase.from("community_messages").insert([
+        {
+          user_id: userId,
+          body: postPayload,
+        },
+      ]);
+    } catch (e) {
+      console.warn("Post created locally, cloud sync pending:", e);
+    }
 
     return newPost;
   }
