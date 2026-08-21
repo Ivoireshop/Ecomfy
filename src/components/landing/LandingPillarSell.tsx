@@ -23,7 +23,7 @@ export function LandingPillarSell() {
   ];
 
   return (
-    <section className="py-24 bg-slate-50 overflow-hidden border-t border-slate-100">
+    <section id="boutique" className="py-24 bg-slate-50 overflow-hidden border-t border-slate-100">
       <div className="container mx-auto px-4">
         <div 
           ref={ref}

@@ -21,10 +21,11 @@ export function Header() {
   const communityUnread = useCommunityUnread();
 
   const menuItems = [
-    { label: "Boutique", href: "/#pillar-sell" },
-    { label: "IA Créative", href: "/#pillar-ai" },
+    { label: "Boutique", href: "/#boutique" },
+    { label: "IA Créative", href: "/#ai" },
+    { label: "Marketing", href: "/#marketing" },
+    { label: "Finance", href: "/#finance" },
     { label: "ConnectUs 🌐", href: "/#connectus", isNew: true },
-    { label: "Académie 🎓", href: "/#academy" },
     { label: "Tarifs", href: "/#pricing" },
   ];
 
