@@ -10,18 +10,15 @@ import {
 export function LandingConnectUsSection() {
   const navigate = useNavigate();
 
-  // Desktop Mouse Parallax State (Max 8px on globe only)
+  // Desktop Mouse Parallax State (Max 8px on central sphere)
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
-    // Check system preference for reduced motion
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mediaQuery.matches);
-
     const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
     mediaQuery.addEventListener("change", handleChange);
-
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
@@ -32,8 +29,8 @@ export function LandingConnectUsSection() {
     const centerX = target.left + target.width / 2;
     const centerY = target.top + target.height / 2;
 
-    const moveX = ((clientX - centerX) / (target.width / 2)) * 6; // Max 6px
-    const moveY = ((clientY - centerY) / (target.height / 2)) * 6; // Max 6px
+    const moveX = ((clientX - centerX) / (target.width / 2)) * 6;
+    const moveY = ((clientY - centerY) / (target.height / 2)) * 6;
 
     setParallax({ x: moveX, y: moveY });
   };
@@ -43,7 +40,7 @@ export function LandingConnectUsSection() {
   };
 
   return (
-    <section id="connectus" className="relative py-20 md:py-28 overflow-hidden bg-gradient-to-b from-[#F0FDF4] via-emerald-50/30 to-white selection:bg-[#0E7C66] selection:text-white">
+    <section id="connectus" className="relative py-20 md:py-28 overflow-hidden bg-gradient-to-b from-[#EDFDF6] via-emerald-50/40 to-white selection:bg-[#0E7C66] selection:text-white">
       {/* Background Ambient Glows */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[850px] h-[520px] bg-gradient-to-tr from-emerald-300/25 via-teal-300/15 to-cyan-300/25 blur-[130px] rounded-full pointer-events-none" />
       <div className="absolute -top-24 left-8 w-96 h-96 bg-emerald-400/10 blur-[110px] rounded-full pointer-events-none" />
@@ -76,78 +73,62 @@ export function LandingConnectUsSection() {
           </p>
         </div>
 
-        {/* Central Showcase Container with Parallax Event Listener */}
+        {/* Central Showcase Container */}
         <div
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           className="relative my-6 max-w-6xl mx-auto min-h-[580px] sm:min-h-[640px] flex items-center justify-center"
         >
-          {/* MULTI-DIRECTIONAL INTERCONTINENTAL DATA FLOW NETWORK (SVG Lines & Traveling Data Packets) */}
+          {/* SVG CONTINENTAL CONNECTIONS BEAMS & TRAVELING DATA PACKETS */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 hidden md:block" viewBox="0 0 1000 600" fill="none">
-            {/* Beam 1: Left-to-Right (Afrique -> Europe -> Amérique) */}
             <path
               id="flow-path-1"
-              d="M 160 170 Q 320 110 500 300 T 840 170"
+              d="M 140 180 Q 320 100 500 300 T 860 180"
               stroke="url(#beam-emerald)"
               strokeWidth="2.5"
               strokeDasharray="6 6"
               className={prefersReducedMotion ? "" : "animate-[dash_14s_linear_infinite]"}
             />
-
-            {/* Beam 2: Right-to-Left (Asie -> Afrique) */}
             <path
               id="flow-path-2"
-              d="M 820 450 Q 640 500 500 300 T 180 430"
+              d="M 840 440 Q 640 500 500 300 T 160 420"
               stroke="url(#beam-cyan)"
               strokeWidth="2.5"
               strokeDasharray="6 6"
               className={prefersReducedMotion ? "" : "animate-[dash_18s_linear_infinite]"}
             />
-
-            {/* Beam 3: Top-to-Bottom Cross Beam */}
             <path
               id="flow-path-3"
-              d="M 500 120 Q 420 280 500 480"
+              d="M 500 110 Q 420 280 500 490"
               stroke="url(#beam-teal)"
               strokeWidth="2"
               strokeDasharray="5 5"
             />
-
-            {/* Beam 4: Diagonal Data Arc */}
             <path
               id="flow-path-4"
-              d="M 240 260 L 760 340"
+              d="M 220 260 L 780 340"
               stroke="url(#beam-emerald)"
               strokeWidth="1.8"
               strokeDasharray="4 4"
             />
 
-            {/* TRAVELING DATA PACKETS (ANIMATE MOTION) */}
             {!prefersReducedMotion && (
               <>
-                {/* Packet 1: Left -> Right (Green) */}
-                <circle r="4.5" fill="#10B981" className="shadow-lg">
-                  <animateMotion path="M 160 170 Q 320 110 500 300 T 840 170" dur="3.8s" repeatCount="indefinite" />
+                <circle r="4.5" fill="#10B981">
+                  <animateMotion path="M 140 180 Q 320 100 500 300 T 860 180" dur="3.8s" repeatCount="indefinite" />
                 </circle>
-                
-                {/* Packet 2: Right -> Left (Cyan) */}
                 <circle r="4" fill="#06B6D4">
-                  <animateMotion path="M 820 450 Q 640 500 500 300 T 180 430" dur="5.2s" repeatCount="indefinite" />
+                  <animateMotion path="M 840 440 Q 640 500 500 300 T 160 420" dur="5.2s" repeatCount="indefinite" />
                 </circle>
-
-                {/* Packet 3: Top -> Bottom (Teal) */}
                 <circle r="3.5" fill="#0E7C66">
-                  <animateMotion path="M 500 120 Q 420 280 500 480" dur="4.2s" repeatCount="indefinite" />
+                  <animateMotion path="M 500 110 Q 420 280 500 490" dur="4.2s" repeatCount="indefinite" />
                 </circle>
-
-                {/* Packet 4: Diagonal Cross Packet */}
                 <circle r="3.5" fill="#34D399">
-                  <animateMotion path="M 240 260 L 760 340" dur="6.5s" repeatCount="indefinite" />
+                  <animateMotion path="M 220 260 L 780 340" dur="6.5s" repeatCount="indefinite" />
                 </circle>
               </>
             )}
 
-            {/* Gradients */}
             <defs>
               <linearGradient id="beam-emerald" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#10B981" stopOpacity="0.85" />
@@ -168,84 +149,84 @@ export function LandingConnectUsSection() {
             </defs>
           </svg>
 
-          {/* REALISTIC 3D ANIMATED ROTATING GLOBE IN THE CENTER (WITH PARALLAX TRANSFORM) */}
+          {/* CENTRAL ANIMATED DARK GREEN NETWORK GLOBE (EXACT MATCH TO THE USER'S 2ND IMAGE) */}
           <div
             style={{
               transform: `translate3d(${parallax.x}px, ${parallax.y}px, 0)`,
               transition: "transform 0.15s ease-out",
             }}
-            className="relative z-0 flex items-center justify-center my-8"
+            className="relative z-0 flex items-center justify-center my-6"
           >
-            {/* Outer Glowing Atmosphere Aura */}
-            <div className="absolute h-72 w-72 sm:h-96 sm:w-96 rounded-full bg-emerald-400/25 blur-3xl animate-pulse" />
-            <div className={`absolute h-80 w-80 sm:h-[430px] sm:w-[430px] rounded-full border border-emerald-400/35 ${prefersReducedMotion ? "" : "animate-[spin_38s_linear_infinite]"}`} />
+            {/* Outer Glowing Atmosphere Rings */}
+            <div className="absolute h-80 w-80 sm:h-[450px] sm:w-[450px] rounded-full bg-emerald-400/20 blur-3xl animate-pulse" />
+            <div className={`absolute h-[340px] w-[340px] sm:h-[480px] sm:w-[480px] rounded-full border border-emerald-400/30 ${prefersReducedMotion ? "" : "animate-[spin_45s_linear_infinite]"}`} />
 
-            {/* Central Realistic 3D World Sphere */}
-            <div className="relative h-64 w-64 sm:h-88 sm:w-88 rounded-full bg-gradient-to-b from-teal-600 via-emerald-700 to-cyan-900 shadow-[0_0_90px_rgba(14,124,102,0.45)] border-4 border-emerald-300/50 overflow-hidden flex items-center justify-center">
+            {/* Central Dark Emerald Network Container (Matching Image 2) */}
+            <div className="relative h-72 w-72 sm:h-[410px] sm:w-[410px] rounded-full bg-gradient-to-b from-[#06382C] via-[#084738] to-[#03231B] shadow-[0_0_100px_rgba(14,124,102,0.5)] border-4 border-emerald-400/40 overflow-hidden flex items-center justify-center">
               
-              {/* Latitude & Longitude Spherical Grid Lines */}
-              <div className={`absolute inset-0 opacity-30 bg-[radial-gradient(#fff_1.2px,transparent_1.2px)] [background-size:18px_18px] ${prefersReducedMotion ? "" : "animate-[spin_55s_linear_infinite]"}`} />
-              
-              {/* World Map Texture Image Overlay (Realistic Continents: Africa, Europe, America, Asia) */}
-              <div className={`absolute inset-0 bg-[url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=900&auto=format&fit=crop&q=80')] bg-cover opacity-75 mix-blend-overlay ${prefersReducedMotion ? "" : "animate-[spin_40s_linear_infinite]"}`} />
-              
-              {/* Glowing Pulse Core across continents */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 via-transparent to-cyan-400/30 animate-pulse" />
+              {/* Matrix Dot Grid Overlay */}
+              <div className={`absolute inset-0 opacity-40 bg-[radial-gradient(#34D399_1.2px,transparent_1.2px)] [background-size:20px_20px] ${prefersReducedMotion ? "" : "animate-[spin_60s_linear_infinite]"}`} />
 
-              {/* Pulsing Intercontinental Data Nodes on Globe Surface */}
+              {/* Real World Map Image (Realistic Earth Spherical Center) */}
+              <div className={`relative h-48 w-48 sm:h-64 sm:w-64 rounded-full bg-[url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=900&auto=format&fit=crop&q=80')] bg-cover shadow-2xl border-2 border-emerald-300/40 ${prefersReducedMotion ? "" : "animate-[spin_38s_linear_infinite]"}`}>
+                {/* Atmosphere Overlay */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-emerald-500/30 via-transparent to-cyan-400/40 mix-blend-overlay" />
+              </div>
+
+              {/* Pulsing Intercontinental Connection Nodes on Sphere */}
               <div className="absolute top-1/4 left-1/3 h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_10px_#10B981] animate-ping" />
               <div className="absolute top-1/2 right-1/4 h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#06B6D4] animate-ping" style={{ animationDelay: "1.2s" }} />
               <div className="absolute bottom-1/3 left-1/2 h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_10px_#F59E0B] animate-ping" style={{ animationDelay: "2.4s" }} />
             </div>
 
-            {/* 5 FLOATING PERSONNAS & FEATURE NODES ON THE GLOBE (STATIC & CRISP) */}
+            {/* 6 FLOATING PERSONAS & FEATURE BADGES (EXACT POSITIONING MATCHING IMAGE 2) */}
             
-            {/* Personna 1: Koffi (Top Left Node) */}
-            <div className="absolute -top-4 left-1/4 z-20">
-              <div className="h-12 w-12 rounded-full ring-4 ring-emerald-400/70 shadow-xl overflow-hidden border-2 border-white">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80" alt="Koffi" className="h-full w-full object-cover" />
-              </div>
-            </div>
-            
-            {/* Feature Icon Node: Vidéos */}
-            <div className="absolute top-1/3 -left-7 z-20">
-              <div className="h-10 w-10 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-lg border-2 border-white">
-                <Video className="h-4 w-4" />
+            {/* Persona 1: Top Center Avatar (Asian Woman in Blue Ambient Light) */}
+            <div className="absolute -top-3 left-[32%] z-20">
+              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full ring-4 ring-emerald-400/80 shadow-2xl overflow-hidden border-2 border-white">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
               </div>
             </div>
 
-            {/* Personna 2: Aminata (Bottom Left Node) */}
-            <div className="absolute bottom-8 left-14 z-20">
-              <div className="h-14 w-14 rounded-full ring-4 ring-teal-400/70 shadow-xl overflow-hidden border-2 border-white">
-                <img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&auto=format&fit=crop&q=80" alt="Aminata" className="h-full w-full object-cover" />
+            {/* Feature Badge 1: Top Right Community Icon */}
+            <div className="absolute top-2 right-[32%] z-20">
+              <div className="h-11 w-11 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg border-2 border-white">
+                <Users className="h-5 w-5" />
               </div>
             </div>
 
-            {/* Feature Icon Node: Community */}
-            <div className="absolute -top-2 right-1/4 z-20">
-              <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg border-2 border-white">
-                <Users className="h-4 w-4" />
+            {/* Feature Badge 2: Mid-Left Video Camera Badge */}
+            <div className="absolute top-[42%] -left-6 sm:-left-8 z-20">
+              <div className="h-12 w-12 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-xl border-2 border-white">
+                <Video className="h-6 w-6" />
               </div>
             </div>
 
-            {/* Personna 3: Sékou (Right Middle Node) */}
-            <div className="absolute top-1/2 -right-7 z-20">
-              <div className="h-12 w-12 rounded-full ring-4 ring-cyan-400/70 shadow-xl overflow-hidden border-2 border-white">
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80" alt="Sékou" className="h-full w-full object-cover" />
+            {/* Persona 2: Bottom-Left Woman Avatar (Pink Background) */}
+            <div className="absolute bottom-4 left-10 sm:left-14 z-20">
+              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full ring-4 ring-teal-400/80 shadow-2xl overflow-hidden border-2 border-white">
+                <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
               </div>
             </div>
 
-            {/* Personna 4: Awa (Bottom Right Node) */}
-            <div className="absolute bottom-10 right-10 z-20">
-              <div className="h-14 w-14 rounded-full ring-4 ring-amber-400/70 shadow-xl overflow-hidden border-2 border-white">
-                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80" alt="Awa" className="h-full w-full object-cover" />
+            {/* Persona 3: Bottom-Right Smiling Woman Avatar (Golden Border) */}
+            <div className="absolute bottom-6 right-16 sm:right-24 z-20">
+              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full ring-4 ring-amber-400/90 shadow-2xl overflow-hidden border-2 border-white">
+                <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
+              </div>
+            </div>
+
+            {/* Persona 4: Far Right Smiling Man Avatar (Cyan Border) */}
+            <div className="absolute top-[40%] -right-6 sm:-right-8 z-20">
+              <div className="h-14 w-14 sm:h-18 sm:w-18 rounded-full ring-4 ring-cyan-400/80 shadow-2xl overflow-hidden border-2 border-white">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
               </div>
             </div>
           </div>
 
           {/* STATIC & CRISP UI CARDS (EXACT MATCH TO REFERENCE MOCKUP) */}
 
-          {/* 1. TOP LEFT CARD: NATIVE CONNECTUS POST PAGE (Not Facebook) */}
+          {/* 1. TOP LEFT CARD: NATIVE CONNECTUS POST PAGE */}
           <div className="relative md:absolute md:top-2 md:left-2 z-20 w-full md:w-72 bg-white rounded-3xl p-4 border border-slate-200/90 shadow-xl space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
