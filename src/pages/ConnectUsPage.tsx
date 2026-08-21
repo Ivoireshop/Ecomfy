@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Globe, PlusCircle, Compass, Users, Store, Loader2, Sparkles, TrendingUp, ShoppingBag, CheckCircle2,
+  Globe, PlusCircle, Compass, Users, User, Store, Loader2, Sparkles, TrendingUp, ShoppingBag, CheckCircle2,
   MessageCircle, Film, Radio, Briefcase, ExternalLink, ArrowRight
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
