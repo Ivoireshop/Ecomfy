@@ -10,18 +10,32 @@ export interface LinkMetadata {
 }
 
 /**
+ * Formats external URLs so they always open the real destination site (e.g. eudiasse.com -> https://eudiasse.com)
+ */
+export function formatExternalUrl(url?: string | null): string {
+  if (!url || !url.trim()) return "#";
+  const trimmed = url.trim();
+  if (trimmed.startsWith("/") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
+/**
  * Extracts URLs from text content
  */
 export function extractUrlsFromText(text: string): string[] {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urlRegex = /((?:https?:\/\/|www\.)[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
   const matches = text.match(urlRegex);
-  return matches ? Array.from(new Set(matches)) : [];
+  if (!matches) return [];
+  return Array.from(new Set(matches)).map(url => formatExternalUrl(url));
 }
 
 /**
  * Scrapes metadata from a given URL or generates clean OpenGraph preview card data
  */
-export function parseUrlMetadata(url: string, contentText?: string): LinkMetadata {
+export function parseUrlMetadata(urlInput: string, contentText?: string): LinkMetadata {
+  const url = formatExternalUrl(urlInput);
   try {
     const parsedUrl = new URL(url);
     const domain = parsedUrl.hostname.replace(/^www\./, "");

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { readFileAsDataUrl } from "../utils/fileUploader";
+import { formatExternalUrl } from "../utils/linkScraper";
 import {
   MapPin, Link2, Store, CheckCircle2, Users, Grid, ShoppingBag, Edit3, Save, X, Globe, ShieldCheck, Camera, MessageCircle, Upload
 } from "lucide-react";
@@ -317,8 +318,13 @@ export function ConnectUsProfileView({
                 </span>
               )}
               {profile.website_url && (
-                <a href={profile.website_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[#0E7C66] hover:underline">
-                  <Link2 className="h-3.5 w-3.5" /> {profile.website_url.replace("https://", "")}
+                <a
+                  href={formatExternalUrl(profile.website_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[#0E7C66] font-bold hover:underline"
+                >
+                  <Link2 className="h-3.5 w-3.5" /> {profile.website_url.replace(/^https?:\/\//, "")}
                 </a>
               )}
             </div>
