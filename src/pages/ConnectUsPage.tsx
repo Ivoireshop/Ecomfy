@@ -164,7 +164,12 @@ export default function ConnectUsPage() {
               {activeTab === "feed" && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                   <div className="lg:col-span-2 space-y-5">
-                    <StoryBar currentAvatarUrl={profile?.avatar_url} />
+                    <StoryBar
+                      currentAvatarUrl={profile?.avatar_url}
+                      currentUserId={userId}
+                      currentProfile={profile}
+                      onOpenDirectMessage={handleOpenDirectMessage}
+                    />
 
                     {/* Section de résultats de recherche de membres */}
                     {searchQuery.trim().length > 0 && searchResults.length > 0 && (
@@ -392,7 +397,12 @@ export default function ConnectUsPage() {
                     </h2>
                     <p className="text-xs text-slate-500">Partagez des aperçus rapides de vos produits ou de votre quotidien.</p>
                   </div>
-                  <StoryBar currentAvatarUrl={profile?.avatar_url} />
+                  <StoryBar
+                    currentAvatarUrl={profile?.avatar_url}
+                    currentUserId={userId}
+                    currentProfile={profile}
+                    onOpenDirectMessage={handleOpenDirectMessage}
+                  />
                 </div>
               )}
 

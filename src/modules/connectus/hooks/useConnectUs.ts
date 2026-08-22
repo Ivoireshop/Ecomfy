@@ -263,6 +263,22 @@ export function useConnectUs() {
     return await ConnectUsService.sendPrivateMessage(userId, receiverId, content, mediaUrl);
   };
 
+  // 13. Story Actions (Like, Reply, View)
+  const handleToggleStoryLike = async (storyId: string) => {
+    if (!userId) return { likes_count: 0, user_liked: false };
+    return await ConnectUsService.toggleStoryLike(storyId, userId);
+  };
+
+  const handleReplyToStory = async (storyId: string, targetUserId: string, text: string, storyMediaUrl?: string) => {
+    if (!userId || !text.trim()) return null;
+    return await ConnectUsService.replyToStory(storyId, userId, targetUserId, text, storyMediaUrl);
+  };
+
+  const handleViewStory = (storyId: string) => {
+    if (!userId) return null;
+    return ConnectUsService.viewStory(storyId, userId, profile);
+  };
+
   const unreadNotifCount = notifications.filter(n => !n.read).length;
 
   return {
@@ -286,6 +302,9 @@ export function useConnectUs() {
     toggleFollow: handleToggleFollow,
     isMutualFollow: handleIsMutualFollow,
     sendDirectMessage: handleSendDirectMessage,
+    toggleStoryLike: handleToggleStoryLike,
+    replyToStory: handleReplyToStory,
+    viewStory: handleViewStory,
     getConversations: () => ConnectUsService.getConversations(userId),
     getMessages: (conversationId: string) => ConnectUsService.getMessages(conversationId),
     acceptInvitation: handleAcceptInvitation,

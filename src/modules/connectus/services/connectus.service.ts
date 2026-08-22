@@ -7,6 +7,7 @@ import {
   ConnectUsConversation,
   ConnectUsPrivateMessage,
   ConnectUsStory,
+  ConnectUsStoryViewer,
   ReactionType,
   AttachedProduct,
   VisibilityType
@@ -1388,9 +1389,9 @@ export class ConnectUsService {
   }
 
   /**
-   * View a story & increment views count
+   * View a story & record unique viewer
    */
-  static viewStory(storyId: string, viewerUserId: string): ConnectUsStory | null {
+  static viewStory(storyId: string, viewerUserId: string, viewerProfile?: ConnectUsProfile | null): ConnectUsStory | null {
     const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
     const stories = this.getActiveStories();
     const index = stories.findIndex((s) => s.id === storyId);
@@ -1398,13 +1399,109 @@ export class ConnectUsService {
 
     const story = stories[index];
     const viewers = story.viewers || [];
+    const viewersDetails = story.viewers_details || [];
+
     if (!viewers.includes(viewerUserId)) {
       viewers.push(viewerUserId);
-      story.views_count = (story.views_count || 0) + 1;
+      story.views_count = viewers.length;
       story.viewers = viewers;
+
+      if (viewerProfile) {
+        const alreadyInDetails = viewersDetails.some(v => v.user.id === viewerProfile.id || v.user.user_id === viewerProfile.user_id);
+        if (!alreadyInDetails) {
+          viewersDetails.unshift({
+            user: viewerProfile,
+            viewed_at: new Date().toISOString(),
+          });
+          story.viewers_details = viewersDetails;
+        }
+      }
+
       stories[index] = story;
       safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, stories);
+
+      // Notification trigger for story author if viewer is not the author
+      if (story.user_id && story.user_id !== viewerUserId) {
+        this.sendNotification(
+          story.user_id,
+          viewerUserId,
+          "like",
+          `a vu votre Story 👁️`,
+          { message: "Story vue" }
+        );
+      }
     }
     return story;
+  }
+
+  /**
+   * Toggle Like on a Story
+   */
+  static async toggleStoryLike(storyId: string, userId: string): Promise<{ likes_count: number; user_liked: boolean }> {
+    const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
+    const stories = this.getActiveStories();
+    const index = stories.findIndex((s) => s.id === storyId);
+
+    const likeKey = `ecomfy_story_like_${storyId}_${userId}`;
+    const currentlyLiked = localStorage.getItem(likeKey) === "true";
+    const newLiked = !currentlyLiked;
+
+    localStorage.setItem(likeKey, newLiked ? "true" : "false");
+
+    if (index !== -1) {
+      const story = stories[index];
+      const currentCount = story.likes_count || 0;
+      const newCount = Math.max(0, currentCount + (newLiked ? 1 : -1));
+
+      story.likes_count = newCount;
+      story.user_liked = newLiked;
+      stories[index] = story;
+      safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, stories);
+
+      if (newLiked && story.user_id && story.user_id !== userId) {
+        this.sendNotification(
+          story.user_id,
+          userId,
+          "like",
+          `a aimé votre Story ❤️`,
+          { message: "Story aimée" }
+        );
+      }
+
+      return { likes_count: newCount, user_liked: newLiked };
+    }
+
+    return { likes_count: newLiked ? 1 : 0, user_liked: newLiked };
+  }
+
+  /**
+   * Reply to a Story via Private Message
+   */
+  static async replyToStory(
+    storyId: string,
+    senderUserId: string,
+    targetUserId: string,
+    replyText: string,
+    storyMediaUrl?: string
+  ): Promise<ConnectUsPrivateMessage | null> {
+    const contextualMessage = `[Réponse à la Story] 🎬 ${replyText.trim()}`;
+    const createdMsg = await this.sendPrivateMessage(
+      senderUserId,
+      targetUserId,
+      contextualMessage,
+      storyMediaUrl || null
+    );
+
+    if (createdMsg && targetUserId && targetUserId !== senderUserId) {
+      this.sendNotification(
+        targetUserId,
+        senderUserId,
+        "private_message",
+        `a répondu à votre Story : "${replyText.slice(0, 30)}..." 💬`,
+        { message: replyText }
+      );
+    }
+
+    return createdMsg;
   }
 }

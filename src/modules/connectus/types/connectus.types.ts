@@ -124,6 +124,11 @@ export interface ConnectUsConversation {
   messages?: ConnectUsPrivateMessage[];
 }
 
+export interface ConnectUsStoryViewer {
+  user: ConnectUsProfile;
+  viewed_at: string;
+}
+
 export interface ConnectUsStory {
   id: string;
   user_id: string;
@@ -135,4 +140,8 @@ export interface ConnectUsStory {
   expires_at: string;
   views_count: number;
   viewers?: string[];
+  viewers_details?: ConnectUsStoryViewer[];
+  likes_count?: number;
+  user_liked?: boolean;
+  replies_count?: number;
 }

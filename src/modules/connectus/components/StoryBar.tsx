@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Sparkles, Store } from "lucide-react";
+import { Plus, Sparkles, Store, Eye, Film } from "lucide-react";
 import { ConnectUsStory, ConnectUsProfile } from "../types/connectus.types";
 import { ConnectUsService } from "../services/connectus.service";
 import { CreateStoryModal } from "./CreateStoryModal";
@@ -9,6 +9,7 @@ interface StoryBarProps {
   currentAvatarUrl?: string | null;
   currentUserId?: string;
   currentProfile?: ConnectUsProfile | null;
+  onOpenDirectMessage?: (targetUser: ConnectUsProfile) => void;
 }
 
 const DEMO_STORIES: ConnectUsStory[] = [
@@ -68,11 +69,17 @@ const DEMO_STORIES: ConnectUsStory[] = [
   },
 ];
 
-export function StoryBar({ currentAvatarUrl, currentUserId = "me", currentProfile }: StoryBarProps) {
+export function StoryBar({
+  currentAvatarUrl,
+  currentUserId = "me",
+  currentProfile,
+  onOpenDirectMessage,
+}: StoryBarProps) {
   const [activeStories, setActiveStories] = useState<ConnectUsStory[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedStory, setSelectedStory] = useState<ConnectUsStory | null>(null);
   const [viewerModalOpen, setViewerModalOpen] = useState(false);
+  const [selectedAuthorStories, setSelectedAuthorStories] = useState<ConnectUsStory[]>([]);
 
   const loadStories = () => {
     const realStories = ConnectUsService.getActiveStories();
@@ -86,6 +93,42 @@ export function StoryBar({ currentAvatarUrl, currentUserId = "me", currentProfil
   useEffect(() => {
     loadStories();
   }, []);
+
+  // Filter current user's active stories
+  const myActiveStories = activeStories.filter(
+    (s) => s.user_id === currentUserId || s.author?.id === currentUserId || s.author?.user_id === currentUserId
+  );
+
+  // Group other active stories by author
+  const otherStoriesMap = new Map<string, ConnectUsStory[]>();
+  activeStories.forEach((s) => {
+    const authorId = s.user_id || s.author?.id || s.author?.user_id || "anon";
+    if (authorId !== currentUserId) {
+      if (!otherStoriesMap.has(authorId)) {
+        otherStoriesMap.set(authorId, []);
+      }
+      otherStoriesMap.get(authorId)!.push(s);
+    }
+  });
+
+  const handleMyStoryClick = () => {
+    if (myActiveStories.length > 0) {
+      setSelectedAuthorStories(myActiveStories);
+      setSelectedStory(myActiveStories[0]);
+      setViewerModalOpen(true);
+    } else {
+      setCreateModalOpen(true);
+    }
+  };
+
+  const handleOpenAuthorStories = (authorStoriesList: ConnectUsStory[]) => {
+    if (authorStoriesList.length === 0) return;
+    const firstStory = authorStoriesList[0];
+    ConnectUsService.viewStory(firstStory.id, currentUserId, currentProfile);
+    setSelectedAuthorStories(authorStoriesList);
+    setSelectedStory(firstStory);
+    setViewerModalOpen(true);
+  };
 
   const handleCreateStorySubmit = async (
     mediaUrl: string,
@@ -125,54 +168,72 @@ export function StoryBar({ currentAvatarUrl, currentUserId = "me", currentProfil
     return false;
   };
 
-  const handleOpenStory = (story: ConnectUsStory) => {
-    if (currentUserId) {
-      ConnectUsService.viewStory(story.id, currentUserId);
-    }
-    setSelectedStory(story);
-    setViewerModalOpen(true);
-  };
-
   return (
     <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-2">
       <div className="flex items-center justify-between px-1">
         <span className="text-xs font-bold text-slate-700 tracking-wider uppercase flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-[#0E7C66]" /> Stories & Directs
+          <Sparkles className="h-3.5 w-3.5 text-[#0E7C66]" /> Stories & Directs (24h)
         </span>
-        <span className="text-[10px] text-slate-400 font-semibold">24h d'expiration</span>
+        <button
+          onClick={() => setCreateModalOpen(true)}
+          className="text-[10px] text-[#0E7C66] hover:underline font-bold flex items-center gap-1"
+        >
+          <Plus className="h-3 w-3" /> Nouvelle Story
+        </button>
       </div>
 
       <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
-        {/* Create Story Button */}
+        {/* "Ma Story" Avatar Button */}
         <button
-          onClick={() => setCreateModalOpen(true)}
+          type="button"
+          onClick={handleMyStoryClick}
           className="flex flex-col items-center gap-1.5 shrink-0 group"
         >
-          <div className="relative h-14 w-14 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center group-hover:border-[#0E7C66] transition-all">
+          <div
+            className={`relative h-14 w-14 rounded-2xl p-0.5 transition-all transform group-hover:scale-105 ${
+              myActiveStories.length > 0
+                ? "bg-gradient-to-tr from-emerald-500 via-[#0E7C66] to-teal-400"
+                : "bg-slate-100 border-2 border-dashed border-slate-300"
+            }`}
+          >
             {currentAvatarUrl ? (
-              <img src={currentAvatarUrl} alt="" className="h-full w-full object-cover rounded-2xl opacity-60" />
-            ) : null}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-7 w-7 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-md">
-                <Plus className="h-4 w-4" />
+              <img src={currentAvatarUrl} alt="" className="h-full w-full object-cover rounded-[14px] bg-white" />
+            ) : (
+              <div className="h-full w-full rounded-[14px] bg-[#0E7C66] text-white flex items-center justify-center font-bold text-xs">
+                {(currentProfile?.full_name || "M")[0]}
               </div>
+            )}
+
+            <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#0E7C66] text-white flex items-center justify-center ring-2 ring-white shadow-xs">
+              <Plus className="h-3.5 w-3.5" />
             </div>
           </div>
-          <span className="text-[10px] font-bold text-slate-700 truncate max-w-[64px]">Ma Story</span>
+          <span className="text-[10px] font-bold text-slate-700 truncate max-w-[68px]">
+            {myActiveStories.length > 0 ? "Ma Story ✓" : "Ma Story"}
+          </span>
         </button>
 
-        {/* Stories Items List */}
-        {activeStories.map((story) => {
-          const author = story.author;
+        {/* Other Authors Stories List */}
+        {Array.from(otherStoriesMap.entries()).map(([authorId, authorStoriesList]) => {
+          const firstStory = authorStoriesList[0];
+          const author = firstStory.author;
           const isMerchant = Boolean(author?.is_business);
+          const hasUnseen = authorStoriesList.some((s) => !(s.viewers || []).includes(currentUserId));
 
           return (
             <button
-              key={story.id}
-              onClick={() => handleOpenStory(story)}
+              key={authorId}
+              type="button"
+              onClick={() => handleOpenAuthorStories(authorStoriesList)}
               className="flex flex-col items-center gap-1.5 shrink-0 group"
             >
-              <div className="relative h-14 w-14 rounded-2xl p-0.5 transition-all transform group-hover:scale-105 bg-gradient-to-tr from-amber-400 via-rose-500 to-[#0E7C66]">
+              <div
+                className={`relative h-14 w-14 rounded-2xl p-0.5 transition-all transform group-hover:scale-105 ${
+                  hasUnseen
+                    ? "bg-gradient-to-tr from-amber-400 via-rose-500 to-[#0E7C66]"
+                    : "bg-slate-300"
+                }`}
+              >
                 {author?.avatar_url ? (
                   <img
                     src={author.avatar_url}
@@ -190,7 +251,7 @@ export function StoryBar({ currentAvatarUrl, currentUserId = "me", currentProfil
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-semibold text-slate-700 truncate max-w-[64px]">
+              <span className="text-[10px] font-semibold text-slate-700 truncate max-w-[68px]">
                 {author?.full_name || "Membre"}
               </span>
             </button>
@@ -208,9 +269,12 @@ export function StoryBar({ currentAvatarUrl, currentUserId = "me", currentProfil
       <StoryViewerModal
         open={viewerModalOpen}
         onOpenChange={setViewerModalOpen}
+        currentUserId={currentUserId}
         story={selectedStory}
-        storiesList={activeStories}
+        authorStories={selectedAuthorStories}
+        allStoriesList={activeStories}
         onSelectStory={setSelectedStory}
+        onOpenCreateStory={() => setCreateModalOpen(true)}
       />
     </div>
   );
