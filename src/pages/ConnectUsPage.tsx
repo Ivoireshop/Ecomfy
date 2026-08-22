@@ -269,13 +269,35 @@ export default function ConnectUsPage() {
                         ))}
                       </div>
                     ) : (
-                      <Card className="p-12 text-center rounded-3xl">
-                        <Globe className="h-12 w-12 mx-auto text-slate-300 mb-3" />
-                        <h3 className="font-bold text-base text-slate-900 mb-1">Aucune publication trouvée</h3>
-                        <p className="text-xs text-slate-500 mb-4">Soyez le premier à publier sur ConnectUs aujourd'hui !</p>
-                        <Button onClick={() => setShowCreateModal(true)} className="rounded-full bg-[#0E7C66] text-white font-bold text-xs">
-                          Créer une publication
-                        </Button>
+                      <Card className="p-10 text-center rounded-3xl space-y-3 bg-white border border-slate-200">
+                        <Globe className="h-12 w-12 mx-auto text-slate-300" />
+                        <h3 className="font-bold text-base text-slate-900">
+                          {searchQuery.trim()
+                            ? `Aucune publication ne correspond à "${searchQuery}"`
+                            : "Aucune publication disponible"}
+                        </h3>
+                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                          {searchQuery.trim()
+                            ? "Essayez avec un autre mot-clé ou réinitialisez la barre de recherche ci-dessus."
+                            : "Soyez le premier membre à publier sur ConnectUs aujourd'hui !"}
+                        </p>
+                        <div className="flex items-center justify-center gap-3 pt-1">
+                          {searchQuery.trim() && (
+                            <Button
+                              onClick={() => setSearchQuery("")}
+                              variant="outline"
+                              className="rounded-full text-xs font-bold border-slate-300"
+                            >
+                              Voir toutes les publications
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() => setShowCreateModal(true)}
+                            className="rounded-full bg-[#0E7C66] text-white font-bold text-xs"
+                          >
+                            Créer une publication
+                          </Button>
+                        </div>
                       </Card>
                     )}
                   </div>

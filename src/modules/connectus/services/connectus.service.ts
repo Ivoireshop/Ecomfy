@@ -312,7 +312,7 @@ export class ConnectUsService {
       }
     });
 
-    // 5. Sync latest saved profile settings (including show_shop_on_profile) & aggregate reactions/comments on EVERY Post
+    // 5. Sync latest saved profile settings & aggregate reactions/comments on EVERY Post
     finalFeed.forEach((post) => {
       const authorId = post.user_id || post.author?.id || post.author?.user_id;
       if (authorId) {
@@ -325,6 +325,8 @@ export class ConnectUsService {
               post.author = {
                 ...post.author,
                 ...savedAuthorProfile,
+                full_name: savedAuthorProfile.full_name || post.author?.full_name || "Membre ConnectUs",
+                username: savedAuthorProfile.username || post.author?.username || "membre",
                 show_shop_on_profile: Boolean(savedAuthorProfile.show_shop_on_profile),
               };
             }
@@ -334,18 +336,22 @@ export class ConnectUsService {
 
       const postReactions = cloudReactionsMap.get(post.id);
       if (postReactions) {
-        post.likes_count = (post.likes_count || 0) + postReactions.size;
+        post.likes_count = postReactions.size;
         if (userId && postReactions.has(userId)) {
           post.user_reaction = postReactions.get(userId) || "like";
         }
       }
 
       const postComments = cloudCommentsMap.get(post.id);
-      if (postComments && postComments.length > 0) {
-        post.comments_count = (post.comments_count || 0) + postComments.length;
-        post.comments = [...(post.comments || []), ...postComments];
+      if (postComments) {
+        post.comments_count = postComments.length;
+        post.comments = postComments;
       }
     });
+
+    if (finalFeed.length === 0) {
+      return INITIAL_DEMO_POSTS;
+    }
 
     return finalFeed;
   }

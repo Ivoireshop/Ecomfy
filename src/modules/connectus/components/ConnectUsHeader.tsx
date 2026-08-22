@@ -92,8 +92,21 @@ export function ConnectUsHeader({
                 setShowSearchResults(true);
               }}
               onFocus={() => setShowSearchResults(true)}
-              className="pl-10 pr-4 h-10 rounded-full bg-slate-100 border-transparent focus:bg-white focus:border-[#0E7C66] text-xs transition-all shadow-2xs"
+              className="pl-10 pr-9 h-10 rounded-full bg-slate-100 border-transparent focus:bg-white focus:border-[#0E7C66] text-xs transition-all shadow-2xs"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange("");
+                  setShowSearchResults(false);
+                }}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                title="Effacer la recherche"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Search Dropdown Panel */}
