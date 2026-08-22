@@ -381,9 +381,30 @@ export default function ConnectUsPage() {
                     <p className="text-xs text-slate-500">Retrouvez les publications exclusives des personnes que vous suivez.</p>
                   </div>
                   <div className="space-y-4">
-                    {posts.slice(0, 1).map(post => (
-                      <PostCard key={post.id} post={post} currentUserId={userId} onToggleReaction={toggleReaction} onDeletePost={deletePost} />
-                    ))}
+                    {posts.length > 0 ? (
+                      (posts.filter(p => p.author?.id && followingMap[p.author.id]).length > 0
+                        ? posts.filter(p => p.author?.id && followingMap[p.author.id])
+                        : posts
+                      ).map(post => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          currentUserId={userId}
+                          onToggleReaction={toggleReaction}
+                          onToggleFollow={handleToggleFollowUser}
+                          onDeletePost={deletePost}
+                          onAddComment={addComment}
+                          onAddCommentReply={addCommentReply}
+                          onToggleCommentLike={toggleCommentLike}
+                          isFollowingAuthor={Boolean(post.author?.id && followingMap[post.author.id])}
+                        />
+                      ))
+                    ) : (
+                      <Card className="p-8 text-center rounded-3xl">
+                        <Users className="h-10 w-10 mx-auto text-slate-300 mb-2" />
+                        <p className="text-xs text-slate-500">Aucune publication d'abonnement pour le moment.</p>
+                      </Card>
+                    )}
                   </div>
                 </div>
               )}
@@ -440,9 +461,37 @@ export default function ConnectUsPage() {
                     <p className="text-xs text-slate-500">Achetez directement les articles présentés dans les publications des vendeurs.</p>
                   </div>
                   <div className="space-y-4">
-                    {posts.filter(p => !!p.attached_product).map(post => (
-                      <PostCard key={post.id} post={post} currentUserId={userId} onToggleReaction={toggleReaction} onDeletePost={deletePost} />
-                    ))}
+                    {posts.filter(p => !!p.attached_product).length > 0 ? (
+                      posts.filter(p => !!p.attached_product).map(post => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          currentUserId={userId}
+                          onToggleReaction={toggleReaction}
+                          onToggleFollow={handleToggleFollowUser}
+                          onDeletePost={deletePost}
+                          onAddComment={addComment}
+                          onAddCommentReply={addCommentReply}
+                          onToggleCommentLike={toggleCommentLike}
+                          isFollowingAuthor={Boolean(post.author?.id && followingMap[post.author.id])}
+                        />
+                      ))
+                    ) : (
+                      posts.map(post => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          currentUserId={userId}
+                          onToggleReaction={toggleReaction}
+                          onToggleFollow={handleToggleFollowUser}
+                          onDeletePost={deletePost}
+                          onAddComment={addComment}
+                          onAddCommentReply={addCommentReply}
+                          onToggleCommentLike={toggleCommentLike}
+                          isFollowingAuthor={Boolean(post.author?.id && followingMap[post.author.id])}
+                        />
+                      ))
+                    )}
                   </div>
                 </div>
               )}

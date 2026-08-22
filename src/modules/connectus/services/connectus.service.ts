@@ -101,6 +101,80 @@ const INITIAL_DEMO_POSTS: ConnectUsPost[] = [
     shares_count: 35,
     user_reaction: "like",
     created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
+  },
+  {
+    id: "demo-post-3",
+    user_id: "demo-user-3",
+    author: {
+      id: "demo-user-3",
+      user_id: "demo-user-3",
+      username: "sekou_tech",
+      full_name: "Sékou Traoré",
+      avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+      cover_url: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop&q=80",
+      bio: "High-Tech & Accessoires Mobiles Premium 📱 Réparations & Ventes certifiées",
+      location: "Bamako, Mali",
+      website_url: "https://ecomfy.cloud/shop/sekou-tech",
+      is_verified: true,
+      is_business: true,
+      followers_count: 980,
+      following_count: 140,
+      posts_count: 31,
+      shop_name: "Sékou Digital Store",
+      created_at: new Date().toISOString(),
+    },
+    content: "Arrivage massif d'écouteurs sans fil réducteurs de bruit & batteries externes solaires pour vos déplacements pro ! Stock limité ⚡📦",
+    media_urls: [
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80"
+    ],
+    attached_product: {
+      id: "prod-demo-3",
+      name: "Écouteurs Bluetooth Pro Noise-Cancelling",
+      price: 25000,
+      compare_at_price: 32000,
+      image_url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80",
+      category: "High-Tech",
+      shop_slug: "sekou-tech"
+    },
+    visibility: "public",
+    likes_count: 94,
+    comments_count: 16,
+    shares_count: 12,
+    user_reaction: "fire",
+    created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
+  },
+  {
+    id: "demo-post-4",
+    user_id: "demo-user-4",
+    author: {
+      id: "demo-user-4",
+      user_id: "demo-user-4",
+      username: "awa_deco",
+      full_name: "Awa Koné",
+      avatar_url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
+      cover_url: null,
+      bio: "Artisanat d'art & Décoration d'intérieur africaine 🏺✨ Fait main avec amour",
+      location: "Yamoussoukro, Côte d'Ivoire",
+      website_url: null,
+      is_verified: true,
+      is_business: true,
+      followers_count: 1650,
+      following_count: 210,
+      posts_count: 54,
+      shop_name: "Awa Design Maison",
+      created_at: new Date().toISOString(),
+    },
+    content: "Sublimez votre salon avec nos nouveaux tableaux sculptés à la main en bois d'ébène et nos luminaires tressés en bambou naturel. Vous préférez quel modèle ? 🏡🎨",
+    media_urls: [
+      "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80"
+    ],
+    attached_product: null,
+    visibility: "public",
+    likes_count: 182,
+    comments_count: 31,
+    shares_count: 22,
+    user_reaction: "love",
+    created_at: new Date(Date.now() - 3600000 * 14).toISOString(),
   }
 ];
 
@@ -210,9 +284,21 @@ export class ConnectUsService {
       }
     } catch (e) {}
 
-    // 3. Merge real user posts (cloud + local) removing duplicates
+    // Load deleted post IDs
+    let deletedPostIds: string[] = [];
+    try {
+      const deletedJson = localStorage.getItem("ecomfy_connectus_deleted_posts");
+      if (deletedJson) deletedPostIds = JSON.parse(deletedJson);
+    } catch (e) {}
+    const deletedSet = new Set(deletedPostIds);
+
+    // 3. Merge real user posts (cloud + local) removing duplicates and deleted posts
     const realPostsMap = new Map<string, ConnectUsPost>();
-    [...localPosts, ...cloudPosts].forEach((p) => realPostsMap.set(p.id, p));
+    [...localPosts, ...cloudPosts].forEach((p) => {
+      if (!deletedSet.has(p.id)) {
+        realPostsMap.set(p.id, p);
+      }
+    });
 
     const realPosts = Array.from(realPostsMap.values()).sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -221,7 +307,7 @@ export class ConnectUsService {
     // 4. Combine real user posts with demo posts
     const finalFeed = [...realPosts];
     INITIAL_DEMO_POSTS.forEach((demo) => {
-      if (!realPostsMap.has(demo.id)) {
+      if (!realPostsMap.has(demo.id) && !deletedSet.has(demo.id)) {
         finalFeed.push(demo);
       }
     });
@@ -473,6 +559,15 @@ export class ConnectUsService {
    */
   static async deletePost(postId: string, userId: string): Promise<boolean> {
     try {
+      // Save deleted postId to localStorage blacklist
+      try {
+        const deletedJson = localStorage.getItem("ecomfy_connectus_deleted_posts");
+        let deletedPostIds: string[] = deletedJson ? JSON.parse(deletedJson) : [];
+        if (!deletedPostIds.includes(postId)) {
+          deletedPostIds.push(postId);
+          localStorage.setItem("ecomfy_connectus_deleted_posts", JSON.stringify(deletedPostIds));
+        }
+      } catch (e) {}
       if (userId && !userId.startsWith("guest_")) {
         try {
           await supabase
