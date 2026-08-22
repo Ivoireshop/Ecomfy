@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useConnectUs } from "@/modules/connectus/hooks/useConnectUs";
 import { ConnectUsHeader, ConnectUsTab } from "@/modules/connectus/components/ConnectUsHeader";
@@ -9,13 +9,16 @@ import { CreatePostModal } from "@/modules/connectus/components/CreatePostModal"
 import { ConnectUsProfileView } from "@/modules/connectus/components/ConnectUsProfileView";
 import { NotificationCenter } from "@/modules/connectus/components/NotificationCenter";
 import { OnboardingModal } from "@/modules/connectus/components/OnboardingModal";
+import { InviteUserModal } from "@/modules/connectus/components/InviteUserModal";
+import { ConnectUsService } from "@/modules/connectus/services/connectus.service";
+import { ConnectUsProfile } from "@/modules/connectus/types/connectus.types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Globe, PlusCircle, Compass, Users, User, Store, Loader2, Sparkles, TrendingUp, ShoppingBag, CheckCircle2,
-  MessageCircle, Film, Radio, Briefcase, ExternalLink, ArrowRight
+  MessageCircle, Film, Radio, Briefcase, ExternalLink, ArrowRight, UserPlus
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -40,10 +43,37 @@ export default function ConnectUsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
+  const [searchResults, setSearchResults] = useState<ConnectUsProfile[]>([]);
+  const [selectedUserForInvite, setSelectedUserForInvite] = useState<ConnectUsProfile | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    let active = true;
+    ConnectUsService.searchProfiles(searchQuery).then((res) => {
+      if (active) setSearchResults(res);
+    });
+    return () => {
+      active = false;
+    };
+  }, [searchQuery]);
 
   const handleToggleFollowUser = (targetId: string) => {
     const isNowFollowing = toggleFollow(targetId);
     setFollowingMap(prev => ({ ...prev, [targetId]: isNowFollowing }));
+  };
+
+  const handleOpenInviteModal = (targetUser: ConnectUsProfile) => {
+    setSelectedUserForInvite(targetUser);
+    setShowInviteModal(true);
+  };
+
+  const handleSendInviteMessage = (targetId: string, message: string) => {
+    ConnectUsService.sendInvitation(userId, targetId, message);
+    handleToggleFollowUser(targetId);
   };
 
   const filteredPosts = posts.filter((p) => {
@@ -68,7 +98,7 @@ export default function ConnectUsPage() {
         />
       </Helmet>
 
-      {/* Top Header */}
+      {/* Top Header avec recherche de membres en temps réel */}
       <ConnectUsHeader
         profile={profile}
         activeTab={activeTab}
@@ -84,6 +114,10 @@ export default function ConnectUsPage() {
         onCreatePostClick={() => setShowCreateModal(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        searchResults={searchResults}
+        onSelectUserForInvite={handleOpenInviteModal}
+        onToggleFollowUser={handleToggleFollowUser}
+        followingMap={followingMap}
       />
 
       {/* Main Layout Container: Left Dedicated Sidebar + Central Content + Right Suggestions */}
@@ -110,6 +144,60 @@ export default function ConnectUsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                   <div className="lg:col-span-2 space-y-5">
                     <StoryBar currentAvatarUrl={profile?.avatar_url} />
+
+                    {/* Section de résultats de recherche de membres */}
+                    {searchQuery.trim().length > 0 && searchResults.length > 0 && (
+                      <Card className="p-4 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50/50 via-teal-50/30 to-white shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-space font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                            <Users className="h-4 w-4 text-[#0E7C66]" /> Membres ConnectUs trouvés ({searchResults.length})
+                          </h3>
+                          <Badge className="bg-[#0E7C66] text-white text-[9px] font-bold">Recherche</Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {searchResults.map((user) => (
+                            <div key={user.id} className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-[#0E7C66] to-teal-400 text-white font-bold flex items-center justify-center shrink-0 overflow-hidden text-xs">
+                                  {user.avatar_url ? (
+                                    <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    (user.full_name || "U")[0]?.toUpperCase()
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-xs text-slate-900 truncate">{user.full_name}</p>
+                                  <p className="text-[10px] text-slate-500 truncate">@{user.username}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleToggleFollowUser(user.id)}
+                                  className={`rounded-full h-7 px-2.5 text-[10px] font-bold ${
+                                    followingMap[user.id]
+                                      ? "bg-emerald-100 text-emerald-800 border-0"
+                                      : "bg-slate-900 text-white hover:bg-slate-800"
+                                  }`}
+                                >
+                                  {followingMap[user.id] ? "Abonné" : "+ Suivre"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenInviteModal(user)}
+                                  className="rounded-full h-7 px-2 text-[10px] font-bold border-emerald-300 text-[#0E7C66] hover:bg-emerald-50"
+                                  title="Envoyer un message d'invitation"
+                                >
+                                  Inviter ✉️
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
 
                     {/* Quick Post Creator Card */}
                     <Card
@@ -375,6 +463,15 @@ export default function ConnectUsPage() {
         onSubmit={createPost}
         merchantProducts={merchantProducts}
         submitting={submitting}
+      />
+
+      {/* Invite User Modal */}
+      <InviteUserModal
+        open={showInviteModal}
+        onOpenChange={setShowInviteModal}
+        targetUser={selectedUserForInvite}
+        onSendInvite={handleSendInviteMessage}
+        isFollowing={Boolean(selectedUserForInvite && followingMap[selectedUserForInvite.id])}
       />
 
       {/* Mobile Navigation Sticky Bottom Bar */}

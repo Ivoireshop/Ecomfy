@@ -28,6 +28,10 @@ interface ConnectUsHeaderProps {
   unreadNotificationsCount?: number;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  onSelectUserForInvite?: (user: ConnectUsProfile) => void;
+  onToggleFollowUser?: (userId: string) => void;
+  followingMap?: Record<string, boolean>;
+  searchResults?: ConnectUsProfile[];
 }
 
 export function ConnectUsHeader({
@@ -38,7 +42,13 @@ export function ConnectUsHeader({
   unreadNotificationsCount = 2,
   searchQuery,
   onSearchChange,
+  onSelectUserForInvite,
+  onToggleFollowUser,
+  followingMap = {},
+  searchResults = [],
 }: ConnectUsHeaderProps) {
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
   return (
     <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
@@ -72,16 +82,89 @@ export function ConnectUsHeader({
             </div>
           </div>
 
-          {/* Search Bar */}
+          {/* Search Bar with Autocomplete Dropdown */}
           <div className="relative flex-1 max-w-md hidden md:block">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               type="text"
-              placeholder="Rechercher des personnes, liens, produits, boutiques..."
+              placeholder="Rechercher un nom (ex: Ulrich, Désirée, Koffi...)"
               value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={(e) => {
+                onSearchChange(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
               className="pl-10 h-10 rounded-full bg-slate-100/80 border-transparent focus:bg-white focus:border-[#0E7C66] text-xs transition-all"
             />
+
+            {/* Instant Member Autocomplete Popup */}
+            {showSearchResults && searchQuery.trim().length > 0 && (
+              <div className="absolute top-12 left-0 right-0 bg-white rounded-3xl border border-slate-200 shadow-2xl p-3 z-50 space-y-2 max-h-[380px] overflow-y-auto">
+                <div className="flex items-center justify-between px-2 pb-1 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <span>Membres trouvés ({searchResults.length})</span>
+                  <button onClick={() => setShowSearchResults(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+                </div>
+
+                {searchResults.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {searchResults.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between gap-3 p-2 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-[#0E7C66] to-teal-400 text-white font-bold flex items-center justify-center shrink-0 overflow-hidden text-xs">
+                            {user.avatar_url ? (
+                              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              (user.full_name || "U")[0]?.toUpperCase()
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-slate-900 truncate">{user.full_name}</p>
+                            <p className="text-[10px] text-slate-500 truncate">@{user.username}</p>
+                            {user.shop_name && (
+                              <p className="text-[9px] text-[#0E7C66] font-semibold truncate">
+                                🏪 {user.shop_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            size="sm"
+                            onClick={() => onToggleFollowUser && onToggleFollowUser(user.id)}
+                            className={`rounded-full h-7 px-3 text-[10px] font-bold ${
+                              followingMap[user.id]
+                                ? "bg-emerald-100 text-emerald-800 border-0"
+                                : "bg-slate-900 text-white hover:bg-slate-800"
+                            }`}
+                          >
+                            {followingMap[user.id] ? "Abonné" : "+ Suivre"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              onSelectUserForInvite && onSelectUserForInvite(user);
+                              setShowSearchResults(false);
+                            }}
+                            className="rounded-full h-7 px-2.5 text-[10px] font-bold border-emerald-300 text-[#0E7C66] hover:bg-emerald-50"
+                          >
+                            Inviter ✉️
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-500">
+                    Aucun membre trouvé commençant par "{searchQuery}".
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Create Post Button */}
