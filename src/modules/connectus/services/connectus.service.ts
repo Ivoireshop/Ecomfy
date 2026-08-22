@@ -300,6 +300,7 @@ export class ConnectUsService {
         shop_id: userShop?.id || savedProfile?.shop_id,
         shop_slug: userShop?.slug || savedProfile?.shop_slug,
         shop_name: userShop?.business_name || savedProfile?.shop_name,
+        show_shop_on_profile: savedProfile?.show_shop_on_profile ?? false,
         created_at: profile?.updated_at || savedProfile?.created_at || new Date().toISOString(),
       };
 
@@ -859,6 +860,15 @@ export class ConnectUsService {
           const username = (p.full_name || "user").toLowerCase().replace(/[^a-z0-9]/g, "_");
           const customUsername = localStorage.getItem(`ecomfy_connectus_custom_username_${p.id}`);
           
+          const savedLocal = localStorage.getItem(`${LOCAL_STORAGE_PROFILE_KEY}_${p.id}`);
+          let showShop = false;
+          if (savedLocal) {
+            try {
+              const parsed = JSON.parse(savedLocal);
+              showShop = parsed.show_shop_on_profile || false;
+            } catch (e) {}
+          }
+          
           realResults.push({
             id: p.id,
             user_id: p.id,
@@ -871,6 +881,7 @@ export class ConnectUsService {
             website_url: null,
             is_verified: true,
             is_business: false,
+            show_shop_on_profile: showShop,
             followers_count: 120,
             following_count: 45,
             posts_count: 8,

@@ -23,6 +23,7 @@ export interface ConnectUsProfile {
   shop_id?: string | null;
   shop_slug?: string | null;
   shop_name?: string | null;
+  show_shop_on_profile?: boolean;
   created_at: string;
 }
 

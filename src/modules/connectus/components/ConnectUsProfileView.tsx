@@ -41,6 +41,7 @@ export function ConnectUsProfileView({
   const [websiteUrl, setWebsiteUrl] = useState(profile?.website_url || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [coverUrl, setCoverUrl] = useState(profile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80");
+  const [showShopOnProfile, setShowShopOnProfile] = useState<boolean>(profile?.show_shop_on_profile || false);
   const [activeSubTab, setActiveSubTab] = useState<"posts" | "products">("posts");
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +57,7 @@ export function ConnectUsProfileView({
       setWebsiteUrl(profile.website_url || "");
       setAvatarUrl(profile.avatar_url || "");
       setCoverUrl(profile.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80");
+      setShowShopOnProfile(profile.show_shop_on_profile || false);
     }
   }, [profile]);
 
@@ -110,6 +112,7 @@ export function ConnectUsProfileView({
       website_url: websiteUrl.trim() || null,
       avatar_url: avatarUrl.trim() || null,
       cover_url: coverUrl.trim() || null,
+      show_shop_on_profile: showShopOnProfile,
     };
 
     if (onUpdateProfile) {
@@ -263,12 +266,43 @@ export function ConnectUsProfileView({
 
             <p className="text-xs text-slate-500 font-medium">@{profile.username}</p>
 
+            {(profile.is_business || profile.show_shop_on_profile) && profile.shop_name && (
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#0E7C66] mt-1 bg-emerald-50/80 w-fit px-3 py-1 rounded-full border border-emerald-200">
+                <Store className="h-3.5 w-3.5" />
+                <span>{profile.shop_name}</span>
+              </div>
+            )}
+
             {/* Profile Edit Drawer Form */}
             {isEditing ? (
               <div className="space-y-3 pt-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                 <h3 className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
                   <Edit3 className="h-4 w-4 text-[#0E7C66]" /> Modification du profil ConnectUs
                 </h3>
+
+                {profile.shop_name && (
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <Store className="h-4 w-4 text-[#0E7C66]" /> Afficher ma boutique sur mon profil
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Boutique associée : <span className="font-semibold text-slate-700">{profile.shop_name}</span>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowShopOnProfile(!showShopOnProfile)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all shrink-0 ${
+                        showShopOnProfile
+                          ? "bg-[#0E7C66] text-white shadow-xs"
+                          : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                      }`}
+                    >
+                      {showShopOnProfile ? "[ ON ]" : "[ OFF ]"}
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
