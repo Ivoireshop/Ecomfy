@@ -189,7 +189,7 @@ export default function ConnectUsPage() {
                                 <div className="min-w-0">
                                   <p className="font-bold text-xs text-slate-900 truncate">{user.full_name}</p>
                                   <p className="text-[10px] text-slate-500 truncate">@{user.username}</p>
-                                  {(user.is_business || user.show_shop_on_profile) && user.shop_name && (
+                                  {Boolean(user.show_shop_on_profile) && user.shop_name && (
                                     <p className="text-[9px] text-[#0E7C66] font-semibold truncate mt-0.5">
                                       🏪 {user.shop_name}
                                     </p>

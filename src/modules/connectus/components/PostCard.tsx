@@ -178,7 +178,7 @@ export function PostCard({
               {author.is_verified && (
                 <CheckCircle2 className="h-4 w-4 text-[#0E7C66] shrink-0" />
               )}
-              {(author.is_business || author.show_shop_on_profile) && author.shop_name && (
+              {Boolean(author.show_shop_on_profile) && author.shop_name && (
                 <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-0 text-[10px] font-semibold">
                   🏪 {author.shop_name}
                 </Badge>

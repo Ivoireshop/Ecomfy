@@ -224,8 +224,26 @@ export class ConnectUsService {
       }
     });
 
-    // 5. Aggregate Cloud Reactions & Cloud Comments on EVERY Post
+    // 5. Sync latest saved profile settings (including show_shop_on_profile) & aggregate reactions/comments on EVERY Post
     finalFeed.forEach((post) => {
+      const authorId = post.user_id || post.author?.id || post.author?.user_id;
+      if (authorId) {
+        const savedAuthorJson = localStorage.getItem(`${LOCAL_STORAGE_PROFILE_KEY}_${authorId}`) ||
+                                 (authorId === userId ? localStorage.getItem(LOCAL_STORAGE_PROFILE_KEY) : null);
+        if (savedAuthorJson) {
+          try {
+            const savedAuthorProfile: ConnectUsProfile = JSON.parse(savedAuthorJson);
+            if (savedAuthorProfile) {
+              post.author = {
+                ...post.author,
+                ...savedAuthorProfile,
+                show_shop_on_profile: Boolean(savedAuthorProfile.show_shop_on_profile),
+              };
+            }
+          } catch (e) {}
+        }
+      }
+
       const postReactions = cloudReactionsMap.get(post.id);
       if (postReactions) {
         post.likes_count = (post.likes_count || 0) + postReactions.size;
@@ -288,14 +306,14 @@ export class ConnectUsService {
         id: userId,
         user_id: userId,
         username,
-        full_name: defaultFullName,
+        full_name: savedProfile?.full_name || defaultFullName,
         avatar_url: savedProfile?.avatar_url || profile?.avatar_url || null,
         cover_url: savedProfile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
         bio: savedProfile?.bio || (userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs"),
         location: savedProfile?.location || "Côte d'Ivoire",
         website_url: savedProfile?.website_url || null,
         is_verified: true,
-        is_business: !!userShop || !!savedProfile?.is_business,
+        is_business: savedProfile?.is_business ?? false,
         followers_count: savedProfile?.followers_count || 45,
         following_count: savedProfile?.following_count || 12,
         posts_count: savedProfile?.posts_count || 5,

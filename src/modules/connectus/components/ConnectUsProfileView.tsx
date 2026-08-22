@@ -266,7 +266,7 @@ export function ConnectUsProfileView({
 
             <p className="text-xs text-slate-500 font-medium">@{profile.username}</p>
 
-            {(profile.is_business || profile.show_shop_on_profile) && profile.shop_name && (
+            {Boolean(profile.show_shop_on_profile) && profile.shop_name && (
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#0E7C66] mt-1 bg-emerald-50/80 w-fit px-3 py-1 rounded-full border border-emerald-200">
                 <Store className="h-3.5 w-3.5" />
                 <span>{profile.shop_name}</span>

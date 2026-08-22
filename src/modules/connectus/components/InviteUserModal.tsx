@@ -69,7 +69,7 @@ export function InviteUserModal({
           <div className="min-w-0 flex-1">
             <h4 className="font-bold text-xs text-slate-900 truncate">{targetUser.full_name}</h4>
             <p className="text-[11px] text-slate-500 truncate">@{targetUser.username}</p>
-            {(targetUser.is_business || targetUser.show_shop_on_profile) && targetUser.shop_name && (
+            {Boolean(targetUser.show_shop_on_profile) && targetUser.shop_name && (
               <p className="text-[10px] text-[#0E7C66] font-semibold truncate mt-0.5">
                 🏪 {targetUser.shop_name}
               </p>
