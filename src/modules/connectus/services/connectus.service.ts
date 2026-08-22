@@ -4,6 +4,8 @@ import {
   ConnectUsPost,
   ConnectUsComment,
   ConnectUsNotification,
+  ConnectUsConversation,
+  ConnectUsPrivateMessage,
   ReactionType,
   AttachedProduct,
   VisibilityType
@@ -632,7 +634,7 @@ export class ConnectUsService {
   static async sendNotification(
     recipientUserId: string,
     actorUserId: string,
-    type: "follow" | "like" | "comment" | "invite_request" | "invite_accepted",
+    type: ConnectUsNotification["type"],
     text: string,
     options?: { postId?: string; postSummary?: string; message?: string }
   ): Promise<boolean> {
