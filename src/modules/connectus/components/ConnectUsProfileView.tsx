@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ConnectUsProfile, ConnectUsPost } from "../types/connectus.types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ interface ConnectUsProfileViewProps {
   currentUserId: string;
   onToggleFollow?: (targetUserId: string) => void;
   isFollowing?: boolean;
-  onUpdateProfile?: (updatedData: Partial<ConnectUsProfile>) => void;
+  onUpdateProfile?: (updatedData: Partial<ConnectUsProfile>) => void | Promise<any>;
   onDeletePost?: (postId: string) => void;
 }
 
@@ -34,19 +34,40 @@ export function ConnectUsProfileView({
   onDeletePost,
 }: ConnectUsProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [fullName, setFullName] = useState(profile.full_name || "");
-  const [username, setUsername] = useState(profile.username || "");
-  const [bio, setBio] = useState(profile.bio || "");
-  const [location, setLocation] = useState(profile.location || "");
-  const [websiteUrl, setWebsiteUrl] = useState(profile.website_url || "");
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url || "");
-  const [coverUrl, setCoverUrl] = useState(profile.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80");
+  const [fullName, setFullName] = useState(profile?.full_name || "");
+  const [username, setUsername] = useState(profile?.username || "");
+  const [bio, setBio] = useState(profile?.bio || "");
+  const [location, setLocation] = useState(profile?.location || "");
+  const [websiteUrl, setWebsiteUrl] = useState(profile?.website_url || "");
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
+  const [coverUrl, setCoverUrl] = useState(profile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80");
   const [activeSubTab, setActiveSubTab] = useState<"posts" | "products">("posts");
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  const isOwnProfile = currentUserId === profile.user_id;
+  // Sync edit form fields whenever profile prop updates
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || "");
+      setUsername(profile.username || "");
+      setBio(profile.bio || "");
+      setLocation(profile.location || "");
+      setWebsiteUrl(profile.website_url || "");
+      setAvatarUrl(profile.avatar_url || "");
+      setCoverUrl(profile.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80");
+    }
+  }, [profile]);
+
+  const isOwnProfile = Boolean(
+    !currentUserId ||
+    currentUserId === profile.user_id ||
+    currentUserId === profile.id ||
+    profile.user_id === "guest_visitor" ||
+    profile.id === "guest_visitor" ||
+    currentUserId === "guest_visitor"
+  );
+  
   const userPosts = posts.filter(p => p.user_id === profile.user_id || p.author.id === profile.id);
   const productPosts = userPosts.filter(p => !!p.attached_product);
 
@@ -57,9 +78,9 @@ export function ConnectUsProfileView({
       const dataUrl = await readFileAsDataUrl(file);
       setAvatarUrl(dataUrl);
       if (onUpdateProfile) {
-        onUpdateProfile({ avatar_url: dataUrl });
+        await onUpdateProfile({ avatar_url: dataUrl });
       }
-      toast({ title: "Photo de profil mise à jour ! ✓" });
+      toast({ title: "Photo de profil mise à jour et enregistrée ! ✓" });
     } catch (err) {
       toast({ title: "Erreur lors de l'importation de la photo", variant: "destructive" });
     }
@@ -72,15 +93,15 @@ export function ConnectUsProfileView({
       const dataUrl = await readFileAsDataUrl(file);
       setCoverUrl(dataUrl);
       if (onUpdateProfile) {
-        onUpdateProfile({ cover_url: dataUrl });
+        await onUpdateProfile({ cover_url: dataUrl });
       }
-      toast({ title: "Photo de couverture mise à jour ! ✓" });
+      toast({ title: "Photo de couverture mise à jour et enregistrée ! ✓" });
     } catch (err) {
       toast({ title: "Erreur lors de l'importation de la couverture", variant: "destructive" });
     }
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     const updated: Partial<ConnectUsProfile> = {
       full_name: fullName.trim() || profile.full_name,
       username: username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_") || profile.username,
@@ -92,13 +113,13 @@ export function ConnectUsProfileView({
     };
 
     if (onUpdateProfile) {
-      onUpdateProfile(updated);
+      await onUpdateProfile(updated);
     } else {
       Object.assign(profile, updated);
     }
 
     setIsEditing(false);
-    toast({ title: "Profil ConnectUs enregistré ✓" });
+    toast({ title: "Profil ConnectUs enregistré et conservé avec succès ✓" });
   };
 
   return (

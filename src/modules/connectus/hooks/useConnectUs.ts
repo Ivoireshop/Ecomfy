@@ -53,11 +53,20 @@ export function useConnectUs() {
     }
   }, [isReady, loadConnectUsData]);
 
-  // 2. Persistent Profile Update Handler with Supabase DB Sync
+  // 2. Persistent Profile Update Handler with Supabase DB Sync & Live Feed Update
   const handleUpdateProfile = async (updatedData: Partial<ConnectUsProfile>) => {
     if (!profile) return null;
     const merged = { ...profile, ...updatedData };
     setProfile(merged);
+
+    // Update posts authored by this profile in state
+    setPosts(prev => prev.map(p => {
+      if (p.user_id === merged.user_id || p.author.id === merged.id || p.author.user_id === merged.user_id) {
+        return { ...p, author: { ...p.author, ...merged } };
+      }
+      return p;
+    }));
+
     const success = await ConnectUsService.saveProfile(merged);
     if (success) {
       toast({ title: "Profil ConnectUs enregistré avec succès ✓" });
