@@ -102,20 +102,23 @@ const INITIAL_DEMO_POSTS: ConnectUsPost[] = [
 
 export class ConnectUsService {
   /**
-   * Persistent Fetch profile
+   * Persistent Fetch profile with user-scoped storage & Supabase DB sync
    */
   static async getProfile(userId: string): Promise<ConnectUsProfile> {
-    try {
-      const savedProfileJson = localStorage.getItem(LOCAL_STORAGE_PROFILE_KEY);
-      if (savedProfileJson) {
-        try {
-          const parsed = JSON.parse(savedProfileJson);
-          if (parsed.user_id === userId) {
-            return parsed;
-          }
-        } catch (e) {}
-      }
+    const userStorageKey = `${LOCAL_STORAGE_PROFILE_KEY}_${userId}`;
+    let savedProfile: Partial<ConnectUsProfile> | null = null;
 
+    try {
+      const savedJson = localStorage.getItem(userStorageKey) || localStorage.getItem(LOCAL_STORAGE_PROFILE_KEY);
+      if (savedJson) {
+        const parsed = JSON.parse(savedJson);
+        if (parsed && (parsed.user_id === userId || parsed.id === userId)) {
+          savedProfile = parsed;
+        }
+      }
+    } catch (e) {}
+
+    try {
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url, updated_at")
@@ -130,34 +133,39 @@ export class ConnectUsService {
         .limit(1)
         .maybeSingle();
 
-      const username = profile?.full_name 
-        ? profile.full_name.toLowerCase().replace(/[^a-z0-9]/g, "_")
-        : `user_${userId.slice(0, 8)}`;
+      const defaultFullName = profile?.full_name || savedProfile?.full_name || "Membre Ecomfy";
+      const username = savedProfile?.username || (
+        profile?.full_name 
+          ? profile.full_name.toLowerCase().replace(/[^a-z0-9]/g, "_")
+          : `user_${userId.slice(0, 8)}`
+      );
 
       const createdProfile: ConnectUsProfile = {
         id: userId,
         user_id: userId,
         username,
-        full_name: profile?.full_name || "Membre Ecomfy",
-        avatar_url: profile?.avatar_url || null,
-        cover_url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
-        bio: userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs",
-        location: "Côte d'Ivoire",
-        website_url: userShop?.slug ? `https://ecomfy.cloud/shop/${userShop.slug}` : null,
+        full_name: defaultFullName,
+        avatar_url: profile?.avatar_url || savedProfile?.avatar_url || null,
+        cover_url: savedProfile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
+        bio: savedProfile?.bio || (userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs"),
+        location: savedProfile?.location || "Côte d'Ivoire",
+        website_url: savedProfile?.website_url || (userShop?.slug ? `https://ecomfy.cloud/shop/${userShop.slug}` : null),
         is_verified: true,
         is_business: !!userShop,
-        followers_count: 45,
-        following_count: 12,
-        posts_count: 5,
-        shop_id: userShop?.id,
-        shop_slug: userShop?.slug,
-        shop_name: userShop?.business_name,
+        followers_count: savedProfile?.followers_count || 45,
+        following_count: savedProfile?.following_count || 12,
+        posts_count: savedProfile?.posts_count || 5,
+        shop_id: userShop?.id || savedProfile?.shop_id,
+        shop_slug: userShop?.slug || savedProfile?.shop_slug,
+        shop_name: userShop?.business_name || savedProfile?.shop_name,
         created_at: profile?.updated_at || new Date().toISOString(),
       };
 
       safeLocalStorageSet(LOCAL_STORAGE_PROFILE_KEY, createdProfile);
+      safeLocalStorageSet(userStorageKey, createdProfile);
       return createdProfile;
     } catch (e) {
+      if (savedProfile) return savedProfile as ConnectUsProfile;
       return {
         id: userId,
         user_id: userId,
@@ -184,6 +192,9 @@ export class ConnectUsService {
   static async saveProfile(profile: ConnectUsProfile): Promise<boolean> {
     try {
       safeLocalStorageSet(LOCAL_STORAGE_PROFILE_KEY, profile);
+      if (profile.user_id) {
+        safeLocalStorageSet(`${LOCAL_STORAGE_PROFILE_KEY}_${profile.user_id}`, profile);
+      }
 
       if (profile.user_id && !profile.user_id.startsWith("guest_")) {
         const { error } = await supabase.from("profiles").update({
