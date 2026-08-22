@@ -153,26 +153,15 @@ export function PostCard({
             </Button>
           )}
 
-          {/* Own Post Options: 24h Deletion */}
+          {/* Own Post Options: Author Permanent Deletion */}
           {isOwnPost && onDeletePost && (
-            <div className="relative">
-              {isDeletable ? (
-                <button
-                  onClick={() => onDeletePost(post.id)}
-                  className="p-2 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
-                  title="Supprimer la publication (Disponible pendant 24h)"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              ) : (
-                <span
-                  className="p-2 rounded-full text-slate-300 cursor-not-allowed flex items-center gap-1 text-[10px]"
-                  title="Suppression verrouillée (délai de 24h expiré)"
-                >
-                  <Clock className="h-3.5 w-3.5" />
-                </span>
-              )}
-            </div>
+            <button
+              onClick={() => onDeletePost(post.id)}
+              className="p-2 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+              title="Supprimer ma publication"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
       </div>

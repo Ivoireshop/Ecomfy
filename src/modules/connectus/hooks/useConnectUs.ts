@@ -53,14 +53,22 @@ export function useConnectUs() {
     }
   }, [isReady, loadConnectUsData]);
 
-  // 2. Persistent Profile Update Handler
-  const handleUpdateProfile = (updatedData: Partial<ConnectUsProfile>) => {
-    setProfile(prev => {
-      if (!prev) return null;
-      const merged = { ...prev, ...updatedData };
-      ConnectUsService.saveProfile(merged);
-      return merged;
-    });
+  // 2. Persistent Profile Update Handler with Supabase DB Sync
+  const handleUpdateProfile = async (updatedData: Partial<ConnectUsProfile>) => {
+    if (!profile) return null;
+    const merged = { ...profile, ...updatedData };
+    setProfile(merged);
+    const success = await ConnectUsService.saveProfile(merged);
+    if (success) {
+      toast({ title: "Profil ConnectUs enregistré avec succès ✓" });
+    } else {
+      toast({
+        title: "Erreur de sauvegarde",
+        description: "Impossible d'enregistrer les modifications. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+    return merged;
   };
 
   // 3. Create Post Handler
@@ -98,29 +106,35 @@ export function useConnectUs() {
     }
   };
 
-  // 4. Delete Post (Available within 24h of creation)
-  const handleDeletePost = (postId: string) => {
-    if (!userId) return false;
-    const postToDelete = posts.find(p => p.id === postId);
-    if (!postToDelete) return false;
-
-    const ageInHours = (Date.now() - new Date(postToDelete.created_at).getTime()) / (1000 * 3600);
-    if (ageInHours > 24) {
-      toast({
-        title: "Suppression non disponible",
-        description: "Le délai autorisé de 24h après publication est dépassé.",
-        variant: "destructive",
-      });
+  // 4. Delete Post (With Authorization Verification & Persistent DB Removal)
+  const handleDeletePost = async (postId: string) => {
+    if (!userId) {
+      toast({ title: "Veuillez vous connecter pour supprimer", variant: "destructive" });
       return false;
     }
 
-    const success = ConnectUsService.deletePost(postId, userId);
+    const postToDelete = posts.find(p => p.id === postId);
+    if (postToDelete) {
+      const authorId = postToDelete.user_id || postToDelete.author?.id;
+      if (authorId && authorId !== userId && !userId.startsWith("guest_")) {
+        toast({
+          title: "Suppression non autorisée",
+          description: "Vous ne pouvez supprimer que vos propres publications.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    // Optimistic UI state update
+    setPosts(prev => prev.filter(p => p.id !== postId));
+
+    const success = await ConnectUsService.deletePost(postId, userId);
     if (success) {
-      setPosts(prev => prev.filter(p => p.id !== postId));
       toast({ title: "Publication supprimée avec succès ✓" });
       return true;
     } else {
-      toast({ title: "Impossible de supprimer cette publication", variant: "destructive" });
+      toast({ title: "Erreur lors de la suppression en base de données", variant: "destructive" });
       return false;
     }
   };

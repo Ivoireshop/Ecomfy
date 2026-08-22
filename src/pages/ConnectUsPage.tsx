@@ -423,6 +423,7 @@ export default function ConnectUsPage() {
                   onToggleFollow={handleToggleFollowUser}
                   isFollowing={!!followingMap[profile.id]}
                   onUpdateProfile={updateProfile}
+                  onDeletePost={deletePost}
                 />
               )}
 

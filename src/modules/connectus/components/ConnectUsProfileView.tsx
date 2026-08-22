@@ -21,6 +21,7 @@ interface ConnectUsProfileViewProps {
   onToggleFollow?: (targetUserId: string) => void;
   isFollowing?: boolean;
   onUpdateProfile?: (updatedData: Partial<ConnectUsProfile>) => void;
+  onDeletePost?: (postId: string) => void;
 }
 
 export function ConnectUsProfileView({
@@ -30,6 +31,7 @@ export function ConnectUsProfileView({
   onToggleFollow,
   isFollowing = false,
   onUpdateProfile,
+  onDeletePost,
 }: ConnectUsProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(profile.full_name || "");
@@ -378,6 +380,7 @@ export function ConnectUsProfileView({
                   post={p}
                   currentUserId={currentUserId}
                   onToggleReaction={() => {}}
+                  onDeletePost={onDeletePost}
                 />
               ))}
             </div>
@@ -395,6 +398,7 @@ export function ConnectUsProfileView({
                   post={p}
                   currentUserId={currentUserId}
                   onToggleReaction={() => {}}
+                  onDeletePost={onDeletePost}
                 />
               ))}
             </div>

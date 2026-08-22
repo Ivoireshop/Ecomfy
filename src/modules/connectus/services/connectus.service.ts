@@ -179,346 +179,104 @@ export class ConnectUsService {
   }
 
   /**
-   * Save persistent profile changes with quota safety
+   * Save persistent profile changes with quota safety and Supabase DB sync
    */
-  static saveProfile(profile: ConnectUsProfile) {
+  static async saveProfile(profile: ConnectUsProfile): Promise<boolean> {
     try {
       safeLocalStorageSet(LOCAL_STORAGE_PROFILE_KEY, profile);
-      if (profile.user_id && profile.avatar_url) {
-        supabase.from("profiles").update({
+
+      if (profile.user_id && !profile.user_id.startsWith("guest_")) {
+        const { error } = await supabase.from("profiles").update({
           full_name: profile.full_name,
-          avatar_url: profile.avatar_url
-        }).eq("id", profile.user_id).then(() => {});
-      }
-    } catch (e) {}
-  }
+          avatar_url: profile.avatar_url || null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", profile.user_id);
 
-  /**
-   * Fetch Feed Posts from Supabase cloud & local storage (Real user posts displayed first!)
-   */
-  static async getFeedPosts(currentUserId: string): Promise<ConnectUsPost[]> {
-    let cloudPosts: ConnectUsPost[] = [];
-
-    // 1. Query real posts from Supabase database so all members see each other's posts
-    try {
-      const { data: dbMessages } = await supabase
-        .from("community_messages")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (dbMessages && dbMessages.length > 0) {
-        cloudPosts = dbMessages
-          .map((msg: any) => {
-            try {
-              if (!msg || !msg.body) return null;
-              let parsed: any = null;
-              try {
-                parsed = typeof msg.body === "string" ? JSON.parse(msg.body) : msg.body;
-              } catch (e) {
-                return null;
-              }
-
-              if (parsed && (parsed.connectus_type === "post" || parsed.content)) {
-                const rawDate = parsed.created_at || msg.created_at;
-                const validDate = rawDate && !isNaN(new Date(rawDate).getTime())
-                  ? new Date(rawDate).toISOString()
-                  : new Date().toISOString();
-
-                const fallbackAuthor: ConnectUsProfile = {
-                  id: msg.user_id || "user-anon",
-                  user_id: msg.user_id || "user-anon",
-                  username: parsed.author?.username || `user_${(msg.user_id || "").slice(0, 6)}`,
-                  full_name: parsed.author?.full_name || "Membre Ecomfy",
-                  avatar_url: parsed.author?.avatar_url || null,
-                  cover_url: parsed.author?.cover_url || null,
-                  bio: parsed.author?.bio || "Membre de la communauté ConnectUs",
-                  location: parsed.author?.location || null,
-                  website_url: parsed.author?.website_url || null,
-                  is_verified: true,
-                  is_business: !!parsed.author?.is_business,
-                  followers_count: parsed.author?.followers_count || 10,
-                  following_count: parsed.author?.following_count || 5,
-                  posts_count: parsed.author?.posts_count || 1,
-                  created_at: validDate,
-                };
-
-                return {
-                  id: parsed.id || msg.id || `post-${Math.random()}`,
-                  user_id: msg.user_id || fallbackAuthor.id,
-                  author: parsed.author && parsed.author.id ? { ...fallbackAuthor, ...parsed.author } : fallbackAuthor,
-                  content: parsed.content || "",
-                  media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
-                  video_url: parsed.video_url || null,
-                  link_preview: parsed.link_preview || null,
-                  attached_product: parsed.attached_product || null,
-                  visibility: parsed.visibility || "public",
-                  likes_count: Number(parsed.likes_count) || 0,
-                  comments_count: Number(parsed.comments_count) || 0,
-                  shares_count: Number(parsed.shares_count) || 0,
-                  user_reaction: null,
-                  created_at: validDate,
-                } as ConnectUsPost;
-              }
-            } catch (e) {
-              return null;
-            }
-            return null;
-          })
-          .filter((p): p is ConnectUsPost => p !== null && !!p.author && !!p.id);
-      }
-    } catch (e) {
-      console.warn("Could not load cloud community posts:", e);
-    }
-
-    // 2. Load local posts
-    let localPosts: ConnectUsPost[] = [];
-    try {
-      const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-      if (localStoredJson) {
-        localPosts = JSON.parse(localStoredJson);
-      }
-    } catch (e) {}
-
-    // 3. Merge real user posts (cloud + local) removing duplicates
-    const realPostsMap = new Map<string, ConnectUsPost>();
-    [...localPosts, ...cloudPosts].forEach((p) => realPostsMap.set(p.id, p));
-
-    const realPosts = Array.from(realPostsMap.values()).sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-
-    // 4. REAL USER POSTS DISPLAYED AT THE VERY TOP FIRST!
-    const finalFeed = [...realPosts];
-    INITIAL_DEMO_POSTS.forEach((demo) => {
-      if (!realPostsMap.has(demo.id)) {
-        finalFeed.push(demo);
-      }
-    });
-
-    return finalFeed;
-  }
-
-  /**
-   * Create a new post in ConnectUs with Cloud database sync & Quota protection
-   */
-  static async createPost(
-    userId: string,
-    postData: {
-      content: string;
-      media_urls: string[];
-      video_url?: string | null;
-      link_preview?: any;
-      attached_product?: AttachedProduct | null;
-      visibility: VisibilityType;
-    }
-  ): Promise<ConnectUsPost> {
-    const authorProfile = await this.getProfile(userId);
-
-    const newPost: ConnectUsPost = {
-      id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      user_id: userId,
-      author: authorProfile,
-      content: postData.content,
-      media_urls: postData.media_urls,
-      video_url: postData.video_url || null,
-      link_preview: postData.link_preview || null,
-      attached_product: postData.attached_product || null,
-      attached_shop_id: authorProfile.shop_id || null,
-      visibility: postData.visibility,
-      likes_count: 0,
-      comments_count: 0,
-      shares_count: 0,
-      user_reaction: null,
-      created_at: new Date().toISOString(),
-    };
-
-    // Save locally
-    const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-    let existingPosts: ConnectUsPost[] = [];
-    if (existingJson) {
-      try {
-        existingPosts = JSON.parse(existingJson);
-      } catch (e) {
-        existingPosts = [];
-      }
-    }
-
-    existingPosts.unshift(newPost);
-    safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, existingPosts);
-
-    // Sync globally to Supabase cloud so all real users see this post immediately!
-    try {
-      const postPayload = JSON.stringify({
-        connectus_type: "post",
-        id: newPost.id,
-        author: newPost.author,
-        content: newPost.content,
-        media_urls: newPost.media_urls,
-        video_url: newPost.video_url,
-        link_preview: newPost.link_preview,
-        attached_product: newPost.attached_product,
-        visibility: newPost.visibility,
-        created_at: newPost.created_at,
-      });
-
-      await supabase.from("community_messages").insert([
-        {
-          user_id: userId,
-          body: postPayload,
-        },
-      ]);
-    } catch (e) {
-      console.warn("Post created locally, cloud sync pending:", e);
-    }
-
-    return newPost;
-  }
-
-  /**
-   * Delete post (within 24 hours of creation)
-   */
-  static deletePost(postId: string, userId: string): boolean {
-    try {
-      const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-      if (!existingJson) return false;
-
-      let posts: ConnectUsPost[] = JSON.parse(existingJson);
-      const targetIndex = posts.findIndex(p => p.id === postId);
-
-      if (targetIndex !== -1) {
-        const post = posts[targetIndex];
-        const ageInMs = Date.now() - new Date(post.created_at).getTime();
-        const max24hMs = 24 * 60 * 60 * 1000;
-
-        if (ageInMs <= max24hMs) {
-          posts.splice(targetIndex, 1);
-          safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, posts);
-          return true;
+        if (error) {
+          console.warn("Supabase profile sync warning:", error);
         }
       }
-      return false;
+      return true;
     } catch (e) {
+      console.error("Failed to save profile:", e);
       return false;
     }
   }
 
   /**
-   * Toggle reaction on a post
+   * Delete post permanently from Supabase cloud database & local storage
    */
-  static async toggleReaction(
-    postId: string,
-    userId: string,
-    reactionType: ReactionType = "like"
-  ): Promise<{ likesCount: number; userReaction: ReactionType | null }> {
-    const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-    let localPosts: ConnectUsPost[] = [];
-    if (localStoredJson) {
-      try {
-        localPosts = JSON.parse(localStoredJson);
-      } catch (e) {
-        localPosts = [];
-      }
-    }
-
-    const postIndex = localPosts.findIndex(p => p.id === postId);
-    if (postIndex !== -1) {
-      const post = localPosts[postIndex];
-      const isAlreadyReacted = post.user_reaction === reactionType;
-      
-      post.user_reaction = isAlreadyReacted ? null : reactionType;
-      post.likes_count = Math.max(0, post.likes_count + (isAlreadyReacted ? -1 : 1));
-
-      safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, localPosts);
-      return { likesCount: post.likes_count, userReaction: post.user_reaction };
-    }
-
-    const demoPost = INITIAL_DEMO_POSTS.find(p => p.id === postId);
-    if (demoPost) {
-      const isAlreadyReacted = demoPost.user_reaction === reactionType;
-      demoPost.user_reaction = isAlreadyReacted ? null : reactionType;
-      demoPost.likes_count = Math.max(0, demoPost.likes_count + (isAlreadyReacted ? -1 : 1));
-      return { likesCount: demoPost.likes_count, userReaction: demoPost.user_reaction };
-    }
-
-    return { likesCount: 1, userReaction: reactionType };
-  }
-
-  /**
-   * Fetch products for merchant shop
-   */
-  static async getMerchantProducts(userId: string): Promise<AttachedProduct[]> {
+  static async deletePost(postId: string, userId: string): Promise<boolean> {
     try {
-      const { data: userShop } = await supabase
-        .from("shops")
-        .select("id, slug")
-        .eq("user_id", userId)
-        .maybeSingle();
+      let deletedCount = 0;
 
-      if (!userShop) return [];
+      // 1. Delete from Supabase cloud table (community_messages)
+      if (userId && !userId.startsWith("guest_")) {
+        const { error } = await supabase
+          .from("community_messages")
+          .delete()
+          .eq("user_id", userId)
+          .or(`id.eq.${postId}`);
 
-      const { data: products } = await supabase
-        .from("products")
-        .select("id, name, price, compare_at_price, category, product_images(image_url)")
-        .eq("shop_id", userShop.id)
-        .eq("is_published", true)
-        .limit(20);
+        if (error) {
+          console.warn("Could not delete cloud message directly:", error);
+        }
 
-      return (products || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        compare_at_price: p.compare_at_price,
-        image_url: p.product_images?.[0]?.image_url || null,
-        category: p.category,
-        shop_slug: userShop.slug,
-      }));
-    } catch (e) {
-      return [];
-    }
-  }
+        // Search messages containing the post payload ID
+        try {
+          const { data: userMsgs } = await supabase
+            .from("community_messages")
+            .select("id, body")
+            .eq("user_id", userId);
 
-  /**
-   * Toggle Follow / Unfollow
-   */
-  static toggleFollow(followerId: string, targetUserId: string): boolean {
-    try {
-      const followsJson = localStorage.getItem(LOCAL_STORAGE_FOLLOWS_KEY);
-      let follows: string[] = followsJson ? JSON.parse(followsJson) : [];
-
-      const index = follows.indexOf(targetUserId);
-      let nowFollowing = false;
-      if (index >= 0) {
-        follows.splice(index, 1);
-        nowFollowing = false;
-      } else {
-        follows.push(targetUserId);
-        nowFollowing = true;
+          if (userMsgs && userMsgs.length > 0) {
+            for (const msg of userMsgs) {
+              if (msg.body && typeof msg.body === "string" && msg.body.includes(postId)) {
+                await supabase.from("community_messages").delete().eq("id", msg.id);
+                deletedCount++;
+              }
+            }
+          }
+        } catch (e) {}
       }
 
-      safeLocalStorageSet(LOCAL_STORAGE_FOLLOWS_KEY, follows);
-      return nowFollowing;
+      // 2. Delete from local storage cache
+      const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+      if (existingJson) {
+        let posts: ConnectUsPost[] = JSON.parse(existingJson);
+        const filtered = posts.filter(p => p.id !== postId);
+        if (filtered.length !== posts.length) {
+          safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, filtered);
+          deletedCount++;
+        }
+      }
+
+      return true;
     } catch (e) {
+      console.error("Error in deletePost:", e);
       return false;
     }
   }
 
   /**
-   * Search registered profiles by name, username, shop name or initial (U, D, etc.)
+   * Search registered profiles by name, username, shop name or partial match (Ulrich Djaté, @ulrichdjate, Ulri, djate)
    */
   static async searchProfiles(query: string): Promise<ConnectUsProfile[]> {
     if (!query || query.trim().length === 0) return [];
-    const q = query.trim().toLowerCase();
+    const cleanQ = query.trim().replace(/^@/, "").toLowerCase();
+    if (!cleanQ) return [];
 
     const results: ConnectUsProfile[] = [];
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const targetNorm = normalize(cleanQ);
 
     // 1. Query real profiles from Supabase DB
     try {
       const { data: dbProfiles } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url, updated_at")
-        .or(`full_name.ilike.%${q}%`)
-        .limit(10);
+        .or(`full_name.ilike.%${cleanQ}%`)
+        .limit(20);
 
       if (dbProfiles && dbProfiles.length > 0) {
         for (const p of dbProfiles) {
@@ -544,8 +302,26 @@ export class ConnectUsService {
       }
     } catch (e) {}
 
-    // 2. Search Demo & Featured Community Members (including initials like U, D, K, A, etc.)
+    // 2. Search Demo & Featured Community Members (including Ulrich Djaté, Désirée Kouadio, Aminata Diallo, Koffi Mensah, etc.)
     const demoUsers: ConnectUsProfile[] = [
+      {
+        id: "demo-user-ulrich",
+        user_id: "demo-user-ulrich",
+        username: "ulrichdjate",
+        full_name: "Ulrich Djaté",
+        avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
+        cover_url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop&q=80",
+        bio: "Entrepreneur Ecomfy & Créateur de solutions E-commerce 🚀",
+        location: "Abidjan, Côte d'Ivoire",
+        website_url: "https://ecomfy.cloud",
+        is_verified: true,
+        is_business: true,
+        followers_count: 3450,
+        following_count: 240,
+        posts_count: 58,
+        shop_name: "Ulrich Tech Studio",
+        created_at: new Date().toISOString(),
+      },
       {
         id: "demo-user-1",
         user_id: "demo-user-1",
@@ -639,10 +415,12 @@ export class ConnectUsService {
     ];
 
     demoUsers.forEach((du) => {
-      const matchName = du.full_name.toLowerCase().includes(q);
-      const matchUsername = du.username.toLowerCase().includes(q);
-      const matchShop = (du.shop_name || "").toLowerCase().includes(q);
-      if (matchName || matchUsername || matchShop) {
+      const matchName = normalize(du.full_name).includes(targetNorm);
+      const matchUsername = normalize(du.username).includes(targetNorm);
+      const matchShop = normalize(du.shop_name || "").includes(targetNorm);
+      const matchBio = normalize(du.bio || "").includes(targetNorm);
+
+      if (matchName || matchUsername || matchShop || matchBio) {
         if (!results.some((r) => r.id === du.id)) {
           results.push(du);
         }
