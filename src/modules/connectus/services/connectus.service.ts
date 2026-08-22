@@ -124,7 +124,7 @@ export class ConnectUsService {
 
       const { data: userShop } = await supabase
         .from("shops")
-        .select("id, name, slug")
+        .select("id, business_name, slug")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -141,7 +141,7 @@ export class ConnectUsService {
         full_name: profile?.full_name || "Membre Ecomfy",
         avatar_url: profile?.avatar_url || null,
         cover_url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
-        bio: userShop ? `Fondateur de ${userShop.name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs",
+        bio: userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs",
         location: "Côte d'Ivoire",
         website_url: userShop?.slug ? `https://ecomfy.cloud/shop/${userShop.slug}` : null,
         is_verified: true,
@@ -151,7 +151,7 @@ export class ConnectUsService {
         posts_count: 5,
         shop_id: userShop?.id,
         shop_slug: userShop?.slug,
-        shop_name: userShop?.name,
+        shop_name: userShop?.business_name,
         created_at: profile?.updated_at || new Date().toISOString(),
       };
 
