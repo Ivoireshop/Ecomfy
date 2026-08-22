@@ -8,6 +8,7 @@ import { PostCard } from "@/modules/connectus/components/PostCard";
 import { CreatePostModal } from "@/modules/connectus/components/CreatePostModal";
 import { ConnectUsProfileView } from "@/modules/connectus/components/ConnectUsProfileView";
 import { NotificationCenter } from "@/modules/connectus/components/NotificationCenter";
+import { ConnectUsDirectMessages } from "@/modules/connectus/components/ConnectUsDirectMessages";
 import { OnboardingModal } from "@/modules/connectus/components/OnboardingModal";
 import { InviteUserModal } from "@/modules/connectus/components/InviteUserModal";
 import { ConnectUsService } from "@/modules/connectus/services/connectus.service";
@@ -39,7 +40,13 @@ export default function ConnectUsPage() {
     deletePost,
     toggleReaction,
     addComment,
+    addCommentReply,
+    toggleCommentLike,
     toggleFollow,
+    isMutualFollow,
+    sendDirectMessage,
+    getConversations,
+    getMessages,
     acceptInvitation,
     declineInvitation,
   } = useConnectUs();
@@ -51,6 +58,12 @@ export default function ConnectUsPage() {
   const [searchResults, setSearchResults] = useState<ConnectUsProfile[]>([]);
   const [selectedUserForInvite, setSelectedUserForInvite] = useState<ConnectUsProfile | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [directMessageTargetUser, setDirectMessageTargetUser] = useState<ConnectUsProfile | null>(null);
+
+  const handleOpenDirectMessage = (targetUser: ConnectUsProfile) => {
+    setDirectMessageTargetUser(targetUser);
+    setActiveTab("messages");
+  };
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -123,6 +136,7 @@ export default function ConnectUsPage() {
         searchResults={searchResults}
         onSelectUserForInvite={handleOpenInviteModal}
         onToggleFollowUser={handleToggleFollowUser}
+        onOpenDirectMessage={handleOpenDirectMessage}
         followingMap={followingMap}
       />
 
@@ -237,6 +251,8 @@ export default function ConnectUsPage() {
                             onToggleFollow={handleToggleFollowUser}
                             onDeletePost={deletePost}
                             onAddComment={addComment}
+                            onAddCommentReply={addCommentReply}
+                            onToggleCommentLike={toggleCommentLike}
                             isFollowingAuthor={Boolean(post.author?.id && followingMap[post.author.id])}
                           />
                         ))}
@@ -376,13 +392,13 @@ export default function ConnectUsPage() {
 
               {/* TAB 5: MESSAGES (Messenger Ecomfy) */}
               {activeTab === "messages" && (
-                <Card className="p-8 text-center rounded-3xl space-y-3 bg-white border border-slate-200">
-                  <MessageCircle className="h-12 w-12 mx-auto text-blue-500" />
-                  <h3 className="font-bold text-lg text-slate-900">Messenger Ecomfy</h3>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    La messagerie instantanée privée entre membres et vendeurs Ecomfy est en cours d'initialisation.
-                  </p>
-                </Card>
+                <ConnectUsDirectMessages
+                  currentUserId={userId}
+                  targetUser={directMessageTargetUser}
+                  onSendMessage={sendDirectMessage}
+                  onFetchMessages={getMessages}
+                  onClose={() => setDirectMessageTargetUser(null)}
+                />
               )}
 
               {/* TAB 6: NOTIFICATIONS */}

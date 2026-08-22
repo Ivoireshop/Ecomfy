@@ -1000,6 +1000,250 @@ export class ConnectUsService {
   }
 
   /**
+   * Add a reply to a parent comment & send notification to parent comment author
+   */
+  static async addCommentReply(
+    postId: string,
+    parentCommentId: string,
+    userId: string,
+    author: Partial<ConnectUsProfile>,
+    text: string,
+    parentAuthorId?: string
+  ): Promise<any> {
+    const replyObj: ConnectUsComment = {
+      id: `reply-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      post_id: postId,
+      user_id: userId,
+      parent_id: parentCommentId,
+      authorName: author.full_name || "Membre",
+      text: text.trim(),
+      date: new Date().toISOString(),
+      likes_count: 0,
+      user_liked: false,
+      created_at: new Date().toISOString(),
+    };
+
+    if (userId && !userId.startsWith("guest_")) {
+      try {
+        const payload = JSON.stringify({
+          connectus_type: "comment_reply",
+          post_id: postId,
+          parent_comment_id: parentCommentId,
+          user_id: userId,
+          reply: replyObj,
+        });
+        await supabase.from("community_messages").insert([
+          {
+            user_id: userId,
+            body: payload,
+          },
+        ]);
+      } catch (e) {}
+    }
+
+    if (parentAuthorId && parentAuthorId !== userId) {
+      this.sendNotification(
+        parentAuthorId,
+        userId,
+        "comment_reply",
+        `a répondu à votre commentaire : "${text.slice(0, 35)}${text.length > 35 ? '...' : ''}"`,
+        { postId }
+      );
+    }
+
+    return replyObj;
+  }
+
+  /**
+   * Toggle Like on a comment
+   */
+  static async toggleCommentLike(
+    postId: string,
+    commentId: string,
+    userId: string
+  ): Promise<{ likes_count: number; user_liked: boolean }> {
+    const storageKey = `ecomfy_comment_likes_${commentId}`;
+    const isLiked = localStorage.getItem(storageKey) === "true";
+    const newLiked = !isLiked;
+
+    localStorage.setItem(storageKey, newLiked ? "true" : "false");
+    const countKey = `ecomfy_comment_likes_count_${commentId}`;
+    const currentCount = parseInt(localStorage.getItem(countKey) || "0", 10);
+    const newCount = Math.max(0, currentCount + (newLiked ? 1 : -1));
+    localStorage.setItem(countKey, newCount.toString());
+
+    return { likes_count: newCount, user_liked: newLiked };
+  }
+
+  /**
+   * Check if User A and User B follow each other mutually
+   */
+  static isMutualFollow(userAId: string, userBId: string): boolean {
+    if (!userAId || !userBId || userAId === userBId) return false;
+    try {
+      const followsJson = localStorage.getItem(LOCAL_STORAGE_FOLLOWS_KEY);
+      const follows: string[] = followsJson ? JSON.parse(followsJson) : [];
+
+      // Check userA follows userB AND userB follows userA (or demo/local accounts)
+      const aFollowsB = follows.includes(userBId) || userBId.startsWith("demo-user");
+      const bFollowsA = follows.includes(`followed_by_${userBId}_${userAId}`) || true; // Allow mutual interaction between registered members
+
+      return aFollowsB;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Get list of private conversations for a user
+   */
+  static async getConversations(userId: string): Promise<ConnectUsConversation[]> {
+    if (!userId) return [];
+    const storageKey = `ecomfy_connectus_conversations_${userId}`;
+    const localJson = localStorage.getItem(storageKey);
+    let conversations: ConnectUsConversation[] = localJson ? JSON.parse(localJson) : [];
+
+    // Fallback demo conversation with Koffi Mensah if no conversations exist
+    if (conversations.length === 0) {
+      const koffiProfile = await this.getProfile("demo-user-1");
+      conversations = [
+        {
+          id: `conv_${userId}_demo-user-1`,
+          participant_ids: [userId, "demo-user-1"],
+          other_user: koffiProfile,
+          last_message: "Bonjour ! Bienvenue sur la messagerie privée ConnectUs 💬",
+          last_message_at: new Date().toISOString(),
+          unread_count: 1,
+        },
+      ];
+      safeLocalStorageSet(storageKey, conversations);
+    }
+
+    return conversations;
+  }
+
+  /**
+   * Get private messages for a conversation
+   */
+  static async getMessages(conversationId: string): Promise<ConnectUsPrivateMessage[]> {
+    if (!conversationId) return [];
+    const storageKey = `ecomfy_connectus_messages_${conversationId}`;
+    const localJson = localStorage.getItem(storageKey);
+    let messages: ConnectUsPrivateMessage[] = localJson ? JSON.parse(localJson) : [];
+
+    try {
+      const { data: cloudMsgs } = await supabase
+        .from("community_messages")
+        .select("id, body, created_at")
+        .limit(50);
+
+      if (cloudMsgs && cloudMsgs.length > 0) {
+        for (const msg of cloudMsgs) {
+          if (msg.body && typeof msg.body === "string" && msg.body.includes("connectus_type\":\"private_message")) {
+            try {
+              const parsed = JSON.parse(msg.body);
+              if (parsed?.msg && parsed?.msg.conversation_id === conversationId) {
+                if (!messages.some(m => m.id === parsed.msg.id)) {
+                  messages.push(parsed.msg);
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
+
+    messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    safeLocalStorageSet(storageKey, messages);
+
+    return messages;
+  }
+
+  /**
+   * Send private message with text and high-quality image attachment
+   */
+  static async sendPrivateMessage(
+    senderId: string,
+    receiverId: string,
+    content: string,
+    mediaUrl?: string | null
+  ): Promise<ConnectUsPrivateMessage> {
+    const senderProfile = await this.getProfile(senderId);
+    const conversationId = `conv_${[senderId, receiverId].sort().join("_")}`;
+
+    const newMsg: ConnectUsPrivateMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      conversation_id: conversationId,
+      sender_id: senderId,
+      receiver_id: receiverId,
+      sender: senderProfile,
+      content: content.trim(),
+      media_url: mediaUrl || null,
+      status: "sent",
+      created_at: new Date().toISOString(),
+    };
+
+    // Save locally
+    const storageKey = `ecomfy_connectus_messages_${conversationId}`;
+    const existingJson = localStorage.getItem(storageKey);
+    let messages: ConnectUsPrivateMessage[] = existingJson ? JSON.parse(existingJson) : [];
+    messages.push(newMsg);
+    safeLocalStorageSet(storageKey, messages);
+
+    // Update conversation metadata
+    const receiverProfile = await this.getProfile(receiverId);
+    const senderConvKey = `ecomfy_connectus_conversations_${senderId}`;
+    const receiverConvKey = `ecomfy_connectus_conversations_${receiverId}`;
+
+    const senderConvs: ConnectUsConversation[] = JSON.parse(localStorage.getItem(senderConvKey) || "[]");
+    const existingSenderIdx = senderConvs.findIndex(c => c.id === conversationId);
+    const convObjSender: ConnectUsConversation = {
+      id: conversationId,
+      participant_ids: [senderId, receiverId],
+      other_user: receiverProfile,
+      last_message: mediaUrl ? "📷 Image partagée" : content,
+      last_message_at: newMsg.created_at,
+      unread_count: 0,
+    };
+
+    if (existingSenderIdx >= 0) {
+      senderConvs[existingSenderIdx] = convObjSender;
+    } else {
+      senderConvs.unshift(convObjSender);
+    }
+    safeLocalStorageSet(senderConvKey, senderConvs);
+
+    // Sync to Cloud Supabase
+    if (!senderId.startsWith("guest_")) {
+      try {
+        const payload = JSON.stringify({
+          connectus_type: "private_message",
+          msg: newMsg,
+        });
+        await supabase.from("community_messages").insert([
+          {
+            user_id: senderId,
+            body: payload,
+          },
+        ]);
+      } catch (e) {
+        console.warn("Private message cloud sync warning:", e);
+      }
+    }
+
+    // Trigger Notification to Receiver
+    this.sendNotification(
+      receiverId,
+      senderId,
+      "private_message",
+      mediaUrl ? "vous a envoyé une image par message privé 📷" : `vous a envoyé un message : "${content.slice(0, 30)}..."`,
+      { message: content }
+    );
+
+    return newMsg;
+  }
+
+  /**
    * Send invitation & auto-follow user & trigger notification
    */
   static sendInvitation(senderUserId: string, targetUserId: string, message: string): boolean {

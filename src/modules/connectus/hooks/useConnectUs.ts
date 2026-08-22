@@ -230,6 +230,39 @@ export function useConnectUs() {
     return nowFollowing;
   };
 
+  // 9. Add Comment Reply Handler
+  const handleAddCommentReply = async (
+    postId: string,
+    parentCommentId: string,
+    text: string,
+    parentAuthorId?: string
+  ) => {
+    if (!userId || !text.trim()) return null;
+    const authorData = profile || { full_name: "Membre Ecomfy", avatar_url: null, username: "membre" };
+    return await ConnectUsService.addCommentReply(postId, parentCommentId, userId, authorData, text, parentAuthorId);
+  };
+
+  // 10. Toggle Comment Like
+  const handleToggleCommentLike = async (postId: string, commentId: string) => {
+    if (!userId) return { likes_count: 0, user_liked: false };
+    return await ConnectUsService.toggleCommentLike(postId, commentId, userId);
+  };
+
+  // 11. Check Mutual Follow
+  const handleIsMutualFollow = (targetUserId: string) => {
+    if (!userId) return false;
+    return ConnectUsService.isMutualFollow(userId, targetUserId);
+  };
+
+  // 12. Send Direct Message
+  const handleSendDirectMessage = async (receiverId: string, content: string, mediaUrl?: string | null) => {
+    if (!userId) {
+      toast({ title: "Connectez-vous à Ecomfy pour envoyer un message", variant: "destructive" });
+      return null;
+    }
+    return await ConnectUsService.sendPrivateMessage(userId, receiverId, content, mediaUrl);
+  };
+
   const unreadNotifCount = notifications.filter(n => !n.read).length;
 
   return {
@@ -248,7 +281,13 @@ export function useConnectUs() {
     deletePost: handleDeletePost,
     toggleReaction: handleToggleReaction,
     addComment: handleAddComment,
+    addCommentReply: handleAddCommentReply,
+    toggleCommentLike: handleToggleCommentLike,
     toggleFollow: handleToggleFollow,
+    isMutualFollow: handleIsMutualFollow,
+    sendDirectMessage: handleSendDirectMessage,
+    getConversations: () => ConnectUsService.getConversations(userId),
+    getMessages: (conversationId: string) => ConnectUsService.getMessages(conversationId),
     acceptInvitation: handleAcceptInvitation,
     declineInvitation: handleDeclineInvitation,
     refresh: loadConnectUsData,

@@ -19,6 +19,8 @@ interface PostCardProps {
   onToggleFollow?: (targetUserId: string) => void;
   onDeletePost?: (postId: string) => void;
   onAddComment?: (postId: string, text: string) => Promise<any>;
+  onAddCommentReply?: (postId: string, parentCommentId: string, text: string, parentAuthorId?: string) => Promise<any>;
+  onToggleCommentLike?: (postId: string, commentId: string) => Promise<any>;
   isFollowingAuthor?: boolean;
 }
 
@@ -29,12 +31,16 @@ export function PostCard({
   onToggleFollow,
   onDeletePost,
   onAddComment,
+  onAddCommentReply,
+  onToggleCommentLike,
   isFollowingAuthor = false,
 }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [localComments, setLocalComments] = useState<{ id: string; authorName: string; text: string; date: string }[]>([]);
+  const [localComments, setLocalComments] = useState<{ id: string; authorName: string; text: string; date: string; parent_id?: string; replies?: any[]; likes_count?: number }[]>([]);
+  const [replyingCommentId, setReplyingCommentId] = useState<string | null>(null);
+  const [replyInputText, setReplyInputText] = useState("");
 
   const allComments = [
     ...(post?.comments || []),
@@ -89,10 +95,47 @@ export function PostCard({
     } else {
       setLocalComments(prev => [
         ...prev,
-        { id: `c-${Date.now()}`, authorName: "Vous", text: textToSubmit, date: "À l'instant" }
+        { id: `c-${Date.now()}`, authorName: "Vous", text: textToSubmit, date: "À l'instant", likes_count: 0 }
       ]);
     }
     toast({ title: "Commentaire ajouté ✓" });
+  };
+
+  const handleSendReply = async (parentCommentId: string, parentAuthorName: string) => {
+    if (!replyInputText.trim()) return;
+    const replyTextToSubmit = replyInputText.trim();
+    setReplyInputText("");
+    setReplyingCommentId(null);
+
+    const newReply = {
+      id: `r-${Date.now()}`,
+      parent_id: parentCommentId,
+      authorName: "Vous",
+      text: replyTextToSubmit,
+      date: "À l'instant",
+      likes_count: 0,
+    };
+
+    if (onAddCommentReply) {
+      await onAddCommentReply(post.id, parentCommentId, replyTextToSubmit);
+    }
+
+    setLocalComments(prev => [
+      ...prev,
+      newReply
+    ]);
+
+    toast({ title: `Réponse envoyée à ${parentAuthorName} ✓` });
+  };
+
+  const handleLikeComment = async (commentId: string) => {
+    if (onToggleCommentLike) {
+      await onToggleCommentLike(post.id, commentId);
+    }
+    setLocalComments(prev =>
+      prev.map(c => (c.id === commentId ? { ...c, likes_count: (c.likes_count || 0) + 1 } : c))
+    );
+    toast({ title: "J'aime ajouté au commentaire ❤️" });
   };
 
   const handleShare = () => {
@@ -104,9 +147,10 @@ export function PostCard({
     });
   };
 
+  const parentComments = allComments.filter(c => !c.parent_id);
+
   return (
     <Card className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-sm space-y-4">
-      {/* Header: Author Profile & Actions */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
@@ -167,7 +211,6 @@ export function PostCard({
             </Button>
           )}
 
-          {/* Own Post Options: Author Permanent Deletion */}
           {isOwnPost && onDeletePost && (
             <button
               onClick={() => onDeletePost(post.id)}
@@ -180,21 +223,18 @@ export function PostCard({
         </div>
       </div>
 
-      {/* Post Text Content */}
       {post.content && (
         <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line font-inter">
           {post.content}
         </p>
       )}
 
-      {/* Video Content Player */}
       {post.video_url && (
         <div className="rounded-2xl overflow-hidden bg-slate-900 aspect-video flex items-center justify-center relative">
           <video src={post.video_url} controls className="h-full w-full object-contain" />
         </div>
       )}
 
-      {/* Web Link Preview Card / Ecomfy Link Card */}
       {post.link_preview && (
         <a
           href={post.link_preview.url}
@@ -226,7 +266,6 @@ export function PostCard({
         </a>
       )}
 
-      {/* Media Grid */}
       {post.media_urls && post.media_urls.length > 0 && (
         <div className={`grid gap-2 rounded-2xl overflow-hidden ${
           post.media_urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
@@ -244,7 +283,6 @@ export function PostCard({
         </div>
       )}
 
-      {/* Ecomfy Social Commerce Attached Product Card */}
       {post.attached_product && (
         <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-white p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xs overflow-hidden max-w-full">
           <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
@@ -303,9 +341,7 @@ export function PostCard({
         </div>
       )}
 
-      {/* Interactions Bar: Reactions, Comments Count, Share */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-        {/* Reactions Picker */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => onToggleReaction(post.id, "love")}
@@ -331,7 +367,6 @@ export function PostCard({
           </button>
         </div>
 
-        {/* Comments & Share */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowComments(!showComments)}
@@ -351,10 +386,8 @@ export function PostCard({
         </div>
       </div>
 
-      {/* Comments Section Drawer with Quick Emoji Selector */}
       {showComments && (
         <div className="pt-3 border-t border-slate-100 space-y-3">
-          {/* Quick Emoji Bar */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none text-base">
             <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-wider mr-1">Émojis :</span>
             {["😀", "😍", "🔥", "❤️", "👏", "🚀", "🎁", "💯", "🌿", "🛍️", "⚡", "👌", "👍", "🙌"].map((emoji) => (
@@ -389,16 +422,82 @@ export function PostCard({
             </Button>
           </div>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-            {allComments.map((c: any, idx: number) => (
-              <div key={c.id || idx} className="bg-slate-50 p-2.5 rounded-2xl text-xs space-y-0.5">
-                <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span>{c.authorName || c.author?.full_name || "Membre"}</span>
-                  <span className="text-[10px] text-slate-400 font-normal">{c.date || "Récemment"}</span>
+          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+            {parentComments.map((c: any, idx: number) => {
+              const cId = c.id || `c-${idx}`;
+              const authorName = c.authorName || c.author?.full_name || "Membre";
+              const childReplies = allComments.filter(r => r.parent_id === cId);
+
+              return (
+                <div key={cId} className="space-y-2">
+                  <div className="bg-slate-50 p-3 rounded-2xl text-xs space-y-1.5 border border-slate-100">
+                    <div className="flex items-center justify-between font-bold text-slate-900">
+                      <span className="flex items-center gap-1.5">
+                        {authorName}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">{c.date || "Récemment"}</span>
+                    </div>
+                    <p className="text-slate-700">{c.text || c.content}</p>
+
+                    <div className="flex items-center gap-3 pt-1 text-[11px] font-bold text-slate-500">
+                      <button
+                        type="button"
+                        onClick={() => handleLikeComment(cId)}
+                        className="hover:text-rose-600 flex items-center gap-1 transition-colors"
+                      >
+                        <Heart className="h-3 w-3" />
+                        <span>J'aime ({c.likes_count || 0})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReplyingCommentId(replyingCommentId === cId ? null : cId)}
+                        className="hover:text-[#0E7C66] flex items-center gap-1 transition-colors"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>Répondre</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {replyingCommentId === cId && (
+                    <div className="pl-6 flex gap-2 pt-1">
+                      <Input
+                        type="text"
+                        placeholder={`Répondre à ${authorName}...`}
+                        value={replyInputText}
+                        onChange={(e) => setReplyInputText(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSendReply(cId, authorName)}
+                        className="h-8 text-[11px] rounded-full bg-emerald-50/60 border-emerald-200 focus:bg-white"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleSendReply(cId, authorName)}
+                        disabled={!replyInputText.trim()}
+                        className="h-8 px-3 rounded-full bg-[#0E7C66] text-white text-xs font-bold"
+                      >
+                        Répondre
+                      </Button>
+                    </div>
+                  )}
+
+                  {childReplies.length > 0 && (
+                    <div className="pl-6 space-y-2 border-l-2 border-emerald-100 ml-3">
+                      {childReplies.map((r: any, rIdx: number) => (
+                        <div key={r.id || rIdx} className="bg-emerald-50/40 p-2.5 rounded-xl text-xs space-y-1 border border-emerald-100/60">
+                          <div className="flex items-center justify-between font-bold text-slate-900">
+                            <span className="flex items-center gap-1">
+                              {r.authorName || r.author?.full_name || "Membre"}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-normal">{r.date || "Récemment"}</span>
+                          </div>
+                          <p className="text-slate-700">{r.text || r.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="text-slate-700">{c.text || c.content}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

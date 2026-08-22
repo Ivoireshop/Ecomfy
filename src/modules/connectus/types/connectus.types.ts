@@ -52,7 +52,7 @@ export interface ConnectUsPost {
   shares_count: number;
   user_reaction?: ReactionType | null;
   is_bookmarked?: boolean;
-  comments?: any[];
+  comments?: ConnectUsComment[];
   created_at: string;
 }
 
@@ -68,9 +68,12 @@ export interface ConnectUsComment {
   id: string;
   post_id: string;
   user_id: string;
-  author: ConnectUsProfile;
+  authorName?: string;
+  author?: ConnectUsProfile;
   parent_id?: string | null;
-  content: string;
+  content?: string;
+  text?: string;
+  date?: string;
   likes_count: number;
   user_liked?: boolean;
   replies?: ConnectUsComment[];
@@ -82,7 +85,7 @@ export interface ConnectUsNotification {
   user_id: string;
   actor_id: string;
   actor: ConnectUsProfile;
-  type: "follow" | "like" | "comment" | "mention" | "product_sale" | "invite_request" | "invite_accepted";
+  type: "follow" | "like" | "comment" | "comment_reply" | "mention" | "product_sale" | "invite_request" | "invite_accepted" | "private_message";
   post_id?: string | null;
   post_summary?: string | null;
   message?: string | null;
@@ -96,4 +99,26 @@ export interface ConnectUsFollow {
   follower_id: string;
   following_id: string;
   created_at: string;
+}
+
+export interface ConnectUsPrivateMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  receiver_id: string;
+  sender?: ConnectUsProfile;
+  content: string;
+  media_url?: string | null;
+  status: "sent" | "delivered" | "read";
+  created_at: string;
+}
+
+export interface ConnectUsConversation {
+  id: string;
+  participant_ids: string[];
+  other_user: ConnectUsProfile;
+  last_message?: string;
+  last_message_at?: string;
+  unread_count?: number;
+  messages?: ConnectUsPrivateMessage[];
 }
