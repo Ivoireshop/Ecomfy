@@ -105,6 +105,37 @@ export function CreatePostModal({
     }
   };
 
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const EMOJI_LIST = [
+    "😊", "😂", "❤️", "🔥", "👍", "🎉", "🚀", "😍", "🙏", "💰",
+    "🛍️", "🛒", "🌟", "📦", "👏", "💪", "✨", "💯", "💡", "🙌",
+    "⚡", "🤝", "💬", "📱", "📸", "🎥", "🏆", "🎯", "📌", "✅"
+  ];
+
+  const handleInsertBold = () => {
+    if (!textareaRef.current) {
+      setContent(prev => prev + " **texte en gras** ");
+      return;
+    }
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    if (selectedText) {
+      const newText = content.substring(0, start) + `**${selectedText}**` + content.substring(end);
+      setContent(newText);
+    } else {
+      const newText = content.substring(0, start) + " **texte en gras** " + content.substring(end);
+      setContent(newText);
+    }
+  };
+
+  const handleSelectEmoji = (emoji: string) => {
+    setContent(prev => prev + emoji);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg rounded-3xl p-6">
@@ -116,12 +147,61 @@ export function CreatePostModal({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Rich Editing Toolbar (Bold & Emojis) */}
+          <div className="flex items-center justify-between bg-slate-100/80 px-3 py-1.5 rounded-xl text-xs">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleInsertBold}
+                className="h-7 px-2 font-black text-slate-700 hover:bg-slate-200 rounded-lg"
+                title="Mettre en gras (**texte**)"
+              >
+                <span className="font-extrabold text-sm">B</span>
+              </Button>
+
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="h-7 px-2 text-slate-700 hover:bg-slate-200 rounded-lg flex items-center gap-1 font-bold text-xs"
+                >
+                  <span>😊</span>
+                  <span>Emojis</span>
+                </Button>
+
+                {/* Emojis Selector Grid Popover */}
+                {showEmojiPicker && (
+                  <div className="absolute top-9 left-0 z-50 p-2.5 bg-white rounded-2xl border border-slate-200 shadow-xl grid grid-cols-6 gap-1.5 w-64 animate-in fade-in zoom-in-95">
+                    {EMOJI_LIST.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => {
+                          handleSelectEmoji(emoji);
+                        }}
+                        className="h-8 w-8 text-base flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium">Unicode & Markdown pris en charge</span>
+          </div>
+
           {/* Post Content Input */}
           <Textarea
+            ref={textareaRef}
             placeholder="Que voulez-vous partager ? (Textes, liens web, photos, vidéos, produits...)"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[100px] rounded-2xl bg-slate-50 border-slate-200 text-xs focus:bg-white resize-none"
+            className="min-h-[110px] rounded-2xl bg-slate-50 border-slate-200 text-xs focus:bg-white resize-none"
           />
 
           {/* Auto-detected Web Link Preview */}

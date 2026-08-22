@@ -123,3 +123,16 @@ export interface ConnectUsConversation {
   unread_count?: number;
   messages?: ConnectUsPrivateMessage[];
 }
+
+export interface ConnectUsStory {
+  id: string;
+  user_id: string;
+  author: ConnectUsProfile;
+  media_url: string;
+  media_type: "image" | "video";
+  caption?: string | null;
+  created_at: string;
+  expires_at: string;
+  views_count: number;
+  viewers?: string[];
+}

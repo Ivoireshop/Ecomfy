@@ -20,6 +20,7 @@ interface ConnectUsProfileViewProps {
   currentUserId: string;
   onToggleFollow?: (targetUserId: string) => void;
   isFollowing?: boolean;
+  onOpenDirectMessage?: (targetUser: ConnectUsProfile) => void;
   onUpdateProfile?: (updatedData: Partial<ConnectUsProfile>) => void | Promise<any>;
   onDeletePost?: (postId: string) => void;
 }
@@ -30,6 +31,7 @@ export function ConnectUsProfileView({
   currentUserId,
   onToggleFollow,
   isFollowing = false,
+  onOpenDirectMessage,
   onUpdateProfile,
   onDeletePost,
 }: ConnectUsProfileViewProps) {
@@ -229,11 +231,17 @@ export function ConnectUsProfileView({
                     </Button>
                   )}
                   <Button
-                    onClick={() => toast({ title: "Messenger Ecomfy 💬", description: "Envoi de message direct." })}
+                    onClick={() => {
+                      if (onOpenDirectMessage) {
+                        onOpenDirectMessage(profile);
+                      } else {
+                        toast({ title: "Messagerie Privée Ecomfy 💬", description: `Ouverture du chat avec ${profile.full_name || profile.username}.` });
+                      }
+                    }}
                     variant="outline"
-                    className="rounded-full border-slate-300 text-slate-700 font-bold text-xs h-10 px-4 gap-1.5"
+                    className="rounded-full border-slate-300 text-slate-700 font-bold text-xs h-10 px-5 gap-1.5 hover:border-[#0E7C66] hover:text-[#0E7C66]"
                   >
-                    <MessageCircle className="h-4 w-4 text-blue-500" /> Message
+                    <MessageCircle className="h-4 w-4 text-[#0E7C66]" /> Message
                   </Button>
                 </>
               )}

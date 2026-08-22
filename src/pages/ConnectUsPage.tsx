@@ -148,6 +148,7 @@ export default function ConnectUsPage() {
           onTabChange={setActiveTab}
           profile={profile}
           onCreatePostClick={() => setShowCreateModal(true)}
+          unreadNotificationsCount={unreadNotifCount}
         />
 
         {/* Central Content Area */}
@@ -455,6 +456,7 @@ export default function ConnectUsPage() {
                   currentUserId={userId}
                   onToggleFollow={handleToggleFollowUser}
                   isFollowing={!!followingMap[profile.id]}
+                  onOpenDirectMessage={handleOpenDirectMessage}
                   onUpdateProfile={updateProfile}
                   onDeletePost={deletePost}
                 />

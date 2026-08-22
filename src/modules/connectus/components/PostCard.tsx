@@ -65,6 +65,18 @@ export function PostCard({
     created_at: new Date().toISOString(),
   };
 
+  const renderFormattedContent = (contentString: string) => {
+    if (!contentString) return null;
+    const parts = contentString.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        const boldText = part.slice(2, -2);
+        return <strong key={idx} className="font-extrabold text-slate-900">{boldText}</strong>;
+      }
+      return <span key={idx}>{part}</span>;
+    });
+  };
+
   const isOwnPost = Boolean(currentUserId && (currentUserId === author.id || currentUserId === post?.user_id));
 
   let ageInHours = 0;
@@ -225,7 +237,7 @@ export function PostCard({
 
       {post.content && (
         <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line font-inter">
-          {post.content}
+          {renderFormattedContent(post.content)}
         </p>
       )}
 

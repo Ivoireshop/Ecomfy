@@ -177,8 +177,24 @@ export function ConnectUsHeader({
           )}
         </div>
 
-        {/* Create Post Button */}
-        <div className="flex items-center gap-2">
+        {/* Right Actions Header (Notifications Bell & Create Post) */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onTabChange("notifications")}
+            className="relative h-10 w-10 p-0 rounded-full text-slate-700 hover:bg-slate-100"
+            title="Centre de Notifications"
+          >
+            <Bell className="h-5 w-5 text-slate-700" />
+            {unreadNotificationsCount > 0 ? (
+              <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                {unreadNotificationsCount}
+              </Badge>
+            ) : null}
+          </Button>
+
           <Button
             onClick={onCreatePostClick}
             className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold h-10 px-4 text-xs shadow-xs gap-2 shrink-0"

@@ -6,6 +6,7 @@ import {
   ConnectUsNotification,
   ConnectUsConversation,
   ConnectUsPrivateMessage,
+  ConnectUsStory,
   ReactionType,
   AttachedProduct,
   VisibilityType
@@ -1287,5 +1288,123 @@ export class ConnectUsService {
       { message }
     );
     return true;
+  }
+
+  /**
+   * Get active stories (expires_at > now)
+   */
+  static getActiveStories(): ConnectUsStory[] {
+    const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
+    let stories: ConnectUsStory[] = [];
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_STORIES_KEY);
+      if (stored) {
+        stories = JSON.parse(stored);
+      }
+    } catch (e) {}
+
+    // Filter out expired stories (expires_at <= now)
+    const now = Date.now();
+    const activeStories = stories.filter((s) => new Date(s.expires_at).getTime() > now);
+
+    // Save active stories back to cleanup expired ones
+    if (activeStories.length !== stories.length) {
+      safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, activeStories);
+    }
+
+    return activeStories;
+  }
+
+  /**
+   * Create a new story (photo or video) with 24h expiration
+   */
+  static async createStory(
+    userId: string,
+    author: Partial<ConnectUsProfile>,
+    mediaUrl: string,
+    mediaType: "image" | "video",
+    caption?: string | null
+  ): Promise<ConnectUsStory> {
+    const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+    const authorProfile: ConnectUsProfile = {
+      id: userId,
+      user_id: userId,
+      username: author.username || `user_${userId.slice(0, 6)}`,
+      full_name: author.full_name || "Membre ConnectUs",
+      avatar_url: author.avatar_url || null,
+      cover_url: author.cover_url || null,
+      bio: author.bio || null,
+      location: author.location || null,
+      website_url: author.website_url || null,
+      is_verified: true,
+      is_business: !!author.is_business,
+      followers_count: author.followers_count || 10,
+      following_count: author.following_count || 5,
+      posts_count: author.posts_count || 1,
+      shop_name: author.shop_name || null,
+      show_shop_on_profile: Boolean(author.show_shop_on_profile),
+      created_at: author.created_at || now.toISOString(),
+    };
+
+    const newStory: ConnectUsStory = {
+      id: `story-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      user_id: userId,
+      author: authorProfile,
+      media_url: mediaUrl,
+      media_type: mediaType,
+      caption: caption || null,
+      created_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      views_count: 0,
+      viewers: [],
+    };
+
+    const currentStories = this.getActiveStories();
+    currentStories.unshift(newStory);
+    safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, currentStories);
+
+    // Sync to Cloud Supabase
+    if (!userId.startsWith("guest_")) {
+      try {
+        const payload = JSON.stringify({
+          connectus_type: "story",
+          story: newStory,
+        });
+        await supabase.from("community_messages").insert([
+          {
+            user_id: userId,
+            body: payload,
+          },
+        ]);
+      } catch (e) {
+        console.warn("Story cloud sync warning:", e);
+      }
+    }
+
+    return newStory;
+  }
+
+  /**
+   * View a story & increment views count
+   */
+  static viewStory(storyId: string, viewerUserId: string): ConnectUsStory | null {
+    const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
+    const stories = this.getActiveStories();
+    const index = stories.findIndex((s) => s.id === storyId);
+    if (index === -1) return null;
+
+    const story = stories[index];
+    const viewers = story.viewers || [];
+    if (!viewers.includes(viewerUserId)) {
+      viewers.push(viewerUserId);
+      story.views_count = (story.views_count || 0) + 1;
+      story.viewers = viewers;
+      stories[index] = story;
+      safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, stories);
+    }
+    return story;
   }
 }
