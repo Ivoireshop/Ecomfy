@@ -28,6 +28,8 @@ export default function ConnectUsPage() {
     profile,
     posts,
     merchantProducts,
+    notifications,
+    unreadNotifCount,
     loading,
     submitting,
     showOnboarding,
@@ -38,6 +40,8 @@ export default function ConnectUsPage() {
     toggleReaction,
     addComment,
     toggleFollow,
+    acceptInvitation,
+    declineInvitation,
   } = useConnectUs();
 
   const [activeTab, setActiveTab] = useState<ConnectUsTab>("feed");
@@ -103,6 +107,7 @@ export default function ConnectUsPage() {
       <ConnectUsHeader
         profile={profile}
         activeTab={activeTab}
+        unreadNotificationsCount={unreadNotifCount}
         onTabChange={(tab) => {
           if (tab === "live") {
             toast({
@@ -382,7 +387,12 @@ export default function ConnectUsPage() {
 
               {/* TAB 6: NOTIFICATIONS */}
               {activeTab === "notifications" && (
-                <NotificationCenter />
+                <NotificationCenter
+                  notifications={notifications}
+                  onAcceptInvitation={acceptInvitation}
+                  onDeclineInvitation={declineInvitation}
+                  onToggleFollow={handleToggleFollowUser}
+                />
               )}
 
               {/* TAB 7: MARKETPLACE / SOCIAL COMMERCE */}

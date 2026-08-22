@@ -22,20 +22,24 @@ export function useConnectUs() {
   const [submitting, setSubmitting] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  const [notifications, setNotifications] = useState<ConnectUsNotification[]>([]);
+
   // 1. Initial Load & Ecomfy Account Auto-Binding
   const loadConnectUsData = useCallback(async () => {
     setLoading(true);
     try {
       const activeId = userId || "guest_visitor";
-      const [userProfile, feedPosts, products] = await Promise.all([
+      const [userProfile, feedPosts, products, notifs] = await Promise.all([
         ConnectUsService.getProfile(activeId),
         ConnectUsService.getFeedPosts(activeId),
         ConnectUsService.getMerchantProducts(activeId),
+        ConnectUsService.getNotifications(activeId),
       ]);
 
       setProfile(userProfile);
       setPosts(feedPosts || []);
       setMerchantProducts(products || []);
+      setNotifications(notifs || []);
 
       if (userProfile && !userProfile.is_onboarded && userId) {
         setShowOnboarding(true);
@@ -53,13 +57,39 @@ export function useConnectUs() {
     }
   }, [isReady, loadConnectUsData]);
 
-  // 2. Persistent Profile Update Handler with Supabase DB Sync & Live Feed Update
+  // 2. Accept / Decline Invitation Handlers
+  const handleAcceptInvitation = async (notifId: string, actorUserId: string) => {
+    if (!userId) return false;
+    const ok = await ConnectUsService.acceptFollowInvitation(userId, notifId, actorUserId);
+    if (ok) {
+      toast({
+        title: "Invitation acceptée ✓",
+        description: "Vous vous suivez mutuellement à présent !",
+      });
+      const updatedNotifs = await ConnectUsService.getNotifications(userId);
+      setNotifications(updatedNotifs);
+      loadConnectUsData();
+    }
+    return ok;
+  };
+
+  const handleDeclineInvitation = async (notifId: string) => {
+    if (!userId) return false;
+    const ok = await ConnectUsService.declineFollowInvitation(userId, notifId);
+    if (ok) {
+      toast({ title: "Invitation refusée" });
+      const updatedNotifs = await ConnectUsService.getNotifications(userId);
+      setNotifications(updatedNotifs);
+    }
+    return ok;
+  };
+
+  // 3. Persistent Profile Update Handler with Supabase DB Sync & Live Feed Update
   const handleUpdateProfile = async (updatedData: Partial<ConnectUsProfile>) => {
     if (!profile) return null;
     const merged = { ...profile, ...updatedData };
     setProfile(merged);
 
-    // Update posts authored by this profile in state
     setPosts(prev => prev.map(p => {
       if (p.user_id === merged.user_id || p.author.id === merged.id || p.author.user_id === merged.user_id) {
         return { ...p, author: { ...p.author, ...merged } };
@@ -80,7 +110,7 @@ export function useConnectUs() {
     return merged;
   };
 
-  // 3. Create Post Handler
+  // 4. Create Post Handler
   const handleCreatePost = async (postData: {
     content: string;
     media_urls: string[];
@@ -115,7 +145,7 @@ export function useConnectUs() {
     }
   };
 
-  // 4. Delete Post (With Authorization Verification & Persistent DB Removal)
+  // 5. Delete Post
   const handleDeletePost = async (postId: string) => {
     if (!userId) {
       toast({ title: "Veuillez vous connecter pour supprimer", variant: "destructive" });
@@ -135,7 +165,6 @@ export function useConnectUs() {
       }
     }
 
-    // Optimistic UI state update
     setPosts(prev => prev.filter(p => p.id !== postId));
 
     const success = await ConnectUsService.deletePost(postId, userId);
@@ -148,7 +177,7 @@ export function useConnectUs() {
     }
   };
 
-  // 5. Toggle Reaction
+  // 6. Toggle Reaction
   const handleToggleReaction = async (postId: string, reactionType: ReactionType = "like") => {
     if (!userId) return;
     
@@ -167,7 +196,7 @@ export function useConnectUs() {
     await ConnectUsService.toggleReaction(postId, userId, reactionType);
   };
 
-  // 6. Add Comment Handler
+  // 7. Add Comment Handler
   const handleAddComment = async (postId: string, text: string) => {
     if (!userId || !text.trim()) return null;
     const authorData = profile || { full_name: "Membre Ecomfy", avatar_url: null, username: "membre" };
@@ -188,7 +217,7 @@ export function useConnectUs() {
     return newComment;
   };
 
-  // 7. Toggle Follow
+  // 8. Toggle Follow
   const handleToggleFollow = (targetUserId: string) => {
     if (!userId) return false;
     const nowFollowing = ConnectUsService.toggleFollow(userId, targetUserId);
@@ -201,11 +230,15 @@ export function useConnectUs() {
     return nowFollowing;
   };
 
+  const unreadNotifCount = notifications.filter(n => !n.read).length;
+
   return {
     userId,
     profile,
     posts,
     merchantProducts,
+    notifications,
+    unreadNotifCount,
     loading,
     submitting,
     showOnboarding,
@@ -216,6 +249,8 @@ export function useConnectUs() {
     toggleReaction: handleToggleReaction,
     addComment: handleAddComment,
     toggleFollow: handleToggleFollow,
+    acceptInvitation: handleAcceptInvitation,
+    declineInvitation: handleDeclineInvitation,
     refresh: loadConnectUsData,
   };
 }

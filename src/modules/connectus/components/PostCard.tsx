@@ -351,9 +351,25 @@ export function PostCard({
         </div>
       </div>
 
-      {/* Comments Section Drawer */}
+      {/* Comments Section Drawer with Quick Emoji Selector */}
       {showComments && (
         <div className="pt-3 border-t border-slate-100 space-y-3">
+          {/* Quick Emoji Bar */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none text-base">
+            <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-wider mr-1">Émojis :</span>
+            {["😀", "😍", "🔥", "❤️", "👏", "🚀", "🎁", "💯", "🌿", "🛍️", "⚡", "👌", "👍", "🙌"].map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => setCommentText(prev => prev + emoji)}
+                className="hover:scale-125 transition-transform p-1 rounded-md hover:bg-slate-100 shrink-0 text-sm"
+                title={`Insérer ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+
           <div className="flex gap-2">
             <Input
               type="text"

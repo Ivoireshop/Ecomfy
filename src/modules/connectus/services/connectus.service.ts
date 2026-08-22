@@ -546,11 +546,25 @@ export class ConnectUsService {
       }
     }
 
+    // Trigger real-time notification to post author if reacted
+    if (userReaction === reactionType && postIndex !== -1) {
+      const targetPost = localPosts[postIndex];
+      if (targetPost && targetPost.user_id && targetPost.user_id !== userId) {
+        this.sendNotification(
+          targetPost.user_id,
+          userId,
+          "like",
+          `a aimé votre publication : "${targetPost.content ? targetPost.content.slice(0, 35) + '...' : 'Media'}"`,
+          { postId, postSummary: targetPost.content }
+        );
+      }
+    }
+
     return { likesCount, userReaction };
   }
 
   /**
-   * Add a comment to a post with Cloud DB sync
+   * Add a comment to a post with Cloud DB sync & Notification trigger
    */
   static async addComment(
     postId: string,
@@ -590,7 +604,171 @@ export class ConnectUsService {
       }
     }
 
+    // Trigger real-time notification to post author
+    const localPostsJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+    if (localPostsJson) {
+      try {
+        const postsList: ConnectUsPost[] = JSON.parse(localPostsJson);
+        const targetPost = postsList.find(p => p.id === postId);
+        if (targetPost && targetPost.user_id && targetPost.user_id !== userId) {
+          this.sendNotification(
+            targetPost.user_id,
+            userId,
+            "comment",
+            `a commenté votre publication : "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}"`,
+            { postId, postSummary: targetPost.content }
+          );
+        }
+      } catch (e) {}
+    }
+
     return commentObj;
+  }
+
+  /**
+   * Send real-time notification to a target user
+   */
+  static async sendNotification(
+    recipientUserId: string,
+    actorUserId: string,
+    type: "follow" | "like" | "comment" | "invite_request" | "invite_accepted",
+    text: string,
+    options?: { postId?: string; postSummary?: string; message?: string }
+  ): Promise<boolean> {
+    if (!recipientUserId || recipientUserId === actorUserId) return false;
+
+    try {
+      const actorProfile = await this.getProfile(actorUserId);
+      const newNotif: ConnectUsNotification = {
+        id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        user_id: recipientUserId,
+        actor_id: actorUserId,
+        actor: actorProfile,
+        type,
+        post_id: options?.postId || null,
+        post_summary: options?.postSummary || null,
+        message: options?.message || text,
+        status: type === "invite_request" ? "pending" : undefined,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      const storageKey = `ecomfy_connectus_notifs_${recipientUserId}`;
+      const existingJson = localStorage.getItem(storageKey);
+      let notifs: ConnectUsNotification[] = existingJson ? JSON.parse(existingJson) : [];
+      notifs.unshift(newNotif);
+      safeLocalStorageSet(storageKey, notifs);
+
+      if (!actorUserId.startsWith("guest_")) {
+        try {
+          const payload = JSON.stringify({
+            connectus_type: "notification",
+            recipient_id: recipientUserId,
+            notif: newNotif,
+          });
+          await supabase.from("community_messages").insert([
+            {
+              user_id: actorUserId,
+              body: payload,
+            },
+          ]);
+        } catch (e) {
+          console.warn("Notification cloud sync warning:", e);
+        }
+      }
+
+      return true;
+    } catch (e) {
+      console.error("Error sending notification:", e);
+      return false;
+    }
+  }
+
+  /**
+   * Fetch real notifications for a user (Cloud + Local)
+   */
+  static async getNotifications(userId: string): Promise<ConnectUsNotification[]> {
+    if (!userId) return [];
+
+    const storageKey = `ecomfy_connectus_notifs_${userId}`;
+    const localJson = localStorage.getItem(storageKey);
+    let localNotifs: ConnectUsNotification[] = localJson ? JSON.parse(localJson) : [];
+
+    try {
+      const { data: cloudMsgs } = await supabase
+        .from("community_messages")
+        .select("id, body")
+        .limit(50);
+
+      if (cloudMsgs && cloudMsgs.length > 0) {
+        for (const msg of cloudMsgs) {
+          if (msg.body && typeof msg.body === "string" && msg.body.includes("connectus_type\":\"notification")) {
+            try {
+              const parsed = JSON.parse(msg.body);
+              if (parsed?.recipient_id === userId && parsed?.notif) {
+                if (!localNotifs.some(n => n.id === parsed.notif.id)) {
+                  localNotifs.unshift(parsed.notif);
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
+
+    localNotifs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    safeLocalStorageSet(storageKey, localNotifs);
+
+    return localNotifs;
+  }
+
+  /**
+   * Accept follow invitation & send Return Notification ("Ulrich Djaté a accepté votre invitation...")
+   */
+  static async acceptFollowInvitation(userId: string, notifId: string, actorUserId: string): Promise<boolean> {
+    try {
+      this.toggleFollow(userId, actorUserId);
+      this.toggleFollow(actorUserId, userId);
+
+      const storageKey = `ecomfy_connectus_notifs_${userId}`;
+      const localJson = localStorage.getItem(storageKey);
+      if (localJson) {
+        let notifs: ConnectUsNotification[] = JSON.parse(localJson);
+        notifs = notifs.map(n => n.id === notifId ? { ...n, status: "accepted", read: true } : n);
+        safeLocalStorageSet(storageKey, notifs);
+      }
+
+      const userProfile = await this.getProfile(userId);
+      await this.sendNotification(
+        actorUserId,
+        userId,
+        "invite_accepted",
+        `${userProfile.full_name} a accepté votre invitation et vous suit à présent ! Suivez-le en retour.`
+      );
+
+      return true;
+    } catch (e) {
+      console.error("Error accepting follow invitation:", e);
+      return false;
+    }
+  }
+
+  /**
+   * Decline follow invitation
+   */
+  static async declineFollowInvitation(userId: string, notifId: string): Promise<boolean> {
+    try {
+      const storageKey = `ecomfy_connectus_notifs_${userId}`;
+      const localJson = localStorage.getItem(storageKey);
+      if (localJson) {
+        let notifs: ConnectUsNotification[] = JSON.parse(localJson);
+        notifs = notifs.map(n => n.id === notifId ? { ...n, status: "declined", read: true } : n);
+        safeLocalStorageSet(storageKey, notifs);
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   /**
@@ -823,10 +1001,17 @@ export class ConnectUsService {
   }
 
   /**
-   * Send invitation & auto-follow user
+   * Send invitation & auto-follow user & trigger notification
    */
   static sendInvitation(senderUserId: string, targetUserId: string, message: string): boolean {
     this.toggleFollow(senderUserId, targetUserId);
+    this.sendNotification(
+      targetUserId,
+      senderUserId,
+      "invite_request",
+      message || "vous invite à vous abonner et le suivre sur ConnectUs !",
+      { message }
+    );
     return true;
   }
 }

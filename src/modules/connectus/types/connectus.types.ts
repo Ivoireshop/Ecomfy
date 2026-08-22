@@ -82,9 +82,11 @@ export interface ConnectUsNotification {
   user_id: string;
   actor_id: string;
   actor: ConnectUsProfile;
-  type: "follow" | "like" | "comment" | "mention" | "product_sale";
+  type: "follow" | "like" | "comment" | "mention" | "product_sale" | "invite_request" | "invite_accepted";
   post_id?: string | null;
   post_summary?: string | null;
+  message?: string | null;
+  status?: "pending" | "accepted" | "declined";
   read: boolean;
   created_at: string;
 }
