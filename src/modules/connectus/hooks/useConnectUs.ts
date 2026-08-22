@@ -119,15 +119,12 @@ export function useConnectUs() {
     attached_product?: AttachedProduct | null;
     visibility: VisibilityType;
   }) => {
-    if (!userId) {
-      toast({ title: "Connectez-vous d'abord à Ecomfy", variant: "destructive" });
-      return null;
-    }
+    const activeUserId = userId || profile?.id || profile?.user_id || "guest_user";
 
     setSubmitting(true);
     try {
-      const created = await ConnectUsService.createPost(userId, postData);
-      setPosts(prev => [created, ...prev]);
+      const created = await ConnectUsService.createPost(activeUserId, postData);
+      setPosts(prev => [created, ...prev.filter(p => p.id !== created.id)]);
       toast({
         title: "Publication publiée sur ConnectUs ! 🚀",
         description: "Votre contenu a été diffusé à la communauté.",

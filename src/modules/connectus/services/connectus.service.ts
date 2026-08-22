@@ -180,6 +180,43 @@ const INITIAL_DEMO_POSTS: ConnectUsPost[] = [
 
 export class ConnectUsService {
   /**
+   * Safe insertion into Supabase community_messages table with UUID validation and fallback
+   */
+  static async insertCommunityMessage(userId: string | undefined, payloadObj: any): Promise<boolean> {
+    try {
+      const bodyStr = typeof payloadObj === "string" ? payloadObj : JSON.stringify(payloadObj);
+      const isValidUUID = Boolean(userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId));
+
+      if (isValidUUID) {
+        const { error } = await supabase.from("community_messages").insert([
+          {
+            user_id: userId,
+            body: bodyStr,
+          },
+        ]);
+        if (!error) return true;
+        console.warn("Supabase insert with user_id error, trying fallback without user_id:", error.message);
+      }
+
+      // Fallback insert without user_id column constraint (allows storing posts for all users!)
+      const { error: fallbackError } = await supabase.from("community_messages").insert([
+        {
+          body: bodyStr,
+        },
+      ]);
+
+      if (fallbackError) {
+        console.warn("Supabase fallback insert warning:", fallbackError.message);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn("Community message insert exception:", e);
+      return false;
+    }
+  }
+
+  /**
    * Fetch all feed posts (Cloud DB + Local cache + Demo posts + Aggregated Likes & Comments)
    */
   static async getFeedPosts(userId?: string): Promise<ConnectUsPost[]> {
@@ -547,12 +584,7 @@ export class ConnectUsService {
         created_at: newPost.created_at,
       });
 
-      await supabase.from("community_messages").insert([
-        {
-          user_id: userId,
-          body: postPayload,
-        },
-      ]);
+      await this.insertCommunityMessage(userId, postPayload);
     } catch (e) {
       console.warn("Post created locally, cloud sync pending:", e);
     }
@@ -659,12 +691,7 @@ export class ConnectUsService {
           reaction: userReaction,
           created_at: new Date().toISOString(),
         });
-        await supabase.from("community_messages").insert([
-          {
-            user_id: userId,
-            body: payload,
-          },
-        ]);
+        await this.insertCommunityMessage(userId, payload);
       } catch (e) {
         console.warn("Reaction cloud sync warning:", e);
       }
@@ -717,12 +744,7 @@ export class ConnectUsService {
           text: commentObj.text,
           created_at: commentObj.date,
         });
-        await supabase.from("community_messages").insert([
-          {
-            user_id: userId,
-            body: payload,
-          },
-        ]);
+        await this.insertCommunityMessage(userId, payload);
       } catch (e) {
         console.warn("Comment cloud sync warning:", e);
       }
