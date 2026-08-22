@@ -18,6 +18,7 @@ interface PostCardProps {
   onToggleReaction: (postId: string, reaction: ReactionType) => void;
   onToggleFollow?: (targetUserId: string) => void;
   onDeletePost?: (postId: string) => void;
+  onAddComment?: (postId: string, text: string) => Promise<any>;
   isFollowingAuthor?: boolean;
 }
 
@@ -27,14 +28,18 @@ export function PostCard({
   onToggleReaction,
   onToggleFollow,
   onDeletePost,
+  onAddComment,
   isFollowingAuthor = false,
 }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [comments, setComments] = useState<{ id: string; authorName: string; text: string; date: string }[]>([
-    { id: "c1", authorName: "Seydou Koné", text: "Superbe publication ! Très instructif pour la communauté.", date: "Il y a 10 min" }
-  ]);
+  const [localComments, setLocalComments] = useState<{ id: string; authorName: string; text: string; date: string }[]>([]);
+
+  const allComments = [
+    ...(post?.comments || []),
+    ...localComments
+  ];
 
   const author = post?.author || {
     id: post?.user_id || "unknown",
@@ -71,13 +76,22 @@ export function PostCard({
 
   const isDeletable = ageInHours <= 24;
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (!commentText.trim()) return;
-    setComments(prev => [
-      ...prev,
-      { id: `c-${Date.now()}`, authorName: "Vous", text: commentText.trim(), date: "À l'instant" }
-    ]);
+    const textToSubmit = commentText.trim();
     setCommentText("");
+
+    if (onAddComment) {
+      const created = await onAddComment(post.id, textToSubmit);
+      if (created) {
+        setLocalComments(prev => [...prev, created]);
+      }
+    } else {
+      setLocalComments(prev => [
+        ...prev,
+        { id: `c-${Date.now()}`, authorName: "Vous", text: textToSubmit, date: "À l'instant" }
+      ]);
+    }
     toast({ title: "Commentaire ajouté ✓" });
   };
 
@@ -324,7 +338,7 @@ export function PostCard({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-slate-600 hover:bg-slate-100 transition-all"
           >
             <MessageSquare className="h-4 w-4" />
-            <span>{comments.length} commentaires</span>
+            <span>{allComments.length} commentaires</span>
           </button>
 
           <button
@@ -360,13 +374,13 @@ export function PostCard({
           </div>
 
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-            {comments.map((c) => (
-              <div key={c.id} className="bg-slate-50 p-2.5 rounded-2xl text-xs space-y-0.5">
+            {allComments.map((c: any, idx: number) => (
+              <div key={c.id || idx} className="bg-slate-50 p-2.5 rounded-2xl text-xs space-y-0.5">
                 <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span>{c.authorName}</span>
-                  <span className="text-[10px] text-slate-400 font-normal">{c.date}</span>
+                  <span>{c.authorName || c.author?.full_name || "Membre"}</span>
+                  <span className="text-[10px] text-slate-400 font-normal">{c.date || "Récemment"}</span>
                 </div>
-                <p className="text-slate-700">{c.text}</p>
+                <p className="text-slate-700">{c.text || c.content}</p>
               </div>
             ))}
           </div>

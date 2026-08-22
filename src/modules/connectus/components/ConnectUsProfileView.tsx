@@ -292,8 +292,53 @@ export function ConnectUsProfileView({
                     <Input value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs rounded-xl h-9 bg-white" />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Lien Web / Boutique :</Label>
-                    <Input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} className="text-xs rounded-xl h-9 bg-white" />
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-[11px] font-bold text-slate-700">Lien Web / Boutique / Produit :</Label>
+                      {websiteUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setWebsiteUrl("")}
+                          className="text-[10px] text-rose-600 font-bold hover:underline"
+                        >
+                          Supprimer le lien
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://votre-boutique.ecomfy.cloud ou lien de produit"
+                      className="text-xs rounded-xl h-9 bg-white"
+                    />
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      {profile.shop_slug && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setWebsiteUrl(`https://ecomfy.cloud/shop/${profile.shop_slug}`)}
+                          className="h-7 text-[10px] font-bold rounded-lg border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 gap-1"
+                        >
+                          <Store className="h-3 w-3 text-amber-600" /> Insérer ma Boutique
+                        </Button>
+                      )}
+                      {profile.shop_slug && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const prodUrl = prompt("Saisissez le nom ou lien direct de votre produit :");
+                            if (prodUrl) {
+                              setWebsiteUrl(prodUrl.startsWith("http") ? prodUrl : `https://ecomfy.cloud/shop/${profile.shop_slug}?product=${encodeURIComponent(prodUrl)}`);
+                            }
+                          }}
+                          className="h-7 text-[10px] font-bold rounded-lg border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 gap-1"
+                        >
+                          <ShoppingBag className="h-3 w-3 text-emerald-600" /> Insérer Fiche Produit
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
 

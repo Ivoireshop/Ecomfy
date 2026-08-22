@@ -102,78 +102,96 @@ const INITIAL_DEMO_POSTS: ConnectUsPost[] = [
 
 export class ConnectUsService {
   /**
-   * Fetch all feed posts (Cloud DB + Local cache + Demo posts)
+   * Fetch all feed posts (Cloud DB + Local cache + Demo posts + Aggregated Likes & Comments)
    */
   static async getFeedPosts(userId?: string): Promise<ConnectUsPost[]> {
     let cloudPosts: ConnectUsPost[] = [];
+    const cloudReactionsMap = new Map<string, Map<string, ReactionType>>();
+    const cloudCommentsMap = new Map<string, any[]>();
 
-    // 1. Fetch posts from Supabase cloud community_messages table
+    // 1. Fetch posts, reactions, and comments from Supabase cloud community_messages table
     try {
       const { data: dbMessages } = await supabase
         .from("community_messages")
         .select("id, user_id, body, created_at")
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (dbMessages && dbMessages.length > 0) {
-        cloudPosts = dbMessages
-          .map((msg: any) => {
-            try {
-              if (!msg || !msg.body) return null;
-              let parsed: any = null;
-              try {
-                parsed = typeof msg.body === "string" ? JSON.parse(msg.body) : msg.body;
-              } catch (e) {
-                return null;
+        dbMessages.forEach((msg: any) => {
+          try {
+            if (!msg || !msg.body) return;
+            let parsed: any = typeof msg.body === "string" ? JSON.parse(msg.body) : msg.body;
+
+            // Extract Reactions (Likes)
+            if (parsed.connectus_type === "reaction" && parsed.post_id) {
+              if (!cloudReactionsMap.has(parsed.post_id)) {
+                cloudReactionsMap.set(parsed.post_id, new Map());
               }
-
-              if (parsed && (parsed.connectus_type === "post" || parsed.content)) {
-                const rawDate = parsed.created_at || msg.created_at;
-                const validDate = rawDate && !isNaN(new Date(rawDate).getTime())
-                  ? new Date(rawDate).toISOString()
-                  : new Date().toISOString();
-
-                const fallbackAuthor: ConnectUsProfile = {
-                  id: msg.user_id || "user-anon",
-                  user_id: msg.user_id || "user-anon",
-                  username: parsed.author?.username || `user_${(msg.user_id || "").slice(0, 6)}`,
-                  full_name: parsed.author?.full_name || "Membre Ecomfy",
-                  avatar_url: parsed.author?.avatar_url || null,
-                  cover_url: parsed.author?.cover_url || null,
-                  bio: parsed.author?.bio || "Membre de la communauté ConnectUs",
-                  location: parsed.author?.location || null,
-                  website_url: parsed.author?.website_url || null,
-                  is_verified: true,
-                  is_business: !!parsed.author?.is_business,
-                  followers_count: parsed.author?.followers_count || 10,
-                  following_count: parsed.author?.following_count || 5,
-                  posts_count: parsed.author?.posts_count || 1,
-                  created_at: validDate,
-                };
-
-                return {
-                  id: parsed.id || msg.id || `post-${Math.random()}`,
-                  user_id: msg.user_id || fallbackAuthor.id,
-                  author: parsed.author && parsed.author.id ? { ...fallbackAuthor, ...parsed.author } : fallbackAuthor,
-                  content: parsed.content || "",
-                  media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
-                  video_url: parsed.video_url || null,
-                  link_preview: parsed.link_preview || null,
-                  attached_product: parsed.attached_product || null,
-                  visibility: parsed.visibility || "public",
-                  likes_count: Number(parsed.likes_count) || 0,
-                  comments_count: Number(parsed.comments_count) || 0,
-                  shares_count: Number(parsed.shares_count) || 0,
-                  user_reaction: null,
-                  created_at: validDate,
-                } as ConnectUsPost;
+              if (parsed.reaction) {
+                cloudReactionsMap.get(parsed.post_id)!.set(msg.user_id || parsed.user_id, parsed.reaction);
+              } else {
+                cloudReactionsMap.get(parsed.post_id)!.delete(msg.user_id || parsed.user_id);
               }
-            } catch (e) {
-              return null;
             }
-            return null;
-          })
-          .filter((p): p is ConnectUsPost => p !== null && !!p.author && !!p.id);
+
+            // Extract Comments
+            if (parsed.connectus_type === "comment" && parsed.post_id) {
+              if (!cloudCommentsMap.has(parsed.post_id)) {
+                cloudCommentsMap.set(parsed.post_id, []);
+              }
+              cloudCommentsMap.get(parsed.post_id)!.push({
+                id: msg.id || `c-${Math.random()}`,
+                authorName: parsed.author?.full_name || "Membre",
+                text: parsed.text || parsed.content || "",
+                date: parsed.created_at || msg.created_at || new Date().toISOString(),
+              });
+            }
+
+            // Extract Posts
+            if (parsed.connectus_type === "post" || (parsed.content && !parsed.connectus_type)) {
+              const rawDate = parsed.created_at || msg.created_at;
+              const validDate = rawDate && !isNaN(new Date(rawDate).getTime())
+                ? new Date(rawDate).toISOString()
+                : new Date().toISOString();
+
+              const fallbackAuthor: ConnectUsProfile = {
+                id: msg.user_id || "user-anon",
+                user_id: msg.user_id || "user-anon",
+                username: parsed.author?.username || `user_${(msg.user_id || "").slice(0, 6)}`,
+                full_name: parsed.author?.full_name || "Membre Ecomfy",
+                avatar_url: parsed.author?.avatar_url || null,
+                cover_url: parsed.author?.cover_url || null,
+                bio: parsed.author?.bio || "Membre de la communauté ConnectUs",
+                location: parsed.author?.location || null,
+                website_url: parsed.author?.website_url || null,
+                is_verified: true,
+                is_business: !!parsed.author?.is_business,
+                followers_count: parsed.author?.followers_count || 10,
+                following_count: parsed.author?.following_count || 5,
+                posts_count: parsed.author?.posts_count || 1,
+                created_at: validDate,
+              };
+
+              cloudPosts.push({
+                id: parsed.id || msg.id || `post-${Math.random()}`,
+                user_id: msg.user_id || fallbackAuthor.id,
+                author: parsed.author && parsed.author.id ? { ...fallbackAuthor, ...parsed.author } : fallbackAuthor,
+                content: parsed.content || "",
+                media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
+                video_url: parsed.video_url || null,
+                link_preview: parsed.link_preview || null,
+                attached_product: parsed.attached_product || null,
+                visibility: parsed.visibility || "public",
+                likes_count: Number(parsed.likes_count) || 0,
+                comments_count: Number(parsed.comments_count) || 0,
+                shares_count: Number(parsed.shares_count) || 0,
+                user_reaction: null,
+                created_at: validDate,
+              } as ConnectUsPost);
+            }
+          } catch (e) {}
+        });
       }
     } catch (e) {
       console.warn("Could not load cloud community posts:", e);
@@ -196,11 +214,28 @@ export class ConnectUsService {
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    // 4. REAL USER POSTS DISPLAYED AT THE VERY TOP FIRST!
+    // 4. Combine real user posts with demo posts
     const finalFeed = [...realPosts];
     INITIAL_DEMO_POSTS.forEach((demo) => {
       if (!realPostsMap.has(demo.id)) {
         finalFeed.push(demo);
+      }
+    });
+
+    // 5. Aggregate Cloud Reactions & Cloud Comments on EVERY Post
+    finalFeed.forEach((post) => {
+      const postReactions = cloudReactionsMap.get(post.id);
+      if (postReactions) {
+        post.likes_count = (post.likes_count || 0) + postReactions.size;
+        if (userId && postReactions.has(userId)) {
+          post.user_reaction = postReactions.get(userId) || "like";
+        }
+      }
+
+      const postComments = cloudCommentsMap.get(post.id);
+      if (postComments && postComments.length > 0) {
+        post.comments_count = (post.comments_count || 0) + postComments.length;
+        post.comments = [...(post.comments || []), ...postComments];
       }
     });
 
@@ -240,7 +275,8 @@ export class ConnectUsService {
         .maybeSingle();
 
       const defaultFullName = savedProfile?.full_name || profile?.full_name || "Membre Ecomfy";
-      const username = savedProfile?.username || (
+      const savedCustomUsername = localStorage.getItem(`ecomfy_connectus_custom_username_${userId}`);
+      const username = savedCustomUsername || savedProfile?.username || (
         (profile?.full_name || defaultFullName)
           .toLowerCase()
           .replace(/[^a-z0-9]/g, "_")
@@ -255,7 +291,7 @@ export class ConnectUsService {
         cover_url: savedProfile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
         bio: savedProfile?.bio || (userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs"),
         location: savedProfile?.location || "Côte d'Ivoire",
-        website_url: savedProfile?.website_url || (userShop?.slug ? `https://ecomfy.cloud/shop/${userShop.slug}` : null),
+        website_url: savedProfile?.website_url || null,
         is_verified: true,
         is_business: !!userShop || !!savedProfile?.is_business,
         followers_count: savedProfile?.followers_count || 45,
@@ -300,9 +336,19 @@ export class ConnectUsService {
       safeLocalStorageSet(LOCAL_STORAGE_PROFILE_KEY, profile);
       if (profile.user_id) {
         safeLocalStorageSet(`${LOCAL_STORAGE_PROFILE_KEY}_${profile.user_id}`, profile);
+        if (profile.username) {
+          try {
+            localStorage.setItem(`ecomfy_connectus_custom_username_${profile.user_id}`, profile.username);
+          } catch (e) {}
+        }
       }
       if (profile.id && profile.id !== profile.user_id) {
         safeLocalStorageSet(`${LOCAL_STORAGE_PROFILE_KEY}_${profile.id}`, profile);
+        if (profile.username) {
+          try {
+            localStorage.setItem(`ecomfy_connectus_custom_username_${profile.id}`, profile.username);
+          } catch (e) {}
+        }
       }
 
       if (profile.user_id && !profile.user_id.startsWith("guest_")) {
@@ -444,24 +490,20 @@ export class ConnectUsService {
   }
 
   /**
-   * Toggle reaction on a post
+   * Toggle reaction on a post with Cloud DB sync
    */
   static async toggleReaction(
     postId: string,
     userId: string,
     reactionType: ReactionType = "like"
   ): Promise<{ likesCount: number; userReaction: ReactionType | null }> {
-    const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-    let localPosts: ConnectUsPost[] = [];
-    if (localStoredJson) {
-      try {
-        localPosts = JSON.parse(localStoredJson);
-      } catch (e) {
-        localPosts = [];
-      }
-    }
+    let userReaction: ReactionType | null = reactionType;
+    let likesCount = 1;
 
+    const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+    let localPosts: ConnectUsPost[] = localStoredJson ? JSON.parse(localStoredJson) : [];
     const postIndex = localPosts.findIndex(p => p.id === postId);
+
     if (postIndex !== -1) {
       const post = localPosts[postIndex];
       const isAlreadyReacted = post.user_reaction === reactionType;
@@ -470,18 +512,85 @@ export class ConnectUsService {
       post.likes_count = Math.max(0, post.likes_count + (isAlreadyReacted ? -1 : 1));
 
       safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, localPosts);
-      return { likesCount: post.likes_count, userReaction: post.user_reaction };
+      userReaction = post.user_reaction;
+      likesCount = post.likes_count;
+    } else {
+      const demoPost = INITIAL_DEMO_POSTS.find(p => p.id === postId);
+      if (demoPost) {
+        const isAlreadyReacted = demoPost.user_reaction === reactionType;
+        demoPost.user_reaction = isAlreadyReacted ? null : reactionType;
+        demoPost.likes_count = Math.max(0, demoPost.likes_count + (isAlreadyReacted ? -1 : 1));
+        userReaction = demoPost.user_reaction;
+        likesCount = demoPost.likes_count;
+      }
     }
 
-    const demoPost = INITIAL_DEMO_POSTS.find(p => p.id === postId);
-    if (demoPost) {
-      const isAlreadyReacted = demoPost.user_reaction === reactionType;
-      demoPost.user_reaction = isAlreadyReacted ? null : reactionType;
-      demoPost.likes_count = Math.max(0, demoPost.likes_count + (isAlreadyReacted ? -1 : 1));
-      return { likesCount: demoPost.likes_count, userReaction: demoPost.user_reaction };
+    // Sync reaction to Supabase Cloud DB
+    if (userId && !userId.startsWith("guest_")) {
+      try {
+        const payload = JSON.stringify({
+          connectus_type: "reaction",
+          post_id: postId,
+          user_id: userId,
+          reaction: userReaction,
+          created_at: new Date().toISOString(),
+        });
+        await supabase.from("community_messages").insert([
+          {
+            user_id: userId,
+            body: payload,
+          },
+        ]);
+      } catch (e) {
+        console.warn("Reaction cloud sync warning:", e);
+      }
     }
 
-    return { likesCount: 1, userReaction: reactionType };
+    return { likesCount, userReaction };
+  }
+
+  /**
+   * Add a comment to a post with Cloud DB sync
+   */
+  static async addComment(
+    postId: string,
+    userId: string,
+    author: Partial<ConnectUsProfile>,
+    text: string
+  ): Promise<any> {
+    const commentObj = {
+      id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      authorName: author.full_name || "Membre",
+      text: text.trim(),
+      date: new Date().toISOString(),
+    };
+
+    if (userId && !userId.startsWith("guest_")) {
+      try {
+        const payload = JSON.stringify({
+          connectus_type: "comment",
+          post_id: postId,
+          user_id: userId,
+          author: {
+            full_name: author.full_name,
+            avatar_url: author.avatar_url,
+            username: author.username,
+          },
+          text: commentObj.text,
+          created_at: commentObj.date,
+        });
+        await supabase.from("community_messages").insert([
+          {
+            user_id: userId,
+            body: payload,
+          },
+        ]);
+      } catch (e) {
+        console.warn("Comment cloud sync warning:", e);
+      }
+    }
+
+    return commentObj;
   }
 
   /**

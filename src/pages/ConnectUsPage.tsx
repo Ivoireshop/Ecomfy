@@ -36,6 +36,7 @@ export default function ConnectUsPage() {
     createPost,
     deletePost,
     toggleReaction,
+    addComment,
     toggleFollow,
   } = useConnectUs();
 
@@ -230,6 +231,7 @@ export default function ConnectUsPage() {
                             onToggleReaction={toggleReaction}
                             onToggleFollow={handleToggleFollowUser}
                             onDeletePost={deletePost}
+                            onAddComment={addComment}
                             isFollowingAuthor={Boolean(post.author?.id && followingMap[post.author.id])}
                           />
                         ))}

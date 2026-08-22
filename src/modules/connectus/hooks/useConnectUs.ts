@@ -167,7 +167,28 @@ export function useConnectUs() {
     await ConnectUsService.toggleReaction(postId, userId, reactionType);
   };
 
-  // 6. Toggle Follow
+  // 6. Add Comment Handler
+  const handleAddComment = async (postId: string, text: string) => {
+    if (!userId || !text.trim()) return null;
+    const authorData = profile || { full_name: "Membre Ecomfy", avatar_url: null, username: "membre" };
+    const newComment = await ConnectUsService.addComment(postId, userId, authorData, text);
+
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        const currentComments = p.comments || [];
+        return {
+          ...p,
+          comments_count: (p.comments_count || 0) + 1,
+          comments: [...currentComments, newComment],
+        };
+      }
+      return p;
+    }));
+
+    return newComment;
+  };
+
+  // 7. Toggle Follow
   const handleToggleFollow = (targetUserId: string) => {
     if (!userId) return false;
     const nowFollowing = ConnectUsService.toggleFollow(userId, targetUserId);
@@ -193,6 +214,7 @@ export function useConnectUs() {
     createPost: handleCreatePost,
     deletePost: handleDeletePost,
     toggleReaction: handleToggleReaction,
+    addComment: handleAddComment,
     toggleFollow: handleToggleFollow,
     refresh: loadConnectUsData,
   };
