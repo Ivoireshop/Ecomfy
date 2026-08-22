@@ -22,7 +22,6 @@ export default defineConfig(() => ({
         maximumFileSizeToCacheInBytes: 5000000,
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2,ttf,eot,json}']
       },
-      cleanupOutdatedCaches: true,
       devOptions: {
         enabled: false,
         type: 'module'
