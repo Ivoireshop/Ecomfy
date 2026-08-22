@@ -833,15 +833,20 @@ export class ConnectUsService {
   /**
    * Search registered profiles by name, username, shop name or partial match
    */
+  /**
+   * Search registered profiles by name, username, shop name or partial match
+   * Prioritizes REAL created accounts from Supabase DB & LocalStorage.
+   */
   static async searchProfiles(query: string): Promise<ConnectUsProfile[]> {
     if (!query || query.trim().length === 0) return [];
     const cleanQ = query.trim().replace(/^@/, "").toLowerCase();
     if (!cleanQ) return [];
 
-    const results: ConnectUsProfile[] = [];
+    const realResults: ConnectUsProfile[] = [];
     const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const targetNorm = normalize(cleanQ);
 
+    // 1. Search Real Profiles in Supabase Database
     try {
       const { data: dbProfiles } = await supabase
         .from("profiles")
@@ -852,10 +857,12 @@ export class ConnectUsService {
       if (dbProfiles && dbProfiles.length > 0) {
         for (const p of dbProfiles) {
           const username = (p.full_name || "user").toLowerCase().replace(/[^a-z0-9]/g, "_");
-          results.push({
+          const customUsername = localStorage.getItem(`ecomfy_connectus_custom_username_${p.id}`);
+          
+          realResults.push({
             id: p.id,
             user_id: p.id,
-            username,
+            username: customUsername || username,
             full_name: p.full_name || "Membre ConnectUs",
             avatar_url: p.avatar_url || null,
             cover_url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
@@ -873,25 +880,37 @@ export class ConnectUsService {
       }
     } catch (e) {}
 
+    // 2. Search Real Profiles saved in LocalStorage
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith(LOCAL_STORAGE_PROFILE_KEY) || key.startsWith("ecomfy_connectus_profile"))) {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed: ConnectUsProfile = JSON.parse(raw);
+              if (parsed && parsed.full_name) {
+                const normName = normalize(parsed.full_name);
+                const normUser = normalize(parsed.username || "");
+                if (normName.includes(targetNorm) || normUser.includes(targetNorm)) {
+                  if (!realResults.some(r => r.id === parsed.id || r.user_id === parsed.user_id)) {
+                    realResults.push(parsed);
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (e) {}
+
+    // If REAL profiles matching the search query are found, return ONLY the real accounts!
+    if (realResults.length > 0) {
+      return realResults;
+    }
+
+    // 3. Fallback Demo Users (Only shown if NO real matching profiles exist for demo keywords)
     const demoUsers: ConnectUsProfile[] = [
-      {
-        id: "demo-user-ulrich",
-        user_id: "demo-user-ulrich",
-        username: "ulrichdjate",
-        full_name: "Ulrich Djaté",
-        avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
-        cover_url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop&q=80",
-        bio: "Entrepreneur Ecomfy & Créateur de solutions E-commerce 🚀",
-        location: "Abidjan, Côte d'Ivoire",
-        website_url: "https://ecomfy.cloud",
-        is_verified: true,
-        is_business: true,
-        followers_count: 3450,
-        following_count: 240,
-        posts_count: 58,
-        shop_name: "Ulrich Tech Studio",
-        created_at: new Date().toISOString(),
-      },
       {
         id: "demo-user-1",
         user_id: "demo-user-1",
@@ -963,41 +982,21 @@ export class ConnectUsService {
         posts_count: 64,
         shop_name: "Désirée Déco & Home",
         created_at: new Date().toISOString(),
-      },
-      {
-        id: "demo-user-5",
-        user_id: "demo-user-5",
-        username: "ulrich_epices",
-        full_name: "Ulrich Dossou",
-        avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80",
-        cover_url: null,
-        bio: "Épices fines & Saveurs d'Afrique de l'Ouest 🌶️🍲",
-        location: "Cotonou, Bénin",
-        website_url: null,
-        is_verified: true,
-        is_business: true,
-        followers_count: 1850,
-        following_count: 210,
-        posts_count: 31,
-        shop_name: "Ulrich Épices Bio",
-        created_at: new Date().toISOString(),
       }
     ];
 
+    const demoResults: ConnectUsProfile[] = [];
     demoUsers.forEach((du) => {
       const matchName = normalize(du.full_name).includes(targetNorm);
       const matchUsername = normalize(du.username).includes(targetNorm);
       const matchShop = normalize(du.shop_name || "").includes(targetNorm);
-      const matchBio = normalize(du.bio || "").includes(targetNorm);
 
-      if (matchName || matchUsername || matchShop || matchBio) {
-        if (!results.some((r) => r.id === du.id)) {
-          results.push(du);
-        }
+      if (matchName || matchUsername || matchShop) {
+        demoResults.push(du);
       }
     });
 
-    return results;
+    return demoResults;
   }
 
   /**

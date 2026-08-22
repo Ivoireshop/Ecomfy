@@ -159,8 +159,8 @@ export function ConnectUsHeader({
                     ))}
                   </div>
                 ) : (
-                  <div className="p-4 text-center text-xs text-slate-500">
-                    Aucun membre trouvé commençant par "{searchQuery}".
+                  <div className="p-4 text-center text-xs font-semibold text-slate-500">
+                    Aucun profil trouvé pour "{searchQuery}". Profil introuvable.
                   </div>
                 )}
               </div>
