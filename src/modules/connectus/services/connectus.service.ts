@@ -186,27 +186,17 @@ export class ConnectUsService {
     try {
       const bodyStr = typeof payloadObj === "string" ? payloadObj : JSON.stringify(payloadObj);
       const isValidUUID = Boolean(userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId));
+      const targetUserId = isValidUUID && userId ? userId : "00000000-0000-0000-0000-000000000000";
 
-      if (isValidUUID) {
-        const { error } = await supabase.from("community_messages").insert([
-          {
-            user_id: userId,
-            body: bodyStr,
-          },
-        ]);
-        if (!error) return true;
-        console.warn("Supabase insert with user_id error, trying fallback without user_id:", error.message);
-      }
-
-      // Fallback insert without user_id column constraint (allows storing posts for all users!)
-      const { error: fallbackError } = await supabase.from("community_messages").insert([
+      const { error } = await supabase.from("community_messages").insert([
         {
+          user_id: targetUserId,
           body: bodyStr,
         },
       ]);
 
-      if (fallbackError) {
-        console.warn("Supabase fallback insert warning:", fallbackError.message);
+      if (error) {
+        console.warn("Supabase community message insert warning:", error.message);
         return false;
       }
       return true;

@@ -4,6 +4,7 @@ import { ConnectUsService } from "../services/connectus.service";
 import {
   ConnectUsProfile,
   ConnectUsPost,
+  ConnectUsNotification,
   AttachedProduct,
   VisibilityType,
   ReactionType
