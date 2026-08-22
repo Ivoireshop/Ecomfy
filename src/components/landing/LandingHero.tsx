@@ -39,6 +39,126 @@ function useMouseParallax(intensity: number = 20) {
   return position;
 }
 
+const HERO_PHRASES = [
+  { text: "Pour tout vendre simplement.", highlight: "vendre" },
+  { text: "Fini le bricolage, passez au niveau supérieur.", highlight: "niveau supérieur" },
+  { text: "Créez une boutique professionnelle en 3 minutes.", highlight: "boutique" },
+  { text: "Une fiche produit optimisée pour la conversion.", highlight: "conversion" },
+  { text: "Votre studio créatif propulsé par IA.", highlight: "propulsé par IA" },
+  { text: "La finance claire et nette.", highlight: "claire et nette" },
+  { text: "Un écosystème ouvert.", highlight: "écosystème" },
+  { text: "ConnectUs, connectez-vous au monde.", highlight: "ConnectUs" },
+];
+
+function HeroTypewriter() {
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    const listener = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      setIsPaused(document.visibilityState === 'hidden');
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (prefersReducedMotion || isPaused) return;
+
+    const currentPhrase = HERO_PHRASES[phraseIndex].text;
+    let timer: NodeJS.Timeout;
+
+    if (!isDeleting) {
+      if (charIndex < currentPhrase.length) {
+        const speed = 50 + Math.random() * 20; // 50-70ms per char
+        timer = setTimeout(() => {
+          setCharIndex((prev) => prev + 1);
+        }, speed);
+      } else {
+        // Pause 3s after typing complete phrase
+        timer = setTimeout(() => {
+          setIsDeleting(true);
+        }, 3000);
+      }
+    } else {
+      if (charIndex > 0) {
+        timer = setTimeout(() => {
+          setCharIndex((prev) => prev - 1);
+        }, 30);
+      } else {
+        // Pause 400ms after erasing phrase before starting next
+        timer = setTimeout(() => {
+          setIsDeleting(false);
+          setPhraseIndex((prev) => (prev + 1) % HERO_PHRASES.length);
+        }, 400);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [charIndex, isDeleting, phraseIndex, isPaused, prefersReducedMotion]);
+
+  const currentPhraseObj = HERO_PHRASES[phraseIndex];
+
+  if (prefersReducedMotion) {
+    return (
+      <div className="min-h-[120px] sm:min-h-[150px] md:min-h-[180px] lg:min-h-[220px] flex items-center justify-center mb-8 w-full max-w-4xl">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[1.08] text-slate-900 drop-shadow-sm text-center">
+          Pour tout <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] to-[#0A5F4F]">vendre</span> simplement.
+        </h1>
+      </div>
+    );
+  }
+
+  const fullText = currentPhraseObj.text;
+  const visibleLength = charIndex;
+  const visibleText = fullText.slice(0, visibleLength);
+  const highlightWord = currentPhraseObj.highlight;
+  const highlightStart = fullText.indexOf(highlightWord);
+  const highlightEnd = highlightStart + highlightWord.length;
+
+  let before = "";
+  let highlighted = "";
+  let after = "";
+
+  if (highlightStart !== -1) {
+    before = visibleText.slice(0, Math.min(visibleLength, highlightStart));
+    if (visibleLength > highlightStart) {
+      highlighted = visibleText.slice(highlightStart, Math.min(visibleLength, highlightEnd));
+    }
+    if (visibleLength > highlightEnd) {
+      after = visibleText.slice(highlightEnd);
+    }
+  } else {
+    before = visibleText;
+  }
+
+  return (
+    <div className="min-h-[120px] sm:min-h-[150px] md:min-h-[180px] lg:min-h-[220px] flex items-center justify-center mb-8 w-full max-w-4xl">
+      <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[1.08] text-slate-900 drop-shadow-sm text-center">
+        {before}
+        {highlighted && (
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] to-[#0A5F4F]">
+            {highlighted}
+          </span>
+        )}
+        {after}
+        <span className="inline-block w-[4px] md:w-[6px] h-[0.75em] bg-[#0E7C66] ml-1.5 align-baseline animate-cursor-blink rounded-full shadow-sm" />
+      </h1>
+    </div>
+  );
+}
+
 export function LandingHero() {
   const navigate = useNavigate();
   const { ref: heroRef, isVisible } = useScrollReveal({ threshold: 0.1 });
@@ -186,11 +306,8 @@ export function LandingHero() {
             <span>La plateforme tout-en-un pour vendre en ligne</span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[1.05] mb-8 text-slate-900 drop-shadow-sm">
-            Pour tout <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] to-[#0A5F4F]">vendre</span><br />
-            simplement.
-          </h1>
+          {/* Headline avec effet Machine à Écrire (Typewriter) */}
+          <HeroTypewriter />
 
           {/* Subtitle */}
           <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
@@ -256,6 +373,13 @@ export function LandingHero() {
       
       {/* Inline styles for custom subtle floating animations */}
       <style>{`
+        @keyframes cursor-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.15; }
+        }
+        .animate-cursor-blink {
+          animation: cursor-blink 1s ease-in-out infinite;
+        }
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           50% { transform: translateY(-15px) rotate(2deg); }
