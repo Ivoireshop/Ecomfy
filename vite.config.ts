@@ -16,14 +16,15 @@ export default defineConfig(() => ({
       srcDir: 'src',
       filename: 'sw.js',
       injectRegister: 'auto',
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       manifest: false, // We're using the existing manifest.webmanifest in public/
       injectManifest: {
         maximumFileSizeToCacheInBytes: 5000000,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ttf,eot,json}']
       },
+      cleanupOutdatedCaches: true,
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module'
       }
     })
