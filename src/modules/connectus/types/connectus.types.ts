@@ -52,6 +52,7 @@ export interface ConnectUsPost {
   shares_count: number;
   user_reaction?: ReactionType | null;
   is_bookmarked?: boolean;
+  comments?: any[];
   created_at: string;
 }
 
