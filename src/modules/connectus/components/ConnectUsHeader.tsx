@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConnectUsProfile } from "../types/connectus.types";
 import {
   Globe, Search, PlusCircle, Bell, User, ShoppingBag, Sparkles, Store, Compass, Radio,
-  MessageCircle, Film, Users, Briefcase, ArrowLeft
+  MessageCircle, Film, Users, Briefcase, ArrowLeft, X
 } from "lucide-react";
 
 export type ConnectUsTab = 
