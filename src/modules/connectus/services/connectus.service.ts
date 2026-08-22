@@ -102,6 +102,112 @@ const INITIAL_DEMO_POSTS: ConnectUsPost[] = [
 
 export class ConnectUsService {
   /**
+   * Fetch all feed posts (Cloud DB + Local cache + Demo posts)
+   */
+  static async getFeedPosts(userId?: string): Promise<ConnectUsPost[]> {
+    let cloudPosts: ConnectUsPost[] = [];
+
+    // 1. Fetch posts from Supabase cloud community_messages table
+    try {
+      const { data: dbMessages } = await supabase
+        .from("community_messages")
+        .select("id, user_id, body, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (dbMessages && dbMessages.length > 0) {
+        cloudPosts = dbMessages
+          .map((msg: any) => {
+            try {
+              if (!msg || !msg.body) return null;
+              let parsed: any = null;
+              try {
+                parsed = typeof msg.body === "string" ? JSON.parse(msg.body) : msg.body;
+              } catch (e) {
+                return null;
+              }
+
+              if (parsed && (parsed.connectus_type === "post" || parsed.content)) {
+                const rawDate = parsed.created_at || msg.created_at;
+                const validDate = rawDate && !isNaN(new Date(rawDate).getTime())
+                  ? new Date(rawDate).toISOString()
+                  : new Date().toISOString();
+
+                const fallbackAuthor: ConnectUsProfile = {
+                  id: msg.user_id || "user-anon",
+                  user_id: msg.user_id || "user-anon",
+                  username: parsed.author?.username || `user_${(msg.user_id || "").slice(0, 6)}`,
+                  full_name: parsed.author?.full_name || "Membre Ecomfy",
+                  avatar_url: parsed.author?.avatar_url || null,
+                  cover_url: parsed.author?.cover_url || null,
+                  bio: parsed.author?.bio || "Membre de la communauté ConnectUs",
+                  location: parsed.author?.location || null,
+                  website_url: parsed.author?.website_url || null,
+                  is_verified: true,
+                  is_business: !!parsed.author?.is_business,
+                  followers_count: parsed.author?.followers_count || 10,
+                  following_count: parsed.author?.following_count || 5,
+                  posts_count: parsed.author?.posts_count || 1,
+                  created_at: validDate,
+                };
+
+                return {
+                  id: parsed.id || msg.id || `post-${Math.random()}`,
+                  user_id: msg.user_id || fallbackAuthor.id,
+                  author: parsed.author && parsed.author.id ? { ...fallbackAuthor, ...parsed.author } : fallbackAuthor,
+                  content: parsed.content || "",
+                  media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
+                  video_url: parsed.video_url || null,
+                  link_preview: parsed.link_preview || null,
+                  attached_product: parsed.attached_product || null,
+                  visibility: parsed.visibility || "public",
+                  likes_count: Number(parsed.likes_count) || 0,
+                  comments_count: Number(parsed.comments_count) || 0,
+                  shares_count: Number(parsed.shares_count) || 0,
+                  user_reaction: null,
+                  created_at: validDate,
+                } as ConnectUsPost;
+              }
+            } catch (e) {
+              return null;
+            }
+            return null;
+          })
+          .filter((p): p is ConnectUsPost => p !== null && !!p.author && !!p.id);
+      }
+    } catch (e) {
+      console.warn("Could not load cloud community posts:", e);
+    }
+
+    // 2. Load local posts
+    let localPosts: ConnectUsPost[] = [];
+    try {
+      const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+      if (localStoredJson) {
+        localPosts = JSON.parse(localStoredJson);
+      }
+    } catch (e) {}
+
+    // 3. Merge real user posts (cloud + local) removing duplicates
+    const realPostsMap = new Map<string, ConnectUsPost>();
+    [...localPosts, ...cloudPosts].forEach((p) => realPostsMap.set(p.id, p));
+
+    const realPosts = Array.from(realPostsMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    // 4. REAL USER POSTS DISPLAYED AT THE VERY TOP FIRST!
+    const finalFeed = [...realPosts];
+    INITIAL_DEMO_POSTS.forEach((demo) => {
+      if (!realPostsMap.has(demo.id)) {
+        finalFeed.push(demo);
+      }
+    });
+
+    return finalFeed;
+  }
+
+  /**
    * Persistent Fetch profile with user-scoped storage & Supabase DB sync
    */
   static async getProfile(userId: string): Promise<ConnectUsProfile> {
@@ -109,12 +215,12 @@ export class ConnectUsService {
     let savedProfile: Partial<ConnectUsProfile> | null = null;
 
     try {
-      const savedJson = localStorage.getItem(userStorageKey) || localStorage.getItem(LOCAL_STORAGE_PROFILE_KEY);
-      if (savedJson) {
-        const parsed = JSON.parse(savedJson);
-        if (parsed && (parsed.user_id === userId || parsed.id === userId)) {
-          savedProfile = parsed;
-        }
+      const userJson = localStorage.getItem(userStorageKey);
+      const generalJson = localStorage.getItem(LOCAL_STORAGE_PROFILE_KEY);
+      if (userJson) {
+        savedProfile = JSON.parse(userJson);
+      } else if (generalJson) {
+        savedProfile = JSON.parse(generalJson);
       }
     } catch (e) {}
 
@@ -133,11 +239,11 @@ export class ConnectUsService {
         .limit(1)
         .maybeSingle();
 
-      const defaultFullName = profile?.full_name || savedProfile?.full_name || "Membre Ecomfy";
+      const defaultFullName = savedProfile?.full_name || profile?.full_name || "Membre Ecomfy";
       const username = savedProfile?.username || (
-        profile?.full_name 
-          ? profile.full_name.toLowerCase().replace(/[^a-z0-9]/g, "_")
-          : `user_${userId.slice(0, 8)}`
+        (profile?.full_name || defaultFullName)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "_")
       );
 
       const createdProfile: ConnectUsProfile = {
@@ -145,27 +251,27 @@ export class ConnectUsService {
         user_id: userId,
         username,
         full_name: defaultFullName,
-        avatar_url: profile?.avatar_url || savedProfile?.avatar_url || null,
+        avatar_url: savedProfile?.avatar_url || profile?.avatar_url || null,
         cover_url: savedProfile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
         bio: savedProfile?.bio || (userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs"),
         location: savedProfile?.location || "Côte d'Ivoire",
         website_url: savedProfile?.website_url || (userShop?.slug ? `https://ecomfy.cloud/shop/${userShop.slug}` : null),
         is_verified: true,
-        is_business: !!userShop,
+        is_business: !!userShop || !!savedProfile?.is_business,
         followers_count: savedProfile?.followers_count || 45,
         following_count: savedProfile?.following_count || 12,
         posts_count: savedProfile?.posts_count || 5,
         shop_id: userShop?.id || savedProfile?.shop_id,
         shop_slug: userShop?.slug || savedProfile?.shop_slug,
         shop_name: userShop?.business_name || savedProfile?.shop_name,
-        created_at: profile?.updated_at || new Date().toISOString(),
+        created_at: profile?.updated_at || savedProfile?.created_at || new Date().toISOString(),
       };
 
       safeLocalStorageSet(LOCAL_STORAGE_PROFILE_KEY, createdProfile);
       safeLocalStorageSet(userStorageKey, createdProfile);
       return createdProfile;
     } catch (e) {
-      if (savedProfile) return savedProfile as ConnectUsProfile;
+      if (savedProfile) return { ...savedProfile, id: userId, user_id: userId } as ConnectUsProfile;
       return {
         id: userId,
         user_id: userId,
@@ -173,10 +279,10 @@ export class ConnectUsService {
         full_name: "Membre Ecomfy",
         avatar_url: null,
         cover_url: null,
-        bio: "Bio ConnectUs",
-        location: null,
+        bio: "Membre passionné de la communauté ConnectUs",
+        location: "Côte d'Ivoire",
         website_url: null,
-        is_verified: false,
+        is_verified: true,
         is_business: false,
         followers_count: 0,
         following_count: 0,
@@ -194,6 +300,9 @@ export class ConnectUsService {
       safeLocalStorageSet(LOCAL_STORAGE_PROFILE_KEY, profile);
       if (profile.user_id) {
         safeLocalStorageSet(`${LOCAL_STORAGE_PROFILE_KEY}_${profile.user_id}`, profile);
+      }
+      if (profile.id && profile.id !== profile.user_id) {
+        safeLocalStorageSet(`${LOCAL_STORAGE_PROFILE_KEY}_${profile.id}`, profile);
       }
 
       if (profile.user_id && !profile.user_id.startsWith("guest_")) {
@@ -215,25 +324,95 @@ export class ConnectUsService {
   }
 
   /**
+   * Create a new post in ConnectUs with Cloud database sync & Quota protection
+   */
+  static async createPost(
+    userId: string,
+    postData: {
+      content: string;
+      media_urls: string[];
+      video_url?: string | null;
+      link_preview?: any;
+      attached_product?: AttachedProduct | null;
+      visibility: VisibilityType;
+    }
+  ): Promise<ConnectUsPost> {
+    const authorProfile = await this.getProfile(userId);
+
+    const newPost: ConnectUsPost = {
+      id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      user_id: userId,
+      author: authorProfile,
+      content: postData.content,
+      media_urls: postData.media_urls,
+      video_url: postData.video_url || null,
+      link_preview: postData.link_preview || null,
+      attached_product: postData.attached_product || null,
+      attached_shop_id: authorProfile.shop_id || null,
+      visibility: postData.visibility,
+      likes_count: 0,
+      comments_count: 0,
+      shares_count: 0,
+      user_reaction: null,
+      created_at: new Date().toISOString(),
+    };
+
+    // Save locally
+    const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+    let existingPosts: ConnectUsPost[] = [];
+    if (existingJson) {
+      try {
+        existingPosts = JSON.parse(existingJson);
+      } catch (e) {
+        existingPosts = [];
+      }
+    }
+
+    existingPosts.unshift(newPost);
+    safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, existingPosts);
+
+    // Sync globally to Supabase cloud so all real users see this post immediately!
+    try {
+      const postPayload = JSON.stringify({
+        connectus_type: "post",
+        id: newPost.id,
+        author: newPost.author,
+        content: newPost.content,
+        media_urls: newPost.media_urls,
+        video_url: newPost.video_url,
+        link_preview: newPost.link_preview,
+        attached_product: newPost.attached_product,
+        visibility: newPost.visibility,
+        created_at: newPost.created_at,
+      });
+
+      await supabase.from("community_messages").insert([
+        {
+          user_id: userId,
+          body: postPayload,
+        },
+      ]);
+    } catch (e) {
+      console.warn("Post created locally, cloud sync pending:", e);
+    }
+
+    return newPost;
+  }
+
+  /**
    * Delete post permanently from Supabase cloud database & local storage
    */
   static async deletePost(postId: string, userId: string): Promise<boolean> {
     try {
-      let deletedCount = 0;
-
-      // 1. Delete from Supabase cloud table (community_messages)
       if (userId && !userId.startsWith("guest_")) {
-        const { error } = await supabase
-          .from("community_messages")
-          .delete()
-          .eq("user_id", userId)
-          .or(`id.eq.${postId}`);
+        try {
+          await supabase
+            .from("community_messages")
+            .delete()
+            .eq("user_id", userId)
+            .eq("id", postId);
+        } catch (e) {}
 
-        if (error) {
-          console.warn("Could not delete cloud message directly:", error);
-        }
-
-        // Search messages containing the post payload ID
         try {
           const { data: userMsgs } = await supabase
             .from("community_messages")
@@ -244,22 +423,17 @@ export class ConnectUsService {
             for (const msg of userMsgs) {
               if (msg.body && typeof msg.body === "string" && msg.body.includes(postId)) {
                 await supabase.from("community_messages").delete().eq("id", msg.id);
-                deletedCount++;
               }
             }
           }
         } catch (e) {}
       }
 
-      // 2. Delete from local storage cache
       const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
       if (existingJson) {
         let posts: ConnectUsPost[] = JSON.parse(existingJson);
         const filtered = posts.filter(p => p.id !== postId);
-        if (filtered.length !== posts.length) {
-          safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, filtered);
-          deletedCount++;
-        }
+        safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, filtered);
       }
 
       return true;
@@ -270,7 +444,107 @@ export class ConnectUsService {
   }
 
   /**
-   * Search registered profiles by name, username, shop name or partial match (Ulrich Djaté, @ulrichdjate, Ulri, djate)
+   * Toggle reaction on a post
+   */
+  static async toggleReaction(
+    postId: string,
+    userId: string,
+    reactionType: ReactionType = "like"
+  ): Promise<{ likesCount: number; userReaction: ReactionType | null }> {
+    const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+    let localPosts: ConnectUsPost[] = [];
+    if (localStoredJson) {
+      try {
+        localPosts = JSON.parse(localStoredJson);
+      } catch (e) {
+        localPosts = [];
+      }
+    }
+
+    const postIndex = localPosts.findIndex(p => p.id === postId);
+    if (postIndex !== -1) {
+      const post = localPosts[postIndex];
+      const isAlreadyReacted = post.user_reaction === reactionType;
+      
+      post.user_reaction = isAlreadyReacted ? null : reactionType;
+      post.likes_count = Math.max(0, post.likes_count + (isAlreadyReacted ? -1 : 1));
+
+      safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, localPosts);
+      return { likesCount: post.likes_count, userReaction: post.user_reaction };
+    }
+
+    const demoPost = INITIAL_DEMO_POSTS.find(p => p.id === postId);
+    if (demoPost) {
+      const isAlreadyReacted = demoPost.user_reaction === reactionType;
+      demoPost.user_reaction = isAlreadyReacted ? null : reactionType;
+      demoPost.likes_count = Math.max(0, demoPost.likes_count + (isAlreadyReacted ? -1 : 1));
+      return { likesCount: demoPost.likes_count, userReaction: demoPost.user_reaction };
+    }
+
+    return { likesCount: 1, userReaction: reactionType };
+  }
+
+  /**
+   * Fetch products for merchant shop
+   */
+  static async getMerchantProducts(userId: string): Promise<AttachedProduct[]> {
+    try {
+      const { data: userShop } = await supabase
+        .from("shops")
+        .select("id, slug")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!userShop) return [];
+
+      const { data: products } = await supabase
+        .from("products")
+        .select("id, name, price, compare_at_price, category, product_images(image_url)")
+        .eq("shop_id", userShop.id)
+        .eq("is_published", true)
+        .limit(20);
+
+      return (products || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        compare_at_price: p.compare_at_price,
+        image_url: p.product_images?.[0]?.image_url || null,
+        category: p.category,
+        shop_slug: userShop.slug,
+      }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * Toggle Follow / Unfollow
+   */
+  static toggleFollow(followerId: string, targetUserId: string): boolean {
+    try {
+      const followsJson = localStorage.getItem(LOCAL_STORAGE_FOLLOWS_KEY);
+      let follows: string[] = followsJson ? JSON.parse(followsJson) : [];
+
+      const index = follows.indexOf(targetUserId);
+      let nowFollowing = false;
+      if (index >= 0) {
+        follows.splice(index, 1);
+        nowFollowing = false;
+      } else {
+        follows.push(targetUserId);
+        nowFollowing = true;
+      }
+
+      safeLocalStorageSet(LOCAL_STORAGE_FOLLOWS_KEY, follows);
+      return nowFollowing;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Search registered profiles by name, username, shop name or partial match
    */
   static async searchProfiles(query: string): Promise<ConnectUsProfile[]> {
     if (!query || query.trim().length === 0) return [];
@@ -281,7 +555,6 @@ export class ConnectUsService {
     const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const targetNorm = normalize(cleanQ);
 
-    // 1. Query real profiles from Supabase DB
     try {
       const { data: dbProfiles } = await supabase
         .from("profiles")
@@ -313,7 +586,6 @@ export class ConnectUsService {
       }
     } catch (e) {}
 
-    // 2. Search Demo & Featured Community Members (including Ulrich Djaté, Désirée Kouadio, Aminata Diallo, Koffi Mensah, etc.)
     const demoUsers: ConnectUsProfile[] = [
       {
         id: "demo-user-ulrich",
