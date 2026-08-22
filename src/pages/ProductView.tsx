@@ -18,7 +18,6 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
-import { StockUrgencyBarInline } from "@/components/shop/StockUrgencyBarInline";
 import { LiveVisitorCounter } from "@/components/shop/LiveVisitorCounter";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { isAbidjanZone } from "@/lib/abidjanZones";
