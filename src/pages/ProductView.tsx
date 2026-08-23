@@ -13,7 +13,7 @@ import {
   ShoppingCart, Plus, Minus, Store, Phone, MessageCircle, 
   Star, MapPin, Mail, ShoppingBag, ArrowLeft, ChevronLeft, 
   ChevronRight, Share2, Heart, Truck, Shield, Clock, CheckCircle2,
-  CreditCard, User, ArrowRight, Trash2, Send, X, Lock
+  CreditCard, User, ArrowRight, Trash2, Send, X, Lock, Volume2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DOMPurify from "dompurify";
