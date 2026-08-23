@@ -41,6 +41,7 @@ export function PostCard({
   const [localComments, setLocalComments] = useState<{ id: string; authorName: string; text: string; date: string; parent_id?: string; replies?: any[]; likes_count?: number }[]>([]);
   const [replyingCommentId, setReplyingCommentId] = useState<string | null>(null);
   const [replyInputText, setReplyInputText] = useState("");
+  const [videoError, setVideoError] = useState(false);
 
   const allComments = [
     ...(post?.comments || []),
@@ -243,13 +244,29 @@ export function PostCard({
 
       {post.video_url && (
         <div className="rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center relative shadow-xs">
-          <video
-            src={post.video_url}
-            controls
-            preload="none"
-            playsInline
-            className="h-full w-full object-contain"
-          />
+          {videoError ? (
+            <div className="p-6 text-center space-y-2 text-white">
+              <p className="text-xs font-semibold text-slate-300">⚡ Vidéo en cours de traitement ou format non lisible</p>
+              <a
+                href={post.video_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all"
+              >
+                Ouvrir la vidéo directement 🎬
+              </a>
+            </div>
+          ) : (
+            <video
+              src={post.video_url}
+              poster={post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"}
+              controls
+              preload="none"
+              playsInline
+              onError={() => setVideoError(true)}
+              className="h-full w-full object-contain"
+            />
+          )}
         </div>
       )}
 
