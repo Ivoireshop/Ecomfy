@@ -538,7 +538,6 @@ const ShopEditor = () => {
           ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
           : [],
         section_order: data.section_order ?? null,
-        videos: Array.isArray(data.videos) ? data.videos : [],
       };
       let prodId = editingProduct?.id;
 
@@ -558,6 +557,9 @@ const ShopEditor = () => {
 
       if (prodId && Array.isArray(data.videos)) {
         await saveProductVideos(prodId, id, data.videos);
+        if (editingProduct) {
+          setEditingProduct((prev) => prev ? { ...prev, ...productData, videos: data.videos } : null);
+        }
       }
 
       if (prodId && newImgs.length > 0) {
