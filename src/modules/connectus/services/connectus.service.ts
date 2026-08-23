@@ -290,10 +290,30 @@ export class ConnectUsService {
         dbMessages.forEach((msg: any) => {
           try {
             if (!msg || !msg.body) return;
-            let parsed: any = typeof msg.body === "string" ? JSON.parse(msg.body) : msg.body;
+
+            let parsed: any;
+            if (typeof msg.body === "string") {
+              try {
+                parsed = JSON.parse(msg.body);
+              } catch (e) {
+                // Message en texte brut (ex: "Bonjour à tous") -> Convertir en post !
+                parsed = {
+                  connectus_type: "post",
+                  content: msg.body,
+                };
+              }
+            } else {
+              parsed = msg.body;
+            }
+
+            if (!parsed || typeof parsed !== "object") {
+              parsed = { connectus_type: "post", content: String(msg.body || "") };
+            }
+
+            const type = parsed.connectus_type;
 
             // Extract Reactions (Likes)
-            if (parsed.connectus_type === "reaction" && parsed.post_id) {
+            if (type === "reaction" && parsed.post_id) {
               if (!cloudReactionsMap.has(parsed.post_id)) {
                 cloudReactionsMap.set(parsed.post_id, new Map());
               }
@@ -302,10 +322,11 @@ export class ConnectUsService {
               } else {
                 cloudReactionsMap.get(parsed.post_id)!.delete(msg.user_id || parsed.user_id);
               }
+              return;
             }
 
             // Extract Comments
-            if (parsed.connectus_type === "comment" && parsed.post_id) {
+            if (type === "comment" && parsed.post_id) {
               if (!cloudCommentsMap.has(parsed.post_id)) {
                 cloudCommentsMap.set(parsed.post_id, []);
               }
@@ -315,10 +336,19 @@ export class ConnectUsService {
                 text: parsed.text || parsed.content || "",
                 date: parsed.created_at || msg.created_at || new Date().toISOString(),
               });
+              return;
             }
 
-            // Extract Posts
-            if (parsed.connectus_type === "post" || (parsed.content && !parsed.connectus_type)) {
+            // Exclure uniquement les types système hors-feed (notification, private_message, story)
+            if (["notification", "private_message", "story", "story_like"].includes(type)) {
+              return;
+            }
+
+            // EXTRACTION ROBUSTE DES POSTS : texte, content, médias, vidéo, produit attaché
+            const postContent = parsed.content || parsed.text || parsed.message || (typeof parsed === "string" ? parsed : "");
+            const hasMedia = (Array.isArray(parsed.media_urls) && parsed.media_urls.length > 0) || Boolean(parsed.video_url) || Boolean(parsed.attached_product) || Boolean(parsed.link_preview);
+
+            if (postContent || hasMedia || type === "post" || type === "message" || !type) {
               const rawDate = parsed.created_at || msg.created_at;
               const validDate = rawDate && !isNaN(new Date(rawDate).getTime())
                 ? new Date(rawDate).toISOString()
@@ -342,11 +372,13 @@ export class ConnectUsService {
                 created_at: validDate,
               };
 
+              const postId = parsed.id || msg.id || `post-${msg.created_at || Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
               cloudPosts.push({
-                id: parsed.id || msg.id || `post-${Math.random()}`,
+                id: postId,
                 user_id: msg.user_id || fallbackAuthor.id,
                 author: parsed.author && parsed.author.id ? { ...fallbackAuthor, ...parsed.author } : fallbackAuthor,
-                content: parsed.content || "",
+                content: postContent,
                 media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
                 video_url: parsed.video_url || null,
                 link_preview: parsed.link_preview || null,
@@ -359,7 +391,9 @@ export class ConnectUsService {
                 created_at: validDate,
               } as ConnectUsPost);
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn("Message parsing fallback warning:", e);
+          }
         });
       }
     } catch (e) {
