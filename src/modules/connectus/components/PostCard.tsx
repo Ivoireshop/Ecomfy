@@ -242,8 +242,14 @@ export function PostCard({
       )}
 
       {post.video_url && (
-        <div className="rounded-2xl overflow-hidden bg-slate-900 aspect-video flex items-center justify-center relative">
-          <video src={post.video_url} controls className="h-full w-full object-contain" />
+        <div className="rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center relative shadow-xs">
+          <video
+            src={post.video_url}
+            controls
+            preload="none"
+            playsInline
+            className="h-full w-full object-contain"
+          />
         </div>
       )}
 

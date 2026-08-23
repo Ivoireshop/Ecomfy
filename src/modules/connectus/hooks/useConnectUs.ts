@@ -57,14 +57,29 @@ export function useConnectUs() {
     if (isReady) {
       loadConnectUsData();
 
-      // Realtime listener for live post, comment, reaction updates across all ConnectUs accounts
+      // Realtime listener for live post updates across ConnectUs accounts
       const channel = supabase
         .channel("connectus_live_messages")
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "community_messages" },
-          () => {
-            loadConnectUsData();
+          { event: "INSERT", schema: "public", table: "community_messages" },
+          (payload: any) => {
+            const newRecord = payload.new;
+            if (!newRecord || !newRecord.body) return;
+            try {
+              const parsed = typeof newRecord.body === "string" ? JSON.parse(newRecord.body) : newRecord.body;
+              // Avoid refetching for own actions that were already applied optimistically
+              if (newRecord.user_id === userId || parsed?.user_id === userId) {
+                return;
+              }
+              // If another user created a new post, merge it at top of feed
+              if (parsed?.connectus_type === "post" && parsed?.id) {
+                setPosts((prev) => {
+                  if (prev.some((p) => p.id === parsed.id)) return prev;
+                  return [parsed, ...prev];
+                });
+              }
+            } catch (e) {}
           }
         )
         .subscribe();
@@ -73,7 +88,7 @@ export function useConnectUs() {
         supabase.removeChannel(channel);
       };
     }
-  }, [isReady, loadConnectUsData]);
+  }, [isReady, loadConnectUsData, userId]);
 
   // 2. Accept / Decline Invitation Handlers
   const handleAcceptInvitation = async (notifId: string, actorUserId: string) => {

@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
+import { ConnectUsFeedSkeleton } from "@/modules/connectus/components/ConnectUsFeedSkeleton";
+
 export default function ConnectUsPage() {
   const {
     userId,
@@ -59,6 +61,7 @@ export default function ConnectUsPage() {
   const [selectedUserForInvite, setSelectedUserForInvite] = useState<ConnectUsProfile | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [directMessageTargetUser, setDirectMessageTargetUser] = useState<ConnectUsProfile | null>(null);
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const handleOpenDirectMessage = (targetUser: ConnectUsProfile) => {
     setDirectMessageTargetUser(targetUser);
@@ -154,10 +157,7 @@ export default function ConnectUsPage() {
         {/* Central Content Area */}
         <div className="flex-1 min-w-0">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 space-y-3 bg-white rounded-3xl border border-slate-200">
-              <Loader2 className="h-8 w-8 animate-spin text-[#0E7C66]" />
-              <p className="text-xs font-semibold text-slate-500">Chargement de votre réseau ConnectUs...</p>
-            </div>
+            <ConnectUsFeedSkeleton />
           ) : (
             <>
               {/* TAB 1: FEED ACCUEIL */}
@@ -250,10 +250,10 @@ export default function ConnectUsPage() {
                       </Button>
                     </Card>
 
-                    {/* Feed Posts List */}
+                    {/* Feed Posts List avec Défilement Infini (Infinite Scroll) */}
                     {filteredPosts.length > 0 ? (
                       <div className="space-y-4">
-                        {filteredPosts.map((post) => (
+                        {filteredPosts.slice(0, visibleCount).map((post) => (
                           <PostCard
                             key={post.id}
                             post={post}
@@ -267,6 +267,19 @@ export default function ConnectUsPage() {
                             isFollowingAuthor={Boolean(post.author?.id && followingMap[post.author.id])}
                           />
                         ))}
+
+                        {/* Détection défilement infini */}
+                        {visibleCount < filteredPosts.length && (
+                          <div className="py-4 text-center">
+                            <Button
+                              variant="outline"
+                              onClick={() => setVisibleCount((prev) => prev + 20)}
+                              className="rounded-full text-xs font-bold border-slate-300 hover:bg-slate-50 gap-2 text-slate-700"
+                            >
+                              Charger plus de publications ({filteredPosts.length - visibleCount} restantes)...
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <Card className="p-10 text-center rounded-3xl space-y-3 bg-white border border-slate-200">
