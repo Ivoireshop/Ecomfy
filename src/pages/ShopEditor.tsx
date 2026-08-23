@@ -24,6 +24,7 @@ import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
+import { saveProductVideos, fetchProductVideos } from "@/lib/productAppearance";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
 // Keeps the editor's initial JS small without changing UI or behavior.
@@ -537,6 +538,7 @@ const ShopEditor = () => {
           ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
           : [],
         section_order: data.section_order ?? null,
+        videos: Array.isArray(data.videos) ? data.videos : [],
       };
       let prodId = editingProduct?.id;
 
@@ -551,9 +553,11 @@ const ShopEditor = () => {
           .single() as any;
         if (error) throw error;
         prodId = createdProduct?.id;
-        // If an upload fails, the editor stays open and the next retry updates this
-        // just-created product instead of creating a duplicate product.
-        if (createdProduct) setEditingProduct({ ...createdProduct, product_images: [] });
+        if (createdProduct) setEditingProduct({ ...createdProduct, product_images: [], videos: data.videos || [] });
+      }
+
+      if (prodId && Array.isArray(data.videos)) {
+        await saveProductVideos(prodId, id, data.videos);
       }
 
       if (prodId && newImgs.length > 0) {
@@ -1138,8 +1142,12 @@ const ShopEditor = () => {
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
-              onEditProduct={(product) => {
-                setEditingProduct(product);
+              onEditProduct={async (product) => {
+                const loadedVideos = await fetchProductVideos(product.id);
+                setEditingProduct({
+                  ...product,
+                  videos: loadedVideos.length > 0 ? loadedVideos : (Array.isArray(product.videos) ? product.videos : [])
+                });
                 setShowProductEditor(true);
               }}
               onDeleteProduct={deleteProduct}

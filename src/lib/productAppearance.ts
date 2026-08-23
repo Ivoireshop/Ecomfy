@@ -154,6 +154,58 @@ export async function upsertProductThemeSettings(
   return { success: true };
 }
 
+export async function fetchProductVideos(productId: string): Promise<ProductVideo[]> {
+  if (!productId) return [];
+
+  let localVideos: ProductVideo[] = [];
+  try {
+    const cached = localStorage.getItem(`ecomfy_product_videos_${productId}`);
+    if (cached) localVideos = JSON.parse(cached);
+  } catch {}
+
+  try {
+    const themeSettings = await fetchProductThemeSettings(productId);
+    if (
+      themeSettings?.custom_css_settings &&
+      Array.isArray(themeSettings.custom_css_settings.videos) &&
+      themeSettings.custom_css_settings.videos.length > 0
+    ) {
+      const vids = themeSettings.custom_css_settings.videos as ProductVideo[];
+      try {
+        localStorage.setItem(`ecomfy_product_videos_${productId}`, JSON.stringify(vids));
+      } catch {}
+      return vids;
+    }
+  } catch {}
+
+  return localVideos;
+}
+
+export async function saveProductVideos(productId: string, shopId: string, videos: ProductVideo[]) {
+  if (!productId) return;
+
+  try {
+    localStorage.setItem(`ecomfy_product_videos_${productId}`, JSON.stringify(videos));
+  } catch {}
+
+  try {
+    const existing = await fetchProductThemeSettings(productId);
+    const currentCustom = existing?.custom_css_settings || {};
+
+    await upsertProductThemeSettings({
+      product_id: productId,
+      shop_id: shopId,
+      ...existing,
+      custom_css_settings: {
+        ...currentCustom,
+        videos: videos,
+      },
+    });
+  } catch (err) {
+    console.warn("saveProductVideos error:", err);
+  }
+}
+
 export async function resetProductThemeSettings(productId: string) {
   await supabase.from("product_theme_settings" as any).delete().eq("product_id", productId);
 }

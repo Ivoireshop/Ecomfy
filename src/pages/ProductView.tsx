@@ -33,9 +33,11 @@ import {
   buildProductPageStyle,
   fetchProductAudios,
   fetchProductThemeSettings,
+  fetchProductVideos,
   getCheckoutThemeStyles,
   type ProductAudio,
   type ProductThemeSettings,
+  type ProductVideo,
 } from "@/lib/productAppearance";
 import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPublic";
 
@@ -215,22 +217,27 @@ const ProductView = () => {
 
   useEffect(() => { fetchData(); }, [slug, id, productId, productSlug]);
 
-  // Charge thème + témoignages audio (lecture publique via RLS)
+  const [productVideos, setProductVideos] = useState<ProductVideo[]>([]);
+
+  // Charge thème + témoignages audio + vidéos Shorts (lecture publique via RLS)
   useEffect(() => {
     if (!product?.id) {
       setThemeSettings(null);
       setProductAudios([]);
+      setProductVideos([]);
       return;
     }
     let cancel = false;
     (async () => {
-      const [ts, audios] = await Promise.all([
+      const [ts, audios, vids] = await Promise.all([
         fetchProductThemeSettings(product.id),
         fetchProductAudios(product.id, true),
+        fetchProductVideos(product.id),
       ]);
       if (cancel) return;
       setThemeSettings(ts);
       setProductAudios(audios);
+      setProductVideos(vids.length > 0 ? vids : (Array.isArray(product.videos) ? product.videos : []));
     })();
     return () => {
       cancel = true;
@@ -1748,9 +1755,9 @@ const ProductView = () => {
       </section>
 
       {/* ====== VIDÉOS SHORTS & TÉMOIGNAGES (additif, masqué si vide) ====== */}
-      {Array.isArray(product?.videos) && product.videos.length > 0 && (
+      {((Array.isArray(productVideos) && productVideos.length > 0) || (Array.isArray(product?.videos) && product.videos.length > 0)) && (
         <ProductShortVideosPublic 
-          videos={product.videos} 
+          videos={productVideos.length > 0 ? productVideos : (product?.videos || [])} 
           primaryColor={primaryColor} 
           themeSettings={themeSettings} 
         />
