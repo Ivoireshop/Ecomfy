@@ -154,38 +154,68 @@ export async function upsertProductThemeSettings(
   return { success: true };
 }
 
-export async function fetchProductVideos(productId: string): Promise<ProductVideo[]> {
-  if (!productId) return [];
+export interface ProductVideoData {
+  videos: ProductVideo[];
+  section_title?: string;
+  section_subtitle?: string;
+}
 
-  let localVideos: ProductVideo[] = [];
+export async function fetchProductVideoData(productId: string): Promise<ProductVideoData> {
+  if (!productId) return { videos: [] };
+
+  let localData: ProductVideoData = { videos: [] };
   try {
     const cached = localStorage.getItem(`ecomfy_product_videos_${productId}`);
-    if (cached) localVideos = JSON.parse(cached);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) localData = { videos: parsed };
+      else if (parsed && Array.isArray(parsed.videos)) localData = parsed;
+    }
   } catch {}
 
   try {
     const themeSettings = await fetchProductThemeSettings(productId);
-    if (
-      themeSettings?.custom_css_settings &&
-      Array.isArray(themeSettings.custom_css_settings.videos) &&
-      themeSettings.custom_css_settings.videos.length > 0
-    ) {
-      const vids = themeSettings.custom_css_settings.videos as ProductVideo[];
+    const custom = themeSettings?.custom_css_settings;
+    if (custom) {
+      const vids = Array.isArray(custom.videos) ? (custom.videos as ProductVideo[]) : [];
+      const title = typeof custom.video_section_title === "string" ? custom.video_section_title : undefined;
+      const subtitle = typeof custom.video_section_subtitle === "string" ? custom.video_section_subtitle : undefined;
+      const result: ProductVideoData = {
+        videos: vids.length > 0 ? vids : localData.videos,
+        section_title: title !== undefined ? title : localData.section_title,
+        section_subtitle: subtitle !== undefined ? subtitle : localData.section_subtitle,
+      };
       try {
-        localStorage.setItem(`ecomfy_product_videos_${productId}`, JSON.stringify(vids));
+        localStorage.setItem(`ecomfy_product_videos_${productId}`, JSON.stringify(result));
       } catch {}
-      return vids;
+      return result;
     }
   } catch {}
 
-  return localVideos;
+  return localData;
 }
 
-export async function saveProductVideos(productId: string, shopId: string, videos: ProductVideo[]) {
+export async function fetchProductVideos(productId: string): Promise<ProductVideo[]> {
+  const data = await fetchProductVideoData(productId);
+  return data.videos;
+}
+
+export async function saveProductVideos(
+  productId: string,
+  shopId: string,
+  videos: ProductVideo[],
+  extra?: { section_title?: string; section_subtitle?: string }
+) {
   if (!productId) return;
 
+  const dataToSave: ProductVideoData = {
+    videos,
+    section_title: extra?.section_title,
+    section_subtitle: extra?.section_subtitle,
+  };
+
   try {
-    localStorage.setItem(`ecomfy_product_videos_${productId}`, JSON.stringify(videos));
+    localStorage.setItem(`ecomfy_product_videos_${productId}`, JSON.stringify(dataToSave));
   } catch {}
 
   try {
@@ -199,6 +229,8 @@ export async function saveProductVideos(productId: string, shopId: string, video
       custom_css_settings: {
         ...currentCustom,
         videos: videos,
+        video_section_title: extra?.section_title !== undefined ? extra.section_title : currentCustom.video_section_title,
+        video_section_subtitle: extra?.section_subtitle !== undefined ? extra.section_subtitle : currentCustom.video_section_subtitle,
       },
     });
   } catch (err) {

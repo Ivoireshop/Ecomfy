@@ -4,6 +4,8 @@ export type ProductSectionKey =
   | "short_description"
   | "variants"
   | "bundle_offers"
+  | "short_videos"
+  | "audio_testimonials"
   | "checkout_form"
   | "long_description";
 
@@ -20,6 +22,8 @@ export const DEFAULT_PRODUCT_BLOCKS: ProductSectionKey[] = [
   "short_description",
   "bundle_offers",
   "variants",
+  "short_videos",
+  "audio_testimonials",
   "checkout_form",
   "long_description",
 ];
@@ -30,6 +34,8 @@ export const PRODUCT_SECTION_LABELS: Record<ProductSectionKey, string> = {
   short_description: "Description courte",
   variants: "Variantes (taille, couleur…)",
   bundle_offers: "Offres en lot (variantes de prix)",
+  short_videos: "Vidéos Shorts / Démonstrations",
+  audio_testimonials: "Témoignages Audio",
   checkout_form: "Formulaire de commande",
   long_description: "Description détaillée",
 };

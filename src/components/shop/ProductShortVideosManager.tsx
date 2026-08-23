@@ -11,10 +11,15 @@ import { ProductVideo, saveProductVideos } from "@/lib/productAppearance";
 const MAX_VIDEO_DURATION_SECONDS = 30; // 30s exact limit
 const MAX_VIDEO_SIZE_MB = 20; // 20 MB max limit
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+const MAX_VIDEOS_PER_PRODUCT = 4; // Max 4 videos limit
 
 interface ProductShortVideosManagerProps {
   videos: ProductVideo[];
   onChangeVideos: (videos: ProductVideo[]) => void;
+  sectionTitle?: string;
+  sectionSubtitle?: string;
+  onChangeTitle?: (title: string) => void;
+  onChangeSubtitle?: (subtitle: string) => void;
   productId?: string;
   shopId?: string;
 }
@@ -22,6 +27,10 @@ interface ProductShortVideosManagerProps {
 export function ProductShortVideosManager({
   videos = [],
   onChangeVideos,
+  sectionTitle,
+  sectionSubtitle,
+  onChangeTitle,
+  onChangeSubtitle,
   productId,
   shopId,
 }: ProductShortVideosManagerProps) {
@@ -72,6 +81,11 @@ export function ProductShortVideosManager({
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+
+    if (videos.length >= MAX_VIDEOS_PER_PRODUCT) {
+      toast.error(`Vous avez atteint la limite maximale de ${MAX_VIDEOS_PER_PRODUCT} vidéos par produit.`);
+      return;
+    }
 
     if (!file.type.startsWith("video/")) {
       toast.error("Format de fichier invalide. Veuillez sélectionner une vidéo (MP4, WebM, MOV).");
@@ -227,14 +241,41 @@ export function ProductShortVideosManager({
 
   return (
     <div className="space-y-4">
+      {/* Configuration du titre et du sous-titre personnalisés */}
+      <div className="bg-card border p-4 rounded-xl space-y-3">
+        <div className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
+          Personnalisation des textes de la section en ligne
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Titre de la section</Label>
+            <Input
+              value={sectionTitle ?? "Vidéos Shorts & Démonstrations"}
+              onChange={(e) => onChangeTitle?.(e.target.value)}
+              placeholder="Ex: Vidéos Témoignages"
+              className="h-9 text-xs bg-background"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Sous-titre / Description</Label>
+            <Input
+              value={sectionSubtitle ?? "Découvrez le produit en action et les avis vidéos authentiques de nos clients."}
+              onChange={(e) => onChangeSubtitle?.(e.target.value)}
+              placeholder="Ex: Avis vidéos authentiques de nos clients"
+              className="h-9 text-xs bg-background"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-purple-500/10 via-pink-500/5 to-transparent p-4 rounded-xl border border-purple-500/20">
         <div className="space-y-1">
           <div className="flex items-center gap-2 font-bold text-foreground">
             <Video className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-            <span>Vidéos Shorts / Témoignages (Format Vertical 30s)</span>
+            <span>Vidéos Shorts / Témoignages (Max 4 vidéos, 30s max)</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Ajoutez de courtes vidéos de démonstrations ou avis clients (max 30 secondes, 20 MB par vidéo).
+            {videos.length}/4 vidéo{videos.length > 1 ? "s" : ""} ajoutée{videos.length > 1 ? "s" : ""}. Format vertical 9:16 recommandé.
           </p>
         </div>
 
@@ -248,19 +289,27 @@ export function ProductShortVideosManager({
 
         <Button
           type="button"
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shrink-0 gap-2 shadow-sm"
+          disabled={uploading || videos.length >= MAX_VIDEOS_PER_PRODUCT}
+          onClick={() => {
+            if (videos.length >= MAX_VIDEOS_PER_PRODUCT) {
+              toast.error("Limite maximale de 4 vidéos atteinte.");
+              return;
+            }
+            fileInputRef.current?.click();
+          }}
+          className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shrink-0 gap-2 shadow-sm disabled:opacity-50"
         >
           {uploading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>{uploadProgress || "Traitement..."}</span>
             </>
+          ) : videos.length >= MAX_VIDEOS_PER_PRODUCT ? (
+            <span>Limite atteinte (4/4 max)</span>
           ) : (
             <>
               <Plus className="h-4 w-4" />
-              <span>+ Ajouter une vidéo</span>
+              <span>+ Ajouter une vidéo ({videos.length}/4)</span>
             </>
           )}
         </Button>

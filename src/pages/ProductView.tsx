@@ -34,6 +34,7 @@ import {
   fetchProductAudios,
   fetchProductThemeSettings,
   fetchProductVideos,
+  fetchProductVideoData,
   getCheckoutThemeStyles,
   type ProductAudio,
   type ProductThemeSettings,
@@ -218,6 +219,8 @@ const ProductView = () => {
   useEffect(() => { fetchData(); }, [slug, id, productId, productSlug]);
 
   const [productVideos, setProductVideos] = useState<ProductVideo[]>([]);
+  const [videoSectionTitle, setVideoSectionTitle] = useState<string | undefined>();
+  const [videoSectionSubtitle, setVideoSectionSubtitle] = useState<string | undefined>();
 
   // Charge thème + témoignages audio + vidéos Shorts (lecture publique via RLS)
   useEffect(() => {
@@ -225,19 +228,23 @@ const ProductView = () => {
       setThemeSettings(null);
       setProductAudios([]);
       setProductVideos([]);
+      setVideoSectionTitle(undefined);
+      setVideoSectionSubtitle(undefined);
       return;
     }
     let cancel = false;
     (async () => {
-      const [ts, audios, vids] = await Promise.all([
+      const [ts, audios, vidData] = await Promise.all([
         fetchProductThemeSettings(product.id),
         fetchProductAudios(product.id, true),
-        fetchProductVideos(product.id),
+        fetchProductVideoData(product.id),
       ]);
       if (cancel) return;
       setThemeSettings(ts);
       setProductAudios(audios);
-      setProductVideos(vids.length > 0 ? vids : (Array.isArray((product as any).videos) ? (product as any).videos : []));
+      setProductVideos(vidData.videos.length > 0 ? vidData.videos : (Array.isArray((product as any).videos) ? (product as any).videos : []));
+      setVideoSectionTitle(vidData.section_title);
+      setVideoSectionSubtitle(vidData.section_subtitle);
     })();
     return () => {
       cancel = true;
@@ -1652,6 +1659,44 @@ const ProductView = () => {
                   />
                 ) : null;
               }
+              if (key === "short_videos") {
+                const vidsToRender = productVideos.length > 0 ? productVideos : ((product as any)?.videos || []);
+                return vidsToRender.length > 0 ? (
+                  <div key="short_videos" className="w-full my-4">
+                    <ProductShortVideosPublic
+                      videos={vidsToRender}
+                      sectionTitle={videoSectionTitle}
+                      sectionSubtitle={videoSectionSubtitle}
+                      primaryColor={primaryColor}
+                      themeSettings={themeSettings}
+                    />
+                  </div>
+                ) : null;
+              }
+              if (key === "audio_testimonials") {
+                return productAudios.length > 0 ? (
+                  <div key="audio_testimonials" className="w-full my-4 border-t pt-4" style={{ background: themeSettings?.section_bg_color || "#FAFAFA" }}>
+                    <h2 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: themeSettings?.title_color || undefined }}>
+                      Témoignages audio de nos clients
+                    </h2>
+                    <p className="text-sm opacity-70 mb-5">Écoutez ce que disent les clients qui ont déjà acheté.</p>
+                    <div className="space-y-3">
+                      {productAudios.map((a) => (
+                        <div
+                          key={a.id}
+                          className="rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 bg-white"
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Volume2 className="h-4 w-4 text-emerald-600" />
+                            <span className="font-semibold text-sm">{a.title || "Témoignage client"}</span>
+                          </div>
+                          {a.audio_url && <audio controls src={a.audio_url} className="w-full h-8" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              }
               if (key === "checkout_form") {
                 return (
                   <div key="checkout_form" id="inline-checkout-form" className="w-full mt-4">
@@ -1756,60 +1801,6 @@ const ProductView = () => {
         })()}
       </section>
 
-      {/* ====== VIDÉOS SHORTS & TÉMOIGNAGES (additif, masqué si vide) ====== */}
-      {((Array.isArray(productVideos) && productVideos.length > 0) || (Array.isArray((product as any)?.videos) && (product as any).videos.length > 0)) && (
-        <ProductShortVideosPublic 
-          videos={productVideos.length > 0 ? productVideos : ((product as any)?.videos || [])} 
-          primaryColor={primaryColor} 
-          themeSettings={themeSettings} 
-        />
-      )}
-
-      {/* ====== TÉMOIGNAGES AUDIO (additif, masqué si vide) ====== */}
-      {productAudios.length > 0 && (
-        <section className="border-t" style={{ background: themeSettings?.section_bg_color || "#FAFAFA" }}>
-          <div className="max-w-3xl mx-auto px-3 sm:px-6 py-8 sm:py-10">
-            <h2 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: themeSettings?.title_color || undefined }}>
-              Témoignages audio de nos clients
-            </h2>
-            <p className="text-sm opacity-70 mb-5">Écoutez ce que disent les clients qui ont déjà acheté.</p>
-            <div className="space-y-3">
-              {productAudios.map((a) => (
-                <div
-                  key={a.id}
-                  className="rounded-lg p-3 sm:p-4 shadow-sm"
-                  style={{
-                    background: themeSettings?.card_bg_color || "#FFFFFF",
-                    border: `1px solid ${themeSettings?.border_color || "#E5E7EB"}`,
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-sm sm:text-base truncate">
-                        {a.title || "Témoignage client"}
-                      </div>
-                      <div className="text-xs opacity-70 truncate">{a.customer_name || "Client vérifié"}</div>
-                      {a.description && (
-                        <div className="text-xs opacity-80 mt-1">{a.description}</div>
-                      )}
-                    </div>
-                    <span
-                      className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full"
-                      style={{
-                        background: themeSettings?.badge_color || "#10B981",
-                        color: "#FFFFFF",
-                      }}
-                    >
-                      ✓ Authentique
-                    </span>
-                  </div>
-                  <audio src={a.audio_url} controls preload="none" className="w-full" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ====== RELATED PRODUCTS (opt-in) ====== */}
       {!!shop?.theme_config?.show_related_products && relatedProducts.length > 0 && (

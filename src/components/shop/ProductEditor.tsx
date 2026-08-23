@@ -14,7 +14,7 @@ import { ProductWizard } from "./ProductWizard";
 import { ProductAppearancePanel } from "./ProductAppearancePanel";
 import { ProductAudioManager } from "./ProductAudioManager";
 import { ProductShortVideosManager } from "./ProductShortVideosManager";
-import { ProductVideo, fetchProductVideos } from "@/lib/productAppearance";
+import { ProductVideo, fetchProductVideos, fetchProductVideoData, saveProductVideos } from "@/lib/productAppearance";
 import { Palette as PaletteIcon, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -334,12 +334,17 @@ export function ProductEditor({
     };
   }, []);
 
+  const [videoSectionTitle, setVideoSectionTitle] = useState<string>("Vidéos Shorts & Démonstrations");
+  const [videoSectionSubtitle, setVideoSectionSubtitle] = useState<string>("Découvrez le produit en action et les avis vidéos authentiques de nos clients.");
+
   useEffect(() => {
     if (productId) {
-      fetchProductVideos(productId).then((vids) => {
-        if (vids && vids.length > 0) {
-          setProduct((prev) => ({ ...prev, videos: vids }));
+      fetchProductVideoData(productId).then((data) => {
+        if (data.videos && data.videos.length > 0) {
+          setProduct((prev) => ({ ...prev, videos: data.videos }));
         }
+        if (data.section_title !== undefined) setVideoSectionTitle(data.section_title);
+        if (data.section_subtitle !== undefined) setVideoSectionSubtitle(data.section_subtitle);
       });
     }
   }, [productId]);
@@ -1561,6 +1566,26 @@ export function ProductEditor({
             <ProductShortVideosManager
               videos={product.videos || []}
               onChangeVideos={(updatedVideos) => setProduct((prev) => ({ ...prev, videos: updatedVideos }))}
+              sectionTitle={videoSectionTitle}
+              sectionSubtitle={videoSectionSubtitle}
+              onChangeTitle={(title) => {
+                setVideoSectionTitle(title);
+                if (productId && shop?.id) {
+                  saveProductVideos(productId, shop.id, product.videos || [], {
+                    section_title: title,
+                    section_subtitle: videoSectionSubtitle,
+                  });
+                }
+              }}
+              onChangeSubtitle={(sub) => {
+                setVideoSectionSubtitle(sub);
+                if (productId && shop?.id) {
+                  saveProductVideos(productId, shop.id, product.videos || [], {
+                    section_title: videoSectionTitle,
+                    section_subtitle: sub,
+                  });
+                }
+              }}
               productId={productId}
               shopId={shop?.id}
             />

@@ -5,12 +5,16 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface ProductShortVideosPublicProps {
   videos: ProductVideo[];
+  sectionTitle?: string;
+  sectionSubtitle?: string;
   primaryColor?: string;
   themeSettings?: any;
 }
 
 export function ProductShortVideosPublic({
   videos = [],
+  sectionTitle,
+  sectionSubtitle,
   primaryColor = "#2563eb",
   themeSettings,
 }: ProductShortVideosPublicProps) {
@@ -63,24 +67,18 @@ export function ProductShortVideosPublic({
       style={{ background: themeSettings?.section_bg_color || "#FAFAFA" }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-2">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="p-1.5 rounded-lg text-white" style={{ backgroundColor: primaryColor }}>
-                <Video className="h-4 w-4" />
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold" style={{ color: themeSettings?.title_color || undefined }}>
-                Vidéos Shorts & Démonstrations
-              </h2>
-            </div>
-            <p className="text-xs sm:text-sm opacity-70">
-              Découvrez le produit en action et les avis vidéos authentiques de nos clients.
-            </p>
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="p-1.5 rounded-lg text-white" style={{ backgroundColor: primaryColor }}>
+              <Video className="h-4 w-4" />
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: themeSettings?.title_color || undefined }}>
+              {sectionTitle || "Vidéos Shorts & Démonstrations"}
+            </h2>
           </div>
-
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> {videos.length} vidéo{videos.length > 1 ? "s" : ""} disponible{videos.length > 1 ? "s" : ""}
-          </span>
+          <p className="text-xs sm:text-sm opacity-70">
+            {sectionSubtitle || "Découvrez le produit en action et les avis vidéos authentiques de nos clients."}
+          </p>
         </div>
 
         {/* Mobile & Desktop Shorts Scrollable Grid */}
