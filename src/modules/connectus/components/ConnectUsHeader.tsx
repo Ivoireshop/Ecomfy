@@ -182,8 +182,34 @@ export function ConnectUsHeader({
                   ))}
                 </div>
               ) : (
-                <div className="p-4 text-center text-xs font-semibold text-slate-500">
-                  Aucun profil trouvé pour "{searchQuery}". Profil introuvable.
+                <div className="p-4 text-center space-y-2">
+                  <p className="text-xs font-bold text-slate-700">Aucun membre inscrit trouvé pour "{searchQuery}"</p>
+                  <p className="text-[11px] text-slate-500">Cette personne n'a pas encore de compte sur Connect As ?</p>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      onSelectUserForInvite && onSelectUserForInvite({
+                        id: `invite-${Date.now()}`,
+                        user_id: `invite-${Date.now()}`,
+                        username: searchQuery.toLowerCase().replace(/[^a-z0-9]/g, "_"),
+                        full_name: searchQuery,
+                        avatar_url: null,
+                        bio: "Membre invité à rejoindre Connect As",
+                        location: "Côte d'Ivoire",
+                        website_url: null,
+                        is_verified: false,
+                        is_business: false,
+                        followers_count: 0,
+                        following_count: 0,
+                        posts_count: 0,
+                        created_at: new Date().toISOString()
+                      });
+                      setShowSearchResults(false);
+                    }}
+                    className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white text-xs font-bold px-4 py-2 shadow-xs gap-1.5"
+                  >
+                    <span>✉️ Inviter "{searchQuery}" à rejoindre Connect As</span>
+                  </Button>
                 </div>
               )}
             </div>

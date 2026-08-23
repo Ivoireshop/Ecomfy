@@ -92,7 +92,20 @@ export function InviteUserModal({
           />
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 mt-4">
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              const inviteUrl = `${window.location.origin}/connectus?invite=${encodeURIComponent(targetUser.full_name)}`;
+              const text = `Rejoins-moi sur ConnectAs Ecomfy ! ${inviteUrl}`;
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+            }}
+            className="rounded-full text-xs font-bold border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 gap-1.5"
+          >
+            <span>Partager via WhatsApp 📲</span>
+          </Button>
+
           <Button
             type="button"
             variant="ghost"
@@ -101,10 +114,11 @@ export function InviteUserModal({
           >
             Annuler
           </Button>
+
           <Button
             type="button"
             onClick={handleSend}
-            className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs gap-2 px-5"
+            className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white text-xs font-bold gap-2 shadow-sm"
           >
             <Send className="h-3.5 w-3.5" />
             <span>Envoyer l'invitation</span>
