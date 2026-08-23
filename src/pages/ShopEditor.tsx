@@ -741,10 +741,10 @@ const ShopEditor = () => {
       // 2. Delete child SQL records to prevent Foreign Key constraints error
       await Promise.allSettled([
         supabase.from("product_images").delete().eq("product_id", productId),
-        supabase.from("product_bundles").delete().eq("product_id", productId),
+        (supabase as any).from("product_bundles").delete().eq("product_id", productId),
         supabase.from("product_reviews").delete().eq("product_id", productId),
-        supabase.from("product_variants").delete().eq("product_id", productId),
-        supabase.from("cart_items").delete().eq("product_id", productId),
+        (supabase as any).from("product_variants").delete().eq("product_id", productId),
+        (supabase as any).from("cart_items").delete().eq("product_id", productId),
       ]);
 
       // 3. Delete product main record
@@ -1149,8 +1149,8 @@ const ShopEditor = () => {
                 const loadedVideos = await fetchProductVideos(product.id);
                 setEditingProduct({
                   ...product,
-                  videos: loadedVideos.length > 0 ? loadedVideos : (Array.isArray(product.videos) ? product.videos : [])
-                });
+                  videos: loadedVideos.length > 0 ? loadedVideos : (Array.isArray((product as any).videos) ? (product as any).videos : [])
+                } as any);
                 setShowProductEditor(true);
               }}
               onDeleteProduct={deleteProduct}
