@@ -220,7 +220,7 @@ export class ConnectUsService {
         .from("community_messages")
         .select("id, user_id, body, created_at")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(5000);
 
       if (dbMessages && dbMessages.length > 0) {
         dbMessages.forEach((msg: any) => {
@@ -834,7 +834,8 @@ export class ConnectUsService {
       const { data: cloudMsgs } = await supabase
         .from("community_messages")
         .select("id, body")
-        .limit(50);
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
       if (cloudMsgs && cloudMsgs.length > 0) {
         for (const msg of cloudMsgs) {
@@ -1281,7 +1282,8 @@ export class ConnectUsService {
       const { data: cloudMsgs } = await supabase
         .from("community_messages")
         .select("id, body, created_at")
-        .limit(50);
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
       if (cloudMsgs && cloudMsgs.length > 0) {
         for (const msg of cloudMsgs) {

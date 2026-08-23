@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { supabase } from "@/integrations/supabase/client";
 import { ConnectUsService } from "../services/connectus.service";
 import {
   ConnectUsProfile,
@@ -55,6 +56,22 @@ export function useConnectUs() {
   useEffect(() => {
     if (isReady) {
       loadConnectUsData();
+
+      // Realtime listener for live post, comment, reaction updates across all ConnectUs accounts
+      const channel = supabase
+        .channel("connectus_live_messages")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "community_messages" },
+          () => {
+            loadConnectUsData();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [isReady, loadConnectUsData]);
 
