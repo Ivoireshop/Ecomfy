@@ -237,7 +237,7 @@ const ProductView = () => {
       if (cancel) return;
       setThemeSettings(ts);
       setProductAudios(audios);
-      setProductVideos(vids.length > 0 ? vids : (Array.isArray(product.videos) ? product.videos : []));
+      setProductVideos(vids.length > 0 ? vids : (Array.isArray((product as any).videos) ? (product as any).videos : []));
     })();
     return () => {
       cancel = true;
@@ -601,16 +601,17 @@ const ProductView = () => {
 
     if (cart.length === 0) {
       if (!product) return;
-      const basePrice = selectedBundleIdx !== null && product.bundles && product.bundles[selectedBundleIdx] 
-         ? (product.bundles[selectedBundleIdx].price / product.bundles[selectedBundleIdx].quantity) 
+      const pBundles = (product as any).bundles || (product as any).bundle_offers || [];
+      const basePrice = selectedBundleIdx !== null && pBundles[selectedBundleIdx] 
+         ? (pBundles[selectedBundleIdx].price / pBundles[selectedBundleIdx].quantity) 
          : (product.price || 0);
       const itemPrice = basePrice * quantity;
       effectiveOrderCart = [{ 
         product, 
         quantity, 
         selectedVariants: selectedVariants, 
-        bundle: selectedBundleIdx !== null && product.bundles ? product.bundles[selectedBundleIdx] : undefined 
-      }];
+        bundle: selectedBundleIdx !== null && pBundles ? pBundles[selectedBundleIdx] : undefined 
+      } as any];
       effectiveOrderCartTotal = itemPrice;
     }
 
@@ -859,30 +860,31 @@ const ProductView = () => {
                   let effectiveCart = cart;
                   let effectiveTotal = cartTotal;
                   if (cart.length === 0 && product) {
-                    const basePrice = selectedBundleIdx !== null && product.bundles && product.bundles[selectedBundleIdx] 
-                      ? (product.bundles[selectedBundleIdx].price / product.bundles[selectedBundleIdx].quantity) 
+                    const pBundles = (product as any).bundles || (product as any).bundle_offers || [];
+                    const basePrice = selectedBundleIdx !== null && pBundles[selectedBundleIdx] 
+                      ? (pBundles[selectedBundleIdx].price / pBundles[selectedBundleIdx].quantity) 
                       : (product.price || 0);
                     effectiveCart = [{ 
                       product, 
                       quantity, 
                       selectedVariants: selectedVariants, 
-                      bundle: selectedBundleIdx !== null && product.bundles ? product.bundles[selectedBundleIdx] : undefined 
-                    }];
+                      bundle: selectedBundleIdx !== null && pBundles ? pBundles[selectedBundleIdx] : undefined 
+                    } as any];
                     effectiveTotal = basePrice * quantity;
                   }
                   
                   return (
                     <>
-                      {effectiveCart.map((item, idx) => (
+                      {effectiveCart.map((item: any, idx: number) => (
                         <div 
                           key={item.product.id + idx} 
                           className="flex gap-3 p-3 rounded-xl border shadow-sm transition-colors"
                           style={{ backgroundColor: checkoutStyles.itemBg, borderColor: checkoutStyles.itemBorder }}
                         >
                           {/* Image */}
-                          {item.product.images?.[0] ? (
+                          {(item.product.images?.[0] || item.product.product_images?.[0]?.image_url) ? (
                             <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                        <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
+                        <img src={item.product.images?.[0] || item.product.product_images?.[0]?.image_url} alt={item.product.name} className="w-full h-full object-cover" />
                       </div>
                     ) : primaryImage ? (
                       <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
@@ -1755,9 +1757,9 @@ const ProductView = () => {
       </section>
 
       {/* ====== VIDÉOS SHORTS & TÉMOIGNAGES (additif, masqué si vide) ====== */}
-      {((Array.isArray(productVideos) && productVideos.length > 0) || (Array.isArray(product?.videos) && product.videos.length > 0)) && (
+      {((Array.isArray(productVideos) && productVideos.length > 0) || (Array.isArray((product as any)?.videos) && (product as any).videos.length > 0)) && (
         <ProductShortVideosPublic 
-          videos={productVideos.length > 0 ? productVideos : (product?.videos || [])} 
+          videos={productVideos.length > 0 ? productVideos : ((product as any)?.videos || [])} 
           primaryColor={primaryColor} 
           themeSettings={themeSettings} 
         />

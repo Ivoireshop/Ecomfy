@@ -21,6 +21,7 @@ interface PhoneInputProps {
   defaultCountryHint?: string | null;
   className?: string;
   inputClassName?: string;
+  inputStyle?: React.CSSProperties;
   placeholder?: string;
   required?: boolean;
 }
@@ -35,6 +36,7 @@ export function PhoneInput({
   defaultCountryHint,
   className,
   inputClassName,
+  inputStyle,
   placeholder,
   required,
 }: PhoneInputProps) {
@@ -157,6 +159,7 @@ export function PhoneInput({
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
+          style={inputStyle}
           value={national}
           onChange={(e) => setNational(e.target.value)}
           placeholder={placeholder || country.example}
