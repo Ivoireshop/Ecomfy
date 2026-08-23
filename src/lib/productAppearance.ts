@@ -33,7 +33,23 @@ export interface ProductThemeSettings {
   background_image_url?: string | null;
   visible_sections?: string[] | null;
   section_order?: string[] | null;
+  allow_out_of_stock_orders?: boolean | null;
   custom_css_settings?: Record<string, any> | null;
+}
+
+/**
+ * Détermine si un produit peut être commandé (ajoute au panier / checkout).
+ * - Si is_published === false -> Non (produit réellement désactivé par le marchand).
+ * - Si stock_quantity est null ou > 0 -> Oui.
+ * - Si stock_quantity <= 0 -> Oui uniquement si allowOutOfStockOrders est vrai.
+ */
+export function isProductOrderable(product: any, allowOutOfStockOrders?: boolean): boolean {
+  if (!product) return false;
+  if (product.is_published === false) return false;
+  if (product.stock_quantity === null || product.stock_quantity === undefined || Number(product.stock_quantity) > 0) {
+    return true;
+  }
+  return allowOutOfStockOrders === true;
 }
 
 export interface ProductAudio {

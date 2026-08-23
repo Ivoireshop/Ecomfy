@@ -14,7 +14,7 @@ import { ProductWizard } from "./ProductWizard";
 import { ProductAppearancePanel } from "./ProductAppearancePanel";
 import { ProductAudioManager } from "./ProductAudioManager";
 import { ProductShortVideosManager } from "./ProductShortVideosManager";
-import { ProductVideo, fetchProductVideos, fetchProductVideoData, saveProductVideos } from "@/lib/productAppearance";
+import { ProductVideo, fetchProductVideos, fetchProductVideoData, saveProductVideos, fetchProductThemeSettings, upsertProductThemeSettings } from "@/lib/productAppearance";
 import { Palette as PaletteIcon, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -336,6 +336,7 @@ export function ProductEditor({
 
   const [videoSectionTitle, setVideoSectionTitle] = useState<string>("Vidéos Shorts & Démonstrations");
   const [videoSectionSubtitle, setVideoSectionSubtitle] = useState<string>("Découvrez le produit en action et les avis vidéos authentiques de nos clients.");
+  const [allowOutOfStockOrders, setAllowOutOfStockOrders] = useState<boolean>(true);
 
   useEffect(() => {
     if (productId) {
@@ -346,8 +347,30 @@ export function ProductEditor({
         if (data.section_title !== undefined) setVideoSectionTitle(data.section_title);
         if (data.section_subtitle !== undefined) setVideoSectionSubtitle(data.section_subtitle);
       });
+      fetchProductThemeSettings(productId).then((ts) => {
+        if (ts?.custom_css_settings?.allow_out_of_stock_orders !== undefined) {
+          setAllowOutOfStockOrders(Boolean(ts.custom_css_settings.allow_out_of_stock_orders));
+        }
+      });
     }
   }, [productId]);
+
+  const handleToggleAllowOutOfStock = async (checked: boolean) => {
+    setAllowOutOfStockOrders(checked);
+    if (productId && shop?.id) {
+      const existing = await fetchProductThemeSettings(productId);
+      const custom = existing?.custom_css_settings || {};
+      await upsertProductThemeSettings({
+        product_id: productId,
+        shop_id: shop.id,
+        ...existing,
+        custom_css_settings: {
+          ...custom,
+          allow_out_of_stock_orders: checked,
+        },
+      });
+    }
+  };
 
   // Protect the user against accidental tab close / reload while images
   // are queued for upload or the autosave is still pending. The browser
@@ -1919,11 +1942,34 @@ export function ProductEditor({
             <h4 className="font-semibold text-base">Inventaire & Stockage</h4>
             
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Inventaire (Stock disponible)</Label>
+              <Label className="text-xs font-medium text-muted-foreground">Stock affiché (Compteur marketing / urgence)</Label>
               <Input type="number" value={product.stock_quantity} onChange={(e) => setProduct({ ...product, stock_quantity: Number(e.target.value) })} className="h-10" />
+              <p className="text-[11px] text-muted-foreground">
+                Nombre d'articles affichés au client pour créer un sentiment d'urgence.
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Switch: Autoriser les commandes au-delà du stock affiché */}
+            <div className="pt-2 border-t space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="allow-out-of-stock-switch" className="text-sm font-semibold cursor-pointer">
+                    Autoriser les commandes au-delà du stock affiché
+                  </Label>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Permet de continuer à recevoir des commandes même lorsque le stock affiché atteint zéro. Idéal pour les campagnes marketing et les produits disponibles sur commande.
+                  </p>
+                </div>
+                <Switch
+                  id="allow-out-of-stock-switch"
+                  checked={allowOutOfStockOrders}
+                  onCheckedChange={handleToggleAllowOutOfStock}
+                  className="mt-0.5"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-2 border-t">
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground">SKU</Label>
                 <Input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU" className="h-10 text-sm" />

@@ -35,6 +35,7 @@ import {
   fetchProductThemeSettings,
   fetchProductVideos,
   fetchProductVideoData,
+  isProductOrderable,
   getCheckoutThemeStyles,
   type ProductAudio,
   type ProductThemeSettings,
@@ -1204,12 +1205,12 @@ const ProductView = () => {
                 scrollToCheckout();
                 setOrderSuccess(false);
               }}
-              disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+              disabled={!isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false)}
             >
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 group-hover:scale-110 transition-transform" />
                 <span className="text-[15px] sm:text-lg whitespace-nowrap">
-                  {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander"}
+                  {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
                 </span>
               </div>
               <div className="sm:hidden bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-lg text-[14px] font-extrabold whitespace-nowrap flex items-center">
@@ -1584,6 +1585,7 @@ const ProductView = () => {
                 ) : null;
               }
               if (key === "stock") {
+                const allowOutOfStock = themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false;
                 return (
                   <div key="stock" className="space-y-2">
                     {product.stock_quantity !== null && product.stock_quantity > 0 && shop.theme_config?.stock_urgency_enabled !== false && (
@@ -1602,7 +1604,14 @@ const ProductView = () => {
                       ) : null
                     )}
                     {product.stock_quantity !== null && product.stock_quantity <= 0 && (
-                      <p className="text-sm text-red-600 font-medium">Rupture de stock</p>
+                      allowOutOfStock ? (
+                        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                          <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                          <span>🔥 Stock très limité — Disponible sur commande</span>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-red-600 font-medium">Rupture de stock</p>
+                      )
                     )}
                   </div>
                 );
@@ -1742,15 +1751,15 @@ const ProductView = () => {
                       addToCart(product, quantity, true, true);
                       scrollToCheckout();
                     }}
-                    disabled={product.stock_quantity !== null && product.stock_quantity <= 0}
+                    disabled={!isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false)}
                   >
                     <div className="flex items-center gap-2">
                       <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 group-hover:scale-110 transition-transform" />
                       <span className="text-[15px] sm:text-lg whitespace-nowrap">
-                        {product.stock_quantity !== null && product.stock_quantity <= 0 ? "Rupture de stock" : "Commander"}
+                        {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
                       </span>
                     </div>
-                    {(product.stock_quantity === null || product.stock_quantity > 0) && (
+                    {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
                       <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-xl text-[14px] sm:text-base font-extrabold whitespace-nowrap flex items-center">
                         {formatPrice(product.price * quantity)} FCFA
                       </div>
