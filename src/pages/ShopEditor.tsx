@@ -1083,7 +1083,13 @@ const ShopEditor = () => {
                 bundle_position: (editingProduct as any).bundle_position || "after_countdown",
                 variants: (editingProduct as any).variants || [],
                 section_order: (editingProduct as any).section_order || undefined,
+                videos: (editingProduct as any).videos || [],
               } : undefined}
+              productId={editingProduct?.id}
+              shop={shop}
+              shopSlug={shop?.slug}
+              shopActivated={shop?.is_activated}
+              shopPublished={shop?.is_published}
               existingImages={editingProduct?.product_images || []}
               isEditing={!!editingProduct}
               onSave={handleProductEditorSave}
@@ -1101,11 +1107,6 @@ const ShopEditor = () => {
                 fetchData();
               }}
               saving={saving}
-              shopSlug={shop.slug}
-              shopActivated={!!isActivated}
-              shopPublished={shop.is_published}
-              productId={editingProduct?.id}
-              shop={shop as any}
             />
             </Suspense>
           </div>

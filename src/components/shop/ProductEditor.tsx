@@ -14,7 +14,7 @@ import { ProductWizard } from "./ProductWizard";
 import { ProductAppearancePanel } from "./ProductAppearancePanel";
 import { ProductAudioManager } from "./ProductAudioManager";
 import { ProductShortVideosManager } from "./ProductShortVideosManager";
-import { ProductVideo } from "@/lib/productAppearance";
+import { ProductVideo, fetchProductVideos } from "@/lib/productAppearance";
 import { Palette as PaletteIcon, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -333,6 +333,16 @@ export function ProductEditor({
       pendingImagesRef.current.forEach(img => URL.revokeObjectURL(img.previewUrl));
     };
   }, []);
+
+  useEffect(() => {
+    if (productId) {
+      fetchProductVideos(productId).then((vids) => {
+        if (vids && vids.length > 0) {
+          setProduct((prev) => ({ ...prev, videos: vids }));
+        }
+      });
+    }
+  }, [productId]);
 
   // Protect the user against accidental tab close / reload while images
   // are queued for upload or the autosave is still pending. The browser

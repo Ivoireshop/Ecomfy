@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Video, Plus, Trash2, ArrowUp, ArrowDown, Play, Pause, Loader2, Upload, Clock, HardDrive, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ProductVideo } from "@/lib/productAppearance";
+import { ProductVideo, saveProductVideos } from "@/lib/productAppearance";
 
 const MAX_VIDEO_DURATION_SECONDS = 30; // 30s exact limit
 const MAX_VIDEO_SIZE_MB = 20; // 20 MB max limit
@@ -59,13 +59,9 @@ export function ProductShortVideosManager({
 
   /** Client-side video optimization / Blob compression */
   const optimizeVideoFile = async (file: File): Promise<File> => {
-    // If file is already small (<= 5MB), keep as is
     if (file.size <= 5 * 1024 * 1024) return file;
-
-    // Fast canvas/WebCodecs optimization wrapper if browser supports MediaRecorder
     try {
       setUploadProgress("Optimisation vidéo en cours...");
-      // Return file, retaining standard MP4/WebM profile
       return file;
     } catch {
       return file;
@@ -77,13 +73,11 @@ export function ProductShortVideosManager({
     if (!file) return;
     e.target.value = "";
 
-    // 1. MIME type validation
     if (!file.type.startsWith("video/")) {
       toast.error("Format de fichier invalide. Veuillez sélectionner une vidéo (MP4, WebM, MOV).");
       return;
     }
 
-    // 2. File size validation (20MB max)
     if (file.size > MAX_VIDEO_SIZE_BYTES) {
       toast.error(`Cette vidéo dépasse la taille maximale autorisée de ${MAX_VIDEO_SIZE_MB} MB. (${(file.size / (1024 * 1024)).toFixed(1)} MB)`);
       return;
@@ -93,19 +87,15 @@ export function ProductShortVideosManager({
     setUploadProgress("Vérification de la durée (max 30s)...");
 
     try {
-      // 3. Duration validation (30s max)
       const durationSeconds = await checkVideoDuration(file);
-
-      // 4. Optimization step
       const optimizedFile = await optimizeVideoFile(file);
 
-      // 5. Upload to Supabase storage with RLS-compliant user path
       setUploadProgress("Envoi au serveur sécurisé...");
       const { data: { user } } = await supabase.auth.getUser();
       const userFolder = user?.id || "public";
-      const fileExt = (optimizedFile.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
       const sanitizedName = optimizedFile.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-      const storagePath = `${userFolder}/product-videos/${productId || shopId || "general"}/${Date.now()}_${sanitizedName}`;
+      const targetId = productId || shopId || "general";
+      const storagePath = `${userFolder}/product-videos/${targetId}/${Date.now()}_${sanitizedName}`;
 
       let publicUrl = "";
       let finalStoragePath: string | null = storagePath;
@@ -120,9 +110,7 @@ export function ProductShortVideosManager({
 
       if (uploadError) {
         console.warn("Storage upload warning (trying fallback):", uploadError);
-        
-        // If user is missing or RLS rejected, try alternative public path or throw explicit message
-        const fallbackPath = `public/product-videos/${productId || shopId || "general"}/${Date.now()}_${sanitizedName}`;
+        const fallbackPath = `public/product-videos/${targetId}/${Date.now()}_${sanitizedName}`;
         const { error: fallbackError } = await supabase.storage
           .from("shop-images")
           .upload(fallbackPath, optimizedFile, {
@@ -135,12 +123,11 @@ export function ProductShortVideosManager({
           if (!user) {
             throw new Error("Veuillez vous connecter à votre compte marchand pour publier des vidéos.");
           }
-          throw new Error(`Erreur lors de l'enregistrement (${uploadError.message}). Vérifiez votre connexion ou vos droits d'accès.`);
+          throw new Error(`Erreur lors de l'enregistrement (${uploadError.message}).`);
         }
         finalStoragePath = fallbackPath;
       }
 
-      // 6. Get Public URL
       const { data: urlData } = supabase.storage
         .from("shop-images")
         .getPublicUrl(finalStoragePath);
@@ -160,7 +147,12 @@ export function ProductShortVideosManager({
 
       const updated = [...videos, newVideo];
       onChangeVideos(updated);
-      toast.success("Vidéo Shorts ajoutée avec succès !");
+
+      if (targetId) {
+        await saveProductVideos(targetId, shopId || "", updated);
+      }
+
+      toast.success("Vidéo Shorts ajoutée et sauvegardée avec succès !");
     } catch (err: any) {
       console.error("Video processing error:", err);
       toast.error(err.message || "Impossible d'ajouter cette vidéo.");
@@ -187,6 +179,10 @@ export function ProductShortVideosManager({
 
     const updated = videos.filter((v) => v.id !== videoId);
     onChangeVideos(updated);
+    const targetId = productId || shopId;
+    if (targetId) {
+      await saveProductVideos(targetId, shopId || "", updated);
+    }
     toast.success("Vidéo supprimée.");
   };
 
@@ -199,14 +195,21 @@ export function ProductShortVideosManager({
     list[index] = list[newIdx];
     list[newIdx] = temp;
 
-    // Update sort_order
     const reordered = list.map((v, i) => ({ ...v, sort_order: i }));
     onChangeVideos(reordered);
+    const targetId = productId || shopId;
+    if (targetId) {
+      saveProductVideos(targetId, shopId || "", reordered);
+    }
   };
 
   const handleUpdateTitle = (videoId: string, title: string) => {
     const updated = videos.map((v) => (v.id === videoId ? { ...v, title } : v));
     onChangeVideos(updated);
+    const targetId = productId || shopId;
+    if (targetId) {
+      saveProductVideos(targetId, shopId || "", updated);
+    }
   };
 
   const formatFileSize = (bytes?: number | null) => {
