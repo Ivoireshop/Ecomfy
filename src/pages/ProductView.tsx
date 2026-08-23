@@ -33,9 +33,11 @@ import {
   buildProductPageStyle,
   fetchProductAudios,
   fetchProductThemeSettings,
+  getCheckoutThemeStyles,
   type ProductAudio,
   type ProductThemeSettings,
 } from "@/lib/productAppearance";
+import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPublic";
 
 // Non-critical, below-the-fold widgets. Loaded only after the LCP image and
 // the "Commander maintenant" button are interactive — keeps the initial JS
@@ -778,13 +780,22 @@ const ProductView = () => {
 
   const isCustomTheme = !!themeSettings?.theme_slug && !new URLSearchParams(window.location.search).get("classic");
   const isInlineCheckout = shop?.theme_config?.checkout_form_position !== 'modal';
+  const checkoutStyles = getCheckoutThemeStyles(shop?.theme_config?.checkout_bg, primaryColor);
 
   const checkoutContent = (
     <>
       {/* Inline Checkout */}
       {(isInlineCheckout || showInlineCheckout || cart.length > 0) && !orderSuccess && (
-        <div id="inline-checkout" className={isCustomTheme ? "space-y-4 relative" : "mt-6 sm:mt-8 bg-white border shadow-xl rounded-3xl p-5 sm:p-8 space-y-5 sm:space-y-6 scroll-mt-24 relative z-50"} style={isCustomTheme ? {} : { borderColor: primaryColor + "30" }}>
-          <h3 className="font-bold text-lg sm:text-xl flex items-center gap-2 mb-1" style={{ color: primaryColor }}>
+        <div 
+          id="inline-checkout" 
+          className={isCustomTheme ? "space-y-4 relative" : "mt-6 sm:mt-8 border shadow-xl rounded-3xl p-5 sm:p-8 space-y-5 sm:space-y-6 scroll-mt-24 relative z-50 transition-colors"} 
+          style={isCustomTheme ? {} : { 
+            backgroundColor: checkoutStyles.containerBg, 
+            borderColor: checkoutStyles.isDark ? checkoutStyles.summaryBorder : primaryColor + "30",
+            color: checkoutStyles.textColor
+          }}
+        >
+          <h3 className="font-bold text-lg sm:text-xl flex items-center gap-2 mb-1" style={{ color: checkoutStyles.headingColor }}>
             <CreditCard className="h-5 w-5" /> Finaliser votre commande
           </h3>
 
@@ -831,7 +842,10 @@ const ProductView = () => {
           {(!isCustomTheme || cart.length > 0) && (
             <>
               {/* Order Summary (Rich) */}
-              <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-3 border border-gray-100 mb-6">
+              <div 
+                className="rounded-2xl p-4 flex flex-col gap-3 border mb-6 transition-colors" 
+                style={{ backgroundColor: checkoutStyles.summaryBg, borderColor: checkoutStyles.summaryBorder, color: checkoutStyles.textColor }}
+              >
                 <div className="flex items-center gap-1.5 mb-1"><ShoppingCart className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Récapitulatif</h4></div>
                 
                 {(() => {
@@ -853,7 +867,11 @@ const ProductView = () => {
                   return (
                     <>
                       {effectiveCart.map((item, idx) => (
-                        <div key={item.product.id + idx} className="flex gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                        <div 
+                          key={item.product.id + idx} 
+                          className="flex gap-3 p-3 rounded-xl border shadow-sm transition-colors"
+                          style={{ backgroundColor: checkoutStyles.itemBg, borderColor: checkoutStyles.itemBorder }}
+                        >
                           {/* Image */}
                           {item.product.images?.[0] ? (
                             <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
@@ -936,7 +954,8 @@ const ProductView = () => {
                             value={customerInfo.name} 
                             onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} 
                             placeholder={`${nameLabel} ${isRequired("first_name") ? "*" : ""}`} 
-                            className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
+                            className={`rounded-xl h-11 text-[15px] transition-colors ${checkoutStyles.inputPlaceholderClass}`} 
+                            style={{ backgroundColor: checkoutStyles.inputBg, borderColor: checkoutStyles.inputBorder, color: checkoutStyles.inputTextColor }}
                           />
                         </div>
                       )}
@@ -947,7 +966,8 @@ const ProductView = () => {
                             onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
                             defaultCountryHint={shop?.country}
                             required={isRequired("phone")}
-                            inputClassName="h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                            inputClassName={`h-11 text-[15px] transition-colors ${checkoutStyles.inputPlaceholderClass}`}
+                            inputStyle={{ backgroundColor: checkoutStyles.inputBg, borderColor: checkoutStyles.inputBorder, color: checkoutStyles.inputTextColor }}
                           />
                         </div>
                       )}
@@ -958,7 +978,8 @@ const ProductView = () => {
                             value={customerInfo.email} 
                             onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} 
                             placeholder={`${getLabel("email", "Email")} ${isRequired("email") ? "*" : ""}`} 
-                            className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
+                            className={`rounded-xl h-11 text-[15px] transition-colors ${checkoutStyles.inputPlaceholderClass}`} 
+                            style={{ backgroundColor: checkoutStyles.inputBg, borderColor: checkoutStyles.inputBorder, color: checkoutStyles.inputTextColor }}
                           />
                         </div>
                       )}
@@ -974,7 +995,8 @@ const ProductView = () => {
                               else if (cityError) setCityError("");
                             }} 
                             placeholder={`${getLabel("city", "Ville")} ${isRequired("city") ? "*" : ""}`} 
-                            className={`rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} 
+                            className={`rounded-xl h-11 text-[15px] transition-colors ${checkoutStyles.inputPlaceholderClass} ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} 
+                            style={{ backgroundColor: checkoutStyles.inputBg, borderColor: checkoutStyles.inputBorder, color: checkoutStyles.inputTextColor }}
                           />
                           {cityError && <p className="text-xs text-red-500 mt-1">{cityError}</p>}
                         </div>
@@ -985,7 +1007,8 @@ const ProductView = () => {
                             value={customerInfo.address} 
                             onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} 
                             placeholder={`${getLabel("address", "Adresse détaillée")} ${isRequired("address") ? "*" : ""}`} 
-                            className="rounded-xl h-11 text-[15px] bg-gray-50 border-gray-200 focus:bg-white transition-colors" 
+                            className={`rounded-xl h-11 text-[15px] transition-colors ${checkoutStyles.inputPlaceholderClass}`} 
+                            style={{ backgroundColor: checkoutStyles.inputBg, borderColor: checkoutStyles.inputBorder, color: checkoutStyles.inputTextColor }}
                           />
                         </div>
                       )}
@@ -1723,6 +1746,15 @@ const ProductView = () => {
         );
         })()}
       </section>
+
+      {/* ====== VIDÉOS SHORTS & TÉMOIGNAGES (additif, masqué si vide) ====== */}
+      {Array.isArray(product?.videos) && product.videos.length > 0 && (
+        <ProductShortVideosPublic 
+          videos={product.videos} 
+          primaryColor={primaryColor} 
+          themeSettings={themeSettings} 
+        />
+      )}
 
       {/* ====== TÉMOIGNAGES AUDIO (additif, masqué si vide) ====== */}
       {productAudios.length > 0 && (

@@ -13,6 +13,8 @@ import { ProductGifGenerator } from "./ProductGifGenerator";
 import { ProductWizard } from "./ProductWizard";
 import { ProductAppearancePanel } from "./ProductAppearancePanel";
 import { ProductAudioManager } from "./ProductAudioManager";
+import { ProductShortVideosManager } from "./ProductShortVideosManager";
+import { ProductVideo } from "@/lib/productAppearance";
 import { Palette as PaletteIcon, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -225,6 +227,7 @@ interface ProductData {
   bundle_position?: string;
   variants?: VariantGroup[];
   section_order?: ProductSectionOrder;
+  videos?: ProductVideo[];
 }
 
 export interface BundleOffer {
@@ -274,8 +277,9 @@ export function ProductEditor({
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
     sku: "", weight: 0, is_featured: false, slug: "",
     bundle_offers: [], bundle_position: "after_countdown",
-    variants: [],
-    section_order: { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
+    variants: initialData?.variants || [],
+    section_order: initialData?.section_order || { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
+    videos: initialData?.videos || [],
   });
   const [newImages, setNewImages] = useState<PendingProductImage[]>([]);
   const [validatingImages, setValidatingImages] = useState(false);
@@ -1540,6 +1544,16 @@ export function ProductEditor({
                 Astuce : importez 2 à 6 photos (différents angles, couleurs ou usages) pour obtenir un GIF qui valorise votre produit.
               </p>
             </div>
+          </CollapsibleSection>
+
+          {/* Vidéos Shorts & Témoignages (30s max) */}
+          <CollapsibleSection title="Vidéos Shorts & Témoignages (30s max)" icon={<Video className="h-4 w-4" />} defaultOpen>
+            <ProductShortVideosManager
+              videos={product.videos || []}
+              onChangeVideos={(updatedVideos) => setProduct((prev) => ({ ...prev, videos: updatedVideos }))}
+              productId={productId}
+              shopId={shop?.id}
+            />
           </CollapsibleSection>
 
           {/* Variantes produit (taille, couleur...) */}

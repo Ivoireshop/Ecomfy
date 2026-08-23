@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
 import DOMPurify from "dompurify";
+import { getCheckoutThemeStyles } from "@/lib/productAppearance";
 
 interface ShopThemeSettingsProps {
   shop: any;
@@ -489,13 +490,112 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
           )}
 
           {activeThemeSection === "checkout" && (
-            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <h3 className="font-bold">Paramètres du check-out</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <ColorField label="Couleur bouton" value={themeConfig.checkout_btn_color || shop.primary_color || "#2563eb"} onChange={v => updateThemeConfig("checkout_btn_color", v)} />
-                <ColorField label="Texte bouton" value={themeConfig.checkout_btn_text || "#FFFFFF"} onChange={v => updateThemeConfig("checkout_btn_text", v)} />
-                <ColorField label="Arrière-plan" value={themeConfig.checkout_bg || "#FFFFFF"} onChange={v => updateThemeConfig("checkout_bg", v)} />
-                <ColorField label="Couleur texte" value={themeConfig.checkout_text || "#000000"} onChange={v => updateThemeConfig("checkout_text", v)} />
+            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                    <CartIcon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-xl font-bold">Paramètres du check-out</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Personnalisez l'arrière-plan et les couleurs du formulaire de commande pour vos clients.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-muted/20 border rounded-2xl">
+                <ColorField 
+                  label="Couleur de fond du formulaire (Checkout)" 
+                  value={themeConfig.checkout_bg || "#FFFFFF"} 
+                  onChange={v => updateThemeConfig("checkout_bg", v)} 
+                />
+                <ColorField 
+                  label="Couleur bouton de commande" 
+                  value={themeConfig.checkout_btn_color || shop.primary_color || "#2563eb"} 
+                  onChange={v => updateThemeConfig("checkout_btn_color", v)} 
+                />
+                <ColorField 
+                  label="Texte du bouton" 
+                  value={themeConfig.checkout_btn_text || "#FFFFFF"} 
+                  onChange={v => updateThemeConfig("checkout_btn_text", v)} 
+                />
+                <ColorField 
+                  label="Couleur de texte par défaut" 
+                  value={themeConfig.checkout_text || "#000000"} 
+                  onChange={v => updateThemeConfig("checkout_text", v)} 
+                />
+              </div>
+
+              {/* Aperçu en temps réel de la carte de Checkout avec la couleur sélectionnée */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <span>Aperçu en temps réel du formulaire Checkout</span>
+                </Label>
+                {(() => {
+                  const currentBg = themeConfig.checkout_bg || "#FFFFFF";
+                  const contrastStyles = getCheckoutThemeStyles(currentBg, shop.primary_color);
+                  const btnBg = themeConfig.checkout_btn_color || shop.primary_color || "#2563eb";
+                  const btnText = themeConfig.checkout_btn_text || "#FFFFFF";
+
+                  return (
+                    <div 
+                      className="p-6 rounded-2xl border shadow-md transition-all space-y-4"
+                      style={{ backgroundColor: contrastStyles.containerBg, borderColor: contrastStyles.summaryBorder }}
+                    >
+                      <h4 className="font-bold text-lg flex items-center gap-2" style={{ color: contrastStyles.headingColor }}>
+                        <CartIcon className="h-5 w-5" /> Finaliser votre commande
+                      </h4>
+
+                      <div className="p-4 rounded-xl space-y-2 border" style={{ backgroundColor: contrastStyles.summaryBg, borderColor: contrastStyles.summaryBorder }}>
+                        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: contrastStyles.mutedTextColor }}>Récapitulatif de commande</div>
+                        <div className="flex justify-between text-sm font-semibold" style={{ color: contrastStyles.textColor }}>
+                          <span>1x Produit Démo Ecomfy</span>
+                          <span>15 000 FCFA</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs font-semibold block mb-1" style={{ color: contrastStyles.textColor }}>Nom complet</label>
+                          <input 
+                            type="text" 
+                            disabled 
+                            placeholder="Ex: Koffi Konan" 
+                            className={`w-full h-10 rounded-lg px-3 text-sm border outline-none ${contrastStyles.inputPlaceholderClass}`}
+                            style={{ 
+                              backgroundColor: contrastStyles.inputBg, 
+                              borderColor: contrastStyles.inputBorder,
+                              color: contrastStyles.inputTextColor
+                            }} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold block mb-1" style={{ color: contrastStyles.textColor }}>Numéro WhatsApp / Téléphone</label>
+                          <input 
+                            type="text" 
+                            disabled 
+                            placeholder="+225 0700000000" 
+                            className={`w-full h-10 rounded-lg px-3 text-sm border outline-none ${contrastStyles.inputPlaceholderClass}`}
+                            style={{ 
+                              backgroundColor: contrastStyles.inputBg, 
+                              borderColor: contrastStyles.inputBorder,
+                              color: contrastStyles.inputTextColor
+                            }} 
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        type="button" 
+                        disabled 
+                        className="w-full h-11 rounded-xl font-bold text-sm shadow-sm transition-all"
+                        style={{ backgroundColor: btnBg, color: btnText }}
+                      >
+                        Valider et Payer (15 000 FCFA)
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             </Card>
           )}

@@ -82,6 +82,43 @@ export function ensureReadableTextColor(bg: string, text: string): string {
   return contrastRatio(bg, "#FFFFFF") >= contrastRatio(bg, "#111111") ? "#FFFFFF" : "#111111";
 }
 
+export interface ProductVideo {
+  id: string;
+  url: string;
+  storage_path?: string | null;
+  title?: string | null;
+  duration?: number | null;
+  file_size?: number | null;
+  sort_order: number;
+  created_at?: string;
+}
+
+export function isDarkColor(hex: string): boolean {
+  if (!isValidHex(hex)) return false;
+  return luminance(hex) < 0.35;
+}
+
+export function getCheckoutThemeStyles(bgColor?: string, primaryColor?: string) {
+  const bg = bgColor && isValidHex(bgColor) ? bgColor : "#FFFFFF";
+  const dark = isDarkColor(bg);
+
+  return {
+    isDark: dark,
+    containerBg: bg,
+    textColor: dark ? "#FFFFFF" : "#0F172A",
+    mutedTextColor: dark ? "rgba(255, 255, 255, 0.7)" : "#64748B",
+    headingColor: dark ? "#FFFFFF" : (primaryColor || "#0F172A"),
+    inputBg: dark ? "rgba(255, 255, 255, 0.08)" : "#FFFFFF",
+    inputBorder: dark ? "rgba(255, 255, 255, 0.2)" : "#E2E8F0",
+    inputTextColor: dark ? "#FFFFFF" : "#0F172A",
+    inputPlaceholderClass: dark ? "placeholder:text-white/40" : "placeholder:text-gray-400",
+    summaryBg: dark ? "rgba(255, 255, 255, 0.06)" : "#F8FAFC",
+    summaryBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#F1F5F9",
+    itemBg: dark ? "rgba(255, 255, 255, 0.1)" : "#FFFFFF",
+    itemBorder: dark ? "rgba(255, 255, 255, 0.15)" : "#F1F5F9",
+  };
+}
+
 export function isValidHex(v: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v.trim());
 }
