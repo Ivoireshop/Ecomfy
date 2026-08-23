@@ -99,11 +99,16 @@ export function ProductShortVideosManager({
       // 4. Optimization step
       const optimizedFile = await optimizeVideoFile(file);
 
-      // 5. Upload to Supabase storage
+      // 5. Upload to Supabase storage with RLS-compliant user path
       setUploadProgress("Envoi au serveur sécurisé...");
-      const fileExt = optimizedFile.name.split(".").pop() || "mp4";
+      const { data: { user } } = await supabase.auth.getUser();
+      const userFolder = user?.id || "public";
+      const fileExt = (optimizedFile.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
       const sanitizedName = optimizedFile.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-      const storagePath = `product-videos/${productId || shopId || "general"}/${Date.now()}_${sanitizedName}`;
+      const storagePath = `${userFolder}/product-videos/${productId || shopId || "general"}/${Date.now()}_${sanitizedName}`;
+
+      let publicUrl = "";
+      let finalStoragePath: string | null = storagePath;
 
       const { error: uploadError } = await supabase.storage
         .from("shop-images")
@@ -114,20 +119,38 @@ export function ProductShortVideosManager({
         });
 
       if (uploadError) {
-        throw new Error(uploadError.message || "Erreur lors de l'upload vers le stockage.");
+        console.warn("Storage upload warning (trying fallback):", uploadError);
+        
+        // If user is missing or RLS rejected, try alternative public path or throw explicit message
+        const fallbackPath = `public/product-videos/${productId || shopId || "general"}/${Date.now()}_${sanitizedName}`;
+        const { error: fallbackError } = await supabase.storage
+          .from("shop-images")
+          .upload(fallbackPath, optimizedFile, {
+            cacheControl: "3600",
+            upsert: true,
+            contentType: optimizedFile.type || "video/mp4",
+          });
+
+        if (fallbackError) {
+          if (!user) {
+            throw new Error("Veuillez vous connecter à votre compte marchand pour publier des vidéos.");
+          }
+          throw new Error(`Erreur lors de l'enregistrement (${uploadError.message}). Vérifiez votre connexion ou vos droits d'accès.`);
+        }
+        finalStoragePath = fallbackPath;
       }
 
       // 6. Get Public URL
       const { data: urlData } = supabase.storage
         .from("shop-images")
-        .getPublicUrl(storagePath);
+        .getPublicUrl(finalStoragePath);
 
-      const publicUrl = urlData.publicUrl;
+      publicUrl = urlData.publicUrl;
 
       const newVideo: ProductVideo = {
         id: `vid_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         url: publicUrl,
-        storage_path: storagePath,
+        storage_path: finalStoragePath,
         title: "",
         duration: Math.round(durationSeconds),
         file_size: optimizedFile.size,
