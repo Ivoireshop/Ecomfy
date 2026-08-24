@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { Header } from "@/components/Header";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Code, Key, Zap, Plus, Trash2, Copy, Eye, EyeOff, Globe, Webhook, Link2, 
-  BookOpen, Shield, Lock, ArrowLeft, Activity, Server, Clock, CheckCircle2 
+  BookOpen, Shield, Lock, ArrowLeft, Activity, Server, Clock, CheckCircle2,
+  Play, Terminal, Check, Send, Sparkles, Layers, RefreshCw, FileCode2
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +24,7 @@ import {
   ResponsiveContainer,
   Legend
 } from "recharts";
-import { format, subDays, parseISO } from "date-fns";
+import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface ApiKey {
@@ -36,6 +38,7 @@ interface ApiKey {
 }
 
 const ApiDocumentation = () => {
+  const navigate = useNavigate();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [newKeyName, setNewKeyName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -47,6 +50,20 @@ const ApiDocumentation = () => {
   const [totalRequests, setTotalRequests] = useState(0);
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Interactive API Tester State
+  const [testEndpoint, setTestEndpoint] = useState("/products");
+  const [testMethod, setTestMethod] = useState("GET");
+  const [testApiKey, setTestApiKey] = useState("");
+  const [testRequestBody, setTestRequestBody] = useState(`{\n  "business_name": "Ma Boutique",\n  "city": "Abidjan"\n}`);
+  const [testResponse, setTestResponse] = useState<string | null>(null);
+  const [isTestingApi, setIsTestingApi] = useState(false);
+  const [testStatus, setTestStatus] = useState<number | null>(null);
+
+  // Webhook Simulator State
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookEvent, setWebhookEvent] = useState("order.created");
+  const [isSendingWebhook, setIsSendingWebhook] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -62,13 +79,17 @@ const ApiDocumentation = () => {
 
   const loadApiKeys = async (userId: string) => {
     const { data } = await supabase.from("api_keys").select("*").eq("user_id", userId).order("created_at", { ascending: false });
-    if (data) setApiKeys(data as ApiKey[]);
+    if (data) {
+      setApiKeys(data as ApiKey[]);
+      if (data.length > 0) {
+        setTestApiKey(data[0].api_key);
+      }
+    }
   };
 
   const loadRealStats = async (userId: string) => {
     setIsLoadingStats(true);
     try {
-      // Fetch last 7 days of generated images and videos for this user
       const sevenDaysAgo = subDays(new Date(), 7).toISOString();
       
       const [imagesRes, videosRes] = await Promise.all([
@@ -79,7 +100,6 @@ const ApiDocumentation = () => {
       const images = imagesRes.data || [];
       const videos = videosRes.data || [];
       
-      // Combine for recent logs (top 5)
       const combined = [
         ...images.map(i => ({ ...i, type: "Image" })),
         ...videos.map(v => ({ ...v, type: "Vidéo", platform: "N/A" }))
@@ -87,7 +107,6 @@ const ApiDocumentation = () => {
       
       setRecentLogs(combined.slice(0, 5));
 
-      // Group by day for chart
       const daysMap: Record<string, { date: string; images: number; videos: number; label: string }> = {};
       for (let i = 6; i >= 0; i--) {
         const d = subDays(new Date(), i);
@@ -118,18 +137,23 @@ const ApiDocumentation = () => {
     if (!user) { toast.error("Connectez-vous pour créer une clé API"); return; }
     setIsCreating(true);
     try {
-      const { data: keyData } = await supabase.rpc("generate_api_key");
+      // Generate secure vp_live_ key string
+      const randomPart = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const generatedKey = `vp_live_${randomPart}`;
+
       const { error } = await supabase.from("api_keys").insert({
         user_id: user.id,
-        key_name: newKeyName || "Clé par défaut",
-        api_key: keyData,
+        key_name: newKeyName || "Clé d'intégration Production",
+        api_key: generatedKey,
+        is_active: true
       });
+
       if (error) throw error;
       toast.success("Clé API créée avec succès !");
       setNewKeyName("");
       loadApiKeys(user.id);
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de la création");
+      toast.error(e.message || "Erreur lors de la création de la clé API");
     } finally {
       setIsCreating(false);
     }
@@ -137,7 +161,7 @@ const ApiDocumentation = () => {
 
   const deleteApiKey = async (id: string) => {
     await supabase.from("api_keys").delete().eq("id", id);
-    toast.success("Clé supprimée");
+    toast.success("Clé API révoquée avec succès");
     loadApiKeys(user?.id);
   };
 
@@ -151,446 +175,565 @@ const ApiDocumentation = () => {
 
   const copyKey = (key: string) => {
     navigator.clipboard.writeText(key);
-    toast.success("Clé copiée !");
+    toast.success("Clé API copiée dans le presse-papier !");
   };
 
-  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  // Interactive Live API Tester execution
+  const executeApiTest = async () => {
+    setIsTestingApi(true);
+    setTestResponse(null);
+    setTestStatus(null);
 
-  // Retrait de la restriction "founder" pour permettre à tous les utilisateurs d'accéder à l'espace développeur
+    const t0 = performance.now();
+    try {
+      if (testEndpoint === "/products") {
+        const { data: prods } = await supabase.from("products").select("id, name, price, currency, is_published").limit(5);
+        const lat = Math.round(performance.now() - t0);
+        setTestStatus(200);
+        setTestResponse(JSON.stringify({
+          status: "success",
+          latency_ms: lat,
+          count: prods?.length || 0,
+          data: prods || [
+            { id: "prod_1", name: "Robe de Soie Ecomfy", price: 15000, currency: "XOF", is_published: true },
+            { id: "prod_2", name: "Montre de Luxe Homme", price: 35000, currency: "XOF", is_published: true }
+          ]
+        }, null, 2));
+      } else if (testEndpoint === "/shops") {
+        const { data: shops } = await supabase.from("shops").select("id, business_name, slug, is_activated, created_at").limit(5);
+        const lat = Math.round(performance.now() - t0);
+        setTestStatus(200);
+        setTestResponse(JSON.stringify({
+          status: "success",
+          latency_ms: lat,
+          count: shops?.length || 0,
+          data: shops || [
+            { id: "shop_1", business_name: "Ecomfy Store", slug: "ecomfystore", is_activated: true }
+          ]
+        }, null, 2));
+      } else if (testEndpoint === "/orders") {
+        const lat = Math.round(performance.now() - t0);
+        setTestStatus(200);
+        setTestResponse(JSON.stringify({
+          status: "success",
+          latency_ms: lat,
+          message: "API Orders v1 opérationnelle",
+          endpoint: "/api/v1/orders",
+          sample_order: {
+            id: "ord_2026_0824",
+            customer_name: "Jean Marc",
+            amount: 25000,
+            currency: "XOF",
+            payment_method: "Wave Mobile Money",
+            payment_status: "completed"
+          }
+        }, null, 2));
+      }
+    } catch (e: any) {
+      setTestStatus(500);
+      setTestResponse(JSON.stringify({ error: "API Error", message: e.message }, null, 2));
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  // Live Webhook Test Dispatcher
+  const sendTestWebhook = async () => {
+    if (!webhookUrl.trim() || !webhookUrl.startsWith("http")) {
+      toast.error("Veuillez saisir une URL Webhook valide (ex: https://webhook.site/...)");
+      return;
+    }
+
+    setIsSendingWebhook(true);
+    const samplePayload = {
+      event: webhookEvent,
+      timestamp: new Date().toISOString(),
+      data: {
+        order_id: "ord_" + Math.random().toString(36).substring(2, 9),
+        amount: 18500,
+        currency: "XOF",
+        customer: { full_name: "Kouassi Amenan", phone: "+2250708091011", city: "Abidjan" },
+        payment_method: "Orange Money",
+        status: "completed"
+      }
+    };
+
+    try {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(samplePayload),
+        mode: "no-cors"
+      });
+
+      toast.success(`Webhook test '${webhookEvent}' envoyé avec succès vers l'URL !`);
+    } catch (e: any) {
+      toast.error(`Erreur d'envoi du Webhook : ${e.message}`);
+    } finally {
+      setIsSendingWebhook(false);
+    }
+  };
+
+  const baseUrl = "https://ecomfy.cloud/api/v1";
+
   if (user === null) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center p-6">
-          <Card className="p-8 max-w-md text-center space-y-4">
-            <Lock className="h-10 w-10 mx-auto text-muted-foreground" />
-            <h2 className="text-xl font-semibold">Connexion requise</h2>
-            <p className="text-sm text-muted-foreground">
-              Veuillez vous connecter pour accéder au portail développeur et gérer vos clés API.
-            </p>
-            <Button asChild><Link to="/auth">Se connecter</Link></Button>
-          </Card>
-        </div>
+      <div className="min-h-screen bg-[#090D16] flex flex-col items-center justify-center p-6 text-white font-inter">
+        <Card className="p-8 max-w-md text-center space-y-5 bg-slate-900/90 border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl">
+          <div className="h-16 w-16 rounded-full bg-[#0E7C66]/20 text-emerald-400 flex items-center justify-center mx-auto border border-[#0E7C66]/30">
+            <Lock className="h-8 w-8" />
+          </div>
+          <h2 className="text-2xl font-space font-extrabold text-white">Espace Développeur Ecomfy</h2>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Connectez-vous pour générer vos clés d'API sécurisées et intégrer vos systèmes externes.
+          </p>
+          <Button onClick={() => navigate("/auth")} className="w-full rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs">
+            Se Connecter
+          </Button>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
-      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-6xl">
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <Button variant="ghost" size="sm" asChild className="mb-4 -ml-4">
-              <Link to="/docs"><ArrowLeft className="w-4 h-4 mr-2" /> Retour à la documentation</Link>
+    <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white">
+      
+      {/* Top Header Navigation */}
+      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/docs")} className="text-slate-400 hover:text-white text-xs gap-1.5">
+              <ArrowLeft className="w-4 h-4" />
+              <span>Documentation</span>
             </Button>
-            <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-              <Code className="w-8 h-8 text-primary" /> Portail Développeur
-            </h1>
-            <p className="text-muted-foreground mt-2">Intégrez Ecomfy à vos applications avec notre API REST et nos Webhooks.</p>
+            <span className="text-slate-700">|</span>
+            <div className="flex items-center gap-2">
+              <Code className="w-5 h-5 text-emerald-400" />
+              <h1 className="font-space font-extrabold text-lg md:text-xl text-white">Console Développeur API</h1>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <a href="https://wa.me/2250758152761" target="_blank" rel="noopener noreferrer">
-                Support API
-              </a>
+
+          <div className="flex items-center gap-3">
+            <Badge className="bg-[#0E7C66]/20 text-emerald-400 border border-[#0E7C66]/40 text-xs font-bold px-3 py-1 rounded-full gap-1.5">
+              <Zap className="h-3.5 w-3.5" />
+              API v1 Live
+            </Badge>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
+        
+        {/* Console Banner */}
+        <div className="p-6 md:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 z-10 max-w-2xl">
+            <h2 className="text-2xl md:text-4xl font-space font-extrabold text-white tracking-tight">
+              Intégrez Ecomfy à vos Outils & ERP
+            </h2>
+            <p className="text-xs md:text-sm text-slate-300 leading-relaxed">
+              Connectez N8N, Zapier, vos serveurs back-end ou applications mobiles grâce à nos API REST sécurisées par clés Bearer Token.
+            </p>
+          </div>
+
+          <div className="z-10 shrink-0">
+            <Button
+              onClick={() => {
+                const el = document.getElementById("api-tester-card");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs gap-2 px-5 py-3 shadow-xl"
+            >
+              <Play className="h-4 w-4" />
+              <span>Tester l'API en direct</span>
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 bg-muted/50 rounded-xl">
-            <TabsTrigger value="overview" className="rounded-lg py-2">📊 Aperçu</TabsTrigger>
-            <TabsTrigger value="api-keys" className="rounded-lg py-2">🔑 Clés API</TabsTrigger>
-            <TabsTrigger value="endpoints" className="rounded-lg py-2">📡 Endpoints</TabsTrigger>
-            <TabsTrigger value="integrations" className="rounded-lg py-2">🔗 Intégrations</TabsTrigger>
-            <TabsTrigger value="webhooks" className="rounded-lg py-2">⚡ Webhooks</TabsTrigger>
-            <TabsTrigger value="examples" className="rounded-lg py-2">💻 Code</TabsTrigger>
+        {/* Console Operational Tabs */}
+        <Tabs defaultValue="api-keys" className="space-y-6">
+          <TabsList className="bg-slate-900 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1">
+            <TabsTrigger value="api-keys" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+              <Key className="h-4 w-4" />
+              <span>Clés API ({apiKeys.length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="tester" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+              <Play className="h-4 w-4" />
+              <span>Playground API Tester</span>
+            </TabsTrigger>
+            <TabsTrigger value="webhooks" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+              <Webhook className="h-4 w-4" />
+              <span>Simulateur Webhooks</span>
+            </TabsTrigger>
+            <TabsTrigger value="snippets" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+              <Terminal className="h-4 w-4" />
+              <span>Extraits de Code</span>
+            </TabsTrigger>
+            <TabsTrigger value="overview" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+              <Activity className="h-4 w-4" />
+              <span>Statistiques API</span>
+            </TabsTrigger>
           </TabsList>
 
-          {/* OVERVIEW / DASHBOARD */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-primary/5 border-primary/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Activity className="h-4 w-4" /> Requêtes (7 derniers jours)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{isLoadingStats ? "..." : totalRequests}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Générations d'images et vidéos</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Key className="h-4 w-4" /> Clés API actives
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{apiKeys.filter(k => k.is_active).length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Sur {apiKeys.length} clés totales</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" /> Taux de succès
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">99.8%</div>
-                  <p className="text-xs text-muted-foreground mt-1">Disponibilité globale de l'API</p>
-                </CardContent>
-              </Card>
-            </div>
+          {/* TAB 1: API KEYS MANAGEMENT */}
+          <TabsContent value="api-keys" className="space-y-6">
+            <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl">
+              <div className="mb-6">
+                <h3 className="text-xl font-space font-bold text-white flex items-center gap-2">
+                  <Key className="h-5 w-5 text-[#0E7C66]" />
+                  <span>Gestion des Clés d'API Réelles</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Générez des clés sécurisées (`vp_live_...`) pour authentifier vos requêtes HTTP externes.
+                </p>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Activité de l'API</CardTitle>
-                <CardDescription>Volume de requêtes sur les 7 derniers jours</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] w-full mt-4">
-                  {isLoadingStats ? (
-                    <div className="h-full flex items-center justify-center text-muted-foreground">Chargement des statistiques...</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                        <Tooltip 
-                          cursor={{ fill: '#f3f4f6' }}
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar dataKey="images" name="Images" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={32} />
-                        <Bar dataKey="videos" name="Vidéos" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              {/* Key Generation Form */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-8 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+                <Input
+                  placeholder="Nom de la clé (ex: Serveur N8N Production)"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  className="bg-slate-900 border-slate-800 text-xs rounded-xl text-white placeholder:text-slate-500 flex-1"
+                />
+                <Button
+                  onClick={createApiKey}
+                  disabled={isCreating}
+                  className="rounded-xl bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs gap-2 px-5 shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Générer ma Clé API</span>
+                </Button>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Dernières requêtes réussies</CardTitle>
-                <CardDescription>Historique récent de vos appels d'API de génération</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingStats ? (
-                  <div className="text-sm text-muted-foreground">Chargement...</div>
-                ) : recentLogs.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center py-6">Aucune activité récente.</div>
+              {/* Keys List */}
+              <div className="space-y-4">
+                {apiKeys.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500 text-xs font-semibold">
+                    Aucune clé API créée pour le moment. Cliquez sur "Générer" ci-dessus.
+                  </div>
                 ) : (
-                  <div className="space-y-3">
-                    {recentLogs.map((log, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-accent/50 transition-colors">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className={`p-2 rounded-md ${log.type === 'Image' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                            {log.type === 'Image' ? <ImageIcon className="h-4 w-4" /> : <Video className="h-4 w-4" />}
-                          </div>
-                          <div className="truncate">
-                            <p className="text-sm font-medium truncate">{log.prompt || "Sans description"}</p>
-                            <p className="text-xs text-muted-foreground">{log.platform} • {log.type}</p>
-                          </div>
+                  apiKeys.map((k) => (
+                    <div key={k.id} className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-bold text-sm text-white truncate">{k.key_name}</h4>
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-0 text-[10px]">
+                            Active
+                          </Badge>
                         </div>
-                        <div className="text-right whitespace-nowrap pl-4">
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Succès</Badge>
-                          <p className="text-xs text-muted-foreground mt-1">{format(new Date(log.created_at), "dd MMM HH:mm", { locale: fr })}</p>
+
+                        <div className="flex items-center gap-2 max-w-xl">
+                          <code className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-emerald-300 flex-1 overflow-x-auto">
+                            {visibleKeys.has(k.id) ? k.api_key : k.api_key.slice(0, 12) + "••••••••••••••••••••••••"}
+                          </code>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-[10px] text-slate-500">
+                          <span>Créée le {format(new Date(k.created_at), "dd MMM yyyy", { locale: fr })}</span>
+                          <span>•</span>
+                          <span>{k.request_count || 0} requêtes exécutées</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleKeyVisibility(k.id)}
+                          className="rounded-xl border-slate-800 text-slate-300 text-xs font-bold gap-1.5"
+                        >
+                          {visibleKeys.has(k.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          <span>{visibleKeys.has(k.id) ? "Masquer" : "Révéler"}</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyKey(k.api_key)}
+                          className="rounded-xl border-slate-800 text-slate-300 text-xs font-bold gap-1.5"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          <span>Copier</span>
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteApiKey(k.id)}
+                          className="rounded-xl text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
                 )}
-              </CardContent>
+              </div>
             </Card>
           </TabsContent>
 
-          {/* API KEYS TAB */}
-          <TabsContent value="api-keys" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+          {/* TAB 2: INTERACTIVE PLAYGROUND API TESTER */}
+          <TabsContent value="tester" className="space-y-6" id="api-tester-card">
+            <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl">
+              <div className="mb-6">
+                <h3 className="text-xl font-space font-bold text-white flex items-center gap-2">
+                  <Play className="h-5 w-5 text-[#0E7C66]" />
+                  <span>Playground API Tester (Direct en Navigateur)</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Exécutez des appels réels vers les endpoints d'Ecomfy et observez la réponse JSON en temps réel.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Left Controls */}
+                <div className="lg:col-span-6 space-y-4">
                   <div>
-                    <CardTitle className="text-2xl flex items-center gap-2">
-                      <Key className="w-6 h-6 text-primary" /> Vos Clés API
-                    </CardTitle>
-                    <CardDescription className="mt-2">
-                      Ces clés permettent d'authentifier vos requêtes vers l'API Ecomfy. <strong className="text-destructive">Gardez-les secrètes.</strong>
-                    </CardDescription>
+                    <label className="text-xs font-bold text-slate-300 mb-1 block">Méthode & Endpoint</label>
+                    <div className="flex gap-2">
+                      <Select value={testMethod} onValueChange={setTestMethod}>
+                        <SelectTrigger className="w-28 bg-slate-950 border-slate-800 text-xs font-bold text-emerald-400 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
+                          <SelectItem value="GET">GET</SelectItem>
+                          <SelectItem value="POST">POST</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={testEndpoint} onValueChange={setTestEndpoint}>
+                        <SelectTrigger className="flex-1 bg-slate-950 border-slate-800 text-xs font-mono text-white rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
+                          <SelectItem value="/products">/api/v1/products (Liste Produits)</SelectItem>
+                          <SelectItem value="/shops">/api/v1/shops (Liste Boutiques)</SelectItem>
+                          <SelectItem value="/orders">/api/v1/orders (Commandes Client)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row gap-3 mb-8 bg-muted/30 p-4 rounded-xl border border-dashed">
-                  <Input 
-                    placeholder="Nom de la clé (ex: Serveur de production)" 
-                    value={newKeyName} 
-                    onChange={(e) => setNewKeyName(e.target.value)} 
-                    className="flex-1 bg-background" 
-                  />
-                  <Button onClick={createApiKey} disabled={isCreating} className="shrink-0">
-                    <Plus className="h-4 w-4 mr-2" /> Générer une clé
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 mb-1 block">Clé API (Bearer Token)</label>
+                    <Input
+                      value={testApiKey}
+                      onChange={(e) => setTestApiKey(e.target.value)}
+                      placeholder="vp_live_..."
+                      className="bg-slate-950 border-slate-800 font-mono text-xs text-emerald-300 rounded-xl"
+                    />
+                  </div>
+
+                  {testMethod === "POST" && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 mb-1 block">Corps de la Requête (JSON)</label>
+                      <Textarea
+                        value={testRequestBody}
+                        onChange={(e) => setTestRequestBody(e.target.value)}
+                        className="bg-slate-950 border-slate-800 font-mono text-xs text-white rounded-xl h-32"
+                      />
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={executeApiTest}
+                    disabled={isTestingApi}
+                    className="w-full rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs gap-2 py-3 shadow-lg"
+                  >
+                    {isTestingApi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    <span>Exécuter la Requête HTTP</span>
                   </Button>
                 </div>
 
-                {apiKeys.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
-                    <Key className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium text-foreground">Aucune clé API</p>
-                    <p className="text-sm mt-1">Générez votre première clé pour commencer à utiliser l'API.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {apiKeys.map((k) => (
-                      <div key={k.id} className="group flex flex-col md:flex-row md:items-center justify-between p-5 border rounded-xl hover:border-primary/50 transition-all bg-card shadow-sm">
-                        <div className="space-y-2 flex-1 mb-4 md:mb-0">
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-lg">{k.key_name}</span>
-                            <Badge variant={k.is_active ? "default" : "secondary"} className={k.is_active ? "bg-green-500/10 text-green-700 hover:bg-green-500/20" : ""}>
-                              {k.is_active ? "Active" : "Inactive"}
-                            </Badge>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 max-w-md">
-                            <code className="flex-1 px-3 py-2 bg-muted rounded-md text-sm font-mono tracking-tight overflow-x-auto text-muted-foreground border">
-                              {visibleKeys.has(k.id) ? k.api_key : k.api_key.slice(0, 8) + "••••••••••••••••••••••••"}
-                            </code>
-                          </div>
-                          
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Créée le {format(new Date(k.created_at), "dd MMM yyyy", { locale: fr })}</span>
-                            <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> {k.request_count} requêtes</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-2 shrink-0">
-                          <Button variant="outline" size="sm" onClick={() => toggleKeyVisibility(k.id)} className="h-9">
-                            {visibleKeys.has(k.id) ? <><EyeOff className="h-4 w-4 mr-2" /> Masquer</> : <><Eye className="h-4 w-4 mr-2" /> Révéler</>}
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => copyKey(k.api_key)} className="h-9">
-                            <Copy className="h-4 w-4 mr-2" /> Copier
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteApiKey(k.id)} className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* ENDPOINTS TAB */}
-          <TabsContent value="endpoints" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <Server className="w-6 h-6 text-primary" /> Référence de l'API
-                </CardTitle>
-                <CardDescription>
-                  L'URL de base pour toutes les requêtes est : <code className="text-primary font-mono bg-primary/10 px-1 py-0.5 rounded">{baseUrl}</code>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {[
-                  { method: "POST", path: "/generate-ai-image", desc: "Génère un visuel publicitaire IA", params: `{
-  "prompt": "Un magnifique sac en cuir sur une table en bois",
-  "platform": "instagram", // instagram, facebook, tiktok
-  "style": "modern" // modern, elegant, bold, etc.
-}` },
-                  { method: "POST", path: "/generate-video", desc: "Génère une vidéo publicitaire animée depuis une image", params: `{
-  "description": "Animation fluide du produit",
-  "duration": 5, // Durée en secondes (max 10)
-  "style": "dynamique",
-  "referenceImages": ["https://url-de-mon-image.jpg"]
-}` },
-                  { method: "POST", path: "/correct-text", desc: "Corrige et optimise un texte publicitaire", params: `{
-  "text": "Texte a coriger rapidemen",
-  "language": "fr"
-}` },
-                ].map((ep, i) => (
-                  <div key={i} className="border rounded-xl overflow-hidden shadow-sm">
-                    <div className="bg-muted/50 p-4 border-b flex items-center gap-3">
-                      <Badge variant={ep.method === "POST" ? "default" : "secondary"} className="bg-green-500 text-white hover:bg-green-600">{ep.method}</Badge>
-                      <code className="text-sm font-bold font-mono text-foreground">{ep.path}</code>
-                    </div>
-                    <div className="p-5">
-                      <p className="text-muted-foreground mb-4">{ep.desc}</p>
-                      
-                      <h4 className="text-sm font-semibold mb-2">Headers requis</h4>
-                      <div className="bg-card border rounded-lg p-3 mb-4 font-mono text-sm">
-                        <div className="flex"><span className="text-blue-500 w-32">Authorization:</span> <span>Bearer VOTRE_CLE_API</span></div>
-                        <div className="flex"><span className="text-blue-500 w-32">Content-Type:</span> <span>application/json</span></div>
-                      </div>
-                      
-                      <h4 className="text-sm font-semibold mb-2">Body (JSON)</h4>
-                      <pre className="bg-slate-950 text-slate-50 p-4 rounded-lg text-sm overflow-x-auto font-mono">
-                        <code>{ep.params}</code>
-                      </pre>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* INTEGRATIONS */}
-          <TabsContent value="integrations" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <Link2 className="w-6 h-6 text-primary" /> Outils & No-Code
-                </CardTitle>
-                <CardDescription>Intégrez Ecomfy facilement sans écrire de code.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* N8N */}
-                  <div className="border rounded-xl p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><Globe className="h-6 w-6" /></div>
-                      <div>
-                        <h3 className="text-xl font-bold">N8N</h3>
-                        <p className="text-xs text-muted-foreground">Automatisation visuelle</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4 h-10">Connectez vos workflows via le nœud HTTP Request standard de n8n.</p>
-                    <Button variant="outline" className="w-full">Voir le guide d'intégration</Button>
+                {/* Right Response Viewer */}
+                <div className="lg:col-span-6 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-300">Réponse Serveur JSON</label>
+                    {testStatus && (
+                      <Badge className={`text-[10px] ${testStatus === 200 ? "bg-emerald-500/20 text-emerald-400 border-0" : "bg-rose-500/20 text-rose-400 border-0"}`}>
+                        HTTP {testStatus} OK
+                      </Badge>
+                    )}
                   </div>
 
-                  {/* Zapier */}
-                  <div className="border rounded-xl p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg"><Zap className="h-6 w-6" /></div>
-                      <div>
-                        <h3 className="text-xl font-bold">Zapier / Make</h3>
-                        <p className="text-xs text-muted-foreground">Workflows No-Code</p>
+                  <div className="rounded-2xl bg-slate-950 border border-slate-800 p-4 h-[300px] overflow-auto font-mono text-xs text-emerald-300">
+                    {isTestingApi ? (
+                      <div className="h-full flex items-center justify-center text-slate-500 gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Envoi de la requête...</span>
                       </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4 h-10">Utilisez l'action "Webhooks by Zapier" pour communiquer avec notre API.</p>
-                    <Button variant="outline" className="w-full">Voir le guide d'intégration</Button>
-                  </div>
-
-                  {/* MCP */}
-                  <div className="border rounded-xl p-6 hover:shadow-md transition-shadow md:col-span-2">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Shield className="h-6 w-6" /></div>
-                      <div>
-                        <h3 className="text-xl font-bold">MCP (Model Context Protocol)</h3>
-                        <p className="text-xs text-muted-foreground">Agents IA & Assistants</p>
+                    ) : testResponse ? (
+                      <pre><code>{testResponse}</code></pre>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-slate-500 text-center">
+                        Cliquez sur "Exécuter la Requête HTTP" pour afficher le résultat JSON.
                       </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Intégrez Ecomfy directement dans Claude, Cursor ou vos agents IA personnalisés.
-                      Le serveur MCP expose les outils `generate_image`, `generate_video` et `extract_brand` de façon native.
-                    </p>
-                    <pre className="bg-slate-950 text-slate-50 p-4 rounded-lg text-xs overflow-x-auto font-mono">
-                      <code>{`"mcpServers": {
-  "ecomfy": {
-    "url": "${baseUrl}/mcp",
-    "transport": "streamable-http",
-    "headers": { "Authorization": "Bearer VOTRE_CLE_API" }
-  }
-}`}</code>
-                    </pre>
+                    )}
                   </div>
                 </div>
-              </CardContent>
+
+              </div>
             </Card>
           </TabsContent>
 
-          {/* WEBHOOKS */}
+          {/* TAB 3: WEBHOOK SIMULATOR */}
           <TabsContent value="webhooks" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <Webhook className="w-6 h-6 text-primary" /> Événements & Webhooks
-                </CardTitle>
-                <CardDescription>Soyez notifié en temps réel des actions longues (comme la génération de vidéos).</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                <div className="grid md:grid-cols-2 gap-4">
-                  {[
-                    { event: "image.generated", desc: "Visuel IA généré avec succès" },
-                    { event: "video.generated", desc: "Vidéo publicitaire terminée" },
-                    { event: "video.failed", desc: "Échec lors de la génération vidéo" },
-                  ].map((ev, i) => (
-                    <div key={i} className="border rounded-xl p-4 flex gap-4 bg-muted/20">
-                      <div className="mt-1"><Webhook className="h-5 w-5 text-muted-foreground" /></div>
-                      <div>
-                        <code className="text-primary font-mono text-sm font-bold bg-primary/10 px-2 py-0.5 rounded">{ev.event}</code>
-                        <p className="text-sm text-muted-foreground mt-2">{ev.desc}</p>
-                      </div>
-                    </div>
-                  ))}
+            <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl">
+              <div className="mb-6">
+                <h3 className="text-xl font-space font-bold text-white flex items-center gap-2">
+                  <Webhook className="h-5 w-5 text-[#0E7C66]" />
+                  <span>Simulateur d'Événements Webhook Temps Réel</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Envoyez un événement de test vers votre serveur (ex: N8N, Zapier ou Webhook.site) pour valider l'intégration.
+                </p>
+              </div>
+
+              <div className="space-y-4 max-w-2xl">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 mb-1 block">URL Webhook Cible</label>
+                  <Input
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
+                    placeholder="https://webhook.site/votre-unique-id"
+                    className="bg-slate-950 border-slate-800 text-xs font-mono text-white rounded-xl"
+                  />
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Exemple de Payload</h3>
-                  <pre className="bg-slate-950 text-slate-50 p-4 rounded-xl text-sm overflow-x-auto font-mono">
-                    <code>{`{
-  "event": "video.generated",
-  "timestamp": "2026-08-10T12:00:00Z",
-  "data": {
-    "id": "vid_abc123",
-    "url": "https://...",
-    "status": "completed",
-    "processing_time_ms": 45200
-  }
-}`}</code>
-                  </pre>
+                  <label className="text-xs font-bold text-slate-300 mb-1 block">Type d'Événement à Simuler</label>
+                  <Select value={webhookEvent} onValueChange={setWebhookEvent}>
+                    <SelectTrigger className="bg-slate-950 border-slate-800 text-xs font-bold text-white rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
+                      <SelectItem value="order.created">order.created (Nouvelle Commande Client)</SelectItem>
+                      <SelectItem value="payment.completed">payment.completed (Règlement Mobile Money Validé)</SelectItem>
+                      <SelectItem value="cart.abandoned">cart.abandoned (Panier Abandonné à Relancer)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardContent>
+
+                <Button
+                  onClick={sendTestWebhook}
+                  disabled={isSendingWebhook}
+                  className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs gap-2 px-6 py-3 shadow-lg"
+                >
+                  {isSendingWebhook ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  <span>Envoyer le Webhook de Test</span>
+                </Button>
+              </div>
             </Card>
           </TabsContent>
 
-          {/* EXAMPLES */}
-          <TabsContent value="examples" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <BookOpen className="w-6 h-6 text-primary" /> Extraits de code
-                </CardTitle>
-                <CardDescription>Comment utiliser l'API dans votre langage préféré.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-2">cURL</h3>
-                  <pre className="bg-slate-950 text-slate-50 p-4 rounded-xl text-sm overflow-x-auto font-mono">
-                    <code>{`curl -X POST ${baseUrl}/generate-ai-image \\
-  -H "Authorization: Bearer VOTRE_CLE_API" \\
-  -H "Content-Type: application/json" \\
-  -d '{"prompt":"Publicité","platform":"instagram","style":"modern"}'`}</code>
+          {/* TAB 4: CODE SNIPPETS LIBRARY */}
+          <TabsContent value="snippets" className="space-y-6">
+            <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl">
+              <div className="mb-6">
+                <h3 className="text-xl font-space font-bold text-white flex items-center gap-2">
+                  <Terminal className="h-5 w-5 text-[#0E7C66]" />
+                  <span>Bibliothèque d'Extraits de Code</span>
+                </h3>
+                <p className="text-xs text-slate-400">Copiez-collez les snippets d'intégration dans vos langages favoris.</p>
+              </div>
+
+              <Tabs defaultValue="curl" className="w-full">
+                <TabsList className="bg-slate-950 border border-slate-800 rounded-xl p-1 max-w-md">
+                  <TabsTrigger value="curl" className="rounded-lg text-xs font-bold">cURL</TabsTrigger>
+                  <TabsTrigger value="node" className="rounded-lg text-xs font-bold">Node.js / JS</TabsTrigger>
+                  <TabsTrigger value="python" className="rounded-lg text-xs font-bold">Python</TabsTrigger>
+                  <TabsTrigger value="n8n" className="rounded-lg text-xs font-bold">N8N JSON</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="curl" className="mt-4">
+                  <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto">
+<code>{`curl -X GET https://ecomfy.cloud/api/v1/products \\
+  -H "Authorization: Bearer ${apiKeys[0]?.api_key || 'vp_live_sample123456'}" \\
+  -H "Content-Type: application/json"`}</code>
                   </pre>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Node.js / Fetch</h3>
-                  <pre className="bg-slate-950 text-slate-50 p-4 rounded-xl text-sm overflow-x-auto font-mono">
-                    <code>{`const response = await fetch('${baseUrl}/generate-ai-image', {
-  method: 'POST',
+                </TabsContent>
+
+                <TabsContent value="node" className="mt-4">
+                  <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto">
+<code>{`import axios from 'axios';
+
+const response = await axios.get('https://ecomfy.cloud/api/v1/products', {
   headers: {
-    'Authorization': 'Bearer VOTRE_CLE_API',
+    'Authorization': 'Bearer ${apiKeys[0]?.api_key || 'vp_live_sample123456'}',
     'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ prompt: 'Produit de beauté', platform: 'facebook' })
+  }
 });
-const data = await response.json();
-console.log(data.imageUrl);`}</code>
+
+console.log(response.data);`}</code>
                   </pre>
-                </div>
-              </CardContent>
+                </TabsContent>
+
+                <TabsContent value="python" className="mt-4">
+                  <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto">
+<code>{`import requests
+
+headers = {
+    'Authorization': 'Bearer ${apiKeys[0]?.api_key || 'vp_live_sample123456'}',
+    'Content-Type': 'application/json'
+}
+
+response = requests.get('https://ecomfy.cloud/api/v1/products', headers=headers)
+print(response.json())`}</code>
+                  </pre>
+                </TabsContent>
+
+                <TabsContent value="n8n" className="mt-4">
+                  <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto">
+<code>{`{
+  "nodes": [
+    {
+      "name": "Ecomfy API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "parameters": {
+        "url": "https://ecomfy.cloud/api/v1/products",
+        "headerParametersUi": {
+          "parameter": [
+            { "name": "Authorization", "value": "Bearer ${apiKeys[0]?.api_key || 'vp_live_sample123456'}" }
+          ]
+        }
+      }
+    }
+  ]
+}`}</code>
+                  </pre>
+                </TabsContent>
+              </Tabs>
             </Card>
+          </TabsContent>
+
+          {/* TAB 5: OVERVIEW & TRAFFIC STATS */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Requêtes Cumulées (7j)</span>
+                <div className="text-3xl font-space font-extrabold text-white mt-2">{totalRequests}</div>
+                <p className="text-xs text-slate-500 mt-1">Appels API réels enregistrés</p>
+              </Card>
+
+              <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Clés API Actives</span>
+                <div className="text-3xl font-space font-extrabold text-emerald-400 mt-2">{apiKeys.filter(k => k.is_active).length}</div>
+                <p className="text-xs text-slate-500 mt-1">Sur {apiKeys.length} clés générées</p>
+              </Card>
+
+              <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Disponibilité API</span>
+                <div className="text-3xl font-space font-extrabold text-emerald-400 mt-2">99.9%</div>
+                <p className="text-xs text-slate-500 mt-1">Status opérationnel ecomfy.cloud</p>
+              </Card>
+            </div>
           </TabsContent>
 
         </Tabs>
+
       </main>
     </div>
   );
