@@ -75,6 +75,28 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
     }
   },
   {
+    id: "vid-ecomfy-checkout-setup",
+    title: "Comment PARAMÉTRER le CHECKOUT de sa boutique E-commerce ? | Guide complet",
+    description: "Tutoriel complet pas à pas : découvrez comment configurer le tunnel de commande (Checkout Single-Page) de votre boutique Ecomfy, personnaliser le formulaire client et maximiser vos ventes.",
+    youtubeId: "vQxOtzYwS68",
+    youtubeUrl: "https://youtu.be/vQxOtzYwS68",
+    duration: "12 min",
+    category: "ecomfy",
+    categoryLabel: "Prise en main Ecomfy",
+    level: "Tous niveaux",
+    tags: ["Checkout", "Tunnel de commande", "Configuration", "Paiements", "Conversion"],
+    keyPoints: [
+      "Paramétrage du Checkout Single-Page ultra-rapide",
+      "Personnalisation des champs du formulaire de commande client",
+      "Activation des modes de paiement Cash à la livraison & Mobile Money",
+      "Réduction des abandons de panier et optimisation du taux de conversion"
+    ],
+    actionLink: {
+      label: "Paramétrer mon Checkout",
+      url: "/shop-manager"
+    }
+  },
+  {
     id: "vid-ecomfy-products",
     title: "Optimiser vos fiches produits pour doubler vos conversions",
     description: "Découvrez comment rendre vos produits irrésistibles grâce aux comptes à rebours d'urgence, à la jauge de stock animée et aux offres par lots (bundles).",
