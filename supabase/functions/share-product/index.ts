@@ -10,9 +10,9 @@
 // Public — no JWT required.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
-const FALLBACK_OG = "https://visuelpro.cloud/og-default.jpg";
-const SITE_NAME = "VisualPro";
-const BASE_URL = "https://visuelpro.cloud";
+const FALLBACK_OG = "https://ecomfy.cloud/og-default.jpg";
+const SITE_NAME = "Ecomfy";
+const BASE_URL = "https://ecomfy.cloud";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 
     if (!shopSlug || !productKey) {
       const html = renderHtml({
-        title: "VisualPro",
+        title: "Ecomfy",
         description: "Visuels, vidéos publicitaires, sites vitrines et boutiques e-commerce par IA.",
         image: FALLBACK_OG,
         url: BASE_URL,
@@ -186,9 +186,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    const productName = product?.name || shop?.business_name || "VisualPro";
+    const productName = product?.name || shop?.business_name || "Ecomfy";
     const productDesc = (product?.short_description || product?.description || shop?.business_description ||
-      "Découvrez ce produit sur VisualPro.").toString().replace(/<[^>]+>/g, "").slice(0, 280);
+      "Découvrez ce produit sur Ecomfy.").toString().replace(/<[^>]+>/g, "").slice(0, 280);
     const image = pickProductImage(product, shop);
     const productSlug = product?.slug || null;
     const productId = product?.id || productKey;
@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("share-product error", e);
     const html = renderHtml({
-      title: "VisualPro",
+      title: "Ecomfy",
       description: "Visuels, vidéos publicitaires, sites vitrines et boutiques e-commerce par IA.",
       image: FALLBACK_OG,
       url: BASE_URL,
