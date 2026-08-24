@@ -305,6 +305,16 @@ export default function Academy() {
               Apprenez pas à pas à paramétrer votre boutique, ajouter vos produits, configurer les paiements Mobile Money et lancer des publicités Facebook ultra-rentables.
             </p>
 
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() => navigate("/student")}
+                className="rounded-full bg-white text-[#0E7C66] hover:bg-emerald-50 font-bold text-xs gap-2 px-5 py-2.5 shadow-xl"
+              >
+                <GraduationCap className="w-4 h-4 text-[#0E7C66]" />
+                <span>Mon Espace Étudiant LMS (Formations VIP & Achetées)</span>
+              </Button>
+            </div>
+
             {/* Progression & Stats Quick Bar */}
             <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 flex items-center gap-3 border border-white/10">
