@@ -1202,7 +1202,7 @@ const ShopEditor = () => {
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked
               ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
-              : <PromoCodeManager shopId={shop.id} shopSlug={shop.slug} shopName={shop.business_name} isEmbedded={true} />;
+              : <PromoCodeManager mode="merchant" shopId={shop.id} shopSlug={shop.slug} shopName={shop.business_name} isEmbedded={true} />;
           })()}
 
           {activeSection === "appearance" && (

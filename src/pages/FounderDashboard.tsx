@@ -1158,7 +1158,7 @@ const FounderDashboard = () => {
                 </p>
               </div>
 
-              <PromoCodeManager isEmbedded={true} />
+              <PromoCodeManager mode="founder" isEmbedded={true} />
             </Card>
           </TabsContent>
 
