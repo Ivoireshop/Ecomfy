@@ -60,7 +60,7 @@ export default function PricingDashboard() {
           amount: chargeAmount,
           user_id: userId,
           payment_type: "shop_subscription",
-          shop_id: userShop?.id || null,
+          shop_id: userShop?.id || undefined,
           plan: planId,
           billing_cycle: isAnnual ? "annual" : "monthly"
         },
@@ -71,10 +71,8 @@ export default function PricingDashboard() {
         const errorDetail = data?.error || (error ? (error.message || String(error)) : null);
         
         toast({
-          title: "Paiement en ligne non démarré",
-          description: errorDetail && !errorDetail.includes("non-2xx") 
-            ? errorDetail 
-            : "Impossible de générer le lien de paiement automatique. Veuillez réessayer dans quelques instants.",
+          title: "Paiement non démarré",
+          description: errorDetail || "Impossible de générer le lien de paiement automatique. Veuillez réessayer dans quelques instants.",
           variant: "destructive",
         });
         return;

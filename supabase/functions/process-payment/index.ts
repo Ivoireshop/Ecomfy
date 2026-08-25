@@ -95,17 +95,16 @@ const reconcilePendingShopActivation = async (
 // Zod validation schema
 const PaymentSchema = z.object({
   amount: z.number(),
-  // GeniusPay : si on omet le payment_method, le client choisit sur la page checkout (recommandé)
-  payment_method: z.string().optional(),
+  payment_method: z.string().nullable().optional(),
   user_id: z.string().uuid({
     message: "ID utilisateur invalide"
   }),
-  provider: z.string().optional(),
-  phone: z.string().optional(),
-  promo_code: z.string().optional(),
+  provider: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  promo_code: z.string().nullable().optional(),
   payment_type: z.enum(["subscription", "credits", "shop_activation", "commission_payment", "shop_subscription"]).default("subscription"),
-  shop_id: z.string().uuid().optional(),
-  plan: z.string().optional(),
+  shop_id: z.string().uuid().nullable().optional(),
+  plan: z.string().nullable().optional(),
   credits_pack: z.object({
     size: z.number(),
     price: z.number()
