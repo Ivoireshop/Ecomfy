@@ -96,20 +96,21 @@ const reconcilePendingShopActivation = async (
 const PaymentSchema = z.object({
   amount: z.number(),
   payment_method: z.string().nullable().optional(),
-  user_id: z.string().uuid({
-    message: "ID utilisateur invalide"
+  user_id: z.string({
+    required_error: "ID utilisateur invalide"
   }),
   provider: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   promo_code: z.string().nullable().optional(),
   payment_type: z.enum(["subscription", "credits", "shop_activation", "commission_payment", "shop_subscription"]).default("subscription"),
-  shop_id: z.string().uuid().nullable().optional(),
+  shop_id: z.string().nullable().optional(),
   plan: z.string().nullable().optional(),
+  billing_cycle: z.string().nullable().optional(),
   credits_pack: z.object({
     size: z.number(),
     price: z.number()
   }).optional()
-});
+}).passthrough();
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

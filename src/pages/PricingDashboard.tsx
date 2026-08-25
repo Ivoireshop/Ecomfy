@@ -69,6 +69,10 @@ export default function PricingDashboard() {
       if (error || !data?.success) {
         console.warn("Payment edge function info:", error || data);
         let errorDetail = data?.error || data?.message;
+
+        if (data?.details && Array.isArray(data.details) && data.details.length > 0) {
+          errorDetail = `${data.error || "Données invalides"}: ${data.details.map((d: any) => `${d.field} (${d.message})`).join(", ")}`;
+        }
         
         if (!errorDetail && error) {
           try {
