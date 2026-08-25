@@ -448,7 +448,7 @@ export default function PromoCodeManager({ shopId, shopSlug, shopName, isEmbedde
               </div>
 
               {discountType !== "free_shipping" && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label className="text-xs font-bold">
                     {discountType === "percentage" ? "Valeur du Pourcentage (%)" : "Montant de la Réduction (FCFA)"}
                   </Label>
@@ -459,6 +459,26 @@ export default function PromoCodeManager({ shopId, shopSlug, shopName, isEmbedde
                     onChange={(e) => setDiscountValue(Number(e.target.value))}
                     className="text-xs font-bold"
                   />
+
+                  {discountType === "percentage" && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                      <span className="text-[10px] text-slate-400 font-semibold mr-1">Raccourcis :</span>
+                      {[10, 15, 20, 25, 30, 40, 50].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => setDiscountValue(pct)}
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border transition-all ${
+                            discountValue === pct
+                              ? "bg-[#0E7C66] text-white border-[#0E7C66]"
+                              : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                          }`}
+                        >
+                          -{pct}%
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

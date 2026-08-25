@@ -31,6 +31,7 @@ import {
   MessageSquare,
   BarChart3
 } from "lucide-react";
+import PromoCodeManager from "./PromoCodeManager";
 import { Session } from "@supabase/supabase-js";
 import {
   AreaChart,
@@ -1146,50 +1147,18 @@ const FounderDashboard = () => {
 
           {/* TAB 4: PROMO CODES */}
           <TabsContent value="promos" className="mt-6">
-            <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-lg font-space font-bold text-white">Gestion des Codes Promo</h3>
-                  <p className="text-xs text-slate-400">Codes de réduction actifs et historiques d'utilisation.</p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => navigate("/promo-codes")}
-                  className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white text-xs font-bold gap-2"
-                >
-                  <Ticket className="h-4 w-4" />
-                  <span>Gérer les Codes</span>
-                </Button>
+            <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl text-white">
+              <div className="mb-6">
+                <h3 className="text-lg font-space font-bold text-white flex items-center gap-2">
+                  <Ticket className="h-5 w-5 text-emerald-400" />
+                  <span>Centre de Contrôle des Codes Promo Ecomfy (Fondateur)</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Générez et attribuez des réductions pour les abonnements SaaS Ecomfy (Pass VIP 35 000 FCFA, Formations, Crédits IA) ou pour des marchands ciblés.
+                </p>
               </div>
 
-              <div className="space-y-3">
-                {topPromoCodes.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500 text-xs font-semibold">
-                    Aucun code promo créé.
-                  </div>
-                ) : (
-                  topPromoCodes.map((code) => (
-                    <div key={code.code} className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
-                          <Ticket className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-xs text-white font-mono">{code.code}</p>
-                          <p className="text-[11px] text-slate-400">-{code.discount_percentage}% de réduction</p>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-bold text-white">{code.current_uses} / {code.max_uses} utilisations</p>
-                        <Badge className={`text-[10px] mt-1 ${code.is_active ? "bg-emerald-500/20 text-emerald-400 border-0" : "bg-rose-500/20 text-rose-400 border-0"}`}>
-                          {code.is_active ? "Actif" : "Inactif"}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <PromoCodeManager isEmbedded={true} />
             </Card>
           </TabsContent>
 
