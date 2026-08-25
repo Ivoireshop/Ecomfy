@@ -12,19 +12,41 @@ export default function PricingDashboard() {
   const [isAnnual, setIsAnnual] = useState(false);
   const navigate = useNavigate();
 
+  // Déclenchement automatique post-connexion si l'utilisateur avait sélectionné un plan
+  useEffect(() => {
+    if (session?.user?.id) {
+      const pendingPlan = sessionStorage.getItem("ecomfy_pending_plan");
+      if (pendingPlan) {
+        try {
+          const { planId, monthlyRate } = JSON.parse(pendingPlan);
+          sessionStorage.removeItem("ecomfy_pending_plan");
+          handleSubscribe(planId, monthlyRate);
+        } catch (e) {
+          sessionStorage.removeItem("ecomfy_pending_plan");
+        }
+      }
+    }
+  }, [session]);
+
   const handleSubscribe = async (planId: string, monthlyRate: number) => {
     setLoading(planId);
     try {
       const userId = session?.user?.id;
       if (!userId) {
-        toast({ title: "Connectez-vous d'abord", variant: "destructive" });
+        // Stocker l'intention pour relancer le paiement dès la création de compte / connexion
+        sessionStorage.setItem("ecomfy_pending_plan", JSON.stringify({ planId, monthlyRate, isAnnual }));
+        toast({ 
+          title: "Création de compte requise", 
+          description: "Veuillez créer votre compte Ecomfy ou vous connecter pour procéder au paiement de votre abonnement.",
+        });
+        navigate("/auth?signup=true&redirect=/pricing");
         return;
       }
 
       // Calcul du montant total selon la période sélectionnée (Mensuel vs Annuel 12 mois)
       const chargeAmount = isAnnual ? monthlyRate * 12 : monthlyRate;
 
-      // Récupération de la boutique de l'utilisateur si disponible
+      // Récupération facultative de la boutique de l'utilisateur si elle existe déjà
       const { data: userShop } = await supabase
         .from("shops")
         .select("id")
@@ -38,7 +60,7 @@ export default function PricingDashboard() {
           amount: chargeAmount,
           user_id: userId,
           payment_type: "shop_subscription",
-          shop_id: userShop?.id,
+          shop_id: userShop?.id || null,
           plan: planId,
           billing_cycle: isAnnual ? "annual" : "monthly"
         },
@@ -52,7 +74,7 @@ export default function PricingDashboard() {
           title: "Paiement en ligne non démarré",
           description: errorDetail && !errorDetail.includes("non-2xx") 
             ? errorDetail 
-            : "Veuillez créer d'abord votre boutique ou contacter l'assistance pour valider votre souscription.",
+            : "Impossible de générer le lien de paiement automatique. Veuillez réessayer dans quelques instants.",
           variant: "destructive",
         });
         return;

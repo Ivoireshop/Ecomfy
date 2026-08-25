@@ -117,6 +117,8 @@ const Auth = () => {
 
     if (redirectPath && redirectPath.startsWith("/")) {
       navigate(redirectPath, { replace: true });
+    } else if (sessionStorage.getItem("ecomfy_pending_plan")) {
+      navigate("/pricing", { replace: true });
     } else {
       navigate("/dashboard", { replace: true });
     }

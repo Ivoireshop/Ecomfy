@@ -231,21 +231,13 @@ serve(async (req) => {
         }
       }
 
-      if (!targetShopId) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Veuillez d'abord créer votre boutique avant d'activer l'abonnement." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Verify ownership
-      const { data: ownedShop } = await supabase
-        .from("shops").select("id").eq("id", targetShopId).eq("user_id", user_id).maybeSingle();
-      if (!ownedShop) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // If user has a shop, verify ownership
+      if (targetShopId) {
+        const { data: ownedShop } = await supabase
+          .from("shops").select("id").eq("id", targetShopId).eq("user_id", user_id).maybeSingle();
+        if (!ownedShop) {
+          targetShopId = undefined;
+        }
       }
     }
 
