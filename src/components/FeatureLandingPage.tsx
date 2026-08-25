@@ -81,7 +81,7 @@ export function FeatureLandingPage({
         <meta property="og:url" content={canonical} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Ecomfy" />
-        <meta property="og:image" content="https://ecomfy.cloud/og-default.jpg" />
+        <meta property="og:image" content="https://ecomfy.cloud/og-ecomfy.jpg?v=3" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={metaTitle} />
         <meta name="twitter:description" content={metaDescription} />

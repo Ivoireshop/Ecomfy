@@ -27,9 +27,9 @@ serve(async (req) => {
     console.log("Sending subscription confirmation email to:", email);
 
     const emailResponse = await resend.emails.send({
-      from: "VisualPro <onboarding@resend.dev>",
+      from: "Ecomfy <support@ecomfy.cloud>",
       to: [email],
-      subject: "Félicitations ! Votre abonnement VisualPro est activé 🎉",
+      subject: "Félicitations ! Votre abonnement Ecomfy est activé 🎉",
       html: `
         <!DOCTYPE html>
         <html>

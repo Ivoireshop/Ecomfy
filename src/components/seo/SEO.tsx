@@ -17,7 +17,7 @@ export function SEO({
   title,
   description,
   path,
-  ogImage = `${BASE}/og-default.jpg`,
+  ogImage = `${BASE}/og-ecomfy.jpg?v=3`,
   ogType = "website",
   noIndex = false,
   jsonLd,
