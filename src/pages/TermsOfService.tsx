@@ -1,169 +1,201 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
-import { FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { 
+  FileText, Mail, ArrowLeft, CheckCircle2, ShieldCheck, 
+  Store, CreditCard, Sparkles, Scale, Copy, Check, ShoppingCart, Zap
+} from "lucide-react";
+import { toast } from "sonner";
 
-const TermsOfService = () => {
+export default function TermsOfService() {
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+
+  const copyToClipboard = (email: string) => {
+    navigator.clipboard.writeText(email);
+    setCopiedEmail(email);
+    toast.success(`Adresse ${email} copiée dans le presse-papier !`);
+    setTimeout(() => setCopiedEmail(null), 3000);
+  };
+
+  const lastUpdated = "25 Août 2026";
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
+    <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white">
       <Header />
-      
-      <div className="container mx-auto px-4 py-16 max-w-4xl">
-        <div className="text-center mb-12">
-          <FileText className="w-16 h-16 mx-auto mb-4 text-primary" />
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Conditions Générales d'Utilisation
-          </h1>
-          <p className="text-muted-foreground">
-            Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}
-          </p>
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+
+        {/* Navigation & Header Hero */}
+        <div className="space-y-6">
+          <Link to="/">
+            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white hover:bg-slate-900 rounded-full gap-2 text-xs font-semibold">
+              <ArrowLeft className="w-4 h-4" />
+              <span>Retour à l'accueil Ecomfy</span>
+            </Button>
+          </Link>
+
+          <div className="p-8 sm:p-10 rounded-3xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#0E7C66]/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className="bg-[#0E7C66]/20 text-emerald-400 border border-[#0E7C66]/40 text-xs font-bold px-3 py-1 rounded-full gap-1.5">
+                <Scale className="w-3.5 h-3.5" />
+                <span>Conditions Générales d'Utilisation et de Vente (CGU / CGV)</span>
+              </Badge>
+              <span className="text-xs text-slate-400 font-medium">Dernière révision : {lastUpdated}</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl font-space font-extrabold text-white tracking-tight leading-tight">
+              Conditions Générales d'Utilisation Ecomfy
+            </h1>
+
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-3xl font-normal">
+              Les présentes conditions régissent l'utilisation de la plateforme e-commerce multi-tenant **Ecomfy** (`ecomfy.cloud`), la création de boutiques en ligne, l'utilisation du Studio IA, la souscription aux abonnements SaaS et l'Académie Ecomfy.
+            </p>
+
+            {/* Official Support Email Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-800/80">
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between group hover:border-[#0E7C66]/50 transition-colors">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Assistance Technique</span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">support@ecomfy.cloud</span>
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => copyToClipboard("support@ecomfy.cloud")} className="h-8 w-8 text-slate-400 hover:text-white">
+                  {copiedEmail === "support@ecomfy.cloud" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between group hover:border-[#0E7C66]/50 transition-colors">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Renseignements & Info</span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">info@ecomfy.cloud</span>
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => copyToClipboard("info@ecomfy.cloud")} className="h-8 w-8 text-slate-400 hover:text-white">
+                  {copiedEmail === "info@ecomfy.cloud" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between group hover:border-[#0E7C66]/50 transition-colors">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Contact Général & Juridique</span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">contact@ecomfy.cloud</span>
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => copyToClipboard("contact@ecomfy.cloud")} className="h-8 w-8 text-slate-400 hover:text-white">
+                  {copiedEmail === "contact@ecomfy.cloud" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <Card className="p-8 space-y-8">
-          <section>
-            <h2 className="text-2xl font-bold mb-4">1. Acceptation des conditions</h2>
-            <p className="text-muted-foreground mb-4">
-              En utilisant Visual Pro, vous acceptez d'être lié par ces conditions générales 
-              d'utilisation. Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser 
-              notre service.
+        {/* Content Section Card */}
+        <Card className="bg-slate-900/90 border-slate-800 text-slate-300 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-10">
+
+          {/* Section 1 */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-[#0E7C66]/20 border border-[#0E7C66]/40 text-emerald-400 flex items-center justify-center text-xs font-bold font-space">01</div>
+              <h2 className="text-xl font-space font-bold text-white">1. Objet et Acceptation des Conditions</h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Les présentes Conditions Générales d'Utilisation (CGU/CGV) s'appliquent sans restriction ni réserve à tout accès ou utilisation des services proposés par **Ecomfy**. En vous inscrivant ou en déployant une boutique en ligne, vous reconnaissez avoir pris connaissance et accepté l'intégralité des présentes conditions.
             </p>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-bold mb-4">2. Description du service</h2>
-            <p className="text-muted-foreground mb-4">
-              Visual Pro est une plateforme de création visuelle propulsée par l'intelligence 
-              artificielle qui permet de :
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-              <li>Générer des visuels publicitaires professionnels</li>
-              <li>Créer des vidéos animées</li>
-              <li>Construire des sites vitrine</li>
-              <li>Utiliser des templates personnalisables</li>
-              <li>Accéder à des fonctionnalités via API</li>
+          {/* Section 2 */}
+          <section className="space-y-4 border-t border-slate-800/80 pt-8">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-[#0E7C66]/20 border border-[#0E7C66]/40 text-emerald-400 flex items-center justify-center text-xs font-bold font-space">02</div>
+              <h2 className="text-xl font-space font-bold text-white">2. Description des Services Ecomfy</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <Store className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-xs font-bold text-white font-space">Création de Vitrine E-commerce</h3>
+                <p className="text-[11px] text-slate-400">Création de boutique sous sous-domaine personnalisé (`maboutique.ecomfy.cloud`), tunnel Single-Page Checkout et intégration WhatsApp.</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                <h3 className="text-xs font-bold text-white font-space">Studio IA & Contenus</h3>
+                <p className="text-[11px] text-slate-400">Génération automatique de visuels produits studio, scripts vidéos publicitaires et fiches produits persuatives.</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <CreditCard className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-xs font-bold text-white font-space">Pass VIP Académie & Formations</h3>
+                <p className="text-[11px] text-slate-400">Accès aux masterclasses de vente (Facebook Ads, TikTok) via l'abonnement VIP (35 000 FCFA/mois) ou achat individuel à l'unité.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 3 */}
+          <section className="space-y-4 border-t border-slate-800/80 pt-8">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-[#0E7C66]/20 border border-[#0E7C66]/40 text-emerald-400 flex items-center justify-center text-xs font-bold font-space">03</div>
+              <h2 className="text-xl font-space font-bold text-white">3. Conditions d'Abonnement et Tarification SaaS</h2>
+            </div>
+            <ul className="text-xs sm:text-sm text-slate-300 space-y-2 list-disc list-inside pl-2">
+              <li>**Frais d'activation boutique** : L'activation initiale d'une boutique est soumise au tarif unique de 1 300 FCFA (2$ USD).</li>
+              <li>**Abonnement VIP Ecomfy (35 000 FCFA / mois)** : Donne un accès illimité au Studio IA, aux domaines personnalisés et à l'intégralité des masterclasses de l'Espace Étudiant.</li>
+              <li>**Formations Achetées à l'Unité** : Les masterclasses achetées individuellement restent débloquées à vie dans l'Espace Étudiant du compte acquéreur.</li>
+              <li>**Paiements sécurisés** : Effectués via Mobile Money (Wave, Orange Money, MTN, Moov via CinetPay) ou Carte bancaire (Stripe).</li>
             </ul>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-bold mb-4">3. Inscription et compte</h2>
-            <p className="text-muted-foreground mb-4">
-              Pour utiliser Visual Pro, vous devez :
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-              <li>Créer un compte avec des informations exactes et complètes</li>
-              <li>Maintenir la confidentialité de vos identifiants</li>
-              <li>Être responsable de toute activité sur votre compte</li>
-              <li>Avoir au moins 18 ans ou le consentement parental</li>
-              <li>Nous notifier immédiatement de tout accès non autorisé</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold mb-4">4. Utilisation du service</h2>
-            <p className="text-muted-foreground mb-4">
-              Vous vous engagez à :
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-              <li>Utiliser le service de manière légale et éthique</li>
-              <li>Ne pas créer de contenu illégal, diffamatoire ou offensant</li>
-              <li>Respecter les droits de propriété intellectuelle</li>
-              <li>Ne pas tenter de contourner les limitations du service</li>
-              <li>Ne pas utiliser le service pour du spam ou du phishing</li>
-              <li>Ne pas reverse-engineer ou copier notre technologie</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold mb-4">5. Propriété intellectuelle</h2>
-            <p className="text-muted-foreground mb-4">
-              <strong>Contenu créé :</strong> Vous conservez tous les droits sur le contenu que vous 
-              créez avec Visual Pro. Nous vous accordons une licence non-exclusive pour utiliser, 
-              modifier, distribuer et commercialiser ce contenu.
-            </p>
-            <p className="text-muted-foreground mb-4">
-              <strong>Plateforme :</strong> Visual Pro, son code, ses algorithmes et son design 
-              restent notre propriété exclusive. Toute reproduction non autorisée est interdite.
+          {/* Section 4 */}
+          <section className="space-y-4 border-t border-slate-800/80 pt-8">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-[#0E7C66]/20 border border-[#0E7C66]/40 text-emerald-400 flex items-center justify-center text-xs font-bold font-space">04</div>
+              <h2 className="text-xl font-space font-bold text-white">4. Obligations des Marchands et Responsabilité</h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Le marchand est seul responsable des produits commercialisés sur sa boutique en ligne Ecomfy, de l'exactitude des prix affichés, de la livraison effective des commandes aux acheteurs et du respect des lois en vigueur. Ecomfy décline toute responsabilité en cas de litige commercial entre un marchand et son client final.
             </p>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-bold mb-4">6. Tarification et paiements</h2>
-            <p className="text-muted-foreground mb-4">
-              Nos services sont proposés selon différents plans :
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-              <li>Plan Gratuit : accès limité aux fonctionnalités de base</li>
-              <li>Plan Pro : abonnement mensuel avec fonctionnalités étendues</li>
-              <li>Plan Business : accès illimité et API</li>
-            </ul>
-            <p className="text-muted-foreground mt-4">
-              Les paiements sont traités de manière sécurisée. Les abonnements se renouvellent 
-              automatiquement sauf annulation. Aucun remboursement pour les périodes partielles.
+          {/* Section 5 */}
+          <section className="space-y-4 border-t border-slate-800/80 pt-8">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-[#0E7C66]/20 border border-[#0E7C66]/40 text-emerald-400 flex items-center justify-center text-xs font-bold font-space">05</div>
+              <h2 className="text-xl font-space font-bold text-white">5. Propriété Intellectuelle et Droits IA</h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Le marchand conserve l'entière propriété de ses marques, logos et catalogues produits. Les contenus et visuels générés via le **Studio IA Ecomfy** sont concédés au marchand pour une utilisation commerciale libre et illimitée dans le cadre de l'exploitation de sa boutique Ecomfy.
             </p>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-bold mb-4">7. Crédits et usage</h2>
-            <p className="text-muted-foreground mb-4">
-              Selon votre plan, vous disposez d'un nombre défini de crédits pour créer du contenu. 
-              Les crédits non utilisés peuvent expirer selon les conditions de votre abonnement. 
-              L'achat de crédits supplémentaires est possible.
+          {/* Section 6 */}
+          <section className="space-y-4 border-t border-slate-800/80 pt-8">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-[#0E7C66]/20 border border-[#0E7C66]/40 text-emerald-400 flex items-center justify-center text-xs font-bold font-space">06</div>
+              <h2 className="text-xl font-space font-bold text-white">6. Contacts Officiels de l'Équipe Ecomfy</h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Notre équipe d'assistance se tient à votre disposition pour vous accompagner au quotidien :
             </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-1">
+                <h4 className="text-xs font-bold text-white">Assistance Technique & Support</h4>
+                <a href="mailto:support@ecomfy.cloud" className="text-xs font-mono font-bold text-emerald-400 hover:underline block">support@ecomfy.cloud</a>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-1">
+                <h4 className="text-xs font-bold text-white">Renseignements & Partenariats</h4>
+                <a href="mailto:info@ecomfy.cloud" className="text-xs font-mono font-bold text-emerald-400 hover:underline block">info@ecomfy.cloud</a>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-1">
+                <h4 className="text-xs font-bold text-white">Contact Général & Direction</h4>
+                <a href="mailto:contact@ecomfy.cloud" className="text-xs font-mono font-bold text-emerald-400 hover:underline block">contact@ecomfy.cloud</a>
+              </div>
+            </div>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-bold mb-4">8. Résiliation</h2>
-            <p className="text-muted-foreground mb-4">
-              Vous pouvez résilier votre compte à tout moment depuis les paramètres. Nous nous 
-              réservons le droit de suspendre ou résilier votre compte en cas de :
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-              <li>Violation de ces conditions</li>
-              <li>Activité frauduleuse ou illégale</li>
-              <li>Non-paiement des frais dus</li>
-              <li>Abus du service</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold mb-4">9. Garanties et limitations</h2>
-            <p className="text-muted-foreground mb-4">
-              Le service est fourni "tel quel". Nous nous efforçons d'assurer une disponibilité 
-              maximale mais ne garantissons pas un service ininterrompu. Nous ne sommes pas 
-              responsables des pertes de données ou dommages indirects.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold mb-4">10. Modifications</h2>
-            <p className="text-muted-foreground mb-4">
-              Nous pouvons modifier ces conditions à tout moment. Les modifications importantes 
-              seront notifiées par email. L'utilisation continue du service après modification 
-              constitue votre acceptation des nouvelles conditions.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold mb-4">11. Droit applicable</h2>
-            <p className="text-muted-foreground mb-4">
-              Ces conditions sont régies par le droit ivoirien. Tout litige sera soumis aux 
-              tribunaux compétents d'Abidjan, Côte d'Ivoire.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold mb-4">12. Contact</h2>
-            <p className="text-muted-foreground mb-4">
-              Pour toute question concernant ces conditions :
-            </p>
-            <ul className="space-y-2 text-muted-foreground ml-4">
-              <li>Email : legal@ecomfy.cloud</li>
-              <li>Support : support@ecomfy.cloud</li>
-            </ul>
-          </section>
         </Card>
-      </div>
+      </main>
     </div>
   );
-};
-
-export default TermsOfService;
+}
