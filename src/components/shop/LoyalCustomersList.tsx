@@ -62,7 +62,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
       // Query all orders for this shop
       const { data: orders, error } = await supabase
         .from("orders")
-        .select("id, customer_name, customer_phone, customer_email, delivery_city, total, created_at, order_status, payment_status")
+        .select("id, customer_name, customer_phone, customer_email, customer_city, total, created_at, order_status, payment_status")
         .eq("shop_id", shopId)
         .order("created_at", { ascending: false });
 
@@ -86,7 +86,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
         firstDate: string;
       }>();
 
-      orders.forEach((o) => {
+      orders.forEach((o: any) => {
         const rawPhone = (o.customer_phone || "").trim();
         const cleanPhone = rawPhone.replace(/[^\d+]/g, "");
         const key = cleanPhone || (o.customer_email || "").trim().toLowerCase() || (o.customer_name || "").trim().toLowerCase() || "anonyme";
@@ -106,8 +106,8 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           if (new Date(date).getTime() < new Date(existing.firstDate).getTime()) {
             existing.firstDate = date;
           }
-          if (!existing.city && o.delivery_city) {
-            existing.city = o.delivery_city;
+          if (!existing.city && o.customer_city) {
+            existing.city = o.customer_city;
           }
           if (!existing.email && o.customer_email) {
             existing.email = o.customer_email;
@@ -117,7 +117,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             name: o.customer_name || "Client",
             phone: rawPhone,
             email: o.customer_email || null,
-            city: o.delivery_city || null,
+            city: o.customer_city || null,
             count: 1,
             totalSpent: amount,
             lastDate: date,
