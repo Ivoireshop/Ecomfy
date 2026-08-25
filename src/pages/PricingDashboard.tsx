@@ -68,7 +68,21 @@ export default function PricingDashboard() {
       
       if (error || !data?.success) {
         console.warn("Payment edge function info:", error || data);
-        const errorDetail = data?.error || (error ? (error.message || String(error)) : null);
+        let errorDetail = data?.error || data?.message;
+        
+        if (!errorDetail && error) {
+          try {
+            if ((error as any)?.context && typeof (error as any).context.json === "function") {
+              const errJson = await (error as any).context.json();
+              errorDetail = errJson?.error || errJson?.message;
+            }
+          } catch (e) {
+            console.warn("Could not parse error context json:", e);
+          }
+          if (!errorDetail) {
+            errorDetail = error.message;
+          }
+        }
         
         toast({
           title: "Paiement non démarré",

@@ -130,7 +130,7 @@ serve(async (req) => {
           error: "Non autorisé. Veuillez vous connecter." 
         }),
         { 
-          status: 401, 
+          status: 200, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
@@ -150,7 +150,7 @@ serve(async (req) => {
           error: "Token d'authentification invalide" 
         }),
         { 
-          status: 401, 
+          status: 200, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
@@ -185,7 +185,7 @@ serve(async (req) => {
             }))
           }),
           { 
-            status: 400, 
+            status: 200, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -202,7 +202,7 @@ serve(async (req) => {
           error: "Vous ne pouvez initier un paiement que pour votre propre compte" 
         }),
         { 
-          status: 403, 
+          status: 200, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
@@ -369,7 +369,7 @@ serve(async (req) => {
             error: "Erreur lors de la validation du code promo" 
           }),
           { 
-            status: 400, 
+            status: 200, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -382,7 +382,7 @@ serve(async (req) => {
             error: "Code promo invalide" 
           }),
           { 
-            status: 400, 
+            status: 200, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -396,7 +396,7 @@ serve(async (req) => {
             error: validationResult.message 
           }),
           { 
-            status: 400, 
+            status: 200, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -422,7 +422,7 @@ serve(async (req) => {
           success: false,
           error: "La passerelle de paiement n'est pas configurée. Contactez l'administrateur."
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
