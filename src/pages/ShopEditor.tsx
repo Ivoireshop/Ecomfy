@@ -30,6 +30,7 @@ import { saveProductVideos, fetchProductVideos } from "@/lib/productAppearance";
 // Keeps the editor's initial JS small without changing UI or behavior.
 const AbandonedCartsList = lazy(() => import("@/components/shop/AbandonedCartsList").then(m => ({ default: m.AbandonedCartsList })));
 const LoyalCustomersList = lazy(() => import("@/components/shop/LoyalCustomersList").then(m => ({ default: m.LoyalCustomersList })));
+const PromoCodeManager = lazy(() => import("@/pages/PromoCodeManager"));
 const ProductEditor = lazy(() => import("@/components/shop/ProductEditor").then(m => ({ default: m.ProductEditor })));
 const ShopAssistantSettings = lazy(() => import("@/components/shop/ShopAssistantSettings").then(m => ({ default: m.ShopAssistantSettings })));
 const ShopStatistics = lazy(() => import("@/components/shop/ShopStatistics").then(m => ({ default: m.ShopStatistics })));
@@ -915,7 +916,7 @@ const ShopEditor = () => {
     const r = collabRoles || [];
     const allowed: ActiveSection[] = ["overview"];
     if (r.includes("view_orders") || r.includes("manage_delivered_orders") || r.includes("edit_shop")) {
-      allowed.push("orders", "abandoned", "loyal-customers", "statistics");
+      allowed.push("orders", "abandoned", "loyal-customers", "promo-codes", "statistics");
     }
     if (r.includes("edit_shop")) allowed.push("products", "appearance", "theme", "shop-themes", "ai-optimizer", "reviews");
     if (r.includes("manage_expenses")) allowed.push("finances", "billing");
@@ -1194,6 +1195,14 @@ const ShopEditor = () => {
             return ownerLocked
               ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
               : <LoyalCustomersList shopId={shop.id} shopSlug={shop.slug} shopName={shop.business_name} primaryColor={primaryColor} />;
+          })()}
+
+          {activeSection === "promo-codes" && shop?.id && (() => {
+            const info = computeShopPaymentInfo(shop);
+            const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
+            return ownerLocked
+              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+              : <PromoCodeManager shopId={shop.id} shopSlug={shop.slug} shopName={shop.business_name} isEmbedded={true} />;
           })()}
 
           {activeSection === "appearance" && (
