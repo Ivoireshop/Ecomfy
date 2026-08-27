@@ -99,8 +99,18 @@ export class ConnectUsService {
   static async insertCommunityMessage(userId: string | undefined, payloadObj: any): Promise<boolean> {
     try {
       const bodyStr = typeof payloadObj === "string" ? payloadObj : JSON.stringify(payloadObj);
-      const isValidUUID = Boolean(userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId));
-      const targetUserId = isValidUUID && userId ? userId : "00000000-0000-0000-0000-000000000000";
+      
+      // Attempt to retrieve active auth user from Supabase session for 100% RLS compliance
+      let activeAuthId = userId;
+      if (!activeAuthId || activeAuthId.startsWith("guest_") || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeAuthId)) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          activeAuthId = session.user.id;
+        }
+      }
+
+      const isValidUUID = Boolean(activeAuthId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeAuthId));
+      const targetUserId = isValidUUID && activeAuthId ? activeAuthId : "00000000-0000-0000-0000-000000000000";
 
       const { error } = await supabase.from("community_messages").insert([
         {
@@ -110,12 +120,12 @@ export class ConnectUsService {
       ]);
 
       if (error) {
-        console.warn("Supabase community message insert warning:", error.message);
+        console.error("Supabase community message insert error:", error.message);
         return false;
       }
       return true;
     } catch (e) {
-      console.warn("Community message insert exception:", e);
+      console.error("Community message insert exception:", e);
       return false;
     }
   }
@@ -473,11 +483,17 @@ export class ConnectUsService {
       visibility: VisibilityType;
     }
   ): Promise<ConnectUsPost> {
-    const authorProfile = await this.getProfile(userId);
+    let activeUserId = userId;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      activeUserId = session.user.id;
+    }
+
+    const authorProfile = await this.getProfile(activeUserId);
 
     const newPost: ConnectUsPost = {
       id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      user_id: userId,
+      user_id: activeUserId,
       author: authorProfile,
       content: postData.content,
       media_urls: postData.media_urls,
@@ -493,7 +509,30 @@ export class ConnectUsService {
       created_at: new Date().toISOString(),
     };
 
-    // Save locally
+    const postPayload = JSON.stringify({
+      connectus_type: "post",
+      id: newPost.id,
+      user_id: activeUserId,
+      author: newPost.author,
+      content: newPost.content,
+      media_urls: newPost.media_urls,
+      video_url: newPost.video_url,
+      link_preview: newPost.link_preview,
+      attached_product: newPost.attached_product,
+      visibility: newPost.visibility,
+      created_at: newPost.created_at,
+    });
+
+    const isSavedInCloud = await this.insertCommunityMessage(activeUserId, postPayload);
+    if (!isSavedInCloud) {
+      console.warn("Retrying post insertion into community_messages...");
+      const retrySuccess = await this.insertCommunityMessage(session?.user?.id || activeUserId, postPayload);
+      if (!retrySuccess) {
+        console.error("Cloud insert failed for ConnectUs post!");
+      }
+    }
+
+    // Save locally as secondary cache
     const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
     let existingPosts: ConnectUsPost[] = [];
     if (existingJson) {
@@ -506,26 +545,6 @@ export class ConnectUsService {
 
     existingPosts.unshift(newPost);
     safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, existingPosts);
-
-    // Sync globally to Supabase cloud so all real users see this post immediately!
-    try {
-      const postPayload = JSON.stringify({
-        connectus_type: "post",
-        id: newPost.id,
-        author: newPost.author,
-        content: newPost.content,
-        media_urls: newPost.media_urls,
-        video_url: newPost.video_url,
-        link_preview: newPost.link_preview,
-        attached_product: newPost.attached_product,
-        visibility: newPost.visibility,
-        created_at: newPost.created_at,
-      });
-
-      await this.insertCommunityMessage(userId, postPayload);
-    } catch (e) {
-      console.warn("Post created locally, cloud sync pending:", e);
-    }
 
     return newPost;
   }
