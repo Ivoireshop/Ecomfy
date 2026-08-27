@@ -140,11 +140,15 @@ export class ConnectUsService {
 
     // 1. Fetch posts, reactions, and comments from Supabase cloud community_messages table
     try {
-      const { data: dbMessages } = await supabase
+      const { data: dbMessages, error: dbError } = await supabase
         .from("community_messages")
         .select("id, user_id, body, created_at")
         .order("created_at", { ascending: false })
-        .limit(5000);
+        .limit(300);
+
+      if (dbError) {
+        console.error("Supabase getFeedPosts DB error:", dbError.message);
+      }
 
       if (dbMessages && dbMessages.length > 0) {
         dbMessages.forEach((msg: any) => {

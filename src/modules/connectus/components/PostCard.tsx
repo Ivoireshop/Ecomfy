@@ -259,9 +259,8 @@ export function PostCard({
           ) : (
             <video
               src={post.video_url}
-              poster={post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"}
               controls
-              preload="none"
+              preload="metadata"
               playsInline
               onError={() => setVideoError(true)}
               className="h-full w-full object-contain"
