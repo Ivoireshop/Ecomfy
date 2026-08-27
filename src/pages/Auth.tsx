@@ -480,8 +480,8 @@ const Auth = () => {
                     <Button 
                       type="button"
                       variant="link" 
-                      className="text-sm"
-                      onClick={handleForgotPassword}
+                      className="text-sm font-semibold text-[#0E7C66] hover:underline"
+                      onClick={() => navigate("/reset-password", { state: { email: signInEmail } })}
                     >
                       Mot de passe oublié ?
                     </Button>
