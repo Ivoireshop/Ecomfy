@@ -783,6 +783,56 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                       />
                     </div>
 
+                    <div className="space-y-2 pt-2 border-t">
+                      <Label className="text-xs font-semibold">Affichage dans l'en-tête (Header)</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: "logo_only", label: "Logo uniquement" },
+                          { id: "both", label: "Logo + Nom" },
+                          { id: "name_only", label: "Nom uniquement" },
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => updateThemeConfig("header_display_mode", item.id)}
+                            className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                              (themeConfig.header_display_mode || "logo_only") === item.id 
+                                ? "border-primary bg-primary/10 text-primary font-bold"
+                                : "border-muted text-muted-foreground hover:border-primary/40"
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">"Logo uniquement" (recommandé) évite d'afficher le nom texte à côté du logo image s'il est présent.</p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t">
+                      <Label className="text-xs font-semibold">Affichage du logo & titre dans le Hero</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: "logo_only", label: "Logo uniquement" },
+                          { id: "both", label: "Logo + Titre" },
+                          { id: "name_only", label: "Titre uniquement" },
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => updateThemeConfig("hero_display_mode", item.id)}
+                            className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                              (themeConfig.hero_display_mode || "logo_only") === item.id 
+                                ? "border-primary bg-primary/10 text-primary font-bold" 
+                                : "border-muted text-muted-foreground hover:border-primary/40"
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Évite de répéter le logo et le grand titre en double sur la bannière d'accueil.</p>
+                    </div>
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs font-semibold">Ombrage / Assombrissement de l'image ({themeConfig.hero_overlay_opacity ?? 60}%)</Label>
@@ -821,6 +871,22 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Section Tous les Produits (Facultative) */}
+              <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-bold">Afficher "Tous les produits" sur l'accueil</p>
+                    <p className="text-xs text-muted-foreground">
+                      Désactivé par défaut (recommandé) pour afficher uniquement vos <b>Produits vedettes</b> sur l'accueil sans doublons. Activez pour afficher la liste complète en dessous.
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={themeConfig.show_all_products_on_home === true} 
+                    onCheckedChange={v => updateThemeConfig("show_all_products_on_home", v)} 
+                  />
+                </div>
               </div>
 
               {/* Disposition et Contact */}

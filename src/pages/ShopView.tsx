@@ -733,28 +733,41 @@ const ShopView = () => {
       >
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-4 sm:gap-6">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            {shop.logo_url ? (
-              <div className="flex items-center shrink-0">
-                <img 
-                  src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url) ? shop.logo_url : thumbUrl(shop.logo_url, 512)} 
-                  alt={tShop.business_name || "Logo"} 
-                  loading="eager" 
-                  decoding="async" 
-                  className={`max-h-10 sm:max-h-12 w-auto max-w-[180px] sm:max-w-[240px] object-contain flex-shrink-0 transition-all group-hover:scale-105 ${
-                    themeConfig?.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
-                  } ${
-                    themeConfig?.logo_effect === "glow" ? "drop-shadow-[0_0_10px_rgba(255,255,255,0.7)]" : ""
-                  } ${
-                    themeConfig?.logo_effect === "bounce" ? "hover:animate-bounce" : ""
-                  }`} 
-                />
-              </div>
-            ) : (
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: primaryColor + "15" }}>
-                <Store className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: primaryColor }} />
-              </div>
-            )}
-            <span className="font-extrabold text-lg sm:text-xl md:text-2xl truncate tracking-tight text-gray-900 group-hover:opacity-80 transition-opacity">{tShop.business_name}</span>
+            {(() => {
+              const headerMode = themeConfig?.header_display_mode || (shop.logo_url ? "logo_only" : "name_only");
+              const showLogo = (headerMode === "logo_only" || headerMode === "both") && !!shop.logo_url;
+              const showName = headerMode === "name_only" || headerMode === "both" || !shop.logo_url;
+
+              return (
+                <>
+                  {showLogo && (
+                    <div className="flex items-center shrink-0">
+                      <img 
+                        src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url!) ? shop.logo_url! : thumbUrl(shop.logo_url!, 512)} 
+                        alt={tShop.business_name || "Logo"} 
+                        loading="eager" 
+                        decoding="async" 
+                        className={`max-h-10 sm:max-h-12 w-auto max-w-[180px] sm:max-w-[240px] object-contain flex-shrink-0 transition-all group-hover:scale-105 ${
+                          themeConfig?.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
+                        } ${
+                          themeConfig?.logo_effect === "glow" ? "drop-shadow-[0_0_10px_rgba(255,255,255,0.7)]" : ""
+                        } ${
+                          themeConfig?.logo_effect === "bounce" ? "hover:animate-bounce" : ""
+                        }`} 
+                      />
+                    </div>
+                  )}
+                  {!showLogo && (
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: primaryColor + "15" }}>
+                      <Store className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: primaryColor }} />
+                    </div>
+                  )}
+                  {showName && (
+                    <span className="font-extrabold text-lg sm:text-xl md:text-2xl truncate tracking-tight text-gray-900 group-hover:opacity-80 transition-opacity">{tShop.business_name}</span>
+                  )}
+                </>
+              );
+            })()}
           </div>
           
           {/* Search - Desktop */}
@@ -845,29 +858,44 @@ const ShopView = () => {
             )}
 
             <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-16 text-center text-white flex flex-col items-center">
-              {shop.logo_url && (
-                <div className="p-2 rounded-3xl bg-white/10 backdrop-blur-xl mb-6 shadow-2xl ring-1 ring-white/20 inline-flex items-center justify-center max-w-[280px]">
-                  <img 
-                    src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url) ? shop.logo_url : thumbUrl(shop.logo_url, 512)} 
-                    alt={tShop.business_name} 
-                    loading="eager" 
-                    decoding="async" 
-                    className={`max-h-20 sm:max-h-24 w-auto max-w-[240px] object-contain ${
-                      themeConfig?.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
-                    } ${
-                      themeConfig?.logo_effect === "glow" ? "drop-shadow-[0_0_15px_rgba(255,255,255,0.9)]" : ""
-                    }`} 
-                  />
-                </div>
-              )}
+              {(() => {
+                const heroMode = themeConfig?.hero_display_mode || (shop.logo_url ? "logo_only" : "name_only");
+                const hasLogo = !!shop.logo_url;
+                const showLogo = (heroMode === "logo_only" || heroMode === "both") && hasLogo;
+                // Si le logo est affiché et qu'on est en mode logo_only, on masque le titre texte s'il est identique au nom de la boutique
+                const isTitleIdenticalToName = heroTitle?.trim().toLowerCase() === tShop.business_name?.trim().toLowerCase();
+                const showTitle = heroMode === "name_only" || heroMode === "both" || !hasLogo || (!isTitleIdenticalToName && heroMode === "logo_only");
 
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-white/10 backdrop-blur-md text-white border border-white/20 mb-4 shadow-sm">
-                <span>✨ Boutique Officielle</span>
-              </div>
+                return (
+                  <>
+                    {showLogo && (
+                      <div className="p-2 rounded-3xl bg-white/10 backdrop-blur-xl mb-6 shadow-2xl ring-1 ring-white/20 inline-flex items-center justify-center max-w-[280px]">
+                        <img 
+                          src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url!) ? shop.logo_url! : thumbUrl(shop.logo_url!, 512)} 
+                          alt={tShop.business_name} 
+                          loading="eager" 
+                          decoding="async" 
+                          className={`max-h-20 sm:max-h-24 w-auto max-w-[240px] object-contain ${
+                            themeConfig?.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
+                          } ${
+                            themeConfig?.logo_effect === "glow" ? "drop-shadow-[0_0_15px_rgba(255,255,255,0.9)]" : ""
+                          }`} 
+                        />
+                      </div>
+                    )}
 
-              <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tighter drop-shadow-2xl leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-200">
-                {heroTitle}
-              </h1>
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-white/10 backdrop-blur-md text-white border border-white/20 mb-4 shadow-sm">
+                      <span>✨ Boutique Officielle</span>
+                    </div>
+
+                    {showTitle && (
+                      <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tighter drop-shadow-2xl leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-200">
+                        {heroTitle}
+                      </h1>
+                    )}
+                  </>
+                );
+              })()}
 
               {heroSubtitle && (
                 <p dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-lg sm:text-xl md:text-2xl text-gray-200 max-w-3xl mx-auto leading-relaxed font-medium mb-10 text-balance drop-shadow-md">
@@ -976,8 +1004,9 @@ const ShopView = () => {
         </section>
       )}
 
-      {/* All Products */}
-      <section id="products" className="max-w-7xl mx-auto px-4 py-12 sm:py-16 pb-24 bg-gray-50/50 rounded-3xl mb-12 border border-gray-100">
+      {/* All Products - Optionnel sur l'accueil si les produits vedettes sont déjà affichés */}
+      {(themeConfig?.show_all_products_on_home === true || effectiveFeaturedProducts.length === 0 || themeConfig?.featured_enabled === false) && (
+        <section id="products" className="max-w-7xl mx-auto px-4 py-12 sm:py-16 pb-24 bg-gray-50/50 rounded-3xl mb-12 border border-gray-100">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Tous les produits</h2>
@@ -1041,6 +1070,7 @@ const ShopView = () => {
           </div>
         )}
       </section>
+      )}
 
       {/* Contact Section */}
       <section className="bg-gray-900 text-white py-16 sm:py-24">
