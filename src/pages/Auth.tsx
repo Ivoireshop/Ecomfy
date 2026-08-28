@@ -74,7 +74,11 @@ const Auth = () => {
     handledSessionRef.current = sessionKey;
 
     const urlParams = new URLSearchParams(window.location.search);
-    const isEmailConfirmed = urlParams.get("type") === "signup";
+    const isEmailConfirmed = 
+      urlParams.get("type") === "signup" || 
+      urlParams.get("confirmed") === "true" || 
+      window.location.hash.includes("type=signup") || 
+      window.location.hash.includes("access_token");
 
     if (isEmailConfirmed) {
       const referralKey = `referral_${currentSession.user.email}`;
@@ -90,19 +94,19 @@ const Auth = () => {
           if (!refError && refResult) {
             toast({
               title: "Félicitations ! 🎉",
-              description: "Votre compte a été créé avec succès et vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) ! Bienvenue sur Ecomfy !",
+              description: "Votre email a été confirmé avec succès ! Vous avez reçu 5 générations gratuites (3 + 2 bonus de bienvenue) ! Bienvenue sur Ecomfy !",
             });
           } else {
             toast({
               title: "Félicitations ! 🎉",
-              description: "Votre compte a été créé avec succès. Bienvenue sur Ecomfy !",
+              description: "Votre email a été confirmé avec succès. Bienvenue sur Ecomfy !",
             });
           }
         } catch (error) {
           console.error("Erreur lors du traitement du parrainage:", error);
           toast({
             title: "Félicitations ! 🎉",
-            description: "Votre compte a été créé avec succès. Bienvenue sur Ecomfy !",
+            description: "Votre email a été confirmé avec succès. Bienvenue sur Ecomfy !",
           });
         } finally {
           localStorage.removeItem(referralKey);
@@ -110,7 +114,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Félicitations ! 🎉",
-          description: "Votre compte a été créé avec succès. Bienvenue sur Ecomfy !",
+          description: "Votre email a été confirmé avec succès. Bienvenue sur Ecomfy !",
         });
       }
     }
@@ -156,6 +160,46 @@ const Auth = () => {
     return { valid: true };
   };
 
+  const handleResendConfirmationEmail = async (emailToResend?: string) => {
+    const targetEmail = (emailToResend || signInEmail || signUpEmail).trim().toLowerCase();
+    if (!targetEmail) {
+      toast({
+        title: "Email requis",
+        description: "Veuillez entrer votre adresse email pour recevoir un nouveau lien de confirmation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const redirectUrl = `${window.location.origin}/auth?type=signup&confirmed=true`;
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: targetEmail,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email de confirmation renvoyé ! 📧",
+        description: `Un nouveau lien de confirmation a été envoyé à ${targetEmail}. Veuillez vérifier votre boîte de réception et vos spams.`,
+      });
+    } catch (error) {
+      console.error("Erreur renvoi email confirmation:", error);
+      toast({
+        title: "Erreur lors du renvoi",
+        description: error instanceof Error ? error.message : "Impossible de renvoyer l'email de confirmation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -181,7 +225,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/auth?type=signup&confirmed=true`;
       const trimmedEmail = signUpEmail.trim().toLowerCase();
 
       if (referralCode && referralCode.trim()) {
@@ -476,7 +520,7 @@ const Auth = () => {
                       "Se connecter"
                     )}
                   </Button>
-                  <div className="mt-4 text-center">
+                  <div className="mt-4 flex flex-col items-center gap-1.5 text-center">
                     <Button 
                       type="button"
                       variant="link" 
@@ -485,6 +529,13 @@ const Auth = () => {
                     >
                       Mot de passe oublié ?
                     </Button>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-[#0E7C66] hover:underline transition-colors"
+                      onClick={() => handleResendConfirmationEmail(signInEmail)}
+                    >
+                      📧 Pas reçu le mail de confirmation ? Renvoyer le lien
+                    </button>
                   </div>
 
                   <div className="relative my-4">

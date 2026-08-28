@@ -14,6 +14,8 @@ import { useCommunityNotifications } from "@/hooks/useCommunityNotifications";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useNativePush } from "@/hooks/useNativePush";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Eager load: landing only (critical path)
 import Index from "./pages/Index";
@@ -464,6 +466,85 @@ const AppWithSidebar = () => {
   );
 };
 
+const AuthCallbackHandler = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const processCallback = async () => {
+      const search = window.location.search;
+      const hash = window.location.hash;
+      const searchParams = new URLSearchParams(search);
+      const hashParams = new URLSearchParams(hash.replace(/^#/, "?"));
+
+      const code = searchParams.get("code");
+      const type = searchParams.get("type") || hashParams.get("type");
+      const error = searchParams.get("error") || hashParams.get("error");
+      const errorDescription = searchParams.get("error_description") || hashParams.get("error_description");
+      const isConfirmedFlag = searchParams.get("confirmed") === "true";
+      const hasAccessToken = hashParams.has("access_token") || searchParams.has("access_token");
+
+      if (error) {
+        console.error("Erreur de callback auth:", error, errorDescription);
+        if (errorDescription?.includes("expired") || errorDescription?.includes("invalid")) {
+          toast({
+            title: "Lien expiré ou invalide",
+            description: "Votre lien de confirmation a expiré. Veuillez vous connecter pour recevoir un nouveau lien.",
+            variant: "destructive",
+          });
+        }
+        navigate("/auth", { replace: true });
+        return;
+      }
+
+      if (type === "recovery" || hash.includes("type=recovery")) {
+        if (location.pathname !== "/reset-password") {
+          navigate(`/reset-password${search}${hash}`, { replace: true });
+        }
+        return;
+      }
+
+      // Échange du code PKCE Supabase (?code=...)
+      if (code) {
+        try {
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (!exchangeError && data?.session) {
+            window.history.replaceState(null, "", "/dashboard");
+            toast({
+              title: "🎉 Email confirmé avec succès !",
+              description: "Bienvenue sur Ecomfy ! Votre compte est activé, vous pouvez créer votre boutique immédiatement.",
+            });
+            navigate("/dashboard", { replace: true });
+            return;
+          }
+        } catch (err) {
+          console.error("Erreur échange de code PKCE:", err);
+        }
+      }
+
+      // Confirmation via jeton hash (#access_token=...) ou type=signup/confirmed=true
+      if (hasAccessToken || type === "signup" || isConfirmedFlag) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          if (location.pathname === "/" || location.pathname === "/auth") {
+            window.history.replaceState(null, "", "/dashboard");
+            toast({
+              title: "🎉 Email confirmé avec succès !",
+              description: "Bienvenue sur Ecomfy ! Votre compte est activé, vous pouvez créer votre boutique immédiatement.",
+            });
+            navigate("/dashboard", { replace: true });
+          }
+        }
+      }
+    };
+
+    void processCallback();
+  }, [location.pathname, navigate, toast]);
+
+  return null;
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -472,6 +553,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <AuthCallbackHandler />
             <IdlePrefetcher />
             <AppWithSidebar />
           </BrowserRouter>
