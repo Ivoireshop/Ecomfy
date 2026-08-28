@@ -200,6 +200,93 @@ const Auth = () => {
     }
   };
 
+  const validateRealEmail = (email: string): { valid: boolean; message?: string } => {
+    const trimmed = email.trim().toLowerCase();
+    
+    if (!trimmed) {
+      return { valid: false, message: "L'adresse email est obligatoire." };
+    }
+
+    // 1. Format RFC 5322 strict
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(trimmed)) {
+      return { 
+        valid: false, 
+        message: "Format d'adresse email invalide. Veuillez entrer une adresse email réelle (ex: nom@gmail.com)." 
+      };
+    }
+
+    const parts = trimmed.split("@");
+    if (parts.length !== 2) {
+      return { valid: false, message: "L'adresse email saisie est incorrecte." };
+    }
+
+    const [localPart, domainPart] = parts;
+
+    // 2. Longueur minimale du nom d'utilisateur
+    if (localPart.length < 2) {
+      return { valid: false, message: "L'adresse email saisie est trop courte." };
+    }
+
+    // Détection des adresses factices/génériques (test@..., admin@..., aaaa@...)
+    const repetitiveCharRegex = /^(.)\1{3,}@/;
+    if (repetitiveCharRegex.test(trimmed) || /^(test|admin|asdf|qwerty|123456|user|fake|temp|null|undefined)@/i.test(trimmed)) {
+      return { 
+        valid: false, 
+        message: "Veuillez entrer une adresse email personnelle ou professionnelle valide et existante." 
+      };
+    }
+
+    // 3. Domaine et TLD
+    const domainParts = domainPart.split(".");
+    if (domainParts.length < 2 || domainParts.some(p => p.length === 0)) {
+      return { valid: false, message: "Le nom de domaine de l'email est incomplet (ex: @gmail.com)." };
+    }
+
+    const tld = domainParts[domainParts.length - 1];
+    if (tld.length < 2 || !/^[a-z]+$/i.test(tld)) {
+      return { valid: false, message: "L'extension de l'email est invalide (ex: .com, .fr, .ci)." };
+    }
+
+    // 4. Domaines jetables/temporaires interdits
+    const DISPOSABLE_DOMAINS = [
+      "test.com", "test.fr", "example.com", "mailinator.com", "yopmail.com", 
+      "yopmail.fr", "tempmail.com", "guerrillamail.com", "dispostable.com", 
+      "10minutemail.com", "trashmail.com", "getairmail.com", "throwawaymail.com",
+      "sharklasers.com", "maildrop.cc"
+    ];
+    if (DISPOSABLE_DOMAINS.includes(domainPart)) {
+      return { 
+        valid: false, 
+        message: "Les adresses emails temporaires ou jetables ne sont pas autorisées sur Ecomfy. Veuillez utiliser votre adresse email." 
+      };
+    }
+
+    // 5. Faute de frappe détectée sur les grands fournisseurs
+    const TYPO_MAP: Record<string, string> = {
+      "gmaill.com": "gmail.com",
+      "gmal.com": "gmail.com",
+      "gamil.com": "gmail.com",
+      "gmall.com": "gmail.com",
+      "gmai.com": "gmail.com",
+      "yaho.com": "yahoo.com",
+      "yahooo.com": "yahoo.com",
+      "yaho.fr": "yahoo.fr",
+      "hotmai.com": "hotmail.com",
+      "hotmial.com": "hotmail.com",
+      "outlok.com": "outlook.com",
+    };
+
+    if (TYPO_MAP[domainPart]) {
+      return {
+        valid: false,
+        message: `Faute de frappe détectée dans l'adresse. Vouliez-vous dire @${TYPO_MAP[domainPart]} ?`
+      };
+    }
+
+    return { valid: true };
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -212,8 +299,22 @@ const Auth = () => {
       return;
     }
 
+    // 1. Validation de l'adresse email réelle et valide
+    const emailValidation = validateRealEmail(signUpEmail);
+    if (!emailValidation.valid) {
+      triggerErrorShake();
+      toast({
+        title: "Adresse email invalide 🛑",
+        description: emailValidation.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 2. Validation de la force du mot de passe
     const passwordCheck = validatePassword(signUpPassword);
     if (!passwordCheck.valid) {
+      triggerErrorShake();
       toast({
         title: "Mot de passe faible",
         description: passwordCheck.message,
@@ -225,8 +326,48 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/auth?type=signup&confirmed=true`;
       const trimmedEmail = signUpEmail.trim().toLowerCase();
+      const rawPhoneDigits = signUpPhone.replace(/\D/g, "");
+
+      // 3. Pré-vérification d'unicité de l'email dans la base de données
+      const { data: existingEmailProfiles } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .eq("email", trimmedEmail)
+        .limit(1);
+
+      if (existingEmailProfiles && existingEmailProfiles.length > 0) {
+        triggerErrorShake();
+        setIsLoading(false);
+        toast({
+          title: "Adresse email déjà enregistrée 🛑",
+          description: `L'adresse email "${trimmedEmail}" est déjà associée à un compte Ecomfy. Chaque compte doit posséder son propre email unique. Veuillez vous connecter ou utiliser une autre adresse.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 4. Pré-vérification d'unicité du numéro de téléphone dans la base de données
+      if (rawPhoneDigits.length >= 6) {
+        const { data: existingPhoneProfiles } = await supabase
+          .from("profiles")
+          .select("id, phone")
+          .or(`phone.eq.${signUpPhone},phone.ilike.%${rawPhoneDigits}%`)
+          .limit(1);
+
+        if (existingPhoneProfiles && existingPhoneProfiles.length > 0) {
+          triggerErrorShake();
+          setIsLoading(false);
+          toast({
+            title: "Numéro de téléphone déjà utilisé 🛑",
+            description: `Le numéro de téléphone "${signUpPhone}" est déjà associé à un autre compte Ecomfy. Chaque utilisateur doit avoir son propre numéro unique. Veuillez utiliser un autre numéro.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      const redirectUrl = `${window.location.origin}/auth?type=signup&confirmed=true`;
 
       if (referralCode && referralCode.trim()) {
         localStorage.setItem(`referral_${trimmedEmail}`, referralCode.trim().toUpperCase());
@@ -267,10 +408,10 @@ const Auth = () => {
       
       if (lowerMsg.includes("password is known to be weak")) {
         errMsg = "Le mot de passe est trop faible ou facile à deviner. Veuillez en choisir un autre plus complexe.";
-      } else if (lowerMsg.includes("user already registered") || lowerMsg.includes("already exists")) {
-        errMsg = "Un compte existe déjà avec cette adresse email.";
+      } else if (lowerMsg.includes("user already registered") || lowerMsg.includes("already exists") || lowerMsg.includes("already registered")) {
+        errMsg = "🛑 Un compte existe déjà avec cette adresse email. Chaque utilisateur doit posséder son propre email unique.";
       } else if (lowerMsg.includes("invalid") && lowerMsg.includes("email")) {
-        errMsg = "L'adresse email saisie n'est pas valide.";
+        errMsg = "L'adresse email saisie n'est pas reconnue ou invalide.";
       }
 
       toast({
