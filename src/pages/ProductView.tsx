@@ -581,6 +581,7 @@ const ProductView = () => {
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    setQuantity(prev => Math.max(1, prev + delta));
     setCart(prev => prev.map(item => {
       if (item.product.id !== productId) return item;
       const newQty = item.quantity + delta;
@@ -797,6 +798,7 @@ const ProductView = () => {
   const isCustomTheme = !!themeSettings?.theme_slug && !new URLSearchParams(window.location.search).get("classic");
   const isInlineCheckout = shop?.theme_config?.checkout_form_position !== 'modal';
   const checkoutStyles = getCheckoutThemeStyles(shop?.theme_config?.checkout_bg, primaryColor);
+  const productTitleColor = shop?.theme_config?.product_title_color || (checkoutStyles.isDark ? "#FFFFFF" : checkoutStyles.textColor);
 
   const checkoutContent = (
     <>
@@ -905,7 +907,7 @@ const ProductView = () => {
                     )}
                     
                     <div className="flex flex-col flex-1 justify-center min-w-0">
-                      <p className="font-bold text-[14px] text-gray-900 truncate leading-tight">{item.product.name}</p>
+                      <p className="font-bold text-[14px] truncate leading-tight" style={{ color: checkoutStyles.textColor }}>{item.product.name}</p>
                       
                       {/* Variants & Bundles */}
                       {(Object.keys(item.selectedVariants || item.variants || {}).length > 0 || item.bundle) && (
@@ -919,13 +921,36 @@ const ProductView = () => {
                         <span className="font-black text-[15px]" style={{ color: primaryColor }}>{formatPrice(item.product.price * item.quantity)} FCFA</span>
                         
                         {/* Quantity Selector */}
-                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg h-7">
-                          <button type="button" onClick={() => updateQuantity(item.product.id, -1)} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors">
-                            <Minus className="h-3 w-3" />
+                        <div 
+                          className="flex items-center rounded-lg h-8 border overflow-hidden transition-colors shrink-0"
+                          style={{ backgroundColor: checkoutStyles.isDark ? "rgba(255,255,255,0.08)" : "#F8FAFC", borderColor: checkoutStyles.itemBorder }}
+                        >
+                          <button 
+                            type="button" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(item.product.id, -1);
+                            }} 
+                            className="w-8 h-full flex items-center justify-center transition-colors hover:bg-black/10 active:scale-95"
+                            style={{ color: checkoutStyles.textColor }}
+                            title="Réduire la quantité"
+                          >
+                            <Minus className="h-3.5 w-3.5" />
                           </button>
-                          <span className="w-7 text-center text-[13px] font-bold text-gray-900">{item.quantity}</span>
-                          <button type="button" onClick={() => updateQuantity(item.product.id, 1)} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors">
-                            <Plus className="h-3 w-3" />
+                          <span className="w-8 text-center text-[13px] font-bold" style={{ color: checkoutStyles.textColor }}>
+                            {item.quantity}
+                          </span>
+                          <button 
+                            type="button" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(item.product.id, 1);
+                            }} 
+                            className="w-8 h-full flex items-center justify-center transition-colors hover:bg-black/10 active:scale-95"
+                            style={{ color: checkoutStyles.textColor }}
+                            title="Augmenter la quantité"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
@@ -1035,44 +1060,79 @@ const ProductView = () => {
               })()}
 
               {/* Payment Method */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-1.5"><CreditCard className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Méthode de paiement</h4></div>
-                
-                {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-[13px] text-amber-800">
-                    <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
+              {shop.theme_config?.hide_payment_method_section !== true && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard className="h-4 w-4" style={{ color: primaryColor }} />
+                    <h4 className="font-bold text-[15px]" style={{ color: checkoutStyles.textColor }}>Méthode de paiement</h4>
                   </div>
-                )}
-
-                {(() => {
-                  const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
-                  const methods = isInterior
-                    ? [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }]
-                    : [
-                        { value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" },
-                        { value: "mobile_money", label: "Mobile Money", icon: "📱" },
-                      ];
                   
-                  if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
-                    setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
-                  }
-
-                  return (
-                    <div className="grid grid-cols-2 gap-2">
-                      {methods.map(method => (
-                        <button key={method.value} onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                          className={`relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${customerInfo.paymentMethod === method.value ? "shadow-sm bg-gray-50/50" : "border-gray-100 hover:border-gray-200 bg-transparent"}`}
-                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor, backgroundColor: primaryColor + "08" } : {}}
-                        >
-                          {customerInfo.paymentMethod === method.value && <div className="absolute top-1.5 right-1.5"><CheckCircle2 className="h-4 w-4" style={{ color: primaryColor }} /></div>}
-                          <span className="text-2xl mb-0.5">{method.icon}</span>
-                          <span className="font-bold text-[13px] text-gray-800 leading-tight">{method.label}</span>
-                        </button>
-                      ))}
+                  {shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city) && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs sm:text-[13px] text-amber-800">
+                      <span className="font-semibold">⚠️ Vous êtes hors Abidjan :</span> Le paiement par Mobile Money est obligatoire pour l'expédition de votre colis.
                     </div>
-                  );
-                })()}
-              </div>
+                  )}
+
+                  {(() => {
+                    const isInterior = shop.theme_config?.force_mobile_money_interior && customerInfo.city && !isAbidjanZone(customerInfo.city);
+                    const activeShopMethods = shop.payment_methods || ["cod", "mobile_money"];
+                    const allowCod = activeShopMethods.includes("cod") || activeShopMethods.includes("cash_on_delivery");
+                    const allowMM = activeShopMethods.includes("mobile_money");
+                    
+                    let methods: { value: string; label: string; icon: string }[] = [];
+                    if (isInterior) {
+                      methods = [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }];
+                    } else {
+                      if (allowCod) methods.push({ value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" });
+                      if (allowMM) methods.push({ value: "mobile_money", label: "Mobile Money", icon: "📱" });
+                      if (methods.length === 0) {
+                        methods = [{ value: "cash_on_delivery", label: "Paiement à la livraison", icon: "💵" }];
+                      }
+                    }
+
+                    if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
+                      setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
+                    } else if (!customerInfo.paymentMethod && methods.length > 0) {
+                      setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: methods[0].value })), 0);
+                    }
+
+                    return (
+                      <div className={`grid ${methods.length > 1 ? "grid-cols-2" : "grid-cols-1"} gap-2`}>
+                        {methods.map(method => {
+                          const isSelected = customerInfo.paymentMethod === method.value;
+                          return (
+                            <button 
+                              key={method.value} 
+                              type="button"
+                              onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                              className={`relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${
+                                isSelected 
+                                  ? "shadow-sm" 
+                                  : "hover:border-gray-300 bg-transparent"
+                              }`}
+                              style={
+                                isSelected 
+                                  ? { borderColor: primaryColor, backgroundColor: checkoutStyles.isDark ? primaryColor + "25" : primaryColor + "08" } 
+                                  : { borderColor: checkoutStyles.itemBorder, backgroundColor: checkoutStyles.itemBg }
+                              }
+                            >
+                              {isSelected && (
+                                <div className="absolute top-1.5 right-1.5">
+                                  <CheckCircle2 className="h-4 w-4" style={{ color: primaryColor }} />
+                                </div>
+                              )}
+                              <span className="text-2xl mb-0.5">{method.icon}</span>
+                              <span className="font-bold text-[13px] leading-tight" style={{ color: isSelected ? primaryColor : checkoutStyles.textColor }}>
+                                {method.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               {(() => {
                 const cf: any[] = shop.checkout_fields || [];
@@ -1482,7 +1542,7 @@ const ProductView = () => {
 
           {/* Right: Product Info */}
           <div className="space-y-5 lg:pl-4">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight text-gray-900 tracking-tight">{product.name}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight tracking-tight" style={{ color: productTitleColor }}>{product.name}</h1>
 
             <LiveVisitorCounter 
               enabled={shop.theme_config?.live_visitors_enabled || false} 

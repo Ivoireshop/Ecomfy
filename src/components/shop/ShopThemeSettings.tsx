@@ -503,9 +503,14 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-muted/20 border rounded-2xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-5 bg-muted/20 border rounded-2xl">
                 <ColorField 
-                  label="Couleur de fond du formulaire (Checkout)" 
+                  label="Couleur du titre du produit" 
+                  value={themeConfig.product_title_color || (getCheckoutThemeStyles(themeConfig.checkout_bg, shop.primary_color).isDark ? "#FFFFFF" : "#0F172A")} 
+                  onChange={v => updateThemeConfig("product_title_color", v)} 
+                />
+                <ColorField 
+                  label="Couleur de fond (Checkout)" 
                   value={themeConfig.checkout_bg || "#FFFFFF"} 
                   onChange={v => updateThemeConfig("checkout_bg", v)} 
                 />
@@ -520,9 +525,20 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   onChange={v => updateThemeConfig("checkout_btn_text", v)} 
                 />
                 <ColorField 
-                  label="Couleur de texte par défaut" 
+                  label="Couleur de texte générale" 
                   value={themeConfig.checkout_text || "#000000"} 
                   onChange={v => updateThemeConfig("checkout_text", v)} 
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
+                <div>
+                  <p className="font-bold text-sm">Afficher la section Méthodes de paiement</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Affiche ou masque les boutons "Paiement à la livraison" et "Mobile Money" sur le formulaire de commande public.</p>
+                </div>
+                <Switch 
+                  checked={themeConfig.hide_payment_method_section !== true} 
+                  onCheckedChange={v => updateThemeConfig("hide_payment_method_section", !v)} 
                 />
               </div>
 

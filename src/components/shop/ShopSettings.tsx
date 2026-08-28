@@ -438,6 +438,23 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                 })}
               </div>
 
+              <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 bg-card">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <h3 className="font-bold text-base md:text-lg flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-primary" /> Afficher la section « Méthode de paiement » sur le formulaire
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-2xl">
+                      Désactivez cette option si vous souhaitez masquer le bloc de choix du paiement (Paiement à la livraison / Mobile Money) aux clients lors de la commande.
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={shop.theme_config?.hide_payment_method_section !== true} 
+                    onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), hide_payment_method_section: !v } })} 
+                  />
+                </div>
+              </Card>
+
               {paymentMethods.includes("cod") && (
                 <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 bg-card mt-8 animate-in fade-in zoom-in-95 duration-300">
                   <div className="flex items-center gap-3 mb-4">
