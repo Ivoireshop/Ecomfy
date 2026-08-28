@@ -1214,8 +1214,8 @@ const ShopEditor = () => {
                   <div className="space-y-3">
                     <Label>Logo</Label>
                     <div className="flex items-center gap-4">
-                      <div className="h-20 w-20 rounded-2xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30">
-                        {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-full w-full object-cover" /> : <Store className="h-8 w-8 text-muted-foreground" />}
+                      <div className="h-20 w-36 rounded-2xl border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30 p-1.5">
+                        {shop.logo_url ? <img src={shop.logo_url} alt="" className="h-full w-full object-contain" /> : <Store className="h-8 w-8 text-muted-foreground" />}
                       </div>
                       <label className="cursor-pointer">
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadShopImage(e.target.files[0], 'logo')} />

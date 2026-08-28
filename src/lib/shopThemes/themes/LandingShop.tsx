@@ -10,7 +10,7 @@ export default function LandingShop({ data }: ShopThemeProps) {
       <header className="border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {shop.logo_url && <img src={shop.logo_url} alt="" className="h-8 w-8 rounded object-cover" />}
+            {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-8 w-auto max-w-[180px] object-contain flex-shrink-0" />}
             <div className="font-bold">{shop.business_name}</div>
           </div>
           <a href="#cta" className="text-xs font-bold px-4 py-2 rounded-full text-white" style={{ backgroundColor: primaryColor }}>Commander</a>

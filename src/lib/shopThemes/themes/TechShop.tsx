@@ -8,7 +8,7 @@ export default function TechShop({ data }: ShopThemeProps) {
       <header className="border-b border-white/10 bg-[#0b1020]/95 backdrop-blur sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {shop.logo_url && <img src={shop.logo_url} alt="" className="h-9 w-9 rounded-lg object-cover" />}
+            {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-9 w-auto max-w-[200px] object-contain flex-shrink-0" />}
             <div className="font-bold tracking-wide">{shop.business_name}</div>
           </div>
           <a href="#all" className="text-sm px-4 py-2 rounded-md font-semibold text-white" style={{ backgroundColor: primaryColor }}>Boutique</a>

@@ -734,7 +734,21 @@ const ShopView = () => {
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-4 sm:gap-6">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             {shop.logo_url ? (
-              <img src={thumbUrl(shop.logo_url, 128)} alt="" loading="eager" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl object-cover flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-105 transition-transform" />
+              <div className="flex items-center shrink-0">
+                <img 
+                  src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url) ? shop.logo_url : thumbUrl(shop.logo_url, 512)} 
+                  alt={tShop.business_name || "Logo"} 
+                  loading="eager" 
+                  decoding="async" 
+                  className={`max-h-10 sm:max-h-12 w-auto max-w-[180px] sm:max-w-[240px] object-contain flex-shrink-0 transition-all group-hover:scale-105 ${
+                    themeConfig?.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
+                  } ${
+                    themeConfig?.logo_effect === "glow" ? "drop-shadow-[0_0_10px_rgba(255,255,255,0.7)]" : ""
+                  } ${
+                    themeConfig?.logo_effect === "bounce" ? "hover:animate-bounce" : ""
+                  }`} 
+                />
+              </div>
             ) : (
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: primaryColor + "15" }}>
                 <Store className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: primaryColor }} />
@@ -832,8 +846,18 @@ const ShopView = () => {
 
             <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-16 text-center text-white flex flex-col items-center">
               {shop.logo_url && (
-                <div className="p-1 rounded-3xl bg-white/10 backdrop-blur-xl mb-6 shadow-2xl ring-1 ring-white/20">
-                  <img src={thumbUrl(shop.logo_url, 256)} alt={tShop.business_name} loading="eager" decoding="async" width={96} height={96} className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover" />
+                <div className="p-2 rounded-3xl bg-white/10 backdrop-blur-xl mb-6 shadow-2xl ring-1 ring-white/20 inline-flex items-center justify-center max-w-[280px]">
+                  <img 
+                    src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url) ? shop.logo_url : thumbUrl(shop.logo_url, 512)} 
+                    alt={tShop.business_name} 
+                    loading="eager" 
+                    decoding="async" 
+                    className={`max-h-20 sm:max-h-24 w-auto max-w-[240px] object-contain ${
+                      themeConfig?.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
+                    } ${
+                      themeConfig?.logo_effect === "glow" ? "drop-shadow-[0_0_15px_rgba(255,255,255,0.9)]" : ""
+                    }`} 
+                  />
                 </div>
               )}
 

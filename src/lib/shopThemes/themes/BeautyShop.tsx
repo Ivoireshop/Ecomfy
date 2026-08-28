@@ -8,7 +8,7 @@ export default function BeautyShop({ data }: ShopThemeProps) {
       <header className="bg-white/80 backdrop-blur sticky top-0 z-30 border-b border-rose-100">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {shop.logo_url && <img src={shop.logo_url} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-rose-100" />}
+            {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-10 w-auto max-w-[200px] object-contain flex-shrink-0" />}
             <div className="font-semibold text-lg">{shop.business_name}</div>
           </div>
           <a href="#all" className="text-sm font-medium" style={{ color: primaryColor }}>Découvrir →</a>

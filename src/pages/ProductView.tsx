@@ -1411,7 +1411,13 @@ const ProductView = () => {
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={goToShop}>
               {shop.logo_url ? (
-                <img src={thumbUrl(shop.logo_url, 128)} alt="" loading="eager" decoding="async" width={32} height={32} className="h-8 w-8 rounded-lg object-cover flex-shrink-0" />
+                <img 
+                  src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url) ? shop.logo_url : thumbUrl(shop.logo_url, 256)} 
+                  alt={shop.business_name || ""} 
+                  loading="eager" 
+                  decoding="async" 
+                  className="max-h-9 w-auto max-w-[160px] sm:max-w-[220px] object-contain flex-shrink-0" 
+                />
               ) : (
                 <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: primaryColor + "15" }}>
                   <Store className="h-4 w-4" style={{ color: primaryColor }} />

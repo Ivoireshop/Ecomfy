@@ -9,7 +9,7 @@ export default function FashionShop({ data }: ShopThemeProps) {
       <header className="bg-white">
         <div className="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {shop.logo_url && <img src={shop.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />}
+            {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-9 w-auto max-w-[200px] object-contain flex-shrink-0" />}
             <div className="font-bold tracking-[0.25em] uppercase text-sm">{shop.business_name}</div>
           </div>
           <nav className="hidden md:flex gap-8 text-xs tracking-[0.2em] uppercase text-neutral-700">

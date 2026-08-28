@@ -8,7 +8,7 @@ export default function LuxuryShop({ data }: ShopThemeProps) {
       <header className="border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {shop.logo_url && <img src={shop.logo_url} alt="" className="h-10 w-10 rounded object-cover" />}
+            {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-10 w-auto max-w-[200px] object-contain flex-shrink-0" />}
             <div className="font-serif text-2xl tracking-wider">{shop.business_name}</div>
           </div>
           <nav className="hidden md:flex gap-8 text-xs tracking-[0.3em] uppercase text-neutral-400">

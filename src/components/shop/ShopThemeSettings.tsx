@@ -129,6 +129,57 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     </div>
                     <ColorField label="Couleur bordure" value={themeConfig.header_desktop_border_color || "#F0F0F0"} onChange={v => updateThemeConfig("header_desktop_border_color", v)} />
                   </div>
+
+                  {/* Réglages d'animation & format du Logo */}
+                  <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border mt-6">
+                    <div>
+                      <h4 className="font-bold text-base flex items-center gap-2">
+                        <Store className="h-5 w-5 text-primary" /> Format & Effet Visuel du Logo
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Tous les formats de logo (rectangulaire, carré, circulaire, GIF animé, PNG, SVG) sont pris en charge sans aucun rognage ni zoom forcé.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold">Effet d'animation du logo</Label>
+                        <Select 
+                          value={themeConfig.logo_effect || "none"} 
+                          onValueChange={v => updateThemeConfig("logo_effect", v)}
+                        >
+                          <SelectTrigger className="h-10 text-sm">
+                            <SelectValue placeholder="Choisir un effet" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Statique (Net par défaut)</SelectItem>
+                            <SelectItem value="shimmer">✨ Scintillement lumineux (Animation / GIF)</SelectItem>
+                            <SelectItem value="glow">🌟 Aura Lumineuse (Neon Glow)</SelectItem>
+                            <SelectItem value="bounce">🎈 Rebond au survol (Hover Bounce)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {shop.logo_url && (
+                        <div className="space-y-2">
+                          <Label className="text-xs font-semibold">Aperçu en direct du logo</Label>
+                          <div className="h-12 rounded-xl border bg-card p-2 flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={shop.logo_url} 
+                              alt="Logo" 
+                              className={`max-h-8 w-auto max-w-[200px] object-contain ${
+                                themeConfig.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
+                              } ${
+                                themeConfig.logo_effect === "glow" ? "drop-shadow-[0_0_8px_rgba(37,99,235,0.8)]" : ""
+                              } ${
+                                themeConfig.logo_effect === "bounce" ? "hover:animate-bounce" : ""
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="footer" className="mt-6 space-y-6">
