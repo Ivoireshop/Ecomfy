@@ -1008,6 +1008,7 @@ const ProductView = () => {
                             onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
                             defaultCountryHint={shop?.country}
                             required={isRequired("phone")}
+                            hideHint={shop?.theme_config?.hide_phone_format_hint === true}
                             inputClassName={`h-11 text-[15px] transition-colors ${checkoutStyles.inputPlaceholderClass}`}
                             inputStyle={{ backgroundColor: checkoutStyles.inputBg, borderColor: checkoutStyles.inputBorder, color: checkoutStyles.inputTextColor }}
                           />

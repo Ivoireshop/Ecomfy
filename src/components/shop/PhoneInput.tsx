@@ -24,6 +24,8 @@ interface PhoneInputProps {
   inputStyle?: React.CSSProperties;
   placeholder?: string;
   required?: boolean;
+  /** Permet de masquer le texte d'aide gris sous l'input tout en conservant l'alerte d'erreur rouge */
+  hideHint?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function PhoneInput({
   inputStyle,
   placeholder,
   required,
+  hideHint,
 }: PhoneInputProps) {
   const isMobile = useIsMobile();
 
@@ -170,25 +173,25 @@ export function PhoneInput({
         />
       </div>
       {showError ? (
-        <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-destructive/10 border border-destructive/20 px-2 py-1.5">
-          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-          <p className="text-xs text-destructive leading-snug">
+        <div className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 p-2.5 text-red-700 dark:text-red-400 shadow-sm animate-in fade-in duration-200">
+          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <p className="text-xs font-semibold leading-snug">
             {prefixInvalid ? (
               <>
-                En <strong>{country.name}</strong>, un numéro valide commence par{" "}
-                <strong>{country.prefixes!.join(", ")}</strong>&nbsp;: Orange = 07, MTN = 05, Moov = 01.
+                ⚠️ Numéro de téléphone incorrect. En <strong>{country.name}</strong>, un numéro valide commence par{" "}
+                <strong>{country.prefixes!.join(", ")}</strong> (ex: Orange = 07, MTN = 05, Moov = 01).
                 <br />
-                Exemple correct&nbsp;: <strong>{country.example}</strong>.
+                Exemple valide&nbsp;: <strong>{country.example}</strong>.
               </>
             ) : (
               <>
-                Le numéro doit contenir <strong>{expected}</strong> chiffres pour{" "}
+                ⚠️ Numéro de téléphone incorrect. Le numéro doit contenir exactement <strong>{expected}</strong> chiffres pour{" "}
                 <strong>{country.name}</strong>. Exemple&nbsp;: <strong>{country.example}</strong>.
               </>
             )}
           </p>
         </div>
-      ) : (
+      ) : !hideHint ? (
         <p className="mt-1.5 text-xs text-muted-foreground leading-snug">
           Format attendu : <strong>{expected}</strong> chiffres ({country.name})
           {country.prefixes && country.prefixes.length > 0
@@ -196,7 +199,7 @@ export function PhoneInput({
             : ""}
           . Exemple&nbsp;: <strong>{country.example}</strong>.
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

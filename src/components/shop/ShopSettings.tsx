@@ -519,6 +519,17 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                         <Switch checked={shop.theme_config?.live_visitors_enabled || false} onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), live_visitors_enabled: v } })} />
                       </div>
 
+                      <div className="flex items-center justify-between p-4 rounded-xl border hover:bg-muted/20 transition-colors">
+                        <div className="pr-4">
+                          <p className="font-bold">Afficher les indications de format sous le numéro de téléphone</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">Désactivez pour masquer l'explication du format (ex: Orange 07, MTN 05, Moov 01) sous le téléphone pour un formulaire plus épuré. Les erreurs restent signalées en rouge en cas de numéro invalide.</p>
+                        </div>
+                        <Switch 
+                          checked={shop.theme_config?.hide_phone_format_hint !== true} 
+                          onCheckedChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), hide_phone_format_hint: !v } })} 
+                        />
+                      </div>
+
                       
                       <div className="flex items-center justify-between p-4 rounded-xl border hover:bg-muted/20 transition-colors">
                         <div className="pr-4">

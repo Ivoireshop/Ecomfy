@@ -1346,6 +1346,7 @@ const ShopView = () => {
                             onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
                             defaultCountryHint={shop?.country}
                             required={required("phone")}
+                            hideHint={shop?.theme_config?.hide_phone_format_hint === true}
                           />
                         </div>
                       )}

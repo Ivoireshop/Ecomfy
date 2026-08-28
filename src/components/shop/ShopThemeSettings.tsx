@@ -593,6 +593,17 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 />
               </div>
 
+              <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
+                <div>
+                  <p className="font-bold text-sm">Afficher les indications de format sous le téléphone</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Désactivez pour masquer le texte expliquant le format (ex: Orange 07, MTN 05, Moov 01). La détection d'erreur rouge reste 100% active en cas de numéro invalide.</p>
+                </div>
+                <Switch 
+                  checked={themeConfig.hide_phone_format_hint !== true} 
+                  onCheckedChange={v => updateThemeConfig("hide_phone_format_hint", !v)} 
+                />
+              </div>
+
               {/* Aperçu en temps réel de la carte de Checkout avec la couleur sélectionnée */}
               <div className="space-y-3">
                 <Label className="text-sm font-semibold flex items-center gap-2">
