@@ -330,12 +330,21 @@ export function ProductShortVideosManager({
               key={vid.id}
               className="bg-card border rounded-2xl p-4 shadow-sm relative space-y-3 flex flex-col justify-between"
             >
-              <div className="relative rounded-xl overflow-hidden bg-black aspect-[9/16] max-h-64 flex items-center justify-center group">
+              <div className="relative rounded-xl overflow-hidden bg-slate-900 aspect-[9/16] max-h-64 flex items-center justify-center group shadow-md border border-slate-800">
                 <video
                   id={`video_player_${vid.id}`}
-                  src={vid.url}
+                  src={vid.url ? (vid.url.includes("#t=") ? vid.url : `${vid.url}#t=0.001`) : ""}
+                  poster={(vid as any).thumbnail_url || (vid as any).poster || undefined}
                   className="w-full h-full object-cover"
                   controls={playingVideoId === vid.id}
+                  preload="auto"
+                  playsInline
+                  onLoadedData={(e) => {
+                    const el = e.currentTarget;
+                    if (el && el.paused && el.currentTime === 0) {
+                      try { el.currentTime = 0.1; } catch (_) {}
+                    }
+                  }}
                   onPlay={() => setPlayingVideoId(vid.id)}
                   onPause={() => setPlayingVideoId(null)}
                 />
@@ -350,9 +359,9 @@ export function ProductShortVideosManager({
                         setPlayingVideoId(vid.id);
                       }
                     }}
-                    className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-all text-white"
+                    className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-all text-white"
                   >
-                    <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg group-hover:scale-110 transition-transform">
+                    <div className="h-12 w-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center border-2 border-white/80 shadow-lg group-hover:scale-110 transition-transform">
                       <Play className="h-6 w-6 fill-white text-white ml-0.5" />
                     </div>
                   </button>

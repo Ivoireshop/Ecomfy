@@ -86,37 +86,46 @@ export function ProductShortVideosPublic({
           {videos.map((vid, idx) => {
             const isPlaying = playingId === vid.id;
             const isMuted = mutedStates[vid.id] ?? false;
+            const videoSrc = vid.url ? (vid.url.includes("#t=") ? vid.url : `${vid.url}#t=0.001`) : "";
 
             return (
               <div
                 key={vid.id}
-                className="shrink-0 snap-center w-[220px] sm:w-[260px] aspect-[9/16] max-h-[440px] rounded-2xl overflow-hidden bg-black relative group shadow-lg border border-black/10 transition-transform duration-300 hover:scale-[1.02] cursor-pointer"
+                className="shrink-0 snap-center w-[220px] sm:w-[260px] aspect-[9/16] max-h-[440px] rounded-2xl overflow-hidden bg-slate-900 relative group shadow-xl border border-white/10 transition-all duration-300 hover:scale-[1.03] cursor-pointer"
                 onClick={() => togglePlay(vid.id)}
               >
                 <video
                   ref={(el) => (videoRefs.current[vid.id] = el)}
-                  src={vid.url}
+                  src={videoSrc}
+                  poster={(vid as any).thumbnail_url || (vid as any).poster || undefined}
                   className="w-full h-full object-cover"
                   playsInline
                   loop
-                  preload="metadata"
+                  muted={isMuted || !isPlaying}
+                  preload="auto"
+                  onLoadedData={(e) => {
+                    const el = e.currentTarget;
+                    if (el && el.paused && el.currentTime === 0) {
+                      try { el.currentTime = 0.1; } catch (_) {}
+                    }
+                  }}
                   onEnded={() => setPlayingId(null)}
                 />
 
-                {/* Gradient Overlays */}
-                <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none" />
-                <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+                {/* Subtle Gradient Overlays for Readability */}
+                <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/75 via-black/25 to-transparent pointer-events-none" />
 
                 {/* Top Badges */}
                 <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-black/60 text-white backdrop-blur-md border border-white/20 flex items-center gap-1">
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-black/50 text-white backdrop-blur-md border border-white/20 flex items-center gap-1 shadow-sm">
                     <Clock className="h-3 w-3" /> {formatDuration(vid.duration)}
                   </span>
 
                   <button
                     type="button"
                     onClick={(e) => toggleMute(vid.id, e)}
-                    className="h-8 w-8 rounded-full bg-black/60 text-white backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-black/80 transition-colors"
+                    className="h-8 w-8 rounded-full bg-black/50 text-white backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-black/80 transition-colors shadow-sm"
                   >
                     {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                   </button>
@@ -124,9 +133,9 @@ export function ProductShortVideosPublic({
 
                 {/* Center Play Button Overlay */}
                 {!isPlaying && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                    <div className="h-14 w-14 rounded-full bg-white/25 backdrop-blur-md flex items-center justify-center border border-white/50 shadow-2xl group-hover:scale-110 transition-transform">
-                      <Play className="h-7 w-7 fill-white text-white ml-1" />
+                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none bg-black/10 group-hover:bg-transparent transition-colors">
+                    <div className="h-16 w-16 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center border-2 border-white/80 shadow-2xl group-hover:scale-110 transition-transform">
+                      <Play className="h-8 w-8 fill-white text-white ml-1 drop-shadow-md" />
                     </div>
                   </div>
                 )}
@@ -135,11 +144,11 @@ export function ProductShortVideosPublic({
                 <div className="absolute bottom-3 left-3 right-3 z-10 flex items-end justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="text-white font-bold text-sm truncate drop-shadow-md">
-                      {vid.title || `Shorts #${idx + 1}`}
+                      {vid.title || `Témoignage #${idx + 1}`}
                     </div>
-                    <div className="text-white/80 text-[11px] font-medium flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>Appuyez pour lire</span>
+                    <div className="text-white/90 text-[11px] font-semibold flex items-center gap-1 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-xs" />
+                      <span>Appuyez pour lire 🎬</span>
                     </div>
                   </div>
 

@@ -69,8 +69,16 @@ function SortableVideo({ video, onDelete, onUpdateCaption }: SortableVideoProps)
       <Card className="overflow-hidden">
         <div className="relative">
           <video
-            src={video.video_url}
+            src={video.video_url.includes("#t=") ? video.video_url : `${video.video_url}#t=0.001`}
             controls
+            preload="auto"
+            playsInline
+            onLoadedData={(e) => {
+              const el = e.currentTarget;
+              if (el && el.paused && el.currentTime === 0) {
+                try { el.currentTime = 0.1; } catch (_) {}
+              }
+            }}
             className="w-full h-48 object-cover"
           />
           <div className="absolute top-2 right-2 flex gap-2">

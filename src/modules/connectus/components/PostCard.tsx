@@ -258,10 +258,16 @@ export function PostCard({
             </div>
           ) : (
             <video
-              src={post.video_url}
+              src={post.video_url.includes("#t=") ? post.video_url : `${post.video_url}#t=0.001`}
               controls
-              preload="metadata"
+              preload="auto"
               playsInline
+              onLoadedData={(e) => {
+                const el = e.currentTarget;
+                if (el && el.paused && el.currentTime === 0) {
+                  try { el.currentTime = 0.1; } catch (_) {}
+                }
+              }}
               onError={() => setVideoError(true)}
               className="h-full w-full object-contain"
             />
