@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard, ShieldCheck } from "lucide-react";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
@@ -370,7 +370,7 @@ const ShopView = () => {
       .order("display_order");
 
     if (!shopData._isPreview) {
-      productsQuery = productsQuery.eq("is_published", true);
+      productsQuery = productsQuery.or("is_published.eq.true,is_published.is.null");
     }
 
     const { data: productsData } = await productsQuery as any;
@@ -440,6 +440,7 @@ const ShopView = () => {
     return matchCat && matchSearch;
   });
   const featuredProducts = tProducts.filter(p => p.is_featured);
+  const effectiveFeaturedProducts = featuredProducts.length > 0 ? featuredProducts : tProducts.slice(0, 4);
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const hasMore = filteredProducts.length > visibleCount;
 
@@ -789,67 +790,159 @@ const ShopView = () => {
       <ShopReviewBar themeConfig={themeConfig} placement="below" />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gray-950 w-full min-h-[500px] sm:min-h-[600px] flex items-center justify-center">
-        {shop.banner_url ? (
-          <div className="absolute inset-0">
-            <img src={thumbUrl(shop.banner_url, 1200)} alt="" loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover mix-blend-overlay opacity-80" />
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-950/80 via-transparent to-transparent" />
-          </div>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-950 to-black">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2 blur-[100px]" />
-            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-y-1/2 -translate-x-1/2 blur-[80px]" />
-          </div>
-        )}
-        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-16 text-center text-white flex flex-col items-center">
-          {shop.logo_url && (
-            <img src={thumbUrl(shop.logo_url, 256)} alt={tShop.business_name} loading="eager" decoding="async" width={96} height={96} className="h-20 w-20 sm:h-24 sm:w-24 rounded-3xl object-cover mx-auto mb-6 shadow-2xl border-4 border-white/10" />
-          )}
-          <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tighter drop-shadow-2xl leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-300">
-            {tShop.business_name}
-          </h1>
-          {tShop.business_description && (
-            <p dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed font-medium mb-10 text-balance">
-              {tShop.business_description}
-            </p>
-          )}
-          <div className="flex gap-4 sm:gap-5 justify-center flex-wrap">
-            <Button 
-              size="lg" 
-              className="rounded-full gap-2 font-bold shadow-xl shadow-black/20 h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg hover:scale-105 transition-transform" 
-              style={{ backgroundColor: primaryColor, color: "#fff" }} 
-              onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}
-            >
-              <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" /> Voir les produits
-            </Button>
-            {shop.whatsapp_number && (
-              <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="rounded-full gap-2 border-white/20 text-white bg-white/5 hover:bg-white/10 backdrop-blur-md h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg shadow-xl transition-all">
-                  <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" /> Nous contacter
-                </Button>
-              </a>
-            )}
-          </div>
-        </div>
+      {(() => {
+        const heroBannerUrl =
+          shop.banner_url ||
+          shop.hero_image_url ||
+          themeConfig?.hero_banner_url ||
+          themeConfig?.banner_url ||
+          themeConfig?.hero_image ||
+          (Array.isArray(themeConfig?.hero_banners) ? themeConfig.hero_banners[0] : null) ||
+          null;
         
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block opacity-50">
-          <div className="w-8 h-12 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
-            <div className="w-1 h-3 bg-white rounded-full" />
+        const heroTitle = themeConfig?.hero_title || tShop.business_name;
+        const heroSubtitle = themeConfig?.hero_subtitle || tShop.business_description;
+        const heroCtaText = themeConfig?.hero_cta_text || "Voir les produits";
+        const overlayOpacity = (themeConfig?.hero_overlay_opacity ?? 65) / 100;
+
+        return (
+          <section className="relative overflow-hidden bg-gray-950 w-full min-h-[520px] sm:min-h-[640px] flex items-center justify-center">
+            {heroBannerUrl ? (
+              <div className="absolute inset-0">
+                <img 
+                  src={thumbUrl(heroBannerUrl, 1600)} 
+                  alt={heroTitle || "Bannière d'accueil"} 
+                  loading="eager" 
+                  decoding="async" 
+                  fetchPriority="high" 
+                  className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
+                />
+                <div 
+                  className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-gray-950/30" 
+                  style={{ opacity: overlayOpacity }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-950/80 via-transparent to-transparent opacity-60" />
+              </div>
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-950 to-black">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2 blur-[100px]" />
+                <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-y-1/2 -translate-x-1/2 blur-[80px]" />
+              </div>
+            )}
+
+            <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-16 text-center text-white flex flex-col items-center">
+              {shop.logo_url && (
+                <div className="p-1 rounded-3xl bg-white/10 backdrop-blur-xl mb-6 shadow-2xl ring-1 ring-white/20">
+                  <img src={thumbUrl(shop.logo_url, 256)} alt={tShop.business_name} loading="eager" decoding="async" width={96} height={96} className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover" />
+                </div>
+              )}
+
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-white/10 backdrop-blur-md text-white border border-white/20 mb-4 shadow-sm">
+                <span>✨ Boutique Officielle</span>
+              </div>
+
+              <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tighter drop-shadow-2xl leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-200">
+                {heroTitle}
+              </h1>
+
+              {heroSubtitle && (
+                <p dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-lg sm:text-xl md:text-2xl text-gray-200 max-w-3xl mx-auto leading-relaxed font-medium mb-10 text-balance drop-shadow-md">
+                  {heroSubtitle}
+                </p>
+              )}
+
+              <div className="flex gap-4 sm:gap-5 justify-center flex-wrap">
+                <Button 
+                  size="lg" 
+                  className="rounded-full gap-2 font-black shadow-2xl h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg hover:scale-105 transition-all active:scale-95" 
+                  style={{ backgroundColor: primaryColor, color: "#fff" }} 
+                  onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}
+                >
+                  <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" /> {heroCtaText}
+                </Button>
+                {shop.whatsapp_number && (
+                  <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
+                    <Button size="lg" variant="outline" className="rounded-full gap-2 border-white/30 text-white bg-white/10 hover:bg-white/20 backdrop-blur-md h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg shadow-xl transition-all hover:scale-105 active:scale-95">
+                      <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" /> Nous contacter
+                    </Button>
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Scroll indicator */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block opacity-70">
+              <div className="w-8 h-12 rounded-full border-2 border-white/40 flex items-start justify-center p-2 backdrop-blur-sm">
+                <div className="w-1.5 h-3 bg-white rounded-full" />
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* Reassurance Bar / Trust Badges (Shopify Style) */}
+      <section className="bg-white border-b border-gray-100 py-6 px-4 shadow-sm">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
+            <div className="p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0 shadow-sm">
+              <Truck className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            <div className="text-center md:text-left">
+              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Livraison Rapide</h4>
+              <p className="text-[11px] text-gray-500 hidden sm:block">Expédition sécurisée partout</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
+            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0 shadow-sm">
+              <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            <div className="text-center md:text-left">
+              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Paiement Sécurisé</h4>
+              <p className="text-[11px] text-gray-500 hidden sm:block">À la livraison ou Mobile Money</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
+            <div className="p-3 rounded-xl bg-purple-50 text-purple-600 shrink-0 shadow-sm">
+              <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            <div className="text-center md:text-left">
+              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Support Client 7j/7</h4>
+              <p className="text-[11px] text-gray-500 hidden sm:block">Assistance directe WhatsApp</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
+            <div className="p-3 rounded-xl bg-amber-50 text-amber-600 shrink-0 shadow-sm">
+              <Star className="h-5 w-5 sm:h-6 sm:w-6 fill-amber-400" />
+            </div>
+            <div className="text-center md:text-left">
+              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Qualité Garantie</h4>
+              <p className="text-[11px] text-gray-500 hidden sm:block">Produits 100% authentiques</p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Featured Products */}
-      {featuredProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
-          <div className="flex flex-col items-center justify-center mb-10 sm:mb-14 text-center">
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Produits vedettes</h2>
-            <div className="w-24 h-1.5 rounded-full" style={{ backgroundColor: primaryColor }} />
+      {effectiveFeaturedProducts.length > 0 && themeConfig?.featured_enabled !== false && (
+        <section className="max-w-7xl mx-auto px-4 py-12 sm:py-20">
+          <div className="flex flex-col items-center justify-center mb-8 sm:mb-12 text-center">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-3 bg-amber-50 text-amber-700 border border-amber-200">
+              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+              {featuredProducts.length > 0 ? "En vedette" : "Sélection spéciale"}
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-gray-900 mb-2">
+              {themeConfig?.featured_title || "Produits vedettes"}
+            </h2>
+            <p className="text-sm sm:text-base text-gray-500 max-w-xl">
+              Découvrez nos meilleures sélections et offres coup de cœur de la boutique.
+            </p>
+            <div className="w-20 h-1.5 rounded-full mt-4" style={{ backgroundColor: primaryColor }} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-            {featuredProducts.slice(0, 4).map((product, idx) => (
+            {effectiveFeaturedProducts.slice(0, 4).map((product, idx) => (
               <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
                 const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
                 navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);

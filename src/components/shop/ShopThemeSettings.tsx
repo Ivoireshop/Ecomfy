@@ -639,27 +639,140 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
           )}
 
           {activeThemeSection === "homepage" && (
-            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <h3 className="font-bold">Paramètres de la page d'accueil</h3>
-              <div className="space-y-4">
+            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
+              <div>
+                <h3 className="text-xl font-bold mb-1">Paramètres de la page d'accueil</h3>
+                <p className="text-sm text-muted-foreground">
+                  Personnalisez la bannière principale, le message d'accueil et la disposition de votre vitrine publique.
+                </p>
+              </div>
+
+              {/* Bannière Hero */}
+              <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border">
                 <div className="flex items-center justify-between">
-                  <div><p className="text-sm font-medium">Section Hero</p><p className="text-xs text-muted-foreground">Bannière principale avec image et texte</p></div>
+                  <div>
+                    <p className="text-base font-bold">Section Hero & Bannière Principale</p>
+                    <p className="text-xs text-muted-foreground">Affiche l'image de bannière et le message d'accueil en haut de votre boutique.</p>
+                  </div>
                   <Switch checked={themeConfig.hero_enabled !== false} onCheckedChange={v => updateThemeConfig("hero_enabled", v)} />
                 </div>
+
+                {themeConfig.hero_enabled !== false && (
+                  <div className="space-y-4 pt-2 border-t">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Image de bannière (URL)</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="https://example.com/banner.jpg" 
+                          value={themeConfig.hero_banner_url || shop.banner_url || ""} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            updateThemeConfig("hero_banner_url", val);
+                            setShop({ ...shop, banner_url: val, theme_config: { ...(shop.theme_config || {}), hero_banner_url: val } });
+                          }} 
+                          className="h-10 text-sm font-mono"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Téléversez une image haute définition (format idéal: 1920x800 px ou 1200x600 px).
+                      </p>
+                      {(themeConfig.hero_banner_url || shop.banner_url) && (
+                        <div className="h-32 rounded-xl overflow-hidden border relative bg-black/10 mt-2">
+                          <img 
+                            src={themeConfig.hero_banner_url || shop.banner_url} 
+                            alt="Aperçu de la bannière" 
+                            className="w-full h-full object-cover" 
+                          />
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <span className="text-white text-xs font-bold bg-black/60 px-3 py-1 rounded-full backdrop-blur-sm">Aperçu en direct</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold">Titre principal (Hero Title)</Label>
+                        <Input 
+                          placeholder={shop.business_name || "Bienvenue dans notre boutique"} 
+                          value={themeConfig.hero_title || ""} 
+                          onChange={e => updateThemeConfig("hero_title", e.target.value)} 
+                          className="h-10 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold">Texte du bouton d'action (CTA)</Label>
+                        <Input 
+                          placeholder="Voir les produits" 
+                          value={themeConfig.hero_cta_text || ""} 
+                          onChange={e => updateThemeConfig("hero_cta_text", e.target.value)} 
+                          className="h-10 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Sous-titre / Slogan</Label>
+                      <Input 
+                        placeholder={shop.business_description || "Découvrez nos meilleurs produits et offres exclusives."} 
+                        value={themeConfig.hero_subtitle || ""} 
+                        onChange={e => updateThemeConfig("hero_subtitle", e.target.value)} 
+                        className="h-10 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold">Ombrage / Assombrissement de l'image ({themeConfig.hero_overlay_opacity ?? 60}%)</Label>
+                      </div>
+                      <Slider 
+                        min={0} max={90} step={5} 
+                        value={[themeConfig.hero_overlay_opacity ?? 60]} 
+                        onValueChange={v => updateThemeConfig("hero_overlay_opacity", v[0])} 
+                      />
+                      <p className="text-[11px] text-muted-foreground">Ajustez pour rendre le texte parfaitement lisible sur votre image de bannière.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Section Produits Vedettes */}
+              <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border">
                 <div className="flex items-center justify-between">
-                  <div><p className="text-sm font-medium">Produits en vedette</p><p className="text-xs text-muted-foreground">Afficher les produits marqués comme vedette</p></div>
+                  <div>
+                    <p className="text-base font-bold">Section Produits en vedette</p>
+                    <p className="text-xs text-muted-foreground">Met en avant vos meilleurs produits en haut du catalogue d'accueil.</p>
+                  </div>
                   <Switch checked={themeConfig.featured_enabled !== false} onCheckedChange={v => updateThemeConfig("featured_enabled", v)} />
                 </div>
+
+                {themeConfig.featured_enabled !== false && (
+                  <div className="space-y-3 pt-2 border-t">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Titre de la section</Label>
+                      <Input 
+                        placeholder="Produits vedettes" 
+                        value={themeConfig.featured_title || ""} 
+                        onChange={e => updateThemeConfig("featured_title", e.target.value)} 
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Disposition et Contact */}
+              <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border">
                 <div className="flex items-center justify-between">
-                  <div><p className="text-sm font-medium">Section contact</p><p className="text-xs text-muted-foreground">Section "Une question ?" en bas de page</p></div>
+                  <div><p className="text-sm font-medium">Section contact en bas de page</p><p className="text-xs text-muted-foreground">Affiche le bloc WhatsApp et téléphone avant le footer.</p></div>
                   <Switch checked={themeConfig.contact_section_enabled !== false} onCheckedChange={v => updateThemeConfig("contact_section_enabled", v)} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Produits par ligne (desktop)</Label>
+                <div className="space-y-1.5 pt-2 border-t">
+                  <Label className="text-xs font-semibold">Nombre de colonnes de produits (Desktop)</Label>
                   <div className="flex gap-2">
                     {[3, 4, 5].map(n => (
-                      <button key={n} onClick={() => updateThemeConfig("products_per_row", n)}
-                        className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${(themeConfig.products_per_row || 4) === n ? "border-primary bg-primary/5" : "border-muted"}`}>
+                      <button key={n} type="button" onClick={() => updateThemeConfig("products_per_row", n)}
+                        className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${(themeConfig.products_per_row || 4) === n ? "border-primary bg-primary/5 text-primary font-bold" : "border-muted text-muted-foreground"}`}>
                         {n} colonnes
                       </button>
                     ))}
