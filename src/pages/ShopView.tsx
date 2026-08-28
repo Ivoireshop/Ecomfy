@@ -1395,7 +1395,12 @@ const ShopView = () => {
                           style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
                         >
                           <span className="text-lg">{method.icon}</span>
-                          <p className="font-semibold text-xs">{method.label}</p>
+                          <div>
+                            <p className="font-semibold text-xs">{method.label}</p>
+                            {method.value === "mobile_money" && (
+                              <p className="text-[9px] text-muted-foreground">Orange, MTN, Wave, Moov</p>
+                            )}
+                          </div>
                           {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto flex-shrink-0" style={{ color: primaryColor }} />}
                         </button>
                       ))}

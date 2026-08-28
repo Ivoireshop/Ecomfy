@@ -86,13 +86,16 @@ export function SubscriptionCard({ shopId, shop }: Props) {
           <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground flex-1">
             <li>✓ Aucune commission par commande</li>
             <li>✓ Commandes illimitées</li>
-            <li>✓ Toutes les fonctionnalités actuelles</li>
+            <li>✓ Paiement Orange, MTN, Wave, Moov & Carte</li>
             <li>✓ Renouvellement manuel chaque mois</li>
           </ul>
-          <Button className="mt-4" onClick={subscribe} disabled={loading}>
+          <Button className="mt-4 font-bold" onClick={subscribe} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkle className="h-4 w-4 mr-1" />}
-            {isActive ? "Prolonger 1 mois" : "Activer Starter"}
+            {isActive ? "Prolonger 1 mois (12 000 FCFA)" : "Activer Starter (12 000 FCFA)"}
           </Button>
+          <div className="mt-2 text-[10px] text-center text-muted-foreground">
+            🟠 Orange Money · 🟡 MTN MoMo · 🔵 Wave · 🟢 Moov · 💳 Carte
+          </div>
         </div>
 
         {/* Business */}

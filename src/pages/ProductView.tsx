@@ -1126,6 +1126,11 @@ const ProductView = () => {
                               <span className="font-bold text-[13px] leading-tight" style={{ color: isSelected ? primaryColor : checkoutStyles.textColor }}>
                                 {method.label}
                               </span>
+                              {method.value === "mobile_money" && (
+                                <span className="text-[10px] font-medium opacity-80 mt-0.5">
+                                  Orange · MTN · Wave · Moov
+                                </span>
+                              )}
                             </button>
                           );
                         })}

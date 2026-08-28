@@ -652,35 +652,41 @@ const Subscription = () => {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {[
-                { key: "orange", label: "Orange" },
-                { key: "mtn", label: "MTN" },
-                { key: "moov", label: "Moov" },
-                { key: "wave", label: "Wave" },
+                { key: "orange", label: "Orange Money", color: "bg-orange-500" },
+                { key: "mtn", label: "MTN MoMo", color: "bg-yellow-500" },
+                { key: "wave", label: "Wave", color: "bg-sky-500" },
+                { key: "moov", label: "Moov Money", color: "bg-emerald-600" },
+                { key: "card", label: "Carte Visa/MC", color: "bg-purple-600" },
               ].map((p) => (
                 <Button
                   key={p.key}
                   type="button"
                   variant={mmProvider === p.key ? "default" : "outline"}
                   onClick={() => setMmProvider(p.key)}
+                  className="justify-start gap-2 text-xs font-bold"
                 >
-                  {p.label}
+                  <div className={`h-2.5 w-2.5 rounded-full ${p.color} flex-shrink-0`} />
+                  <span className="truncate">{p.label}</span>
                 </Button>
               ))}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Numéro de téléphone</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Numéro de téléphone</label>
+                <span className="text-[11px] text-muted-foreground">(Facultatif)</span>
+              </div>
               <Input
                 inputMode="numeric"
-                placeholder="Ex: 0700000000"
+                placeholder="Ex: 0701020304 (ou saisir directement sur la page de paiement)"
                 value={mmPhone}
                 onChange={(e) => setMmPhone(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
                 {selectedPack
-                  ? `Le montant de ${selectedPack.price.toLocaleString()} FCFA sera débité après validation sur votre téléphone.`
+                  ? `Le montant de ${selectedPack.price.toLocaleString()} FCFA sera réglé en toute sécurité via le portail multi-réseaux.`
                   : "Sélectionnez un pack de crédits avant de payer."}
               </p>
             </div>
@@ -695,30 +701,14 @@ const Subscription = () => {
               </Button>
               <Button
                 type="button"
+                className="font-bold"
                 onClick={async () => {
-                  // Validation minimale
-                  if (!mmProvider) {
-                    toast({
-                      title: "Réseau requis",
-                      description: "Veuillez sélectionner un réseau.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
                   const digits = mmPhone.replace(/\D/g, "");
-                  if (digits.length < 8 || digits.length > 14) {
-                    toast({
-                      title: "Numéro invalide",
-                      description: "Veuillez entrer un numéro valide (8 à 14 chiffres).",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
                   setSubmittingMM(true);
                   try {
                     await handlePayment("mobile_money", {
-                      provider: mmProvider,
-                      phone: digits,
+                      provider: mmProvider || "all",
+                      phone: digits.length >= 8 ? digits : undefined,
                     });
                   } finally {
                     setSubmittingMM(false);
@@ -733,7 +723,7 @@ const Subscription = () => {
                     Redirection...
                   </>
                 ) : (
-                  "Continuer"
+                  "Procéder au paiement →"
                 )}
               </Button>
             </DialogFooter>

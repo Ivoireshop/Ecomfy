@@ -18,24 +18,23 @@ interface PayCommissionDialogProps {
 }
 
 const OPERATORS = [
-  { id: "wave", label: "Wave" },
-  { id: "orange", label: "Orange Money" },
-  { id: "mtn", label: "MTN Mobile Money" },
-  { id: "moov", label: "Moov Money" },
+  { id: "orange", label: "Orange Money", color: "bg-orange-500" },
+  { id: "mtn", label: "MTN MoMo", color: "bg-yellow-500" },
+  { id: "wave", label: "Wave", color: "bg-sky-500" },
+  { id: "moov", label: "Moov Money", color: "bg-emerald-600" },
+  { id: "card", label: "Carte Visa/MC", color: "bg-purple-600" },
 ];
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
 
 export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fullOnly = false }: PayCommissionDialogProps) {
   const { toast } = useToast();
-  const [provider, setProvider] = useState("");
+  const [provider, setProvider] = useState("all");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState<number>(Math.max(100, Math.round(balanceDue)));
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
-    if (!provider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
-    if (provider !== "wave" && !phone) { toast({ title: "Entrez votre numéro", variant: "destructive" }); return; }
     const chargeAmount = fullOnly ? Math.round(balanceDue) : amount;
     if (!chargeAmount || chargeAmount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
     if (chargeAmount > balanceDue) { toast({ title: "Montant trop élevé", description: `Solde dû : ${fmt(balanceDue)} FCFA`, variant: "destructive" }); return; }
@@ -84,27 +83,29 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
 
         <div className="space-y-4">
           <div>
-            <Label className="text-sm">Opérateur Mobile Money</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2">
+            <Label className="text-sm font-semibold">Mode de paiement préféré</Label>
+            <div className="grid grid-cols-2 gap-2 mt-2 sm:grid-cols-3">
               {OPERATORS.map((op) => (
                 <button
                   key={op.id}
                   type="button"
                   onClick={() => setProvider(op.id)}
-                  className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${provider === op.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                  className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all flex items-center justify-start gap-2 ${provider === op.id ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40"}`}
                 >
-                  {op.label}
+                  <div className={`h-2.5 w-2.5 rounded-full ${op.color} flex-shrink-0`} />
+                  <span className="truncate">{op.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {provider && provider !== "wave" && (
-            <div>
-              <Label className="text-sm">Numéro de téléphone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07 XX XX XX XX" className="mt-1" />
+          <div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Numéro de téléphone</Label>
+              <span className="text-[11px] text-muted-foreground">(Facultatif)</span>
             </div>
-          )}
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ex: 07 01 02 03 04 (ou saisir au paiement)" className="mt-1 text-sm" />
+          </div>
 
           <div>
             <Label className="text-sm">Montant à payer (FCFA)</Label>

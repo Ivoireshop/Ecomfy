@@ -303,13 +303,22 @@ const ShopEditor = () => {
       return;
     }
 
-    if (!activationProvider) { toast({ title: "Choisissez un opérateur", variant: "destructive" }); return; }
-    if (activationProvider !== "wave" && !activationPhone) { toast({ title: "Entrez votre numéro", variant: "destructive" }); return; }
+    if (!activationProvider) {
+      setActivationProvider("all");
+    }
     setActivating(true);
     const paymentWindow = openPaymentWindow();
     try {
       const { data, error } = await supabase.functions.invoke("process-payment", {
-        body: { amount: 1300, payment_method: "mobile_money", user_id: sessionUserId, provider: activationProvider, phone: activationPhone, payment_type: "shop_activation", shop_id: shop.id },
+        body: { 
+          amount: 1300, 
+          payment_method: "mobile_money", 
+          user_id: sessionUserId, 
+          provider: activationProvider || "all", 
+          phone: activationPhone || undefined, 
+          payment_type: "shop_activation", 
+          shop_id: shop.id 
+        },
       });
       if (error) throw error;
       if (data?.already_activated) {
@@ -1038,32 +1047,37 @@ const ShopEditor = () => {
                 <p className="text-xs text-muted-foreground">≈ 2$ USD · Paiement unique · Cette boutique sera activée</p>
               </div>
               <div className="space-y-2">
-                <Label>Opérateur Mobile Money</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <Label className="text-sm font-semibold">Mode de paiement préféré</Label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {[
-                    { id: "wave", label: "Wave", color: "bg-blue-500" },
-                    { id: "orange", label: "Orange Money", color: "bg-orange-500" },
-                    { id: "mtn", label: "MTN MoMo", color: "bg-yellow-500" },
-                    { id: "moov", label: "Moov Money", color: "bg-blue-600" },
+                    { id: "orange", label: "Orange Money", color: "bg-orange-500", text: "text-orange-600" },
+                    { id: "mtn", label: "MTN MoMo", color: "bg-yellow-500", text: "text-amber-600" },
+                    { id: "wave", label: "Wave", color: "bg-sky-500", text: "text-sky-600" },
+                    { id: "moov", label: "Moov Money", color: "bg-emerald-600", text: "text-emerald-600" },
+                    { id: "card", label: "Carte Visa/MC", color: "bg-purple-600", text: "text-purple-600" },
                   ].map(op => (
-                    <button key={op.id} onClick={() => setActivationProvider(op.id)}
-                      className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${activationProvider === op.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                      <div className={`h-2 w-2 rounded-full ${op.color} inline-block mr-2`} />{op.label}
+                    <button key={op.id} type="button" onClick={() => setActivationProvider(op.id)}
+                      className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all flex items-center justify-start gap-2 ${activationProvider === op.id ? 'border-primary bg-primary/10 shadow-sm' : 'border-border hover:border-primary/40'}`}>
+                      <div className={`h-2.5 w-2.5 rounded-full ${op.color} flex-shrink-0`} />
+                      <span className="truncate">{op.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
-              {activationProvider && activationProvider !== "wave" && (
-                <div className="space-y-1.5">
-                  <Label>Numéro de téléphone</Label>
-                  <Input value={activationPhone} onChange={(e) => setActivationPhone(e.target.value)} placeholder="07 XX XX XX XX" />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Numéro de téléphone</Label>
+                  <span className="text-[11px] text-muted-foreground">(Facultatif)</span>
                 </div>
-              )}
-              <Button onClick={handleActivateShop} disabled={activating || !activationProvider} className="w-full gap-2" size="lg">
-                {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                Payer 1 300 FCFA
+                <Input value={activationPhone} onChange={(e) => setActivationPhone(e.target.value)} placeholder="Ex: 07 01 02 03 04 (ou laisser vide pour saisir au paiement)" className="text-sm" />
+              </div>
+              <Button onClick={handleActivateShop} disabled={activating} className="w-full gap-2 font-bold py-6 text-base" size="lg">
+                {activating ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
+                Activer ma boutique (1 300 FCFA)
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground">Commission de 0,025$ prélevée sur chaque vente</p>
+              <p className="text-[11px] text-center text-muted-foreground">
+                🔒 Paiement sécurisé multi-réseaux (Orange Money 🟠, MTN 🟡, Wave 🔵, Moov 🟢, Carte 💳) via GeniusPay.
+              </p>
             </div>
           </DialogContent>
         </Dialog>

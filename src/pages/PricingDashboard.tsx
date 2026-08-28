@@ -241,6 +241,9 @@ export default function PricingDashboard() {
                 {loading === "pro_monthly" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
                 Activer le Plan Pro
               </Button>
+              <div className="text-[10px] text-center text-emerald-400 font-medium">
+                Paiement 🟠 Orange · 🟡 MTN · 🔵 Wave · 🟢 Moov · 💳 Carte
+              </div>
 
               <ul className="space-y-3 text-xs text-slate-200">
                 <li className="flex items-start gap-2">
