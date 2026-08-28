@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Settings, Layout, Tag, ShoppingCart as CartIcon, MessageSquare, Home, Smartphone, Monitor, Type, Timer, TrendingDown, Plus, Trash2, ArrowUp, ArrowDown, Store } from "lucide-react";
 import { RichTextEditor } from "./RichTextEditor";
 import DOMPurify from "dompurify";
 import { getCheckoutThemeStyles } from "@/lib/productAppearance";
