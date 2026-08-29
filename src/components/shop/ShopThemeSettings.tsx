@@ -629,6 +629,28 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </p>
               </div>
 
+              {/* Masquer le formulaire de commande en bas de page */}
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-base font-extrabold text-foreground flex items-center gap-2">
+                      <CartIcon className="h-5 w-5 text-amber-600" /> Masquer le formulaire de commande en bas de page
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Activez cette option pour masquer le long formulaire de commande sous la page et rendre votre site <strong>beaucoup plus court, fluide et responsive</strong>. La commande s'ouvrira sous forme de fenêtre modale (Popup) dès que le client clique sur <strong>"Commander"</strong>.
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={themeConfig.hide_bottom_checkout === true || themeConfig.checkout_form_position === "modal"} 
+                    onCheckedChange={(v) => {
+                      updateThemeConfig("hide_bottom_checkout", v);
+                      updateThemeConfig("checkout_form_position", v ? "modal" : "bottom");
+                    }} 
+                    className="data-[state=checked]:bg-amber-600"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-5 bg-muted/20 border rounded-2xl">
                 <ColorField 
                   label="Couleur du titre du produit" 

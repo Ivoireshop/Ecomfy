@@ -1192,7 +1192,9 @@ const ProductView = () => {
     </>
   );
 
-  const checkoutContainer = isCustomTheme ? (
+  const isCheckoutHiddenAtBottom = themeConfig?.hide_bottom_checkout === true || themeConfig?.checkout_form_position === 'modal';
+
+  const checkoutContainer = isCheckoutHiddenAtBottom || isCustomTheme ? (
     <Dialog open={showInlineCheckout} onOpenChange={setShowInlineCheckout}>
       <DialogContent className="w-[95vw] max-w-lg mx-auto rounded-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-white z-[99999]" style={{ zIndex: 99999 }}>
         <DialogHeader className="sr-only">
@@ -1335,7 +1337,7 @@ const ProductView = () => {
             checkoutContent={checkoutContent}
           />
         </Suspense>
-        {shop.theme_config?.checkout_form_position !== 'top' && shop.theme_config?.checkout_form_position !== 'bottom' && globalOverlays}
+        {(isCheckoutHiddenAtBottom || (shop.theme_config?.checkout_form_position !== 'top' && shop.theme_config?.checkout_form_position !== 'bottom')) && globalOverlays}
       </>
     );
   }
