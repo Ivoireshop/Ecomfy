@@ -1798,7 +1798,7 @@ const ProductView = () => {
               }
               if (key === "checkout_form") {
                 return (
-                  <div key="checkout_form" id="inline-checkout-form" className="w-full mt-4">
+                  <div key="checkout_form" id="inline-checkout-form" className="w-full mt-4 scroll-mt-24">
                     {checkoutContent}
                   </div>
                 );
@@ -1871,12 +1871,6 @@ const ProductView = () => {
                 )}
               </div>
 
-              {/* Directly Embedded Single-Page Checkout */}
-              {isInlineCheckout && !isCustomTheme && !orderSuccess && (
-                <div id="inline-checkout-form" className="w-full mt-6 scroll-mt-24">
-                  {checkoutContent}
-                </div>
-              )}
             </div>
 
             {/* Trust badges */}
