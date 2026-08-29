@@ -51,7 +51,21 @@ export default function Studio() {
           body,
         });
 
-        if (error) throw error;
+        if (error) {
+          const status = (error as any)?.status;
+          if (status === 403 || status === 402) {
+            window.dispatchEvent(new Event("open-credits-dialog"));
+            throw new Error("Vous avez utilisé vos 3 générations gratuites. Veuillez recharger vos crédits IA ou souscrire à un abonnement.");
+          }
+          let serverMsg = "";
+          try {
+            if ((error as any).context && typeof (error as any).context.json === "function") {
+              const errJson = await (error as any).context.json();
+              if (errJson?.error) serverMsg = errJson.error;
+            }
+          } catch (_) {}
+          throw new Error(serverMsg || "Le service de génération d'images rencontre une petite pause. Veuillez réessayer dans un instant.");
+        }
         if (data?.error) throw new Error(data.error);
 
         setGeneratedResult(data.imageUrl);

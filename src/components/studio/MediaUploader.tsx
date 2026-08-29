@@ -21,41 +21,74 @@ export const MediaUploader = ({ media, onChange, maxFiles = 5, mode }: MediaUplo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const processFile = (file: File) => {
+  const compressImageToDataUrl = (file: File, maxDimension = 800, quality = 0.85): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          } else {
+            resolve((e.target?.result as string) || "");
+          }
+        };
+        img.onerror = () => resolve((e.target?.result as string) || "");
+        img.src = (e.target?.result as string) || "";
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const processFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       toast.error("Veuillez sélectionner un fichier image valide");
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 10 Mo");
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 15 Mo");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      const newMediaFile: MediaFile = {
-        id: Math.random().toString(36).substring(7),
-        url: dataUrl,
-        file,
-      };
-      
-      // Prevent exceeding maxFiles
-      if (media.length >= maxFiles) {
-        toast.error(`Vous ne pouvez ajouter que ${maxFiles} image(s) maximum.`);
-        return;
-      }
-      
-      // For images, if the backend only supports 1 image for text-to-image/image-edit
-      // we might want to restrict it here or just let the main component warn.
-      if (mode === "image" && media.length >= 1) {
-        toast.info("Attention: le modèle d'image actuel n'utilise que la première image fournie comme référence.");
-      }
-      
-      onChange([...media, newMediaFile]);
+    // Prevent exceeding maxFiles
+    if (media.length >= maxFiles) {
+      toast.error(`Vous ne pouvez ajouter que ${maxFiles} image(s) maximum.`);
+      return;
+    }
+
+    const lightweightDataUrl = await compressImageToDataUrl(file, 800, 0.85);
+
+    const newMediaFile: MediaFile = {
+      id: Math.random().toString(36).substring(7),
+      url: lightweightDataUrl,
+      file,
     };
-    reader.readAsDataURL(file);
+
+    if (mode === "image" && media.length >= 1) {
+      toast.info("Attention: le modèle d'image actuel n'utilise que la première image fournie comme référence.");
+    }
+    
+    onChange([...media, newMediaFile]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
