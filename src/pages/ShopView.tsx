@@ -1114,8 +1114,28 @@ const ShopView = () => {
       >
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
           <div className="flex items-center gap-3">
-            {shop.logo_url ? <img src={thumbUrl(shop.logo_url, 128)} alt="" className="h-8 w-8 rounded-lg grayscale opacity-70" /> : <Store className="h-5 w-5 opacity-70" style={{ color: primaryColor }} />}
-            <span className="font-semibold opacity-80">© {new Date().getFullYear()} {tShop.business_name}</span>
+            {(() => {
+              const headerMode = themeConfig?.header_display_mode || (shop.logo_url ? "logo_only" : "name_only");
+              const showLogo = (headerMode === "logo_only" || headerMode === "both") && !!shop.logo_url;
+              const showName = headerMode === "name_only" || headerMode === "both" || !shop.logo_url;
+
+              return (
+                <>
+                  {showLogo && (
+                    <img src={thumbUrl(shop.logo_url!, 128)} alt={tShop.business_name || ""} className="h-8 w-auto max-w-[140px] object-contain opacity-85" />
+                  )}
+                  {!showLogo && (
+                    <Store className="h-5 w-5 opacity-70" style={{ color: primaryColor }} />
+                  )}
+                  {showName && (
+                    <span className="font-semibold opacity-80">© {new Date().getFullYear()} {tShop.business_name}</span>
+                  )}
+                  {!showName && (
+                    <span className="font-semibold opacity-80">© {new Date().getFullYear()}</span>
+                  )}
+                </>
+              );
+            })()}
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 opacity-80">
             {shop.city && <><MapPin className="h-4 w-4" /> {shop.city}, {shop.country || "Côte d'Ivoire"} <span className="mx-2 opacity-30">|</span></>}

@@ -1416,20 +1416,33 @@ const ProductView = () => {
         >
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={goToShop}>
-              {shop.logo_url ? (
-                <img 
-                  src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url) ? shop.logo_url : thumbUrl(shop.logo_url, 256)} 
-                  alt={shop.business_name || ""} 
-                  loading="eager" 
-                  decoding="async" 
-                  className="max-h-9 w-auto max-w-[160px] sm:max-w-[220px] object-contain flex-shrink-0" 
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: primaryColor + "15" }}>
-                  <Store className="h-4 w-4" style={{ color: primaryColor }} />
-                </div>
-              )}
-              <span className="font-bold text-sm sm:text-base truncate">{shop.business_name}</span>
+              {(() => {
+                const headerMode = themeConfig?.header_display_mode || (shop.logo_url ? "logo_only" : "name_only");
+                const showLogo = (headerMode === "logo_only" || headerMode === "both") && !!shop.logo_url;
+                const showName = headerMode === "name_only" || headerMode === "both" || !shop.logo_url;
+
+                return (
+                  <>
+                    {showLogo && (
+                      <img 
+                        src={/\.gif($|\?)|\.svg($|\?)|data:image\/gif/i.test(shop.logo_url!) ? shop.logo_url! : thumbUrl(shop.logo_url!, 256)} 
+                        alt={shop.business_name || ""} 
+                        loading="eager" 
+                        decoding="async" 
+                        className="max-h-9 sm:max-h-10 w-auto max-w-[160px] sm:max-w-[220px] object-contain flex-shrink-0" 
+                      />
+                    )}
+                    {!showLogo && (
+                      <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: primaryColor + "15" }}>
+                        <Store className="h-4 w-4" style={{ color: primaryColor }} />
+                      </div>
+                    )}
+                    {showName && (
+                      <span className="font-bold text-sm sm:text-base truncate">{shop.business_name}</span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1937,8 +1950,25 @@ const ProductView = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-2">
-              {shop.logo_url ? <img src={thumbUrl(shop.logo_url, 128)} alt="" loading="lazy" decoding="async" width={32} height={32} className="h-8 w-8 rounded-lg" /> : <Store className="h-5 w-5" style={{ color: primaryColor }} />}
-              <span className="font-semibold text-gray-700">{shop.business_name}</span>
+              {(() => {
+                const headerMode = themeConfig?.header_display_mode || (shop.logo_url ? "logo_only" : "name_only");
+                const showLogo = (headerMode === "logo_only" || headerMode === "both") && !!shop.logo_url;
+                const showName = headerMode === "name_only" || headerMode === "both" || !shop.logo_url;
+
+                return (
+                  <>
+                    {showLogo && (
+                      <img src={thumbUrl(shop.logo_url!, 256)} alt={shop.business_name || ""} loading="lazy" decoding="async" className="h-8 sm:h-9 w-auto max-w-[180px] object-contain" />
+                    )}
+                    {!showLogo && (
+                      <Store className="h-5 w-5" style={{ color: primaryColor }} />
+                    )}
+                    {showName && (
+                      <span className="font-semibold text-gray-700">{shop.business_name}</span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-4 flex-wrap justify-center">
               {shop.whatsapp_number && (
