@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { getOpenAiApiKey } from "../_shared/openai-key.ts";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 
 const corsHeaders = {
@@ -166,7 +167,7 @@ Le visuel doit être:
     try {
       const runwayApiKey = Deno.env.get("RUNWAY_API_KEY");
       const replicateApiKey = Deno.env.get("REPLICATE_API_KEY");
-      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+      const OPENAI_API_KEY = getOpenAiApiKey();
 
       // Step 1: Get base image (either from reference images or generate one)
       let baseImageUrl: string | null = null;

@@ -748,9 +748,13 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         throw new Error("Aucune image retournée par le moteur alternatif");
       } catch (fallbackError) {
         console.error('Fallback error:', fallbackError);
+        const rawMsg = error instanceof Error ? error.message : String(error);
+        const friendlyMsg = rawMsg.includes("non-2xx status code") || rawMsg.includes("Edge Function")
+          ? "Le service de génération d'images rencontre une courte pause. Veuillez ré-essayer dans un instant."
+          : rawMsg;
         toast({
-          title: "Erreur",
-          description: error instanceof Error ? error.message : "Une erreur est survenue lors de la génération",
+          title: "Génération indisponible",
+          description: friendlyMsg || "Une erreur est survenue lors de la génération. Réessayez dans un instant.",
           variant: "destructive",
         });
       }

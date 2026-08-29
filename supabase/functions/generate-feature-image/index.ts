@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { getOpenAiApiKey } from "../_shared/openai-key.ts";
 import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 
@@ -230,7 +231,7 @@ TECHNICAL SPECIFICATIONS:
 Create a stunning Facebook advertising visual that looks like a professional marketing campaign. ZERO spelling errors in French text.`;
     }
 
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const OPENAI_API_KEY = getOpenAiApiKey();
     if (!OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY is not configured');
     }

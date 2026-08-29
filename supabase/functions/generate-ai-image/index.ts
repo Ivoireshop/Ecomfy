@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
+import { getOpenAiApiKey } from "../_shared/openai-key.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,13 +89,7 @@ serve(async (req) => {
     const body = await req.json();
     const { mode, prompt, style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || (() => {
-      try {
-        return atob("c2stc3ZjYWNjdC15NnFsRUQ2M3FaTnhxMHJ0Z2UyMWcwa21Fd3EyeWREZERpOTBiVXV0NnlrWnpVZnRGV01wNEY2V19QRFA3dXJGdEFnZklFemRRYTNCbGJrRkpxaC1oUEVyNzFZdllTWGsxT0JfQlVTZktpVklFTlRKSzMwRWE1QXVTTEVPdnE2V3RPSVF3ZHhaUmxIRV80OXkzX1VXb2dxRUFzbw==");
-      } catch {
-        return "";
-      }
-    })();
+    const OPENAI_API_KEY = getOpenAiApiKey();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") || "";
     if (!OPENAI_API_KEY && !LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
