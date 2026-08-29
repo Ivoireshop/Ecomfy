@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
-import { getOpenAiApiKey } from "../_shared/openai-key.ts";
+import { getOpenAiApiKey, analyzeImageWithGpt4oMini, optimizePromptWithGpt4oMini } from "../_shared/openai-key.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -120,105 +120,24 @@ serve(async (req) => {
 
     console.log(`Mode: ${mode}, Prompt length: ${enhancedPrompt.length}`);
 
-    // For modes with source images, use image editing
-    if ((mode === "image-edit" || mode === "banner" || mode === "banner-replace") && 
-        (sourceImage || bannerImage)) {
-      // Use GPT-image-1 with image input for editing
-      const messages: any[] = [
-        {
-          role: "user",
-          content: []
-        }
-      ];
-
-      // Add text instruction
-      messages[0].content.push({
-        type: "text",
-        text: enhancedPrompt
-      });
-
-      // Add images based on mode
-      if (mode === "image-edit" && sourceImage) {
-        messages[0].content.push({
-          type: "image_url",
-          image_url: { url: sourceImage }
-        });
-      } else if (mode === "banner" && sourceImage) {
-        messages[0].content.push({
-          type: "image_url",
-          image_url: { url: sourceImage }
-        });
-      } else if (mode === "banner-replace") {
-        if (bannerImage) {
-          messages[0].content.push({
-            type: "image_url",
-            image_url: { url: bannerImage }
-          });
-        }
-        if (replacementPhoto) {
-          messages[0].content.push({
-            type: "image_url",
-            image_url: { url: replacementPhoto }
-          });
-        }
+    // For modes with source images, use GPT-4o-mini Vision to analyze the uploaded product image
+    const imageToAnalyze = sourceImage || bannerImage || replacementPhoto;
+    if (imageToAnalyze) {
+      console.log("Analyzing uploaded media with GPT-4o-mini Vision...");
+      const visionAnalysis = await analyzeImageWithGpt4oMini(
+        imageToAnalyze,
+        `Analyze this product/media image in detail. Describe its colors, object details, packaging, and ideal advertising environment in 2 concise sentences in English.`
+      );
+      if (visionAnalysis) {
+        enhancedPrompt += `\n\nSource Product Features (from GPT-4o-mini Vision): ${visionAnalysis}`;
       }
-
-      console.log("Using image editing with GPT vision + image generation");
-
-      // Primary: OpenRouter
-      const openRouterKey = getOpenRouterKey();
-      const refImages: string[] = [];
-      if (mode === "image-edit" && sourceImage) refImages.push(sourceImage);
-      else if (mode === "banner" && sourceImage) refImages.push(sourceImage);
-      else if (mode === "banner-replace") {
-        if (bannerImage) refImages.push(bannerImage);
-        if (replacementPhoto) refImages.push(replacementPhoto);
-      }
-
-      if (openRouterKey) {
-        try {
-          imageUrl = await generateImageWithOpenRouter(openRouterKey, {
-            prompt: enhancedPrompt,
-            referenceImages: refImages,
-          });
-        } catch (e) {
-          console.warn("OpenRouter edit failed, falling back to Lovable Gateway:", e);
-        }
-      }
-
-      // Fallback: Lovable AI gateway
-      const editResponse = imageUrl ? null : await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-1.5-flash",
-          messages: messages,
-          modalities: ["image", "text"]
-        }),
-      });
-
-      if (!imageUrl && editResponse) {
-        if (!editResponse.ok) {
-          const errorText = await editResponse.text();
-          console.error("Edit API error:", errorText);
-          throw new Error(`Erreur de l'API d'édition: ${editResponse.status}`);
-        }
-        const editData = await editResponse.json();
-        const generatedImageData = editData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        if (!generatedImageData) {
-          console.log("No image returned from edit API, falling back to generation");
-          imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
-        } else {
-          imageUrl = generatedImageData;
-        }
-      }
-    } else {
-      // Pure text-to-image generation
-      imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
     }
+
+    // Optimize overall prompt with GPT-4o-mini
+    enhancedPrompt = await optimizePromptWithGpt4oMini(enhancedPrompt);
+
+    // Generate pure image using OpenAI DALL-E 3 / primary engines
+    imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
 
     // Save to generated_images
     await supabaseClient.from("generated_images").insert({

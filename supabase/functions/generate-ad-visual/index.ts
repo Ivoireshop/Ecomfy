@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
-import { getOpenAiApiKey } from "../_shared/openai-key.ts";
+import { getOpenAiApiKey, analyzeImageWithGpt4oMini, optimizePromptWithGpt4oMini } from "../_shared/openai-key.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -326,7 +326,18 @@ Visual requirements:
 - Mobile-optimized contrast and clarity
 
 ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean background only for text overlay.`;
+    // Analyse l'image de produit avec GPT-4o-mini Vision si disponible
+    if (productImage) {
+      console.log("Analyzing product image with GPT-4o-mini Vision...");
+      const visionFeatures = await analyzeImageWithGpt4oMini(productImage, `Analyse cette image de produit (${productName}). Décris son emballage, ses couleurs et l'ambiance visuelle idéale en 2 phrases en anglais.`);
+      if (visionFeatures) {
+        prompt += `\n\nProduct Visual Features (GPT-4o-mini Vision): ${visionFeatures}`;
+      }
     }
+
+    // Optimisation avancée du prompt par GPT-4o-mini
+    console.log("Optimizing prompt with GPT-4o-mini...");
+    prompt = await optimizePromptWithGpt4oMini(prompt);
 
     console.log("Generated prompt (length:", prompt.length, ")");
 
