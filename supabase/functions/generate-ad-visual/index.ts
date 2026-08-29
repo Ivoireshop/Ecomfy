@@ -457,61 +457,69 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
           },
           body: JSON.stringify({
             model: "dall-e-3",
-            prompt: prompt,
+            prompt: prompt.substring(0, 1000),
             size: gptImageSize,
-            quality: "hd", // HD quality for professional ads
+            quality: "standard", // Standard quality works on all OpenAI account tiers (Tier 1+)
             n: 1,
           }),
-          timeoutMs: 90000, // DALL-E 3 can take longer for high quality
+          timeoutMs: 90000,
         });
 
         if (gptImageResponse.ok) {
           const gptImageData = await gptImageResponse.json();
-          // DALL-E 3 returns base64 directly
           const b64Image = gptImageData.data?.[0]?.b64_json;
           
           if (b64Image) {
             imageUrl = `data:image/png;base64,${b64Image}`;
             console.log("DALL-E 3 generation successful on attempt", attempt);
           } else {
-            // Fallback to URL if b64_json not present
             const generatedUrl = gptImageData.data?.[0]?.url;
             if (generatedUrl) {
-              console.log("DALL-E 3 returned URL, converting to base64...");
-              const imageResponse = await fetch(generatedUrl);
-              const imageBlob = await imageResponse.blob();
-              const arrayBuffer = await imageBlob.arrayBuffer();
-              const bytes = new Uint8Array(arrayBuffer);
-              
-              // Convert to base64
-              let binary = '';
-              for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
-              }
-              const base64 = btoa(binary);
-              imageUrl = `data:image/png;base64,${base64}`;
-              console.log("DALL-E 3 URL converted to base64 on attempt", attempt);
-            } else {
-              console.warn("DALL-E 3 response missing image data:", gptImageData);
+              imageUrl = generatedUrl;
+              console.log("DALL-E 3 URL obtained on attempt", attempt);
             }
           }
         } else {
           const errorText = await gptImageResponse.text();
           console.error(`DALL-E 3 error (attempt ${attempt}):`, gptImageResponse.status, errorText);
           
-          // Handle rate limits with exponential backoff
-          if (gptImageResponse.status === 429 && attempt < maxRetries) {
-            const delay = retryDelayMs * Math.pow(2, attempt - 1);
-            console.log(`Rate limited, waiting ${delay}ms before retry...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
+          // Try DALL-E 2 fallback if DALL-E 3 fails
+          try {
+            console.log("Attempting DALL-E 2 fallback...");
+            const d2Response = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${OPENAI_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "dall-e-2",
+                prompt: prompt.substring(0, 900),
+                size: "1024x1024",
+                n: 1,
+              }),
+              timeoutMs: 45000,
+            });
+
+            if (d2Response.ok) {
+              const d2Data = await d2Response.json();
+              const d2Url = d2Data.data?.[0]?.url || d2Data.data?.[0]?.b64_json;
+              if (d2Url) {
+                imageUrl = d2Url.startsWith("data:") ? d2Url : d2Url;
+                console.log("DALL-E 2 fallback successful!");
+                break;
+              }
+            } else {
+              console.error("DALL-E 2 fallback error:", d2Response.status, await d2Response.text());
+            }
+          } catch (d2Err) {
+            console.error("DALL-E 2 fallback exception:", d2Err);
           }
           
-          // Handle content policy violations
           if (gptImageResponse.status === 400 && errorText.includes("content_policy")) {
             return new Response(
               JSON.stringify({ 
-                error: "Le contenu demandé viole la politique d'utilisation. Veuillez modifier votre description." 
+                error: "Le contenu demandé viole la politique d'utilisation OpenAI. Veuillez modifier votre description." 
               }),
               {
                 status: 400,
@@ -519,6 +527,7 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
               }
             );
           }
+        }
           
           // If last attempt, break to try fallback
           if (attempt === maxRetries) {

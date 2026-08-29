@@ -191,8 +191,9 @@ serve(async (req) => {
 });
 
 async function generatePureImage(lovableApiKey: string, prompt: string): Promise<string> {
-  // Primary: OpenAI DALL-E 3
   const openAiApiKey = getOpenAiApiKey();
+  let lastOpenAiError = "";
+
   if (openAiApiKey) {
     try {
       console.log("Generating image with OpenAI DALL-E 3...");
@@ -207,20 +208,45 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
           prompt: prompt.substring(0, 1000),
           size: "1024x1024",
           quality: "standard",
-          response_format: "b64_json",
           n: 1,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const b64 = data.data?.[0]?.b64_json;
-        if (b64) return `data:image/png;base64,${b64}`;
-        const url = data.data?.[0]?.url;
-        if (url) return url;
+        const generatedUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+        if (generatedUrl) return generatedUrl.startsWith("data:") ? generatedUrl : generatedUrl;
       } else {
-        const errorText = await res.text();
-        console.warn("OpenAI DALL-E 3 generation failed:", res.status, errorText);
+        lastOpenAiError = await res.text();
+        console.warn("OpenAI DALL-E 3 generation failed:", res.status, lastOpenAiError);
+
+        // Fallback: OpenAI DALL-E 2
+        try {
+          console.log("Trying OpenAI DALL-E 2 fallback...");
+          const res2 = await fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${openAiApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "dall-e-2",
+              prompt: prompt.substring(0, 900),
+              size: "1024x1024",
+              n: 1,
+            }),
+          });
+
+          if (res2.ok) {
+            const data2 = await res2.json();
+            const url2 = data2.data?.[0]?.url || data2.data?.[0]?.b64_json;
+            if (url2) return url2;
+          } else {
+            console.warn("DALL-E 2 fallback failed:", res2.status, await res2.text());
+          }
+        } catch (err2) {
+          console.error("DALL-E 2 call exception:", err2);
+        }
       }
     } catch (err) {
       console.error("DALL-E 3 call error:", err);
@@ -233,35 +259,23 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
     try {
       return await generateImageWithOpenRouter(openRouterKey, { prompt });
     } catch (e) {
-      console.warn("OpenRouter failed, falling back to Lovable AI Gateway:", e);
+      console.warn("OpenRouter failed:", e);
     }
   }
 
-  // Fallback 2: Lovable AI Gateway
-  if (lovableApiKey) {
-    console.log("Generating image via Lovable AI Gateway (fallback)");
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-1.5-flash",
-        messages: [{ role: "user", content: prompt }],
-        modalities: ["image", "text"],
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const generatedImageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-      if (generatedImageUrl) return generatedImageUrl;
+  // Parse OpenAI error if present
+  let friendlyReason = "Impossible de générer l'image. Veuillez ré-essayer.";
+  if (lastOpenAiError) {
+    if (lastOpenAiError.includes("billing_hard_limit") || lastOpenAiError.includes("insufficient_quota")) {
+      friendlyReason = "Votre compte OpenAI a atteint sa limite de quota. Veuillez vérifier votre facturation OpenAI.";
+    } else if (lastOpenAiError.includes("invalid_api_key")) {
+      friendlyReason = "La clé API OpenAI est invalide. Veuillez vérifier la clé.";
+    } else if (lastOpenAiError.includes("content_policy")) {
+      friendlyReason = "Le contenu demandé est restreint par les règles de sécurité d'OpenAI.";
     }
   }
 
-  throw new Error("Impossible de générer l'image. Tous les moteurs d'images sont indisponibles.");
+  throw new Error(friendlyReason);
 }
 
 function buildTextToImagePrompt(prompt: string, style: string): string {
