@@ -164,59 +164,69 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </div>
               </div>
 
-              <Tabs defaultValue="mobile">
-                <TabsList className="w-full justify-start bg-transparent border-b rounded-none p-0 h-auto gap-0">
-                  {["En-tête mobile", "En-tête Ordinateur", "Bas de page", "Barre d'avis ordinateur", "Barre d'avis mobile"].map((tab, i) => {
-                    const val = ["mobile", "desktop", "footer", "review_desktop", "review_mobile"][i];
-                    return (
-                      <TabsTrigger key={val} value={val} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none px-4 py-3 text-sm">
-                        {tab}
+              <Tabs defaultValue="mobile" className="w-full">
+                <div className="w-full overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 mb-6">
+                  <TabsList className="inline-flex h-auto p-1.5 bg-muted/60 rounded-2xl border gap-1.5 min-w-max">
+                    {[
+                      { id: "mobile", label: "En-tête Mobile", icon: Smartphone },
+                      { id: "desktop", label: "En-tête Ordinateur", icon: Monitor },
+                      { id: "footer", label: "Pied de page (Footer)", icon: Layout },
+                      { id: "review_desktop", label: "Barre d'avis Ordinateur", icon: MessageSquare },
+                      { id: "review_mobile", label: "Barre d'avis Mobile", icon: Smartphone },
+                    ].map((tab) => (
+                      <TabsTrigger 
+                        key={tab.id} 
+                        value={tab.id} 
+                        className="rounded-xl px-4 py-2.5 text-xs font-bold gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md transition-all cursor-pointer"
+                      >
+                        <tab.icon className="h-3.5 w-3.5" />
+                        {tab.label}
                       </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
+                    ))}
+                  </TabsList>
+                </div>
 
-                <TabsContent value="mobile" className="mt-6 space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <ColorField label="Arrière-plan" value={themeConfig.header_mobile_bg || "#FFFFFF"} onChange={v => updateThemeConfig("header_mobile_bg", v)} />
-                    <ColorField label="Couleur boutons" value={themeConfig.header_mobile_btn || "#000000"} onChange={v => updateThemeConfig("header_mobile_btn", v)} />
+                <TabsContent value="mobile" className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 rounded-2xl bg-muted/20 border">
+                    <ColorField label="Arrière-plan en-tête" value={themeConfig.header_mobile_bg || "#FFFFFF"} onChange={v => updateThemeConfig("header_mobile_bg", v)} />
+                    <ColorField label="Couleur des icônes" value={themeConfig.header_mobile_btn || "#000000"} onChange={v => updateThemeConfig("header_mobile_btn", v)} />
                     <div className="space-y-2">
-                      <Label className="text-xs">Bordure d'en-tête</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
+                      <Label className="text-xs font-semibold">Bordure inférieure</Label>
+                      <div className="flex items-center justify-between bg-background border rounded-xl px-3 py-2.5 h-11">
+                        <span className="text-xs font-medium">Activer la bordure</span>
                         <Switch checked={themeConfig.header_mobile_border !== false} onCheckedChange={v => updateThemeConfig("header_mobile_border", v)} />
                       </div>
                     </div>
-                    <ColorField label="Couleur bordure" value={themeConfig.header_mobile_border_color || "#F0F0F0"} onChange={v => updateThemeConfig("header_mobile_border_color", v)} />
+                    <ColorField label="Couleur de bordure" value={themeConfig.header_mobile_border_color || "#F0F0F0"} onChange={v => updateThemeConfig("header_mobile_border_color", v)} />
                   </div>
                 </TabsContent>
 
-                <TabsContent value="desktop" className="mt-6 space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <ColorField label="Arrière-plan" value={themeConfig.header_desktop_bg || "#FFFFFF"} onChange={v => updateThemeConfig("header_desktop_bg", v)} />
-                    <ColorField label="Couleur boutons" value={themeConfig.header_desktop_btn || "#000000"} onChange={v => updateThemeConfig("header_desktop_btn", v)} />
+                <TabsContent value="desktop" className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 rounded-2xl bg-muted/20 border">
+                    <ColorField label="Arrière-plan en-tête" value={themeConfig.header_desktop_bg || "#FFFFFF"} onChange={v => updateThemeConfig("header_desktop_bg", v)} />
+                    <ColorField label="Couleur des icônes" value={themeConfig.header_desktop_btn || "#000000"} onChange={v => updateThemeConfig("header_desktop_btn", v)} />
                     <div className="space-y-2">
-                      <Label className="text-xs">Bordure d'en-tête</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
+                      <Label className="text-xs font-semibold">Bordure inférieure</Label>
+                      <div className="flex items-center justify-between bg-background border rounded-xl px-3 py-2.5 h-11">
+                        <span className="text-xs font-medium">Activer la bordure</span>
                         <Switch checked={themeConfig.header_desktop_border !== false} onCheckedChange={v => updateThemeConfig("header_desktop_border", v)} />
                       </div>
                     </div>
-                    <ColorField label="Couleur bordure" value={themeConfig.header_desktop_border_color || "#F0F0F0"} onChange={v => updateThemeConfig("header_desktop_border_color", v)} />
+                    <ColorField label="Couleur de bordure" value={themeConfig.header_desktop_border_color || "#F0F0F0"} onChange={v => updateThemeConfig("header_desktop_border_color", v)} />
                   </div>
 
                   {/* Réglages d'animation & format du Logo */}
-                  <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border mt-6">
+                  <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border">
                     <div>
                       <h4 className="font-bold text-base flex items-center gap-2">
-                        <Store className="h-5 w-5 text-primary" /> Format & Effet Visuel du Logo
+                        <Store className="h-5 w-5 text-primary" /> Format &amp; Effet Visuel du Logo
                       </h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Tous les formats de logo (rectangulaire, carré, circulaire, GIF animé, PNG, SVG) sont pris en charge sans aucun rognage ni zoom forcé.
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t">
                       <div className="space-y-2">
                         <Label className="text-xs font-semibold">Effet d'animation du logo</Label>
                         <Select 
@@ -238,11 +248,11 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                       {shop.logo_url && (
                         <div className="space-y-2">
                           <Label className="text-xs font-semibold">Aperçu en direct du logo</Label>
-                          <div className="h-12 rounded-xl border bg-card p-2 flex items-center justify-center overflow-hidden">
+                          <div className="h-10 rounded-xl border bg-card p-2 flex items-center justify-center overflow-hidden">
                             <img 
                               src={shop.logo_url} 
                               alt="Logo" 
-                              className={`max-h-8 w-auto max-w-[200px] object-contain ${
+                              className={`max-h-7 w-auto max-w-[200px] object-contain ${
                                 themeConfig.logo_effect === "shimmer" ? "animate-pulse brightness-110" : ""
                               } ${
                                 themeConfig.logo_effect === "glow" ? "drop-shadow-[0_0_8px_rgba(37,99,235,0.8)]" : ""
@@ -257,22 +267,25 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="footer" className="mt-6 space-y-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-medium">Pied de page personnalisé</span>
+                <TabsContent value="footer" className="space-y-6">
+                  <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/20">
+                    <div>
+                      <p className="font-bold text-sm">Pied de page (Footer) personnalisé</p>
+                      <p className="text-xs text-muted-foreground">Activer des couleurs sur mesure pour le bas de page.</p>
+                    </div>
                     <Switch checked={themeConfig.footer_custom || false} onCheckedChange={v => updateThemeConfig("footer_custom", v)} />
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 rounded-2xl bg-muted/20 border">
                     <ColorField label="Arrière-plan footer" value={themeConfig.footer_bg || "#FEFEFE"} onChange={v => updateThemeConfig("footer_bg", v)} />
                     <ColorField label="Couleur texte" value={themeConfig.footer_text || "#000000"} onChange={v => updateThemeConfig("footer_text", v)} />
                     <div className="space-y-2">
-                      <Label className="text-xs">Bordure footer</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
+                      <Label className="text-xs font-semibold">Bordure supérieure</Label>
+                      <div className="flex items-center justify-between bg-background border rounded-xl px-3 py-2.5 h-11">
+                        <span className="text-xs font-medium">Activer la bordure</span>
                         <Switch checked={themeConfig.footer_border !== false} onCheckedChange={v => updateThemeConfig("footer_border", v)} />
                       </div>
                     </div>
-                    <ColorField label="Couleur bordure" value={themeConfig.footer_border_color || "#4A4A4AFF"} onChange={v => updateThemeConfig("footer_border_color", v)} />
+                    <ColorField label="Couleur bordure" value={themeConfig.footer_border_color || "#4A4A4A"} onChange={v => updateThemeConfig("footer_border_color", v)} />
                   </div>
                   
                   {/* Option Premium : Masquer le branding Ecomfy */}
@@ -310,33 +323,32 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
 
                 </TabsContent>
 
-                <TabsContent value="review_desktop" className="mt-6 space-y-6">
+                <TabsContent value="review_desktop" className="space-y-6">
                   <MessagesEditor
                     label="Messages de la barre d'avis (ordinateur)"
                     messages={getMessages(themeConfig, "desktop")}
                     separator={themeConfig.review_desktop_separator ?? " • "}
                     onChangeMessages={v => {
                       updateThemeConfig("review_desktop_messages", v);
-                      // keep legacy field in sync (first message) for backward compatibility
                       updateThemeConfig("review_bar_desktop_content", v[0] || "");
                     }}
                     onChangeSeparator={v => updateThemeConfig("review_desktop_separator", v)}
                   />
                   <ReviewLivePreview themeConfig={themeConfig} variant="desktop" />
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 rounded-2xl bg-muted/20 border">
                     <ColorField label="Couleur du texte" value={themeConfig.review_desktop_text || "#FFFFFF"} onChange={v => updateThemeConfig("review_desktop_text", v)} />
                     <ColorField label="Couleur arrière-plan" value={themeConfig.review_desktop_bg || "#803160"} onChange={v => updateThemeConfig("review_desktop_bg", v)} />
                     <div className="space-y-2">
-                      <Label className="text-xs">Au-dessus de l'en-tête</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
+                      <Label className="text-xs font-semibold">Positionnement</Label>
+                      <div className="flex items-center justify-between bg-background border rounded-xl px-3 py-2.5 h-11">
+                        <span className="text-xs font-medium">Au-dessus de l'en-tête</span>
                         <Switch checked={themeConfig.review_desktop_above || false} onCheckedChange={v => updateThemeConfig("review_desktop_above", v)} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">Actif</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
+                      <Label className="text-xs font-semibold">Statut d'affichage</Label>
+                      <div className="flex items-center justify-between bg-background border rounded-xl px-3 py-2.5 h-11">
+                        <span className="text-xs font-medium">Activer la barre</span>
                         <Switch checked={themeConfig.review_desktop_active !== false} onCheckedChange={v => updateThemeConfig("review_desktop_active", v)} />
                       </div>
                     </div>
@@ -351,7 +363,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   />
                 </TabsContent>
 
-                <TabsContent value="review_mobile" className="mt-6 space-y-6">
+                <TabsContent value="review_mobile" className="space-y-6">
                   <MessagesEditor
                     label="Messages de la barre d'avis (mobile)"
                     messages={getMessages(themeConfig, "mobile")}
@@ -363,20 +375,20 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     onChangeSeparator={v => updateThemeConfig("review_mobile_separator", v)}
                   />
                   <ReviewLivePreview themeConfig={themeConfig} variant="mobile" />
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 rounded-2xl bg-muted/20 border">
                     <ColorField label="Couleur du texte" value={themeConfig.review_mobile_text || themeConfig.review_desktop_text || "#FFFFFF"} onChange={v => updateThemeConfig("review_mobile_text", v)} />
                     <ColorField label="Couleur arrière-plan" value={themeConfig.review_mobile_bg || themeConfig.review_desktop_bg || "#803160"} onChange={v => updateThemeConfig("review_mobile_bg", v)} />
                     <div className="space-y-2">
-                      <Label className="text-xs">Au-dessus de l'en-tête</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
+                      <Label className="text-xs font-semibold">Positionnement</Label>
+                      <div className="flex items-center justify-between bg-background border rounded-xl px-3 py-2.5 h-11">
+                        <span className="text-xs font-medium">Au-dessus de l'en-tête</span>
                         <Switch checked={themeConfig.review_mobile_above || false} onCheckedChange={v => updateThemeConfig("review_mobile_above", v)} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">Actif</Label>
-                      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
-                        <span className="text-sm">Activer</span>
+                      <Label className="text-xs font-semibold">Statut d'affichage</Label>
+                      <div className="flex items-center justify-between bg-background border rounded-xl px-3 py-2.5 h-11">
+                        <span className="text-xs font-medium">Activer la barre</span>
                         <Switch checked={themeConfig.review_mobile_active !== false} onCheckedChange={v => updateThemeConfig("review_mobile_active", v)} />
                       </div>
                     </div>
@@ -1013,12 +1025,22 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
 }
 
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const safeVal = value || "#FFFFFF";
   return (
     <div className="space-y-2">
-      <Label className="text-xs">{label}</Label>
-      <div className="flex items-center gap-2 border rounded-lg px-2 py-1.5">
-        <input type="color" value={value.substring(0, 7)} onChange={e => onChange(e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0" />
-        <Input value={value} onChange={e => onChange(e.target.value)} className="border-0 shadow-none h-8 text-xs font-mono p-0 focus-visible:ring-0" />
+      <Label className="text-xs font-semibold text-foreground/90">{label}</Label>
+      <div className="flex items-center gap-2 border bg-background rounded-xl px-2.5 py-1.5 h-11 focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-xs">
+        <input 
+          type="color" 
+          value={safeVal.substring(0, 7)} 
+          onChange={e => onChange(e.target.value)} 
+          className="h-7 w-7 rounded-lg cursor-pointer border shrink-0 p-0 shadow-xs" 
+        />
+        <Input 
+          value={safeVal} 
+          onChange={e => onChange(e.target.value)} 
+          className="border-0 shadow-none h-7 text-xs font-mono p-0 focus-visible:ring-0 uppercase font-semibold text-foreground" 
+        />
       </div>
     </div>
   );
