@@ -320,10 +320,10 @@ Create a stunning Facebook advertising visual that looks like a professional mar
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-image-1',
+          model: 'dall-e-3',
           prompt: finalPrompt,
           size: '1024x1024',
-          quality: 'high',
+          quality: 'standard',
           n: 1,
         }),
         timeoutMs: 90000, // GPT-image-1 can take longer for high quality

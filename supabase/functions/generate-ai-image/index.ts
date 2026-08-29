@@ -272,7 +272,43 @@ serve(async (req) => {
 });
 
 async function generatePureImage(lovableApiKey: string, prompt: string): Promise<string> {
-  // Primary: OpenRouter (auto-routes to best image model)
+  // Primary: OpenAI DALL-E 3
+  const openAiApiKey = getOpenAiApiKey();
+  if (openAiApiKey) {
+    try {
+      console.log("Generating image with OpenAI DALL-E 3...");
+      const res = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openAiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "dall-e-3",
+          prompt: prompt.substring(0, 1000),
+          size: "1024x1024",
+          quality: "standard",
+          response_format: "b64_json",
+          n: 1,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const b64 = data.data?.[0]?.b64_json;
+        if (b64) return `data:image/png;base64,${b64}`;
+        const url = data.data?.[0]?.url;
+        if (url) return url;
+      } else {
+        const errorText = await res.text();
+        console.warn("OpenAI DALL-E 3 generation failed:", res.status, errorText);
+      }
+    } catch (err) {
+      console.error("DALL-E 3 call error:", err);
+    }
+  }
+
+  // Fallback 1: OpenRouter
   const openRouterKey = getOpenRouterKey();
   if (openRouterKey) {
     try {
@@ -282,46 +318,31 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
     }
   }
 
-  console.log("Generating image via Lovable AI Gateway (fallback)");
+  // Fallback 2: Lovable AI Gateway
+  if (lovableApiKey) {
+    console.log("Generating image via Lovable AI Gateway (fallback)");
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-1.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      modalities: ["image", "text"],
-    }),
-  });
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-1.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        modalities: ["image", "text"],
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Lovable AI Gateway error:", response.status, errorText);
-    if (response.status === 429) {
-      throw new Error("Trop de requêtes, veuillez réessayer dans quelques instants.");
+    if (response.ok) {
+      const data = await response.json();
+      const generatedImageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      if (generatedImageUrl) return generatedImageUrl;
     }
-    if (response.status === 402) {
-      throw new Error("Crédits IA épuisés. Veuillez recharger vos crédits.");
-    }
-    throw new Error(`Erreur de génération d'image: ${response.status}`);
   }
 
-  const data = await response.json();
-  const generatedImageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-  if (!generatedImageUrl) {
-    throw new Error("Aucune image générée");
-  }
-
-  return generatedImageUrl;
+  throw new Error("Impossible de générer l'image. Tous les moteurs d'images sont indisponibles.");
 }
 
 function buildTextToImagePrompt(prompt: string, style: string): string {

@@ -338,13 +338,8 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       imageSize = "1792x1024"; // Horizontal for Facebook feed
     }
 
-    // Determine image size for GPT-image-1 (supports 1024x1024, 1536x1024, 1024x1536)
-    let gptImageSize: "1024x1024" | "1536x1024" | "1024x1536" = "1024x1024";
-    if (platform === "tiktok" || platform === "instagram_story") {
-      gptImageSize = "1024x1536"; // Vertical for stories/TikTok
-    } else if (platform === "facebook") {
-      gptImageSize = "1536x1024"; // Horizontal for Facebook feed
-    }
+    // Determine image size for DALL-E 3 (supports 1024x1024, 1792x1024, 1024x1792)
+    let gptImageSize: "1024x1024" | "1792x1024" | "1024x1792" = imageSize;
 
     // === CACHE LOOKUP ===
     const promptHash = await generatePromptHash(prompt, platform || "all", gptImageSize);
