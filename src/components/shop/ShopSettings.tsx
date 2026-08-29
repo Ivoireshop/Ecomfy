@@ -593,16 +593,17 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                         </div>
                         <div className="space-y-2">
                           <Select 
-                            value={shop.theme_config?.checkout_form_position || "modal"} 
+                            value={shop.theme_config?.checkout_form_position || "inline"} 
                             onValueChange={(v) => setShop({ ...shop, theme_config: { ...(shop.theme_config || {}), checkout_form_position: v } })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Position du formulaire" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="modal">Fenêtre pop-up classique (Modal)</SelectItem>
+                              <SelectItem value="inline">Directement incrusté sur la fiche produit (Scroll fluide par défaut)</SelectItem>
                               <SelectItem value="top">Incrusté en haut (Avant la description)</SelectItem>
                               <SelectItem value="bottom">Incrusté en bas (Après la description)</SelectItem>
+                              <SelectItem value="modal">Fenêtre pop-up (Modal)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

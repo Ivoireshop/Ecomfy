@@ -646,17 +646,19 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-base font-extrabold text-foreground flex items-center gap-2">
-                      <CartIcon className="h-5 w-5 text-amber-600" /> Masquer le formulaire de commande en bas de page
+                      <CartIcon className="h-5 w-5 text-amber-600" /> Masquer le formulaire doublon sous le pied de page
                     </p>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Activez cette option pour masquer le long formulaire de commande sous la page et rendre votre site <strong>beaucoup plus court, fluide et responsive</strong>. La commande s'ouvrira sous forme de fenêtre modale (Popup) dès que le client clique sur <strong>"Commander"</strong>.
+                      Activez cette option pour masquer le deuxième formulaire de commande sous le pied de page (Footer). Le formulaire principal reste <strong>incrusté directement sur la fiche produit</strong> et le bouton "Commander" effectue un <strong>défilement fluide (scroll)</strong> vers celui-ci, sans aucun Pop-up.
                     </p>
                   </div>
                   <Switch 
-                    checked={themeConfig.hide_bottom_checkout === true || themeConfig.checkout_form_position === "modal"} 
+                    checked={themeConfig.hide_bottom_checkout === true} 
                     onCheckedChange={(v) => {
                       updateThemeConfig("hide_bottom_checkout", v);
-                      updateThemeConfig("checkout_form_position", v ? "modal" : "bottom");
+                      if (v && themeConfig.checkout_form_position === "modal") {
+                        updateThemeConfig("checkout_form_position", "inline");
+                      }
                     }} 
                     className="data-[state=checked]:bg-amber-600"
                   />

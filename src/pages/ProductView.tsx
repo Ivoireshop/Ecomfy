@@ -538,9 +538,11 @@ const ProductView = () => {
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   const scrollToCheckout = () => {
-    setShowInlineCheckout(true);
+    if (shop?.theme_config?.checkout_form_position === 'modal') {
+      setShowInlineCheckout(true);
+    }
     const tryScroll = (attempts = 0) => {
-      const el = document.getElementById("inline-checkout") || document.getElementById("inline-checkout-form");
+      const el = document.getElementById("inline-checkout-form") || document.getElementById("inline-checkout");
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
         const firstInput = el.querySelector("input:not([type='hidden'])") as HTMLInputElement;
