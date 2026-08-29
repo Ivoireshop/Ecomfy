@@ -1192,9 +1192,10 @@ const ProductView = () => {
     </>
   );
 
-  const isCheckoutHiddenAtBottom = themeConfig?.hide_bottom_checkout === true || themeConfig?.checkout_form_position === 'modal';
+  const isModalCheckout = themeConfig?.checkout_form_position === 'modal';
+  const showBottomDuplicateCheckout = !themeConfig?.hide_bottom_checkout && (themeConfig?.checkout_form_position === 'duplicate' || themeConfig?.checkout_form_position === 'bottom');
 
-  const checkoutContainer = isCheckoutHiddenAtBottom || isCustomTheme ? (
+  const checkoutContainer = isModalCheckout || isCustomTheme ? (
     <Dialog open={showInlineCheckout} onOpenChange={setShowInlineCheckout}>
       <DialogContent className="w-[95vw] max-w-lg mx-auto rounded-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-white z-[99999]" style={{ zIndex: 99999 }}>
         <DialogHeader className="sr-only">
@@ -1203,11 +1204,11 @@ const ProductView = () => {
         {checkoutContent}
       </DialogContent>
     </Dialog>
-  ) : (
+  ) : showBottomDuplicateCheckout ? (
     <div className="max-w-3xl mx-auto w-full px-4 pb-12">
       {checkoutContent}
     </div>
-  );
+  ) : null;
 
   // Optional professional themes — only activates when a known theme_slug is set
   // on themeSettings and the URL does not force classic mode. Falls back to the
@@ -1337,7 +1338,7 @@ const ProductView = () => {
             checkoutContent={checkoutContent}
           />
         </Suspense>
-        {(isCheckoutHiddenAtBottom || (shop.theme_config?.checkout_form_position !== 'top' && shop.theme_config?.checkout_form_position !== 'bottom')) && globalOverlays}
+        {globalOverlays}
       </>
     );
   }
@@ -1868,8 +1869,12 @@ const ProductView = () => {
                 )}
               </div>
 
-              {/* Inline Single-Page Checkout */}
-              {/* (Inline checkout removed from here since it's now in globalOverlays) */}
+              {/* Directly Embedded Single-Page Checkout */}
+              {isInlineCheckout && !isCustomTheme && !orderSuccess && (
+                <div id="inline-checkout-form" className="w-full mt-6 scroll-mt-24">
+                  {checkoutContent}
+                </div>
+              )}
             </div>
 
             {/* Trust badges */}
