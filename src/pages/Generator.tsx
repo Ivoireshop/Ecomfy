@@ -491,19 +491,17 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
   };
 
   const handleGenerate = async () => {
-    /* TEMPORARILY DISABLED
-    // Vérifier l'abonnement et les générations gratuites avant de générer
-    if (!hasActiveSubscription && freeGenerationsRemaining === 0) {
+    // Vérifier l'abonnement et les 3 générations gratuites avant de lancer la génération
+    if (!hasActiveSubscription && freeGenerationsRemaining <= 0 && purchasedCredits <= 0) {
       setShowTextPreview(false);
       toast({
-        title: "Essai gratuit terminé",
-        description: "Vous avez utilisé toutes vos générations gratuites. Veuillez souscrire à un abonnement pour continuer.",
+        title: "3 générations gratuites épuisées",
+        description: "Vous avez utilisé vos 3 générations gratuites. Veuillez recharger vos crédits IA ou souscrire à un abonnement pour continuer.",
         variant: "destructive",
       });
-      setTimeout(() => navigate("/subscription"), 2000);
+      window.dispatchEvent(new Event("open-credits-dialog"));
       return;
     }
-    */
 
     setShowTextPreview(false);
     setIsLoading(true);
@@ -575,13 +573,19 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
         // Gestion claire des erreurs courantes
         const status = (error as any)?.status as number | undefined;
         if (status === 401) throw new Error("Session expirée ou non authentifiée. Veuillez vous reconnecter.");
-        if (status === 402) throw new Error("Crédits insuffisants pour l'IA. Veuillez recharger ou souscrire.");
+        if (status === 402 || status === 403) {
+          window.dispatchEvent(new Event("open-credits-dialog"));
+          throw new Error("Vous avez utilisé vos 3 générations gratuites. Veuillez recharger vos crédits IA ou souscrire à un abonnement.");
+        }
         if (status === 429) throw new Error("Limite de requêtes atteinte. Réessayez dans quelques instants.");
         if (status === 404) throw new Error("Service de génération indisponible (404). Réessayez plus tard.");
         throw error;
       }
 
       if (data?.error) {
+        if (data?.quotaExhausted) {
+          window.dispatchEvent(new Event("open-credits-dialog"));
+        }
         throw new Error(data.error);
       }
 
