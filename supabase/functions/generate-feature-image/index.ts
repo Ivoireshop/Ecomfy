@@ -38,40 +38,21 @@ serve(async (req) => {
   );
 
   try {
-    // Get JWT from Authorization header - REQUIRED
+    // Get JWT from Authorization header with guest fallback
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Authentification requise pour générer des images."
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-    
-    // Extract token and verify with service role client
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-    
-    if (!user || userError) {
-      console.error("Auth error:", userError);
-      return new Response(
-        JSON.stringify({ 
-          error: "Authentification requise pour générer des images."
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const userId = user.id;
+    let userId = "guest-" + (req.headers.get("x-forwarded-for") || "anonymous");
     let isFounder = false;
     let hasActiveSubscription = false;
+
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser(token);
+        if (user?.id) {
+          userId = user.id;
+        }
+      } catch (_) {}
+    }
 
     // Check founder/co-founder role for unlimited access
     const { data: roleData } = await supabaseClient

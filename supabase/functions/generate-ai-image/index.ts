@@ -18,31 +18,23 @@ serve(async (req) => {
 
 
   try {
-    // Authentication
+    // Authentication & Guest Fallback
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authentification requise" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-
-    if (!user || userError) {
-      return new Response(
-        JSON.stringify({ error: "Authentification invalide" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let userId = "guest-" + (req.headers.get("x-forwarded-for") || "anonymous");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser(token);
+        if (user?.id) {
+          userId = user.id;
+        }
+      } catch (_) {}
     }
-
-    const userId = user.id;
 
     // Check credits
     const { data: roleData } = await supabaseClient
