@@ -89,6 +89,81 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
         <div className="lg:col-span-9 space-y-6">
           {activeThemeSection === "header" && (
             <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {/* Global Header Display Mode Setting */}
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 space-y-4 mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-extrabold text-base flex items-center gap-2 text-foreground">
+                      <Store className="h-5 w-5 text-primary" /> Mode d'affichage du Logo & du Nom dans l'en-tête
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Choisissez comment votre marque s'affiche en haut de la vitrine d'accueil et sur toutes vos fiches produits.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-primary/15 text-primary border border-primary/30 shrink-0 self-start sm:self-auto">
+                    ✨ S'applique à l'accueil &amp; aux fiches produits
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  {[
+                    {
+                      id: "logo_only",
+                      title: "Logo uniquement",
+                      desc: "Affichage idéal par défaut — Masque le nom texte pour éviter tout doublon si le nom est déjà écrit dans l'image du logo.",
+                      badge: "Recommandé"
+                    },
+                    {
+                      id: "both",
+                      title: "Logo + Nom de boutique",
+                      desc: "Affiche l'image du logo suivie du nom texte de la boutique côte à côte.",
+                      badge: "Classique"
+                    },
+                    {
+                      id: "name_only",
+                      title: "Nom texte uniquement",
+                      desc: "Masque l'image du logo et affiche uniquement le nom texte de la boutique.",
+                      badge: "Texte pur"
+                    },
+                  ].map((mode) => {
+                    const isSelected = (themeConfig.header_display_mode || "logo_only") === mode.id;
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => updateThemeConfig("header_display_mode", mode.id)}
+                        className={`p-4 rounded-xl border-2 text-left transition-all relative flex flex-col justify-between cursor-pointer ${
+                          isSelected
+                            ? "border-primary bg-background shadow-md ring-2 ring-primary/20"
+                            : "border-muted/80 bg-background/60 hover:border-primary/40 hover:bg-background"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
+                            <span className={`font-black text-sm ${isSelected ? "text-primary" : "text-foreground"}`}>
+                              {mode.title}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                              isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                            }`}>
+                              {mode.badge}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {mode.desc}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <div className="mt-3 text-[11px] font-extrabold text-primary flex items-center gap-1">
+                            ✓ Sélectionné
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <Tabs defaultValue="mobile">
                 <TabsList className="w-full justify-start bg-transparent border-b rounded-none p-0 h-auto gap-0">
                   {["En-tête mobile", "En-tête Ordinateur", "Bas de page", "Barre d'avis ordinateur", "Barre d'avis mobile"].map((tab, i) => {

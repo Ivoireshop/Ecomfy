@@ -1250,17 +1250,55 @@ const ShopEditor = () => {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <Label>Bannière</Label>
-                  <div className="rounded-xl border-2 border-dashed border-border overflow-hidden bg-muted/30">
-                    {shop.banner_url ? <img src={shop.banner_url} alt="" className="w-full h-32 object-cover" /> : <div className="h-32 flex items-center justify-center"><ImageIcon className="h-8 w-8 text-muted-foreground" /></div>}
+                  <div className="space-y-3">
+                    <Label>Bannière</Label>
+                    <div className="rounded-xl border-2 border-dashed border-border overflow-hidden bg-muted/30">
+                      {shop.banner_url ? <img src={shop.banner_url} alt="" className="w-full h-32 object-cover" /> : <div className="h-32 flex items-center justify-center"><ImageIcon className="h-8 w-8 text-muted-foreground" /></div>}
+                    </div>
+                    <label className="cursor-pointer">
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadShopImage(e.target.files[0], 'banner')} />
+                      <Button size="sm" variant="outline" className="gap-1.5" asChild><span><Upload className="h-3 w-3" /> Changer la bannière</span></Button>
+                    </label>
                   </div>
-                  <label className="cursor-pointer">
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadShopImage(e.target.files[0], 'banner')} />
-                    <Button size="sm" variant="outline" className="gap-1.5" asChild><span><Upload className="h-3 w-3" /> Changer la bannière</span></Button>
-                  </label>
-                </div>
-              </Card>
+
+                  {/* Mode d'affichage de l'en-tête (Header Display Mode) */}
+                  <div className="pt-4 border-t space-y-3 col-span-full">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-extrabold text-sm flex items-center gap-2">
+                        <Store className="h-4 w-4 text-primary" /> Mode d'affichage dans l'en-tête &amp; sur les fiches produits
+                      </Label>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">✨ Toutes les pages</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {[
+                        { id: "logo_only", label: "Logo uniquement", desc: "Masque le texte pour éviter tout doublon avec l'image du logo (Recommandé)" },
+                        { id: "both", label: "Logo + Nom", desc: "Affiche l'image du logo ET le nom texte à côté" },
+                        { id: "name_only", label: "Nom uniquement", desc: "Affiche uniquement le nom de la boutique en texte" },
+                      ].map((item) => {
+                        const currentMode = shop.theme_config?.header_display_mode || (shop.logo_url ? "logo_only" : "name_only");
+                        const isSelected = currentMode === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              const cfg = shop.theme_config || {};
+                              setShop({ ...shop, theme_config: { ...cfg, header_display_mode: item.id } });
+                            }}
+                            className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                              isSelected 
+                                ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/20 font-bold" 
+                                : "border-border/60 hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <div className="font-bold text-xs mb-1">{item.label}</div>
+                            <p className="text-[11px] opacity-80 leading-snug">{item.desc}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Card>
 
               <Card className="p-6 space-y-5">
                 <h3 className="font-bold text-lg flex items-center gap-2"><Palette className="h-5 w-5" /> Couleurs</h3>

@@ -278,6 +278,53 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                       Définissez votre propre objectif de chiffre d'affaires mensuel pour suivre votre progression.
                     </p>
                   </div>
+
+                  {/* Header Display Mode Selector */}
+                  <div className="pt-4 border-t space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <Label className="text-sm font-extrabold flex items-center gap-2">
+                        <Store className="h-4 w-4 text-primary" /> Mode d'affichage de l'en-tête &amp; du logo
+                      </Label>
+                      <span className="text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20 self-start sm:self-auto">
+                        ✨ En-tête &amp; Fiches Produits
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Choisissez comment votre logo et le nom de votre boutique apparaissent en haut de la vitrine d'accueil et des fiches produits.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      {[
+                        { id: "logo_only", label: "Logo uniquement", desc: "Masque le texte pour éviter tout doublon si le nom est dans le logo (Recommandé)", badge: "Idéal" },
+                        { id: "both", label: "Logo + Nom", desc: "Affiche le logo image ET le nom texte à côté", badge: "Classique" },
+                        { id: "name_only", label: "Nom uniquement", desc: "Affiche uniquement le nom texte sans le logo", badge: "Texte" },
+                      ].map((item) => {
+                        const currentMode = shop.theme_config?.header_display_mode || (shop.logo_url ? "logo_only" : "name_only");
+                        const isSelected = currentMode === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              const cfg = shop.theme_config || {};
+                              setShop({ ...shop, theme_config: { ...cfg, header_display_mode: item.id } });
+                            }}
+                            className={`p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                              isSelected 
+                                ? "border-primary bg-primary/5 shadow-sm text-foreground ring-1 ring-primary/20 font-bold" 
+                                : "border-border/60 hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1 mb-1">
+                              <span className="text-xs font-bold">{item.label}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{item.badge}</span>
+                            </div>
+                            <p className="text-[11px] opacity-80 leading-snug">{item.desc}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </Card>
 
