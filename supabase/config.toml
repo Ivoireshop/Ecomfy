@@ -8,25 +8,25 @@ project_id = "dqlbmtkaamjohgbcjwtw"
   [functions.check-ad-token-expiry]
     verify_jwt = false
   [functions.correct-text]
-    verify_jwt = true
+    verify_jwt = false
   [functions.create-student-account]
     verify_jwt = true
   [functions.create-video-from-image]
     verify_jwt = false
   [functions.extract-brand]
-    verify_jwt = true
+    verify_jwt = false
   [functions.generate-ad-visual]
-    verify_jwt = true
+    verify_jwt = false
   [functions.generate-ai-image]
-    verify_jwt = true
+    verify_jwt = false
   [functions.generate-certificate]
     verify_jwt = true
   [functions.generate-feature-image]
-    verify_jwt = true
+    verify_jwt = false
   [functions.generate-product-sheet]
     verify_jwt = false
   [functions.generate-showcase-site]
-    verify_jwt = true
+    verify_jwt = false
   [functions.generate-video]
     verify_jwt = false
   [functions.generate-voiceover]
