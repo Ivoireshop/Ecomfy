@@ -138,18 +138,18 @@ export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlu
         </TabsContent>
 
         <TabsContent value="colors" className="mt-4 space-y-4">
-          <div className="flex items-center justify-between p-3.5 rounded-xl border bg-muted/20">
+          <div className="flex items-center justify-between p-3.5 rounded-xl border bg-primary/5 border-primary/20">
             <div>
-              <p className="text-xs font-bold text-foreground">Afficher la section d'avis clients</p>
-              <p className="text-[11px] text-muted-foreground">Permet aux acheteurs de consulter et de déposer des avis sur ce produit.</p>
+              <p className="text-xs font-bold text-foreground">Afficher la section Témoignages &amp; Avis (Bas de page)</p>
+              <p className="text-[11px] text-muted-foreground">Décochez pour masquer le bloc d'avis en bas et rendre la fiche produit plus épurée et courte.</p>
             </div>
             <Switch
-              checked={settings?.custom_css_settings?.reviews_enabled !== false}
+              checked={settings?.custom_css_settings?.reviews_section_enabled !== false}
               onCheckedChange={(v) =>
                 update({
                   custom_css_settings: {
                     ...(settings?.custom_css_settings || {}),
-                    reviews_enabled: v,
+                    reviews_section_enabled: v,
                   },
                 })
               }

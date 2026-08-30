@@ -41,7 +41,12 @@ export function ProductReviews({
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
 
-  if (themeConfig?.reviews_enabled === false || themeSettings?.custom_css_settings?.reviews_enabled === false) {
+  if (
+    themeConfig?.reviews_section_enabled === false ||
+    themeConfig?.reviews_enabled === false ||
+    themeSettings?.custom_css_settings?.reviews_section_enabled === false ||
+    themeSettings?.custom_css_settings?.reviews_enabled === false
+  ) {
     return null;
   }
 

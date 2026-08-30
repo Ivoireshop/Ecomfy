@@ -1935,7 +1935,7 @@ const ProductView = () => {
       )}
 
       {/* ====== REVIEWS SECTION (deferred) ====== */}
-      {deferredReady && themeConfig?.reviews_enabled !== false && themeSettings?.custom_css_settings?.reviews_enabled !== false && (
+      {deferredReady && themeConfig?.reviews_section_enabled !== false && themeConfig?.reviews_enabled !== false && themeSettings?.custom_css_settings?.reviews_section_enabled !== false && themeSettings?.custom_css_settings?.reviews_enabled !== false && (
         <Suspense fallback={null}>
           <ProductReviews
             shopId={shop.id}

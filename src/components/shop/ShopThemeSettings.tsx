@@ -517,17 +517,34 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
 
               {/* Avis & Etoiles */}
               <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
-                <div className="flex items-center justify-between mb-6 p-4 rounded-xl bg-muted/20 border border-border">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center shrink-0">
-                      <MessageSquare className="h-6 w-6" />
+                <div className="space-y-4 mb-6">
+                  {/* Badge Étoiles Haut de Page */}
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                        <Plus className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-foreground">Badge 5 étoiles &amp; Compteur (Haut de page)</p>
+                        <p className="text-xs text-muted-foreground">Affiche la note 5 étoiles et le nombre d'avis sous le titre du produit.</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-lg font-bold text-foreground">Afficher la section d'Avis Clients</p>
-                      <p className="text-sm text-muted-foreground">Activez ou décochez cet interrupteur pour afficher ou masquer la section des avis clients sur vos fiches produits.</p>
-                    </div>
+                    <Switch checked={themeConfig.reviews_enabled !== false} onCheckedChange={v => updateThemeConfig("reviews_enabled", v)} />
                   </div>
-                  <Switch checked={themeConfig.reviews_enabled !== false} onCheckedChange={v => updateThemeConfig("reviews_enabled", v)} />
+
+                  {/* Section Avis / Témoignages Bas de Page */}
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <MessageSquare className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-foreground">Section Témoignages &amp; Formulaire d'Avis (Bas de page)</p>
+                        <p className="text-xs text-muted-foreground">Décochez cette option pour **masquer la section d'avis en bas de page** (fiche produit plus courte, chic et épurée).</p>
+                      </div>
+                    </div>
+                    <Switch checked={themeConfig.reviews_section_enabled !== false} onCheckedChange={v => updateThemeConfig("reviews_section_enabled", v)} />
+                  </div>
                 </div>
 
                 {themeConfig.reviews_enabled !== false && (
