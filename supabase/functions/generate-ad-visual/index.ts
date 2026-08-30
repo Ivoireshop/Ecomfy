@@ -105,12 +105,17 @@ serve(async (req) => {
 
     const reqBody = await req.json().catch(() => ({}));
     const { 
+      prompt = "",
+      userPrompt = "",
+      customInstructions = "",
+      personDescription = "",
       productName = "Produit Ecomfy", 
       niche = "général", 
       description = "", 
       platform = "facebook", 
       style = "studio", 
       productImage = null,
+      container = "",
       price = "",
       promotionalPrice = "",
       benefits = [],
@@ -122,25 +127,54 @@ serve(async (req) => {
 
     currentQueueItemId = queueItemId;
 
-    let basePrompt = `Professional product advertisement visual for "${productName}" (${niche}). ${description}. Style: ${style}. Platform: ${platform}.`;
-    if (tagline) basePrompt += ` Tagline theme: ${tagline}.`;
-    if (callToAction) basePrompt += ` CTA context: ${callToAction}.`;
-    basePrompt += ` High resolution commercial photography, warm colors, product hero shot, clean background for text overlay, no written words.`;
+    // 1. Extract explicit user instruction (sacred core demand)
+    const userExplicitDemand = (prompt || userPrompt || customInstructions || personDescription || "").trim();
 
-    let prompt = basePrompt;
+    // 2. Construct Master Structured Prompt prioritizing user instructions
+    let masterPrompt = "";
+    if (userExplicitDemand) {
+      masterPrompt += `[PRIMARY USER DEMAND - STRICT INSTRUCTION]:\n${userExplicitDemand}\n\n`;
+    }
+
+    masterPrompt += `[PRODUCT & BRAND SPECIFICATIONS]:\nProduct Name: "${productName}"\nCategory/Niche: ${niche}\n`;
+    if (container) masterPrompt += `Packaging/Container: ${container}\n`;
+    if (description && description !== userExplicitDemand) masterPrompt += `Product Description: ${description}\n`;
+    if (personDescription && personDescription !== userExplicitDemand) masterPrompt += `Model & Scene Setting: ${personDescription}\n`;
+    if (tagline) masterPrompt += `Tagline Theme: ${tagline}\n`;
+    if (callToAction) masterPrompt += `Call To Action: ${callToAction}\n`;
+    if (style) masterPrompt += `Visual Style: ${style}\n`;
+    if (platform) masterPrompt += `Platform Format: ${platform}\n`;
+
+    // 3. GPT-4o-mini Vision Audit for uploaded product photo
     if (productImage) {
+      console.log("Analyzing uploaded product image with GPT-4o-mini Vision...");
       try {
-        const visionFeatures = await analyzeImageWithGpt4oMini(productImage, `Analyse cette image de produit (${productName}). Décris son emballage et ses couleurs.`);
-        if (visionFeatures) prompt += `\nVisual Features: ${visionFeatures}`;
+        const visionFeatures = await analyzeImageWithGpt4oMini(
+          productImage,
+          `Perform a high-precision commercial product visual audit of this uploaded image for "${productName}".
+Describe in detail (in English):
+1. EXACT PRODUCT IDENTITY: Product type, container/packaging shape (bottle, box, jar, tube, bag, etc.), materials (glass, matte plastic, gold metal, leather, fabric), cap/closure style.
+2. COLOR PALETTE: Primary, secondary, and accent colors, metallic foils, label colors.
+3. BRANDING & TEXT: Logo placement, label design, typography style, key visible branding elements.
+4. TEXTURE & FINISH: Glossy, reflective, matte, embossed, woven, transparent.
+Format as a clear, structured prompt fragment designed for DALL-E 3 to faithfully recreate this exact product hero element in a professional ad background.`
+        );
+        if (visionFeatures) {
+          masterPrompt += `\n[EXACT PRODUCT VISUAL IDENTITY - MUST REPRODUCE THIS PRODUCT FAITHFULLY]:\n${visionFeatures}\n`;
+        }
       } catch (e) {
         console.warn("Vision analysis skipped:", e);
       }
     }
 
+    masterPrompt += `\n[COMMERCIAL ADVERTISING PHOTOGRAPHY DIRECTIVES]:\nUltra-high resolution commercial photography, 8k quality, sharp focus, professional studio lighting, warm golden tones, mobile-optimized high contrast. Clean background for optional text overlay.`;
+
+    // 4. Preservative Prompt Optimization
+    let finalPrompt = masterPrompt;
     try {
-      prompt = await optimizePromptWithGpt4oMini(prompt);
+      finalPrompt = await optimizePromptWithGpt4oMini(masterPrompt);
     } catch (e) {
-      console.warn("Prompt optimization skipped:", e);
+      console.warn("Prompt optimization fallback to raw master prompt:", e);
     }
 
     let gptImageSize: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024";
@@ -151,7 +185,7 @@ serve(async (req) => {
     }
 
     // Cache Lookup
-    const promptHash = await generatePromptHash(prompt, platform || "all", gptImageSize);
+    const promptHash = await generatePromptHash(finalPrompt, platform || "all", gptImageSize);
     const { data: cachedImage } = await supabaseClient
       .from("image_cache")
       .select("id, image_url")
@@ -171,74 +205,79 @@ serve(async (req) => {
       );
     }
 
-    console.log("Cache MISS. Generating new image...");
+    console.log("Generating image with prompt length:", finalPrompt.length);
     let imageUrl: string | null = null;
 
-    // Engine 1: OpenRouter
-    const openRouterKey = getOpenRouterKey();
-    if (openRouterKey) {
-      try {
-        imageUrl = await generateImageWithOpenRouter(openRouterKey, { prompt });
-      } catch (e) {
-        console.warn("OpenRouter primary failed:", e);
-      }
-    }
-
-    // Engine 2: OpenAI DALL-E 3 / DALL-E 2
+    // ENGINE 1 (PRIMARY): OpenAI DALL-E 3 (Highest prompt adherence)
     const OPENAI_API_KEY = getOpenAiApiKey();
-    if (!imageUrl && OPENAI_API_KEY) {
-      for (let attempt = 1; attempt <= 2 && !imageUrl; attempt++) {
-        try {
-          const gptResp = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+    if (OPENAI_API_KEY) {
+      try {
+        console.log("Calling OpenAI DALL-E 3 as primary engine...");
+        const gptResp = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "dall-e-3",
+            prompt: finalPrompt.substring(0, 3800), // DALL-E 3 supports up to 4000 chars
+            size: gptImageSize,
+            quality: "standard",
+            n: 1,
+          }),
+          timeoutMs: 65000,
+        });
+
+        if (gptResp.ok) {
+          const data = await gptResp.json();
+          imageUrl = data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : data.data?.[0]?.url;
+          if (imageUrl) console.log("OpenAI DALL-E 3 generated image successfully!");
+        } else {
+          console.warn("DALL-E 3 primary failed:", gptResp.status, await gptResp.text());
+          // Fallback DALL-E 2
+          const d2Resp = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${OPENAI_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "dall-e-3",
-              prompt: prompt.substring(0, 1000),
-              size: gptImageSize,
-              quality: "standard",
+              model: "dall-e-2",
+              prompt: finalPrompt.substring(0, 900),
+              size: "1024x1024",
               n: 1,
             }),
-            timeoutMs: 60000,
+            timeoutMs: 40000,
           });
-
-          if (gptResp.ok) {
-            const data = await gptResp.json();
-            imageUrl = data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : data.data?.[0]?.url;
-          } else {
-            const d2Resp = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${OPENAI_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "dall-e-2",
-                prompt: prompt.substring(0, 900),
-                size: "1024x1024",
-                n: 1,
-              }),
-              timeoutMs: 40000,
-            });
-            if (d2Resp.ok) {
-              const d2Data = await d2Resp.json();
-              imageUrl = d2Data.data?.[0]?.url || d2Data.data?.[0]?.b64_json;
-            }
+          if (d2Resp.ok) {
+            const d2Data = await d2Resp.json();
+            imageUrl = d2Data.data?.[0]?.url || d2Data.data?.[0]?.b64_json;
           }
-        } catch (err) {
-          console.error(`DALL-E attempt ${attempt} failed:`, err);
+        }
+      } catch (err) {
+        console.error("DALL-E 3 call exception:", err);
+      }
+    }
+
+    // ENGINE 2: OpenRouter
+    if (!imageUrl) {
+      const openRouterKey = getOpenRouterKey();
+      if (openRouterKey) {
+        try {
+          console.log("Calling OpenRouter fallback engine...");
+          imageUrl = await generateImageWithOpenRouter(openRouterKey, { prompt: finalPrompt });
+        } catch (e) {
+          console.warn("OpenRouter fallback failed:", e);
         }
       }
     }
 
-    // Engine 3: Commercial Fallback Engine (Pollinations.ai)
+    // ENGINE 3: High-Definition Commercial Image Engine (Pollinations.ai)
     if (!imageUrl) {
       console.log("Using High-Definition Commercial Image Engine fallback...");
       try {
-        const encodedPrompt = encodeURIComponent(prompt.substring(0, 500));
+        const encodedPrompt = encodeURIComponent(finalPrompt.substring(0, 500));
         const seed = Math.floor(Math.random() * 1000000);
         const [w, h] = gptImageSize.split("x");
         const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&seed=${seed}&nologo=true&enhance=true`;
@@ -270,7 +309,7 @@ serve(async (req) => {
     try {
       await supabaseClient.from("image_cache").insert({
         prompt_hash: promptHash,
-        prompt: prompt.substring(0, 1000),
+        prompt: finalPrompt.substring(0, 1000),
         image_url: imageUrl,
         model: "dall-e-3",
         platform: platform || "all",
@@ -288,8 +327,8 @@ serve(async (req) => {
         .insert({
           user_id: userId,
           image_url: imageUrl,
-          prompt: prompt.substring(0, 500),
-          product_details: { productName, niche, description, platform, style, price, promotionalPrice, benefits },
+          prompt: finalPrompt.substring(0, 500),
+          product_details: { productName, niche, description, platform, style, price, promotionalPrice, benefits, userExplicitDemand },
         })
         .select("id")
         .maybeSingle();

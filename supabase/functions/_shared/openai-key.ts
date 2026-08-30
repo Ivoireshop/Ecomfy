@@ -5,11 +5,19 @@ export function getOpenAiApiKey(): string {
 }
 
 /**
- * Analyse une image de produit avec GPT-4o-mini (Vision) pour en extraire les caractéristiques visuelles
+ * Analyse une image de produit avec GPT-4o-mini (Vision) pour en extraire l'identité visuelle exacte
  */
 export async function analyzeImageWithGpt4oMini(imageUrl: string, instruction?: string): Promise<string> {
   const apiKey = getOpenAiApiKey();
   if (!apiKey || !imageUrl) return "";
+
+  const visionPrompt = instruction || `Perform a high-precision commercial product visual audit of this uploaded image.
+Describe in detail (in English):
+1. EXACT PRODUCT IDENTITY: Product type, container/packaging shape (bottle, box, jar, tube, bag, etc.), materials (glass, matte plastic, gold metal, leather, fabric), cap/closure style.
+2. COLOR PALETTE: Primary, secondary, and accent colors, gradients, metallic foils, label colors.
+3. BRANDING & TEXT: Logo placement, label design, typography style, key visible branding elements.
+4. TEXTURE & FINISH: Glossy, reflective, matte, embossed, woven, transparent.
+Format as a clear, structured prompt fragment designed for DALL-E 3 to faithfully recreate this exact product hero element in a professional ad background.`;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -26,7 +34,7 @@ export async function analyzeImageWithGpt4oMini(imageUrl: string, instruction?: 
             content: [
               {
                 type: "text",
-                text: instruction || "Analyse cette image de produit en détail (couleurs, emballage, catégorie, style) et décris le décor de fond publicitaire idéal pour une campagne commerciale haut de gamme. Réponds en anglais sous forme de prompt concis.",
+                text: visionPrompt,
               },
               {
                 type: "image_url",
@@ -35,7 +43,8 @@ export async function analyzeImageWithGpt4oMini(imageUrl: string, instruction?: 
             ],
           },
         ],
-        max_tokens: 300,
+        max_tokens: 500,
+        temperature: 0.2,
       }),
     });
 
@@ -52,7 +61,7 @@ export async function analyzeImageWithGpt4oMini(imageUrl: string, instruction?: 
 }
 
 /**
- * Optimise un prompt utilisateur avec GPT-4o-mini pour créer des prompts d'images ultra-détaillés
+ * Optimise un prompt utilisateur avec GPT-4o-mini tout en préservant 100% de la demande et des détails fournis
  */
 export async function optimizePromptWithGpt4oMini(userPrompt: string): Promise<string> {
   const apiKey = getOpenAiApiKey();
@@ -70,15 +79,21 @@ export async function optimizePromptWithGpt4oMini(userPrompt: string): Promise<s
         messages: [
           {
             role: "system",
-            content: "You are an expert advertising photographer and art director for the African e-commerce market. Turn simple prompts into vivid, high-converting commercial photography background prompts (in English). Absolutely NO text, letters, or words in the image.",
+            content: `You are an elite master prompt engineer and creative director for commercial advertising photography in African & Global e-commerce.
+
+CRITICAL DIRECTIVE: You MUST preserve 100% of the user's explicit instructions, subjects, specific product descriptions, human models, colors, style choices, and visual requirements.
+DO NOT remove, alter, or ignore any subject, model, person, or specific product detail provided by the user.
+
+Your goal is to ENHANCE and EXPAND the prompt by adding photorealistic lighting details, depth of field, camera lens specs (85mm f/1.4 lens, soft studio lights, warm golden hour tones), and high-converting commercial photography composition.
+Output a single, rich, highly-detailed DALL-E 3 prompt in English that strictly fulfills all user requirements.`,
           },
           {
             role: "user",
             content: userPrompt,
           },
         ],
-        max_tokens: 300,
-        temperature: 0.7,
+        max_tokens: 600,
+        temperature: 0.3,
       }),
     });
 

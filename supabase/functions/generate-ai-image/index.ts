@@ -16,9 +16,7 @@ serve(async (req) => {
   const __quota = await enforceAiQuota(req, "generate-ai-image");
   if (!__quota.allowed) return __quota.response;
 
-
   try {
-    // Authentication & Guest Fallback
     const authHeader = req.headers.get("Authorization");
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -36,7 +34,7 @@ serve(async (req) => {
       } catch (_) {}
     }
 
-    // Check credits
+    // Check credits & founder status
     const { data: roleData } = await supabaseClient
       .from("user_roles")
       .select("role")
@@ -55,7 +53,7 @@ serve(async (req) => {
 
     let freeGenerationsRemaining = 3;
     let purchasedCredits = 0;
-    if (!hasActiveSubscription && !isFounder) {
+    if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
         .select("free_generations_remaining, purchased_credits")
@@ -79,7 +77,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { mode, prompt, style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;
+    const { mode, prompt = "", userPrompt = "", style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;
 
     const OPENAI_API_KEY = getOpenAiApiKey();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
@@ -88,80 +86,67 @@ serve(async (req) => {
       throw new Error("Aucune clé API configurée pour la génération");
     }
 
-    let imageUrl: string = "";
+    const sacredPrompt = (prompt || userPrompt || "").trim();
+    let structuredPrompt = `[PRIMARY USER DEMAND - STRICT INSTRUCTION]:\n${sacredPrompt}\n\n`;
 
-    // Build enhanced prompt based on mode
-    let enhancedPrompt = "";
-
-    switch (mode) {
-      case "text-to-image":
-        enhancedPrompt = buildTextToImagePrompt(prompt, style);
-        break;
-      case "image-edit":
-        enhancedPrompt = buildImageEditPrompt(prompt, style);
-        break;
-      case "banner":
-        enhancedPrompt = buildBannerPrompt(prompt, style, preset);
-        break;
-      case "banner-replace":
-        enhancedPrompt = buildBannerReplacePrompt(prompt, newText, style, preset);
-        break;
-      default:
-        enhancedPrompt = prompt;
-    }
-
-    console.log(`Mode: ${mode}, Prompt length: ${enhancedPrompt.length}`);
-
-    // For modes with source images, use GPT-4o-mini Vision to analyze the uploaded product image
     const imageToAnalyze = sourceImage || bannerImage || replacementPhoto;
     if (imageToAnalyze) {
       console.log("Analyzing uploaded media with GPT-4o-mini Vision...");
       const visionAnalysis = await analyzeImageWithGpt4oMini(
         imageToAnalyze,
-        `Analyze this product/media image in detail. Describe its colors, object details, packaging, and ideal advertising environment in 2 concise sentences in English.`
+        `Perform a high-precision commercial product visual audit of this uploaded media.
+Describe in detail (in English):
+1. EXACT PRODUCT IDENTITY: Product type, container/packaging shape, materials (glass, matte plastic, metal, wood, leather, fabric), cap/closure style.
+2. COLOR PALETTE: Primary, secondary, and accent colors, metallic foils, label colors.
+3. BRANDING & TEXT: Logo placement, label design, typography style, key visible branding elements.
+4. TEXTURE & FINISH: Glossy, reflective, matte, embossed, woven, transparent.
+Format as a clear, structured prompt fragment designed for DALL-E 3 to faithfully recreate this exact product hero element in a professional ad background.`
       );
       if (visionAnalysis) {
-        enhancedPrompt += `\n\nSource Product Features (from GPT-4o-mini Vision): ${visionAnalysis}`;
+        structuredPrompt += `[EXACT PRODUCT VISUAL IDENTITY - MUST REPRODUCE FAITHFULLY]:\n${visionAnalysis}\n\n`;
       }
     }
 
-    // Optimize overall prompt with GPT-4o-mini
-    enhancedPrompt = await optimizePromptWithGpt4oMini(enhancedPrompt);
+    structuredPrompt += `[STYLE & ADVERTISING DIRECTIVES]:\nStyle: ${style || "professional studio"}. High-resolution commercial photography, sharp focus, 8k quality, studio lighting.`;
+
+    const finalPrompt = await optimizePromptWithGpt4oMini(structuredPrompt);
+
+    console.log(`Mode: ${mode}, Final Prompt length: ${finalPrompt.length}`);
 
     // Generate pure image using OpenAI DALL-E 3 / primary engines
-    imageUrl = await generatePureImage(LOVABLE_API_KEY, enhancedPrompt);
+    const imageUrl = await generatePureImage(LOVABLE_API_KEY, finalPrompt);
 
     // Save to generated_images
     await supabaseClient.from("generated_images").insert({
       user_id: userId,
       image_url: imageUrl,
-      prompt: enhancedPrompt.substring(0, 500),
+      prompt: finalPrompt.substring(0, 500),
       product_details: {
         mode,
         style,
         preset: preset?.name || null,
-        originalPrompt: prompt
+        originalPrompt: sacredPrompt
       }
     });
 
     // Decrement credits
-    if (!hasActiveSubscription && !isFounder) {
+    if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
         .select("free_generations_remaining, purchased_credits")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
       if (profileData) {
         if (profileData.purchased_credits > 0) {
           await supabaseClient
             .from("profiles")
-            .update({ purchased_credits: profileData.purchased_credits - 1 })
+            .update({ purchased_credits: Math.max(0, profileData.purchased_credits - 1) })
             .eq("id", userId);
         } else if (profileData.free_generations_remaining > 0) {
           await supabaseClient
             .from("profiles")
-            .update({ free_generations_remaining: profileData.free_generations_remaining - 1 })
+            .update({ free_generations_remaining: Math.max(0, profileData.free_generations_remaining - 1) })
             .eq("id", userId);
         }
       }
@@ -173,7 +158,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    console.error("Error:", error);
+    console.error("Error in generate-ai-image:", error);
     const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
     return new Response(
       JSON.stringify({ error: errorMessage }),
@@ -184,11 +169,10 @@ serve(async (req) => {
 
 async function generatePureImage(lovableApiKey: string, prompt: string): Promise<string> {
   const openAiApiKey = getOpenAiApiKey();
-  let lastOpenAiError = "";
 
   if (openAiApiKey) {
     try {
-      console.log("Generating image with OpenAI DALL-E 3...");
+      console.log("Generating image with OpenAI DALL-E 3 (Primary)...");
       const res = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
@@ -197,7 +181,7 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
         },
         body: JSON.stringify({
           model: "dall-e-3",
-          prompt: prompt.substring(0, 1000),
+          prompt: prompt.substring(0, 3800),
           size: "1024x1024",
           quality: "standard",
           n: 1,
@@ -209,8 +193,7 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
         const generatedUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
         if (generatedUrl) return generatedUrl.startsWith("data:") ? generatedUrl : generatedUrl;
       } else {
-        lastOpenAiError = await res.text();
-        console.warn("OpenAI DALL-E 3 generation failed:", res.status, lastOpenAiError);
+        console.warn("OpenAI DALL-E 3 generation failed:", res.status, await res.text());
 
         // Fallback: OpenAI DALL-E 2
         try {
@@ -233,8 +216,6 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
             const data2 = await res2.json();
             const url2 = data2.data?.[0]?.url || data2.data?.[0]?.b64_json;
             if (url2) return url2;
-          } else {
-            console.warn("DALL-E 2 fallback failed:", res2.status, await res2.text());
           }
         } catch (err2) {
           console.error("DALL-E 2 call exception:", err2);
@@ -280,81 +261,4 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
   }
 
   throw new Error("Impossible de générer l'image. Tous les moteurs d'images sont indisponibles.");
-}
-
-function buildTextToImagePrompt(prompt: string, style: string): string {
-  const styleDescriptions: Record<string, string> = {
-    professional: "professional, clean, high-quality commercial photography style",
-    creative: "creative, artistic, unique and visually striking",
-    minimalist: "minimalist, clean lines, simple and elegant",
-    vibrant: "vibrant colors, energetic, eye-catching",
-    luxury: "luxury, premium, sophisticated and refined",
-    modern: "modern, contemporary, trendy and stylish",
-  };
-
-  return `${prompt}
-
-Style: ${styleDescriptions[style] || styleDescriptions.professional}
-
-Requirements:
-- Ultra high resolution, professional quality
-- Optimized for African market aesthetic preferences
-- Clean composition, visually appealing
-- Commercial advertising quality`;
-}
-
-function buildImageEditPrompt(prompt: string, style: string): string {
-  return `Edit this image according to the following instructions:
-
-${prompt}
-
-Apply a ${style} style to the final result.
-
-Requirements:
-- Maintain the essence of the original image
-- Apply professional retouching
-- Ensure high quality output
-- Make the image suitable for advertising and marketing`;
-}
-
-function buildBannerPrompt(prompt: string, style: string, preset?: any): string {
-  const dimensions = preset ? `${preset.width}x${preset.height} (${preset.name})` : "professional banner";
-  
-  return `Create a professional banner/cover image:
-
-${prompt}
-
-Format: ${dimensions}
-Platform: ${preset?.platform || "multi-platform"}
-Style: ${style}
-
-Requirements:
-- Professional advertising banner quality
-- Clear visual hierarchy
-- Space for text overlays if needed
-- High contrast and readability
-- Optimized for ${preset?.platform || "social media"}
-- African market aesthetic preferences
-- Eye-catching and engaging
-- Ultra high resolution`;
-}
-
-function buildBannerReplacePrompt(prompt: string, newText: string, style: string, preset?: any): string {
-  return `Recreate this banner/thumbnail design with the following modifications:
-
-1. Replace the person in the original banner with the person from the second image (my photo)
-2. Replace any text with this new text: "${newText}"
-3. Keep the same overall design style and layout as the original banner
-4. ${prompt || "Maintain professional quality and aesthetics"}
-
-Style: ${style}
-Format: ${preset ? `${preset.width}x${preset.height}` : "match original"}
-
-Requirements:
-- Seamlessly integrate the new person into the design
-- Match the lighting and color grading of the original
-- Ensure the new text is readable and well-positioned
-- Professional advertising quality
-- Keep the same energy and vibe as the original
-- Ultra high resolution output`;
 }
