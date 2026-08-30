@@ -40,11 +40,11 @@ export default function Studio() {
           mode: media.length > 0 ? "image-edit" : "text-to-image",
           prompt: prompt,
           style: settings.style,
-          // Extract format/ratio if needed by backend, currently handled in edge function
+          aspectRatio: settings.aspectRatio,
         };
 
         if (media.length > 0) {
-          body.sourceImage = media[0].url; // Current backend only supports 1 image for sourceImage
+          body.sourceImage = media[0].url;
         }
 
         const { data, error } = await supabase.functions.invoke("generate-ai-image", {

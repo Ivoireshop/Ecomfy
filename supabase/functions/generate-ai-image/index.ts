@@ -34,7 +34,6 @@ serve(async (req) => {
       } catch (_) {}
     }
 
-    // Check credits & founder status
     const { data: roleData } = await supabaseClient
       .from("user_roles")
       .select("role")
@@ -77,7 +76,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { mode, prompt = "", userPrompt = "", style, sourceImage, bannerImage, replacementPhoto, newText, preset } = body;
+    const { mode, prompt = "", userPrompt = "", style, sourceImage, bannerImage, replacementPhoto, newText, preset, aspectRatio = "1:1", size } = body;
 
     const OPENAI_API_KEY = getOpenAiApiKey();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
@@ -86,18 +85,28 @@ serve(async (req) => {
       throw new Error("Aucune clé API configurée pour la génération");
     }
 
+    // Determine target DALL-E 3 image resolution
+    let imageSize = "1024x1024";
+    if (size) {
+      imageSize = size;
+    } else if (aspectRatio === "9:16") {
+      imageSize = "1024x1792";
+    } else if (aspectRatio === "16:9") {
+      imageSize = "1792x1024";
+    }
+
     const sacredPrompt = (prompt || userPrompt || "").trim();
-    let structuredPrompt = `[PRIMARY USER DEMAND - STRICT INSTRUCTION]:\n${sacredPrompt}\n\n`;
+    let structuredPrompt = `[PRIMARY USER DEMAND - MANDATORY INSTRUCTION]:\n${sacredPrompt}\n\n`;
 
     const imageToAnalyze = sourceImage || bannerImage || replacementPhoto;
     if (imageToAnalyze) {
-      console.log("Analyzing uploaded media with GPT-4o-mini Vision...");
+      console.log("Analyzing uploaded reference photo with GPT-4o Vision...");
       const visionAnalysis = await analyzeImageWithGpt4oMini(
         imageToAnalyze,
-        `Perform a high-precision commercial product visual audit of this uploaded media.
-Describe in detail (in English):
-1. EXACT PRODUCT IDENTITY: Product type, container/packaging shape, materials (glass, matte plastic, metal, wood, leather, fabric), cap/closure style.
-2. COLOR PALETTE: Primary, secondary, and accent colors, metallic foils, label colors.
+        `Perform an ultra-high precision commercial product visual audit of this uploaded reference image.
+Describe in detail (in English) so OpenAI DALL-E 3 can recreate this EXACT product faithfully:
+1. EXACT PRODUCT IDENTITY: Product type, container/packaging shape (bottle, box, jar, tube, bag, etc.), materials (glass, matte plastic, gold metal, leather, fabric), cap/closure style.
+2. COLOR PALETTE: Primary, secondary, and accent colors, gradients, metallic foils, label colors.
 3. BRANDING & TEXT: Logo placement, label design, typography style, key visible branding elements.
 4. TEXTURE & FINISH: Glossy, reflective, matte, embossed, woven, transparent.
 Format as a clear, structured prompt fragment designed for DALL-E 3 to faithfully recreate this exact product hero element in a professional ad background.`
@@ -107,14 +116,14 @@ Format as a clear, structured prompt fragment designed for DALL-E 3 to faithfull
       }
     }
 
-    structuredPrompt += `[STYLE & ADVERTISING DIRECTIVES]:\nStyle: ${style || "professional studio"}. High-resolution commercial photography, sharp focus, 8k quality, studio lighting.`;
+    structuredPrompt += `[STYLE & ADVERTISING DIRECTIVES]:\nStyle: ${style || "professional studio"}. High-resolution commercial studio photography, HD 8k, sharp focus, vibrant commercial lighting.`;
 
     const finalPrompt = await optimizePromptWithGpt4oMini(structuredPrompt);
 
-    console.log(`Mode: ${mode}, Final Prompt length: ${finalPrompt.length}`);
+    console.log(`Mode: ${mode}, Size: ${imageSize}, Final Prompt length: ${finalPrompt.length}`);
 
-    // Generate pure image using OpenAI DALL-E 3 / primary engines
-    const imageUrl = await generatePureImage(LOVABLE_API_KEY, finalPrompt);
+    // Generate pure HD image using OpenAI DALL-E 3
+    const imageUrl = await generatePureImage(OPENAI_API_KEY, finalPrompt, imageSize);
 
     // Save to generated_images
     await supabaseClient.from("generated_images").insert({
@@ -125,7 +134,8 @@ Format as a clear, structured prompt fragment designed for DALL-E 3 to faithfull
         mode,
         style,
         preset: preset?.name || null,
-        originalPrompt: sacredPrompt
+        originalPrompt: sacredPrompt,
+        size: imageSize
       }
     });
 
@@ -167,12 +177,10 @@ Format as a clear, structured prompt fragment designed for DALL-E 3 to faithfull
   }
 });
 
-async function generatePureImage(lovableApiKey: string, prompt: string): Promise<string> {
-  const openAiApiKey = getOpenAiApiKey();
-
+async function generatePureImage(openAiApiKey: string, prompt: string, size: string = "1024x1024"): Promise<string> {
   if (openAiApiKey) {
     try {
-      console.log("Generating image with OpenAI DALL-E 3 (Primary)...");
+      console.log(`Generating HD image with OpenAI DALL-E 3 (${size}, HD quality)...`);
       const res = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
@@ -182,43 +190,41 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
         body: JSON.stringify({
           model: "dall-e-3",
           prompt: prompt.substring(0, 3800),
-          size: "1024x1024",
-          quality: "standard",
+          size,
+          quality: "hd", // HD Quality for ChatGPT Plus rendering
           n: 1,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const generatedUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
-        if (generatedUrl) return generatedUrl.startsWith("data:") ? generatedUrl : generatedUrl;
+        const generatedUrl = data.data?.[0]?.url || (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
+        if (generatedUrl) return generatedUrl;
       } else {
-        console.warn("OpenAI DALL-E 3 generation failed:", res.status, await res.text());
+        const errBody = await res.text();
+        console.warn("OpenAI DALL-E 3 HD failed:", res.status, errBody);
 
-        // Fallback: OpenAI DALL-E 2
-        try {
-          console.log("Trying OpenAI DALL-E 2 fallback...");
-          const res2 = await fetch("https://api.openai.com/v1/images/generations", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${openAiApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "dall-e-2",
-              prompt: prompt.substring(0, 900),
-              size: "1024x1024",
-              n: 1,
-            }),
-          });
+        // Retry with standard quality if HD quality has billing/tier limits
+        console.log("Retrying OpenAI DALL-E 3 standard quality...");
+        const resStd = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openAiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "dall-e-3",
+            prompt: prompt.substring(0, 3800),
+            size,
+            quality: "standard",
+            n: 1,
+          }),
+        });
 
-          if (res2.ok) {
-            const data2 = await res2.json();
-            const url2 = data2.data?.[0]?.url || data2.data?.[0]?.b64_json;
-            if (url2) return url2;
-          }
-        } catch (err2) {
-          console.error("DALL-E 2 call exception:", err2);
+        if (resStd.ok) {
+          const dataStd = await resStd.json();
+          const urlStd = dataStd.data?.[0]?.url || (dataStd.data?.[0]?.b64_json ? `data:image/png;base64,${dataStd.data[0].b64_json}` : null);
+          if (urlStd) return urlStd;
         }
       }
     } catch (err) {
