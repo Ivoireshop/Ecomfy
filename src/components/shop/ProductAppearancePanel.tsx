@@ -44,14 +44,14 @@ function emptySettings(productId: string, shopId: string): ProductThemeSettings 
 
 const COLOR_FIELDS: { key: keyof ProductThemeSettings; label: string }[] = [
   { key: "background_color", label: "Fond de la fiche" },
-  { key: "section_bg_color", label: "Fond des sections" },
-  { key: "card_bg_color", label: "Fond des cartes" },
+  { key: "section_bg_color", label: "Fond des sections (Avis, Formulaire)" },
+  { key: "card_bg_color", label: "Fond des cartes (Avis, Offres)" },
   { key: "text_color", label: "Texte principal" },
-  { key: "title_color", label: "Titres" },
-  { key: "button_color", label: "Boutons" },
+  { key: "title_color", label: "Titres & En-têtes" },
+  { key: "button_color", label: "Boutons d'action" },
   { key: "button_text_color", label: "Texte des boutons" },
   { key: "border_color", label: "Bordures" },
-  { key: "badge_color", label: "Badges promo" },
+  { key: "badge_color", label: "Badges promo & Stock" },
 ];
 
 export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlug }: Props) {

@@ -575,6 +575,35 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                         )}
                       </div>
                     </div>
+
+                    {/* Personnalisation des Couleurs des Avis */}
+                    <div className="space-y-4 pt-4 border-t border-border">
+                      <h4 className="font-bold text-sm flex items-center gap-2 text-foreground">
+                        <Palette className="h-4 w-4 text-primary" /> Couleurs de la Section &amp; Cartes d'Avis Clients
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-muted/20 border">
+                        <ColorField 
+                          label="Fond de la section avis" 
+                          value={themeConfig.reviews_section_bg || "#F9FAFB"} 
+                          onChange={v => updateThemeConfig("reviews_section_bg", v)} 
+                        />
+                        <ColorField 
+                          label="Fond des cartes d'avis" 
+                          value={themeConfig.reviews_card_bg || "#FFFFFF"} 
+                          onChange={v => updateThemeConfig("reviews_card_bg", v)} 
+                        />
+                        <ColorField 
+                          label="Couleur des titres" 
+                          value={themeConfig.reviews_title_color || "#0F172A"} 
+                          onChange={v => updateThemeConfig("reviews_title_color", v)} 
+                        />
+                        <ColorField 
+                          label="Couleur du texte" 
+                          value={themeConfig.reviews_text_color || "#1F2937"} 
+                          onChange={v => updateThemeConfig("reviews_text_color", v)} 
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </Card>
