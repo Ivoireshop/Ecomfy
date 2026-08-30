@@ -18,12 +18,15 @@ interface SocialProofNotificationProps {
   productImage?: string;
 }
 
-const DEMO_NAMES = ["Kouadio", "Aminata", "Ibrahim", "Fatou", "Yao", "Mariam"];
-const buildDemoOrders = (): RecentOrder[] => DEMO_NAMES.slice(0, 3).map((n, i) => ({
-  customer_name: n,
-  product_name: "un article",
-  created_at: new Date(Date.now() - (3 + i * 12) * 60000).toISOString(),
-}));
+const DEMO_NAMES = ["Kouadio", "Aminata", "Ibrahim", "Fatou", "Yao", "Mariam", "Sékou", "Awa", "Koffi", "Bintou"];
+
+const buildDemoOrders = (fallbackProduct?: string, fallbackImage?: string): RecentOrder[] => 
+  DEMO_NAMES.slice(0, 5).map((n, i) => ({
+    customer_name: n,
+    product_name: fallbackProduct || "un article",
+    product_image_url: fallbackImage || undefined,
+    created_at: new Date(Date.now() - (3 + i * 12) * 60000).toISOString(),
+  }));
 
 export function SocialProofNotification({ shopId, enabled, productName, shopName, productImage }: SocialProofNotificationProps) {
   const [orders, setOrders] = useState<RecentOrder[]>([]);
@@ -33,59 +36,67 @@ export function SocialProofNotification({ shopId, enabled, productName, shopName
   const [showCount, setShowCount] = useState(0);
 
   const fetchRecentOrders = useCallback(async () => {
-    // 1. Fetch orders via RPC (which has SECURITY DEFINER and bypasses RLS)
+    // 1. Fetch active products for this shop to map current live product names and images
+    const { data: productsData } = await supabase
+      .from("products")
+      .select("id, name, image_url")
+      .eq("shop_id", shopId)
+      .eq("is_active", true);
+
+    const activeProductsMap = new Map<string, { name: string; image_url?: string }>();
+    let firstActiveProduct: { name: string; image_url?: string } | undefined = undefined;
+
+    if (productsData && productsData.length > 0) {
+      firstActiveProduct = productsData[0];
+      productsData.forEach(p => {
+        if (p.name) {
+          activeProductsMap.set(p.name.toLowerCase(), { name: p.name, image_url: p.image_url || undefined });
+        }
+      });
+    }
+
+    const fallbackName = productName || firstActiveProduct?.name || shopName || "un article";
+    const fallbackImage = productImage || firstActiveProduct?.image_url || undefined;
+
+    // 2. Fetch orders via RPC
     const { data: ordersData, error: ordersError } = await (supabase as any).rpc("get_shop_social_proof_orders", {
       _shop_id: shopId,
       _limit: 10,
     });
 
     if (ordersError || !ordersData?.length) {
-      // Use fallback productName and productImage for demo orders if available
-      const demos = buildDemoOrders().map(o => ({
-        ...o,
-        product_name: productName || o.product_name,
-        product_image_url: productImage || undefined
-      }));
-      setOrders(demos);
+      setOrders(buildDemoOrders(fallbackName, fallbackImage));
       return;
-    }
-
-    // 2. Fetch products for this shop to get their images (RLS allows this for public shops)
-    const { data: productsData } = await supabase
-      .from("products")
-      .select("name, image_url")
-      .eq("shop_id", shopId)
-      .eq("is_active", true);
-
-    const productImagesMap = new Map<string, string>();
-    if (productsData) {
-      productsData.forEach(p => {
-        if (p.name && p.image_url) {
-          productImagesMap.set(p.name.toLowerCase(), p.image_url);
-        }
-      });
     }
 
     const processedOrders = ordersData.map((o: any) => {
       const customerName = (o.customer_name || "Un client").trim().split(" ")[0] || "Un client";
       
-      // If we don't have a product name in the order, fallback to productName prop
-      const actualProductName = (o.product_name && o.product_name !== "un article") ? o.product_name : (productName || "un article");
-      
-      // Try to find the image for this product
-      let imageUrl = null;
-      if (actualProductName && actualProductName !== "un article") {
-         imageUrl = productImagesMap.get(actualProductName.toLowerCase()) || null;
-      }
-      // If still no image found, fallback to productImage prop
-      if (!imageUrl && productImage) {
-         imageUrl = productImage;
+      // CRITICAL: On a product page (productName prop present), ALWAYS display current live productName!
+      // This prevents outdated product names (e.g. "Terminus Coco") from appearing when viewing "Secret d'homme".
+      let displayProductName = fallbackName;
+      let displayImageUrl = fallbackImage;
+
+      if (!productName) {
+        // We are on general shop view: resolve old order product names against currently active products
+        const rawName = (o.product_name || "").toLowerCase();
+        if (rawName && activeProductsMap.has(rawName)) {
+          const matched = activeProductsMap.get(rawName)!;
+          displayProductName = matched.name;
+          displayImageUrl = matched.image_url || fallbackImage;
+        } else if (firstActiveProduct) {
+          // Historical product was renamed or deleted: fall back to current active product name
+          displayProductName = firstActiveProduct.name;
+          displayImageUrl = firstActiveProduct.image_url || fallbackImage;
+        } else if (o.product_name && o.product_name !== "un article") {
+          displayProductName = o.product_name;
+        }
       }
       
       return {
         customer_name: customerName,
-        product_name: actualProductName,
-        product_image_url: imageUrl,
+        product_name: displayProductName,
+        product_image_url: displayImageUrl,
         created_at: o.created_at,
       };
     }).filter((o: any) => o.customer_name.length > 0);
@@ -93,14 +104,9 @@ export function SocialProofNotification({ shopId, enabled, productName, shopName
     if (processedOrders.length > 0) {
       setOrders(processedOrders);
     } else {
-      const demos = buildDemoOrders().map(o => ({
-        ...o,
-        product_name: productName || o.product_name,
-        product_image_url: productImage || undefined
-      }));
-      setOrders(demos);
+      setOrders(buildDemoOrders(fallbackName, fallbackImage));
     }
-  }, [shopId, productName, productImage]);
+  }, [shopId, productName, productImage, shopName]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -128,14 +134,14 @@ export function SocialProofNotification({ shopId, enabled, productName, shopName
 
       // Show next after a pause, then loop continuously.
       setTimeout(() => {
-        setCurrentIndex((currentIndex + 1) % orders.length);
+        setCurrentIndex((prev) => (prev + 1) % orders.length);
         setShowCount(prev => prev + 1);
         setVisible(true);
       }, 6000);
     }, 5000);
 
     return () => clearTimeout(hideTimer);
-  }, [visible, currentIndex, orders.length, dismissed]);
+  }, [visible, orders.length, dismissed]);
 
   if (!enabled || orders.length === 0 || dismissed || !visible) return null;
 
