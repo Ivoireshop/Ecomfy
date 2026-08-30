@@ -517,14 +517,14 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
 
               {/* Avis & Etoiles */}
               <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-6 p-4 rounded-xl bg-muted/20 border border-border">
                   <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center shrink-0">
-                      <Plus className="h-6 w-6" />
+                      <MessageSquare className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="text-lg font-bold">Avis & Étoiles</p>
-                      <p className="text-sm text-muted-foreground">Affiche 5 étoiles et un compteur d'avis pour renforcer la confiance.</p>
+                      <p className="text-lg font-bold text-foreground">Afficher la section d'Avis Clients</p>
+                      <p className="text-sm text-muted-foreground">Activez ou décochez cet interrupteur pour afficher ou masquer la section des avis clients sur vos fiches produits.</p>
                     </div>
                   </div>
                   <Switch checked={themeConfig.reviews_enabled !== false} onCheckedChange={v => updateThemeConfig("reviews_enabled", v)} />

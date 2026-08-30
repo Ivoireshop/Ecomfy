@@ -17,6 +17,8 @@ import {
 import { ProductAudioManager } from "./ProductAudioManager";
 import { ProductThemePicker } from "./ProductThemePicker";
 
+import { Switch } from "@/components/ui/switch";
+
 interface Props {
   productId: string;
   shopId: string;
@@ -136,6 +138,24 @@ export function ProductAppearancePanel({ productId, shopId, shopSlug, productSlu
         </TabsContent>
 
         <TabsContent value="colors" className="mt-4 space-y-4">
+          <div className="flex items-center justify-between p-3.5 rounded-xl border bg-muted/20">
+            <div>
+              <p className="text-xs font-bold text-foreground">Afficher la section d'avis clients</p>
+              <p className="text-[11px] text-muted-foreground">Permet aux acheteurs de consulter et de déposer des avis sur ce produit.</p>
+            </div>
+            <Switch
+              checked={settings?.custom_css_settings?.reviews_enabled !== false}
+              onCheckedChange={(v) =>
+                update({
+                  custom_css_settings: {
+                    ...(settings?.custom_css_settings || {}),
+                    reviews_enabled: v,
+                  },
+                })
+              }
+            />
+          </div>
+
           <div>
             <Label className="text-xs font-semibold text-muted-foreground">Mode de fond</Label>
             <div className="grid grid-cols-3 gap-2 mt-2">
