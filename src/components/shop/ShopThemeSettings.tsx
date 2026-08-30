@@ -602,6 +602,11 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                           value={themeConfig.reviews_text_color || "#1F2937"} 
                           onChange={v => updateThemeConfig("reviews_text_color", v)} 
                         />
+                        <ColorField 
+                          label="Bordure des cartes" 
+                          value={themeConfig.reviews_border_color || "#E5E7EB"} 
+                          onChange={v => updateThemeConfig("reviews_border_color", v)} 
+                        />
                       </div>
                     </div>
                   </div>

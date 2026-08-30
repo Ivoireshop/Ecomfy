@@ -1937,7 +1937,14 @@ const ProductView = () => {
       {/* ====== REVIEWS SECTION (deferred) ====== */}
       {deferredReady && (
         <Suspense fallback={null}>
-          <ProductReviews shopId={shop.id} productId={product.id} primaryColor={primaryColor} isPreview={!!shop._isPreview} />
+          <ProductReviews
+            shopId={shop.id}
+            productId={product.id}
+            primaryColor={primaryColor}
+            isPreview={!!shop._isPreview}
+            themeConfig={themeConfig}
+            themeSettings={themeSettings}
+          />
         </Suspense>
       )}
 
