@@ -18,75 +18,24 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const __quota = await enforceAiQuota(req, "generate-ai-image");
-  if (!__quota.allowed) return __quota.response;
-
   try {
-    const authHeader = req.headers.get("Authorization");
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    let userId = "guest-" + (req.headers.get("x-forwarded-for") || "anonymous");
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      try {
-        const { data: { user } } = await supabaseClient.auth.getUser(token);
-        if (user?.id) userId = user.id;
-      } catch (_) {}
-    }
-
-    const { data: roleData } = await supabaseClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .in("role", ["founder", "co_founder"]);
-    const isFounder = Array.isArray(roleData) && roleData.length > 0;
-
-    const { data: subData } = await supabaseClient
-      .from("subscriptions")
-      .select("status")
-      .eq("user_id", userId)
-      .single();
-    const hasActiveSubscription = isFounder || subData?.status === "active";
-
-    let freeGenerationsRemaining = 3;
-    let purchasedCredits = 0;
-    if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
-      const { data: profileData } = await supabaseClient
-        .from("profiles")
-        .select("free_generations_remaining, purchased_credits")
-        .eq("id", userId)
-        .maybeSingle();
-
-      freeGenerationsRemaining = profileData?.free_generations_remaining ?? 3;
-      purchasedCredits = profileData?.purchased_credits ?? 0;
-
-      if (freeGenerationsRemaining <= 0 && purchasedCredits <= 0) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Vous avez utilisé vos 3 générations gratuites d'images. Veuillez recharger vos crédits IA ou souscrire à un abonnement pour continuer.",
-            quotaExhausted: true,
-            freeGenerationsRemaining: 0,
-            purchasedCredits: 0
-          }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
     const body = await req.json();
-    const { 
-      mode = "publicite-produit", 
-      prompt = "", 
-      userPrompt = "", 
-      style = "professional studio", 
-      sourceImage, 
-      bannerImage, 
-      replacementPhoto, 
-      preset, 
-      aspectRatio = "1:1", 
+    const {
+      prompt,
+      userPrompt,
+      sourceImage,
+      bannerImage,
+      replacementPhoto,
+      mode = "publicite-produit",
+      style = "Professional Commercial Studio",
+      preset,
+      userId = "guest-user",
+      aspectRatio = "1:1",
       size,
       productName,
       niche
@@ -104,14 +53,45 @@ serve(async (req: Request) => {
     const sacredPrompt = (prompt || userPrompt || "").trim();
     const imageToAnalyze = sourceImage || bannerImage || replacementPhoto;
 
-    // 1. Vision Audit (GPT-4o) for Reference Product Photo
+    // 1. Quota Verification
+    let isFounder = false;
+    let hasActiveSubscription = false;
+
+    if (userId && !userId.startsWith("guest-")) {
+      const { data: profile } = await supabaseClient
+        .from("profiles")
+        .select("is_founder, subscription_status")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (profile) {
+        isFounder = profile.is_founder === true;
+        hasActiveSubscription = profile.subscription_status === "active";
+      }
+
+      if (!isFounder && !hasActiveSubscription) {
+        const quotaResult = await enforceAiQuota(supabaseClient, userId, "generate_image");
+        if (!quotaResult.allowed) {
+          return new Response(
+            JSON.stringify({ 
+              error: quotaResult.message || "Quota de générations d'images d'essai atteint.",
+              quotaExceeded: true,
+              success: false 
+            }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
+    // 2. Vision Audit (GPT-4o) for Reference Product Photo
     let visionAnalysis = "";
     if (imageToAnalyze) {
       console.log(`[Engine Audit] Auditing reference product image with ${OPENAI_CONFIG.VISION_MODEL}...`);
       visionAnalysis = await analyzeImageWithGpt4oMini(imageToAnalyze);
     }
 
-    // 2. Synthesize 23-Pillar Commercial Ad Prompt via PromptEngine
+    // 3. Synthesize 23-Pillar Commercial Ad Prompt via PromptEngine
     console.log(`[Engine Audit] Synthesizing prompt via PromptEngine (Mode: ${mode})...`);
     const finalExpandedPrompt = await PromptEngine.generateProfessionalPrompt({
       userPrompt: sacredPrompt,
@@ -123,15 +103,15 @@ serve(async (req: Request) => {
       niche
     });
 
-    console.log(`[Engine Audit] Calling OpenAI ${OPENAI_CONFIG.IMAGE_MODEL} (${imageSize}, Quality: ${OPENAI_CONFIG.IMAGE_QUALITY})...`);
+    console.log(`[Engine Audit] Calling OpenAI Engine (Reference Image: ${!!imageToAnalyze}, Size: ${imageSize})...`);
 
-    // 3. Direct Call to OpenAI gpt-image-1 (with gpt-image-2 fallback)
-    const imageUrl = await callOpenAiImageEngine(OPENAI_API_KEY, finalExpandedPrompt, imageSize);
+    // 4. OpenAI Image Engine Execution (Option A Image Edits / Generations)
+    const imageUrl = await callOpenAiImageEngine(OPENAI_API_KEY, finalExpandedPrompt, imageSize, imageToAnalyze);
 
     const durationMs = Date.now() - startTime;
     console.log(`[Engine Audit] Generation Successful in ${durationMs}ms for user ${userId}`);
 
-    // 4. Save to DB
+    // 5. Save to DB
     await supabaseClient.from("generated_images").insert({
       user_id: userId,
       image_url: imageUrl,
@@ -148,7 +128,7 @@ serve(async (req: Request) => {
       }
     });
 
-    // 5. Credit management
+    // 6. Credit management
     if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
@@ -160,12 +140,12 @@ serve(async (req: Request) => {
         if (profileData.purchased_credits > 0) {
           await supabaseClient
             .from("profiles")
-            .update({ purchased_credits: Math.max(0, profileData.purchased_credits - 1) })
+            .update({ purchased_credits: profileData.purchased_credits - 1 })
             .eq("id", userId);
         } else if (profileData.free_generations_remaining > 0) {
           await supabaseClient
             .from("profiles")
-            .update({ free_generations_remaining: Math.max(0, profileData.free_generations_remaining - 1) })
+            .update({ free_generations_remaining: profileData.free_generations_remaining - 1 })
             .eq("id", userId);
         }
       }
@@ -174,19 +154,16 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ 
         imageUrl, 
-        success: true, 
-        meta: {
-          model: OPENAI_CONFIG.IMAGE_MODEL,
-          quality: OPENAI_CONFIG.IMAGE_QUALITY,
-          durationMs
-        }
+        prompt: finalExpandedPrompt,
+        success: true,
+        durationMs
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: unknown) {
+  } catch (err: any) {
     const durationMs = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue lors de la génération";
+    const errorMessage = err.message || "Une erreur est survenue lors de la génération de l'image.";
     console.error(`[Engine Audit Error] Failed after ${durationMs}ms:`, errorMessage);
 
     return new Response(
@@ -199,10 +176,73 @@ serve(async (req: Request) => {
   }
 });
 
-async function callOpenAiImageEngine(apiKey: string, prompt: string, size: string): Promise<string> {
+async function callOpenAiImageEngine(apiKey: string, prompt: string, size: string, referenceImage?: string): Promise<string> {
   const models = [OPENAI_CONFIG.IMAGE_MODEL, OPENAI_CONFIG.IMAGE_MODEL_FALLBACK, "dall-e-3"];
   let lastError = "";
 
+  // If user provided a reference image, execute Option A (/v1/images/edits) first
+  if (referenceImage) {
+    try {
+      console.log(`[OpenAI Call] Executing Option A (Reference Image Input via /v1/images/edits)...`);
+      let imageBlob: Blob;
+
+      if (referenceImage.startsWith("data:")) {
+        const parts = referenceImage.split(",");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : "image/png";
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        imageBlob = new Blob([u8arr], { type: mime });
+      } else {
+        const fetchRes = await fetch(referenceImage);
+        imageBlob = await fetchRes.blob();
+      }
+
+      for (const modelCandidate of models) {
+        try {
+          console.log(`[OpenAI Edits] Trying model ${modelCandidate} via /v1/images/edits...`);
+          const formData = new FormData();
+          formData.append("image", imageBlob, "product_reference.png");
+          formData.append("prompt", prompt.substring(0, 950));
+          formData.append("model", modelCandidate);
+          formData.append("n", "1");
+          formData.append("size", size);
+
+          const res = await fetch("https://api.openai.com/v1/images/edits", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: formData,
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const url = data.data?.[0]?.url || (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
+            if (url) {
+              console.log(`[OpenAI Edits SUCCESS] Option A succeeded with model ${modelCandidate}!`);
+              return url;
+            }
+          } else {
+            const errText = await res.text();
+            console.warn(`[OpenAI Edits ${modelCandidate} Failed]:`, res.status, errText);
+            lastError = errText;
+          }
+        } catch (editErr) {
+          console.warn(`[OpenAI Edits ${modelCandidate} Exception]:`, editErr);
+        }
+      }
+    } catch (blobErr) {
+      console.warn("[OpenAI Edits Blob Conversion Failed]:", blobErr);
+    }
+  }
+
+  // Fallback to /v1/images/generations with Vision-Guided Sacred Prompt
+  console.log(`[OpenAI Call] Executing /v1/images/generations with Vision-Guided Prompt Engine...`);
   for (const modelCandidate of models) {
     try {
       console.log(`[OpenAI Call] Requesting model ${modelCandidate} (${size}, quality: ${OPENAI_CONFIG.IMAGE_QUALITY})...`);

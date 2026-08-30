@@ -18,65 +18,53 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const __quota = await enforceAiQuota(req, "generate-ad-visual");
-  if (!__quota.allowed) return __quota.response;
-
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
-
   try {
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+
+    // Verify authentication
     const authHeader = req.headers.get("Authorization");
-    let userId = "guest-" + (req.headers.get("x-forwarded-for") || "anonymous");
+    let userId = "guest-user";
+    let isFounder = false;
+    let hasActiveSubscription = false;
+
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
-      try {
-        const { data: { user } } = await supabaseClient.auth.getUser(token);
-        if (user?.id) userId = user.id;
-      } catch (_) {}
+      const { data: { user } } = await supabaseClient.auth.getUser(token);
+      if (user) {
+        userId = user.id;
+
+        const { data: profile } = await supabaseClient
+          .from("profiles")
+          .select("is_founder, subscription_status")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile) {
+          isFounder = profile.is_founder === true;
+          hasActiveSubscription = profile.subscription_status === "active";
+        }
+      }
     }
 
-    const { data: roleData } = await supabaseClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .in("role", ["founder", "co_founder"]);
-    const isFounder = Array.isArray(roleData) && roleData.length > 0;
-
-    const { data: subData } = await supabaseClient
-      .from("subscriptions")
-      .select("status")
-      .eq("user_id", userId)
-      .single();
-    const hasActiveSubscription = isFounder || subData?.status === "active";
-
-    let freeGenerationsRemaining = 3;
-    let purchasedCredits = 0;
-    if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
-      const { data: profileData } = await supabaseClient
-        .from("profiles")
-        .select("free_generations_remaining, purchased_credits")
-        .eq("id", userId)
-        .maybeSingle();
-
-      freeGenerationsRemaining = profileData?.free_generations_remaining ?? 3;
-      purchasedCredits = profileData?.purchased_credits ?? 0;
-
-      if (freeGenerationsRemaining <= 0 && purchasedCredits <= 0) {
+    // Quota Enforcement
+    if (!isFounder && !hasActiveSubscription && userId !== "guest-user") {
+      const quotaResult = await enforceAiQuota(supabaseClient, userId, "generate_ad_visual");
+      if (!quotaResult.allowed) {
         return new Response(
           JSON.stringify({ 
-            error: "Vous avez utilisé vos 3 générations gratuites. Veuillez recharger vos crédits IA.",
-            quotaExhausted: true,
-            freeGenerationsRemaining: 0,
-            purchasedCredits: 0
+            error: quotaResult.message || "Quota de visuels publicitaires atteint.",
+            quotaExceeded: true,
+            success: false 
           }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
 
-    const reqBody = await req.json().catch(() => ({}));
+    const reqBody = await req.json();
     const { 
       prompt = "",
       userPrompt = "",
@@ -121,66 +109,146 @@ serve(async (req: Request) => {
       gptImageSize = "1792x1024";
     }
 
-    console.log(`[AdVisual Engine] Calling OpenAI ${OPENAI_CONFIG.IMAGE_MODEL} (${gptImageSize})...`);
+    console.log(`[AdVisual Engine] Calling OpenAI Engine (Reference Image: ${!!productImage}, Size: ${gptImageSize})...`);
     
-    // Direct call to OpenAI DALL-E 3
-    const res = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: OPENAI_CONFIG.IMAGE_MODEL,
-        prompt: finalPrompt.substring(0, 3800),
-        size: gptImageSize,
-        quality: OPENAI_CONFIG.IMAGE_QUALITY,
-        n: 1,
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("[AdVisual Engine Error]:", res.status, errText);
-      throw new Error(`Erreur OpenAI DALL-E 3 (${res.status}): ${errText}`);
-    }
-
-    const data = await res.json();
-    const imageUrl = data.data?.[0]?.url || (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
-
-    if (!imageUrl) {
-      throw new Error("L'API OpenAI n'a retourné aucune image valide.");
-    }
-
+    // 3. Option A Execution (Reference Image Input via /v1/images/edits or /v1/images/generations fallback)
+    const imageUrl = await callOpenAiAdEngine(OPENAI_API_KEY, finalPrompt, gptImageSize, productImage);
     const durationMs = Date.now() - startTime;
-    console.log(`[AdVisual Engine] Success in ${durationMs}ms for user ${userId}`);
 
-    // Decrement credits
-    if (userId && !hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
-      if (purchasedCredits > 0) {
-        await supabaseClient.from("profiles").update({ purchased_credits: Math.max(0, purchasedCredits - 1) }).eq("id", userId);
-      } else if (freeGenerationsRemaining > 0) {
-        await supabaseClient.from("profiles").update({ free_generations_remaining: Math.max(0, freeGenerationsRemaining - 1) }).eq("id", userId);
-      }
+    // 4. Save to DB
+    if (userId !== "guest-user") {
+      await supabaseClient.from("generated_images").insert({
+        user_id: userId,
+        image_url: imageUrl,
+        prompt: finalPrompt.substring(0, 3500),
+        product_details: {
+          productName,
+          niche,
+          platform,
+          style,
+          mode,
+          durationMs,
+          estimatedCostUsd: OPENAI_CONFIG.ESTIMATED_COST_USD
+        }
+      });
     }
 
     return new Response(
-      JSON.stringify({
-        imageUrl,
+      JSON.stringify({ 
+        imageUrl, 
+        prompt: finalPrompt,
         success: true,
-        meta: {
-          model: OPENAI_CONFIG.IMAGE_MODEL,
-          durationMs
-        }
+        durationMs
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue lors de la génération.";
-    console.error("[AdVisual Error]:", errorMessage);
+
+  } catch (err: any) {
+    const durationMs = Date.now() - startTime;
+    console.error(`[AdVisual Engine Error] Failed after ${durationMs}ms:`, err);
     return new Response(
-      JSON.stringify({ error: errorMessage, success: false }),
+      JSON.stringify({ 
+        error: err.message || "Erreur lors de la génération du visuel publicitaire.",
+        success: false 
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
+
+async function callOpenAiAdEngine(apiKey: string, prompt: string, size: string, referenceImage?: string): Promise<string> {
+  const models = [OPENAI_CONFIG.IMAGE_MODEL, OPENAI_CONFIG.IMAGE_MODEL_FALLBACK, "dall-e-3"];
+  let lastError = "";
+
+  if (referenceImage) {
+    try {
+      console.log(`[AdVisual Call] Executing Option A (Reference Image Input via /v1/images/edits)...`);
+      let imageBlob: Blob;
+
+      if (referenceImage.startsWith("data:")) {
+        const parts = referenceImage.split(",");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : "image/png";
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        imageBlob = new Blob([u8arr], { type: mime });
+      } else {
+        const fetchRes = await fetch(referenceImage);
+        imageBlob = await fetchRes.blob();
+      }
+
+      for (const modelCandidate of models) {
+        try {
+          const formData = new FormData();
+          formData.append("image", imageBlob, "product_reference.png");
+          formData.append("prompt", prompt.substring(0, 950));
+          formData.append("model", modelCandidate);
+          formData.append("n", "1");
+          formData.append("size", size);
+
+          const res = await fetch("https://api.openai.com/v1/images/edits", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}` },
+            body: formData,
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const url = data.data?.[0]?.url || (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
+            if (url) return url;
+          } else {
+            lastError = await res.text();
+            console.warn(`[AdVisual Edits ${modelCandidate} Failed]:`, res.status, lastError);
+          }
+        } catch (editErr) {
+          console.warn(`[AdVisual Edits ${modelCandidate} Exception]:`, editErr);
+        }
+      }
+    } catch (blobErr) {
+      console.warn("[AdVisual Edits Blob Conversion Failed]:", blobErr);
+    }
+  }
+
+  // Fallback to /v1/images/generations
+  for (const modelCandidate of models) {
+    try {
+      const bodyPayload: any = {
+        model: modelCandidate,
+        prompt: prompt.substring(0, 3800),
+        size,
+        n: 1,
+      };
+
+      if (modelCandidate.startsWith("gpt-image")) {
+        bodyPayload.quality = OPENAI_CONFIG.IMAGE_QUALITY;
+      } else {
+        bodyPayload.quality = "hd";
+      }
+
+      const res = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const url = data.data?.[0]?.url || (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
+        if (url) return url;
+      } else {
+        lastError = await res.text();
+      }
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  throw new Error(`Échec de la génération du visuel publicitaire OpenAI : ${lastError}`);
+}
