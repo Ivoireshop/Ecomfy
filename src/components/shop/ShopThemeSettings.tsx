@@ -630,6 +630,46 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 )}
               </Card>
 
+              {/* Badges de réassurance (Livraison, Paiement sécurisé...) */}
+              <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
+                <div className="flex items-center justify-between mb-6 p-4 rounded-xl bg-muted/20 border border-border">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                      <Store className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-foreground">Badges de Réassurance &amp; Confiance</p>
+                      <p className="text-sm text-muted-foreground">Affiche ou masque la grille des 4 badges (Livraison disponible, Paiement sécurisé, Expédition rapide, Qualité garantie).</p>
+                    </div>
+                  </div>
+                  <Switch checked={themeConfig.trust_badges_enabled !== false} onCheckedChange={v => updateThemeConfig("trust_badges_enabled", v)} />
+                </div>
+
+                {themeConfig.trust_badges_enabled !== false && (
+                  <div className="space-y-4 pt-2 animate-in fade-in">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Personnaliser les 4 badges de confiance (Optionnel)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Badge 1 (Livraison)</Label>
+                        <Input value={themeConfig.trust_badge_1 ?? "Livraison disponible"} onChange={e => updateThemeConfig("trust_badge_1", e.target.value)} className="h-10" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Badge 2 (Paiement)</Label>
+                        <Input value={themeConfig.trust_badge_2 ?? "Paiement sécurisé"} onChange={e => updateThemeConfig("trust_badge_2", e.target.value)} className="h-10" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Badge 3 (Expédition)</Label>
+                        <Input value={themeConfig.trust_badge_3 ?? "Expédition rapide"} onChange={e => updateThemeConfig("trust_badge_3", e.target.value)} className="h-10" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Badge 4 (Garantie)</Label>
+                        <Input value={themeConfig.trust_badge_4 ?? "Qualité garantie"} onChange={e => updateThemeConfig("trust_badge_4", e.target.value)} className="h-10" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Card>
+
               {/* Mise en page */}
               <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50">
                 <div className="flex items-center gap-4 mb-6">

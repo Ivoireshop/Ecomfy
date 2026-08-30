@@ -203,11 +203,15 @@ export function FAQ({ data }: { data: ThemeData }) {
 }
 
 export function Guarantees({ data }: { data: ThemeData }) {
+  if (data.themeConfig?.trust_badges_enabled === false || data.themeSettings?.custom_css_settings?.trust_badges_enabled === false) {
+    return null;
+  }
+
   const items = [
-    { icon: "🚚", text: "Livraison disponible" },
-    { icon: "🛡️", text: "Paiement sécurisé" },
-    { icon: "💬", text: "Support réactif" },
-    { icon: "✅", text: "Produit vérifié" },
+    { icon: "🚚", text: data.themeConfig?.trust_badge_1 || "Livraison disponible" },
+    { icon: "🛡️", text: data.themeConfig?.trust_badge_2 || "Paiement sécurisé" },
+    { icon: "💬", text: data.themeConfig?.trust_badge_3 || "Support réactif" },
+    { icon: "✅", text: data.themeConfig?.trust_badge_4 || "Produit vérifié" },
   ];
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs sm:text-sm">

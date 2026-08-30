@@ -1873,25 +1873,27 @@ const ProductView = () => {
 
             </div>
 
-            {/* Trust badges */}
-            <div className="border-t pt-5 mt-5 grid grid-cols-2 gap-4 text-sm font-medium text-gray-700">
-              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
-                <Truck className="h-5 w-5 text-gray-500" />
-                <span>Livraison disponible</span>
+            {/* Trust badges (Option de masquage & personnalisation) */}
+            {shop.theme_config?.trust_badges_enabled !== false && themeSettings?.custom_css_settings?.trust_badges_enabled !== false && (
+              <div className="border-t pt-5 mt-5 grid grid-cols-2 gap-4 text-sm font-medium text-gray-700">
+                <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-border/40 overflow-hidden" style={{ backgroundColor: themeSettings?.card_bg_color || undefined, borderColor: themeSettings?.border_color || undefined }}>
+                  <Truck className="h-5 w-5 text-gray-500 shrink-0" />
+                  <span className="truncate">{shop.theme_config?.trust_badge_1 || "Livraison disponible"}</span>
+                </div>
+                <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-border/40 overflow-hidden" style={{ backgroundColor: themeSettings?.card_bg_color || undefined, borderColor: themeSettings?.border_color || undefined }}>
+                  <Shield className="h-5 w-5 text-gray-500 shrink-0" />
+                  <span className="truncate">{shop.theme_config?.trust_badge_2 || "Paiement sécurisé"}</span>
+                </div>
+                <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-border/40 overflow-hidden" style={{ backgroundColor: themeSettings?.card_bg_color || undefined, borderColor: themeSettings?.border_color || undefined }}>
+                  <Clock className="h-5 w-5 text-gray-500 shrink-0" />
+                  <span className="truncate">{shop.theme_config?.trust_badge_3 || "Expédition rapide"}</span>
+                </div>
+                <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-border/40 overflow-hidden" style={{ backgroundColor: themeSettings?.card_bg_color || undefined, borderColor: themeSettings?.border_color || undefined }}>
+                  <CheckCircle2 className="h-5 w-5 text-gray-500 shrink-0" />
+                  <span className="truncate">{shop.theme_config?.trust_badge_4 || "Qualité garantie"}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
-                <Shield className="h-5 w-5 text-gray-500" />
-                <span>Paiement sécurisé</span>
-              </div>
-              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
-                <Clock className="h-5 w-5 text-gray-500" />
-                <span>Expédition rapide</span>
-              </div>
-              <div className="flex items-center gap-2.5 bg-gray-50 p-2.5 rounded-xl">
-                <CheckCircle2 className="h-5 w-5 text-gray-500" />
-                <span>Qualité garantie</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
         );
