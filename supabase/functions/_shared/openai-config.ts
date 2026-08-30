@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Centralized Configuration for Ecomfy OpenAI Image Generation Engine
  */

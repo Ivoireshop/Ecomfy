@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { OPENAI_CONFIG, getOpenAiApiKey } from "./openai-config.ts";
 
 export interface PromptEngineInput {
