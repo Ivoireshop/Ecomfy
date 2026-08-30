@@ -251,23 +251,35 @@ async function generatePureImage(lovableApiKey: string, prompt: string): Promise
     try {
       return await generateImageWithOpenRouter(openRouterKey, { prompt });
     } catch (e) {
-      console.warn("OpenRouter failed:", e);
+      console.warn("OpenRouter fallback failed:", e);
     }
   }
 
-  // Parse OpenAI error if present
-  let friendlyReason = "Impossible de générer l'image. Veuillez ré-essayer.";
-  if (lastOpenAiError) {
-    if (lastOpenAiError.includes("billing_hard_limit") || lastOpenAiError.includes("insufficient_quota")) {
-      friendlyReason = "Votre compte OpenAI a atteint sa limite de quota. Veuillez vérifier votre facturation OpenAI.";
-    } else if (lastOpenAiError.includes("invalid_api_key")) {
-      friendlyReason = "La clé API OpenAI est invalide. Veuillez vérifier la clé.";
-    } else if (lastOpenAiError.includes("content_policy")) {
-      friendlyReason = "Le contenu demandé est restreint par les règles de sécurité d'OpenAI.";
+  // Fallback 2: High-Definition Commercial Image Engine (Pollinations.ai)
+  try {
+    console.log("Using High-Definition Commercial Image Engine fallback...");
+    const encodedPrompt = encodeURIComponent(prompt.substring(0, 500));
+    const seed = Math.floor(Math.random() * 1000000);
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
+    
+    const imageResp = await fetch(pollinationsUrl);
+    if (imageResp.ok && imageResp.headers.get("content-type")?.includes("image")) {
+      const blob = await imageResp.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+      console.log("Commercial fallback engine image generated successfully!");
+      return `data:image/jpeg;base64,${base64}`;
     }
+  } catch (pollErr) {
+    console.warn("Commercial fallback engine exception:", pollErr);
   }
 
-  throw new Error(friendlyReason);
+  throw new Error("Impossible de générer l'image. Tous les moteurs d'images sont indisponibles.");
 }
 
 function buildTextToImagePrompt(prompt: string, style: string): string {

@@ -524,38 +524,33 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
       }
     }
 
-    // Fallback to Lovable AI if GPT-image-1 failed after retries
+    // Fallback if DALL-E failed or key not configured
     if (!imageUrl) {
-      console.log("DALL-E 3 failed after retries, falling back to Lovable AI...");
-      
-      if (LOVABLE_API_KEY) {
-        try {
-          const fallbackResponse = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-1.5-flash",
-              messages: [
-                { role: "user", content: prompt },
-              ],
-              modalities: ["image", "text"],
-            }),
-            timeoutMs: 45000,
-          });
-
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            imageUrl = fallbackData.choices?.[0]?.message?.images?.[0]?.image_url?.url || null;
-            if (imageUrl) {
-              console.log("Fallback to Lovable AI successful");
-            }
+      console.log("Using High-Definition Commercial Image Engine fallback...");
+      try {
+        const encodedPrompt = encodeURIComponent(prompt.substring(0, 500));
+        const seed = Math.floor(Math.random() * 1000000);
+        const dimensions = gptImageSize ? gptImageSize.split("x") : ["1024", "1024"];
+        const w = dimensions[0] || "1024";
+        const h = dimensions[1] || "1024";
+        
+        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&seed=${seed}&nologo=true&enhance=true`;
+        
+        const imageResp = await fetchWithTimeout(pollinationsUrl, { timeoutMs: 45000 });
+        if (imageResp.ok && imageResp.headers.get("content-type")?.includes("image")) {
+          const blob = await imageResp.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = "";
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
           }
-        } catch (fallbackErr) {
-          console.error("Lovable AI fallback failed:", fallbackErr);
+          const base64 = btoa(binary);
+          imageUrl = `data:image/jpeg;base64,${base64}`;
+          console.log("Commercial fallback engine image generated successfully!");
         }
+      } catch (fallbackErr) {
+        console.error("Commercial AI fallback failed:", fallbackErr);
       }
     }
     

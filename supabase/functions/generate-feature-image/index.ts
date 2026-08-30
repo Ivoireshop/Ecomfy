@@ -354,17 +354,41 @@ Create a stunning Facebook advertising visual that looks like a professional mar
           console.log('GPT-image-1 failed, falling back to Lovable AI...');
           usedFallback = true;
         }
+        // Try fallback
+        usedFallback = true;
       }
     } catch (e) {
       console.error('GPT-image-1 request failed:', e);
-      if (LOVABLE_API_KEY) {
-        console.log('Falling back to Lovable AI...');
-        usedFallback = true;
-      }
+      usedFallback = true;
     }
     
-    // Fallback to Lovable AI if GPT-image-1 failed
-    if (!imageUrl && usedFallback && LOVABLE_API_KEY) {
+    // Fallback if DALL-E failed or key not configured
+    if (!imageUrl) {
+      console.log("Using High-Definition Commercial Image Engine fallback...");
+      try {
+        const encodedPrompt = encodeURIComponent(finalPrompt.substring(0, 500));
+        const seed = Math.floor(Math.random() * 1000000);
+        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
+        
+        const imageResp = await fetchWithTimeout(pollinationsUrl, { timeoutMs: 45000 });
+        if (imageResp.ok && imageResp.headers.get("content-type")?.includes("image")) {
+          const blob = await imageResp.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = "";
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          imageUrl = `data:image/jpeg;base64,${btoa(binary)}`;
+          console.log("Commercial fallback engine image generated successfully!");
+        }
+      } catch (fallbackErr) {
+        console.error("Commercial AI fallback failed:", fallbackErr);
+      }
+    }
+
+    // Fallback to Lovable AI if standard fallbacks failed
+    if (!imageUrl && LOVABLE_API_KEY) {
       try {
         const messageContent = productImage 
           ? [
