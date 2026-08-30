@@ -37,20 +37,23 @@ export function SocialProofNotification({ shopId, enabled, productName, shopName
 
   const fetchRecentOrders = useCallback(async () => {
     // 1. Fetch active products for this shop to map current live product names and images
-    const { data: productsData } = await supabase
+    const { data: productsData } = await (supabase
       .from("products")
-      .select("id, name, image_url")
+      .select("id, name, is_published, product_images(image_url)")
       .eq("shop_id", shopId)
-      .eq("is_active", true);
+      .eq("is_published", true) as any);
 
     const activeProductsMap = new Map<string, { name: string; image_url?: string }>();
     let firstActiveProduct: { name: string; image_url?: string } | undefined = undefined;
 
-    if (productsData && productsData.length > 0) {
-      firstActiveProduct = productsData[0];
-      productsData.forEach(p => {
+    if (productsData && Array.isArray(productsData) && productsData.length > 0) {
+      productsData.forEach((p: any) => {
         if (p.name) {
-          activeProductsMap.set(p.name.toLowerCase(), { name: p.name, image_url: p.image_url || undefined });
+          const img = p.product_images?.[0]?.image_url || undefined;
+          if (!firstActiveProduct) {
+            firstActiveProduct = { name: p.name, image_url: img };
+          }
+          activeProductsMap.set(p.name.toLowerCase(), { name: p.name, image_url: img });
         }
       });
     }
