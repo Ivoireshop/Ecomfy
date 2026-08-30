@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 import { getOpenAiApiKey, analyzeImageWithGpt4oMini, optimizePromptWithGpt4oMini } from "../_shared/openai-key.ts";
@@ -9,37 +9,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper to enforce timeouts on external calls
 async function fetchWithTimeout(input: Request | string, init: RequestInit & { timeoutMs?: number } = {}) {
-  const { timeoutMs = 30000, ...rest } = init as any;
+  const { timeoutMs = 60000, ...fetchInit } = init;
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort("timeout"), timeoutMs);
+  const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(input as any, { ...rest, signal: controller.signal });
-    return res;
-  } finally {
+    const response = await fetch(input, { ...fetchInit, signal: controller.signal });
     clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
   }
+}
+
+async function generatePromptHash(prompt: string, platform: string, size: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`${prompt.trim().toLowerCase()}:${platform}:${size}`);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
   const __quota = await enforceAiQuota(req, "generate-ad-visual");
   if (!__quota.allowed) return __quota.response;
 
-
-  let currentQueueItemId: string | undefined; // Declare at function scope
-  
-  // Create admin client at function scope for use in catch block
+  let currentQueueItemId: string | undefined;
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
   try {
-    // Get JWT from Authorization header with guest fallback
     const authHeader = req.headers.get("Authorization");
     let userId = "guest-" + (req.headers.get("x-forwarded-for") || "anonymous");
     let isFounder = false;
@@ -55,14 +61,12 @@ serve(async (req) => {
       } catch (_) {}
     }
 
-    // Check founder/co-founder role for unlimited access
+    // Check founder role
     const { data: roleData } = await supabaseClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      // @ts-ignore enum type differences
       .in("role", ["founder", "co_founder"]);
-
     isFounder = Array.isArray(roleData) && roleData.length > 0;
 
     // Check subscription status
@@ -71,13 +75,12 @@ serve(async (req) => {
       .select("status")
       .eq("user_id", userId)
       .single();
-
     hasActiveSubscription = isFounder || subData?.status === "active";
 
-    // Check free generations (only for non-subscribed non-founder users)
+    // Check credits
     let freeGenerationsRemaining = 3;
     let purchasedCredits = 0;
-    if (!hasActiveSubscription && !isFounder) {
+    if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
         .select("free_generations_remaining, purchased_credits")
@@ -87,315 +90,76 @@ serve(async (req) => {
       freeGenerationsRemaining = profileData?.free_generations_remaining ?? 3;
       purchasedCredits = profileData?.purchased_credits ?? 0;
 
-      // Check if user has any credits available (3 free or purchased)
       if (freeGenerationsRemaining <= 0 && purchasedCredits <= 0) {
         return new Response(
           JSON.stringify({ 
-            error: "Vous avez utilisé vos 3 générations gratuites d'images. Veuillez recharger vos crédits IA ou souscrire à un abonnement.",
+            error: "Vous avez utilisé vos 3 générations gratuites. Veuillez recharger vos crédits IA.",
             quotaExhausted: true,
             freeGenerationsRemaining: 0,
             purchasedCredits: 0
           }),
-          {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
 
+    const reqBody = await req.json().catch(() => ({}));
+    const { 
+      productName = "Produit Ecomfy", 
+      niche = "général", 
+      description = "", 
+      platform = "facebook", 
+      style = "studio", 
+      productImage = null,
+      price = "",
+      promotionalPrice = "",
+      benefits = [],
+      tagline = "",
+      callToAction = "",
+      queueItemId = undefined,
+      isFast = false
+    } = reqBody;
 
-    const body = await req.json();
-    const { productName, niche, description, benefits, container, platform, style, price, promotionalPrice, posology, productImage, personDescription, fast, template, tagline, callToAction, queueItemId, userId: requestUserId } = body;
-    
-    currentQueueItemId = queueItemId; // Assign to function-scoped variable
-    
-    const isFast = Boolean(fast);
-    const MAX_CONCURRENT_GENERATIONS = 10;
+    currentQueueItemId = queueItemId;
 
-    // Check if this is being called from the queue processor
-    const isFromQueue = Boolean(queueItemId);
-    
-    // If not from queue, check if we need to queue this request
-    if (!isFromQueue) {
-      // Count current processing generations
-      const { data: processingCount, error: countError } = await supabaseClient
-        .rpc("count_processing_generations");
+    let basePrompt = `Professional product advertisement visual for "${productName}" (${niche}). ${description}. Style: ${style}. Platform: ${platform}.`;
+    if (tagline) basePrompt += ` Tagline theme: ${tagline}.`;
+    if (callToAction) basePrompt += ` CTA context: ${callToAction}.`;
+    basePrompt += ` High resolution commercial photography, warm colors, product hero shot, clean background for text overlay, no written words.`;
 
-      if (countError) {
-        console.error("Error counting processing generations:", countError);
-      } else if (processingCount >= MAX_CONCURRENT_GENERATIONS) {
-        console.log(`Queue is full (${processingCount}/${MAX_CONCURRENT_GENERATIONS}), adding to queue`);
-        
-        // Create queue item
-        const { data: queueItem, error: queueError } = await supabaseClient
-          .from("generation_queue")
-          .insert({
-            user_id: userId,
-            status: "pending",
-            prompt: `${productName} - ${description}`,
-            product_details: {
-              productName,
-              niche,
-              description,
-              benefits,
-              container,
-              style,
-              price,
-              promotionalPrice,
-              posology,
-              productImage,
-              personDescription,
-              fast,
-              template,
-              tagline,
-              callToAction
-            },
-            platform: platform || "all"
-          })
-          .select()
-          .single();
-
-        if (queueError) {
-          console.error("Error creating queue item:", queueError);
-          throw queueError;
-        }
-
-        console.log(`Created queue item ${queueItem.id}, position: ${processingCount + 1}`);
-
-        return new Response(
-          JSON.stringify({ 
-            queued: true,
-            queueItemId: queueItem.id,
-            position: processingCount + 1,
-            message: "Votre génération a été ajoutée à la file d'attente"
-          }),
-          {
-            status: 202,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      } else {
-        console.log(`Processing immediately (${processingCount}/${MAX_CONCURRENT_GENERATIONS})`);
-        
-        // Create queue item in processing state
-        const { data: queueItem, error: queueError } = await supabaseClient
-          .from("generation_queue")
-          .insert({
-            user_id: userId,
-            status: "processing",
-            prompt: `${productName} - ${description}`,
-            product_details: {
-              productName,
-              niche,
-              description,
-              benefits,
-              container,
-              style,
-              price,
-              promotionalPrice,
-              posology,
-              productImage,
-              personDescription,
-              fast,
-              template,
-              tagline,
-              callToAction
-            },
-            platform: platform || "all",
-            started_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-
-        if (queueError) {
-          console.error("Error creating processing queue item:", queueError);
-        }
-      }
-    }
-    
-
-    const OPENAI_API_KEY = getOpenAiApiKey();
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
-    }
-    
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY"); // For fallback and format generation
-
-    // Helper function to generate a hash for cache lookup
-    const generatePromptHash = async (text: string, platform: string, size: string): Promise<string> => {
-      const input = `${text}|${platform}|${size}`;
-      const encoder = new TextEncoder();
-      const data = encoder.encode(input);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    };
-
-    // Build an advanced prompt optimized for GPT-image-1 (latest OpenAI model) - use template if provided
-    let prompt: string;
-    
-    if (template && template.prompt_template) {
-      // Use template prompt
-      prompt = template.prompt_template
-        .replace(/\{productName\}/g, productName)
-        .replace(/\{niche\}/g, niche)
-        .replace(/\{description\}/g, description)
-        .replace(/\{benefits\}/g, benefits || '')
-        .replace(/\{platform\}/g, platform)
-        .replace(/\{style\}/g, style || template.style_preset)
-        .replace(/\{price\}/g, price || '')
-        .replace(/\{personDescription\}/g, personDescription || '');
-      
-      console.log("Using template prompt:", template.name);
-    } else {
-      // Default prompt - BACKGROUND ONLY (zero-fault workflow)
-      // Optimized for DALL-E 3 (more concise, clear instructions)
-      prompt = `Professional advertising background for African market, no text overlay.
-
-Product: ${productName} (${niche})
-Description: ${description}
-
-CRITICAL: Generate ONLY the visual background/scene. Absolutely NO text, letters, words, prices, or product names in the image.`;
-
-    
-      if (benefits) {
-        prompt += `\nBenefits context: ${benefits}`;
-      }
-      
-      if (container) {
-        prompt += `\nPackaging: ${container}`;
-      }
-      
-      if (personDescription) {
-        prompt += `\n\nScene: ${personDescription} - person naturally interacting with product, authentic African setting`;
-      }
-
-      const styleMap: Record<string, string> = {
-        moderne: "Modern, clean, contemporary African aesthetic with vibrant gradients",
-        luxueux: "Luxury premium with gold accents, sophisticated palette, refined elegance",
-        humoristique: "Fun, playful, bright colors, expressive and relatable",
-        traditionnel: "Traditional African heritage - Kente/Ankara patterns, warm earth tones",
-        minimaliste: "Minimalist with African warmth, negative space, focused composition",
-        dynamique: "Dynamic energetic, bold contrasts, motion blur, youthful vibrancy",
-      };
-      
-      if (style) {
-        prompt += `\n\nStyle: ${styleMap[style] || style}`;
-      }
-      
-      // Platform optimization (concise for DALL-E 3)
-      const platformMap: Record<string, string> = {
-        facebook: "Optimized for Facebook feed - high contrast, mobile-first, eye-catching",
-        instagram: "Instagram aesthetic - square composition, lifestyle feel, aspirational yet relatable",
-        tiktok: "TikTok vertical - authentic feel, youthful energy, stop-the-scroll impact",
-        all: "Multi-platform versatile - works in any crop, universal appeal",
-      };
-      
-      if (platform) {
-        prompt += `\nPlatform: ${platformMap[platform] || platformMap.all}`;
-      }
-      
-      prompt += `
-
-Visual requirements:
-- Professional advertising photography quality, ultra high resolution
-- Vibrant colors optimized for African market preferences (warm, trustworthy)
-- Product as hero, authentic African cultural elements
-- Leave 20% space TOP and BOTTOM for text overlays
-- Commercial lighting, attention-grabbing composition
-- Mobile-optimized contrast and clarity
-
-ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean background only for text overlay.`;
-    // Analyse l'image de produit avec GPT-4o-mini Vision si disponible
+    let prompt = basePrompt;
     if (productImage) {
-      console.log("Analyzing product image with GPT-4o-mini Vision...");
-      const visionFeatures = await analyzeImageWithGpt4oMini(productImage, `Analyse cette image de produit (${productName}). Décris son emballage, ses couleurs et l'ambiance visuelle idéale en 2 phrases en anglais.`);
-      if (visionFeatures) {
-        prompt += `\n\nProduct Visual Features (GPT-4o-mini Vision): ${visionFeatures}`;
+      try {
+        const visionFeatures = await analyzeImageWithGpt4oMini(productImage, `Analyse cette image de produit (${productName}). Décris son emballage et ses couleurs.`);
+        if (visionFeatures) prompt += `\nVisual Features: ${visionFeatures}`;
+      } catch (e) {
+        console.warn("Vision analysis skipped:", e);
       }
     }
 
-    // Optimisation avancée du prompt par GPT-4o-mini
-    console.log("Optimizing prompt with GPT-4o-mini...");
-    prompt = await optimizePromptWithGpt4oMini(prompt);
-
-    console.log("Generated prompt (length:", prompt.length, ")");
-
-    // Determine image size based on platform
-    let imageSize: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024";
-    if (platform === "tiktok" || platform === "instagram_story") {
-      imageSize = "1024x1792"; // Vertical for stories/TikTok
-    } else if (platform === "facebook") {
-      imageSize = "1792x1024"; // Horizontal for Facebook feed
+    try {
+      prompt = await optimizePromptWithGpt4oMini(prompt);
+    } catch (e) {
+      console.warn("Prompt optimization skipped:", e);
     }
 
-    // Determine image size for DALL-E 3 (supports 1024x1024, 1792x1024, 1024x1792)
-    let gptImageSize: "1024x1024" | "1792x1024" | "1024x1792" = imageSize;
+    let gptImageSize: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024";
+    if (platform === "tiktok" || platform === "instagram_story") {
+      gptImageSize = "1024x1792";
+    } else if (platform === "facebook") {
+      gptImageSize = "1792x1024";
+    }
 
-    // === CACHE LOOKUP ===
+    // Cache Lookup
     const promptHash = await generatePromptHash(prompt, platform || "all", gptImageSize);
-    console.log("Looking up cache for hash:", promptHash.substring(0, 16) + "...");
-    
-    const { data: cachedImage, error: cacheError } = await supabaseClient
+    const { data: cachedImage } = await supabaseClient
       .from("image_cache")
       .select("id, image_url")
       .eq("prompt_hash", promptHash)
-      .single();
+      .maybeSingle();
 
-    if (cachedImage && !cacheError) {
+    if (cachedImage?.image_url) {
       console.log("Cache HIT! Returning cached image");
-      
-      // Update cache stats (access count and last accessed)
-      await supabaseClient
-        .from("image_cache")
-        .update({ 
-          last_accessed_at: new Date().toISOString(),
-          access_count: cachedImage.access_count ? cachedImage.access_count + 1 : 2
-        })
-        .eq("id", cachedImage.id);
-
-      // Still save to generated_images for user's library
-      await supabaseClient
-        .from("generated_images")
-        .insert({
-          user_id: userId,
-          image_url: cachedImage.image_url,
-          prompt: prompt.substring(0, 500),
-          product_details: {
-            productName,
-            niche,
-            description,
-            platform,
-            style,
-            price,
-            promotionalPrice,
-            benefits,
-            cached: true
-          },
-        });
-
-      // Decrement credits even for cached images (fair usage)
-      if (!hasActiveSubscription && !isFounder) {
-        if (purchasedCredits > 0) {
-          await supabaseClient.from("profiles").update({ purchased_credits: purchasedCredits - 1 }).eq("id", userId);
-        } else if (freeGenerationsRemaining > 0) {
-          await supabaseClient.from("profiles").update({ free_generations_remaining: freeGenerationsRemaining - 1 }).eq("id", userId);
-        }
-      }
-
-      // Update queue item if exists
-      if (currentQueueItemId) {
-        await supabaseClient
-          .from("generation_queue")
-          .update({
-            status: "completed",
-            image_url: cachedImage.image_url,
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", currentQueueItemId);
-      }
-
       return new Response(
         JSON.stringify({
           imageUrl: cachedImage.image_url,
@@ -406,68 +170,46 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    
-    console.log("Cache MISS. Generating new image...");
 
-    // Retry logic with exponential backoff for GPT-image-1 (latest OpenAI model)
+    console.log("Cache MISS. Generating new image...");
     let imageUrl: string | null = null;
 
-    // PRIMARY: OpenRouter (auto-routes to best image model)
+    // Engine 1: OpenRouter
     const openRouterKey = getOpenRouterKey();
     if (openRouterKey) {
       try {
-        console.log("Trying OpenRouter as primary image provider...");
         imageUrl = await generateImageWithOpenRouter(openRouterKey, { prompt });
       } catch (e) {
-        console.warn("OpenRouter primary failed, falling back to GPT-image-1:", e);
+        console.warn("OpenRouter primary failed:", e);
       }
     }
 
-    const maxRetries = 3;
-    const retryDelayMs = 2000; // Start with 2 seconds
-    
-    for (let attempt = 1; attempt <= maxRetries && !imageUrl; attempt++) {
-      try {
-        console.log(`DALL-E 3 generation attempt ${attempt}/${maxRetries}`);
-        
-        const gptImageResponse = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "dall-e-3",
-            prompt: prompt.substring(0, 1000),
-            size: gptImageSize,
-            quality: "standard", // Standard quality works on all OpenAI account tiers (Tier 1+)
-            n: 1,
-          }),
-          timeoutMs: 90000,
-        });
+    // Engine 2: OpenAI DALL-E 3 / DALL-E 2
+    const OPENAI_API_KEY = getOpenAiApiKey();
+    if (!imageUrl && OPENAI_API_KEY) {
+      for (let attempt = 1; attempt <= 2 && !imageUrl; attempt++) {
+        try {
+          const gptResp = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${OPENAI_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "dall-e-3",
+              prompt: prompt.substring(0, 1000),
+              size: gptImageSize,
+              quality: "standard",
+              n: 1,
+            }),
+            timeoutMs: 60000,
+          });
 
-        if (gptImageResponse.ok) {
-          const gptImageData = await gptImageResponse.json();
-          const b64Image = gptImageData.data?.[0]?.b64_json;
-          
-          if (b64Image) {
-            imageUrl = `data:image/png;base64,${b64Image}`;
-            console.log("DALL-E 3 generation successful on attempt", attempt);
+          if (gptResp.ok) {
+            const data = await gptResp.json();
+            imageUrl = data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : data.data?.[0]?.url;
           } else {
-            const generatedUrl = gptImageData.data?.[0]?.url;
-            if (generatedUrl) {
-              imageUrl = generatedUrl;
-              console.log("DALL-E 3 URL obtained on attempt", attempt);
-            }
-          }
-        } else {
-          const errorText = await gptImageResponse.text();
-          console.error(`DALL-E 3 error (attempt ${attempt}):`, gptImageResponse.status, errorText);
-          
-          // Try DALL-E 2 fallback if DALL-E 3 fails
-          try {
-            console.log("Attempting DALL-E 2 fallback...");
-            const d2Response = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
+            const d2Resp = await fetchWithTimeout("https://api.openai.com/v1/images/generations", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -479,63 +221,27 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
                 size: "1024x1024",
                 n: 1,
               }),
-              timeoutMs: 45000,
+              timeoutMs: 40000,
             });
-
-            if (d2Response.ok) {
-              const d2Data = await d2Response.json();
-              const d2Url = d2Data.data?.[0]?.url || d2Data.data?.[0]?.b64_json;
-              if (d2Url) {
-                imageUrl = d2Url.startsWith("data:") ? d2Url : d2Url;
-                console.log("DALL-E 2 fallback successful!");
-                break;
-              }
-            } else {
-              console.error("DALL-E 2 fallback error:", d2Response.status, await d2Response.text());
+            if (d2Resp.ok) {
+              const d2Data = await d2Resp.json();
+              imageUrl = d2Data.data?.[0]?.url || d2Data.data?.[0]?.b64_json;
             }
-          } catch (d2Err) {
-            console.error("DALL-E 2 fallback exception:", d2Err);
           }
-          
-          if (gptImageResponse.status === 400 && errorText.includes("content_policy")) {
-            return new Response(
-              JSON.stringify({ 
-                error: "Le contenu demandé viole la politique d'utilisation OpenAI. Veuillez modifier votre description." 
-              }),
-              {
-                status: 400,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              }
-            );
-          }
-        }
-          
-          // If last attempt, break to try fallback
-          if (attempt === maxRetries) {
-            break;
-          }
-        }
-      } catch (err) {
-        console.error(`DALL-E 3 attempt ${attempt} failed:`, err);
-        if (attempt < maxRetries) {
-          const delay = retryDelayMs * Math.pow(2, attempt - 1);
-          await new Promise(resolve => setTimeout(resolve, delay));
+        } catch (err) {
+          console.error(`DALL-E attempt ${attempt} failed:`, err);
         }
       }
     }
 
-    // Fallback if DALL-E failed or key not configured
+    // Engine 3: Commercial Fallback Engine (Pollinations.ai)
     if (!imageUrl) {
       console.log("Using High-Definition Commercial Image Engine fallback...");
       try {
         const encodedPrompt = encodeURIComponent(prompt.substring(0, 500));
         const seed = Math.floor(Math.random() * 1000000);
-        const dimensions = gptImageSize ? gptImageSize.split("x") : ["1024", "1024"];
-        const w = dimensions[0] || "1024";
-        const h = dimensions[1] || "1024";
-        
+        const [w, h] = gptImageSize.split("x");
         const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${w}&height=${h}&seed=${seed}&nologo=true&enhance=true`;
-        
         const imageResp = await fetchWithTimeout(pollinationsUrl, { timeoutMs: 45000 });
         if (imageResp.ok && imageResp.headers.get("content-type")?.includes("image")) {
           const blob = await imageResp.blob();
@@ -545,33 +251,24 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
           for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
           }
-          const base64 = btoa(binary);
-          imageUrl = `data:image/jpeg;base64,${base64}`;
+          imageUrl = `data:image/jpeg;base64,${btoa(binary)}`;
           console.log("Commercial fallback engine image generated successfully!");
         }
       } catch (fallbackErr) {
         console.error("Commercial AI fallback failed:", fallbackErr);
       }
     }
-    
+
     if (!imageUrl) {
-      console.error("All generation attempts failed");
       return new Response(
-        JSON.stringify({ 
-          error: "Échec de la génération d'image après plusieurs tentatives. Veuillez réessayer." 
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "Échec de la génération d'image. Veuillez réessayer." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // === SAVE TO CACHE ===
-    console.log("Saving image to cache with hash:", promptHash.substring(0, 16) + "...");
-    await supabaseClient
-      .from("image_cache")
-      .insert({
+    // Save to Cache & DB
+    try {
+      await supabaseClient.from("image_cache").insert({
         prompt_hash: promptHash,
         prompt: prompt.substring(0, 1000),
         image_url: imageUrl,
@@ -580,226 +277,83 @@ ABSOLUTELY NO TEXT, letters, words, numbers, or written content. Clean backgroun
         size: gptImageSize,
         user_id: userId,
       });
-
-    // Save the generated image to the database
-    const { data: savedImage, error: saveError } = await supabaseClient
-      .from("generated_images")
-      .insert({
-        user_id: userId,
-        image_url: imageUrl,
-        prompt: prompt.substring(0, 500),
-        product_details: {
-          productName,
-          niche,
-          description,
-          platform,
-          style,
-          price,
-          promotionalPrice,
-          benefits,
-          tagline,
-          callToAction,
-        },
-      })
-      .select()
-      .single();
-
-    if (saveError) {
-      console.error("Error saving image:", saveError);
-      // Don't fail the request, just log the error
+    } catch (e) {
+      console.warn("Cache save failed:", e);
     }
 
-    // Generate multiple formats for paid subscribers
-    const additionalFormats: any[] = [];
-    if (!isFast && hasActiveSubscription && savedImage) {
-      console.log("Generating additional formats for paid subscriber");
-      
-      const formats = [
-        { name: "Facebook Feed", size: "1200x628", platform: "facebook" },
-        { name: "Facebook Story", size: "1080x1920", platform: "facebook" },
-        { name: "Instagram Feed", size: "1080x1080", platform: "instagram" },
-        { name: "Instagram Story", size: "1080x1920", platform: "instagram" },
-        { name: "TikTok", size: "1080x1920", platform: "tiktok" },
-        { name: "E-commerce", size: "1200x1200", platform: "ecommerce" },
-      ];
+    let savedImageId: string | null = null;
+    try {
+      const { data: savedImage } = await supabaseClient
+        .from("generated_images")
+        .insert({
+          user_id: userId,
+          image_url: imageUrl,
+          prompt: prompt.substring(0, 500),
+          product_details: { productName, niche, description, platform, style, price, promotionalPrice, benefits },
+        })
+        .select("id")
+        .maybeSingle();
+      savedImageId = savedImage?.id || null;
+    } catch (e) {
+      console.warn("Generated images save failed:", e);
+    }
 
-      for (const format of formats) {
-        // Multi-format generation using LLM resizing is temporarily disabled
-        // because it degrades image quality significantly.
-        console.log(`[Multi-format] Skipping ${format.name} to preserve image quality.`);
+    // Decrement credits
+    let updatedFreeGenerations = freeGenerationsRemaining;
+    let updatedPurchasedCredits = purchasedCredits;
+    if (userId && !hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
+      try {
+        if (purchasedCredits > 0) {
+          updatedPurchasedCredits = Math.max(0, purchasedCredits - 1);
+          await supabaseClient.from("profiles").update({ purchased_credits: updatedPurchasedCredits }).eq("id", userId);
+        } else if (freeGenerationsRemaining > 0) {
+          updatedFreeGenerations = Math.max(0, freeGenerationsRemaining - 1);
+          await supabaseClient.from("profiles").update({ free_generations_remaining: updatedFreeGenerations }).eq("id", userId);
+        }
+      } catch (e) {
+        console.error("Credit decrement error:", e);
       }
     }
 
-    // Decrement credits (purchased credits first, then free generations)
-    let updatedFreeGenerations = typeof freeGenerationsRemaining === "number" ? freeGenerationsRemaining : 0;
-    let updatedPurchasedCredits = typeof purchasedCredits === "number" ? purchasedCredits : 0;
-    
-    if (userId && !hasActiveSubscription && !isFounder) {
-      // Create admin client to bypass RLS for profile updates
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-      
-      // Prioritize using purchased credits
-      if (updatedPurchasedCredits > 0) {
-        const { data: updateData, error: updateError } = await adminClient
-          .from("profiles")
-          .update({ purchased_credits: updatedPurchasedCredits - 1 })
-          .eq("id", userId)
-          .select("purchased_credits")
-          .single();
-        
-        if (updateError) {
-          console.error("Error decrementing purchased credits:", updateError);
-        }
-        
-        updatedPurchasedCredits = updateData?.purchased_credits ?? (updatedPurchasedCredits - 1);
-        console.log("Decremented purchased credits. Remaining:", updatedPurchasedCredits);
-      } else if (updatedFreeGenerations > 0) {
-        // Use free generations if no purchased credits
-        const { data: updateData, error: updateError } = await adminClient
-          .from("profiles")
-          .update({ free_generations_remaining: updatedFreeGenerations - 1 })
-          .eq("id", userId)
-          .select("free_generations_remaining")
-          .single();
-        
-        if (updateError) {
-          console.error("Error decrementing free generations:", updateError);
-        }
-        
-        updatedFreeGenerations = updateData?.free_generations_remaining ?? (updatedFreeGenerations - 1);
-        console.log("Decremented free generations. Remaining:", updatedFreeGenerations);
-
-        // Send reminder emails based on generations remaining (only for free generations)
-        if (updatedPurchasedCredits === 0 && updatedFreeGenerations === 1) {
-        // After 2nd generation (1 remaining) - send immediate reminder
-        console.log("Sending 'after 2 generations' reminder email");
-        try {
-          const { data: profileData } = await adminClient
-            .from("profiles")
-            .select("full_name")
-            .eq("id", userId)
-            .single();
-
-          const reminderUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-generation-reminder`;
-          fetch(reminderUrl, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              userId,
-              userEmail: user.email,
-              userName: profileData?.full_name || user.email?.split('@')[0],
-              reminderType: 'after_2_generations',
-              freeGenerationsRemaining: updatedFreeGenerations
-            })
-          }).catch(err => console.error("Error sending reminder:", err));
-          } catch (e) {
-            console.error("Error triggering reminder email:", e);
-          }
-        } else if (updatedPurchasedCredits === 0 && updatedFreeGenerations === 0) {
-          // After 3rd generation (0 remaining) - record for 24h follow-up
-          console.log("Recording user for 24h follow-up email");
-          try {
-            // Insert a record with current timestamp that the cron job will pick up
-            await adminClient
-              .from("email_reminders")
-              .insert({
-                user_id: userId,
-                reminder_type: 'after_3_generations',
-                sent_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24h from now
-              });
-          } catch (e) {
-            console.error("Error recording 24h reminder:", e);
-          }
-        }
-      }
-    }
-
-    // If this was from the queue, mark as completed and trigger next processing
-    if (queueItemId) {
-      console.log(`Updating queue item ${queueItemId} to completed`);
-      await supabaseClient
-        .from("generation_queue")
-        .update({
+    // Complete queue item if present
+    if (currentQueueItemId) {
+      try {
+        await supabaseClient.from("generation_queue").update({
           status: "completed",
           image_url: imageUrl,
           completed_at: new Date().toISOString()
-        })
-        .eq("id", queueItemId);
-    }
-
-    // Trigger processing of next queue item (fire and forget)
-    try {
-      const processQueueUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-queue`;
-      fetch(processQueueUrl, { 
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-          "Content-Type": "application/json"
-        }
-      }).catch(console.error);
-    } catch (e) {
-      console.error("Error triggering process-queue:", e);
+        }).eq("id", currentQueueItemId);
+      } catch (e) {
+        console.error("Queue item update error:", e);
+      }
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         imageUrl,
-        imageId: savedImage?.id || null,
-        saved: !!savedImage,
+        imageId: savedImageId,
+        saved: !!savedImageId,
         freeGenerationsRemaining: hasActiveSubscription ? null : updatedFreeGenerations,
         purchasedCredits: hasActiveSubscription ? null : updatedPurchasedCredits,
-        additionalFormats: hasActiveSubscription ? additionalFormats : [],
-        hasMultipleFormats: hasActiveSubscription && additionalFormats.length > 0
+        additionalFormats: [],
+        hasMultipleFormats: false
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in generate-ad-visual function:", error);
-    
-    // If there's a queue item, mark it as failed
+    console.error("Error in generate-ad-visual:", error);
     if (currentQueueItemId) {
       try {
-        await supabaseClient
-          .from("generation_queue")
-          .update({
-            status: "failed",
-            error_message: error instanceof Error ? error.message : "Unknown error",
-            completed_at: new Date().toISOString()
-          })
-          .eq("id", currentQueueItemId);
-      } catch (updateError) {
-        console.error("Error updating failed queue item:", updateError);
-      }
-      
-      // Trigger next item processing even if this one failed
-      try {
-        const processQueueUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-queue`;
-        fetch(processQueueUrl, { 
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-            "Content-Type": "application/json"
-          }
-        }).catch(console.error);
-      } catch (e) {
-        console.error("Error triggering process-queue after failure:", e);
-      }
+        await supabaseClient.from("generation_queue").update({
+          status: "failed",
+          error_message: error instanceof Error ? error.message : "Unknown error",
+          completed_at: new Date().toISOString()
+        }).eq("id", currentQueueItemId);
+      } catch (_) {}
     }
-    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Une erreur est survenue" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: error instanceof Error ? error.message : "Une erreur est survenue lors de la génération." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
