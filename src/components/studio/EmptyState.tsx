@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Sparkles, Image as ImageIcon, Video, Palette, Megaphone, UserSquare } from "lucide-react";
+import { Sparkles, Image as ImageIcon, Video, Palette, Megaphone, UserSquare, ArrowRight, Wand2 } from "lucide-react";
 
 interface EmptyStateProps {
   mode: "image" | "video";
@@ -8,48 +8,110 @@ interface EmptyStateProps {
 
 export const EmptyState = ({ mode, onSuggestionClick }: EmptyStateProps) => {
   const suggestions = mode === "image" ? [
-    { text: "Photo produit premium", icon: <Palette className="w-4 h-4 mr-2" />, prompt: "Photo produit e-commerce premium avec éclairage studio, fond neutre élégant, ultra haute définition" },
-    { text: "Publicité Facebook", icon: <Megaphone className="w-4 h-4 mr-2" />, prompt: "Visuel publicitaire accrocheur pour Facebook, style coloré et moderne, adapté pour la conversion" },
-    { text: "Portrait professionnel", icon: <UserSquare className="w-4 h-4 mr-2" />, prompt: "Portrait d'affaires professionnel, fond de bureau moderne flou, éclairage naturel, confiance en soi" },
-    { text: "Post Instagram", icon: <ImageIcon className="w-4 h-4 mr-2" />, prompt: "Post Instagram lifestyle esthétique, ambiance chaleureuse, couleurs douces, composition créative" }
+    {
+      title: "Photo Produit Premium",
+      badge: "E-Commerce",
+      icon: <Palette className="w-4 h-4 text-emerald-500 shrink-0" />,
+      prompt: "Photo produit e-commerce premium avec éclairage studio photo, flacon de sérum cosmétique posé sur une pierre de marbre avec des gouttes d'eau fraîches, fond neutre élégant, ultra haute définition 8k",
+      description: "Mise en scène studio pro avec ombres et reflets"
+    },
+    {
+      title: "Publicité Facebook / TikTok",
+      badge: "Social Ad",
+      icon: <Megaphone className="w-4 h-4 text-blue-500 shrink-0" />,
+      prompt: "Visuel publicitaire accrocheur pour Facebook et TikTok, modèle africain souriant présentant un produit de beauté, couleurs vivantes et modernes, typographie nette et lisible, haute conversion",
+      description: "Visuel accrocheur optimisé pour le taux de clic"
+    },
+    {
+      title: "Portrait Professionnel",
+      badge: "Branding",
+      icon: <UserSquare className="w-4 h-4 text-purple-500 shrink-0" />,
+      prompt: "Portrait d'affaires professionnel, entrepreneur élégant en tenue moderne, arrière-plan de bureau lumineux avec flou artistique bokeh, éclairage naturel, confiance et sérénité",
+      description: "Photo d'entrepreneur ou modèle de marque"
+    },
+    {
+      title: "Post Instagram Lifestyle",
+      badge: "Contenu",
+      icon: <ImageIcon className="w-4 h-4 text-amber-500 shrink-0" />,
+      prompt: "Post Instagram lifestyle esthétique, ambiance chaleureuse et lumineuse, composition créative avec accessoires modernes, palette de couleurs harmonieuse",
+      description: "Composition esthétique pour fil d'actualité"
+    }
   ] : [
-    { text: "Publicité produit", icon: <Video className="w-4 h-4 mr-2" />, prompt: "Travelling avant lent sur le produit, éclairage dramatique, ambiance luxueuse" },
-    { text: "Tutoriel dynamique", icon: <Sparkles className="w-4 h-4 mr-2" />, prompt: "Montage dynamique rapide, présentation énergique, fond coloré" },
-    { text: "Atmosphère cinématique", icon: <Video className="w-4 h-4 mr-2" />, prompt: "Plan séquence cinématique, éclairage tamisé, léger mouvement de caméra panoramique" },
+    {
+      title: "Publicité Vidéo Produit",
+      badge: "Commercial",
+      icon: <Video className="w-4 h-4 text-purple-500 shrink-0" />,
+      prompt: "Travelling avant cinématique sur un produit e-commerce, éclairage studio dramatique, mouvement fluide de caméra, ambiance haute couture",
+      description: "Vidéo commerciale dynamique 9:16"
+    },
+    {
+      title: "Présentation Dynamique",
+      badge: "Tutoriel",
+      icon: <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />,
+      prompt: "Montage vidéo dynamique, déballage et démonstration de produit en action, fond coloré moderne, mouvement énergique",
+      description: "Format court engageant pour réseaux"
+    },
+    {
+      title: "Ambiance Cinématique",
+      badge: "Brand Story",
+      icon: <Video className="w-4 h-4 text-blue-500 shrink-0" />,
+      prompt: "Plan séquence cinématique, éclairage tamisé chaleureux, léger mouvement panoramique avec profondeur de champ",
+      description: "Rendu cinéma pour raconter votre marque"
+    },
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center flex-1 w-full h-full p-8 mt-12 mb-20 animate-in fade-in zoom-in duration-500">
-      <div className="w-16 h-16 mb-6 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-        <Sparkles className="w-8 h-8" />
+    <div className="flex flex-col items-center justify-center flex-1 w-full max-w-4xl mx-auto px-4 py-8 md:py-12 animate-in fade-in zoom-in-95 duration-500">
+      
+      {/* Top AI Badge */}
+      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs mb-6 shadow-2xs">
+        <Wand2 className="w-3.5 h-3.5 animate-pulse" />
+        <span className="whitespace-nowrap uppercase tracking-wider">Studio IA Créatif & Publicitaire</span>
       </div>
+
+      {/* Main Title */}
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-center text-foreground tracking-tight max-w-2xl mb-4 leading-tight">
+        Que souhaitez-vous créer <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] via-emerald-500 to-teal-400">aujourd'hui ?</span>
+      </h1>
       
-      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">
-        Que souhaitez-vous créer aujourd'hui ?
-      </h2>
-      
-      <p className="text-muted-foreground text-center max-w-md mb-10 text-sm sm:text-base">
-        Créez une {mode === "image" ? "image" : "vidéo"} époustouflante simplement en décrivant votre idée.
+      {/* Subtitle */}
+      <p className="text-muted-foreground text-center max-w-lg mb-10 text-sm sm:text-base font-medium leading-relaxed">
+        {mode === "image" 
+          ? "Générez des visuels produits et des images publicitaires en qualité DALL-E 3 HD (rendu ChatGPT Plus)."
+          : "Créez des vidéos publicitaires haute définition pour TikTok, Instagram et Facebook en quelques secondes."}
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+      {/* Grid of Templates */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
         {suggestions.map((suggestion, index) => (
-          <Button
+          <div
             key={index}
-            variant="outline"
-            className="h-auto py-4 px-4 justify-start text-left bg-background hover:bg-muted/50 border-border shadow-sm hover:shadow transition-all"
             onClick={() => onSuggestionClick(suggestion.prompt)}
+            className="group relative flex flex-col p-5 rounded-2xl bg-card border border-border/60 hover:border-[#0E7C66]/50 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden"
           >
-            <div className="flex flex-col gap-1 w-full">
-              <span className="flex items-center font-medium text-foreground">
-                {suggestion.icon}
-                {suggestion.text}
-              </span>
-              <span className="text-xs text-muted-foreground truncate w-full">
-                {suggestion.prompt}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-muted/60 group-hover:bg-emerald-500/10 transition-colors">
+                  {suggestion.icon}
+                </div>
+                <h3 className="font-extrabold text-sm text-foreground group-hover:text-[#0E7C66] transition-colors whitespace-nowrap">
+                  {suggestion.title}
+                </h3>
+              </div>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-muted text-muted-foreground group-hover:bg-emerald-500/10 group-hover:text-[#0E7C66] transition-colors">
+                {suggestion.badge}
               </span>
             </div>
-          </Button>
+
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-1 mb-3 font-normal leading-normal">
+              {suggestion.prompt}
+            </p>
+
+            <div className="flex items-center text-xs font-bold text-[#0E7C66] mt-auto opacity-80 group-hover:opacity-100 transition-opacity">
+              <span>Utiliser cette idée</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1.5 transform group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
         ))}
       </div>
     </div>

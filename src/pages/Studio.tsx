@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ModeSwitcher } from "@/components/studio/ModeSwitcher";
 import { PromptComposer } from "@/components/studio/PromptComposer";
 import { MediaFile } from "@/components/studio/MediaUploader";
-import { AdvancedSettings, StudioSettings } from "@/components/studio/AdvancedSettings";
+import { StudioSettings } from "@/components/studio/AdvancedSettings";
 import { GenerationCard } from "@/components/studio/GenerationCard";
 import { EmptyState } from "@/components/studio/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 export default function Studio() {
   const [mode, setMode] = useState<"image" | "video">("image");
@@ -35,7 +35,6 @@ export default function Studio() {
 
     try {
       if (mode === "image") {
-        // Image Generation
         const body: any = {
           mode: media.length > 0 ? "image-edit" : "text-to-image",
           prompt: prompt,
@@ -72,7 +71,6 @@ export default function Studio() {
         toast.success("Image générée avec succès !");
         
       } else {
-        // Video Generation
         const { data, error } = await supabase.functions.invoke("generate-video", {
           body: {
             description: prompt,
@@ -80,7 +78,7 @@ export default function Studio() {
             referenceImages: media.map(m => m.url),
             platform: settings.aspectRatio === "9:16" ? "tiktok" : settings.aspectRatio === "16:9" ? "youtube" : "instagram",
             style: settings.style,
-            productName: "Génération Studio", // Fallback for required fields if any
+            productName: "Génération Studio",
             niche: "Créatif",
             price: "N/A"
           },
@@ -89,8 +87,6 @@ export default function Studio() {
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
-        // Videos usually return videoId and require polling/listening, but here we'll assume it returns videoUrl directly or sets up the channel.
-        // Let's implement a simplified channel listener if a videoId is returned.
         if (data.videoId) {
           toast.info("Vidéo en cours de préparation, cela peut prendre quelques minutes...");
           
@@ -119,7 +115,6 @@ export default function Studio() {
             )
             .subscribe();
             
-          // Do not set isGenerating to false here, wait for the channel update
           return;
         } else if (data.videoUrl) {
           setGeneratedResult(data.videoUrl);
@@ -131,15 +126,12 @@ export default function Studio() {
       toast.error(error.message || "La génération n'a pas pu être terminée. Réessayez dans quelques instants.");
     }
     
-    // For images or immediate video response
     if (mode === "image" || !isGenerating) {
       setIsGenerating(false);
     }
   };
 
   const handleAnimateImage = async (url: string) => {
-    // Convert url to MediaFile (we need the base64, so we might need to fetch it or just pass the URL if backend supports it)
-    // For simplicity, we can fetch it to base64, but let's assume we can pass the URL or we just keep it as is.
     try {
       const response = await fetch(url);
       const blob = await response.blob();
@@ -152,8 +144,8 @@ export default function Studio() {
           file: new File([blob], "generated_image.png", { type: "image/png" })
         }]);
         setMode("video");
-        setPrompt(""); // Clear prompt to let user write the animation instructions
-        setGeneratedResult(null); // Clear the image result to show the composer clearly
+        setPrompt("");
+        setGeneratedResult(null);
         toast.info("Mode vidéo activé. Décrivez comment animer cette image !");
       };
       reader.readAsDataURL(blob);
@@ -171,19 +163,24 @@ export default function Studio() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
+    <div className="min-h-screen flex flex-col bg-background selection:bg-[#0E7C66]/20 relative overflow-x-hidden">
+      {/* Background glow effects */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-[#0E7C66]/10 via-emerald-500/5 to-transparent blur-3xl pointer-events-none -z-10" />
+
       <Header />
       
-      <main className="flex-1 flex flex-col relative w-full max-w-[1400px] mx-auto px-4 py-6 mt-16 md:mt-20 overflow-x-hidden">
-        {/* Top Controls */}
-        <div className="w-full flex justify-center mb-6 relative z-10">
-          <ModeSwitcher mode={mode} onChange={(newMode) => {
-            setMode(newMode);
-            // Optionally clear generated result when switching modes
-          }} />
+      <main className="flex-1 flex flex-col relative w-full max-w-7xl mx-auto px-4 py-6 md:py-10">
+        {/* Top Mode Switcher */}
+        <div className="w-full flex justify-center mb-8 relative z-10">
+          <ModeSwitcher 
+            mode={mode} 
+            onChange={(newMode) => {
+              setMode(newMode);
+            }} 
+          />
         </div>
 
-        {/* Dynamic Content Area */}
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col w-full relative">
           
           {!generatedResult && !isGenerating && (
@@ -191,15 +188,16 @@ export default function Studio() {
           )}
 
           {isGenerating && !generatedResult && (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[300px] animate-in fade-in zoom-in duration-500">
-              <div className="relative flex items-center justify-center w-20 h-20 bg-muted rounded-2xl shadow-inner mb-6">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[350px] my-auto animate-in fade-in zoom-in duration-500">
+              <div className="relative flex items-center justify-center w-24 h-24 bg-card rounded-3xl border border-border shadow-xl mb-6">
+                <Loader2 className="w-12 h-12 text-[#0E7C66] animate-spin" />
+                <Sparkles className="w-5 h-5 text-amber-500 absolute top-2 right-2 animate-bounce" />
               </div>
-              <h3 className="text-xl font-semibold mb-2 text-foreground">
-                {mode === "image" ? "Création de votre image..." : "Génération de votre vidéo..."}
+              <h3 className="text-2xl font-black text-foreground mb-2 tracking-tight">
+                {mode === "image" ? "Génération DALL-E 3 HD en cours..." : "Génération vidéo IA en cours..."}
               </h3>
-              <p className="text-muted-foreground text-sm max-w-sm text-center">
-                L'intelligence artificielle travaille sur votre requête. Cela prend généralement quelques secondes.
+              <p className="text-muted-foreground text-sm max-w-md text-center font-medium leading-relaxed">
+                L'intelligence artificielle compose votre rendu studio en qualité maximale. Cela prend quelques secondes.
               </p>
             </div>
           )}

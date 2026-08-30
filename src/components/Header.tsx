@@ -58,19 +58,19 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <div className="flex h-16 items-center justify-between gap-4">
           <div
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap shrink-0"
           >
-            <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
-            <span className="text-xl font-extrabold text-[#0E7C66]">
+            <img src={logo} alt="Logo Ecomfy" className="h-7 w-7 shrink-0" />
+            <span className="text-xl font-extrabold text-[#0E7C66] tracking-tight whitespace-nowrap">
               Ecomfy
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 flex-nowrap shrink-0 overflow-x-auto no-scrollbar py-1">
             {menuItems.map((item) => (
               <a
                 key={item.href}
@@ -79,11 +79,11 @@ export function Header() {
                   e.preventDefault();
                   handleNavClick(item.href);
                 }}
-                className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
               >
-                {item.label}
+                <span className="whitespace-nowrap">{item.label}</span>
                 {item.isNew && (
-                  <span className="bg-emerald-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
+                  <span className="bg-emerald-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs whitespace-nowrap shrink-0 inline-block">
                     Nouveau
                   </span>
                 )}
@@ -91,18 +91,18 @@ export function Header() {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3 lg:gap-4 shrink-0 whitespace-nowrap">
             <ThemeToggle />
             <LanguageSelector />
             {isAuthenticated && <AICreditsBadge />}
             {!isAuthenticated && (
-              <Button variant="ghost" onClick={() => navigate("/auth")} className="font-medium">
+              <Button variant="ghost" onClick={() => navigate("/auth")} className="font-medium whitespace-nowrap">
                 Se connecter
               </Button>
             )}
             <Button 
               onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
-              className="bg-[#0E7C66] hover:bg-[#0A5F4F] text-white rounded-full px-6 font-semibold shadow-sm hover:shadow-md transition-all btn-interactive"
+              className="bg-[#0E7C66] hover:bg-[#0A5F4F] text-white rounded-full px-5 lg:px-6 font-semibold shadow-sm hover:shadow-md transition-all btn-interactive whitespace-nowrap shrink-0"
             >
               {isAuthenticated ? "Accéder à mon espace" : "Créer mon compte"}
             </Button>
@@ -139,7 +139,7 @@ export function Header() {
                         setIsOpen(false);
                       }}
                     >
-                      {item.label}
+                      <span>{item.label}</span>
                       {item.isNew && (
                         <span className="bg-emerald-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
                           Nouveau
