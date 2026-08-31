@@ -34,12 +34,30 @@ serve(async (req: Request) => {
       mode = "publicite-produit",
       style = "Professional Commercial Studio",
       preset,
-      userId = "guest-user",
       aspectRatio = "1:1",
       size,
       productName,
       niche
     } = body;
+
+    // Extract userId from Auth Header if not provided or guest
+    const authHeader = req.headers.get("Authorization");
+    let resolvedUserId = body.userId;
+    if ((!resolvedUserId || resolvedUserId === "guest-user" || resolvedUserId.startsWith("guest-")) && authHeader) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await supabaseClient.auth.getUser(token);
+        if (user) {
+          resolvedUserId = user.id;
+        }
+      } catch (authErr) {
+        console.warn("[Engine Auth Audit] Could not resolve user from token:", authErr);
+      }
+    }
+    if (!resolvedUserId) {
+      resolvedUserId = "guest-user";
+    }
+    const userId = resolvedUserId;
 
     const OPENAI_API_KEY = getOpenAiApiKey();
     if (!OPENAI_API_KEY) {
@@ -111,24 +129,81 @@ serve(async (req: Request) => {
     const durationMs = Date.now() - startTime;
     console.log(`[Engine Audit] Generation Successful in ${durationMs}ms for user ${userId}`);
 
-    // 5. Save to DB
-    await supabaseClient.from("generated_images").insert({
-      user_id: userId,
-      image_url: imageUrl,
-      prompt: finalExpandedPrompt.substring(0, 3500),
-      product_details: {
-        mode,
-        style,
-        preset: preset?.name || null,
-        originalPrompt: sacredPrompt,
-        size: imageSize,
-        modelUsed: OPENAI_CONFIG.IMAGE_MODEL,
-        durationMs,
-        estimatedCostUsd: OPENAI_CONFIG.ESTIMATED_COST_USD
-      }
-    });
+    // 5. Upload image to permanent Supabase Storage (generated-images bucket)
+    let permanentImageUrl = imageUrl;
+    try {
+      let imageBytes: Uint8Array | null = null;
+      let contentType = "image/png";
 
-    // 6. Credit management
+      if (imageUrl.startsWith("data:")) {
+        const parts = imageUrl.split(",");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        if (mimeMatch) contentType = mimeMatch[1];
+        const bstr = atob(parts[1]);
+        imageBytes = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) {
+          imageBytes[i] = bstr.charCodeAt(i);
+        }
+      } else {
+        const imageRes = await fetch(imageUrl);
+        if (imageRes.ok) {
+          const arrayBuffer = await imageRes.arrayBuffer();
+          imageBytes = new Uint8Array(arrayBuffer);
+          const headerType = imageRes.headers.get("content-type");
+          if (headerType) contentType = headerType;
+        }
+      }
+
+      if (imageBytes) {
+        const storagePath = `${userId}/${Date.now()}_${crypto.randomUUID().substring(0, 8)}.png`;
+        const { error: uploadError } = await supabaseClient.storage
+          .from("generated-images")
+          .upload(storagePath, imageBytes, {
+            contentType,
+            upsert: true,
+          });
+
+        if (!uploadError) {
+          const { data: publicUrlData } = supabaseClient.storage
+            .from("generated-images")
+            .getPublicUrl(storagePath);
+          if (publicUrlData?.publicUrl) {
+            permanentImageUrl = publicUrlData.publicUrl;
+          }
+        } else {
+          console.warn("[Engine Storage Upload Warning]:", uploadError);
+        }
+      }
+    } catch (storageErr) {
+      console.warn("[Engine Storage Exception]:", storageErr);
+    }
+
+    // 6. Save to DB for Library (retained 30 days)
+    if (userId && !userId.startsWith("guest-")) {
+      const { data: insertedRecord, error: dbError } = await supabaseClient.from("generated_images").insert({
+        user_id: userId,
+        image_url: permanentImageUrl,
+        prompt: finalExpandedPrompt.substring(0, 3500),
+        product_details: {
+          mode,
+          style,
+          preset: preset?.name || null,
+          originalPrompt: sacredPrompt,
+          size: imageSize,
+          modelUsed: OPENAI_CONFIG.IMAGE_MODEL,
+          durationMs,
+          estimatedCostUsd: OPENAI_CONFIG.ESTIMATED_COST_USD
+        }
+      }).select().maybeSingle();
+
+      if (dbError) {
+        console.error("[Engine DB Error] Failed to insert generated_images:", dbError);
+      } else {
+        console.log(`[Engine DB Audit] Saved generated image ID ${insertedRecord?.id} to Library for user ${userId}`);
+      }
+    }
+
+    // 7. Credit management
     if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
       const { data: profileData } = await supabaseClient
         .from("profiles")
@@ -153,7 +228,7 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ 
-        imageUrl, 
+        imageUrl: permanentImageUrl, 
         prompt: finalExpandedPrompt,
         success: true,
         durationMs

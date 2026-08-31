@@ -34,12 +34,15 @@ export default function Studio() {
     setGeneratedResult(null);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       if (mode === "image") {
         const body: any = {
           mode: media.length > 0 ? "image-edit" : "text-to-image",
           prompt: prompt,
           style: settings.style,
           aspectRatio: settings.aspectRatio,
+          userId: user?.id,
         };
 
         if (media.length > 0) {
@@ -68,7 +71,7 @@ export default function Studio() {
         if (data?.error) throw new Error(data.error);
 
         setGeneratedResult(data.imageUrl);
-        toast.success("Image générée avec succès !");
+        toast.success("Image générée et enregistrée dans votre bibliothèque !");
         
       } else {
         const { data, error } = await supabase.functions.invoke("generate-video", {
@@ -80,7 +83,8 @@ export default function Studio() {
             style: settings.style,
             productName: "Génération Studio",
             niche: "Créatif",
-            price: "N/A"
+            price: "N/A",
+            userId: user?.id,
           },
         });
 

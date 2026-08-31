@@ -115,11 +115,60 @@ serve(async (req: Request) => {
     const imageUrl = await callOpenAiAdEngine(OPENAI_API_KEY, finalPrompt, gptImageSize, productImage);
     const durationMs = Date.now() - startTime;
 
-    // 4. Save to DB
+    // 4. Upload image to permanent Supabase Storage (generated-images bucket)
+    let permanentImageUrl = imageUrl;
+    try {
+      let imageBytes: Uint8Array | null = null;
+      let contentType = "image/png";
+
+      if (imageUrl.startsWith("data:")) {
+        const parts = imageUrl.split(",");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        if (mimeMatch) contentType = mimeMatch[1];
+        const bstr = atob(parts[1]);
+        imageBytes = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) {
+          imageBytes[i] = bstr.charCodeAt(i);
+        }
+      } else {
+        const imageRes = await fetch(imageUrl);
+        if (imageRes.ok) {
+          const arrayBuffer = await imageRes.arrayBuffer();
+          imageBytes = new Uint8Array(arrayBuffer);
+          const headerType = imageRes.headers.get("content-type");
+          if (headerType) contentType = headerType;
+        }
+      }
+
+      if (imageBytes) {
+        const storagePath = `${userId}/${Date.now()}_${crypto.randomUUID().substring(0, 8)}.png`;
+        const { error: uploadError } = await supabaseClient.storage
+          .from("generated-images")
+          .upload(storagePath, imageBytes, {
+            contentType,
+            upsert: true,
+          });
+
+        if (!uploadError) {
+          const { data: publicUrlData } = supabaseClient.storage
+            .from("generated-images")
+            .getPublicUrl(storagePath);
+          if (publicUrlData?.publicUrl) {
+            permanentImageUrl = publicUrlData.publicUrl;
+          }
+        } else {
+          console.warn("[AdVisual Storage Upload Warning]:", uploadError);
+        }
+      }
+    } catch (storageErr) {
+      console.warn("[AdVisual Storage Exception]:", storageErr);
+    }
+
+    // 5. Save to DB for Library
     if (userId !== "guest-user") {
       await supabaseClient.from("generated_images").insert({
         user_id: userId,
-        image_url: imageUrl,
+        image_url: permanentImageUrl,
         prompt: finalPrompt.substring(0, 3500),
         product_details: {
           productName,
@@ -135,7 +184,7 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ 
-        imageUrl, 
+        imageUrl: permanentImageUrl, 
         prompt: finalPrompt,
         success: true,
         durationMs
