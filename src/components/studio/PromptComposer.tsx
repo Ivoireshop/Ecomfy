@@ -90,7 +90,7 @@ export const PromptComposer = ({
               className="h-10 w-10 rounded-xl ml-1 shrink-0 bg-[#0E7C66] hover:bg-[#0A6352] text-white shadow-md shadow-[#0E7C66]/20 disabled:opacity-40 transition-all"
               title="Lancer la génération (Entrée)"
             >
-              {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-4 w-4 ml-0.5" />}
             </Button>
           </div>
         </div>

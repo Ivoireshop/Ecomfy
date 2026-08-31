@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Upload, Sparkles, Download, Image as ImageIcon, Wand2, RefreshCw, Youtube, Facebook, Instagram, Link } from "lucide-react";
+import { Loader2, Upload, Sparkles, Send, Download, Image as ImageIcon, Wand2, RefreshCw, Youtube, Facebook, Instagram, Link } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -623,7 +623,7 @@ export function AdvancedImageGenerator({ onImageGenerated }: AdvancedImageGenera
             </>
           ) : (
             <>
-              <Sparkles className="mr-2 h-5 w-5" />
+              <Send className="mr-2 h-5 w-5" />
               Générer l'image
             </>
           )}

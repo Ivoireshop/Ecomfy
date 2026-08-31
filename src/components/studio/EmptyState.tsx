@@ -63,10 +63,13 @@ export const EmptyState = ({ mode, onSuggestionClick }: EmptyStateProps) => {
   return (
     <div className="flex flex-col items-center justify-center flex-1 w-full max-w-4xl mx-auto px-4 py-8 md:py-12 animate-in fade-in zoom-in-95 duration-500">
       
-      {/* Top AI Badge */}
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs mb-6 shadow-2xs">
-        <Wand2 className="w-3.5 h-3.5 animate-pulse" />
-        <span className="whitespace-nowrap uppercase tracking-wider">Studio IA Créatif & Publicitaire</span>
+      {/* Top AI Badge avec point clignotant */}
+      <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs mb-6 shadow-2xs">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <span className="whitespace-nowrap uppercase tracking-wider">Studio IA Créatif &amp; Publicitaire</span>
       </div>
 
       {/* Main Title */}
