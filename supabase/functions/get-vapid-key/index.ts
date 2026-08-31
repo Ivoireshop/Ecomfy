@@ -5,7 +5,7 @@ const corsHeaders = {
 
 Deno.serve((req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  const key = Deno.env.get("FIREBASE_VAPID_PUBLIC_KEY") || "";
+  const key = Deno.env.get("VAPID_PUBLIC_KEY") || Deno.env.get("FIREBASE_VAPID_PUBLIC_KEY") || "";
   return new Response(JSON.stringify({ success: true, key }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
     status: 200,

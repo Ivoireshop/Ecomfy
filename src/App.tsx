@@ -12,6 +12,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useCommunityNotifications } from "@/hooks/useCommunityNotifications";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useNativePush } from "@/hooks/useNativePush";
+import { useWebPush } from "@/hooks/useWebPush";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -153,6 +154,7 @@ const AppContent = () => {
   useCommunityNotifications();
   useOrderNotifications();
   useNativePush();
+  useWebPush();
     const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;

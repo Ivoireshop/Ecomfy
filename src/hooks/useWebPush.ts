@@ -125,12 +125,21 @@ export const useWebPush = () => {
         throw new Error("Impossible d'installer le Service Worker. Veuillez rafraîchir la page.");
       }
 
-      // Clé publique VAPID (à remplacer par la vraie clé générée ou injectée via env)
-      // On utilise import.meta.env pour récupérer la clé publique
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-      
+      // Clé publique VAPID : récupérer depuis env ou dynamiquement via Edge Function
+      let vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
-        throw new Error("Clé VAPID publique manquante dans la configuration.");
+        try {
+          const { data } = await supabase.functions.invoke("get-vapid-key");
+          if ((data as any)?.key) {
+            vapidPublicKey = (data as any).key;
+          }
+        } catch (e) {
+          console.warn("[WebPush] Failed to fetch VAPID key from Edge Function:", e);
+        }
+      }
+
+      if (!vapidPublicKey) {
+        throw new Error("Clé VAPID publique non configurée sur le serveur.");
       }
 
       const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
@@ -158,7 +167,7 @@ export const useWebPush = () => {
         await supabase.from('profiles').insert({ id: session.user.id });
       }
 
-      // Sauvegarder dans Supabase
+      // Sauvegarder dans Supabase (push_subscriptions)
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert(
@@ -173,6 +182,20 @@ export const useWebPush = () => {
         );
 
       if (error) throw error;
+
+      // Synchroniser également dans device_tokens
+      await supabase
+        .from('device_tokens')
+        .upsert(
+          {
+            user_id: session.user.id,
+            fcm_token: subJSON.endpoint,
+            user_agent: navigator.userAgent,
+            last_used_at: new Date().toISOString()
+          },
+          { onConflict: 'fcm_token' }
+        )
+        .catch(() => undefined);
 
       setIsSubscribed(true);
       toast({
