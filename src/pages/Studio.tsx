@@ -194,7 +194,7 @@ export default function Studio() {
                 <Sparkles className="w-5 h-5 text-amber-500 absolute top-2 right-2 animate-bounce" />
               </div>
               <h3 className="text-2xl font-black text-foreground mb-2 tracking-tight">
-                {mode === "image" ? "Génération DALL-E 3 HD en cours..." : "Génération vidéo IA en cours..."}
+                {mode === "image" ? "Génération Ecomfy Gen Plus en cours..." : "Génération vidéo IA en cours..."}
               </h3>
               <p className="text-muted-foreground text-sm max-w-md text-center font-medium leading-relaxed">
                 L'intelligence artificielle compose votre rendu studio en qualité maximale. Cela prend quelques secondes.

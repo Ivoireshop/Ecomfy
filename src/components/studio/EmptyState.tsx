@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Image as ImageIcon, Video, Palette, Megaphone, UserSquare, ArrowRight, Wand2 } from "lucide-react";
+import { Sparkles, Image as ImageIcon, Video, Palette, Megaphone, UserSquare, ArrowRight } from "lucide-react";
 
 interface EmptyStateProps {
   mode: "image" | "video";
@@ -7,6 +9,43 @@ interface EmptyStateProps {
 }
 
 export const EmptyState = ({ mode, onSuggestionClick }: EmptyStateProps) => {
+  const [firstName, setFirstName] = useState<string>("");
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUserFirstName = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        let name = user.user_metadata?.full_name || user.user_metadata?.name || "";
+        
+        if (!name) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (profile?.full_name) {
+            name = profile.full_name;
+          }
+        }
+
+        if (name && isMounted) {
+          const first = name.trim().split(" ")[0];
+          if (first) {
+            setFirstName(first);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching user name:", err);
+      }
+    };
+
+    fetchUserFirstName();
+    return () => { isMounted = false; };
+  }, []);
+
   const suggestions = mode === "image" ? [
     {
       title: "Photo Produit Premium",
@@ -72,16 +111,16 @@ export const EmptyState = ({ mode, onSuggestionClick }: EmptyStateProps) => {
         <span className="whitespace-nowrap uppercase tracking-wider">Studio IA Créatif &amp; Publicitaire</span>
       </div>
 
-      {/* Main Title */}
+      {/* Main Title avec Prénom Utilisateur */}
       <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-center text-foreground tracking-tight max-w-2xl mb-4 leading-tight">
-        Que souhaitez-vous créer <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] via-emerald-500 to-teal-400">aujourd'hui ?</span>
+        {firstName ? `Bonjour ${firstName}, que` : "Bonjour, que"} souhaitez-vous créer <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0E7C66] via-emerald-500 to-teal-400">aujourd'hui ?</span>
       </h1>
       
       {/* Subtitle */}
       <p className="text-muted-foreground text-center max-w-lg mb-10 text-sm sm:text-base font-medium leading-relaxed">
         {mode === "image" 
-          ? "Générez des visuels produits et des images publicitaires en qualité DALL-E 3 HD (rendu ChatGPT Plus)."
-          : "Créez des vidéos publicitaires haute définition pour TikTok, Instagram et Facebook en quelques secondes."}
+          ? "Générez des images et des visuels publicitaires de qualité avec la meilleure intelligence artificielle africaine Ecomfy Gen Plus."
+          : "Créez des vidéos publicitaires haute définition pour TikTok, Instagram et Facebook en quelques secondes avec Ecomfy Gen Plus."}
       </p>
 
       {/* Grid of Templates */}
