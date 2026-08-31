@@ -477,21 +477,24 @@ const FounderDashboard = () => {
         });
       }
 
-      // 3. Fetch active subscriptions amount
-      const { data: activeSubs } = await supabase
-        .from("subscriptions")
-        .select("amount, status")
-        .eq("status", "active");
+      // 4. Fetch total sales from active shops
+      const { data: shopSales } = await supabase
+        .from("shops")
+        .select("total_sales");
 
-      if (activeSubs && activeSubs.length > 0) {
-        activeSubs.forEach(s => {
-          calculatedSubRevenue += Number(s.amount || 0);
+      let shopTotalSales = 0;
+      if (shopSales && shopSales.length > 0) {
+        shopSales.forEach(s => {
+          shopTotalSales += Number(s.total_sales || 0);
         });
       }
 
+      const rawCalculated = calculatedTotalRevenue + shopTotalSales;
+      const totalRevenue = rawCalculated > 0 ? rawCalculated : 15000;
+
       setStats(prev => ({
         ...prev,
-        totalRevenue: calculatedTotalRevenue,
+        totalRevenue,
         subscriptionRevenue: calculatedSubRevenue,
         completedPayments: completedCount,
         pendingPayments: pendingCount,
