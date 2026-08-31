@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ThemeData } from "./types";
 import { formatPrice } from "./dataAdapter";
 
@@ -203,15 +203,18 @@ export function FAQ({ data }: { data: ThemeData }) {
 }
 
 export function Guarantees({ data }: { data: ThemeData }) {
-  if (data.themeConfig?.trust_badges_enabled === false || data.themeSettings?.custom_css_settings?.trust_badges_enabled === false) {
+  const themeConfig = data.shop?.theme_config;
+  const customSettings = data.settings?.custom_css_settings;
+
+  if (themeConfig?.trust_badges_enabled === false || customSettings?.trust_badges_enabled === false) {
     return null;
   }
 
   const items = [
-    { icon: "🚚", text: data.themeConfig?.trust_badge_1 || "Livraison disponible" },
-    { icon: "🛡️", text: data.themeConfig?.trust_badge_2 || "Paiement sécurisé" },
-    { icon: "💬", text: data.themeConfig?.trust_badge_3 || "Support réactif" },
-    { icon: "✅", text: data.themeConfig?.trust_badge_4 || "Produit vérifié" },
+    { icon: "🚚", text: themeConfig?.trust_badge_1 || "Livraison disponible" },
+    { icon: "🛡️", text: themeConfig?.trust_badge_2 || "Paiement sécurisé" },
+    { icon: "💬", text: themeConfig?.trust_badge_3 || "Support réactif" },
+    { icon: "✅", text: themeConfig?.trust_badge_4 || "Produit vérifié" },
   ];
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs sm:text-sm">
