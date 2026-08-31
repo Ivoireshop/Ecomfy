@@ -390,15 +390,23 @@ const FounderDashboard = () => {
 
       const { data: activatedShops } = await supabase
         .from("shops")
-        .select("id")
-        .or("is_activated.eq.true,activation_fee_paid.eq.true");
+        .select("id, created_at, is_activated, activation_fee_paid");
 
       const activeSubscriptions = Math.max(activeSubs?.length || 0, activatedShops?.length || 0);
 
-      // Real AI generations used (3 - remaining)
-      const freeGenerationsUsed = allProfiles?.reduce((total, profile) => {
-        return total + Math.max(0, 3 - (profile.free_generations_remaining || 0));
-      }, 0) || 0;
+      // Real AI generations count from generated_images & generated_videos (Ecomfy Gen+ / Afri AI Gen+)
+      const { count: imgCount } = await supabase
+        .from("generated_images" as any)
+        .select("*", { count: "exact", head: true });
+
+      const { count: vidCount } = await supabase
+        .from("generated_videos" as any)
+        .select("*", { count: "exact", head: true });
+
+      const totalMediaCount = (imgCount || 0) + (vidCount || 0);
+      const freeGenerationsUsed = totalMediaCount > 0 
+        ? totalMediaCount 
+        : (allProfiles?.reduce((total, p) => total + Math.max(0, 3 - (p.free_generations_remaining || 0)), 0) || 0);
 
       setStats(prev => ({
         ...prev,
@@ -437,13 +445,25 @@ const FounderDashboard = () => {
 
   const loadRevenueStats = async () => {
     try {
-      // Consolidated REAL Revenue from billing_history, payments, and subscriptions
+      // Consolidated REAL Revenue from activated shops, billing_history, payments, and subscriptions
       let calculatedTotalRevenue = 0;
       let calculatedSubRevenue = 0;
       let completedCount = 0;
       let pendingCount = 0;
 
-      // 1. Fetch real billing history records
+      // 1. Real shop activations & subscriptions revenue (15 000 FCFA per activated shop)
+      const { data: activatedShops } = await supabase
+        .from("shops")
+        .select("id, is_activated, activation_fee_paid");
+
+      if (activatedShops && activatedShops.length > 0) {
+        const actCount = activatedShops.filter(s => s.is_activated || s.activation_fee_paid).length;
+        calculatedTotalRevenue += actCount * 15000;
+        calculatedSubRevenue += actCount * 15000;
+        completedCount += actCount;
+      }
+
+      // 2. Fetch real billing history records
       const { data: billingHistory } = await supabase
         .from("billing_history" as any)
         .select("amount, payment_status, created_at");
@@ -460,7 +480,7 @@ const FounderDashboard = () => {
         });
       }
 
-      // 2. Fetch real payments records
+      // 3. Fetch real payments records
       const { data: payments } = await supabase
         .from("payments")
         .select("amount, status");
@@ -607,6 +627,22 @@ const FounderDashboard = () => {
 
       billingHistory?.forEach(b => processTransaction(b.amount, b.payment_status, b.created_at, b.payment_method));
       payments?.forEach(p => processTransaction(p.amount, p.status, p.created_at, p.payment_method));
+
+      // 3. Fetch real activated shops data over time
+      const { data: activatedShops } = await supabase
+        .from("shops")
+        .select("created_at, is_activated, activation_fee_paid")
+        .gte("created_at", startDate.toISOString());
+
+      if (activatedShops) {
+        activatedShops.forEach(s => {
+          if (s.is_activated || s.activation_fee_paid) {
+            const dateKey = new Date(s.created_at).toISOString().split("T")[0];
+            revenueByDay.set(dateKey, (revenueByDay.get(dateKey) || 0) + 15000);
+            methodCounts.set("Mobile Money (Abonnement)", (methodCounts.get("Mobile Money (Abonnement)") || 0) + 1);
+          }
+        });
+      }
 
       const revenueData: ChartDataPoint[] = [];
       const signupsData: ChartDataPoint[] = [];
