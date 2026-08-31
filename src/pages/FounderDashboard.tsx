@@ -464,12 +464,12 @@ const FounderDashboard = () => {
       }
 
       // 2. Fetch real billing history records
-      const { data: billingHistory } = await supabase
-        .from("billing_history" as any)
+      const { data: billingHistory } = await (supabase as any)
+        .from("billing_history")
         .select("amount, payment_status, created_at");
 
       if (billingHistory && billingHistory.length > 0) {
-        billingHistory.forEach(b => {
+        (billingHistory as any[]).forEach(b => {
           const status = (b.payment_status || "").toLowerCase();
           if (status === "completed" || status === "success" || status === "paid") {
             calculatedTotalRevenue += Number(b.amount || 0);
@@ -512,8 +512,8 @@ const FounderDashboard = () => {
   const loadRecentPayments = async () => {
     try {
       // Consolidate real recent transactions
-      const { data: billingItems } = await supabase
-        .from("billing_history" as any)
+      const { data: billingItems } = await (supabase as any)
+        .from("billing_history")
         .select("id, amount, payment_status, payment_method, created_at, user_id, description")
         .order("created_at", { ascending: false })
         .limit(10);
@@ -526,7 +526,7 @@ const FounderDashboard = () => {
 
       const combinedRaw: any[] = [];
       if (billingItems) {
-        billingItems.forEach(b => {
+        (billingItems as any[]).forEach(b => {
           combinedRaw.push({
             id: b.id,
             amount: b.amount,
@@ -602,8 +602,8 @@ const FounderDashboard = () => {
       });
 
       // 2. Fetch real billing/payments data over time
-      const { data: billingHistory } = await supabase
-        .from("billing_history" as any)
+      const { data: billingHistory } = await (supabase as any)
+        .from("billing_history")
         .select("amount, payment_status, created_at, payment_method")
         .gte("created_at", startDate.toISOString());
 
@@ -625,7 +625,7 @@ const FounderDashboard = () => {
         }
       };
 
-      billingHistory?.forEach(b => processTransaction(b.amount, b.payment_status, b.created_at, b.payment_method));
+      (billingHistory as any[])?.forEach(b => processTransaction(b.amount, b.payment_status, b.created_at, b.payment_method));
       payments?.forEach(p => processTransaction(p.amount, p.status, p.created_at, p.payment_method));
 
       // 3. Fetch real activated shops data over time
