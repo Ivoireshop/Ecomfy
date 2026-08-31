@@ -29,9 +29,11 @@ import {
   Building2,
   ExternalLink,
   MessageSquare,
-  BarChart3
+  BarChart3,
+  Crown
 } from "lucide-react";
 import PromoCodeManager from "./PromoCodeManager";
+import { FounderManager } from "@/components/founder/FounderManager";
 import { Session } from "@supabase/supabase-js";
 import {
   AreaChart,
@@ -953,12 +955,16 @@ const FounderDashboard = () => {
           </Tabs>
         </Card>
 
-        {/* Main Operational Tabs: Users, Shops, Payments, Promos, Feedback */}
+        {/* Main Operational Tabs: Users, Governance, Shops, Payments, Promos, Feedback */}
         <Tabs defaultValue="users" className="w-full">
           <TabsList className="bg-slate-900 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1">
             <TabsTrigger value="users" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <Users className="h-4 w-4" />
               <span>Utilisateurs ({allUsers.length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="governance" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+              <Crown className="h-4 w-4 text-amber-400" />
+              <span>Gouvernance & Fondateurs</span>
             </TabsTrigger>
             <TabsTrigger value="shops" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <Store className="h-4 w-4" />
@@ -977,6 +983,11 @@ const FounderDashboard = () => {
               <span>Avis Clients ({allFeedback.length})</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* TAB 0: GOVERNANCE & FOUNDERS MANAGER */}
+          <TabsContent value="governance" className="mt-6">
+            <FounderManager />
+          </TabsContent>
 
           {/* TAB 1: ALL USERS LIST */}
           <TabsContent value="users" className="mt-6">
