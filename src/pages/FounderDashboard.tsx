@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -445,7 +445,7 @@ const FounderDashboard = () => {
 
       // 1. Fetch real billing history records
       const { data: billingHistory } = await supabase
-        .from("billing_history")
+        .from("billing_history" as any)
         .select("amount, payment_status, created_at");
 
       if (billingHistory && billingHistory.length > 0) {
@@ -493,7 +493,7 @@ const FounderDashboard = () => {
     try {
       // Consolidate real recent transactions
       const { data: billingItems } = await supabase
-        .from("billing_history")
+        .from("billing_history" as any)
         .select("id, amount, payment_status, payment_method, created_at, user_id, description")
         .order("created_at", { ascending: false })
         .limit(10);
@@ -583,7 +583,7 @@ const FounderDashboard = () => {
 
       // 2. Fetch real billing/payments data over time
       const { data: billingHistory } = await supabase
-        .from("billing_history")
+        .from("billing_history" as any)
         .select("amount, payment_status, created_at, payment_method")
         .gte("created_at", startDate.toISOString());
 
