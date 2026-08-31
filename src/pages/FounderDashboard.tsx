@@ -477,20 +477,7 @@ const FounderDashboard = () => {
         });
       }
 
-      // 4. Fetch total sales from active shops
-      const { data: shopSales } = await supabase
-        .from("shops")
-        .select("total_sales");
-
-      let shopTotalSales = 0;
-      if (shopSales && shopSales.length > 0) {
-        shopSales.forEach(s => {
-          shopTotalSales += Number(s.total_sales || 0);
-        });
-      }
-
-      const rawCalculated = calculatedTotalRevenue + shopTotalSales;
-      const totalRevenue = rawCalculated > 0 ? rawCalculated : 15000;
+      const totalRevenue = calculatedTotalRevenue > 0 ? calculatedTotalRevenue : 15000;
 
       setStats(prev => ({
         ...prev,

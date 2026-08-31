@@ -56,7 +56,8 @@ serve(async (req) => {
     if (action === "list") {
       const { data: roles, error: rolesError } = await supabaseClient
         .from("user_roles")
-        .select("id, user_id, role, created_at");
+        .select("id, user_id, role, created_at")
+        .in("role", ["founder", "co_founder", "shareholder"]);
 
       if (rolesError) throw rolesError;
 
