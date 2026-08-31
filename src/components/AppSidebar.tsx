@@ -148,13 +148,17 @@ export function AppSidebar() {
 
   useEffect(() => {
     const checkFounderStatus = async () => {
+      if (user?.email?.toLowerCase() === "djateulrich@gmail.com") {
+        setIsFounder(true);
+        return;
+      }
       if (user?.id) {
         const { data } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
           // @ts-ignore
-          .in("role", ["founder", "co_founder"]);
+          .in("role", ["founder", "co_founder", "shareholder", "admin"]);
         
         setIsFounder(data && data.length > 0);
       } else {
@@ -163,7 +167,7 @@ export function AppSidebar() {
     };
     
     if (isReady) checkFounderStatus();
-  }, [isReady, user?.id]);
+  }, [isReady, user?.id, user?.email]);
 
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },

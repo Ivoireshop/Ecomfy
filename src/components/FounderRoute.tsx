@@ -16,6 +16,13 @@ const FounderRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!isReady) return;
     if (!user) { setAllowed(false); return; }
+
+    // Master Founder Override
+    if (user.email?.toLowerCase() === "djateulrich@gmail.com") {
+      setAllowed(true);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -23,7 +30,7 @@ const FounderRoute = ({ children }: { children: React.ReactNode }) => {
         .select("role")
         .eq("user_id", user.id)
         // @ts-ignore
-        .in("role", ["founder", "co_founder"]);
+        .in("role", ["founder", "co_founder", "shareholder", "admin"]);
       if (!cancelled) setAllowed(!!data?.length);
     })();
     return () => { cancelled = true; };
