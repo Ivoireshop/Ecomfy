@@ -989,7 +989,23 @@ const FounderDashboard = () => {
           </TabsList>
 
           {/* TAB 0: GOVERNANCE & FOUNDERS MANAGER */}
-          <TabsContent value="governance" className="mt-6">
+          <TabsContent value="governance" className="mt-6 space-y-6">
+            <div className="bg-gradient-to-r from-emerald-500/20 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-2">
+                  <Crown className="w-3.5 h-3.5 text-amber-400" /> Module Officiel Startup SaaS
+                </div>
+                <h3 className="text-xl font-bold text-white">Ecomfy Corporate & Governance Center</h3>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  Accédez au module complet de gestion du Cap Table, moteurs de vesting (48m/12m cliff), proposals de capital, documents juridiques, et traçabilité des décisions.
+                </p>
+              </div>
+              <Button asChild className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold rounded-xl px-6 shrink-0 shadow-lg shadow-[#0E7C66]/20">
+                <Link to="/corporate-governance">
+                  <Crown className="w-4 h-4 mr-2 text-amber-400" /> Ouvrir Corporate & Governance
+                </Link>
+              </Button>
+            </div>
             <FounderManager />
           </TabsContent>
 

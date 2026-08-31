@@ -62,6 +62,8 @@ const PaymentHistory = lazyWithRetry(() => import("./pages/PaymentHistory"));
 const PromoCodeManager = lazyWithRetry(() => import("./pages/PromoCodeManager"));
 const FounderDashboard = lazyWithRetry(() => import("./pages/FounderDashboard"));
 const FounderTroubleshooting = lazyWithRetry(() => import("./pages/FounderTroubleshooting"));
+const CorporateGovernance = lazyWithRetry(() => import("./pages/CorporateGovernance"));
+const AssociateSpace = lazyWithRetry(() => import("./pages/AssociateSpace"));
 const Referral = lazyWithRetry(() => import("./pages/Referral"));
 const Tutorial = lazyWithRetry(() => import("./pages/Tutorial"));
 const Academy = lazyWithRetry(() => import("./pages/Academy"));
@@ -242,6 +244,22 @@ const AppContent = () => {
                 <FounderDashboard />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/corporate-governance"
+            element={
+              <FounderRoute>
+                <CorporateGovernance />
+              </FounderRoute>
+            }
+          />
+          <Route
+            path="/associate-space"
+            element={
+              <ProtectedRoute>
+                <AssociateSpace />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/founder-troubleshooting"
