@@ -42,18 +42,31 @@ serve(async (req: Request) => {
       snippet: visionAudit ? visionAudit.substring(0, 150) + "..." : "Failed"
     };
 
-    // 3. PromptEngine Test
-    console.log("[Test Engine] Testing PromptEngine...");
-    const synthesizedPrompt = await PromptEngine.generateProfessionalPrompt({
-      userPrompt: "Publicité premium pour ce produit tenu en main par un homme africain de 35 ans dans un décor luxueux",
-      mode: "produit-en-main",
-      sourceImageAnalysis: visionAudit
-    });
+    // 3. PromptEngine Tests (Scénarios A à F)
+    console.log("[Test Engine] Testing PromptEngine across Scenarios A-F...");
+    
+    // Test A: Prompt court sans ethnie -> Doit générer modèle Africain par défaut
+    const testA = await PromptEngine.generateProfessionalPrompt({ userPrompt: "Un homme présentant ce produit", mode: "publicite-produit" });
+    // Test B: Prompt court femme sans ethnie -> Doit générer femme Africaine par défaut
+    const testB = await PromptEngine.generateProfessionalPrompt({ userPrompt: "Une femme présentant ce produit", mode: "temoignage-client" });
+    // Test C: Publicité sans langue spécifiée -> Texte en Français par défaut
+    const testC = await PromptEngine.generateProfessionalPrompt({ userPrompt: "Crée une publicité pour ce produit", mode: "publicite-produit" });
+    // Test D: Demande explicite en Anglais -> Texte en Anglais
+    const testD = await PromptEngine.generateProfessionalPrompt({ userPrompt: "Create an advertising visual for this product in English", mode: "publicite-produit" });
+    // Test E: Prompt hyper court -> Enrichissement automatique complet
+    const testE = await PromptEngine.generateProfessionalPrompt({ userPrompt: "Produit dans une boutique", mode: "photo-produit" });
+    // Test F: Ethnie spécifique (Homme japonais) -> Doit respecter l'ethnie explicite
+    const testF = await PromptEngine.generateProfessionalPrompt({ userPrompt: "Un homme japonais présentant le produit", mode: "publicite-produit" });
 
-    results.tests["3_prompt_engine"] = {
-      status: synthesizedPrompt.length > 50,
-      promptLength: synthesizedPrompt.length,
-      snippet: synthesizedPrompt.substring(0, 200) + "..."
+    results.tests["3_prompt_engine_scenarios"] = {
+      testA_african_man_default: testA.includes("African"),
+      testB_african_woman_default: testB.includes("African"),
+      testC_french_default: testC.includes("French"),
+      testD_english_explicit: testD.includes("English"),
+      testE_auto_enhancement: testE.length > 200,
+      testF_japanese_man_explicit: testF.includes("Japanese"),
+      snippetTestA: testA.substring(0, 180) + "...",
+      snippetTestF: testF.substring(0, 180) + "..."
     };
 
     // 4. Test Image Edits API (Option A - Reference Image Input)
@@ -63,7 +76,7 @@ serve(async (req: Request) => {
 
     const formData = new FormData();
     formData.append("image", sampleImgBlob, "product_reference.png");
-    formData.append("prompt", synthesizedPrompt.substring(0, 950));
+    formData.append("prompt", testA.substring(0, 950));
     formData.append("model", OPENAI_CONFIG.IMAGE_MODEL);
     formData.append("n", "1");
     formData.append("size", "1024x1024");

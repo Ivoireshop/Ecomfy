@@ -13,50 +13,50 @@ export interface PromptEngineInput {
 
 export const ECOMMERCE_MODES: Record<string, { name: string; compositionRules: string }> = {
   "photo-produit": {
-    name: "Photo Produit Studio",
-    compositionRules: "Pure commercial e-commerce studio photography. The product is placed on a pristine marble or polished wooden pedestal, soft reflections, neutral background with subtle gradient lighting, sharp focus on every packaging detail, no distracting elements."
+    name: "Photo Produit Studio Ultra-Pro",
+    compositionRules: "High-end commercial product studio photography. Hero product centered on a premium pedestal (marble, polished dark wood, or satin silk). Softbox lighting with subtle rim lights, crystal clear glass/plastic reflections, razor-sharp packaging textures, zero distractions."
   },
   "publicite-produit": {
     name: "Publicité Produit High-Conversion",
-    compositionRules: "High-impact social media commercial advertisement. Vibrant color harmony, dynamic lighting contrast, clear visual hierarchy with the product prominently featured in the focal sweet spot, commercial grade advertising aesthetic."
+    compositionRules: "High-impact commercial social media ad visual. Vibrant harmonious background, bold visual hierarchy, hero product prominently presented in the sweet spot. Includes French advertising callouts if text is requested, golden seal badges ('SATISFAIT OU REMBOURSÉ', '100% NATUREL'), professional art direction."
   },
   "lifestyle": {
     name: "Lifestyle & Situation",
-    compositionRules: "Real-world luxury lifestyle context. Elegant indoor or outdoor setting (modern sunlit African villa, sleek marble kitchen, or executive lounge), natural soft lighting, aesthetic depth of field with creamy background bokeh."
+    compositionRules: "Authentic luxury lifestyle context. Modern sunlit African villa, sleek marble kitchen, or upscale lounge setting. Natural soft sunlight, creamy depth-of-field bokeh, elegant model interaction."
   },
   "temoignage-client": {
     name: "Témoignage Client Authentique",
-    compositionRules: "Authentic customer satisfaction scene. A delighted, relatable customer smiling warmly while showcasing the product, natural ambient lighting, genuine emotion of trust and happiness."
+    compositionRules: "Authentic client recommendation scene. A delighted, elegant African customer smiling warmly and holding/pointing at the product with genuine satisfaction, realistic skin pores, natural lighting, trustworthy atmosphere."
   },
   "ugc": {
     name: "User Generated Content (UGC)",
-    compositionRules: "Native smartphone camera aesthetic for TikTok and Instagram. Authentic lighting, casual real-world setting, relatable lifestyle backdrop, organic non-overprocessed feel while preserving product clarity."
+    compositionRules: "Native smartphone camera aesthetic for Instagram & TikTok. Authentic lighting, casual real-world setting, relatable lifestyle backdrop, organic non-overprocessed feel while preserving high product clarity."
   },
   "avant-apres": {
     name: "Avant / Après (Transformation)",
-    compositionRules: "Side-by-side split visual composition. Left side shows initial state/need, right side shows stunning radiant result delivered by the product, clear high-contrast visual demonstration."
+    compositionRules: "Side-by-side split visual composition. Left side demonstrates initial need/problem, right side displays radiant radiant result delivered by the product. High contrast visual storytelling."
   },
   "produit-en-main": {
     name: "Produit Tenu en Main",
-    compositionRules: "Close-up shot of model's hands holding the product product hero. Perfect manicured hands holding the container securely, crisp detail on label text and packaging, soft blurred background."
+    compositionRules: "Close-up hero shot of model's hands holding or presenting the product bottle/packaging. Anatomically accurate fingers, manicured hands, crisp label typography and packaging details, soft blurred background."
   },
   "produit-utilise": {
     name: "Produit en Cours d'Utilisation",
-    compositionRules: "Active in-use product demonstration. Model actively applying or demonstrating the product in action, capturing the texture, serum droplets, cream spread, or functional usage in real time."
+    compositionRules: "Active in-use product demonstration. Model applying serum droplets, spreading cream, or actively using the item with realistic texture details and natural expressions."
   },
   "affiche-publicitaire": {
     name: "Affiche Publicitaire Premium",
-    compositionRules: "High-end magazine billboard poster layout. Dramatic commercial key lighting, high contrast, cinematic depth, magazine cover aesthetic, luxury brand feel."
+    compositionRules: "Luxury magazine cover & billboard poster visual. Dramatic commercial key lighting, high contrast color grade, bold French advertising typography headers, luxury brand finish."
   },
   "reseaux-sociaux": {
     name: "Contenu Réseaux Sociaux (Instagram/TikTok)",
-    compositionRules: "Modern social media aesthetic. Vibrant colors, trendy arrangement, warm natural lighting, high engagement visual framing optimized for mobile screens."
+    compositionRules: "Modern high-engagement social media visual. Vibrant colors, trendy framing, warm studio lighting, optimized for mobile feed scrolling."
   }
 };
 
 export class PromptEngine {
   /**
-   * Transforms raw user input + vision audit into a comprehensive 23-point commercial ad prompt
+   * Transforms raw user input + vision audit into an ultra-expanded, professional commercial ad prompt
    */
   public static async generateProfessionalPrompt(input: PromptEngineInput): Promise<string> {
     const apiKey = getOpenAiApiKey();
@@ -70,52 +70,65 @@ export class PromptEngine {
       return this.buildFallbackPrompt(rawUserPrompt, modeInfo, visionAudit, input.style);
     }
 
-    const systemInstructions = `You are PromptEngine, an elite Creative Director and Commercial Advertising Photographer specializing in E-Commerce product visuals.
+    const systemInstructions = `You are Ecomfy PromptEngine, an elite Art Director, Commercial Photographer, and Senior Advertising Designer specializing in high-conversion e-commerce visuals.
 
-CRITICAL NON-NEGOTIABLE DIRECTIVES:
-1. STRICT USER INTENT PRESERVATION: Preserve 100% of the user's explicit request. NEVER remove or alter requested human models (e.g. African man/woman, age, clothing), product details, colors, background elements, or core message.
-2. AFRICAN E-COMMERCE ACCURACY: If the prompt requests an African model, person, or context, strictly maintain authentic African representation (skin tone, elegance, modern African fashion or executive attire, cultural authenticity).
-3. PRODUCT FIDELITY: If a product visual audit is provided, treat it as the SACRED REFERENCE. Do NOT change logo, container shape, color, typography, or packaging proportions.
-4. COMMERCIAL ADVERTISING PHOTOGRAPHY: Output MUST specify professional camera gear (85mm f/1.4 lens, Hasselblad/Canon EOS R5 quality, softbox studio lights, shallow depth of field, sharp textures, natural skin pores, 8k resolution, no AI plastic gloss).
+CORE OPERATIONAL PHILOSOPHY:
+"The user provides the raw idea. Ecomfy provides creative expertise and flawless execution."
+Even if the user prompt is extremely short (e.g. "Un homme avec ce produit" or "Publicité pour ce produit"), YOU MUST ENRICH IT AUTOMATICALLY into a complete, professional, studio-grade creative brief.
 
-Structure the final prompt in English by systematically covering these 23 Commercial Pillars:
-1. Product Visual Identity & Container Type
-2. Commercial Ad Goal (High Conversion)
-3. Target Audience & Cultural Context
-4. African / Regional Demographics (if requested)
-5. Scene Setting & Environment
-6. Model / Character Identity & Ethnicity
-7. Model Approximate Age & Gender
-8. Model Appearance & Vibe
-9. Clothing & Attire Style
-10. Facial Expression & Warmth
-11. Body Pose & Gesture
-12. Interaction with Product
-13. Background Environment & Atmosphere
-14. Visual Composition & Rule of Thirds
-15. Camera Framing (Medium Shot / Close-up / Hero)
-16. Angle & Perspective
-17. Lighting Setup (Softbox / Golden Hour / Rim Light)
-18. Depth of Field & Bokeh (f/1.4)
-19. Art Direction & Mood
-20. Photorealism Level & Textures (Natural Skin & Glass/Metal)
-21. Hero Product Placement (Centerstage, un-obscured)
-22. Brand & Packaging Consistency
-23. Aspect Ratio & Commercial Formatting
+NON-NEGOTIABLE ECOMFY DIRECTIVES:
 
-Output ONLY the final expanded commercial prompt in plain English, with no meta-commentary or conversational intro.`;
+1. DEFAULT ETHNICITY RULE (AFRICAN DEFAULT):
+   - Whenever human characters (models, customers, doctors, entrepreneurs, families) are requested or implied AND NO explicit ethnicity is specified by the user -> DEFAULT TO ELEGANT, AUTHENTIC AFRICAN CHARACTERS (e.g., handsome African man, stunning African woman, joyful African couple, respected senior African elder).
+   - EXCEPTION: If the user explicitly requests another ethnicity ("Un homme japonais", "Une femme européenne"), STRICTLY follow the user's explicit request.
 
-    const userContent = `[USER REQUEST]:
-${rawUserPrompt || "High-end commercial product advertisement"}
+2. DEFAULT LANGUAGE FOR TEXT IN VISUALS (FRENCH DEFAULT):
+   - If the visual includes graphic text, banners, titles, callouts, or badges, ALL TEXT MUST BE IN NATURAL FRENCH UNLESS THE USER EXPLICITLY REQUESTS ANOTHER LANGUAGE (e.g. English).
+   - If the user explicitly requests English, format all text callouts and slogans in English (e.g., "BUY NOW", "SPECIAL OFFER").
+   - If no language is specified, use professional French copy: "ACHETEZ MAINTENANT", "OFFRE SPÉCIALE", "NOUVEAUTÉ", "SATISFAIT OU REMBOURSÉ", "100% NATUREL", "LIVRAISON DISPONIBLE".
 
-[MODE & COMPOSITION STYLE]:
-${modeInfo.name} - ${modeInfo.compositionRules}
-Selected Style: ${input.style || "Professional Commercial Studio"}
+3. PRODUCT FIDELITY & PACKAGING PRESERVATION:
+   - If a reference image vision audit is provided, preserve 100% of the original product packaging, logo, colors, shape, container type, and labeling. Do not invent a different packaging or brand.
 
-${visionAudit ? `[REFERENCE PRODUCT VISUAL AUDIT - MUST REPRODUCE FAITHFULLY]:\n${visionAudit}` : "[NOTE]: No image reference provided. Create hero product based on user text."}`;
+4. EXTREME PHOTOREALISM & HUMAN QUALITY:
+   - Eliminate plastic AI skin gloss and uncanny faces.
+   - Require realistic skin texture with visible pores, natural hair strands, anatomically flawless hands with 5 fingers, realistic eye reflections, natural warm smiles.
+   - Use studio camera specs: Hasselblad H6D-100c / Canon EOS R5, 85mm f/1.4 lens, softbox studio lighting, shallow depth of field, 8K resolution sharp focus.
+
+5. ADVERTISING vs. SIMPLE VISUAL ADAPTATION:
+   - Simple Visual: Focus on pristine photography, depth, light, composition, photorealism.
+   - Advertising Visual: Include commercial visual hierarchy, high-contrast banner overlays, product benefits callouts in French, gold quality trust badges ("SATISFAIT OU REMBOURSÉ", "100% NATUREL").
+
+HIERARCHY OF PRIORITIES IN CASE OF CONFLICT:
+1. Explicit user request details (e.g. specific ethnicity or language if explicitly named).
+2. Product fidelity from reference image vision audit.
+3. Aspect ratio and composition layout.
+4. French language rule for ad text.
+5. African ethnicity default rule for human models.
+6. Ecomfy Art Direction & Photorealism enrichment.
+
+Structure your final prompt in clear, vivid English containing:
+- Full scene composition & environment
+- Model description (African default unless specified otherwise), attire, emotion, and interaction
+- Hero product placement & fidelity
+- Studio lighting, camera gear (85mm f/1.4), depth of field, and photorealistic textures
+- French text callouts & badges (if commercial ad visual mode)
+
+Output ONLY the expanded prompt in plain English, with no meta-commentary.`;
+
+    const userContent = `[USER BRIEF]:
+${rawUserPrompt || "Visuel publicitaire professionnel pour e-commerce"}
+
+[MODE & STYLE]:
+Mode: ${modeInfo.name} (${modeInfo.compositionRules})
+Selected Style: ${input.style || "Studio Commercial Premium"}
+${input.productName ? `Product Name: ${input.productName}` : ""}
+${input.niche ? `Niche/Category: ${input.niche}` : ""}
+
+${visionAudit ? `[EXACT PRODUCT VISUAL REFERENCE AUDIT - REPRODUCE FAITHFULLY]:\n${visionAudit}` : "[NOTE]: No product reference photo attached. Generate hero product according to brief."}`;
 
     try {
-      console.log(`[PromptEngine] Synthesizing prompt with ${OPENAI_CONFIG.TEXT_MODEL}...`);
+      console.log(`[PromptEngine] Synthesizing ultra-rich prompt with ${OPENAI_CONFIG.TEXT_MODEL}...`);
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -137,11 +150,11 @@ ${visionAudit ? `[REFERENCE PRODUCT VISUAL AUDIT - MUST REPRODUCE FAITHFULLY]:\n
         const data = await res.json();
         const generatedPrompt = data.choices?.[0]?.message?.content?.trim();
         if (generatedPrompt && generatedPrompt.length > 50) {
-          console.log("[PromptEngine] Successfully generated 23-pillar commercial prompt.");
+          console.log("[PromptEngine] Successfully generated ultra-enhanced Ecomfy commercial prompt.");
           return generatedPrompt;
         }
       } else {
-        console.warn("[PromptEngine] API response not OK:", res.status, await res.text());
+        console.warn("[PromptEngine] API response error:", res.status, await res.text());
       }
     } catch (err) {
       console.error("[PromptEngine] Exception during prompt synthesis:", err);
@@ -156,10 +169,22 @@ ${visionAudit ? `[REFERENCE PRODUCT VISUAL AUDIT - MUST REPRODUCE FAITHFULLY]:\n
     visionAudit: string,
     style?: string
   ): string {
-    let prompt = `Commercial advertising photography for e-commerce. ${modeInfo.compositionRules} `;
+    let prompt = `Ultra-photorealistic commercial e-commerce advertising visual. ${modeInfo.compositionRules} `;
+    
+    // Default to African model if prompt implies human but no ethnicity specified
+    const lower = userPrompt.toLowerCase();
+    const hasHuman = lower.includes("homme") || lower.includes("femme") || lower.includes("personne") || lower.includes("man") || lower.includes("woman") || lower.includes("model") || lower.includes("client");
+    const hasExplicitEthnicity = lower.includes("japonais") || lower.includes("européen") || lower.includes("asiatique") || lower.includes("caucasian") || lower.includes("white") || lower.includes("asian") || lower.includes("chinois");
+    
+    if (hasHuman && !hasExplicitEthnicity) {
+      prompt += "Featuring a handsome, elegant African model with warm smiling expression, realistic skin pores, natural hair texture, and perfectly formed hands. ";
+    }
+
     if (userPrompt) prompt += `\n\nUser Brief: ${userPrompt}. `;
     if (visionAudit) prompt += `\n\nExact Hero Product Visual Specs: ${visionAudit}. `;
-    prompt += `\n\nArt Direction: ${style || "Professional Studio"}. Shot on 85mm f/1.4 lens, soft commercial studio lights, shallow depth of field, photorealistic, sharp focus, 8k resolution.`;
+    
+    prompt += `\n\nArt Direction: ${style || "Studio Commercial Premium"}. Photographed on 85mm f/1.4 lens, softbox studio lights, shallow depth of field, crisp focus, photorealistic 8k, natural lighting, professional ad visual layout with text elements in French if applicable.`;
     return prompt;
   }
 }
+
