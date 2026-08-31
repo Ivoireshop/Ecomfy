@@ -195,7 +195,7 @@ const FounderDashboard = () => {
       if (!session) {
         navigate("/auth");
       } else {
-        checkFounderRole(session.user.id);
+        checkFounderRole(session.user.id, session.user.email);
       }
     });
 
@@ -249,8 +249,9 @@ const FounderDashboard = () => {
     };
   }, [session]);
 
-  const checkFounderRole = async (userId: string) => {
-    if (session?.user?.email?.toLowerCase() === "djateulrich@gmail.com") {
+  const checkFounderRole = async (userId: string, userEmail?: string) => {
+    const email = (userEmail || session?.user?.email || "").toLowerCase();
+    if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
       loadDashboardData();
       return;
     }
@@ -277,7 +278,11 @@ const FounderDashboard = () => {
       loadDashboardData();
     } catch (error) {
       console.error("Error checking founder role:", error);
-      navigate("/");
+      if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
+        loadDashboardData();
+      } else {
+        navigate("/");
+      }
     }
   };
 

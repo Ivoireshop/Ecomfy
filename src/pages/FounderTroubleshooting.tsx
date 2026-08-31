@@ -80,19 +80,25 @@ const FounderTroubleshooting = () => {
       if (!session) {
         navigate("/auth");
       } else {
-        verifyFounderAccess(session.user.id);
+        verifyFounderAccess(session.user.id, session.user.email);
       }
     });
   }, [navigate]);
 
-  const verifyFounderAccess = async (userId: string) => {
+  const verifyFounderAccess = async (userId: string, userEmail?: string) => {
+    const email = (userEmail || session?.user?.email || "").toLowerCase();
+    if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
+      setIsFounder(true);
+      runFullDiagnostics();
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         // @ts-ignore
-        .in("role", ["founder", "co_founder"]);
+        .in("role", ["founder", "co_founder", "shareholder", "admin"]);
 
       if (error || !data || data.length === 0) {
         setIsFounder(false);
@@ -109,7 +115,12 @@ const FounderTroubleshooting = () => {
       runFullDiagnostics();
     } catch (e) {
       console.error(e);
-      navigate("/");
+      if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
+        setIsFounder(true);
+        runFullDiagnostics();
+      } else {
+        navigate("/");
+      }
     }
   };
 

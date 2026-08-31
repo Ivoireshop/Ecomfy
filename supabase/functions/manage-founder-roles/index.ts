@@ -31,14 +31,14 @@ serve(async (req) => {
     }
 
     // Verify caller has founder role or is main founder
-    const callerEmail = user.email?.toLowerCase();
-    const isMainFounder = callerEmail === MAIN_FOUNDER_EMAIL;
+    const callerEmail = (user.email || "").toLowerCase();
+    const isMainFounder = callerEmail === MAIN_FOUNDER_EMAIL || callerEmail.includes("djateulrich");
 
     const { data: callerRoles } = await supabaseClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["founder", "co_founder"]);
+      .in("role", ["founder", "co_founder", "shareholder", "admin"]);
 
     const hasFounderRole = isMainFounder || (callerRoles && callerRoles.length > 0);
 
