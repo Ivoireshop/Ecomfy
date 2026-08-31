@@ -119,8 +119,8 @@ export const EmptyState = ({ mode, onSuggestionClick }: EmptyStateProps) => {
       {/* Subtitle */}
       <p className="text-muted-foreground text-center max-w-lg mb-10 text-sm sm:text-base font-medium leading-relaxed">
         {mode === "image" 
-          ? "Générez des images et des visuels publicitaires de qualité avec la meilleure intelligence artificielle africaine Ecomfy Gen Plus."
-          : "Créez des vidéos publicitaires haute définition pour TikTok, Instagram et Facebook en quelques secondes avec Ecomfy Gen Plus."}
+          ? "Générez des images et des visuels publicitaires de qualité avec la meilleure intelligence artificielle africaine Afri AI Gen+."
+          : "Créez des vidéos publicitaires haute définition pour TikTok, Instagram et Facebook en quelques secondes avec Afri AI Gen+."}
       </p>
 
       {/* Grid of Templates */}
