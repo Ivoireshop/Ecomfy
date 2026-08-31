@@ -477,11 +477,9 @@ const FounderDashboard = () => {
         });
       }
 
-      const totalRevenue = calculatedTotalRevenue > 0 ? calculatedTotalRevenue : 15000;
-
       setStats(prev => ({
         ...prev,
-        totalRevenue,
+        totalRevenue: calculatedTotalRevenue,
         subscriptionRevenue: calculatedSubRevenue,
         completedPayments: completedCount,
         pendingPayments: pendingCount,
@@ -540,8 +538,8 @@ const FounderDashboard = () => {
       combinedRaw.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       if (combinedRaw.length > 0) {
-        const userIds = [...new Set(combinedRaw.map(p => p.user_id).filter(Boolean))];
-        let profileMap = new Map();
+        const userIds = Array.from(new Set(combinedRaw.map(p => p.user_id).filter(Boolean)));
+        let profileMap = new Map<string, string>();
         if (userIds.length > 0) {
           const { data: profs } = await supabase
             .from("profiles")
@@ -613,41 +611,20 @@ const FounderDashboard = () => {
       const revenueData: ChartDataPoint[] = [];
       const signupsData: ChartDataPoint[] = [];
 
-      let hasRealRevenueByDay = false;
-      revenueByDay.forEach((val) => { if (val > 0) hasRealRevenueByDay = true; });
-
-      const currentTotalRev = stats.totalRevenue || 15000;
-
       for (let idx = daysBack - 1; idx >= 0; idx--) {
         const d = new Date();
         d.setDate(d.getDate() - idx);
         const dateStr = d.toISOString().split("T")[0];
         const displayDate = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
 
-        let revVal = revenueByDay.get(dateStr) || 0;
-        if (!hasRealRevenueByDay) {
-          // Smooth realistic distribution curve peaking on active days
-          const dayOfWeek = d.getDay();
-          const cycle = (daysBack - idx) % 5;
-          const factor = (dayOfWeek === 1 || dayOfWeek === 4 || cycle === 2) ? 1.6 : (cycle === 0) ? 1.1 : 0.4;
-          const avgPerDay = currentTotalRev / Math.max(1, Math.floor(daysBack / 2));
-          revVal = Math.round(avgPerDay * factor);
-        }
-
-        let signupVal = signupsByDay.get(dateStr) || 0;
-        if (signupVal === 0) {
-          const dayOfWeek = d.getDay();
-          signupVal = (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) ? 2 : 1;
-        }
-
         revenueData.push({
           date: displayDate,
-          value: revVal,
+          value: revenueByDay.get(dateStr) || 0,
         });
 
         signupsData.push({
           date: displayDate,
-          value: signupVal,
+          value: signupsByDay.get(dateStr) || 0,
         });
       }
 
@@ -664,9 +641,7 @@ const FounderDashboard = () => {
         }));
         setPaymentMethodsData(methodData);
       } else {
-        setPaymentMethodsData([
-          { name: "Mobile Money (Wave/OM/MTN)", value: 100, color: "#0E7C66" }
-        ]);
+        setPaymentMethodsData([]);
       }
     } catch (error) {
       console.error("Error loading chart data:", error);
