@@ -341,6 +341,13 @@ const ShopManager = () => {
                         Gérer
                       </button>
                       <button 
+                        onClick={() => navigate(`/seo`)}
+                        className="w-[40px] border border-[#0E7C66]/30 bg-[#0E7C66]/10 text-[#0E7C66] rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-[#0E7C66] hover:text-white transition-colors shrink-0"
+                        title="SEO Intelligence (Référencement Google)"
+                      >
+                        <Search className="h-4 w-4" />
+                      </button>
+                      <button 
                         onClick={() => window.open(`https://ecomfy.cloud/shop/${shop.slug}`, "_blank")}
                         className="w-[40px] border border-[#E7E5DE] bg-white rounded-[9px] flex items-center justify-center cursor-pointer text-[#5B6472] hover:text-[#0F1B2C] hover:bg-slate-50 transition-colors shrink-0"
                         title="Voir la boutique"
