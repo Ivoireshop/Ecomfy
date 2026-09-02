@@ -258,17 +258,17 @@ const AppContent = () => {
           <Route
             path="/governance/documents/:documentId"
             element={
-              <ProtectedRoute>
+              <FounderRoute>
                 <GovernanceDocumentPage />
-              </ProtectedRoute>
+              </FounderRoute>
             }
           />
           <Route
             path="/associate-space"
             element={
-              <ProtectedRoute>
+              <FounderRoute>
                 <AssociateSpace />
-              </ProtectedRoute>
+              </FounderRoute>
             }
           />
           <Route
