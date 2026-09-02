@@ -63,6 +63,7 @@ const PromoCodeManager = lazyWithRetry(() => import("./pages/PromoCodeManager"))
 const FounderDashboard = lazyWithRetry(() => import("./pages/FounderDashboard"));
 const FounderTroubleshooting = lazyWithRetry(() => import("./pages/FounderTroubleshooting"));
 const CorporateGovernance = lazyWithRetry(() => import("./pages/CorporateGovernance"));
+const CorporateOnboardingPage = lazyWithRetry(() => import("./pages/CorporateOnboardingPage"));
 const GovernanceDocumentPage = lazyWithRetry(() => import("./pages/GovernanceDocumentPage"));
 const AssociateSpace = lazyWithRetry(() => import("./pages/AssociateSpace"));
 const SeoIntelligencePage = lazyWithRetry(() => import("./pages/SeoIntelligencePage"));
@@ -254,6 +255,10 @@ const AppContent = () => {
                 <CorporateGovernance />
               </FounderRoute>
             }
+          />
+          <Route
+            path="/governance/onboarding"
+            element={<CorporateOnboardingPage />}
           />
           <Route
             path="/governance/documents/:documentId"

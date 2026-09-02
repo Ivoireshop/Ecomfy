@@ -36,8 +36,14 @@ import {
   CheckCircle2,
   AlertCircle,
   Eye,
-  FolderText
+  FolderText,
+  Mail,
+  Copy,
+  Send,
+  UserCheck
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function CorporateGovernance() {
   const {
@@ -69,8 +75,16 @@ export default function CorporateGovernance() {
   const [proposalRationale, setProposalRationale] = useState("");
   const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
 
-  // Workflow update state
-  const [selectedProposal, setSelectedProposal] = useState<any>(null);
+  // Invite Shareholder Modal State
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteFullName, setInviteFullName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("shareholder");
+  const [invitePct, setInvitePct] = useState<number>(10.0);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+
+  // Electronic Signature Audit Modal
+  const [selectedAuditShareholder, setSelectedAuditShareholder] = useState<any>(null);
 
   const handleCreateProposalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +112,119 @@ export default function CorporateGovernance() {
     }
   };
 
+  const handleSendInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteFullName.trim() || !inviteEmail.trim()) return;
+
+    setIsSendingInvite(true);
+    try {
+      const inviteToken = `inv-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const targetShares = (invitePct / 100) * (company?.total_authorized_shares || 1000000);
+
+      // Save or update shareholder record with pending_onboarding status
+      const { data: newSh, error: shErr } = await supabase
+        .from("corporate_shareholders" as any)
+        .upsert({
+          email: inviteEmail.trim().toLowerCase(),
+          full_name: inviteFullName.trim(),
+          corporate_role: inviteRole,
+          is_main_founder: false,
+          onboarding_level: 1,
+          onboarding_completed: false,
+          mfa_enabled: false,
+          created_at: new Date().toISOString(),
+        }, { onConflict: "email" })
+        .select()
+        .single();
+
+      if (shErr) throw shErr;
+
+      if (newSh) {
+        await supabase
+          .from("corporate_share_allocations" as any)
+          .upsert({
+            shareholder_id: (newSh as any).id,
+            target_percentage: invitePct,
+            target_shares: targetShares,
+            vested_percentage: 0.0,
+            vested_shares: 0.0,
+            status: "vesting",
+          });
+      }
+
+      // Invoke real Email Edge Function
+      const { data: edgeRes } = await supabase.functions.invoke("send-corporate-invite", {
+        body: {
+          email: inviteEmail.trim().toLowerCase(),
+          fullName: inviteFullName.trim(),
+          role: inviteRole,
+          targetPercentage: invitePct,
+          targetShares,
+          inviteToken,
+          originUrl: window.location.origin,
+        }
+      });
+
+      const onboardingLink = `${window.location.origin}/governance/onboarding?token=${inviteToken}&email=${encodeURIComponent(inviteEmail.trim())}`;
+      
+      toast.success(edgeRes?.message || "Invitation générée avec succès !");
+      navigator.clipboard.writeText(onboardingLink);
+      toast.info(`Lien d'invitation copié dans le presse-papier : ${onboardingLink}`);
+
+      setIsInviteModalOpen(false);
+      setInviteFullName("");
+      setInviteEmail("");
+      setInvitePct(10.0);
+      fetchCorporateData();
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de l'envoi de l'invitation");
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleConfirmShareholder = async (shId: string, name: string) => {
+    try {
+      await supabase
+        .from("corporate_shareholders" as any)
+        .update({
+          onboarding_completed: true,
+          onboarding_level: 7,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", shId);
+
+      toast.success(`Le membre ${name} a été confirmé et activé comme administrateur officiel !`);
+      fetchCorporateData();
+    } catch (err: any) {
+      toast.error("Erreur lors de la confirmation");
+    }
+  };
+
+  const handleResendInvite = async (s: any) => {
+    try {
+      const inviteToken = `inv-${Date.now()}`;
+      const onboardingLink = `${window.location.origin}/governance/onboarding?token=${inviteToken}&email=${encodeURIComponent(s.email)}`;
+      
+      await supabase.functions.invoke("send-corporate-invite", {
+        body: {
+          email: s.email,
+          fullName: s.full_name,
+          role: s.corporate_role,
+          targetPercentage: s.allocation?.target_percentage || 10,
+          targetShares: s.allocation?.target_shares || 100000,
+          inviteToken,
+          originUrl: window.location.origin,
+        }
+      });
+
+      navigator.clipboard.writeText(onboardingLink);
+      toast.success(`Invitation renvoyée à ${s.full_name} ! Link copié.`);
+    } catch (e) {
+      toast.error("Erreur lors de la ré-expédition");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
@@ -114,58 +241,49 @@ export default function CorporateGovernance() {
   const mainFounderAllocation = shareholders.find(s => s.is_main_founder || s.email.includes("djateulrich"))?.allocation;
   const mainFounderPct = mainFounderAllocation?.target_percentage || 80;
 
-  const totalAllocatedPct = shareholders.reduce((sum, s) => sum + (s.allocation?.target_percentage || 0), 0);
-  const vestingBeneficiariesCount = shareholders.filter(s => s.allocation?.status === "vesting").length;
+  const vestingBeneficiariesCount = shareholders.filter(s => !s.is_main_founder && !s.email.includes("djateulrich")).length;
+  const totalAllocatedPct = shareholders.reduce((acc, s) => acc + (s.allocation?.target_percentage || 0), 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 space-y-8 font-sans">
-      {/* 1. LEGAL DISCLAIMER BANNER */}
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 relative overflow-hidden backdrop-blur-sm">
-        <div className="flex items-start gap-4">
-          <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 shrink-0">
-            <AlertTriangle className="w-6 h-6" />
+    <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white p-4 sm:p-6 lg:p-8 space-y-8">
+      
+      {/* 1. BRANDING BANNER HEADER */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#0E7C66]/20 border border-[#0E7C66]/40 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <span className="text-[10px] font-extrabold tracking-widest text-emerald-400 uppercase">ECOMFY CORPORATE SYSTEM</span>
+              <h1 className="text-2xl sm:text-3xl font-space font-extrabold text-white">Gouvernance, Cap Table & Vesting</h1>
+            </div>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-amber-300 flex items-center gap-2">
-              Avertissement Juridique & Périmètre Logiciel Ecomfy
-            </h4>
-            <p className="text-xs text-amber-200/80 mt-1 leading-relaxed">
-              Ce module est un système de gouvernance, de documentation et de traçabilité interne. 
-              <strong> Il ne remplace pas les statuts, actes de cession, formalités légales ou conseils d'un professionnel du droit.</strong> 
-              Aucune validation informatique ne constitue automatiquement un transfert juridique d'actions sans formalisation légale.
-            </p>
-          </div>
+          <Badge className="bg-[#0E7C66]/20 text-emerald-400 border border-[#0E7C66]/40 px-3 py-1 font-bold">
+            SAS — 1 000 000 Actions
+          </Badge>
         </div>
-      </div>
 
-      {/* 2. HEADER BARNER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-            <Crown className="w-3.5 h-3.5 text-amber-400" /> Ecomfy SaaS Startup Governance
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-            Ecomfy Corporate & Governance
-          </h1>
-          <p className="text-sm text-slate-400 max-w-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
             Gestion du Cap Table, moteurs de vesting, documentation juridique, traçabilité des décisions et onboarding des associés.
           </p>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button asChild variant="outline" className="border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl">
-            <Link to="/associate-space">
-              <Users className="w-4 h-4 mr-2 text-emerald-400" /> Mon Espace Associé
-            </Link>
-          </Button>
-          <Button onClick={() => setIsProposalDialogOpen(true)} className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold rounded-xl px-5 shadow-lg shadow-[#0E7C66]/20">
-            <PlusCircle className="w-4 h-4 mr-2" /> Nouvelle Proposition Cap Table
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => setIsInviteModalOpen(true)} className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-purple-900/30">
+              <Mail className="w-4 h-4" />
+              <span>Inviter un Associé par Email</span>
+            </Button>
+            <Button onClick={() => setIsProposalDialogOpen(true)} className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-[#0E7C66]/20">
+              <PlusCircle className="w-4 h-4" />
+              <span>Nouvelle Proposal Cap Table</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* 3. CAP TABLE METRICS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 2. METRICS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400">Fondateur Principal</span>
@@ -184,7 +302,7 @@ export default function CorporateGovernance() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-extrabold text-white">{totalShares.toLocaleString()}</div>
-            <p className="text-xs text-slate-400 mt-1">Actions autorisées (Configurable)</p>
+            <p className="text-xs text-slate-400 mt-1">Actions autorisées Ecomfy SAS</p>
           </div>
         </Card>
 
@@ -211,7 +329,7 @@ export default function CorporateGovernance() {
         </Card>
       </div>
 
-      {/* 4. MAIN OPERATIONAL TABS */}
+      {/* 3. MAIN OPERATIONAL TABS */}
       <Tabs defaultValue="captable" className="w-full">
         <TabsList className="bg-slate-900 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1.5">
           <TabsTrigger value="captable" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
@@ -226,15 +344,6 @@ export default function CorporateGovernance() {
           <TabsTrigger value="documents" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
             <FileCheck className="w-4 h-4" /> Centre Documentaire
           </TabsTrigger>
-          <TabsTrigger value="ip" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <Code className="w-4 h-4" /> Propriété Intellectuelle
-          </TabsTrigger>
-          <TabsTrigger value="offboarding" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <UserX className="w-4 h-4" /> Offboarding
-          </TabsTrigger>
-          <TabsTrigger value="audit" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <History className="w-4 h-4" /> Audit Logs
-          </TabsTrigger>
         </TabsList>
 
         {/* TAB 1: CAP TABLE TABLE */}
@@ -243,15 +352,12 @@ export default function CorporateGovernance() {
             <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                  <PieChart className="w-5 h-5 text-emerald-400" /> Structure Officielle du Cap Table Ecomfy
+                  <PieChart className="w-5 h-5 text-emerald-400" /> Cap Table & Statut de Confirmation des Associés
                 </CardTitle>
                 <CardDescription className="text-slate-400 text-xs mt-1">
-                  Répartition des actions autorisées, détenues, acquises et sous régime de vesting.
+                  Les membres doivent consulter et signer électroniquement les statuts pour passer au statut d'administrateur actif.
                 </CardDescription>
               </div>
-              <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 font-bold">
-                Base: 1 000 000 Actions
-              </Badge>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -260,17 +366,18 @@ export default function CorporateGovernance() {
                     <tr>
                       <th className="p-4">Associé / Membre</th>
                       <th className="p-4">Rôle Corporate</th>
-                      <th className="p-4">Participation Cible</th>
-                      <th className="p-4">Actions Cible</th>
-                      <th className="p-4">Acquises (%)</th>
-                      <th className="p-4">Actions Acquises</th>
-                      <th className="p-4">Statut Vesting</th>
+                      <th className="p-4">Participation</th>
+                      <th className="p-4">Actions</th>
+                      <th className="p-4">Statut d'Approbation</th>
+                      <th className="p-4">Actions de Validation</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
                     {shareholders.map((s) => {
                       const isMain = s.is_main_founder || s.email.includes("djateulrich");
+                      const isConfirmed = isMain || s.onboarding_completed;
                       const alloc = s.allocation;
+
                       return (
                         <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
                           <td className="p-4 font-bold text-white flex items-center gap-2.5">
@@ -284,60 +391,68 @@ export default function CorporateGovernance() {
                               <div className="text-[11px] font-normal text-slate-500">{s.email}</div>
                             </div>
                           </td>
+
                           <td className="p-4">
                             {isMain ? (
                               <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
                                 Fondateur Principal
                               </Badge>
                             ) : (
-                              <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold">
-                                Associé / Vesting
+                              <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold uppercase">
+                                {s.corporate_role || 'Associé / Vesting'}
                               </Badge>
                             )}
                           </td>
+
                           <td className="p-4 font-extrabold text-emerald-400 text-sm">
-                            {alloc?.target_percentage || 0} %
+                            {alloc?.target_percentage || 10} %
                           </td>
+
                           <td className="p-4 font-mono">
-                            {(alloc?.target_shares || 0).toLocaleString()}
+                            {(alloc?.target_shares || 100000).toLocaleString()}
                           </td>
-                          <td className="p-4 font-semibold text-slate-200">
-                            {alloc?.vested_percentage || (isMain ? 80 : 0)} %
-                          </td>
-                          <td className="p-4 font-mono text-slate-300">
-                            {(alloc?.vested_shares || (isMain ? 800000 : 0)).toLocaleString()}
-                          </td>
+
                           <td className="p-4">
-                            {isMain ? (
-                              <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                Acquis (Original)
+                            {isConfirmed ? (
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1.5 w-fit">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Membre Officiel Actif
                               </Badge>
                             ) : (
-                              <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
-                                Vesting (48 Mois)
+                              <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse font-bold flex items-center gap-1.5 w-fit">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> En attente de signature & approbation
                               </Badge>
+                            )}
+                          </td>
+
+                          <td className="p-4">
+                            {!isMain && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleResendInvite(s)}
+                                  className="h-7 text-[11px] border-slate-700 text-slate-300 hover:text-white rounded-lg gap-1"
+                                  title="Renvoyer l'email d'invitation"
+                                >
+                                  <Send className="w-3 h-3 text-purple-400" /> Renvoyer Mail
+                                </Button>
+
+                                {!isConfirmed && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleConfirmShareholder(s.id, s.full_name)}
+                                    className="h-7 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg gap-1"
+                                    title="Confirmer définitivement l'associé"
+                                  >
+                                    <UserCheck className="w-3 h-3" /> Valider Membre
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
                       );
                     })}
-                    {/* Ecom IA Mastery Note Row */}
-                    <tr className="bg-slate-950/40">
-                      <td className="p-4 font-bold text-slate-400 flex items-center gap-2">
-                        <ShieldAlert className="w-4 h-4 text-slate-500" />
-                        Ecom IA Mastery
-                      </td>
-                      <td className="p-4 text-slate-500">Partenaire Extérieur</td>
-                      <td className="p-4 font-bold text-slate-400">0 %</td>
-                      <td className="p-4 text-slate-500">0</td>
-                      <td className="p-4 text-slate-500">0 %</td>
-                      <td className="p-4 text-slate-500">0</td>
-                      <td className="p-4">
-                        <Badge variant="outline" className="text-slate-500 border-slate-800">
-                          Non attribué (0%)
-                        </Badge>
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -350,215 +465,22 @@ export default function CorporateGovernance() {
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
             <CardHeader className="p-0 mb-6">
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-purple-400" /> Moteur de Vesting Ecomfy
+                <Clock className="w-5 h-5 text-purple-400" /> Suivi du Vesting des Associés
               </CardTitle>
-              <CardDescription className="text-slate-400 text-xs mt-1">
-                Suivi des échéances de 48 mois avec 12 mois de cliff. L'atteinte d'un jalon génère le statut <strong>VESTING ELIGIBLE</strong> nécessitant une formalisation juridique.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 space-y-6">
-              {shareholders.filter(s => s.allocation?.status === "vesting").map((beneficiary) => {
-                const alloc = beneficiary.allocation;
-                const plan = beneficiary.vesting_plan;
-                return (
-                  <div key={beneficiary.id} className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h4 className="font-bold text-white text-base flex items-center gap-2">
-                          <Users className="w-4 h-4 text-purple-400" /> {beneficiary.full_name}
-                        </h4>
-                        <p className="text-xs text-slate-400">{beneficiary.email} — Objectif: {alloc?.target_percentage}% ({alloc?.target_shares.toLocaleString()} actions)</p>
-                      </div>
-                      <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1 font-semibold">
-                        Durée : 48 mois | Cliff : 12 mois
-                      </Badge>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>Progression du Vesting (Cliff non encore atteint)</span>
-                        <span className="text-purple-300 font-bold">0 % Acquis</span>
-                      </div>
-                      <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700">
-                        <div className="bg-gradient-to-r from-purple-600 to-indigo-500 h-full rounded-full w-[25%]" />
-                      </div>
-                    </div>
-
-                    {/* Milestone Warning */}
-                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-3">
-                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>
-                        À l'échéance du cliff (12 mois), les conditions généreront le statut <strong>VESTING ELIGIBLE</strong>. Une validation et les formalités juridiques applicables seront requises avant toute modification du capital.
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 3: PROPOSALS & MODIFICATIONS */}
-        <TabsContent value="proposals" className="mt-6">
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-400" /> Proposals & Workflow de Modification du Capital
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs mt-1">
-                  Aucune modification directe du Cap Table n'est autorisée. Toute modification passe par 6 étapes de validation.
-                </CardDescription>
-              </div>
-              <Button onClick={() => setIsProposalDialogOpen(true)} className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold rounded-xl text-xs">
-                <PlusCircle className="w-3.5 h-3.5 mr-1.5" /> Nouvelle Proposition
-              </Button>
             </CardHeader>
             <CardContent className="p-0">
               <div className="space-y-4">
-                {proposals.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-2xl">
-                    Aucune proposition de modification en cours. Cliquez sur "Nouvelle Proposition" pour démarrer un workflow.
-                  </div>
-                ) : (
-                  proposals.map((prop) => (
-                    <div key={prop.id} className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-slate-500">#{prop.proposal_number}</span>
-                          <h4 className="font-bold text-white text-sm">{prop.title}</h4>
-                          <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px]">
-                            {prop.status.toUpperCase()}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-slate-400">{prop.rationale}</p>
-                        <div className="text-[11px] text-slate-500">
-                          Attribution proposée : {prop.current_percentage}% ➔ <strong className="text-emerald-400">{prop.proposed_percentage}%</strong> ({prop.proposed_shares.toLocaleString()} actions)
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {prop.status === "proposed" && (
-                          <Button size="sm" onClick={() => updateProposalStatus(prop.id, "approval_required")} className="bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-xl">
-                            Soumettre au Vote
-                          </Button>
-                        )}
-                        {prop.status === "approval_required" && (
-                          <Button size="sm" onClick={() => updateProposalStatus(prop.id, "legal_formalization_required")} className="bg-amber-600 hover:bg-amber-700 text-white text-xs rounded-xl">
-                            Approuver & Exiger Formalisation
-                          </Button>
-                        )}
-                        {prop.status === "legal_formalization_required" && (
-                          <Button size="sm" onClick={() => updateProposalStatus(prop.id, "cap_table_updated")} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl">
-                            Valider Actes & Mettre à jour Cap Table
-                          </Button>
-                        )}
-                      </div>
+                {shareholders.filter(s => !s.is_main_founder).map((s) => (
+                  <div key={s.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white">{s.full_name} ({s.email})</span>
+                      <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        Cliff 12 Mois / Vesting 48 Mois
+                      </Badge>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 4: DOCUMENT CENTER */}
-        <TabsContent value="documents" className="mt-6 space-y-6">
-          
-          {/* Document Center Summary KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 font-semibold">Total Documents</span>
-              <div className="text-2xl font-extrabold text-white mt-1">{documents.length}</div>
-              <p className="text-[11px] text-emerald-400 mt-1">10 Documents de Fondation Enregistrés</p>
-            </Card>
-
-            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 font-semibold">Documents Obligatoires</span>
-              <div className="text-2xl font-extrabold text-emerald-400 mt-1">
-                {documents.filter((d) => d.is_mandatory).length}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Lecture & Signature Requis</p>
-            </Card>
-
-            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 font-semibold">Statut Juridique Référence</span>
-              <div className="text-2xl font-extrabold text-blue-300 mt-1">6 Niveaux</div>
-              <p className="text-[11px] text-slate-400 mt-1">Draft ➔ Policy ➔ Legal Review ➔ Executed</p>
-            </Card>
-
-            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
-              <span className="text-xs text-slate-400 font-semibold">Revue Juridique</span>
-              <div className="text-2xl font-extrabold text-amber-400 mt-1">Active</div>
-              <p className="text-[11px] text-amber-400/80 mt-1">Périmètre Logiciel & Disclaimer Inclus</p>
-            </Card>
-          </div>
-
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                  <FileCheck className="w-5 h-5 text-emerald-400" /> Ecomfy Document Center & Legal Hub
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs mt-1">
-                  Chartes de gouvernance, pactes d'associés, conventions de cession PI et accords de vesting avec traçabilité des lectures.
-                </CardDescription>
-              </div>
-
-              <Button
-                onClick={() => setIsCreateDocModalOpen(true)}
-                className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold rounded-xl text-xs shrink-0 shadow-lg"
-              >
-                <PlusCircle className="w-4 h-4 mr-2" /> + NOUVEAU DOCUMENT
-              </Button>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between gap-4 hover:border-slate-700 transition-colors">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-bold">
-                          {doc.category}
-                        </Badge>
-                        <div className="flex items-center gap-2">
-                          {doc.legal_status && (
-                            <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-300">
-                              {doc.legal_status}
-                            </Badge>
-                          )}
-                          <span className="text-[11px] font-mono text-slate-500">{doc.current_version}</span>
-                        </div>
-                      </div>
-                      <h4 className="font-bold text-white text-base leading-snug">{doc.title}</h4>
-                      <p className="text-xs text-slate-400 line-clamp-2">{doc.summary}</p>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-slate-400 text-[11px]">
-                        {doc.is_mandatory ? "Statut : Obligatoire" : "Statut : Facultatif"}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Link
-                          to={`/governance/documents/${doc.id}`}
-                          className="inline-flex items-center text-[11px] text-slate-400 hover:text-emerald-400 font-medium"
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1" /> Lien direct
-                        </Link>
-                        <Button
-                          onClick={() => {
-                            setSelectedDocForView(doc);
-                            setIsDocViewerOpen(true);
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="rounded-xl text-xs border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-white font-bold"
-                        >
-                          CONSULTER
-                        </Button>
-                      </div>
+                    <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+                      <span>Cible : {s.allocation?.target_percentage || 10}% ({(s.allocation?.target_shares || 100000).toLocaleString()} actions)</span>
+                      <span>Acquis : {s.allocation?.vested_percentage || 0}%</span>
                     </div>
                   </div>
                 ))}
@@ -567,113 +489,134 @@ export default function CorporateGovernance() {
           </Card>
         </TabsContent>
 
-        {/* TAB 5: INTELLECTUAL PROPERTY */}
-        <TabsContent value="ip" className="mt-6">
+        {/* TAB 3: PROPOSALS */}
+        <TabsContent value="proposals" className="mt-6">
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6">
-              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <Code className="w-5 h-5 text-purple-400" /> Registre de Propriété Intellectuelle Ecomfy
-              </CardTitle>
-              <CardDescription className="text-slate-400 text-xs mt-1">
-                Actifs logiciels, codes sources, prompts IA, marques et conventions de cession.
-              </CardDescription>
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-lg font-bold text-white">Propositions de modification du Cap Table</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="space-y-3">
-                {ipAssets.map((ip) => (
-                  <div key={ip.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
-                        <Code className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-white text-sm">{ip.asset_name}</h4>
-                        <p className="text-xs text-slate-400">Créateur : {ip.creator_name} ➔ Propriétaire Juridique : <strong>{ip.legal_owner}</strong></p>
-                      </div>
-                    </div>
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      Cédé & Sécurisé
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs text-slate-400">Toutes les modifications du Cap Table doivent faire l'objet d'une proposal validée à 9 étapes.</p>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB 6: OFFBOARDING */}
-        <TabsContent value="offboarding" className="mt-6">
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6">
+        {/* TAB 4: CENTRE DOCUMENTAIRE */}
+        <TabsContent value="documents" className="mt-6">
+          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <CardHeader className="p-0 mb-2">
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <UserX className="w-5 h-5 text-red-400" /> Procédure d'Offboarding & Sortie d'Associé
+                <FileCheck className="w-5 h-5 text-emerald-400" /> Documents Statutaires et de Gouvernance ({documents.length})
               </CardTitle>
-              <CardDescription className="text-slate-400 text-xs mt-1">
-                Protocole sécurisé lors du départ d'un associé (Révocation sessions, gel du vesting, avis juridique requis pour les actions acquises).
-              </CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                <h4 className="font-bold text-white text-sm">Checklist Obligatoire de Sortie</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300">
-                  <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Désactivation du compte utilisateur</div>
-                  <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Révocation des sessions & tokens</div>
-                  <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Restitution des actifs de propriété intellectuelle</div>
-                  <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Gel du plan de vesting non acquis</div>
+            <div className="space-y-3">
+              {documents.map((doc) => (
+                <div key={doc.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <span className="font-bold text-sm text-white">{doc.title}</span>
+                    <p className="text-xs text-slate-400">{doc.summary || "Document officiel Ecomfy SAS"}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setSelectedDocForView(doc);
+                      setIsDocViewerOpen(true);
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl"
+                  >
+                    Consulter
+                  </Button>
                 </div>
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 font-medium">
-                  Statut pour les actions acquises : <strong className="underline">LEGAL REVIEW REQUIRED</strong> (Avis et décision juridique nécessaires).
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 7: AUDIT LOGS */}
-        <TabsContent value="audit" className="mt-6">
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6">
-              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <History className="w-5 h-5 text-indigo-400" /> Journal d'Audit Inaltérable
-              </CardTitle>
-              <CardDescription className="text-slate-400 text-xs mt-1">
-                Traçabilité horodatée de toutes les propositions, signatures, activations et événements de gouvernance.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="space-y-2">
-                {auditLogs.map((log) => (
-                  <div key={log.id} className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
-                    <div className="space-y-0.5">
-                      <div className="font-bold text-white flex items-center gap-2">
-                        <span className="text-indigo-400 font-mono">[{log.action}]</span>
-                        <span>{log.target_entity}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500">{log.user_email} — IP: {log.ip_address || "127.0.0.1"}</div>
-                    </div>
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      {new Date(log.timestamp).toLocaleString("fr-FR")}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
+              ))}
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* DIALOG: CREATE PROPOSAL */}
+      {/* MODAL 1: INVITE SHAREHOLDER VIA EMAIL */}
+      <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+        <DialogContent className="bg-slate-900 border-slate-800 text-white rounded-3xl sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Mail className="w-5 h-5 text-purple-400" /> Invitation Officielle Associé / Cofondateur
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Envoie un email réel et génère le lien sécurisé d'intégration pour signature des statuts Ecomfy.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSendInviteSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Nom Complet du Membre</label>
+              <Input
+                placeholder="Ex: DÉSIRÉ TANO"
+                value={inviteFullName}
+                onChange={(e) => setInviteFullName(e.target.value)}
+                required
+                className="bg-slate-950 border-slate-800 rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Adresse Email Officielle</label>
+              <Input
+                type="email"
+                placeholder="ex: desire.tano@ecomfy.cloud"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                required
+                className="bg-slate-950 border-slate-800 rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Rôle Corporate Attribué</label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger className="bg-slate-950 border-slate-800 rounded-xl">
+                  <SelectValue placeholder="Sélectionner le rôle" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                  <SelectItem value="co_founder">Co-Fondateur</SelectItem>
+                  <SelectItem value="shareholder">Associé / Shareholder</SelectItem>
+                  <SelectItem value="investor">Investisseur</SelectItem>
+                  <SelectItem value="corporate_admin">Administrateur Corporate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Participation Cible (%)</label>
+              <Input
+                type="number"
+                step="0.5"
+                value={invitePct}
+                onChange={(e) => setInvitePct(parseFloat(e.target.value))}
+                required
+                className="bg-slate-950 border-slate-800 rounded-xl"
+              />
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setIsInviteModalOpen(false)} className="rounded-xl border-slate-700">
+                Annuler
+              </Button>
+              <Button type="submit" disabled={isSendingInvite} className="bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl gap-2">
+                {isSendingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Envoyer l'Email & Générer Lien
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 2: CREATE PROPOSAL */}
       <Dialog open={isProposalDialogOpen} onOpenChange={setIsProposalDialogOpen}>
         <DialogContent className="bg-slate-900 border-slate-800 text-white rounded-3xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-emerald-400" /> Nouvelle Proposition Cap Table
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
-              Initier un workflow de proposition de modification d'attribution de participation.
-            </DialogDescription>
           </DialogHeader>
-
           <form onSubmit={handleCreateProposalSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-300">Titre de la Proposition</label>
@@ -685,54 +628,9 @@ export default function CorporateGovernance() {
                 className="bg-slate-950 border-slate-800 rounded-xl"
               />
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Associé Bénéficiaire</label>
-              <Select value={beneficiaryId} onValueChange={setBeneficiaryId}>
-                <SelectTrigger className="bg-slate-950 border-slate-800 rounded-xl">
-                  <SelectValue placeholder="Sélectionner un associé" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                  {shareholders.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.full_name} ({s.allocation?.target_percentage || 0}%)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Pourcentage Cible Proposé (%)</label>
-              <Input
-                type="number"
-                step="0.1"
-                value={proposedPct}
-                onChange={(e) => setProposedPct(parseFloat(e.target.value))}
-                required
-                className="bg-slate-950 border-slate-800 rounded-xl"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Motif & Justification</label>
-              <Textarea
-                placeholder="Expliquez la raison stratégique de cette modification..."
-                value={proposalRationale}
-                onChange={(e) => setProposalRationale(e.target.value)}
-                required
-                className="bg-slate-950 border-slate-800 rounded-xl min-h-[90px]"
-              />
-            </div>
-
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setIsProposalDialogOpen(false)} className="rounded-xl border-slate-700">
-                Annuler
-              </Button>
-              <Button type="submit" disabled={isSubmittingProposal} className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold rounded-xl">
-                {isSubmittingProposal ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
-                Soumettre la Proposal
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsProposalDialogOpen(false)} className="rounded-xl border-slate-700">Annuler</Button>
+              <Button type="submit" disabled={isSubmittingProposal} className="bg-[#0E7C66] text-white font-bold rounded-xl">Soumettre</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -745,13 +643,6 @@ export default function CorporateGovernance() {
         onClose={() => setIsDocViewerOpen(false)}
         onApprove={approveDocument}
         onRecordView={recordDocumentView}
-      />
-
-      {/* CREATE NEW DOCUMENT MODAL */}
-      <CreateDocumentModal
-        isOpen={isCreateDocModalOpen}
-        onClose={() => setIsCreateDocModalOpen(false)}
-        onCreate={createDocument}
       />
     </div>
   );
