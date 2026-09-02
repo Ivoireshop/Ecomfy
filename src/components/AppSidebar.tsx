@@ -1,5 +1,5 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -37,13 +37,13 @@ const NavItem = ({ item, isCollapsed }: NavItemProps) => (
   <SidebarMenuItem>
     <Tooltip>
       <TooltipTrigger asChild>
-        <SidebarMenuButton asChild>
+        <SidebarMenuButton asChild tooltip={item.title}>
           {item.onClick ? (
             <button
               onClick={item.onClick}
-              className="w-full flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 transition-colors font-inter text-[13.5px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground text-left"
+              className="flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground w-full text-left"
             >
-              <item.icon className="h-[18px] w-[18px] shrink-0 opacity-75" />
+              <item.icon className={`h-[18px] w-[18px] shrink-0 transition-opacity ${isCollapsed ? '' : 'opacity-75'}`} />
               <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
             </button>
           ) : (
@@ -124,6 +124,7 @@ export function AppSidebar() {
     { title: "Accueil", url: "/dashboard", icon: Home },
     { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
     { title: "Boutique", url: "/shop-manager", icon: Store },
+    { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Studio IA", url: "/studio", icon: Image },
     { title: "Livraison", url: "/delivery-dashboard", icon: Truck },

@@ -65,6 +65,7 @@ const FounderTroubleshooting = lazyWithRetry(() => import("./pages/FounderTroubl
 const CorporateGovernance = lazyWithRetry(() => import("./pages/CorporateGovernance"));
 const GovernanceDocumentPage = lazyWithRetry(() => import("./pages/GovernanceDocumentPage"));
 const AssociateSpace = lazyWithRetry(() => import("./pages/AssociateSpace"));
+const SeoIntelligencePage = lazyWithRetry(() => import("./pages/SeoIntelligencePage"));
 const Referral = lazyWithRetry(() => import("./pages/Referral"));
 const Tutorial = lazyWithRetry(() => import("./pages/Tutorial"));
 const Academy = lazyWithRetry(() => import("./pages/Academy"));
@@ -267,6 +268,22 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <AssociateSpace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seo"
+            element={
+              <ProtectedRoute>
+                <SeoIntelligencePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seo/*"
+            element={
+              <ProtectedRoute>
+                <SeoIntelligencePage />
               </ProtectedRoute>
             }
           />
