@@ -861,41 +861,42 @@ const ProductView = () => {
           {/* Main Checkout Fields - Hide if Custom Theme and Cart is empty (requires variant selection) */}
           {(!isCustomTheme || cart.length > 0) && (
             <>
-              {/* Order Summary (Rich) */}
-              <div 
-                className="rounded-2xl p-4 flex flex-col gap-3 border mb-6 transition-colors" 
-                style={{ backgroundColor: checkoutStyles.summaryBg, borderColor: checkoutStyles.summaryBorder, color: checkoutStyles.textColor }}
-              >
-                <div className="flex items-center gap-1.5 mb-1"><ShoppingCart className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Récapitulatif</h4></div>
-                
-                {(() => {
-                  let effectiveCart = cart;
-                  let effectiveTotal = cartTotal;
-                  if (cart.length === 0 && product) {
-                    const pBundles = (product as any).bundles || (product as any).bundle_offers || [];
-                    const basePrice = selectedBundleIdx !== null && pBundles[selectedBundleIdx] 
-                      ? (pBundles[selectedBundleIdx].price / pBundles[selectedBundleIdx].quantity) 
-                      : (product.price || 0);
-                    effectiveCart = [{ 
-                      product, 
-                      quantity, 
-                      selectedVariants: selectedVariants, 
-                      bundle: selectedBundleIdx !== null && pBundles ? pBundles[selectedBundleIdx] : undefined 
-                    } as any];
-                    effectiveTotal = basePrice * quantity;
-                  }
+              {/* Order Summary (Rich) - Hide if hide_order_summary is true in shop settings or product settings */}
+              {themeConfig?.hide_order_summary !== true && (product as any)?.hide_order_summary !== true && (
+                <div 
+                  className="rounded-2xl p-4 flex flex-col gap-3 border mb-6 transition-colors" 
+                  style={{ backgroundColor: checkoutStyles.summaryBg, borderColor: checkoutStyles.summaryBorder, color: checkoutStyles.textColor }}
+                >
+                  <div className="flex items-center gap-1.5 mb-1"><ShoppingCart className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Récapitulatif</h4></div>
                   
-                  return (
-                    <>
-                      {effectiveCart.map((item: any, idx: number) => (
-                        <div 
-                          key={item.product.id + idx} 
-                          className="flex gap-3 p-3 rounded-xl border shadow-sm transition-colors"
-                          style={{ backgroundColor: checkoutStyles.itemBg, borderColor: checkoutStyles.itemBorder }}
-                        >
-                          {/* Image */}
-                          {(item.product.images?.[0] || item.product.product_images?.[0]?.image_url) ? (
-                            <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  {(() => {
+                    let effectiveCart = cart;
+                    let effectiveTotal = cartTotal;
+                    if (cart.length === 0 && product) {
+                      const pBundles = (product as any).bundles || (product as any).bundle_offers || [];
+                      const basePrice = selectedBundleIdx !== null && pBundles[selectedBundleIdx] 
+                        ? (pBundles[selectedBundleIdx].price / pBundles[selectedBundleIdx].quantity) 
+                        : (product.price || 0);
+                      effectiveCart = [{ 
+                        product, 
+                        quantity, 
+                        selectedVariants: selectedVariants, 
+                        bundle: selectedBundleIdx !== null && pBundles ? pBundles[selectedBundleIdx] : undefined 
+                      } as any];
+                      effectiveTotal = basePrice * quantity;
+                    }
+                    
+                    return (
+                      <>
+                        {effectiveCart.map((item: any, idx: number) => (
+                          <div 
+                            key={item.product.id + idx} 
+                            className="flex gap-3 p-3 rounded-xl border shadow-sm transition-colors"
+                            style={{ backgroundColor: checkoutStyles.itemBg, borderColor: checkoutStyles.itemBorder }}
+                          >
+                            {/* Image */}
+                            {(item.product.images?.[0] || item.product.product_images?.[0]?.image_url) ? (
+                              <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-gray-100">
                         <img src={item.product.images?.[0] || item.product.product_images?.[0]?.image_url} alt={item.product.name} className="w-full h-full object-cover" />
                       </div>
                     ) : primaryImage ? (
@@ -968,6 +969,7 @@ const ProductView = () => {
                   );
                 })()}
               </div>
+              )}
 
               {/* Contact - respects checkout_fields */}
               {(() => {

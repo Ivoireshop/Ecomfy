@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCorporateGovernance } from "@/hooks/useCorporateGovernance";
+import { GovernanceDocumentViewerModal } from "@/components/governance/GovernanceDocumentViewerModal";
+import { CreateDocumentModal } from "@/components/governance/CreateDocumentModal";
+import { CorporateDocument } from "@/types/corporate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,7 +34,9 @@ import {
   UserX,
   Code,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  FolderText
 } from "lucide-react";
 
 export default function CorporateGovernance() {
@@ -44,9 +49,17 @@ export default function CorporateGovernance() {
     ipAssets,
     auditLogs,
     fetchCorporateData,
+    recordDocumentView,
+    createDocument,
     createProposal,
-    updateProposalStatus
+    updateProposalStatus,
+    approveDocument
   } = useCorporateGovernance();
+
+  // Document Viewer & Creation Modal State
+  const [selectedDocForView, setSelectedDocForView] = useState<CorporateDocument | null>(null);
+  const [isDocViewerOpen, setIsDocViewerOpen] = useState(false);
+  const [isCreateDocModalOpen, setIsCreateDocModalOpen] = useState(false);
 
   // New Proposal Form State
   const [isProposalDialogOpen, setIsProposalDialogOpen] = useState(false);
@@ -451,34 +464,101 @@ export default function CorporateGovernance() {
         </TabsContent>
 
         {/* TAB 4: DOCUMENT CENTER */}
-        <TabsContent value="documents" className="mt-6">
+        <TabsContent value="documents" className="mt-6 space-y-6">
+          
+          {/* Document Center Summary KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
+              <span className="text-xs text-slate-400 font-semibold">Total Documents</span>
+              <div className="text-2xl font-extrabold text-white mt-1">{documents.length}</div>
+              <p className="text-[11px] text-emerald-400 mt-1">10 Documents de Fondation Enregistrés</p>
+            </Card>
+
+            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
+              <span className="text-xs text-slate-400 font-semibold">Documents Obligatoires</span>
+              <div className="text-2xl font-extrabold text-emerald-400 mt-1">
+                {documents.filter((d) => d.is_mandatory).length}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Lecture & Signature Requis</p>
+            </Card>
+
+            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
+              <span className="text-xs text-slate-400 font-semibold">Statut Juridique Référence</span>
+              <div className="text-2xl font-extrabold text-blue-300 mt-1">6 Niveaux</div>
+              <p className="text-[11px] text-slate-400 mt-1">Draft ➔ Policy ➔ Legal Review ➔ Executed</p>
+            </Card>
+
+            <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-4 shadow-lg">
+              <span className="text-xs text-slate-400 font-semibold">Revue Juridique</span>
+              <div className="text-2xl font-extrabold text-amber-400 mt-1">Active</div>
+              <p className="text-[11px] text-amber-400/80 mt-1">Périmètre Logiciel & Disclaimer Inclus</p>
+            </Card>
+          </div>
+
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6">
-              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-emerald-400" /> Ecomfy Document Center
-              </CardTitle>
-              <CardDescription className="text-slate-400 text-xs mt-1">
-                Chartes, pactes d'associés, conventions de cession PI et accords de vesting versionnés.
-              </CardDescription>
+            <CardHeader className="p-0 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <FileCheck className="w-5 h-5 text-emerald-400" /> Ecomfy Document Center & Legal Hub
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs mt-1">
+                  Chartes de gouvernance, pactes d'associés, conventions de cession PI et accords de vesting avec traçabilité des lectures.
+                </CardDescription>
+              </div>
+
+              <Button
+                onClick={() => setIsCreateDocModalOpen(true)}
+                className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold rounded-xl text-xs shrink-0 shadow-lg"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" /> + NOUVEAU DOCUMENT
+              </Button>
             </CardHeader>
+
             <CardContent className="p-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {documents.map((doc) => (
-                  <div key={doc.id} className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between gap-4">
+                  <div key={doc.id} className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between gap-4 hover:border-slate-700 transition-colors">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px]">
-                          {doc.category.toUpperCase()}
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-bold">
+                          {doc.category}
                         </Badge>
-                        <span className="text-[11px] font-mono text-slate-500">{doc.current_version}</span>
+                        <div className="flex items-center gap-2">
+                          {doc.legal_status && (
+                            <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-300">
+                              {doc.legal_status}
+                            </Badge>
+                          )}
+                          <span className="text-[11px] font-mono text-slate-500">{doc.current_version}</span>
+                        </div>
                       </div>
                       <h4 className="font-bold text-white text-base leading-snug">{doc.title}</h4>
+                      <p className="text-xs text-slate-400 line-clamp-2">{doc.summary}</p>
                     </div>
+
                     <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Statut : Obligatoire</span>
-                      <Button variant="outline" size="sm" className="rounded-xl text-xs border-slate-700">
-                        Consulter
-                      </Button>
+                      <span className="text-slate-400 text-[11px]">
+                        {doc.is_mandatory ? "Statut : Obligatoire" : "Statut : Facultatif"}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/governance/documents/${doc.id}`}
+                          className="inline-flex items-center text-[11px] text-slate-400 hover:text-emerald-400 font-medium"
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" /> Lien direct
+                        </Link>
+                        <Button
+                          onClick={() => {
+                            setSelectedDocForView(doc);
+                            setIsDocViewerOpen(true);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-xs border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-white font-bold"
+                        >
+                          CONSULTER
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -657,6 +737,22 @@ export default function CorporateGovernance() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* DOCUMENT VIEWER MODAL */}
+      <GovernanceDocumentViewerModal
+        document={selectedDocForView}
+        isOpen={isDocViewerOpen}
+        onClose={() => setIsDocViewerOpen(false)}
+        onApprove={approveDocument}
+        onRecordView={recordDocumentView}
+      />
+
+      {/* CREATE NEW DOCUMENT MODAL */}
+      <CreateDocumentModal
+        isOpen={isCreateDocModalOpen}
+        onClose={() => setIsCreateDocModalOpen(false)}
+        onCreate={createDocument}
+      />
     </div>
   );
 }

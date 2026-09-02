@@ -16,7 +16,7 @@ export const SUPPORTED_LANGUAGES = [
 
 export type SupportedLang = (typeof SUPPORTED_LANGUAGES)[number]["code"];
 
-const RTL_LANGS: SupportedLang[] = ["ar"];
+const RTL_LANGS: string[] = ["ar"];
 
 i18n
   .use(LanguageDetector)

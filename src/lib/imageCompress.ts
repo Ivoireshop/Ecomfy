@@ -5,7 +5,7 @@
 import imageCompression from 'browser-image-compression';
 
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 Mo final cap
-export const IMAGE_LIMIT_MESSAGE = "Visual Pro n'accepte que les images de moins de 2 Mo. Compressez votre image puis réessayez.";
+export const IMAGE_LIMIT_MESSAGE = "Ecomfy n'accepte que les images de moins de 2 Mo. Compressez votre image puis réessayez.";
 
 export const formatSize = (bytes: number) =>
   bytes < 1024 * 1024

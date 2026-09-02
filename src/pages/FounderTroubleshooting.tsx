@@ -194,7 +194,7 @@ const FounderTroubleshooting = () => {
 
     // 6. Check Payment system
     try {
-      const { data: billing, error: billErr } = await supabase.from("billing_history").select("id").limit(1);
+      const { data: billing, error: billErr } = await supabase.from("billing_history" as any).select("id").limit(1);
       if (billErr) {
         newChecks[5] = { ...newChecks[5], status: "warn", message: "Table billing_history prête" };
       } else {

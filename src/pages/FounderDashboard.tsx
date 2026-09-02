@@ -35,6 +35,10 @@ import {
 import PromoCodeManager from "./PromoCodeManager";
 import { FounderManager } from "@/components/founder/FounderManager";
 import { Session } from "@supabase/supabase-js";
+import { FinancialMetricsService, FinancialMetrics, TimeRangeFilter, TransactionDetail } from "@/services/financialMetricsService";
+import { RevenueAuditModal } from "@/components/founder/RevenueAuditModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AreaChart,
   Area,
@@ -179,6 +183,11 @@ const FounderDashboard = () => {
   const [signupsChartData, setSignupsChartData] = useState<ChartDataPoint[]>([]);
   const [paymentMethodsData, setPaymentMethodsData] = useState<PaymentMethodData[]>([]);
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
+  const [periodFilter, setPeriodFilter] = useState<TimeRangeFilter>("all");
+  const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditModalTab, setAuditModalTab] = useState<"revenue" | "mrr" | "shops" | "clients">("revenue");
+  const [auditModalFilter, setAuditModalFilter] = useState("");
   const [allFeedback, setAllFeedback] = useState<FeedbackItem[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [allShops, setAllShops] = useState<ShopItem[]>([]);
@@ -445,64 +454,16 @@ const FounderDashboard = () => {
 
   const loadRevenueStats = async () => {
     try {
-      // Consolidated REAL Revenue from activated shops, billing_history, payments, and subscriptions
-      let calculatedTotalRevenue = 0;
-      let calculatedSubRevenue = 0;
-      let completedCount = 0;
-      let pendingCount = 0;
-
-      // 1. Real shop activations & subscriptions revenue (15 000 FCFA per activated shop)
-      const { data: activatedShops } = await supabase
-        .from("shops")
-        .select("id, is_activated, activation_fee_paid");
-
-      if (activatedShops && activatedShops.length > 0) {
-        const actCount = activatedShops.filter(s => s.is_activated || s.activation_fee_paid).length;
-        calculatedTotalRevenue += actCount * 15000;
-        calculatedSubRevenue += actCount * 15000;
-        completedCount += actCount;
-      }
-
-      // 2. Fetch real billing history records
-      const { data: billingHistory } = await (supabase as any)
-        .from("billing_history")
-        .select("amount, payment_status, created_at");
-
-      if (billingHistory && billingHistory.length > 0) {
-        (billingHistory as any[]).forEach(b => {
-          const status = (b.payment_status || "").toLowerCase();
-          if (status === "completed" || status === "success" || status === "paid") {
-            calculatedTotalRevenue += Number(b.amount || 0);
-            completedCount++;
-          } else if (status === "pending") {
-            pendingCount++;
-          }
-        });
-      }
-
-      // 3. Fetch real payments records
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("amount, status");
-
-      if (payments && payments.length > 0) {
-        payments.forEach(p => {
-          const status = (p.status || "").toLowerCase();
-          if (status === "completed" || status === "success" || status === "paid") {
-            calculatedTotalRevenue += Number(p.amount || 0);
-            completedCount++;
-          } else if (status === "pending") {
-            pendingCount++;
-          }
-        });
-      }
-
+      const metrics = await FinancialMetricsService.fetchFinancialMetrics(periodFilter);
+      setFinancialMetrics(metrics);
       setStats(prev => ({
         ...prev,
-        totalRevenue: calculatedTotalRevenue,
-        subscriptionRevenue: calculatedSubRevenue,
-        completedPayments: completedCount,
-        pendingPayments: pendingCount,
+        totalUsers: metrics.totalUsersCount,
+        activeSubscriptions: metrics.activatedStoresCount,
+        totalRevenue: metrics.cumulativeRevenue,
+        subscriptionRevenue: metrics.mrr,
+        completedPayments: metrics.completedPaymentsCount,
+        pendingPayments: metrics.pendingPaymentsCount,
       }));
     } catch (error) {
       console.error("Error loading revenue stats:", error);
@@ -511,72 +472,18 @@ const FounderDashboard = () => {
 
   const loadRecentPayments = async () => {
     try {
-      // Consolidate real recent transactions
-      const { data: billingItems } = await (supabase as any)
-        .from("billing_history")
-        .select("id, amount, payment_status, payment_method, created_at, user_id, description")
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      const { data: paymentsItems } = await supabase
-        .from("payments")
-        .select("id, amount, status, payment_method, created_at, user_id")
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      const combinedRaw: any[] = [];
-      if (billingItems) {
-        (billingItems as any[]).forEach(b => {
-          combinedRaw.push({
-            id: b.id,
-            amount: b.amount,
-            status: b.payment_status || "completed",
-            payment_method: b.payment_method || "Mobile Money",
-            created_at: b.created_at,
-            user_id: b.user_id,
-            description: b.description || "Abonnement / Activation Ecomfy"
-          });
-        });
-      }
-
-      if (paymentsItems) {
-        paymentsItems.forEach(p => {
-          if (!combinedRaw.some(x => x.id === p.id)) {
-            combinedRaw.push({
-              id: p.id,
-              amount: p.amount,
-              status: p.status || "completed",
-              payment_method: p.payment_method || "Mobile Money",
-              created_at: p.created_at,
-              user_id: p.user_id,
-              description: "Paiement en ligne"
-            });
-          }
-        });
-      }
-
-      combinedRaw.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      if (combinedRaw.length > 0) {
-        const userIds = Array.from(new Set(combinedRaw.map(p => p.user_id).filter(Boolean)));
-        let profileMap = new Map<string, string>();
-        if (userIds.length > 0) {
-          const { data: profs } = await supabase
-            .from("profiles")
-            .select("id, email")
-            .in("id", userIds);
-          profileMap = new Map(profs?.map(p => [p.id, p.email]) || []);
-        }
-
-        const paymentsWithEmails = combinedRaw.slice(0, 10).map(p => ({
-          ...p,
-          user_email: profileMap.get(p.user_id) || "Client anonyme",
-        }));
-
-        setRecentPayments(paymentsWithEmails);
-      } else {
-        setRecentPayments([]);
-      }
+      const metrics = await FinancialMetricsService.fetchFinancialMetrics("all");
+      const recents: RecentPayment[] = metrics.validatedTransactions.slice(0, 10).map(tx => ({
+        id: tx.id,
+        amount: tx.amount,
+        status: tx.status,
+        payment_method: tx.payment_method,
+        created_at: tx.created_at,
+        user_id: tx.user_id,
+        user_email: tx.user_email || "Client",
+        description: tx.description || "Paiement validé"
+      }));
+      setRecentPayments(recents);
     } catch (error) {
       console.error("Error loading recent payments:", error);
     }
@@ -584,90 +491,28 @@ const FounderDashboard = () => {
 
   const loadChartData = async () => {
     try {
-      const daysBack = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-      startDate.setHours(0, 0, 0, 0);
+      const points = await FinancialMetricsService.fetchChartData(timeRange as TimeRangeFilter);
+      
+      const revData: ChartDataPoint[] = points.map(p => ({
+        date: p.date,
+        value: p.revenue
+      }));
 
-      // 1. Fetch real signups data over time
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("created_at")
-        .gte("created_at", startDate.toISOString());
+      const signupsData: ChartDataPoint[] = points.map(p => ({
+        date: p.date,
+        value: p.signups
+      }));
 
-      const signupsByDay = new Map<string, number>();
-      profiles?.forEach((profile) => {
-        const dateKey = new Date(profile.created_at).toISOString().split("T")[0];
-        signupsByDay.set(dateKey, (signupsByDay.get(dateKey) || 0) + 1);
-      });
-
-      // 2. Fetch real billing/payments data over time
-      const { data: billingHistory } = await (supabase as any)
-        .from("billing_history")
-        .select("amount, payment_status, created_at, payment_method")
-        .gte("created_at", startDate.toISOString());
-
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("amount, status, created_at, payment_method")
-        .gte("created_at", startDate.toISOString());
-
-      const revenueByDay = new Map<string, number>();
-      const methodCounts = new Map<string, number>();
-
-      const processTransaction = (amount: number, status: string, createdAt: string, method?: string) => {
-        const s = (status || "").toLowerCase();
-        if (s === "completed" || s === "success" || s === "paid") {
-          const dateKey = new Date(createdAt).toISOString().split("T")[0];
-          revenueByDay.set(dateKey, (revenueByDay.get(dateKey) || 0) + Number(amount || 0));
-          const m = method || "Mobile Money";
-          methodCounts.set(m, (methodCounts.get(m) || 0) + 1);
-        }
-      };
-
-      (billingHistory as any[])?.forEach(b => processTransaction(b.amount, b.payment_status, b.created_at, b.payment_method));
-      payments?.forEach(p => processTransaction(p.amount, p.status, p.created_at, p.payment_method));
-
-      // 3. Fetch real activated shops data over time
-      const { data: activatedShops } = await supabase
-        .from("shops")
-        .select("created_at, is_activated, activation_fee_paid")
-        .gte("created_at", startDate.toISOString());
-
-      if (activatedShops) {
-        activatedShops.forEach(s => {
-          if (s.is_activated || s.activation_fee_paid) {
-            const dateKey = new Date(s.created_at).toISOString().split("T")[0];
-            revenueByDay.set(dateKey, (revenueByDay.get(dateKey) || 0) + 15000);
-            methodCounts.set("Mobile Money (Abonnement)", (methodCounts.get("Mobile Money (Abonnement)") || 0) + 1);
-          }
-        });
-      }
-
-      const revenueData: ChartDataPoint[] = [];
-      const signupsData: ChartDataPoint[] = [];
-
-      for (let idx = daysBack - 1; idx >= 0; idx--) {
-        const d = new Date();
-        d.setDate(d.getDate() - idx);
-        const dateStr = d.toISOString().split("T")[0];
-        const displayDate = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
-
-        revenueData.push({
-          date: displayDate,
-          value: revenueByDay.get(dateStr) || 0,
-        });
-
-        signupsData.push({
-          date: displayDate,
-          value: signupsByDay.get(dateStr) || 0,
-        });
-      }
-
-      setRevenueChartData(revenueData);
+      setRevenueChartData(revData);
       setSignupsChartData(signupsData);
 
-      // Process real payment method breakdown
+      const metrics = await FinancialMetricsService.fetchFinancialMetrics(timeRange as TimeRangeFilter);
+      const methodCounts = new Map<string, number>();
+      metrics.validatedTransactions.forEach(tx => {
+        const m = tx.payment_method || "Mobile Money";
+        methodCounts.set(m, (methodCounts.get(m) || 0) + 1);
+      });
+
       if (methodCounts.size > 0) {
         const colors = ["#0E7C66", "#3B82F6", "#8B5CF6", "#F59E0B", "#EC4899"];
         const methodData: PaymentMethodData[] = Array.from(methodCounts.entries()).map(([name, value], i) => ({
@@ -771,24 +616,60 @@ const FounderDashboard = () => {
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#0E7C66]/10 rounded-full blur-3xl pointer-events-none" />
           
           <div className="space-y-1 z-10">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge className="bg-[#0E7C66]/20 text-emerald-400 border border-[#0E7C66]/40 text-xs font-bold px-3 py-1 rounded-full gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Tableau de Bord Fondateurs • Ecomfy SaaS
+                Source de Vérité Financière • Ecomfy SaaS
               </Badge>
               <Badge variant="outline" className="border-emerald-500/30 text-emerald-300 text-[10px] font-mono">
-                100% Données Réelles
+                100% Transactions Réelles Validées
               </Badge>
             </div>
             <h1 className="text-2xl md:text-4xl font-space font-extrabold text-white tracking-tight">
-              Console de Pilotage Fondateur
+              Console de Pilotage Financier & Fondateur
             </h1>
             <p className="text-xs md:text-sm text-slate-400">
-              Suivi consolidé en temps réel des utilisateurs, activations, revenus et performances d'Ecomfy.
+              Métriques calculées dynamiquement à partir des encaissements et abonnements validés en base de données.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 z-10 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 z-10 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-semibold">Période:</span>
+              <Select value={periodFilter} onValueChange={(val) => {
+                setPeriodFilter(val as TimeRangeFilter);
+                FinancialMetricsService.fetchFinancialMetrics(val as TimeRangeFilter).then(setFinancialMetrics);
+                FinancialMetricsService.fetchChartData(val as TimeRangeFilter).then(pts => {
+                  setRevenueChartData(pts.map(p => ({ date: p.date, value: p.revenue })));
+                  setSignupsChartData(pts.map(p => ({ date: p.date, value: p.signups })));
+                });
+              }}>
+                <SelectTrigger className="w-44 h-9 bg-slate-950 border-slate-800 text-xs font-bold text-white rounded-full">
+                  <SelectValue placeholder="Sélectionner période" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
+                  <SelectItem value="today">Aujourd'hui</SelectItem>
+                  <SelectItem value="7d">7 derniers jours</SelectItem>
+                  <SelectItem value="30d">30 derniers jours</SelectItem>
+                  <SelectItem value="this_month">Ce mois</SelectItem>
+                  <SelectItem value="last_month">Mois précédent</SelectItem>
+                  <SelectItem value="90d">3 derniers mois</SelectItem>
+                  <SelectItem value="12m">12 derniers mois</SelectItem>
+                  <SelectItem value="all">Depuis le lancement</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setAuditModalTab("revenue"); setIsAuditModalOpen(true); }}
+              className="rounded-full border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-bold gap-2 shadow-lg cursor-pointer"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span>Audit Détail Transactions</span>
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -799,91 +680,137 @@ const FounderDashboard = () => {
               <RefreshCw className={`h-4 w-4 text-emerald-400 ${isRefreshing ? "animate-spin" : ""}`} />
               <span>Actualiser</span>
             </Button>
-
-            <Button
-              size="sm"
-              onClick={() => navigate("/founder-troubleshooting")}
-              className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white text-xs font-bold gap-2 shadow-lg"
-            >
-              <Bug className="h-4 w-4" />
-              <span>Centre Dépannage</span>
-            </Button>
           </div>
         </div>
 
-        {/* Key Real Metrics Cards Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* 6 Key Financial Metrics Cards Grid (Specification Section 16 Structure) */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           
-          {/* Card 1: Real Registered Users */}
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-slate-700 transition-all">
+          {/* Card 1: Revenus Cumulés Réels */}
+          <Card 
+            onClick={() => { setAuditModalTab("revenue"); setIsAuditModalOpen(true); }}
+            className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-emerald-500/50 transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Utilisateurs Réels</span>
-              <div className="h-10 w-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold">
-                <Users className="h-5 w-5" />
-              </div>
-            </div>
-            <div className="mt-4 space-y-1">
-              <div className="text-3xl font-space font-extrabold text-white">{stats.totalUsers}</div>
-              <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Comptes inscrits en base</span>
-                <span className="text-emerald-400 font-semibold">{stats.activeSubscriptions} actifs</span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Card 2: Real Active Subscriptions & Activations */}
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-slate-700 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Activations & MRR</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Revenus Cumulés Réels</span>
               <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
-                <Building2 className="h-5 w-5" />
-              </div>
-            </div>
-            <div className="mt-4 space-y-1">
-              <div className="text-3xl font-space font-extrabold text-white">{stats.activeSubscriptions}</div>
-              <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Boutiques & Abonnements</span>
-                <span className="text-emerald-400 font-semibold">
-                  {stats.subscriptionRevenue > 0 ? `${stats.subscriptionRevenue.toLocaleString()} FCFA` : "Actifs"}
-                </span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Card 3: Real Total Consolidated Revenue */}
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-emerald-500/40 transition-all group">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Revenus Réels Cumulés</span>
-              <div className="h-10 w-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-4 space-y-1">
               <div className="text-3xl font-space font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">
-                {stats.totalRevenue.toLocaleString()} <span className="text-lg text-emerald-400">FCFA</span>
+                {(financialMetrics?.cumulativeRevenue || 0).toLocaleString()} <span className="text-lg text-emerald-400">FCFA</span>
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>{stats.completedPayments} paiements complétés</span>
-                {stats.pendingPayments > 0 && (
-                  <span className="text-amber-400 font-semibold">{stats.pendingPayments} en attente</span>
-                )}
+                <span>{financialMetrics?.completedPaymentsCount || 0} paiements validés</span>
+                <span className="text-emerald-400 font-semibold group-hover:underline">Voir l'audit ➔</span>
               </div>
             </div>
           </Card>
 
-          {/* Card 4: Real AI Credit Generations */}
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-slate-700 transition-all">
+          {/* Card 2: MRR (Revenus Mensuels Récurrents) */}
+          <Card 
+            onClick={() => { setAuditModalTab("mrr"); setIsAuditModalOpen(true); }}
+            className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-blue-500/50 transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Utilisations IA & Crédits</span>
-              <div className="h-10 w-10 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
-                <Sparkles className="h-5 w-5" />
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">MRR (Abonnements Récurrents)</span>
+              <div className="h-10 w-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold">
+                <DollarSign className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-4 space-y-1">
-              <div className="text-3xl font-space font-extrabold text-white">{stats.freeGenerationsUsed}</div>
+              <div className="text-3xl font-space font-extrabold text-white">
+                {(financialMetrics?.mrr || 0).toLocaleString()} <span className="text-lg text-blue-400">FCFA</span>
+              </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Visuels & Fiches IA générés</span>
-                <span className="text-purple-400 font-semibold">{stats.usedPromoCodes} promos utilisés</span>
+                <span>Revenus mensuels récurrents</span>
+                <span className="text-blue-400 font-semibold group-hover:underline">Voir l'audit MRR ➔</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Card 3: Boutiques Activées (Paiement 1 300 FCFA) */}
+          <Card 
+            onClick={() => { setAuditModalTab("shops"); setIsAuditModalOpen(true); }}
+            className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-amber-500/50 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Boutiques Activées</span>
+              <div className="h-10 w-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
+                <Store className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4 space-y-1">
+              <div className="text-3xl font-space font-extrabold text-white">
+                {financialMetrics?.activatedStoresCount || 0}
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                <span>Paiement d'activation (1 300 FCFA)</span>
+                <span className="text-amber-400 font-semibold group-hover:underline">Voir boutiques ➔</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Card 4: Clients Payants */}
+          <Card 
+            onClick={() => { setAuditModalTab("clients"); setIsAuditModalOpen(true); }}
+            className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-purple-500/50 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Clients Payants</span>
+              <div className="h-10 w-10 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
+                <CreditCard className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4 space-y-1">
+              <div className="text-3xl font-space font-extrabold text-white">
+                {financialMetrics?.payingUsersCount || 0}
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                <span>Utilisateurs avec au moins 1 paiement</span>
+                <span className="text-purple-400 font-semibold group-hover:underline">Voir clients ➔</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Card 5: Abonnements Actifs */}
+          <Card 
+            onClick={() => { setAuditModalTab("mrr"); setIsAuditModalOpen(true); }}
+            className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-teal-500/50 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Abonnements Actifs</span>
+              <div className="h-10 w-10 rounded-2xl bg-teal-500/10 text-teal-400 flex items-center justify-center font-bold">
+                <Zap className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4 space-y-1">
+              <div className="text-3xl font-space font-extrabold text-white">
+                {financialMetrics?.activeSubscriptionsCount || 0}
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                <span>Abonnements SaaS en cours</span>
+                <span className="text-teal-400 font-semibold group-hover:underline">Voir abonnés ➔</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Card 6: Inscrits & Générations IA */}
+          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-slate-700 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Inscrits & Générations IA</span>
+              <div className="h-10 w-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold">
+                <Users className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4 space-y-1">
+              <div className="text-3xl font-space font-extrabold text-white">
+                {financialMetrics?.totalUsersCount || 0}
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                <span>Comptes enregistrés</span>
+                <span className="text-blue-400 font-semibold">{stats.freeGenerationsUsed} générations IA</span>
               </div>
             </div>
           </Card>
@@ -1293,6 +1220,15 @@ const FounderDashboard = () => {
         </Tabs>
 
       </div>
+      
+      {/* Interactive Revenue & Subscriptions Audit Modal */}
+      <RevenueAuditModal
+        open={isAuditModalOpen}
+        onOpenChange={setIsAuditModalOpen}
+        financialMetrics={financialMetrics}
+        initialTab={auditModalTab}
+        onRefresh={loadDashboardData}
+      />
     </div>
   );
 };

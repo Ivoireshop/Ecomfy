@@ -24,6 +24,14 @@ export type ProposalStatus =
   | 'legal_formalization_completed'
   | 'cap_table_updated';
 
+export type LegalStatus =
+  | 'DRAFT'
+  | 'INTERNAL POLICY'
+  | 'PENDING REVIEW'
+  | 'APPROVED INTERNALLY'
+  | 'READY FOR LEGAL REVIEW'
+  | 'EXECUTED';
+
 export type DocumentCategory =
   | 'legal'
   | 'corporate'
@@ -115,14 +123,20 @@ export interface CorporateDocument {
   id: string;
   title: string;
   category: DocumentCategory;
+  legal_status?: LegalStatus;
+  summary?: string;
+  author?: string;
   is_mandatory: boolean;
   target_roles: CorporateRole[];
   current_version: string;
   storage_path: string | null;
   content_markdown: string | null;
+  views_count?: number;
+  approvals_count?: number;
   created_at: string;
   updated_at: string;
   user_acceptance?: CorporateDocumentAcceptance | null;
+  user_viewed?: boolean;
 }
 
 export interface CorporateDocumentAcceptance {

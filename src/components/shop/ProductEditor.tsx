@@ -800,7 +800,7 @@ export function ProductEditor({
       const cleaned = html.replace(/<img[^>]*src=["']data:image[^"']*["'][^>]*\/?>(\s*<\/img>)?/gi, "");
       toast({
         title: "Image non ajoutée",
-        description: "Utilisez le bouton image : Visual Pro compresse puis sauvegarde l'image avant de l'ajouter.",
+        description: "Utilisez le bouton image : Ecomfy compresse puis sauvegarde l'image avant de l'ajouter.",
         variant: "destructive",
       });
       if (cleaned.trim()) execCmd("insertHTML", cleaned);
@@ -1545,7 +1545,7 @@ export function ProductEditor({
                     {validatingImages ? "Vérification en cours…" : "Cliquez ou glissez vos images ici"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Visual Pro accepte les images JPG, PNG, WEBP ou GIF de moins de 2 Mo.
+                    Ecomfy accepte les images JPG, PNG, WEBP ou GIF de moins de 2 Mo.
                   </p>
                 </div>
               </label>
@@ -1806,12 +1806,13 @@ export function ProductEditor({
             <div className="space-y-4">
               {/* Toggles */}
               {[
+                { label: "Masquer le récapitulatif de commande sur la fiche", desc: "Masque l'encadré récapitulatif (image, quantité, total) sur le formulaire de commande pour rendre la fiche plus courte et ultra-responsive", key: "hide_order_summary" as const },
                 { label: "Recocher", desc: "Permettre aux clients de recommander ce produit", key: "is_featured" as const },
                 { label: "Déballer", desc: "Permettre le déballage vidéo du produit", key: "is_digital" as const },
               ].map(item => (
                 <div key={item.key} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                   <div><p className="text-sm font-medium">{item.label}</p><p className="text-xs text-muted-foreground">{item.desc}</p></div>
-                  <Switch checked={product[item.key] as boolean} onCheckedChange={(v) => setProduct({ ...product, [item.key]: v })} />
+                  <Switch checked={!!product[item.key as keyof typeof product]} onCheckedChange={(v) => setProduct({ ...product, [item.key]: v })} />
                 </div>
               ))}
 

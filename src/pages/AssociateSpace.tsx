@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCorporateGovernance } from "@/hooks/useCorporateGovernance";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { GovernanceDocumentViewerModal } from "@/components/governance/GovernanceDocumentViewerModal";
+import { CorporateDocument } from "@/types/corporate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +23,17 @@ import {
   Loader2,
   CheckSquare,
   Sparkles,
-  Building2
+  Building2,
+  Eye
 } from "lucide-react";
 
 export default function AssociateSpace() {
   const { user } = useAuthReady();
-  const { loading, shareholders, documents, approveDocument } = useCorporateGovernance();
+  const { loading, shareholders, documents, approveDocument, recordDocumentView } = useCorporateGovernance();
+
+  // Document Viewer Modal State
+  const [selectedDocForView, setSelectedDocForView] = useState<CorporateDocument | null>(null);
+  const [isDocViewerOpen, setIsDocViewerOpen] = useState(false);
 
   // Onboarding Checklist checkboxes
   const [checkedRead, setCheckedRead] = useState(false);
@@ -186,9 +193,22 @@ export default function AssociateSpace() {
                   </div>
                   <h4 className="text-base font-bold text-white mt-1">{doc.title}</h4>
                 </div>
-                <Badge variant="outline" className="text-slate-400 border-slate-700">
-                  Lecture & Acceptation Obligatoires
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-slate-400 border-slate-700">
+                    Lecture & Acceptation Obligatoires
+                  </Badge>
+                  <Button
+                    onClick={() => {
+                      setSelectedDocForView(doc);
+                      setIsDocViewerOpen(true);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl text-xs border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-white font-bold"
+                  >
+                    <Eye className="w-3.5 h-3.5 mr-1" /> Consulter
+                  </Button>
+                </div>
               </div>
 
               {/* Document Markdown Content Box */}
@@ -228,6 +248,15 @@ export default function AssociateSpace() {
           ))}
         </div>
       </div>
+
+      {/* DOCUMENT VIEWER MODAL */}
+      <GovernanceDocumentViewerModal
+        document={selectedDocForView}
+        isOpen={isDocViewerOpen}
+        onClose={() => setIsDocViewerOpen(false)}
+        onApprove={approveDocument}
+        onRecordView={recordDocumentView}
+      />
     </div>
   );
 }

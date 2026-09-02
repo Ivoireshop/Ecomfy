@@ -784,6 +784,22 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 />
               </div>
 
+              {/* Afficher / Masquer le Récapitulatif de Commande */}
+              <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
+                <div>
+                  <p className="font-bold text-sm flex items-center gap-2">
+                    <CartIcon className="h-4 w-4 text-primary" /> Afficher le bloc Récapitulatif de commande (Image, Quantité, Total)
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Désactivez cette option pour masquer le bloc "Récapitulatif" sur le formulaire de commande. La fiche produit devient encore plus courte, épurée et ultra-responsive.
+                  </p>
+                </div>
+                <Switch 
+                  checked={themeConfig.hide_order_summary !== true} 
+                  onCheckedChange={v => updateThemeConfig("hide_order_summary", !v)} 
+                />
+              </div>
+
               <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
                 <div>
                   <p className="font-bold text-sm">Afficher la section Méthodes de paiement</p>
@@ -826,13 +842,15 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                         <CartIcon className="h-5 w-5" /> Finaliser votre commande
                       </h4>
 
-                      <div className="p-4 rounded-xl space-y-2 border" style={{ backgroundColor: contrastStyles.summaryBg, borderColor: contrastStyles.summaryBorder }}>
-                        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: contrastStyles.mutedTextColor }}>Récapitulatif de commande</div>
-                        <div className="flex justify-between text-sm font-semibold" style={{ color: contrastStyles.textColor }}>
-                          <span>1x Produit Démo Ecomfy</span>
-                          <span>15 000 FCFA</span>
+                      {themeConfig.hide_order_summary !== true && (
+                        <div className="p-4 rounded-xl space-y-2 border" style={{ backgroundColor: contrastStyles.summaryBg, borderColor: contrastStyles.summaryBorder }}>
+                          <div className="text-xs font-bold uppercase tracking-wider" style={{ color: contrastStyles.mutedTextColor }}>Récapitulatif de commande</div>
+                          <div className="flex justify-between text-sm font-semibold" style={{ color: contrastStyles.textColor }}>
+                            <span>1x Produit Démo Ecomfy</span>
+                            <span>15 000 FCFA</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="space-y-3">
                         <div>

@@ -123,7 +123,7 @@ export function MultiImageUploader({
           Images de Référence du Produit
         </CardTitle>
         <CardDescription>
-          Uploadez 1 à 3 images de votre produit sous différents angles. Visual Pro accepte les images de moins de 2 Mo.
+          Uploadez 1 à 3 images de votre produit sous différents angles. Ecomfy accepte les images de moins de 2 Mo.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

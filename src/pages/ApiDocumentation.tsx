@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Code, Key, Zap, Plus, Trash2, Copy, Eye, EyeOff, Globe, Webhook, Link2, 
   BookOpen, Shield, Lock, ArrowLeft, Activity, Server, Clock, CheckCircle2,
-  Play, Terminal, Check, Send, Sparkles, Layers, RefreshCw, FileCode2
+  Play, Terminal, Check, Send, Sparkles, Layers, RefreshCw, FileCode2, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,7 +93,7 @@ const ApiDocumentation = () => {
       const sevenDaysAgo = subDays(new Date(), 7).toISOString();
       
       const [imagesRes, videosRes] = await Promise.all([
-        supabase.from("generated_images").select("created_at, prompt, platform").eq("user_id", userId).gte("created_at", sevenDaysAgo).order("created_at", { ascending: false }),
+        supabase.from("generated_images").select("created_at, prompt").eq("user_id", userId).gte("created_at", sevenDaysAgo).order("created_at", { ascending: false }),
         supabase.from("generated_videos").select("created_at, prompt, status").eq("user_id", userId).gte("created_at", sevenDaysAgo).order("created_at", { ascending: false })
       ]);
 
@@ -101,7 +101,7 @@ const ApiDocumentation = () => {
       const videos = videosRes.data || [];
       
       const combined = [
-        ...images.map(i => ({ ...i, type: "Image" })),
+        ...images.map(i => ({ ...i, type: "Image", platform: "API" })),
         ...videos.map(v => ({ ...v, type: "Vidéo", platform: "N/A" }))
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       

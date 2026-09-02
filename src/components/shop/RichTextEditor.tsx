@@ -338,7 +338,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     if (html && /src=["']data:image/i.test(html)) {
       e.preventDefault();
       const cleaned = html.replace(/<img[^>]*src=["']data:image[^"']*["'][^>]*\/?>(\s*<\/img>)?/gi, "");
-      toast({ title: "Image non ajoutée", description: "Visual Pro accepte uniquement les images de moins de 2 Mo. Utilisez le bouton image pour téléverser une image compressée." });
+      toast({ title: "Image non ajoutée", description: "Ecomfy accepte uniquement les images de moins de 2 Mo. Utilisez le bouton image pour téléverser une image compressée." });
       exec("insertHTML", cleaned);
     }
   }, [uploadEditorImage, exec]);

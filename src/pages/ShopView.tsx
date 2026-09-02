@@ -1030,7 +1030,7 @@ const ShopView = () => {
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`snap-start whitespace-nowrap px-6 py-3 rounded-full text-sm sm:text-base font-bold transition-all duration-300 shadow-sm ${isActive ? "text-white shadow-md ring-2 ring-offset-2 ring-offset-gray-50 scale-105" : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"}`}
-                  style={isActive ? { backgroundColor: primaryColor, ringColor: primaryColor } : {}}
+                  style={isActive ? ({ backgroundColor: primaryColor, "--tw-ring-color": primaryColor } as React.CSSProperties) : {}}
                 >
                   {cat === "all" ? "Tout voir" : cat}
                 </button>
