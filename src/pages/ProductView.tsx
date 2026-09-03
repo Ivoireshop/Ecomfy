@@ -42,6 +42,7 @@ import {
   type ProductVideo,
 } from "@/lib/productAppearance";
 import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPublic";
+import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
 
 // Non-critical, below-the-fold widgets. Loaded only after the LCP image and
 // the "Commander maintenant" button are interactive — keeps the initial JS
@@ -823,30 +824,12 @@ const ProductView = () => {
           {isCustomTheme && Array.isArray(product?.variants) && product.variants.length > 0 && cart.length === 0 && (
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-4 mb-4">
               <h4 className="font-bold text-sm text-orange-800">Veuillez choisir vos options avant de commander :</h4>
-              {product.variants.map((group: any, idx: number) => (
-                group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
-                  <div key={idx} className="space-y-1.5">
-                    <Label className="font-bold text-xs">{group.name}</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {group.options.map((opt: string) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
-                          className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all ${
-                            selectedVariants[group.name] === opt
-                              ? "bg-gray-900 text-white shadow-sm"
-                              : "bg-white border text-gray-700 hover:bg-gray-50"
-                          }`}
-                          style={selectedVariants[group.name] === opt ? { backgroundColor: primaryColor } : {}}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null
-              ))}
+              <SmartVariantSelector
+                variants={product.variants}
+                selectedVariants={selectedVariants}
+                onChange={(variantKey, val) => setSelectedVariants(prev => ({ ...prev, [variantKey]: val }))}
+                primaryColor={primaryColor}
+              />
               <Button 
                 type="button"
                 className="w-full h-11 text-white font-bold rounded-xl" 
@@ -1715,36 +1698,13 @@ const ProductView = () => {
               }
               if (key === "variants") {
                 return Array.isArray(product.variants) && product.variants.length > 0 ? (
-                  <div key="variants" className="space-y-3">
-                    {product.variants.map((group, gi) => (
-                      group?.name && Array.isArray(group?.options) && group.options.length > 0 ? (
-                        <div key={gi} className="space-y-1.5">
-                          <Label className="text-sm font-medium text-gray-700">
-                            {group.name}
-                            {selectedVariants[group.name] && (
-                              <span className="ml-2 text-gray-500 font-normal">: {selectedVariants[group.name]}</span>
-                            )}
-                          </Label>
-                          <div className="flex flex-wrap gap-2">
-                            {group.options.map((opt, oi) => {
-                              const active = selectedVariants[group.name] === opt;
-                              return (
-                                <button
-                                  key={oi}
-                                  type="button"
-                                  onClick={() => setSelectedVariants(prev => ({ ...prev, [group.name]: opt }))}
-                                  className={`px-3 h-9 rounded-lg border-2 text-sm font-medium transition ${active ? "shadow-sm" : "border-gray-200 hover:border-gray-400"}`}
-                                  style={active ? { borderColor: primaryColor, background: primaryColor + "15", color: primaryColor } : undefined}
-                                >
-                                  {opt}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : null
-                    ))}
-                  </div>
+                  <SmartVariantSelector
+                    key="variants"
+                    variants={product.variants}
+                    selectedVariants={selectedVariants}
+                    onChange={(variantKey, val) => setSelectedVariants(prev => ({ ...prev, [variantKey]: val }))}
+                    primaryColor={primaryColor}
+                  />
                 ) : null;
               }
               if (key === "long_description") {

@@ -1617,25 +1617,36 @@ export function ProductEditor({
           {/* Variantes produit (taille, couleur...) */}
           <CollapsibleSection title="Variantes produit (taille, couleur...)" icon={<Tag className="h-4 w-4" />} defaultOpen>
             <div className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Permettez au client de choisir une taille, couleur, parfum, etc. Chaque option apparaît sur la fiche produit.
-              </p>
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3.5 space-y-1.5 text-xs text-emerald-900 dark:text-emerald-200">
+                <p className="font-bold flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  ✨ NOUVEAU : Sélecteur Intelligent de Tailles & Couleurs
+                </p>
+                <p className="leading-relaxed opacity-90">
+                  Saisissez vos options sur une seule ligne ! Ecomfy génère automatiquement des boutons horizontaux cliquables pour l'acheteur :
+                </p>
+                <ul className="list-disc list-inside space-y-1 font-mono text-[11px] bg-white/70 dark:bg-black/30 p-2 rounded-lg border border-emerald-200/60">
+                  <li><strong className="text-gray-900 dark:text-white">Liste horizontale simple :</strong> <span className="text-emerald-700 dark:text-emerald-400">S, M, L, XL, 2XL, 3XL</span></li>
+                  <li><strong className="text-gray-900 dark:text-white">Couleurs + Tailles :</strong> <span className="text-emerald-700 dark:text-emerald-400">Blanc (S, M, L, XL), Noir (S, M, L, XL, 2XL)</span></li>
+                </ul>
+              </div>
+
               <div className="space-y-3">
                 {(product.variants || []).map((group, gIdx) => (
-                  <div key={gIdx} className="p-3 rounded-lg border bg-muted/20 space-y-2">
+                  <div key={gIdx} className="p-3.5 rounded-xl border bg-muted/20 space-y-2.5 shadow-sm">
                     <div className="flex items-center gap-2">
                       <Input
                         value={group.name}
-                        placeholder="Nom (ex: Taille, Couleur)"
+                        placeholder="Nom (ex: Taille, Couleur, Modèle)"
                         onChange={(e) => {
                           const next = [...(product.variants || [])];
                           next[gIdx] = { ...next[gIdx], name: e.target.value };
                           setProduct({ ...product, variants: next });
                         }}
-                        className="h-9 flex-1"
+                        className="h-9 flex-1 font-medium text-sm"
                       />
                       <Button
-                        type="button" variant="ghost" size="icon" className="h-9 w-9"
+                        type="button" variant="ghost" size="icon" className="h-9 w-9 text-gray-500 hover:text-red-600"
                         onClick={() => {
                           const next = (product.variants || []).filter((_, i) => i !== gIdx);
                           setProduct({ ...product, variants: next });
@@ -1645,10 +1656,43 @@ export function ProductEditor({
                       </Button>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Options (séparées par une virgule)</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-gray-700">Options (séparées par une virgule)</Label>
+                        <div className="flex gap-1.5 text-[11px]">
+                          <button
+                            type="button"
+                            className="text-emerald-600 hover:underline font-medium"
+                            onClick={() => {
+                              const next = [...(product.variants || [])];
+                              next[gIdx] = {
+                                name: next[gIdx].name || "Taille",
+                                options: ["S", "M", "L", "XL", "2XL", "3XL"],
+                              };
+                              setProduct({ ...product, variants: next });
+                            }}
+                          >
+                            + Tailles S à 3XL
+                          </button>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            className="text-emerald-600 hover:underline font-medium"
+                            onClick={() => {
+                              const next = [...(product.variants || [])];
+                              next[gIdx] = {
+                                name: next[gIdx].name || "Couleur & Tailles",
+                                options: ["Blanc (S, M, L, XL, 2XL)", "Noir (S, M, L, XL, 2XL)", "Rouge (S, M, L, XL)"],
+                              };
+                              setProduct({ ...product, variants: next });
+                            }}
+                          >
+                            + Couleurs & Tailles
+                          </button>
+                        </div>
+                      </div>
                       <Input
                         value={group.options.join(", ")}
-                        placeholder="S, M, L, XL"
+                        placeholder="Ex: S, M, L, XL, 2XL, 3XL OU Blanc (S, M, L, XL), Noir (S, M, L, XL)"
                         onChange={(e) => {
                           const next = [...(product.variants || [])];
                           next[gIdx] = {
@@ -1657,21 +1701,33 @@ export function ProductEditor({
                           };
                           setProduct({ ...product, variants: next });
                         }}
-                        className="h-9"
+                        className="h-9 font-mono text-xs"
                       />
                     </div>
                   </div>
                 ))}
               </div>
-              <Button
-                type="button" variant="outline" size="sm" className="w-full gap-1.5"
-                onClick={() => setProduct({
-                  ...product,
-                  variants: [...(product.variants || []), { name: "", options: [] }],
-                })}
-              >
-                <Plus className="h-4 w-4" /> Ajouter une variante
-              </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button" variant="outline" size="sm" className="flex-1 gap-1.5 font-bold"
+                  onClick={() => setProduct({
+                    ...product,
+                    variants: [...(product.variants || []), { name: "Taille", options: ["S", "M", "L", "XL", "2XL", "3XL"] }],
+                  })}
+                >
+                  <Plus className="h-4 w-4" /> Ajouter Tailles (S-3XL)
+                </Button>
+                <Button
+                  type="button" variant="outline" size="sm" className="flex-1 gap-1.5 font-bold"
+                  onClick={() => setProduct({
+                    ...product,
+                    variants: [...(product.variants || []), { name: "Couleur & Tailles", options: ["Blanc (S, M, L, XL)", "Noir (S, M, L, XL)"] }],
+                  })}
+                >
+                  <Plus className="h-4 w-4" /> Ajouter Couleur & Tailles
+                </Button>
+              </div>
             </div>
           </CollapsibleSection>
 
