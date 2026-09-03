@@ -36,7 +36,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Eye,
-  FolderText,
+  FileText,
   Mail,
   Copy,
   Send,

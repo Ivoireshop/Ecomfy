@@ -118,16 +118,18 @@ export default function CorporateOnboardingPage() {
 
       // Log acceptances in database
       for (const doc of INITIAL_GOVERNANCE_DOCUMENTS.slice(0, 3)) {
-        await supabase.from("corporate_document_acceptances" as any).insert({
-          document_id: doc.id,
-          version: doc.current_version,
-          email: shareholder?.email || emailParam,
-          action: "approved",
-          legal_statement: `Signature électronique par ${signerFullName} le ${new Date().toLocaleDateString('fr-FR')}`,
-          ip_address: "127.0.0.1",
-          user_agent: navigator.userAgent,
-          timestamp,
-        }).catch(() => {});
+        try {
+          await supabase.from("corporate_document_acceptances" as any).insert({
+            document_id: doc.id,
+            version: doc.current_version,
+            email: shareholder?.email || emailParam,
+            action: "approved",
+            legal_statement: `Signature électronique par ${signerFullName} le ${new Date().toLocaleDateString('fr-FR')}`,
+            ip_address: "127.0.0.1",
+            user_agent: navigator.userAgent,
+            timestamp,
+          });
+        } catch {}
       }
 
       // Update shareholder record status to approved
