@@ -1,6 +1,6 @@
 // src/components/shop/SmartVariantSelector.tsx
 // Smart Horizontal Variant & Sub-Option Picker for Ecomfy Product Pages.
-// Automatically parses grouped options like "Blanc (S, M, L, XL, 2XL, 3XL)" or "S, M, L, XL, 2XL"
+// Automatically parses grouped options like "Blanc (S, M, L, XL, 2XL, 3XL)" or "M-XL-XXL-XXXL" or "S, M, L, XL, 2XL"
 // into compact, horizontal, high-converting clickable pills.
 
 import React, { useMemo } from "react";
@@ -36,7 +36,7 @@ export function parseVariantOptions(options: string[]): {
     return { isSubVariantGroup: false, isSplitList: false, parsedItems: [], standaloneList: [] };
   }
 
-  // Check if options have format "Main (sub1, sub2, sub3)" or "Main: sub1, sub2"
+  // 1. Check if options have format "Main (sub1, sub2, sub3)" or "Main: sub1, sub2"
   const bracketRegex = /^([^(:]+)\s*[\(:]([^)]+)[\)]?$/;
   let matchesBracketCount = 0;
   const parsedItems: ParsedOptionItem[] = [];
@@ -49,7 +49,7 @@ export function parseVariantOptions(options: string[]): {
       const mainLabel = match[1].trim();
       const rawSub = match[2].trim();
       const subOptions = rawSub
-        .split(/[,;\/\s-]+/)
+        .split(/[,;\/|\-]+/)
         .map((s) => s.trim())
         .filter(Boolean);
       parsedItems.push({ raw: trimmed, mainLabel, subOptions });
@@ -63,21 +63,33 @@ export function parseVariantOptions(options: string[]): {
     return { isSubVariantGroup: true, isSplitList: false, parsedItems, standaloneList: [] };
   }
 
-  // Check if a single option string is actually a horizontal list like "S, M, L, XL, 2XL, 3XL" or "S / M / L / XL"
-  if (options.length === 1 && typeof options[0] === "string") {
-    const singleStr = options[0].trim();
-    if (singleStr.includes(",") || singleStr.includes("/") || (singleStr.includes("-") && !singleStr.includes(" "))) {
-      const splitValues = singleStr
-        .split(/[,;\/]+/)
+  // 2. Check string delimiter splitting (e.g. "M-XL-XXL-XXXL" or "M - XL - XXL - XXXL" or "S, M, L, XL")
+  const allSplitItems: string[] = [];
+  let containsDelimiters = false;
+
+  for (const opt of options) {
+    const trimmed = (opt || "").trim();
+    if (trimmed.includes("-") || trimmed.includes(",") || trimmed.includes("/") || trimmed.includes("|") || trimmed.includes(";")) {
+      const parts = trimmed
+        .split(/[,;\/|\-]+/)
         .map((s) => s.trim())
         .filter(Boolean);
-      if (splitValues.length > 1) {
-        return { isSubVariantGroup: false, isSplitList: true, parsedItems: [], standaloneList: splitValues };
+      if (parts.length > 1) {
+        containsDelimiters = true;
+        allSplitItems.push(...parts);
+      } else {
+        allSplitItems.push(trimmed);
       }
+    } else {
+      allSplitItems.push(trimmed);
     }
   }
 
-  // Standard flat option list
+  if (containsDelimiters && allSplitItems.length > 0) {
+    return { isSubVariantGroup: false, isSplitList: true, parsedItems: [], standaloneList: allSplitItems };
+  }
+
+  // 3. Standard flat option list
   return { isSubVariantGroup: false, isSplitList: false, parsedItems: [], standaloneList: options.map(o => o.trim()).filter(Boolean) };
 }
 
@@ -111,14 +123,14 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
               {/* Level 1: Main Option Selection (e.g. Couleur) */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                  <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5 uppercase tracking-wide">
                     <span>{groupName}</span>
                     {selectedMainRaw && (
-                      <span className="font-semibold text-gray-600 font-mono">: {selectedMainRaw}</span>
+                      <span className="font-bold text-gray-600 font-mono">: {selectedMainRaw}</span>
                     )}
                   </Label>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 pt-1">
                   {parsedItems.map((item, idx) => {
                     const isActive = selectedMainRaw === item.mainLabel;
                     return (
@@ -135,14 +147,14 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
                             onChange(groupName, item.mainLabel);
                           }
                         }}
-                        className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                        className={`px-4 h-10 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm active:scale-95 ${
                           isActive
-                            ? "shadow-sm scale-[1.02] border-2 text-white"
+                            ? "shadow-md scale-[1.03] border-2 text-white font-extrabold"
                             : "bg-white border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-100/60"
                         }`}
                         style={isActive ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}
                       >
-                        {isActive && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                        {isActive && <Check className="w-4 h-4 text-white stroke-[3]" />}
                         <span>{item.mainLabel}</span>
                       </button>
                     );
@@ -152,16 +164,16 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
 
               {/* Level 2: Sub-Option / Size Selection (e.g. Taille) */}
               {activeItem && activeItem.subOptions.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t border-gray-200/60">
+                <div className="space-y-1.5 pt-2.5 border-t border-gray-200/60">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs sm:text-sm font-bold text-gray-700 flex items-center gap-1.5">
                       <span>Taille disponible pour {activeItem.mainLabel}</span>
                       {selectedSub && (
-                        <span className="font-bold text-emerald-600 font-mono">: {selectedSub}</span>
+                        <span className="font-extrabold text-emerald-600 font-mono">: {selectedSub}</span>
                       )}
                     </Label>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     {activeItem.subOptions.map((sub, sIdx) => {
                       const isSubActive = selectedSub === sub;
                       return (
@@ -172,14 +184,14 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
                             onChange(groupName + "_sub", sub);
                             onChange(groupName, `${activeItem.mainLabel} — Taille: ${sub}`);
                           }}
-                          className={`min-w-[42px] px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1 ${
+                          className={`min-w-[48px] h-10 px-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 ${
                             isSubActive
-                              ? "shadow-md scale-105 border-2 text-white"
+                              ? "shadow-md scale-105 border-2 text-white font-extrabold"
                               : "bg-white border border-gray-300 text-gray-800 hover:border-gray-400 hover:bg-gray-100"
                           }`}
                           style={isSubActive ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}
                         >
-                          {isSubActive && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                          {isSubActive && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                           <span>{sub}</span>
                         </button>
                       );
@@ -191,16 +203,16 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
           );
         }
 
-        // CASE 2: Single line split (e.g. "S, M, L, XL, 2XL, 3XL")
+        // CASE 2: Single line split (e.g. "M-XL-XXL-XXXL" or "S, M, L, XL, 2XL, 3XL")
         if (isSplitList) {
           const selectedVal = selectedVariants[groupName] || standaloneList[0] || "";
           return (
             <div key={groupIdx} className="space-y-2 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-200/80">
-              <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5">
+              <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5 uppercase tracking-wide">
                 <span>{groupName}</span>
-                {selectedVal && <span className="font-bold text-emerald-600 font-mono">: {selectedVal}</span>}
+                {selectedVal && <span className="font-extrabold text-emerald-600 font-mono">: {selectedVal}</span>}
               </Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 pt-1">
                 {standaloneList.map((optVal, optIdx) => {
                   const isActive = selectedVal === optVal;
                   return (
@@ -208,14 +220,14 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
                       key={optIdx}
                       type="button"
                       onClick={() => onChange(groupName, optVal)}
-                      className={`min-w-[42px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                      className={`min-w-[48px] h-10 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 ${
                         isActive
-                          ? "shadow-md scale-105 border-2 text-white"
+                          ? "shadow-md scale-[1.03] border-2 text-white font-extrabold"
                           : "bg-white border border-gray-300 text-gray-800 hover:border-gray-400 hover:bg-gray-100"
                       }`}
                       style={isActive ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}
                     >
-                      {isActive && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                      {isActive && <Check className="w-4 h-4 text-white stroke-[3]" />}
                       <span>{optVal}</span>
                     </button>
                   );
@@ -228,12 +240,12 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
         // CASE 3: Standard flat options list
         const selectedVal = selectedVariants[groupName] || standaloneList[0] || "";
         return (
-          <div key={groupIdx} className="space-y-2">
-            <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5">
+          <div key={groupIdx} className="space-y-2 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-200/80">
+            <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5 uppercase tracking-wide">
               <span>{groupName}</span>
-              {selectedVal && <span className="font-bold text-gray-600 font-mono">: {selectedVal}</span>}
+              {selectedVal && <span className="font-extrabold text-emerald-600 font-mono">: {selectedVal}</span>}
             </Label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-1">
               {standaloneList.map((optVal, optIdx) => {
                 const isActive = selectedVal === optVal;
                 return (
@@ -241,14 +253,14 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
                     key={optIdx}
                     type="button"
                     onClick={() => onChange(groupName, optVal)}
-                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                    className={`min-w-[48px] h-10 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 ${
                       isActive
-                        ? "shadow-sm scale-[1.02] border-2 text-white"
+                        ? "shadow-md scale-[1.03] border-2 text-white font-extrabold"
                         : "bg-white border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-100/60"
                     }`}
                     style={isActive ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}
                   >
-                    {isActive && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    {isActive && <Check className="w-4 h-4 text-white stroke-[3]" />}
                     <span>{optVal}</span>
                   </button>
                 );
@@ -260,3 +272,4 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
     </div>
   );
 };
+
