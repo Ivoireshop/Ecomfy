@@ -125,7 +125,6 @@ export function AppSidebar() {
     { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
     { title: "Boutique", url: "/shop-manager", icon: Store },
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
-    { title: "Documentation 📚", url: "/documentation", icon: Book },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Studio IA", url: "/studio", icon: Image },
     { title: "Livraison", url: "/delivery-dashboard", icon: Truck },
@@ -144,6 +143,7 @@ export function AppSidebar() {
   ];
 
   const bottomItems = [
+    { title: "Documentation 📚", url: "/documentation", icon: Book },
     { title: "Paramètres", url: "/profile", icon: Settings },
     { title: "Déconnexion", url: "#", icon: LogOut, onClick: handleSignOut },
   ];
@@ -174,7 +174,6 @@ export function AppSidebar() {
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
-    { title: "Documentation", url: "/docs", icon: Book },
     { title: "Console API", url: "/api-documentation", icon: Code2 },
     { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },
   ];

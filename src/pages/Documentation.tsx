@@ -75,7 +75,7 @@ const SECTIONS: DocSection[] = [
   },
   {
     id: "architecture",
-    title: "Architecture & Structure du Code",
+    title: "Architecture & Code Client",
     icon: Layers,
     category: "Démarrage",
     summary: "Organisation modulaire du projet, arborescence des dossiers et stack technologique.",
@@ -84,28 +84,21 @@ const SECTIONS: DocSection[] = [
       { type: "ul", items: [
         "Frontend : React 18, Vite, TypeScript, Tailwind CSS v3, Shadcn UI & Lucide Icons.",
         "State & Cache : React Query (@tanstack/react-query) pour l'invalidation asynchrone et les mises à jour UI optimistes.",
-        "Backend & DB : Supabase (PostgreSQL 15), Supabase Auth, Storage & Edge Functions Deno.",
+        "API & Services : Authentification sécurisée, Stockage cloud & API REST.",
         "Internationalisation : i18next (support multi-langues FR, EN, ES, PT, AR).",
         "Mobile : Wrapper Capacitor (Android & iOS).",
       ]},
-      { type: "h", text: "Arborescence du Projet" },
+      { type: "h", text: "Arborescence du Projet Client" },
       { type: "code", lang: "bash", text:
 `src/
 ├── components/          Composants UI réutilisables (Shadcn + composants métiers)
 │   ├── shop/            ProductView, ProductReviews, ShopAIAssistant, SinglePageCheckout
-│   ├── ui/              Composants de base Shadcn (Button, Dialog, Input, Select...)
-│   └── landing/         LandingPages & composant LandingAcademy
+│   └── ui/              Composants de base Shadcn (Button, Dialog, Input, Select...)
 ├── hooks/               Custom Hooks React (useAuthReady, useOrderNotifications, etc.)
-├── integrations/        Client Supabase auto-généré (@/integrations/supabase/client)
-├── modules/
-│   └── connectus/       Réseau Social Connect As (PostCard, ConnectUsHeader, InviteModal)
+├── modules/             Modules applicatifs (Réseau Social Connect As, Académie, Studio)
 ├── pages/               Routes principales (ShopView, ProductView, ShopManager, Studio)
 ├── App.tsx              Routage principal de l'application
-└── index.css            Directives Tailwind CSS et design system global
-
-supabase/
-├── functions/           Edge Functions Deno (process-payment, share-product, send-email)
-└── migrations/          Scripts SQL de versionnement de la base de données PostgreSQL`
+└── index.css            Directives Tailwind CSS et design system global`
       },
       { type: "callout", tone: "info", text: "L'alias de chemin `@/` pointe directement vers le dossier `src/` pour simplifier tous les imports." }
     ],
@@ -114,7 +107,7 @@ supabase/
   /* -------------------- 2. BOUTIQUES E-COMMERCE -------------------- */
   {
     id: "shop-creation",
-    title: "Création & Configuration de Boutique",
+    title: "Création de Boutique",
     icon: Store,
     category: "E-Commerce & Boutique",
     summary: "Guide complet pour configurer votre vitrine marchande, sous-domaine et identité de marque.",
@@ -128,23 +121,27 @@ supabase/
         "Coordonnées WhatsApp : Renseignez votre numéro avec indicatif pays pour la réception directe des commandes.",
       ]},
       { type: "code", lang: "typescript", text:
-`// Exemple de mise à jour du profil de boutique via Supabase client
-const { data, error } = await supabase
-  .from("shops")
-  .update({
+`// Exemple de mise à jour des paramètres de la boutique via l'API Ecomfy
+const response = await fetch("https://ecomfy.cloud/api/v1/shop/settings", {
+  method: "PATCH",
+  headers: {
+    "Authorization": "Bearer vp_live_...",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
     business_name: "Ma Boutique Fashion",
     primary_color: "#0E7C66",
     whatsapp_number: "+2250700000000",
     is_published: true
   })
-  .eq("user_id", user.id);`
+});`
       },
       { type: "action", label: "Accéder au Gestionnaire de Boutique", url: "/shop-manager" }
     ],
   },
   {
     id: "single-page-checkout",
-    title: "Checkout Single-Page & Modes de Paiement",
+    title: "Checkout & Paiements",
     icon: CreditCard,
     category: "E-Commerce & Boutique",
     summary: "Tunnel de commande optimisé pour la conversion et intégration des passerelles Mobile Money.",
@@ -164,7 +161,7 @@ const { data, error } = await supabase
   },
   {
     id: "conversion-boosters",
-    title: "Boosters de Conversion (Urgence & Bundles)",
+    title: "Boosters de Conversion",
     icon: Zap,
     category: "E-Commerce & Boutique",
     summary: "Fonctionnalités avancées pour inciter à l'achat immédiat : compte à rebours, jauge de stock et offres groupées.",
@@ -182,7 +179,7 @@ const { data, error } = await supabase
 
   {
     id: "smart-variants",
-    title: "Sélecteur Intelligent de Variantes & Tailles",
+    title: "Variantes & Tailles (Puces)",
     icon: Tag,
     category: "E-Commerce & Boutique",
     summary: "Guide de configuration des déclinaisons de tailles (S à 3XL) et des couleurs sous forme de puces horizontales cliquables.",
@@ -199,7 +196,7 @@ const { data, error } = await supabase
   },
   {
     id: "custom-domains-seo",
-    title: "Domaines Personnalisés & SEO Intelligence",
+    title: "Domaines & SEO Intelligence",
     icon: Globe,
     category: "E-Commerce & Boutique",
     summary: "Configuration DNS CNAME (ex: maboutique.com) et analyse du référencement Google avec Ecomfy SEO Intelligence.",
@@ -223,7 +220,7 @@ TTL : Auto / 3600`
   },
   {
     id: "payment-location-rules",
-    title: "Règles de Paiement (Abidjan vs Intérieur)",
+    title: "Règles de Paiement par Zone",
     icon: ShieldCheck,
     category: "E-Commerce & Boutique",
     summary: "Gestion du paiement à la livraison sur Abidjan et du Mobile Money obligatoire pour l'expédition à l'intérieur du pays.",
@@ -240,7 +237,7 @@ TTL : Auto / 3600`
   /* -------------------- 3. STUDIO IA -------------------- */
   {
     id: "ai-visual-generator",
-    title: "Studio IA : Générateur de Visuels HD",
+    title: "Studio IA : Visuels HD",
     icon: ImageIcon,
     category: "Studio IA & Création",
     summary: "Créez des visuels publicitaires professionnels en quelques secondes sans compétence en design.",
@@ -266,7 +263,7 @@ TTL : Auto / 3600`
   },
   {
     id: "ai-video-studio",
-    title: "Studio IA : Générateur de Vidéos Publicitaires",
+    title: "Studio IA : Vidéos Ads",
     icon: Video,
     category: "Studio IA & Création",
     summary: "Générez des vidéos courtes captivantes avec voix-off IA pour vos publicités Facebook et TikTok.",
@@ -282,7 +279,7 @@ TTL : Auto / 3600`
   },
   {
     id: "ai-product-optimizer",
-    title: "Optimiseur de Fiches Produits par IA",
+    title: "Optimiseur Fiches Produits",
     icon: Sparkles,
     category: "Studio IA & Création",
     summary: "Rédaction automatique de titres vendeurs, descriptions persuasives et mots-clés SEO.",
@@ -295,7 +292,7 @@ TTL : Auto / 3600`
   /* -------------------- 4. RÉSEAU SOCIAL CONNECT AS -------------------- */
   {
     id: "connect-as-feed",
-    title: "Fil d'Actualité & Publications Sociale",
+    title: "Fil d'Actualité Connect As",
     icon: Share2,
     category: "Réseau Social Connect As",
     summary: "Plateforme sociale intégrée pour interagir avec la communauté des marchands et clients.",
@@ -315,7 +312,7 @@ TTL : Auto / 3600`
   /* -------------------- 5. ACADÉMIE & COURS -------------------- */
   {
     id: "academy-overview",
-    title: "Académie Ecomfy & Cours Vidéo",
+    title: "Académie Ecomfy",
     icon: GraduationCap,
     category: "Académie & Cours",
     summary: "Formations pratiques gratuites pour maîtriser la publicité Facebook, le closing WhatsApp et la vente en ligne.",
@@ -333,7 +330,7 @@ TTL : Auto / 3600`
   },
   {
     id: "certificates-qr",
-    title: "Certificats PDF Certifiés avec QR Code",
+    title: "Certificats PDF & QR Code",
     icon: Award,
     category: "Académie & Cours",
     summary: "Délivrance de certificats de réussite vérifiables en ligne par QR Code unique.",
@@ -346,7 +343,7 @@ TTL : Auto / 3600`
   /* -------------------- 6. LOGISTIQUE & LIVRAISON -------------------- */
   {
     id: "logistics-drivers",
-    title: "Gestion des Livreurs & Missions",
+    title: "Gestion des Livreurs",
     icon: Truck,
     category: "Logistique & Livraison",
     summary: "Attribution des colis, suivi des livraisons et application scanner QR Code.",
@@ -364,7 +361,7 @@ TTL : Auto / 3600`
   /* -------------------- 7. API & DÉVELOPPEURS -------------------- */
   {
     id: "api-keys-auth",
-    title: "Authentification & Clés d'API (v1)",
+    title: "Clés d'API & Auth (v1)",
     icon: KeyRound,
     category: "API & Développeurs",
     summary: "Génération de clés d'accès API pour connecter vos outils externes (N8N, Zapier, Make).",
@@ -381,7 +378,7 @@ curl -X GET https://ecomfy.cloud/api/v1/products \\
   },
   {
     id: "webhooks-integration",
-    title: "Webhooks Temps Réel & Automatisations",
+    title: "Webhooks & Automatisations",
     icon: Workflow,
     category: "API & Développeurs",
     summary: "Recevez des notifications HTTP instantanées lors de nouvelles commandes ou réinitialisations.",
@@ -609,7 +606,7 @@ export default function Documentation() {
       </header>
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 grid grid-cols-1 lg:grid-cols-[280px,1fr] gap-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-8">
         
         {/* Left Navigation Sidebar */}
         <aside className="lg:sticky lg:top-[89px] lg:self-start">
@@ -633,14 +630,14 @@ export default function Documentation() {
                             <button
                               key={s.id}
                               onClick={() => setActive(s.id)}
-                              className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all font-medium ${
+                              className={`w-full text-left flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs transition-all font-medium ${
                                 isActive
                                   ? "bg-[#0E7C66] text-white font-bold shadow-lg shadow-[#0E7C66]/20"
                                   : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
                               }`}
                             >
                               <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-white" : "text-slate-400"}`} />
-                              <span className="truncate">{s.title}</span>
+                              <span className="text-left leading-snug break-words">{s.title}</span>
                             </button>
                           );
                         })}
