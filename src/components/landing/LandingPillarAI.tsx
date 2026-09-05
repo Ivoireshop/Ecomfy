@@ -1,5 +1,6 @@
 import { Wand2, Image as ImageIcon, Video, FileText } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import handbagAd from "@/assets/example-handbag-ad.jpg";
 
 export function LandingPillarAI() {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
@@ -94,17 +95,17 @@ export function LandingPillarAI() {
                       
                       {/* Video with Scan Effect overlay */}
                       <div className="w-full h-40 bg-slate-800/50 rounded-lg relative overflow-hidden flex items-center justify-center">
-                        <video 
+                        <img 
+                          src={handbagAd} 
+                          alt="Vidéo générée IA" 
                           className="w-full h-full object-cover" 
-                          autoPlay 
-                          loop 
-                          muted 
-                          playsInline 
-                          poster="/src/assets/example-handbag-ad.jpg"
-                        >
-                          <source src="/src/assets/avatar-demo.mp4" type="video/mp4" />
-                        </video>
-                        <div className="absolute inset-0 bg-gradient-to-t from-purple-500/20 to-transparent mix-blend-overlay"></div>
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-purple-900/60 via-purple-900/20 to-transparent"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-full bg-purple-600/80 text-white flex items-center justify-center shadow-lg backdrop-blur-md border border-purple-400/50 animate-pulse">
+                            <Video className="w-6 h-6 fill-current text-white ml-0.5" />
+                          </div>
+                        </div>
                         <div className="absolute inset-x-0 top-0 h-1 bg-purple-400/50 blur-[2px] animate-scan"></div>
                       </div>
                     </div>

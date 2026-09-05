@@ -1,5 +1,6 @@
 import { ShoppingCart, Clock, Star, Smartphone } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import ecommerceShopping from "@/assets/ecommerce-shopping.jpg";
 
 export function LandingPillarSell() {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
@@ -39,9 +40,9 @@ export function LandingPillarSell() {
               {/* Product Image Area */}
               <div className="h-48 bg-slate-100 relative overflow-hidden">
                 <img 
-                  src="/src/assets/ecommerce-shopping.jpg" 
+                  src={ecommerceShopping} 
                   alt="Montre Connectée Pro X" 
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover" 
                 />
                 <div className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">PROMO -30%</div>
               </div>

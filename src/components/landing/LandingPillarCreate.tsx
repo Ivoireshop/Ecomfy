@@ -1,5 +1,7 @@
 import { Store, Palette, Globe, CheckCircle2 } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import handbagAd from "@/assets/example-handbag-ad.jpg";
+import techAd from "@/assets/example-tech-ad.jpg";
 
 export function LandingPillarCreate() {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
@@ -95,10 +97,10 @@ export function LandingPillarCreate() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="h-24 bg-slate-100 rounded-lg overflow-hidden">
-                        <img src="/src/assets/example-handbag-ad.jpg" alt="Sneakers" className="w-full h-full object-cover" />
+                        <img src={handbagAd} alt="Sac à main" className="w-full h-full object-cover" />
                       </div>
                       <div className="h-24 bg-slate-100 rounded-lg overflow-hidden">
-                        <img src="/src/assets/example-tech-ad.jpg" alt="Montre" className="w-full h-full object-cover" />
+                        <img src={techAd} alt="Montre" className="w-full h-full object-cover" />
                       </div>
                     </div>
                   </div>
