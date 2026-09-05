@@ -46,7 +46,7 @@ const CATEGORIES = [
   "Académie & Cours",
   "Logistique & Livraison",
   "API & Développeurs",
-  "Sécurité & Administration",
+  "Sécurité & Confidentialité",
   "Changelog",
 ];
 
@@ -99,7 +99,7 @@ const SECTIONS: DocSection[] = [
 ├── integrations/        Client Supabase auto-généré (@/integrations/supabase/client)
 ├── modules/
 │   └── connectus/       Réseau Social Connect As (PostCard, ConnectUsHeader, InviteModal)
-├── pages/               Routes principales (ShopView, ProductView, FounderDashboard, Studio)
+├── pages/               Routes principales (ShopView, ProductView, ShopManager, Studio)
 ├── App.tsx              Routage principal de l'application
 └── index.css            Directives Tailwind CSS et design system global
 
@@ -395,17 +395,23 @@ curl -X GET https://ecomfy.cloud/api/v1/products \\
     ],
   },
 
-  /* -------------------- 8. SÉCURITÉ & ADMINISTRATION -------------------- */
+  /* -------------------- 8. SÉCURITÉ & CONFIDENTIALITÉ -------------------- */
   {
-    id: "founder-dashboard-doc",
-    title: "Console Fondateurs & Métriques Réelles",
+    id: "security-privacy-doc",
+    title: "Sécurité & Protection des Données",
     icon: ShieldCheck,
-    category: "Sécurité & Administration",
-    summary: "Supervision complète réservée aux comptes Fondateurs d'Ecomfy.",
+    category: "Sécurité & Confidentialité",
+    summary: "Normes de sécurité, chiffrement SSL, isolation des données Supabase RLS et protection des transactions.",
     body: [
-      { type: "p", text: "Accessible sur la route `/founder-dashboard`, la console de pilotage Fondateur permet de suivre l'activité réelle de la plateforme sans aucune valeur fictive." },
-      { type: "callout", tone: "info", text: "L'accès est strictement contrôlé via la table Supabase `user_roles` avec le rôle `founder` ou `co_founder`." },
-      { type: "action", label: "Ouvrir la Console Fondateur", url: "/founder-dashboard" }
+      { type: "p", text: "Ecomfy applique les standards industriels les plus stricts en matière de sécurité et de confidentialité pour protéger les informations des marchands, les transactions financières et la vie privée des acheteurs." },
+      { type: "h", text: "Mesures de Sécurité & Garanties Ecomfy" },
+      { type: "ul", items: [
+        "Chiffrement SSL / TLS 256 bits : Toutes les communications entre le navigateur et la plateforme sont chiffrées de bout en bout.",
+        "Isolation Supabase RLS (Row Level Security) : Vos données de boutique, catalogues, ventes et fiches clients sont strictement isolées et accessibles uniquement par votre compte.",
+        "Paiements Ultra-Sécurisés : Aucune donnée bancaire ni code secret n'est conservé sur nos serveurs. Les règlements s'effectuent directement via les API officielles agréées (Wave, Orange, MTN, Moov, Stripe, CinetPay).",
+        "Sauvegardes Automatiques Quotidiennes : Sauvegardes continues et réplication haute disponibilité de la base de données PostgreSQL.",
+      ]},
+      { type: "callout", tone: "success", text: "Pour toute question relative à la conformité ou la protection de vos données marchands, notre support technique est disponible 24h/24." }
     ],
   },
 
@@ -418,7 +424,7 @@ curl -X GET https://ecomfy.cloud/api/v1/products \\
     summary: "Historique des mises à jour majeures de la plateforme Ecomfy.",
     body: [
       { type: "table", head: ["Date", "Version", "Module", "Changements"], rows: [
-        ["2026-08-24", "v3.2.0", "Console Fondateur", "Refonte du Tableau de Bord Fondateurs avec 100% de calculs réels Supabase."],
+        ["2026-08-24", "v3.2.0", "Sécurité & Infrastructure", "Mise à jour des règles d'isolation RLS Supabase et optimisation des requêtes de vente."],
         ["2026-08-24", "v3.1.0", "Branding & SEO", "Nouvelle bannière officielle Open Graph 1200x630 Ecomfy et métadonnées sociales."],
         ["2026-08-24", "v3.0.0", "Académie", "Ajout du tutoriel YouTube officiel sur le paramétrage du Checkout Single-Page."],
         ["2026-08-23", "v2.9.0", "Connect As", "Nettoyage des comptes démo fictifs, RLS Supabase et lecteur vidéo HD."],
