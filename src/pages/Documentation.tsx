@@ -13,7 +13,7 @@ import {
   GraduationCap, CreditCard, Bug, ShieldCheck, Code2, Database, Mail,
   Bell, Workflow, Server, KeyRound, ScrollText, Boxes, Wrench, Network,
   Lock, GitBranch, Cpu, FileText, ArrowRight, Copy, Check, ExternalLink,
-  Sparkles, Truck, MessageSquare, Zap, Terminal, Share2, Award, Bot
+  Sparkles, Truck, MessageSquare, Zap, Terminal, Share2, Award, Bot, Tag
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -177,6 +177,63 @@ const { data, error } = await supabase
         "Offres par Lots (Bundles) : Propose des réductions incitatives (1 acheté = 10 000 FCFA, 2 achetés = 16 000 FCFA).",
         "Badges de Réassurance : Livraisons rapides, garantie satisfait ou remboursé et avis clients certifiés.",
       ]}
+    ],
+  },
+
+  {
+    id: "smart-variants",
+    title: "Sélecteur Intelligent de Variantes & Tailles",
+    icon: Tag,
+    category: "E-Commerce & Boutique",
+    summary: "Guide de configuration des déclinaisons de tailles (S à 3XL) et des couleurs sous forme de puces horizontales cliquables.",
+    body: [
+      { type: "p", text: "Ecomfy intègre un moteur d'analyse automatique des variantes pour éviter les fiches produits trop longues et permettre une sélection ultra-rapide en 1 seul clic." },
+      { type: "h", text: "Saisie et Formats des Variantes" },
+      { type: "ul", items: [
+        "Saisie Simple sur une Ligne (Tailles) : Saisissez 'S, M, L, XL, 2XL, 3XL' ou 'M-XL-XXL-XXXL'. Ecomfy génère automatiquement des puces horizontales individuelles cliquables.",
+        "Saisie Multi-Niveaux (Couleurs + Tailles) : Saisissez 'Blanc (S, M, L, XL)' et 'Noir (S, M, L, XL, 2XL)'. Ecomfy crée une rangée de sélection de couleur et une rangée dynamique de tailles disponibles pour la couleur choisie.",
+        "Puces Cliquables Interactives : Chaque puce affiche une coche visuelle ✓ et passe à la couleur principale de votre marque au clic.",
+      ]},
+      { type: "callout", tone: "success", text: "La variante choisie est automatiquement transmise dans le récapitulatif de commande et sur WhatsApp (ex: 'Blanc — Taille: XL')." }
+    ],
+  },
+  {
+    id: "custom-domains-seo",
+    title: "Domaines Personnalisés & SEO Intelligence",
+    icon: Globe,
+    category: "E-Commerce & Boutique",
+    summary: "Configuration DNS CNAME (ex: maboutique.com) et analyse du référencement Google avec Ecomfy SEO Intelligence.",
+    body: [
+      { type: "p", text: "Raccordez votre propre nom de domaine personnalisé pour renforcer la crédibilité de votre marque et suivez votre visibilité Google." },
+      { type: "h", text: "Configuration CNAME Domaine" },
+      { type: "code", lang: "dns", text:
+`TYPE : CNAME
+HÔTE / NOM : @ (ou www)
+VALEUR / CIBLE : cname.ecomfy.cloud
+TTL : Auto / 3600`
+      },
+      { type: "h", text: "Module Ecomfy SEO Intelligence" },
+      { type: "ul", items: [
+        "Santé SEO & Score Google : Évaluation de la balise Title, de la Meta Description et du temps de chargement LCP.",
+        "Indexation & OpenGraph : Aperçu en direct du partage sur WhatsApp, Facebook et X (Twitter).",
+        "Statistiques Réelles : Aucune donnée fictive. Analyse basée sur vos métriques réelles d'impression et de clic.",
+      ]},
+      { type: "action", label: "Consulter mon SEO Intelligence", url: "/seo" }
+    ],
+  },
+  {
+    id: "payment-location-rules",
+    title: "Règles de Paiement (Abidjan vs Intérieur)",
+    icon: ShieldCheck,
+    category: "E-Commerce & Boutique",
+    summary: "Gestion du paiement à la livraison sur Abidjan et du Mobile Money obligatoire pour l'expédition à l'intérieur du pays.",
+    body: [
+      { type: "p", text: "Ecomfy adapte dynamiquement les méthodes de paiement selon la ville renseignée par l'acheteur." },
+      { type: "ul", items: [
+        "Zone Abidjan : Possibilité de choisir entre le Paiement à la livraison (Cash on Delivery) et Mobile Money.",
+        "Hors Abidjan (Intérieur du Pays) : Le paiement par Mobile Money (Wave, Orange, MTN, Moov) devient automatiquement obligatoire avant expédition du colis.",
+      ]},
+      { type: "callout", tone: "warn", text: "Ce système sécurise vos frais d'expédition et annule le risque de colis refusé à l'arrivée." }
     ],
   },
 
@@ -485,23 +542,8 @@ const Block = ({ b }: { b: DocBlock }) => {
 export default function Documentation() {
   const navigate = useNavigate();
   const { user, isReady } = useAuthReady();
-  const [allowed, setAllowed] = useState<boolean | null>(null);
   const [active, setActive] = useState<string>(SECTIONS[0].id);
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    (async () => {
-      if (!isReady) return;
-      if (!user) { setAllowed(false); return; }
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        // @ts-ignore
-        .in("role", ["founder", "co_founder"]);
-      setAllowed(!!(data && data.length));
-    })();
-  }, [isReady, user?.id]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -514,34 +556,6 @@ export default function Documentation() {
   }, [query]);
 
   const current = SECTIONS.find((s) => s.id === active) ?? SECTIONS[0];
-
-  if (!isReady || allowed === null) {
-    return (
-      <div className="min-h-screen bg-[#090D16] flex flex-col items-center justify-center space-y-4">
-        <Rocket className="h-10 w-10 animate-bounce text-[#0E7C66]" />
-        <p className="text-sm font-bold text-slate-400 font-inter">Chargement du Portail de Documentation Ecomfy...</p>
-      </div>
-    );
-  }
-
-  if (!allowed) {
-    return (
-      <div className="min-h-screen bg-[#090D16] flex items-center justify-center p-6 text-white font-inter">
-        <Card className="p-8 max-w-md text-center space-y-5 bg-slate-900/90 border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl">
-          <div className="h-16 w-16 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
-            <Lock className="h-8 w-8" />
-          </div>
-          <h2 className="text-2xl font-space font-extrabold text-white">Accès Restreint</h2>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            La documentation technique globale est réservée aux comptes fondateurs et administrateurs autorisés d'Ecomfy.
-          </p>
-          <Button onClick={() => navigate("/")} className="w-full rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs">
-            Retour à l'Accueil Ecomfy
-          </Button>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white">

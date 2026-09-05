@@ -125,6 +125,7 @@ export function AppSidebar() {
     { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
     { title: "Boutique", url: "/shop-manager", icon: Store },
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
+    { title: "Documentation 📚", url: "/documentation", icon: Book },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Studio IA", url: "/studio", icon: Image },
     { title: "Livraison", url: "/delivery-dashboard", icon: Truck },
