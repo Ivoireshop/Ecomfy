@@ -13,7 +13,8 @@ import {
   GraduationCap, CreditCard, Bug, ShieldCheck, Code2, Database, Mail,
   Bell, Workflow, Server, KeyRound, ScrollText, Boxes, Wrench, Network,
   Lock, GitBranch, Cpu, FileText, ArrowRight, Copy, Check, ExternalLink,
-  Sparkles, Truck, MessageSquare, Zap, Terminal, Share2, Award, Bot, Tag
+  Sparkles, Truck, MessageSquare, Zap, Terminal, Share2, Award, Bot, Tag,
+  TrendingUp, BarChart2, Receipt
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -41,6 +42,9 @@ type DocSection = {
 const CATEGORIES = [
   "Démarrage",
   "E-Commerce & Boutique",
+  "Gestion des Stocks & Inventaire",
+  "Finance, Comptabilité & Dépenses",
+  "Preuve Sociale & Conversion",
   "Studio IA & Création",
   "Réseau Social Connect As",
   "Académie & Cours",
@@ -231,6 +235,88 @@ TTL : Auto / 3600`
         "Hors Abidjan (Intérieur du Pays) : Le paiement par Mobile Money (Wave, Orange, MTN, Moov) devient automatiquement obligatoire avant expédition du colis.",
       ]},
       { type: "callout", tone: "warn", text: "Ce système sécurise vos frais d'expédition et annule le risque de colis refusé à l'arrivée." }
+    ],
+  },
+
+  /* -------------------- 3. GESTION DES STOCKS & INVENTAIRE -------------------- */
+  {
+    id: "inventory-stock-management",
+    title: "Gestion des Stocks & Inventaire",
+    icon: Boxes,
+    category: "Gestion des Stocks & Inventaire",
+    summary: "Suivi en temps réel des quantités disponibles, alerte de stock faible, déduction automatique lors des commandes et gestion par variantes.",
+    body: [
+      { type: "p", text: "Ecomfy intègre un moteur de gestion de stock ultra-précis qui se met à jour automatiquement à chaque commande validée, évitant tout risque de survente ou de rupture imprévue." },
+      { type: "h", text: "Fonctionnalités de Gestion des Stocks" },
+      { type: "ul", items: [
+        "Déduction Automatique des Stocks : Dès qu'une commande est passée sur la boutique ou validée sur WhatsApp, la quantité disponible est automatiquement mise à jour.",
+        "Suivi par Variante (Couleur & Taille) : Chaque déclinaison (ex: Robe Rouge Taille XL) possède sa propre quantité en stock indépendante.",
+        "Alertes de Seuil Critique : Notification instantanée lorsque le stock d'un produit descend en dessous du seuil minimum défini (ex: moins de 5 unités).",
+        "Réapprovisionnement en 1 Clic : Mise à jour rapide des quantités directement depuis votre tableau de bord marchand.",
+      ]},
+      { type: "callout", tone: "success", text: "Si le stock d'un produit atteint 0, la puce de la variante passe automatiquement en état 'Épuisé' pour éviter tout litige client." },
+      { type: "action", label: "Gérer l'Inventaire Produits", url: "/shop-manager" }
+    ],
+  },
+
+  /* -------------------- 4. FINANCE, COMPTABILITÉ & DÉPENSES -------------------- */
+  {
+    id: "finance-accounting-export",
+    title: "Finances & Expert Comptable",
+    icon: Receipt,
+    category: "Finance, Comptabilité & Dépenses",
+    summary: "Tableau de bord financier, suivi du chiffre d'affaires, calcul des marges nettes et rapports d'expert comptable téléchargeables.",
+    body: [
+      { type: "p", text: "Pilotez la santé financière de votre entreprise sans être comptable. Ecomfy centralise tous vos flux d'encaissement et génère des synthèses comptables prêtes pour la fiscalité et le bilan." },
+      { type: "h", text: "Module Financier & Bilan Vendeur" },
+      { type: "ul", items: [
+        "Tableau de Bord Financier en Temps Réel : Suivi du Chiffre d'Affaires brut, des volumes de commandes réglées et des encaissements par passerelle (Wave, Orange, Cash).",
+        "Expert Comptable Virtuel : Analyse automatisée de vos marges bénéficiaires et ventilation du résultat net.",
+        "Export Comptable PDF & Excel : Génération des journaux de ventes et récapitulatifs mensuels certifiés pour votre comptable ou votre déclaration.",
+        "Facturation Automatique Client : Émission directe de factures numériques avec numéro de référence unique et TVA/taxe paramétrable.",
+      ]},
+      { type: "callout", tone: "info", text: "Toutes vos métriques financières sont calculées en temps réel sur la base de vos transactions réelles." },
+      { type: "action", label: "Consulter mes Finances", url: "/shop-manager" }
+    ],
+  },
+  {
+    id: "expense-tracking-profitability",
+    title: "Gestion des Dépenses & Marges",
+    icon: BarChart2,
+    category: "Finance, Comptabilité & Dépenses",
+    summary: "Enregistrement des coûts opérationnels (publicités Facebook/TikTok, frais de livraison, achats fournisseurs) et calcul de la rentabilité réelle.",
+    body: [
+      { type: "p", text: "Un chiffre d'affaires élevé ne suffit pas sans maîtrise des coûts. Le module de Gestion des Dépenses Ecomfy vous permet de saisir chaque dépense pour connaître votre bénéfice net exact." },
+      { type: "h", text: "Suivi des Coûts Opérationnels" },
+      { type: "ul", items: [
+        "Frais Publicitaires & Marketing : Saisie des budgets Facebook Ads, TikTok Ads, Google Ads et partenariats influenceurs.",
+        "Coûts de Transport & Logistique : Suivi des frais de livraison et frais de coursier pris en charge par le marchand.",
+        "Achats Stock & Fournisseurs : Coût d'achat unitaire des marchandises et emballages.",
+        "Calcul Automatique du Bénéfice Net : Formule instantanée : Bénéfice Net = Chiffre d'Affaires - (Coût Produits + Dépenses Ads + Frais Livraison + Charges).",
+      ]},
+      { type: "callout", tone: "warn", text: "Visualisez en un coup d'œil si vos campagnes publicitaires sont réellement rentables grâce au calcul du ROAS net." },
+      { type: "action", label: "Gérer mes Dépenses", url: "/shop-manager" }
+    ],
+  },
+
+  /* -------------------- 5. PREUVE SOCIALE & CONVERSION -------------------- */
+  {
+    id: "social-proof-reviews",
+    title: "Preuve Sociale & Avis Clients",
+    icon: MessageSquare,
+    category: "Preuve Sociale & Conversion",
+    summary: "Notifications d'achat en direct, avis clients certifiés, badges de confiance et notes étoilées pour déclencher l'acte d'achat.",
+    body: [
+      { type: "p", text: "La preuve sociale est l'un des déclencheurs de conversion les plus puissants sur Ecomfy. Elle rassure instantanément vos visiteurs en leur montrant l'activité réelle des acheteurs sur votre boutique." },
+      { type: "h", text: "Outils de Preuve Sociale Ecomfy" },
+      { type: "ul", items: [
+        "Notifications Popup d'Achats Récents : Notifications discrètes affichant les commandes réelles des clients (ex: 'Kouadio de Yopougon vient de commander il y a 3 minutes').",
+        "Section d'Avis Clients Certifiés avec Étoiles : Affichage des notes globales (1 à 5 étoiles), commentaires détaillés et photos d'acheteurs vérifiés.",
+        "Badges de Confiance & Réassurance : Macarons visuels (Livraison Garantie, Paiement Sécurisé, Satisfait ou Remboursé, Service Client WhatsApp 24/7).",
+        "Compteur de Vues en Temps Réel : Nombre de visiteurs consultant simultanément la fiche produit.",
+      ]},
+      { type: "callout", tone: "success", text: "Les boutiques activant la preuve sociale enregistrent une augmentation moyenne du taux de conversion de +35%." },
+      { type: "action", label: "Gérer la Preuve Sociale & Avis", url: "/shop-manager" }
     ],
   },
 
