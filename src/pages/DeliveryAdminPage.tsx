@@ -202,7 +202,9 @@ export default function DeliveryAdminPage() {
                         <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
                           {app.company_name}
                           {app.trust_badge_active && (
-                            <BadgeCheck className="w-5 h-5 text-emerald-400 shrink-0" title="Partenaire vérifié Ecomfy" />
+                            <span title="Partenaire vérifié Ecomfy">
+                              <BadgeCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+                            </span>
                           )}
                         </CardTitle>
                         <CardDescription className="text-xs text-slate-400 flex items-center gap-1 mt-1">

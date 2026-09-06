@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Camera, Upload, CheckCircle2, ParcelIcon, PackageCheck } from "lucide-react";
+import { Camera, Upload, CheckCircle2, PackageCheck, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
