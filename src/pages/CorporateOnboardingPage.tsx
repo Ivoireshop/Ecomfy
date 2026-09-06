@@ -74,14 +74,26 @@ export default function CorporateOnboardingPage() {
       }
 
       if (!invData && emailParam) {
-        const { data } = await supabase
-          .from("corporate_invitations" as any)
+        const { data: shData } = await supabase
+          .from("corporate_shareholders" as any)
           .select("*")
           .eq("email", emailParam.toLowerCase())
-          .order("created_at", { ascending: false })
           .maybeSingle();
 
-        if (data) invData = data;
+        if (shData) {
+          invData = {
+            id: `inv-${shData.id}`,
+            invite_token: token || `inv-tok-${shData.id}`,
+            email: shData.email,
+            full_name: shData.full_name,
+            corporate_role: shData.corporate_role,
+            invited_by_name: "ULRICH DJATÉ YAPI (Fondateur)",
+            status: shData.onboarding_completed ? "ACTIVE" : "INVITATION_SENT",
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            created_at: shData.created_at,
+            shareholder_id: shData.id,
+          };
+        }
       }
 
       if (!invData) {

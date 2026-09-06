@@ -64,16 +64,33 @@ export const useCorporateGovernance = () => {
         }));
 
         setShareholders(combined);
+
+        // Fallback invitation state from shareholders
+        const derivedInv: CorporateInvitation[] = shData.map((s: any) => ({
+          id: `inv-${s.id}`,
+          invite_token: `inv-tok-${s.id}`,
+          email: s.email,
+          full_name: s.full_name,
+          corporate_role: s.corporate_role,
+          target_percentage: allocMap.get(s.id)?.target_percentage || 10,
+          target_shares: allocMap.get(s.id)?.target_shares || 100000,
+          status: s.is_main_founder || s.onboarding_completed ? "ACTIVE" : "INVITATION_SENT",
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          created_at: s.created_at,
+          updated_at: s.updated_at,
+          shareholder_id: s.id,
+        }));
+        setInvitations(derivedInv);
       }
 
-      // 2b. Fetch Corporate Invitations
+      // 2b. Fetch Corporate Invitations (override derived if table exists)
       try {
         const { data: inviteData } = await supabase
           .from("corporate_invitations" as any)
           .select("*")
           .order("created_at", { ascending: false });
 
-        if (inviteData) {
+        if (inviteData && inviteData.length > 0) {
           setInvitations(inviteData as any);
         }
       } catch (e) {
