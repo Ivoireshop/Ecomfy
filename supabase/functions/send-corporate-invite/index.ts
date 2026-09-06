@@ -31,6 +31,7 @@ serve(async (req: Request) => {
 
     let emailSent = false;
     let emailResponseData = null;
+    let usedSender = null;
 
     if (resendApiKey) {
       const emailHtml = `
@@ -79,6 +80,11 @@ serve(async (req: Request) => {
 
             <a href="${onboardingUrl}" class="btn">CONSULTER & SIGNER LES DOCUMENTS STATUTAIRES</a>
 
+            <p style="font-size: 12px; color: #64748B; margin-top: 20px;">
+              Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br/>
+              <a href="${onboardingUrl}" style="color: #38BDF8; word-break: break-all;">${onboardingUrl}</a>
+            </p>
+
             <div class="footer">
               Cet email contient un lien sécurisé d'intégration unique.<br>
               Ecomfy SAS — Plateforme Multi-tenant E-commerce & Gouvernance.
@@ -88,32 +94,66 @@ serve(async (req: Request) => {
         </html>
       `;
 
-      const res = await fetch("https://api.resend.com/emails", {
+      // 1. Primary attempt: custom domain
+      const primaryFrom = "Gouvernance Ecomfy <gouvernance@ecomfy.cloud>";
+      let res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${resendApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Gouvernance Ecomfy <gouvernance@ecomfy.cloud>",
+          from: primaryFrom,
           to: [email],
           subject: "Invitation Officielle — Gouvernance & Actionnariat Ecomfy",
           html: emailHtml,
         }),
       });
 
-      emailResponseData = await res.json();
+      emailResponseData = await res.json().catch(() => ({}));
       emailSent = res.ok;
+      usedSender = primaryFrom;
+
+      // 2. Fallback to onboarding@resend.dev if primary sender fails
+      if (!res.ok) {
+        console.warn(`[send-corporate-invite] Primary sender (${primaryFrom}) failed:`, emailResponseData);
+        const fallbackFrom = "Ecomfy Gouvernance <onboarding@resend.dev>";
+        
+        const fallbackRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: fallbackFrom,
+            to: [email],
+            subject: "Invitation Officielle — Gouvernance & Actionnariat Ecomfy",
+            html: emailHtml,
+          }),
+        });
+
+        const fallbackData = await fallbackRes.json().catch(() => ({}));
+        if (fallbackRes.ok) {
+          emailSent = true;
+          emailResponseData = fallbackData;
+          usedSender = fallbackFrom;
+          console.log(`[send-corporate-invite] Fallback sender (${fallbackFrom}) succeeded:`, fallbackData);
+        } else {
+          console.error(`[send-corporate-invite] Fallback sender (${fallbackFrom}) also failed:`, fallbackData);
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         emailSent,
+        usedSender,
         onboardingUrl,
         emailResponseData,
         message: emailSent
-          ? "Invitation envoyée par email avec succès !"
+          ? `Invitation envoyée par email à ${email} avec succès !`
           : "Lien d'invitation généré avec succès. Transmettez le lien sécurisé à l'associé."
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -125,3 +165,4 @@ serve(async (req: Request) => {
     );
   }
 });
+

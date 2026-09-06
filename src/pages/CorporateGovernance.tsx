@@ -152,7 +152,7 @@ export default function CorporateGovernance() {
       }
 
       // Invoke real Email Edge Function
-      const { data: edgeRes } = await supabase.functions.invoke("send-corporate-invite", {
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-corporate-invite", {
         body: {
           email: inviteEmail.trim().toLowerCase(),
           fullName: inviteFullName.trim(),
@@ -164,11 +164,18 @@ export default function CorporateGovernance() {
         }
       });
 
+      if (edgeErr) {
+        console.error("Edge function error:", edgeErr);
+      }
+
       const onboardingLink = `${window.location.origin}/governance/onboarding?token=${inviteToken}&email=${encodeURIComponent(inviteEmail.trim())}`;
-      
-      toast.success(edgeRes?.message || "Invitation générée avec succès !");
       navigator.clipboard.writeText(onboardingLink);
-      toast.info(`Lien d'invitation copié dans le presse-papier : ${onboardingLink}`);
+
+      if (edgeRes?.emailSent) {
+        toast.success(`Email d'invitation officiel transmis à ${inviteEmail.trim()} avec succès !`);
+      } else {
+        toast.warning(`Invitation enregistrée. Lien copié dans le presse-papier.`);
+      }
 
       setIsInviteModalOpen(false);
       setInviteFullName("");
@@ -205,7 +212,7 @@ export default function CorporateGovernance() {
       const inviteToken = `inv-${Date.now()}`;
       const onboardingLink = `${window.location.origin}/governance/onboarding?token=${inviteToken}&email=${encodeURIComponent(s.email)}`;
       
-      await supabase.functions.invoke("send-corporate-invite", {
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-corporate-invite", {
         body: {
           email: s.email,
           fullName: s.full_name,
@@ -217,8 +224,17 @@ export default function CorporateGovernance() {
         }
       });
 
+      if (edgeErr) {
+        console.error("Resend edge function error:", edgeErr);
+      }
+
       navigator.clipboard.writeText(onboardingLink);
-      toast.success(`Invitation renvoyée à ${s.full_name} ! Link copié.`);
+
+      if (edgeRes?.emailSent) {
+        toast.success(`Email d'invitation renvoyé à ${s.full_name} (${s.email}) avec succès !`);
+      } else {
+        toast.warning(`Lien copié pour ${s.full_name}. Transmettez-lui directement le lien.`);
+      }
     } catch (e) {
       toast.error("Erreur lors de la ré-expédition");
     }
