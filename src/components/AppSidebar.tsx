@@ -127,7 +127,7 @@ export function AppSidebar() {
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Studio IA", url: "/studio", icon: Image },
-    { title: "Livraison", url: "/delivery-dashboard", icon: Truck },
+    { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck },
     { title: "Communauté", url: "/community", icon: Users },
     { title: "Tarifs", url: "/pricing", icon: CreditCard },
     { title: "Bibliothèque", url: "/library", icon: FolderHeart },
@@ -173,6 +173,7 @@ export function AppSidebar() {
 
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },
+    { title: "Fondation Livraison 🛡️", url: "/delivery-admin", icon: Truck },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
     { title: "Console API", url: "/api-documentation", icon: Code2 },
     { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },

@@ -112,6 +112,11 @@ const DriverApp = lazyWithRetry(() => import("./pages/driver/DriverApp"));
 const DriverHome = lazyWithRetry(() => import("./pages/driver/DriverHome"));
 const DriverScanner = lazyWithRetry(() => import("./pages/driver/DriverScanner"));
 const DriverMission = lazyWithRetry(() => import("./pages/driver/DriverMission"));
+const DeliveryRegisterPage = lazyWithRetry(() => import("./pages/DeliveryRegisterPage"));
+const DeliveryStatusPage = lazyWithRetry(() => import("./pages/DeliveryStatusPage"));
+const DeliveryAdminPage = lazyWithRetry(() => import("./pages/DeliveryAdminPage"));
+const DeliveryPartnerDashboard = lazyWithRetry(() => import("./pages/DeliveryPartnerDashboard"));
+
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
@@ -436,6 +441,12 @@ const AppContent = () => {
           <Route path="/delivery-signup" element={<ProtectedRoute><DeliverySignup /></ProtectedRoute>} />
           <Route path="/delivery-dashboard" element={<ProtectedRoute><DeliveryDashboard /></ProtectedRoute>} />
           
+          {/* Ecomfy Delivery Module Routes */}
+          <Route path="/delivery/register" element={<ProtectedRoute><DeliveryRegisterPage /></ProtectedRoute>} />
+          <Route path="/delivery/status" element={<ProtectedRoute><DeliveryStatusPage /></ProtectedRoute>} />
+          <Route path="/delivery-admin" element={<ProtectedRoute><DeliveryAdminPage /></ProtectedRoute>} />
+          <Route path="/delivery/partner-dashboard" element={<ProtectedRoute><DeliveryPartnerDashboard /></ProtectedRoute>} />
+
           <Route path="/delivery/driver" element={<ProtectedRoute><DriverApp /></ProtectedRoute>}>
             <Route index element={<DriverHome />} />
             <Route path="scanner" element={<DriverScanner />} />
