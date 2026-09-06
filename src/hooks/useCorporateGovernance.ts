@@ -12,6 +12,8 @@ import {
   CorporateIPAsset,
   CorporateAuditLog,
   CorporateDocumentAcceptance,
+  CorporateInvitation,
+  GovernanceInvitationStatus,
 } from "@/types/corporate";
 
 export const useCorporateGovernance = () => {
@@ -19,6 +21,7 @@ export const useCorporateGovernance = () => {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<CorporateCompany | null>(null);
   const [shareholders, setShareholders] = useState<CorporateShareholder[]>([]);
+  const [invitations, setInvitations] = useState<CorporateInvitation[]>([]);
   const [documents, setDocuments] = useState<CorporateDocument[]>([]);
   const [proposals, setProposals] = useState<CorporateProposal[]>([]);
   const [ipAssets, setIpAssets] = useState<CorporateIPAsset[]>([]);
@@ -63,6 +66,20 @@ export const useCorporateGovernance = () => {
         setShareholders(combined);
       }
 
+      // 2b. Fetch Corporate Invitations
+      try {
+        const { data: inviteData } = await supabase
+          .from("corporate_invitations" as any)
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (inviteData) {
+          setInvitations(inviteData as any);
+        }
+      } catch (e) {
+        console.warn("Could not fetch corporate_invitations:", e);
+      }
+
       // 3. Fetch Documents & Merge with 10 Initial Foundational Docs
       const { data: docsData } = await supabase
         .from("corporate_documents" as any)
@@ -71,7 +88,6 @@ export const useCorporateGovernance = () => {
 
       const dbDocsMap = new Map((docsData || []).map((d: any) => [d.id, d]));
       
-      // Combine 10 foundational seed docs with any additional DB docs
       const mergedDocs: CorporateDocument[] = INITIAL_GOVERNANCE_DOCUMENTS.map((seed) => {
         const existing = dbDocsMap.get(seed.id);
         return {
@@ -93,7 +109,6 @@ export const useCorporateGovernance = () => {
         };
       });
 
-      // Add extra custom DB docs not in seed list
       (docsData || []).forEach((d: any) => {
         if (!mergedDocs.some((m) => m.id === d.id)) {
           mergedDocs.push({
@@ -300,7 +315,6 @@ export const useCorporateGovernance = () => {
 
       if (error) throw error;
 
-      // If status reaches CAP_TABLE_UPDATED, update the actual shareholder allocation!
       if (nextStatus === "cap_table_updated" && currentProp) {
         if (currentProp.beneficiary_shareholder_id) {
           const totalShares = company?.total_authorized_shares || 1000000;
@@ -316,7 +330,6 @@ export const useCorporateGovernance = () => {
             .eq("shareholder_id", currentProp.beneficiary_shareholder_id);
         }
 
-        // Save Cap Table Snapshot
         await supabase.from("corporate_cap_table_snapshots" as any).insert({
           proposal_id: proposalId,
           snapshot_data: { shareholders, company },
@@ -367,7 +380,6 @@ export const useCorporateGovernance = () => {
         console.warn("Acceptance insert fallback to audit log", e);
       }
 
-      // Update local document approval state
       setDocuments((prev) =>
         prev.map((d) => (d.id === documentId ? { ...d, user_viewed: true, user_acceptance: { id: `acc-${Date.now()}`, document_id: documentId, version, user_id: userId, email: userEmail, action: "approved", legal_statement: legalStatement, ip_address: "127.0.0.1", user_agent: navigator.userAgent, timestamp: new Date().toISOString() } } : d))
       );
@@ -393,6 +405,7 @@ export const useCorporateGovernance = () => {
     loading,
     company,
     shareholders,
+    invitations,
     documents,
     proposals,
     ipAssets,
@@ -403,6 +416,8 @@ export const useCorporateGovernance = () => {
     createProposal,
     updateProposalStatus,
     approveDocument,
+    logAudit,
   };
 };
+
 

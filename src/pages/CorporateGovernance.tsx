@@ -39,7 +39,11 @@ import {
   Mail,
   Copy,
   Send,
-  UserCheck
+  UserCheck,
+  XCircle,
+  RefreshCw,
+  Ban,
+  Activity
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -49,6 +53,7 @@ export default function CorporateGovernance() {
     loading,
     company,
     shareholders,
+    invitations,
     documents,
     proposals,
     ipAssets,
@@ -58,7 +63,8 @@ export default function CorporateGovernance() {
     createDocument,
     createProposal,
     updateProposalStatus,
-    approveDocument
+    approveDocument,
+    logAudit,
   } = useCorporateGovernance();
 
   // Document Viewer & Creation Modal State
@@ -113,69 +119,126 @@ export default function CorporateGovernance() {
 
   const handleSendInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteFullName.trim() || !inviteEmail.trim()) return;
+    const cleanEmail = inviteEmail.trim().toLowerCase();
+    const cleanName = inviteFullName.trim();
+
+    if (!cleanName || !cleanEmail) return;
 
     setIsSendingInvite(true);
     try {
-      const inviteToken = `inv-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      // 1. Check if active invitation already exists for this email
+      const existingInvite = invitations.find(
+        (i) => i.email.toLowerCase() === cleanEmail && !["DECLINED", "REVOKED", "EXPIRED"].includes(i.status)
+      );
+
+      if (existingInvite) {
+        toast.warning(
+          `Une invitation active (${existingInvite.status}) existe déjà pour cette adresse email. Vous pouvez la renvoyer ou la révoquer.`,
+          {
+            description: `Rôle : ${existingInvite.corporate_role}`,
+          }
+        );
+        setIsSendingInvite(false);
+        return;
+      }
+
+      const secureToken = `inv-sec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days expiration
       const targetShares = (invitePct / 100) * (company?.total_authorized_shares || 1000000);
 
-      // Save or update shareholder record with pending_onboarding status
+      // 2. Save or update shareholder record with pending_onboarding status
       const { data: newSh, error: shErr } = await supabase
         .from("corporate_shareholders" as any)
-        .upsert({
-          email: inviteEmail.trim().toLowerCase(),
-          full_name: inviteFullName.trim(),
-          corporate_role: inviteRole,
-          is_main_founder: false,
-          onboarding_level: 1,
-          onboarding_completed: false,
-          mfa_enabled: false,
-          created_at: new Date().toISOString(),
-        }, { onConflict: "email" })
+        .upsert(
+          {
+            email: cleanEmail,
+            full_name: cleanName,
+            corporate_role: inviteRole,
+            is_main_founder: false,
+            onboarding_level: 1,
+            onboarding_completed: false,
+            mfa_enabled: false,
+            created_at: new Date().toISOString(),
+          },
+          { onConflict: "email" }
+        )
         .select()
         .single();
 
       if (shErr) throw shErr;
 
       if (newSh) {
-        await supabase
-          .from("corporate_share_allocations" as any)
-          .upsert({
-            shareholder_id: (newSh as any).id,
-            target_percentage: invitePct,
-            target_shares: targetShares,
-            vested_percentage: 0.0,
-            vested_shares: 0.0,
-            status: "vesting",
-          });
+        await supabase.from("corporate_share_allocations" as any).upsert({
+          shareholder_id: (newSh as any).id,
+          target_percentage: invitePct,
+          target_shares: targetShares,
+          vested_percentage: 0.0,
+          vested_shares: 0.0,
+          status: "vesting",
+        });
       }
 
-      // Invoke real Email Edge Function
-      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-corporate-invite", {
-        body: {
-          email: inviteEmail.trim().toLowerCase(),
-          fullName: inviteFullName.trim(),
-          role: inviteRole,
-          targetPercentage: invitePct,
-          targetShares,
-          inviteToken,
-          originUrl: window.location.origin,
-        }
+      // 3. Create corporate invitation record
+      try {
+        await supabase.from("corporate_invitations" as any).insert({
+          invite_token: secureToken,
+          email: cleanEmail,
+          full_name: cleanName,
+          corporate_role: inviteRole,
+          target_percentage: invitePct,
+          target_shares: targetShares,
+          status: "PENDING_INVITATION",
+          expires_at: expiresAt,
+          invited_by_name: "ULRICH DJATÉ YAPI (Fondateur)",
+          shareholder_id: newSh?.id || null,
+        });
+      } catch (e) {
+        console.warn("Table corporate_invitations insert fallback:", e);
+      }
+
+      // 4. Log INVITATION_CREATED in audit logs
+      await logAudit("INVITATION_CREATED", "corporate_invitations", secureToken, null, {
+        email: cleanEmail,
+        name: cleanName,
+        role: inviteRole,
+        target_percentage: invitePct,
+        expires_at: expiresAt,
       });
 
-      if (edgeErr) {
-        console.error("Edge function error:", edgeErr);
-      }
+      // 5. Invoke Edge Function send-corporate-invite
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-corporate-invite", {
+        body: {
+          email: cleanEmail,
+          fullName: cleanName,
+          role: inviteRole,
+          inviteToken: secureToken,
+          originUrl: window.location.origin,
+        },
+      });
 
-      const onboardingLink = `${window.location.origin}/governance/onboarding?token=${inviteToken}&email=${encodeURIComponent(inviteEmail.trim())}`;
-      navigator.clipboard.writeText(onboardingLink);
+      if (edgeErr) console.error("Edge function error:", edgeErr);
 
+      // Update status to INVITATION_SENT if edge function sent
       if (edgeRes?.emailSent) {
-        toast.success(`Email d'invitation officiel transmis à ${inviteEmail.trim()} avec succès !`);
-      } else {
-        toast.warning(`Invitation enregistrée. Lien copié dans le presse-papier.`);
+        try {
+          await supabase
+            .from("corporate_invitations" as any)
+            .update({ status: "INVITATION_SENT", updated_at: new Date().toISOString() })
+            .eq("invite_token", secureToken);
+        } catch {}
+
+        await logAudit("INVITATION_SENT", "corporate_invitations", secureToken, null, { email: cleanEmail });
       }
+
+      const inviteUrl = `${window.location.origin}/governance/invitation/${secureToken}?email=${encodeURIComponent(cleanEmail)}`;
+      navigator.clipboard.writeText(inviteUrl);
+
+      // MANDATORY EXACT TOAST MESSAGE PER SPEC
+      toast.success("Invitation envoyée avec succès.");
+      toast.info(
+        "Cette personne doit maintenant ouvrir son invitation, vérifier son adresse email, lire les documents requis et accepter les conditions avant que sa nomination soit activée.",
+        { duration: 8000 }
+      );
 
       setIsInviteModalOpen(false);
       setInviteFullName("");
@@ -189,54 +252,119 @@ export default function CorporateGovernance() {
     }
   };
 
-  const handleConfirmShareholder = async (shId: string, name: string) => {
+  // ACTIVATE ROLE (ACCEPTED -> ACTIVE)
+  const handleActivateRole = async (s: any, inv: any) => {
     try {
+      const timestamp = new Date().toISOString();
+
+      // 1. Update shareholder status to active/completed
       await supabase
         .from("corporate_shareholders" as any)
         .update({
           onboarding_completed: true,
           onboarding_level: 7,
-          updated_at: new Date().toISOString(),
+          updated_at: timestamp,
         })
-        .eq("id", shId);
+        .eq("id", s.id);
 
-      toast.success(`Le membre ${name} a été confirmé et activé comme administrateur officiel !`);
+      // 2. Update invitation status to ACTIVE
+      if (inv?.id) {
+        await supabase
+          .from("corporate_invitations" as any)
+          .update({
+            status: "ACTIVE",
+            activated_at: timestamp,
+            updated_at: timestamp,
+          })
+          .eq("id", inv.id);
+      }
+
+      // 3. Log ROLE_ACTIVATED in audit logs
+      await logAudit("ROLE_ACTIVATED", "corporate_shareholders", s.id, { status: "ACCEPTED" }, { status: "ACTIVE", role: s.corporate_role });
+
+      toast.success(`Le rôle de ${s.full_name} a été activé avec succès ! Il bénéficie maintenant des accès actifs.`);
       fetchCorporateData();
     } catch (err: any) {
-      toast.error("Erreur lors de la confirmation");
+      toast.error("Erreur lors de l'activation du rôle");
     }
   };
 
-  const handleResendInvite = async (s: any) => {
+  // RESEND INVITATION
+  const handleResendInvite = async (s: any, inv?: any) => {
     try {
-      const inviteToken = `inv-${Date.now()}`;
-      const onboardingLink = `${window.location.origin}/governance/onboarding?token=${inviteToken}&email=${encodeURIComponent(s.email)}`;
-      
-      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-corporate-invite", {
+      const secureToken = `inv-sec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const inviteUrl = `${window.location.origin}/governance/invitation/${secureToken}?email=${encodeURIComponent(s.email)}`;
+
+      // 1. Update or create invitation record with new token and extended expiration
+      if (inv?.id) {
+        await supabase
+          .from("corporate_invitations" as any)
+          .update({
+            invite_token: secureToken,
+            status: "INVITATION_SENT",
+            expires_at: expiresAt,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", inv.id);
+      } else {
+        await supabase.from("corporate_invitations" as any).insert({
+          invite_token: secureToken,
+          email: s.email,
+          full_name: s.full_name,
+          corporate_role: s.corporate_role,
+          target_percentage: s.allocation?.target_percentage || 10,
+          status: "INVITATION_SENT",
+          expires_at: expiresAt,
+          shareholder_id: s.id,
+        });
+      }
+
+      // 2. Invoke Edge Function
+      const { data: edgeRes } = await supabase.functions.invoke("send-corporate-invite", {
         body: {
           email: s.email,
           fullName: s.full_name,
           role: s.corporate_role,
-          targetPercentage: s.allocation?.target_percentage || 10,
-          targetShares: s.allocation?.target_shares || 100000,
-          inviteToken,
+          inviteToken: secureToken,
           originUrl: window.location.origin,
-        }
+        },
       });
 
-      if (edgeErr) {
-        console.error("Resend edge function error:", edgeErr);
-      }
+      // 3. Log RESEND_INVITATION in audit log
+      await logAudit("RESEND_INVITATION", "corporate_invitations", secureToken, null, { email: s.email, new_token: secureToken });
 
-      navigator.clipboard.writeText(onboardingLink);
-
-      if (edgeRes?.emailSent) {
-        toast.success(`Email d'invitation renvoyé à ${s.full_name} (${s.email}) avec succès !`);
-      } else {
-        toast.warning(`Lien copié pour ${s.full_name}. Transmettez-lui directement le lien.`);
-      }
+      navigator.clipboard.writeText(inviteUrl);
+      toast.success(`Invitation renvoyée avec succès à ${s.full_name} (${s.email}) !`);
+      fetchCorporateData();
     } catch (e) {
-      toast.error("Erreur lors de la ré-expédition");
+      toast.error("Erreur lors du renvoi de l'invitation");
+    }
+  };
+
+  // REVOKE / CANCEL INVITATION
+  const handleRevokeInvite = async (invOrSh: any) => {
+    try {
+      const timestamp = new Date().toISOString();
+      const email = invOrSh.email;
+
+      // Update corporate_invitations status to REVOKED
+      await supabase
+        .from("corporate_invitations" as any)
+        .update({
+          status: "REVOKED",
+          revoked_at: timestamp,
+          updated_at: timestamp,
+        })
+        .eq("email", email);
+
+      // Log INVITATION_REVOKED in audit log
+      await logAudit("INVITATION_REVOKED", "corporate_invitations", invOrSh.id || email, null, { email });
+
+      toast.info(`Invitation pour ${email} révoquée/annulée avec succès.`);
+      fetchCorporateData();
+    } catch (e) {
+      toast.error("Erreur lors de l'annulation de l'invitation");
     }
   };
 
@@ -253,15 +381,23 @@ export default function CorporateGovernance() {
 
   // Cap Table Metrics
   const totalShares = company?.total_authorized_shares || 1000000;
-  const mainFounderAllocation = shareholders.find(s => s.is_main_founder || s.email.includes("djateulrich"))?.allocation;
+  const mainFounderAllocation = shareholders.find((s) => s.is_main_founder || s.email.includes("djateulrich"))?.allocation;
   const mainFounderPct = mainFounderAllocation?.target_percentage || 80;
 
-  const vestingBeneficiariesCount = shareholders.filter(s => !s.is_main_founder && !s.email.includes("djateulrich")).length;
+  const vestingBeneficiariesCount = shareholders.filter((s) => !s.is_main_founder && !s.email.includes("djateulrich")).length;
   const totalAllocatedPct = shareholders.reduce((acc, s) => acc + (s.allocation?.target_percentage || 0), 0);
+
+  const roleLabels: Record<string, string> = {
+    co_founder: "Cofondateur",
+    cofounder: "Cofondateur",
+    shareholder: "Associé",
+    investor: "Investisseur",
+    corporate_admin: "Administrateur",
+    founder: "Fondateur",
+  };
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white p-4 sm:p-6 lg:p-8 space-y-8">
-      
       {/* 1. BRANDING BANNER HEADER */}
       <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -271,7 +407,7 @@ export default function CorporateGovernance() {
             </div>
             <div>
               <span className="text-[10px] font-extrabold tracking-widest text-emerald-400 uppercase">ECOMFY CORPORATE SYSTEM</span>
-              <h1 className="text-2xl sm:text-3xl font-space font-extrabold text-white">Gouvernance, Cap Table & Vesting</h1>
+              <h1 className="text-2xl sm:text-3xl font-space font-extrabold text-white">Gouvernance, Cap Table & Invitations</h1>
             </div>
           </div>
           <Badge className="bg-[#0E7C66]/20 text-emerald-400 border border-[#0E7C66]/40 px-3 py-1 font-bold">
@@ -281,15 +417,21 @@ export default function CorporateGovernance() {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
-            Gestion du Cap Table, moteurs de vesting, documentation juridique, traçabilité des décisions et onboarding des associés.
+            Gestion des invitations formelles de gouvernance, suivi du workflow à 8 étapes, Cap Table et validation des nominations.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => setIsInviteModalOpen(true)} className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-purple-900/30">
+            <Button
+              onClick={() => setIsInviteModalOpen(true)}
+              className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-purple-900/30"
+            >
               <Mail className="w-4 h-4" />
-              <span>Inviter un Associé par Email</span>
+              <span>Inviter une personne (Associé, Cofondateur...)</span>
             </Button>
-            <Button onClick={() => setIsProposalDialogOpen(true)} className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-[#0E7C66]/20">
+            <Button
+              onClick={() => setIsProposalDialogOpen(true)}
+              className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-[#0E7C66]/20"
+            >
               <PlusCircle className="w-4 h-4" />
               <span>Nouvelle Proposal Cap Table</span>
             </Button>
@@ -345,32 +487,35 @@ export default function CorporateGovernance() {
       </div>
 
       {/* 3. MAIN OPERATIONAL TABS */}
-      <Tabs defaultValue="captable" className="w-full">
+      <Tabs defaultValue="invitations" className="w-full">
         <TabsList className="bg-slate-900 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1.5">
+          <TabsTrigger value="invitations" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+            <Mail className="w-4 h-4" /> Invitations & Nominations ({shareholders.length})
+          </TabsTrigger>
           <TabsTrigger value="captable" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
             <PieChart className="w-4 h-4" /> Cap Table
           </TabsTrigger>
           <TabsTrigger value="vesting" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
             <Clock className="w-4 h-4" /> Moteur de Vesting
           </TabsTrigger>
-          <TabsTrigger value="proposals" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <FileText className="w-4 h-4" /> Proposals & Modifications
-          </TabsTrigger>
           <TabsTrigger value="documents" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
             <FileCheck className="w-4 h-4" /> Centre Documentaire
           </TabsTrigger>
+          <TabsTrigger value="audit" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+            <Activity className="w-4 h-4" /> Audit Logs ({auditLogs.length})
+          </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: CAP TABLE TABLE */}
-        <TabsContent value="captable" className="mt-6">
+        {/* TAB 1: INVITATIONS & NOMINATIONS TABLE */}
+        <TabsContent value="invitations" className="mt-6 space-y-6">
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
             <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                  <PieChart className="w-5 h-5 text-emerald-400" /> Cap Table & Statut de Confirmation des Associés
+                  <Mail className="w-5 h-5 text-emerald-400" /> Suivi du Workflow d'Invitation & Statut des Membres
                 </CardTitle>
                 <CardDescription className="text-slate-400 text-xs mt-1">
-                  Les membres doivent consulter et signer électroniquement les statuts pour passer au statut d'administrateur actif.
+                  Les membres doivent ouvrir leur invitation, vérifier leur email, lire les statuts obligatoires et accepter les conditions avant activation par le fondateur.
                 </CardDescription>
               </div>
             </CardHeader>
@@ -379,19 +524,28 @@ export default function CorporateGovernance() {
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
-                      <th className="p-4">Associé / Membre</th>
-                      <th className="p-4">Rôle Corporate</th>
-                      <th className="p-4">Participation</th>
-                      <th className="p-4">Actions</th>
-                      <th className="p-4">Statut d'Approbation</th>
-                      <th className="p-4">Actions de Validation</th>
+                      <th className="p-4">Membre Invité</th>
+                      <th className="p-4">Rôle Proposé / Statut</th>
+                      <th className="p-4">Attribution</th>
+                      <th className="p-4">Timeline de Progression (8 Étapes)</th>
+                      <th className="p-4">Actions Fondateur</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
                     {shareholders.map((s) => {
                       const isMain = s.is_main_founder || s.email.includes("djateulrich");
-                      const isConfirmed = isMain || s.onboarding_completed;
+                      const inv = invitations.find((i) => i.email.toLowerCase() === s.email.toLowerCase());
+                      const invStatus = inv?.status || (s.onboarding_completed ? "ACTIVE" : "INVITATION_SENT");
+                      const isActivated = isMain || invStatus === "ACTIVE" || (s.onboarding_completed && invStatus !== "ACCEPTED");
+                      const isAccepted = invStatus === "ACCEPTED";
                       const alloc = s.allocation;
+
+                      const roleTitle = roleLabels[s.corporate_role] || s.corporate_role;
+                      const statusBadgeText = isMain
+                        ? "Fondateur Principal (Actif)"
+                        : isActivated
+                        ? `${roleTitle.toUpperCase()} ACTIF`
+                        : `${roleTitle.toUpperCase()} — INVITATION EN ATTENTE`;
 
                       return (
                         <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
@@ -403,64 +557,121 @@ export default function CorporateGovernance() {
                             )}
                             <div>
                               <div>{s.full_name}</div>
-                              <div className="text-[11px] font-normal text-slate-500">{s.email}</div>
+                              <div className="text-[11px] font-normal text-slate-500 font-mono">{s.email}</div>
                             </div>
                           </td>
 
-                          <td className="p-4">
-                            {isMain ? (
-                              <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
-                                Fondateur Principal
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold uppercase">
-                                {s.corporate_role || 'Associé / Vesting'}
-                              </Badge>
+                          <td className="p-4 space-y-1">
+                            <div>
+                              {isMain ? (
+                                <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
+                                  {statusBadgeText}
+                                </Badge>
+                              ) : isActivated ? (
+                                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1.5 w-fit">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> {statusBadgeText}
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold animate-pulse flex items-center gap-1.5 w-fit">
+                                  <Clock className="w-3.5 h-3.5" /> {statusBadgeText}
+                                </Badge>
+                              )}
+                            </div>
+                            {!isMain && (
+                              <div className="text-[10px] text-slate-500">
+                                Statut interne : <strong className="text-slate-300 font-mono">{invStatus}</strong>
+                              </div>
                             )}
                           </td>
 
                           <td className="p-4 font-extrabold text-emerald-400 text-sm">
                             {alloc?.target_percentage || 10} %
+                            <div className="text-[10px] font-normal font-mono text-slate-400">
+                              {(alloc?.target_shares || 100000).toLocaleString()} actions
+                            </div>
                           </td>
 
-                          <td className="p-4 font-mono">
-                            {(alloc?.target_shares || 100000).toLocaleString()}
-                          </td>
-
-                          <td className="p-4">
-                            {isConfirmed ? (
-                              <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1.5 w-fit">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Membre Officiel Actif
-                              </Badge>
+                          {/* TIMELINE DES 8 ÉTAPES */}
+                          <td className="p-4 min-w-[280px]">
+                            {isMain ? (
+                              <span className="text-[11px] text-amber-400 font-medium">Validation initiale membre fondateur ✓</span>
                             ) : (
-                              <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse font-bold flex items-center gap-1.5 w-fit">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> En attente de signature & approbation
-                              </Badge>
+                              <div className="space-y-1.5 text-[10px]">
+                                <div className="grid grid-cols-4 gap-1">
+                                  <span className={`p-1 rounded text-center font-bold ${["PENDING_INVITATION", "INVITATION_SENT", "INVITATION_OPENED", "EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                    1. Créée ✓
+                                  </span>
+                                  <span className={`p-1 rounded text-center font-bold ${["INVITATION_SENT", "INVITATION_OPENED", "EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                    2. Envoyée ✓
+                                  </span>
+                                  <span className={`p-1 rounded text-center font-bold ${["INVITATION_OPENED", "EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                    3. Ouverte ✓
+                                  </span>
+                                  <span className={`p-1 rounded text-center font-bold ${["EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                    4. Email vérifié ✓
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1">
+                                  <span className={`p-1 rounded text-center font-bold ${["DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                    5. Docs lus ✓
+                                  </span>
+                                  <span className={`p-1 rounded text-center font-bold ${["ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                    6. Signé ✓
+                                  </span>
+                                  <span className={`p-1 rounded text-center font-bold ${["ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-purple-500/30 text-purple-300 font-extrabold' : 'bg-slate-800 text-slate-500'}`}>
+                                    7. Acceptée ✓
+                                  </span>
+                                  <span className={`p-1 rounded text-center font-bold ${invStatus === "ACTIVE" || s.onboarding_completed ? 'bg-emerald-600 text-white font-extrabold' : 'bg-slate-800 text-slate-500'}`}>
+                                    8. Activée ✓
+                                  </span>
+                                </div>
+                              </div>
                             )}
                           </td>
 
+                          {/* ACTIONS FONDATEUR */}
                           <td className="p-4">
                             {!isMain && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleResendInvite(s)}
-                                  className="h-7 text-[11px] border-slate-700 text-slate-300 hover:text-white rounded-lg gap-1"
-                                  title="Renvoyer l'email d'invitation"
-                                >
-                                  <Send className="w-3 h-3 text-purple-400" /> Renvoyer Mail
-                                </Button>
-
-                                {!isConfirmed && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {isAccepted && !isActivated && (
                                   <Button
                                     size="sm"
-                                    onClick={() => handleConfirmShareholder(s.id, s.full_name)}
-                                    className="h-7 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg gap-1"
-                                    title="Confirmer définitivement l'associé"
+                                    onClick={() => handleActivateRole(s, inv)}
+                                    className="h-7 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-lg gap-1 shadow-md shadow-emerald-900/40"
+                                    title="Valider et Activer le rôle"
                                   >
-                                    <UserCheck className="w-3 h-3" /> Valider Membre
+                                    <UserCheck className="w-3.5 h-3.5" /> VALIDER & ACTIVER RÔLE
                                   </Button>
+                                )}
+
+                                {!isActivated && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleResendInvite(s, inv)}
+                                      className="h-7 text-[11px] border-slate-700 text-slate-300 hover:text-white rounded-lg gap-1"
+                                      title="Renvoyer l'email d'invitation avec nouveau token"
+                                    >
+                                      <RefreshCw className="w-3 h-3 text-purple-400" /> Renvoyer
+                                    </Button>
+
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleRevokeInvite(inv || s)}
+                                      className="h-7 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-lg gap-1"
+                                      title="Annuler/Révoquer cette invitation"
+                                    >
+                                      <Ban className="w-3 h-3" /> Annuler
+                                    </Button>
+                                  </>
+                                )}
+
+                                {isActivated && (
+                                  <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Membre Actif
+                                  </span>
                                 )}
                               </div>
                             )}
@@ -475,22 +686,49 @@ export default function CorporateGovernance() {
           </Card>
         </TabsContent>
 
-        {/* TAB 2: VESTING ENGINE */}
-        <TabsContent value="vesting" className="mt-6 space-y-6">
+        {/* TAB 2: CAP TABLE */}
+        <TabsContent value="captable" className="mt-6">
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6">
+            <CardHeader className="p-0 mb-4">
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-purple-400" /> Suivi du Vesting des Associés
+                <PieChart className="w-5 h-5 text-emerald-400" /> Cap Table Officiel Ecomfy SAS (1 000 000 Actions)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="space-y-4">
-                {shareholders.filter(s => !s.is_main_founder).map((s) => (
+                {shareholders.map((s) => (
+                  <div key={s.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white">{s.full_name}</div>
+                      <div className="text-xs text-slate-400">{s.email}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-extrabold text-emerald-400">{s.allocation?.target_percentage || 10}%</div>
+                      <div className="text-xs text-slate-400 font-mono font-bold">{(s.allocation?.target_shares || 100000).toLocaleString()} actions</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 3: VESTING ENGINE */}
+        <TabsContent value="vesting" className="mt-6 space-y-6">
+          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
+            <CardHeader className="p-0 mb-6">
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-purple-400" /> Suivi du Vesting des Associés (Cliff 12m / Vesting 48m)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="space-y-4">
+                {shareholders.filter((s) => !s.is_main_founder).map((s) => (
                   <div key={s.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-white">{s.full_name} ({s.email})</span>
                       <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                        Cliff 12 Mois / Vesting 48 Mois
+                        Vesting 48 Mois (Cliff 12 Mois)
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
@@ -500,18 +738,6 @@ export default function CorporateGovernance() {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 3: PROPOSALS */}
-        <TabsContent value="proposals" className="mt-6">
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-4">
-              <CardTitle className="text-lg font-bold text-white">Propositions de modification du Cap Table</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <p className="text-xs text-slate-400">Toutes les modifications du Cap Table doivent faire l'objet d'une proposal validée à 9 étapes.</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -528,7 +754,10 @@ export default function CorporateGovernance() {
               {documents.map((doc) => (
                 <div key={doc.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
                   <div className="space-y-1">
-                    <span className="font-bold text-sm text-white">{doc.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white">{doc.title}</span>
+                      <Badge className="bg-slate-800 text-slate-300 text-[10px]">{doc.current_version}</Badge>
+                    </div>
                     <p className="text-xs text-slate-400">{doc.summary || "Document officiel Ecomfy SAS"}</p>
                   </div>
                   <Button
@@ -546,23 +775,54 @@ export default function CorporateGovernance() {
             </div>
           </Card>
         </TabsContent>
+
+        {/* TAB 5: AUDIT LOGS */}
+        <TabsContent value="audit" className="mt-6">
+          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <Activity className="w-5 h-5 text-emerald-400" /> Audit Log Historique Governance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-2">
+                {auditLogs.map((log) => (
+                  <div key={log.id} className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-mono">
+                          {log.action}
+                        </Badge>
+                        <span className="text-slate-300 font-bold">{log.user_email || 'Système'}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono">Entity: {log.target_entity} ({log.entity_id || 'n/a'})</div>
+                    </div>
+                    <div className="text-right text-[10px] text-slate-400 font-mono">
+                      {new Date(log.timestamp).toLocaleString('fr-FR')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
-      {/* MODAL 1: INVITE SHAREHOLDER VIA EMAIL */}
+      {/* MODAL 1: INVITE MEMBER VIA EMAIL */}
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
         <DialogContent className="bg-slate-900 border-slate-800 text-white rounded-3xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Mail className="w-5 h-5 text-purple-400" /> Invitation Officielle Associé / Cofondateur
+              <Mail className="w-5 h-5 text-purple-400" /> Créer une Invitation de Gouvernance
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-xs">
-              Envoie un email réel et génère le lien sécurisé d'intégration pour signature des statuts Ecomfy.
+              Envoie une invitation par email avec un token sécurisé unique (expiration 7 jours). Le membre devra consulter les statuts et accepter les conditions avant activation.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSendInviteSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Nom Complet du Membre</label>
+              <label className="text-xs font-semibold text-slate-300">Nom Complet du Destinataire</label>
               <Input
                 placeholder="Ex: DÉSIRÉ TANO"
                 value={inviteFullName}
@@ -585,16 +845,16 @@ export default function CorporateGovernance() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Rôle Corporate Attribué</label>
+              <label className="text-xs font-semibold text-slate-300">Rôle Proposé</label>
               <Select value={inviteRole} onValueChange={setInviteRole}>
                 <SelectTrigger className="bg-slate-950 border-slate-800 rounded-xl">
                   <SelectValue placeholder="Sélectionner le rôle" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                  <SelectItem value="co_founder">Co-Fondateur</SelectItem>
-                  <SelectItem value="shareholder">Associé / Shareholder</SelectItem>
+                  <SelectItem value="cofounder">Cofondateur</SelectItem>
+                  <SelectItem value="shareholder">Associé / Actionnaire</SelectItem>
                   <SelectItem value="investor">Investisseur</SelectItem>
-                  <SelectItem value="corporate_admin">Administrateur Corporate</SelectItem>
+                  <SelectItem value="corporate_admin">Administrateur Autorisé</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -611,13 +871,24 @@ export default function CorporateGovernance() {
               />
             </div>
 
+            {/* Récapitulatif exigé */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5 text-xs text-slate-300">
+              <div className="font-bold text-emerald-400 mb-1">RÉCAPITULATIF DE L'INVITATION</div>
+              <div>• Nom : <strong>{inviteFullName || '—'}</strong></div>
+              <div>• Email : <strong className="font-mono">{inviteEmail || '—'}</strong></div>
+              <div>• Rôle proposé : <strong className="text-purple-300">{roleLabels[inviteRole] || inviteRole}</strong></div>
+              <div>• Participation : <strong>{invitePct}%</strong> ({((invitePct / 100) * totalShares).toLocaleString()} actions)</div>
+              <div>• Documents requis : <strong>3 Documents Statutaires</strong></div>
+              <div>• Durée de validité : <strong>7 Jours</strong></div>
+            </div>
+
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setIsInviteModalOpen(false)} className="rounded-xl border-slate-700">
                 Annuler
               </Button>
               <Button type="submit" disabled={isSendingInvite} className="bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl gap-2">
                 {isSendingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Envoyer l'Email & Générer Lien
+                ENVOYER L'INVITATION
               </Button>
             </DialogFooter>
           </form>

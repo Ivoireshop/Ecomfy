@@ -261,6 +261,10 @@ const AppContent = () => {
             element={<CorporateOnboardingPage />}
           />
           <Route
+            path="/governance/invitation/:token"
+            element={<CorporateOnboardingPage />}
+          />
+          <Route
             path="/governance/documents/:documentId"
             element={
               <FounderRoute>

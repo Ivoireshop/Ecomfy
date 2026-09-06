@@ -197,3 +197,46 @@ export interface CorporateAuditLog {
   ip_address: string | null;
   timestamp: string;
 }
+
+export type GovernanceInvitationStatus =
+  | 'PENDING_INVITATION'
+  | 'INVITATION_SENT'
+  | 'INVITATION_OPENED'
+  | 'EMAIL_VERIFIED'
+  | 'DOCUMENTS_PENDING'
+  | 'DOCUMENTS_READ'
+  | 'APPROVAL_PENDING'
+  | 'ACCEPTED'
+  | 'ACTIVE'
+  | 'DECLINED'
+  | 'EXPIRED'
+  | 'REVOKED';
+
+export interface CorporateInvitation {
+  id: string;
+  invite_token: string;
+  email: string;
+  full_name: string;
+  corporate_role: CorporateRole;
+  target_percentage: number;
+  target_shares: number;
+  invited_by?: string | null;
+  invited_by_name?: string | null;
+  status: GovernanceInvitationStatus;
+  expires_at: string;
+  opened_at?: string | null;
+  email_verified_at?: string | null;
+  documents_read_at?: string | null;
+  accepted_at?: string | null;
+  activated_at?: string | null;
+  declined_at?: string | null;
+  revoked_at?: string | null;
+  read_document_ids?: string[];
+  read_document_versions?: Record<string, string>;
+  legal_declaration_signed?: boolean;
+  signer_full_name?: string | null;
+  shareholder_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+

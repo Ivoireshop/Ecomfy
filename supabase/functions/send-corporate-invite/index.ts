@@ -15,7 +15,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { email, fullName, role, targetPercentage, targetShares, inviteToken, originUrl } = await req.json();
+    const { email, fullName, role, inviteToken, originUrl } = await req.json();
 
     if (!email || !fullName) {
       return new Response(
@@ -25,13 +25,23 @@ serve(async (req: Request) => {
     }
 
     const baseUrl = originUrl || "https://ecomfy.cloud";
-    const onboardingUrl = `${baseUrl}/governance/onboarding?token=${inviteToken || 'demo-token'}&email=${encodeURIComponent(email)}`;
+    const inviteUrl = `${baseUrl}/governance/invitation/${inviteToken || 'demo-token'}?email=${encodeURIComponent(email)}`;
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     let emailSent = false;
     let emailResponseData = null;
     let usedSender = null;
+
+    const roleLabels: Record<string, string> = {
+      co_founder: "Cofondateur",
+      cofounder: "Cofondateur",
+      shareholder: "Associé / Actionnaire",
+      investor: "Investisseur",
+      corporate_admin: "Administrateur Autorisé",
+      founder: "Fondateur",
+    };
+    const displayRole = roleLabels[role] || role || "Associé";
 
     if (resendApiKey) {
       const emailHtml = `
@@ -40,59 +50,58 @@ serve(async (req: Request) => {
         <head>
           <meta charset="utf-8">
           <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #090D16; color: #E2E8F0; margin: 0; padding: 40px 20px; }
-            .container { max-width: 600px; margin: 0 auto; background: #0F172A; border: 1px solid #1E293B; border-radius: 20px; padding: 40px; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #090D16; color: #E2E8F0; margin: 0; padding: 40px 20px; }
+            .container { max-width: 580px; margin: 0 auto; background: #0F172A; border: 1px solid #1E293B; border-radius: 20px; padding: 40px; }
             .logo { font-size: 24px; font-weight: 800; color: #0E7C66; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px; }
-            .badge { display: inline-block; background: rgba(14, 124, 102, 0.2); color: #34D399; border: 1px solid rgba(14, 124, 102, 0.4); padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; margin-bottom: 16px; }
-            h1 { font-size: 22px; font-weight: 700; color: #FFFFFF; margin-top: 0; }
-            p { font-size: 14px; line-height: 1.6; color: #94A3B8; }
-            .summary-box { background: #182238; border: 1px solid #334155; border-radius: 14px; padding: 20px; margin: 24px 0; }
-            .summary-item { display: flex; justify-between: space-between; margin-bottom: 8px; font-size: 13px; }
-            .summary-label { color: #64748B; font-weight: 600; }
-            .summary-val { color: #34D399; font-weight: 700; font-family: monospace; }
-            .btn { display: inline-block; background: #0E7C66; color: #FFFFFF; font-weight: 700; font-size: 14px; padding: 14px 28px; text-decoration: none; border-radius: 12px; margin-top: 16px; box-shadow: 0 4px 14px rgba(14, 124, 102, 0.4); }
-            .footer { margin-top: 32px; font-size: 11px; color: #475569; text-align: center; border-top: 1px solid #1E293B; padding-top: 20px; }
+            .badge { display: inline-block; background: rgba(14, 124, 102, 0.2); color: #34D399; border: 1px solid rgba(14, 124, 102, 0.4); padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; margin-bottom: 20px; letter-spacing: 1px; }
+            h1 { font-size: 20px; font-weight: 700; color: #FFFFFF; margin-top: 0; margin-bottom: 16px; }
+            p { font-size: 14px; line-height: 1.6; color: #94A3B8; margin-bottom: 16px; }
+            .role-card { background: #182238; border: 1px solid #334155; border-radius: 12px; padding: 16px 20px; margin: 24px 0; text-align: center; }
+            .role-label { font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+            .role-value { font-size: 18px; color: #34D399; font-weight: 800; margin-top: 4px; }
+            .btn-container { text-align: center; margin: 32px 0 24px 0; }
+            .btn { display: inline-block; background: #0E7C66; color: #FFFFFF; font-weight: 700; font-size: 14px; padding: 14px 28px; text-decoration: none; border-radius: 12px; box-shadow: 0 4px 14px rgba(14, 124, 102, 0.4); }
+            .link-fallback { font-size: 12px; color: #64748B; word-break: break-all; margin-top: 20px; }
+            .footer { margin-top: 36px; font-size: 11px; color: #475569; text-align: center; border-top: 1px solid #1E293B; padding-top: 20px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="logo">ECOMFY</div>
-            <div class="badge">INVITATION OFFICIELLE GOUVERNANCE</div>
+            <div class="badge">INVITATION OFFICIELLE</div>
             <h1>Bonjour ${fullName},</h1>
-            <p>Le Fondateur Principal de <strong>Ecomfy SAS</strong> vous invite à rejoindre officiellement la structure de gouvernance et l'actionnariat de la société.</p>
+            <p>Vous avez été invité(e) par le fondateur d'Ecomfy à rejoindre la gouvernance de la plateforme en qualité de :</p>
             
-            <div class="summary-box">
-              <div class="summary-item">
-                <span class="summary-label">Rôle attribué :</span>
-                <span class="summary-val" style="color:#A855F7;">${role || 'Associé / Vesting'}</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">Participation Cible :</span>
-                <span class="summary-val">${targetPercentage || 10}%</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">Actions attribuées :</span>
-                <span class="summary-val">${(targetShares || 100000).toLocaleString()} actions</span>
-              </div>
+            <div class="role-card">
+              <div class="role-label">Rôle Proposé</div>
+              <div class="role-value">${displayRole}</div>
             </div>
 
-            <p>Conformément aux protocoles juridiques de la société, vous devez consulter les documents statutaires et valider votre signature électronique d'engagement pour confirmer votre intégration.</p>
+            <p>Avant l'activation de votre statut, vous devez consulter les informations et documents qui vous sont destinés, en prendre connaissance et confirmer votre acceptation.</p>
 
-            <a href="${onboardingUrl}" class="btn">CONSULTER & SIGNER LES DOCUMENTS STATUTAIRES</a>
+            <div class="btn-container">
+              <a href="${inviteUrl}" class="btn">CONSULTER MON INVITATION</a>
+            </div>
 
-            <p style="font-size: 12px; color: #64748B; margin-top: 20px;">
-              Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br/>
-              <a href="${onboardingUrl}" style="color: #38BDF8; word-break: break-all;">${onboardingUrl}</a>
+            <p class="link-fallback">
+              Si le bouton ne s'affiche pas correctement, copiez ce lien sécurisé dans votre navigateur :<br/>
+              <a href="${inviteUrl}" style="color: #38BDF8;">${inviteUrl}</a>
+            </p>
+
+            <p style="font-size: 12px; color: #64748B; margin-top: 24px;">
+              <em>Cette invitation est personnelle et ne doit pas être transférée.</em>
             </p>
 
             <div class="footer">
-              Cet email contient un lien sécurisé d'intégration unique.<br>
-              Ecomfy SAS — Plateforme Multi-tenant E-commerce & Gouvernance.
+              Ecomfy SAS — Plateforme Multi-tenant E-commerce & Gouvernance.<br/>
+              © 2026 Ecomfy Inc. Tous droits réservés.
             </div>
           </div>
         </body>
         </html>
       `;
+
+      const subject = "Vous êtes invité(e) à rejoindre la gouvernance d'Ecomfy";
 
       // 1. Primary attempt: custom domain
       const primaryFrom = "Gouvernance Ecomfy <gouvernance@ecomfy.cloud>";
@@ -105,7 +114,7 @@ serve(async (req: Request) => {
         body: JSON.stringify({
           from: primaryFrom,
           to: [email],
-          subject: "Invitation Officielle — Gouvernance & Actionnariat Ecomfy",
+          subject,
           html: emailHtml,
         }),
       });
@@ -128,7 +137,7 @@ serve(async (req: Request) => {
           body: JSON.stringify({
             from: fallbackFrom,
             to: [email],
-            subject: "Invitation Officielle — Gouvernance & Actionnariat Ecomfy",
+            subject,
             html: emailHtml,
           }),
         });
@@ -150,10 +159,10 @@ serve(async (req: Request) => {
         success: true,
         emailSent,
         usedSender,
-        onboardingUrl,
+        inviteUrl,
         emailResponseData,
         message: emailSent
-          ? `Invitation envoyée par email à ${email} avec succès !`
+          ? `Invitation envoyée avec succès.`
           : "Lien d'invitation généré avec succès. Transmettez le lien sécurisé à l'associé."
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -165,4 +174,5 @@ serve(async (req: Request) => {
     );
   }
 });
+
 
