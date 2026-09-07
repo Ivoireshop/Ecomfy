@@ -9,6 +9,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingTrust } from "@/components/landing/LandingTrust";
 import { LandingPositioning } from "@/components/landing/LandingPositioning";
+import { LandingTopSellers } from "@/components/landing/LandingTopSellers";
 import { LandingPillarCreate } from "@/components/landing/LandingPillarCreate";
 import { LandingPillarSell } from "@/components/landing/LandingPillarSell";
 import { LandingPillarAI } from "@/components/landing/LandingPillarAI";
@@ -69,6 +70,9 @@ const Index = () => {
 
         {/* Positionnement global */}
         <LandingPositioning />
+
+        {/* Section Preuve Sociale : Top Vendeurs Ecomfy */}
+        <LandingTopSellers />
 
         {/* Fonctionnalités principales (Sticky Scroll) */}
         <LandingPillarCreate />
