@@ -56,6 +56,22 @@ export const deliveryService = {
    * Part 2: Register a new delivery company application
    */
   async registerDeliveryCompany(payload: RegisterCompanyPayload): Promise<DeliveryCompany> {
+    console.log("[DeliveryService] Initiating delivery company registration payload:", {
+      company_name: payload.company_name,
+      country: payload.country,
+      city: payload.city,
+      drivers_count: payload.drivers?.length,
+      hubs_count: payload.hubs?.length,
+    });
+
+    // 0. Payload Pre-checks
+    if (!payload.company_name?.trim()) throw new Error("Le nom de la structure de livraison est requis.");
+    if (!payload.manager_name?.trim()) throw new Error("Le nom du responsable est requis.");
+    if (!payload.manager_phone?.trim()) throw new Error("Le téléphone du responsable est requis.");
+    if (!payload.warehouse_photo_url) throw new Error("La photo de l'entrepôt principal est requise.");
+    if (!payload.manager_photo_url) throw new Error("La photo de profil du gérant est requise.");
+    if (!payload.manager_id_photo_url) throw new Error("La pièce d'identité du gérant est requise.");
+
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
 
@@ -64,24 +80,24 @@ export const deliveryService = {
       .from("delivery_companies" as any)
       .insert({
         user_id: userId || null,
-        company_name: payload.company_name,
+        company_name: payload.company_name.trim(),
         country: payload.country,
-        country_code: payload.country_code,
-        city: payload.city,
-        headquarters_address: payload.headquarters_address,
-        manager_name: payload.manager_name,
-        manager_phone: payload.manager_phone,
-        manager_whatsapp: payload.manager_whatsapp,
+        country_code: payload.country_code || "CI",
+        city: payload.city.trim(),
+        headquarters_address: payload.headquarters_address.trim(),
+        manager_name: payload.manager_name.trim(),
+        manager_phone: payload.manager_phone.trim(),
+        manager_whatsapp: payload.manager_whatsapp.trim(),
         manager_photo_url: payload.manager_photo_url,
         manager_id_photo_url: payload.manager_id_photo_url,
-        owner_photo_url: payload.owner_photo_url,
+        owner_photo_url: payload.owner_photo_url || payload.manager_photo_url,
         warehouse_photo_url: payload.warehouse_photo_url,
-        has_tax_registration: payload.has_tax_registration,
+        has_tax_registration: payload.has_tax_registration || false,
         tax_id_number: payload.tax_id_number || null,
         tax_document_url: payload.tax_document_url || null,
         trade_register_number: payload.trade_register_number || null,
-        covered_cities: payload.covered_cities,
-        total_drivers_count: payload.drivers.length,
+        covered_cities: payload.covered_cities || [payload.city],
+        total_drivers_count: payload.drivers?.length || 0,
         verification_status: "pending_verification",
         trust_badge_active: false,
       })
@@ -89,8 +105,9 @@ export const deliveryService = {
       .single();
 
     if (companyError || !company) {
-      console.error("Error creating delivery company:", companyError);
-      throw new Error(companyError?.message || "Erreur lors de l'enregistrement de la structure.");
+      console.error("[DeliveryService] Error inserting company:", companyError);
+      const details = companyError?.details || companyError?.hint || companyError?.message;
+      throw new Error(`Échec d'enregistrement de la structure : ${details || "Permission refusée ou contrainte de données."}`);
     }
 
     const companyId = company.id;
@@ -99,10 +116,10 @@ export const deliveryService = {
     if (payload.hubs && payload.hubs.length > 0) {
       const hubsToInsert = payload.hubs.map((hub) => ({
         company_id: companyId,
-        city: hub.city,
-        address: hub.address,
-        hub_name: hub.hub_name || `Point de stockage - ${hub.city}`,
-        phone: hub.phone || payload.manager_phone,
+        city: hub.city.trim(),
+        address: hub.address.trim(),
+        hub_name: hub.hub_name?.trim() || `Point de stockage - ${hub.city}`,
+        phone: hub.phone?.trim() || payload.manager_phone,
         photo_url: hub.photo_url || null,
       }));
 
@@ -111,7 +128,7 @@ export const deliveryService = {
         .insert(hubsToInsert);
 
       if (hubsError) {
-        console.warn("Warning: Could not save delivery hubs:", hubsError);
+        console.error("[DeliveryService] Error saving delivery hubs:", hubsError);
       }
     }
 
@@ -119,10 +136,10 @@ export const deliveryService = {
     if (payload.drivers && payload.drivers.length > 0) {
       const driversToInsert = payload.drivers.map((driver) => ({
         company_id: companyId,
-        full_name: driver.full_name,
-        phone: driver.phone,
-        whatsapp: driver.whatsapp || null,
-        vehicle_type: driver.vehicle_type,
+        full_name: driver.full_name.trim(),
+        phone: driver.phone.trim(),
+        whatsapp: driver.whatsapp?.trim() || null,
+        vehicle_type: driver.vehicle_type || "motorcycle",
         photo_url: driver.photo_url,
         national_id_photo_url: driver.national_id_photo_url,
         license_photo_url: driver.license_photo_url || null,
@@ -134,7 +151,7 @@ export const deliveryService = {
         .insert(driversToInsert);
 
       if (driversError) {
-        console.warn("Warning: Could not save delivery drivers:", driversError);
+        console.error("[DeliveryService] Error saving delivery drivers:", driversError);
       }
     }
 
