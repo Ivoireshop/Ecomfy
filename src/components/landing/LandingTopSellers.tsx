@@ -47,29 +47,29 @@ export const LandingTopSellers: React.FC = () => {
         let processed: TopSellerItem[] = [];
 
         if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
-          // Fetch additional shop details (like logo_url and name) for shop level fallback
-          const shopIds = rpcData.map((s: any) => s.shop_id).filter(Boolean);
+          // Fetch additional shop details (like logo_url and business_name) for shop level fallback
+          const shopIds = (rpcData as any[]).map((s: any) => s.shop_id).filter(Boolean);
 
-          let shopDetailsMap: Record<string, { logo_url?: string; name?: string }> = {};
+          let shopDetailsMap: Record<string, { logo_url?: string; business_name?: string }> = {};
           if (shopIds.length > 0) {
             const { data: shopsData } = await supabase
               .from("shops")
-              .select("id, logo_url, name")
+              .select("id, logo_url, business_name")
               .in("id", shopIds);
 
             if (shopsData) {
-              shopsData.forEach((s) => {
-                shopDetailsMap[s.id] = { logo_url: s.logo_url || undefined, name: s.name || undefined };
+              (shopsData as any[]).forEach((s) => {
+                shopDetailsMap[s.id] = { logo_url: s.logo_url || undefined, business_name: s.business_name || undefined };
               });
             }
           }
 
-          processed = rpcData.map((item: any) => {
+          processed = (rpcData as any[]).map((item: any) => {
             const shopExtra = shopDetailsMap[item.shop_id] || {};
             return {
               shop_id: item.shop_id,
               full_name: item.full_name || null,
-              shop_name: shopExtra.name || null,
+              shop_name: shopExtra.business_name || null,
               slug: item.slug || null,
               avatar_url: item.avatar_url || null,
               logo_url: shopExtra.logo_url || null,
@@ -81,7 +81,7 @@ export const LandingTopSellers: React.FC = () => {
           // 2. Direct Supabase Query Fallback if RPC returns no data
           const { data: directShops } = await supabase
             .from("shops")
-            .select("id, name, slug, logo_url, total_sales, total_orders, user_id, is_published, is_activated, is_suspended")
+            .select("id, business_name, slug, logo_url, total_sales, total_orders, user_id, is_published, is_activated, is_suspended")
             .eq("is_published", true)
             .eq("is_activated", true)
             .eq("is_suspended", false)
@@ -90,7 +90,7 @@ export const LandingTopSellers: React.FC = () => {
             .limit(5);
 
           if (directShops && directShops.length > 0) {
-            const userIds = directShops.map((s) => s.user_id).filter(Boolean);
+            const userIds = (directShops as any[]).map((s) => s.user_id).filter(Boolean);
             let profileMap: Record<string, { full_name?: string; avatar_url?: string }> = {};
 
             if (userIds.length > 0) {
@@ -100,18 +100,18 @@ export const LandingTopSellers: React.FC = () => {
                 .in("id", userIds);
 
               if (profiles) {
-                profiles.forEach((p) => {
+                (profiles as any[]).forEach((p) => {
                   profileMap[p.id] = { full_name: p.full_name || undefined, avatar_url: p.avatar_url || undefined };
                 });
               }
             }
 
-            processed = directShops.map((s) => {
+            processed = (directShops as any[]).map((s) => {
               const prof = profileMap[s.user_id] || {};
               return {
                 shop_id: s.id,
                 full_name: prof.full_name || null,
-                shop_name: s.name || null,
+                shop_name: s.business_name || null,
                 slug: s.slug || null,
                 avatar_url: prof.avatar_url || null,
                 logo_url: s.logo_url || null,
