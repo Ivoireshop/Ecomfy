@@ -134,7 +134,7 @@ export async function validateDocument(
 /**
  * Compresses an image to JPEG format under 300KB to ensure fast network upload & zero payload errors.
  */
-export async function compressImageForUpload(file: File, maxWidth = 1600): Promise<Blob | File> {
+export async function compressImageForUpload(file: File, maxWidth = 1600): Promise<File> {
   if (file.type === 'application/pdf') return file; // Do not compress PDF
 
   return new Promise((resolve) => {

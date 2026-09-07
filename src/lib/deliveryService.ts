@@ -110,7 +110,7 @@ export const deliveryService = {
       throw new Error(`Échec d'enregistrement de la structure : ${details || "Permission refusée ou contrainte de données."}`);
     }
 
-    const companyId = company.id;
+    const companyId = (company as any).id;
 
     // 2. Insert Storage Hubs
     if (payload.hubs && payload.hubs.length > 0) {
@@ -155,7 +155,7 @@ export const deliveryService = {
       }
     }
 
-    return company as DeliveryCompany;
+    return (company as unknown) as DeliveryCompany;
   },
 
   /**
@@ -175,7 +175,7 @@ export const deliveryService = {
       console.error("Error fetching my delivery company:", error);
       return null;
     }
-    return data as DeliveryCompany | null;
+    return (data as unknown) as DeliveryCompany | null;
   },
 
   /**
@@ -193,7 +193,7 @@ export const deliveryService = {
       return [];
     }
 
-    const list = (data || []) as DeliveryCompany[];
+    const list = ((data || []) as unknown) as DeliveryCompany[];
     if (!city) return list;
 
     // Filter or prioritize companies covering the city
@@ -224,7 +224,7 @@ export const deliveryService = {
       console.error("Error fetching admin delivery applications:", error);
       return [];
     }
-    return (data || []) as DeliveryCompany[];
+    return ((data || []) as unknown) as DeliveryCompany[];
   },
 
   /**
@@ -310,7 +310,7 @@ export const deliveryService = {
     const { error: cashErr } = await supabase
       .from("delivery_cash_transfers" as any)
       .insert({
-        dispatch_id: dispatch.id,
+        dispatch_id: (dispatch as any).id,
         company_id: payload.company_id,
         shop_id: payload.shop_id,
         cod_amount: payload.cod_amount,
@@ -324,7 +324,7 @@ export const deliveryService = {
       console.warn("Warning: Could not create cash audit entry:", cashErr);
     }
 
-    return dispatch as DeliveryDispatch;
+    return (dispatch as unknown) as DeliveryDispatch;
   },
 
   /**
@@ -490,7 +490,7 @@ export const deliveryService = {
       console.error("Error fetching shop dispatches:", error);
       return [];
     }
-    return (data || []) as DeliveryDispatch[];
+    return ((data || []) as unknown) as DeliveryDispatch[];
   },
 
   /**
@@ -507,6 +507,6 @@ export const deliveryService = {
       console.error("Error fetching company dispatches:", error);
       return [];
     }
-    return (data || []) as DeliveryDispatch[];
+    return ((data || []) as unknown) as DeliveryDispatch[];
   }
 };
