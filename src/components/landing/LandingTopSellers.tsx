@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Crown, Trophy, TrendingUp, Award, ShieldCheck, CheckCircle2, Flame, BarChart3, ArrowUpRight } from "lucide-react";
+import { Crown, Trophy, TrendingUp, Award, ShieldCheck, CheckCircle2, BarChart3, Medal, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface TopSellerItem {
@@ -140,7 +140,6 @@ export const LandingTopSellers: React.FC = () => {
 
   const top1 = sellers[0];
   const runnersUp = sellers.slice(1);
-  const totalCombinedSales = sellers.reduce((acc, curr) => acc + curr.total_sales, 0);
 
   return (
     <section className="relative py-24 bg-[#0A0F1D] text-white overflow-hidden font-['Inter',sans-serif]">
@@ -154,7 +153,7 @@ export const LandingTopSellers: React.FC = () => {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Section Header with Pure Business / Trophy Icon (No AI Sparkles) */}
+        {/* Section Header */}
         <div className="text-center space-y-4 max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#0E7C66]/20 via-slate-800 to-[#C9A84C]/20 border border-[#0E7C66]/40 text-[#E8D18C] text-xs font-bold uppercase tracking-widest backdrop-blur-xl shadow-lg shadow-[#0E7C66]/10">
             <Trophy className="w-4 h-4 text-[#C9A84C] shrink-0" />
@@ -191,7 +190,7 @@ export const LandingTopSellers: React.FC = () => {
                 {/* Avatar & Owner Identity */}
                 <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                   <div className="relative">
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-4 ring-[#C9A84C] ring-offset-4 ring-offset-slate-950 shadow-2xl bg-slate-950 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden ring-4 ring-[#C9A84C] ring-offset-4 ring-offset-slate-950 shadow-[0_0_25px_rgba(201,168,76,0.5)] bg-slate-950 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                       {top1.avatar_url || top1.logo_url ? (
                         <img
                           src={top1.avatar_url || top1.logo_url || ""}
@@ -219,7 +218,7 @@ export const LandingTopSellers: React.FC = () => {
                       {getDisplayName(top1)}
                     </h3>
 
-                    <p className="text-xs sm:text-sm text-slate-400 font-medium">
+                    <p className="text-xs sm:text-sm text-slate-300 font-medium">
                       Leader du classement général des ventes Ecomfy
                     </p>
                   </div>
@@ -230,7 +229,7 @@ export const LandingTopSellers: React.FC = () => {
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                     Chiffre d'affaires généré sur Ecomfy
                   </span>
-                  <div className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-white via-[#F3E5AB] to-[#C9A84C] bg-clip-text text-transparent font-mono tracking-tight">
+                  <div className="text-2xl sm:text-3xl lg:text-4xl font-black bg-gradient-to-r from-white via-[#F3E5AB] to-[#C9A84C] bg-clip-text text-transparent font-mono tracking-tight break-words">
                     {formatFcfa(top1.total_sales)}
                   </div>
                   <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-semibold pt-1">
@@ -247,42 +246,62 @@ export const LandingTopSellers: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {runnersUp.map((seller, index) => {
               const rank = index + 2; // Rank 2, 3, 4, 5
-              const isRank2 = rank === 2;
-              const isRank3 = rank === 3;
 
-              let rankLabel = `${rank}e`;
-              let badgeBg = "bg-slate-800/80 text-slate-300 border-slate-700";
-              let ringColor = "ring-slate-700";
-              let cardBorder = "border-slate-800 hover:border-slate-700";
+              let rankLabel = "";
+              let badgeBg = "";
+              let ringStyle = "";
+              let cardBgBorder = "";
+              let rankIcon = null;
 
-              if (isRank2) {
+              if (rank === 2) {
                 rankLabel = "🥈 2e VENDEUR";
-                badgeBg = "bg-slate-200 text-slate-950 font-black border-white shadow-md shadow-slate-200/20";
-                ringColor = "ring-slate-300";
-                cardBorder = "border-slate-700 hover:border-slate-500 shadow-slate-900/80";
-              } else if (isRank3) {
+                badgeBg = "bg-gradient-to-r from-slate-200 via-slate-100 to-gray-300 text-slate-950 font-black border-white shadow-md shadow-slate-200/20";
+                ringStyle = "ring-3 ring-slate-300 ring-offset-2 ring-offset-slate-950 shadow-[0_0_15px_rgba(203,213,225,0.4)]";
+                cardBgBorder = "bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950 border-slate-700/80 hover:border-slate-400/80 shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(203,213,225,0.2)]";
+                rankIcon = <Medal className="w-3.5 h-3.5 text-slate-900" />;
+              } else if (rank === 3) {
                 rankLabel = "🥉 3e VENDEUR";
-                badgeBg = "bg-gradient-to-r from-amber-700 to-amber-600 text-amber-100 font-black border-amber-500 shadow-md";
-                ringColor = "ring-amber-600";
-                cardBorder = "border-amber-900/50 hover:border-amber-700/60";
+                badgeBg = "bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 text-amber-50 font-black border-amber-400/50 shadow-md shadow-amber-900/30";
+                ringStyle = "ring-3 ring-amber-600 ring-offset-2 ring-offset-slate-950 shadow-[0_0_15px_rgba(217,119,6,0.3)]";
+                cardBgBorder = "bg-gradient-to-b from-slate-900/95 via-[#18120c]/90 to-slate-950 border-amber-900/60 hover:border-amber-500/70 shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(217,119,6,0.2)]";
+                rankIcon = <Medal className="w-3.5 h-3.5 text-amber-100" />;
+              } else if (rank === 4) {
+                rankLabel = "🎖️ 4e VENDEUR";
+                badgeBg = "bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-slate-200 font-bold border-slate-600/70 shadow-sm";
+                ringStyle = "ring-3 ring-emerald-500/60 ring-offset-2 ring-offset-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.25)]";
+                cardBgBorder = "bg-gradient-to-b from-slate-900/95 via-[#0c1815]/90 to-slate-950 border-slate-800 hover:border-emerald-500/60 shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(16,185,129,0.18)]";
+                rankIcon = <Star className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />;
+              } else {
+                rankLabel = "🏅 5e VENDEUR";
+                badgeBg = "bg-gradient-to-r from-zinc-800 via-slate-700 to-zinc-800 text-slate-200 font-bold border-zinc-600/70 shadow-sm";
+                ringStyle = "ring-3 ring-cyan-500/60 ring-offset-2 ring-offset-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.25)]";
+                cardBgBorder = "bg-gradient-to-b from-slate-900/95 via-[#0c1424]/90 to-slate-950 border-slate-800 hover:border-cyan-500/60 shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(6,182,212,0.18)]";
+                rankIcon = <Star className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400" />;
               }
 
               return (
                 <div
                   key={seller.shop_id}
-                  className={`relative rounded-2xl bg-slate-900/90 border ${cardBorder} p-6 flex flex-col justify-between hover:-translate-y-2 transition-all duration-300 backdrop-blur-xl shadow-xl group`}
+                  className={`relative rounded-2xl border ${cardBgBorder} p-5 sm:p-6 flex flex-col justify-between hover:-translate-y-2 transition-all duration-300 backdrop-blur-xl group`}
                 >
-                  {/* Rank Badge */}
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={`px-3 py-1 rounded-full text-xs border tracking-wider ${badgeBg}`}>
+                  {/* Rank Badge Header & Chart Tooltip */}
+                  <div className="flex items-center justify-between mb-4 gap-2">
+                    <span className={`px-3 py-1 rounded-full text-[11px] sm:text-xs border tracking-wider font-extrabold flex items-center gap-1.5 ${badgeBg}`}>
                       {rankLabel}
                     </span>
-                    <BarChart3 className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+
+                    <div
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold shadow-sm transition-colors group-hover:border-emerald-400/60"
+                      title="Statistiques de ventes certifiées par Ecomfy"
+                    >
+                      <BarChart3 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="hidden sm:inline">Certifié</span>
+                    </div>
                   </div>
 
                   {/* Seller Avatar & Name */}
                   <div className="flex flex-col items-center text-center space-y-3 my-2">
-                    <div className={`w-20 h-20 rounded-full overflow-hidden ring-3 ${ringColor} ring-offset-2 ring-offset-slate-900 bg-slate-950 flex items-center justify-center group-hover:scale-105 transition-transform duration-300`}>
+                    <div className={`w-20 h-20 sm:w-22 sm:h-22 rounded-full overflow-hidden ${ringStyle} bg-slate-950 flex items-center justify-center group-hover:scale-105 transition-transform duration-300`}>
                       {seller.avatar_url || seller.logo_url ? (
                         <img
                           src={seller.avatar_url || seller.logo_url || ""}
@@ -290,28 +309,29 @@ export const LandingTopSellers: React.FC = () => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0E7C66]/40 via-slate-800 to-slate-900 text-white font-extrabold text-xl">
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0E7C66] via-slate-800 to-slate-950 text-white font-black text-xl tracking-wider">
                           {getInitials(getDisplayName(seller))}
                         </div>
                       )}
                     </div>
 
-                    <div className="w-full">
-                      <h4 className="font-extrabold text-white text-base truncate group-hover:text-emerald-300 transition-colors">
+                    <div className="w-full space-y-0.5">
+                      <h4 className="font-extrabold text-white text-base truncate group-hover:text-emerald-300 transition-colors tracking-tight">
                         {getDisplayName(seller)}
                       </h4>
-                      <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
-                        Entrepreneur Ecomfy
+                      <p className="text-xs text-slate-300 font-medium truncate flex items-center justify-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400 inline shrink-0" />
+                        <span>Entrepreneur Ecomfy</span>
                       </p>
                     </div>
                   </div>
 
-                  {/* CA Amount */}
-                  <div className="mt-4 pt-4 border-t border-slate-800 text-center bg-slate-950/60 p-3 rounded-xl">
-                    <div className="text-xl font-black text-emerald-400 font-mono tracking-tight">
+                  {/* CA Amount Box (Anti-Truncation Fix) */}
+                  <div className="mt-4 pt-3.5 pb-3 px-3 border-t border-slate-800/80 bg-slate-950/80 rounded-xl text-center flex flex-col justify-center items-center w-full">
+                    <div className="text-base sm:text-lg lg:text-xl font-black text-emerald-400 font-mono tracking-tight whitespace-nowrap overflow-hidden text-ellipsis w-full">
                       {formatFcfa(seller.total_sales)}
                     </div>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mt-1">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mt-0.5">
                       Ventes générées via Ecomfy
                     </span>
                   </div>

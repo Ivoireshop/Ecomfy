@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, ArrowLeft, X } from "lucide-react";
+import { compressImageForUpload } from "@/lib/documentValidation";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
@@ -86,28 +87,59 @@ const Profile = () => {
     try {
       let nextAvatarUrl = avatarUrl;
       if (pendingFile) {
-        const ext = pendingFile.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${userId}/avatar-${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("avatars")
-          .upload(path, pendingFile, { upsert: true, contentType: pendingFile.type });
-        if (upErr) throw upErr;
-        const { data: signed, error: signErr } = await supabase.storage
-          .from("avatars")
-          .createSignedUrl(path, 60 * 60 * 24 * 365);
-        if (signErr) throw signErr;
-        nextAvatarUrl = signed.signedUrl;
+        // Compress profile photo to lightweight JPEG
+        const compressedFile = await compressImageForUpload(pendingFile);
+        const fileName = `${userId}/avatar-${Date.now()}.jpg`;
+
+        let bucketName = "shop-assets";
+        let storagePath = `avatars/${fileName}`;
+
+        // Attempt upload to shop-assets primary public bucket
+        let { error: upErr } = await supabase.storage
+          .from(bucketName)
+          .upload(storagePath, compressedFile, { upsert: true, contentType: "image/jpeg" });
+
+        // Fallback to avatars bucket if shop-assets fails
+        if (upErr) {
+          console.warn("[ProfileUpload] shop-assets upload failed, attempting fallback to avatars bucket:", upErr);
+          bucketName = "avatars";
+          storagePath = fileName;
+          const { error: fallbackErr } = await supabase.storage
+            .from(bucketName)
+            .upload(storagePath, compressedFile, { upsert: true, contentType: "image/jpeg" });
+
+          if (fallbackErr) {
+            console.error("[ProfileUpload] Both bucket uploads failed:", fallbackErr);
+            throw new Error("Impossible de téléverser la photo de profil. Veuillez réessayer.");
+          }
+        }
+
+        // Get permanent public URL
+        const { data: pubUrlData } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(storagePath);
+
+        if (pubUrlData?.publicUrl) {
+          nextAvatarUrl = pubUrlData.publicUrl;
+        }
       }
+
+      // Upsert profile record
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: fullName.trim() || null, avatar_url: nextAvatarUrl })
-        .eq("id", userId);
+        .upsert({
+          id: userId,
+          full_name: fullName.trim() || null,
+          avatar_url: nextAvatarUrl,
+          updated_at: new Date().toISOString(),
+        });
+
       if (error) throw error;
       setAvatarUrl(nextAvatarUrl);
       clearPending();
-      toast({ title: "Profil mis à jour" });
+      toast({ title: "Profil mis à jour ✓", description: "Votre photo de profil est maintenant enregistrée." });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message ?? "Impossible d'enregistrer.", variant: "destructive" });
+      toast({ title: "Erreur", description: e.message ?? "Impossible d'enregistrer le profil.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
