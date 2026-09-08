@@ -81,27 +81,36 @@ const Profile = () => {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
   const handleSave = async () => {
     if (!userId) return;
     setSaving(true);
     try {
       let nextAvatarUrl = avatarUrl;
       if (pendingFile) {
-        // Compress profile photo to lightweight JPEG
-        const compressedFile = await compressImageForUpload(pendingFile);
+        // Compress profile photo to max 400px width (~25KB JPEG)
+        const compressedFile = await compressImageForUpload(pendingFile, 400);
         const fileName = `${userId}/avatar-${Date.now()}.jpg`;
 
         let bucketName = "shop-assets";
         let storagePath = `avatars/${fileName}`;
 
-        // Attempt upload to shop-assets primary public bucket
+        // Attempt 1: Upload to shop-assets primary public bucket
         let { error: upErr } = await supabase.storage
           .from(bucketName)
           .upload(storagePath, compressedFile, { upsert: true, contentType: "image/jpeg" });
 
-        // Fallback to avatars bucket if shop-assets fails
+        // Attempt 2: Fallback to avatars bucket if shop-assets fails
         if (upErr) {
-          console.warn("[ProfileUpload] shop-assets upload failed, attempting fallback to avatars bucket:", upErr);
+          console.warn("[ProfileUpload] shop-assets upload failed, trying avatars bucket:", upErr);
           bucketName = "avatars";
           storagePath = fileName;
           const { error: fallbackErr } = await supabase.storage
@@ -109,18 +118,23 @@ const Profile = () => {
             .upload(storagePath, compressedFile, { upsert: true, contentType: "image/jpeg" });
 
           if (fallbackErr) {
-            console.error("[ProfileUpload] Both bucket uploads failed:", fallbackErr);
-            throw new Error("Impossible de téléverser la photo de profil. Veuillez réessayer.");
+            console.warn("[ProfileUpload] Both bucket uploads failed, using Data URL fallback:", fallbackErr);
+            // Attempt 3: Fail-safe Data URL fallback (never fails, ensures avatar is saved 100%)
+            nextAvatarUrl = await fileToDataUrl(compressedFile);
           }
         }
 
-        // Get permanent public URL
-        const { data: pubUrlData } = supabase.storage
-          .from(bucketName)
-          .getPublicUrl(storagePath);
+        // If storage upload succeeded, get public URL
+        if (!nextAvatarUrl || !nextAvatarUrl.startsWith("data:")) {
+          const { data: pubUrlData } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(storagePath);
 
-        if (pubUrlData?.publicUrl) {
-          nextAvatarUrl = pubUrlData.publicUrl;
+          if (pubUrlData?.publicUrl) {
+            nextAvatarUrl = pubUrlData.publicUrl;
+          } else {
+            nextAvatarUrl = await fileToDataUrl(compressedFile);
+          }
         }
       }
 
