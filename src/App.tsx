@@ -116,6 +116,7 @@ const DeliveryRegisterPage = lazyWithRetry(() => import("./pages/DeliveryRegiste
 const DeliveryStatusPage = lazyWithRetry(() => import("./pages/DeliveryStatusPage"));
 const DeliveryAdminPage = lazyWithRetry(() => import("./pages/DeliveryAdminPage"));
 const DeliveryPartnerDashboard = lazyWithRetry(() => import("./pages/DeliveryPartnerDashboard"));
+const DeliveryResubmissionPage = lazyWithRetry(() => import("./pages/DeliveryResubmissionPage"));
 
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
@@ -444,6 +445,7 @@ const AppContent = () => {
           {/* Ecomfy Delivery Module Routes */}
           <Route path="/delivery/register" element={<ProtectedRoute><DeliveryRegisterPage /></ProtectedRoute>} />
           <Route path="/delivery/status" element={<ProtectedRoute><DeliveryStatusPage /></ProtectedRoute>} />
+          <Route path="/delivery/resubmit" element={<ProtectedRoute><DeliveryResubmissionPage /></ProtectedRoute>} />
           <Route path="/delivery-admin" element={<ProtectedRoute><DeliveryAdminPage /></ProtectedRoute>} />
           <Route path="/delivery/partner-dashboard" element={<ProtectedRoute><DeliveryPartnerDashboard /></ProtectedRoute>} />
 
