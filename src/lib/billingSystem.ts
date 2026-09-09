@@ -70,6 +70,7 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       remainingMs: 0,
       activeInvoice: null,
       invoiceNumber: null,
+      hasInvoice: false,
     };
   }
 
