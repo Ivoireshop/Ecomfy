@@ -40,9 +40,10 @@ import {
   DeliveryCompany, 
   DeliveryVerificationStatus,
   StructuredRejectionReasonCode,
-  REJECTION_REASON_LABELS
+  REJECTION_REASON_LABELS,
+  VerificationAuditLog
 } from "@/types/delivery";
-import { verificationAuditService, VerificationAuditLog } from "@/lib/verificationAuditService";
+import { verificationAuditService } from "@/lib/verificationAuditService";
 
 export default function DeliveryAdminPage() {
   const { toast } = useToast();
@@ -143,17 +144,11 @@ export default function DeliveryAdminPage() {
       );
 
       // 3. Log audit event
-      await verificationAuditService.logAuditEvent({
-        company_id: selectedApp.id,
-        target_profile_type: "manager",
-        target_name: selectedApp.manager_name,
-        action_type: status === "approved" ? "manual_approve" : status === "rejected" ? "manual_reject" : "request_more_info",
-        previous_status: selectedApp.verification_status,
-        new_status: status,
-        performed_by_role: "foundation_admin",
-        rejection_reason_code: rejectionCode || undefined,
-        rejection_details: actionReason || undefined,
-        admin_notes: adminNotes || undefined,
+      await verificationAuditService.logEvent({
+        requestId: selectedApp.id,
+        actorRole: "admin",
+        action: status === "approved" ? "auto_approved" : status === "rejected" ? "auto_rejected" : "manual_reviewed",
+        details: `[${status.toUpperCase()}] ${rejectionCode ? REJECTION_REASON_LABELS[rejectionCode] : ''} ${actionReason || adminNotes || ''}`.trim()
       });
 
       toast({
