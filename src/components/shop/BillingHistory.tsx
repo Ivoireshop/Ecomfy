@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Receipt, Wallet, AlertTriangle, CheckCircle2, Printer } from "lucide-react";
 import { InstallAppCard } from "./InstallAppCard";
 import { PayCommissionDialog } from "./PayCommissionDialog";
+import { BillingThresholdSection } from "./BillingThresholdSection";
 
 interface BillingHistoryProps {
   shopId: string;
@@ -101,6 +102,9 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
 
   return (
     <div className="space-y-6">
+      {/* Système automatique de Seuil de Facturation (240 commandes = 12 000 FCFA) */}
+      <BillingThresholdSection shopId={shopId} />
+
       <div>
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Receipt className="h-6 w-6" />

@@ -20,6 +20,9 @@ import { OrdersList } from "@/components/shop/OrdersList";
 import { LockedOrdersScreen } from "@/components/shop/LockedOrdersScreen";
 import { ShopSettings } from "@/components/shop/ShopSettings";
 import { BillingBanner } from "@/components/shop/BillingBanner";
+import { BillingAlertBanner } from "@/components/shop/BillingAlertBanner";
+import { StoreRestrictedLockScreen } from "@/components/shop/StoreRestrictedLockScreen";
+import { useBillingSystem } from "@/hooks/useBillingSystem";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
@@ -272,6 +275,9 @@ const ShopEditor = () => {
       window.removeEventListener("focus", refresh);
     };
   }, [id, fetchData]);
+
+  const { billingInfo } = useBillingSystem(id);
+  const isRestricted = billingInfo?.isRestricted || false;
 
   const isActivated = !!shop?.is_activated;
 
@@ -997,11 +1003,14 @@ const ShopEditor = () => {
           if (info.status === "locked" || info.status === "final_suspension") return null;
           return (
             <>
-        {/* Billing balance banner — masquée pour les abonnés actifs */}
+        {/* Système automatique de Seuil de Facturation & Délais (240 commandes / 12 000 FCFA) */}
+        <BillingAlertBanner shopId={shop?.id} />
+
+        {/* Legacy Billing Banner */}
         {(() => {
           const sub = (shop as any).subscription_active_until;
           const isSubscribed = sub && new Date(sub).getTime() > Date.now();
-          if (isSubscribed) return null;
+          if (isSubscribed || billingInfo?.hasInvoice) return null;
           return (
             <BillingBanner
               balanceDue={Number(shop.commission_balance_due) || 0}
@@ -1142,49 +1151,55 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "theme" && (
-            <ShopThemeSettings shop={shop} setShop={setShop} />
+            <StoreRestrictedLockScreen shopId={shop.id} isRestricted={isRestricted}>
+              <ShopThemeSettings shop={shop} setShop={setShop} />
+            </StoreRestrictedLockScreen>
           )}
 
           {activeSection === "shop-themes" && (
-            <ShopThemesManager
-              shop={shop}
-              setShop={setShop}
-              products={products}
-              onCustomize={() => setActiveSection("theme")}
-              onOpenVisualEditor={() => setShowVisualEditor(true)}
-            />
+            <StoreRestrictedLockScreen shopId={shop.id} isRestricted={isRestricted}>
+              <ShopThemesManager
+                shop={shop}
+                setShop={setShop}
+                products={products}
+                onCustomize={() => setActiveSection("theme")}
+                onOpenVisualEditor={() => setShowVisualEditor(true)}
+              />
+            </StoreRestrictedLockScreen>
           )}
 
           {activeSection === "products" && (
-            <ProductsTable
-              products={products}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
-              onEditProduct={async (product) => {
-                const loadedVideos = await fetchProductVideos(product.id);
-                setEditingProduct({
-                  ...product,
-                  videos: loadedVideos.length > 0 ? loadedVideos : (Array.isArray((product as any).videos) ? (product as any).videos : [])
-                } as any);
-                setShowProductEditor(true);
-              }}
-              onDeleteProduct={deleteProduct}
-              onToggleStatus={toggleProductStatus}
-              onUploadImage={uploadProductImage}
-              onPreviewProduct={
-                shop?.is_activated && shop?.is_published
-                  ? (product) => {
-                      const href = `/shop/${shop.slug}/product?product=${product.id}`;
-                      const opened = window.open(href, "_blank", "noopener,noreferrer");
-                      if (!opened) window.location.href = href;
-                    }
-                  : undefined
-              }
-              primaryColor={primaryColor}
-              orders={orders}
-              shopSlug={shop.slug}
-            />
+            <StoreRestrictedLockScreen shopId={shop.id} isRestricted={isRestricted}>
+              <ProductsTable
+                products={products}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
+                onEditProduct={async (product) => {
+                  const loadedVideos = await fetchProductVideos(product.id);
+                  setEditingProduct({
+                    ...product,
+                    videos: loadedVideos.length > 0 ? loadedVideos : (Array.isArray((product as any).videos) ? (product as any).videos : [])
+                  } as any);
+                  setShowProductEditor(true);
+                }}
+                onDeleteProduct={deleteProduct}
+                onToggleStatus={toggleProductStatus}
+                onUploadImage={uploadProductImage}
+                onPreviewProduct={
+                  shop?.is_activated && shop?.is_published
+                    ? (product) => {
+                        const href = `/shop/${shop.slug}/product?product=${product.id}`;
+                        const opened = window.open(href, "_blank", "noopener,noreferrer");
+                        if (!opened) window.location.href = href;
+                      }
+                    : undefined
+                }
+                primaryColor={primaryColor}
+                orders={orders}
+                shopSlug={shop.slug}
+              />
+            </StoreRestrictedLockScreen>
           )}
 
           {activeSection === "orders" && (() => {
@@ -1192,30 +1207,30 @@ const ShopEditor = () => {
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked
               ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
-              : <OrdersList shopId={shop.id} orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={() => {}} />;
+              : <OrdersList shopId={shop.id} orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={() => {}} isRestricted={isRestricted} />;
           })()}
 
           {activeSection === "abandoned" && shop?.id && (() => {
             const info = computeShopPaymentInfo(shop);
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
-            return ownerLocked
-              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+            return ownerLocked || isRestricted
+              ? <StoreRestrictedLockScreen shopId={shop.id} isRestricted={true}><div /></StoreRestrictedLockScreen>
               : <AbandonedCartsList shopId={shop.id} />;
           })()}
 
           {activeSection === "loyal-customers" && shop?.id && (() => {
             const info = computeShopPaymentInfo(shop);
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
-            return ownerLocked
-              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+            return ownerLocked || isRestricted
+              ? <StoreRestrictedLockScreen shopId={shop.id} isRestricted={true}><div /></StoreRestrictedLockScreen>
               : <LoyalCustomersList shopId={shop.id} shopSlug={shop.slug} shopName={shop.business_name} primaryColor={primaryColor} />;
           })()}
 
           {activeSection === "promo-codes" && shop?.id && (() => {
             const info = computeShopPaymentInfo(shop);
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
-            return ownerLocked
-              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+            return ownerLocked || isRestricted
+              ? <StoreRestrictedLockScreen shopId={shop.id} isRestricted={true}><div /></StoreRestrictedLockScreen>
               : <PromoCodeManager mode="merchant" shopId={shop.id} shopSlug={shop.slug} shopName={shop.business_name} isEmbedded={true} />;
           })()}
 
@@ -1337,7 +1352,9 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "settings" && (
-            <ShopSettings shop={shop} setShop={setShop} onDeleteShop={() => navigate("/shop-manager")} />
+            <StoreRestrictedLockScreen shopId={shop.id} isRestricted={isRestricted}>
+              <ShopSettings shop={shop} setShop={setShop} onDeleteShop={() => navigate("/shop-manager")} />
+            </StoreRestrictedLockScreen>
           )}
 
           {activeSection === "billing" && (

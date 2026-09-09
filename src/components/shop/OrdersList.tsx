@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send, Lock, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
@@ -45,15 +45,17 @@ interface Order {
     } | null;
   }[] | null;
 }
+
 interface OrdersListProps {
   orders: Order[];
   shopId: string;
   onUpdateStatus: (orderId: string, status: string) => void;
   onMarkRead: (orderId: string) => void;
   onOrderUpdated?: () => void;
+  isRestricted?: boolean;
 }
 
-export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrderUpdated }: OrdersListProps) {
+export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrderUpdated, isRestricted = false }: OrdersListProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -209,6 +211,29 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
 
   return (
     <div className="space-y-4">
+      {isRestricted && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950 via-slate-900 to-red-950 border-2 border-red-500/60 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-red-500/20 text-red-400 shrink-0">
+              <Lock className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-red-200">🔒 Coordonnées clients temporairement masquées</h4>
+              <p className="text-xs text-slate-300">
+                Seuil de facturation atteint (240 commandes). Les données personnelles des clients sont masquées jusqu'au règlement de votre facture de 12 000 FCFA.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shrink-0 w-full sm:w-auto shadow-md"
+            onClick={() => window.location.href = "/dashboard/billing"}
+          >
+            <CreditCard className="h-3.5 w-3.5 mr-1" /> PAYER 12 000 FCFA
+          </Button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-xl font-bold">Commandes ({filteredOrders.length}{search ? ` / ${orders.length}` : ""})</h2>
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
