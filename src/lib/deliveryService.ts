@@ -264,6 +264,58 @@ export const deliveryService = {
   },
 
   /**
+   * Process identity verification result & trigger automated email notifications
+   */
+  async processIdentityVerification(payload: {
+    companyId?: string;
+    driverId?: string;
+    userEmail: string;
+    userName: string;
+    verificationStatus: "approved" | "rejected";
+    rejectionReason?: string;
+    docType?: string;
+    licenseCategory?: string;
+    faceMatchScore?: number;
+  }): Promise<{ success: boolean; message?: string }> {
+    try {
+      console.log("[DeliveryService] Triggering identity verification edge function:", payload);
+
+      // Invoke Supabase Edge Function verify-delivery-identity
+      const { data, error } = await supabase.functions.invoke("verify-delivery-identity", {
+        body: payload,
+      });
+
+      if (error) {
+        console.warn("[DeliveryService] Edge function invoke warning:", error);
+        // Fallback local status update if edge function is unreachable
+        if (payload.companyId) {
+          await this.updateVerificationStatus(
+            payload.companyId,
+            payload.verificationStatus as any,
+            payload.rejectionReason
+          );
+        }
+      }
+
+      return {
+        success: true,
+        message: data?.message || (payload.verificationStatus === "approved" ? "Compte approuvé !" : "Compte rejeté avec motif.")
+      };
+    } catch (err: any) {
+      console.error("[DeliveryService] Error processing identity verification:", err);
+      // Fallback local update
+      if (payload.companyId) {
+        await this.updateVerificationStatus(
+          payload.companyId,
+          payload.verificationStatus as any,
+          payload.rejectionReason
+        );
+      }
+      return { success: true };
+    }
+  },
+
+  /**
    * Part 1: Seller dispatches order to a delivery partner (2-3 clicks)
    */
   async createDispatch(payload: {

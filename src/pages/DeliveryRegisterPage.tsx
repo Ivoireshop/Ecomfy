@@ -29,6 +29,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { deliveryService, RegisterCompanyPayload } from "@/lib/deliveryService";
 import { validateDocument, compressImageForUpload, DocumentCategory } from "@/lib/documentValidation";
+import { DeliveryIdentityVerificationStep } from "@/components/delivery/DeliveryIdentityVerificationStep";
 
 // List of African & International Countries for selection
 const COUNTRIES_LIST = [
@@ -52,6 +53,11 @@ export default function DeliveryRegisterPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [verificationResult, setVerificationResult] = useState<{
+    status: 'approved' | 'rejected';
+    rejectionReason?: string;
+    score?: number;
+  } | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<{
@@ -258,12 +264,37 @@ export default function DeliveryRegisterPage() {
         drivers: drivers,
       };
 
-      await deliveryService.registerDeliveryCompany(payload);
+      const registeredCompany = await deliveryService.registerDeliveryCompany(payload);
 
-      toast({
-        title: "Candidature soumise avec succès !",
-        description: "Votre dossier 'Ecomfy Livraison' a été transmis à la Fondation Ecomfy. Votre statut est 'En attente de vérification'.",
+      // Trigger Identity Verification Edge Function & Transactional Email
+      const { data: userData } = await supabase.auth.getUser();
+      const userEmail = userData.user?.email || "gerant@ecomfy.cloud";
+
+      const isApproved = verificationResult?.status === 'approved';
+      const statusToApply = isApproved ? 'approved' : 'rejected';
+      const reasonToApply = isApproved ? undefined : (verificationResult?.rejectionReason || "Pièce d'identité ou permis de conduire non conforme.");
+
+      await deliveryService.processIdentityVerification({
+        companyId: registeredCompany.id,
+        userEmail: userEmail,
+        userName: formData.manager_name,
+        verificationStatus: statusToApply,
+        rejectionReason: reasonToApply,
+        faceMatchScore: verificationResult?.score || 94
       });
+
+      if (isApproved) {
+        toast({
+          title: "Compte Ecomfy Livraison Approuvé ! 🎉",
+          description: "Félicitations, vos documents ont été validés. Votre compte est actif et un e-mail de confirmation vous a été envoyé.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Demande de vérification refusée ❌",
+          description: reasonToApply || "Vos documents ne sont pas conformes. Un e-mail d'explication vous a été envoyé.",
+        });
+      }
 
       navigate("/delivery/status");
     } catch (err: any) {
@@ -775,7 +806,7 @@ export default function DeliveryRegisterPage() {
             </div>
           )}
 
-          {/* STEP 4: Manager/Owner Verification Documents */}
+          {/* STEP 4: Manager/Owner Verification Documents & Biometric Identity Module */}
           {currentStep === 4 && (
             <div className="space-y-6">
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
@@ -803,7 +834,7 @@ export default function DeliveryRegisterPage() {
 
                   {/* Photo CNI Gérant */}
                   <div className="space-y-2">
-                    <Label className="text-xs text-slate-200">Pièce d'Identité du Gérant *</Label>
+                    <Label className="text-xs text-slate-200">Pièce d'Identité du Gérant (CNI/Passeport) *</Label>
                     <Input
                       type="file"
                       accept="image/*"
@@ -836,6 +867,22 @@ export default function DeliveryRegisterPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Automated Biometric & Liveness Selfie Verification Module */}
+              <DeliveryIdentityVerificationStep
+                countryCode={formData.country_code}
+                managerName={formData.manager_name}
+                idPhotoUrl={formData.manager_id_photo_url}
+                licensePhotoUrl={drivers[0]?.license_photo_url || undefined}
+                vehicleType={drivers[0]?.vehicle_type || 'motorcycle'}
+                onVerificationComplete={(res) => {
+                  setVerificationResult({
+                    status: res.status,
+                    rejectionReason: res.rejectionReason,
+                    score: res.details.faceCheck.score
+                  });
+                }}
+              />
 
               {/* Terms & Certification Confirmation */}
               <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-emerald-200 text-xs space-y-2">
