@@ -36,23 +36,19 @@ export function useBillingSystem(shopId: string | null | undefined) {
     if (!shopId) return;
     refreshBilling();
 
-    // 1. Subscribe to shop status changes
-    const shopSub = supabase
-      .channel(`billing_shop_${shopId}`)
+    // Realtime subscription with unique channel ID per hook instance to prevent duplicate channel errors
+    const channelId = `billing_${shopId}_${Math.random().toString(36).substring(2, 8)}`;
+    const channel = supabase
+      .channel(channelId)
       .on("postgres_changes", { event: "*", schema: "public", table: "shops", filter: `id=eq.${shopId}` }, () => {
         refreshBilling();
       })
-      .subscribe();
-
-    // 2. Subscribe to shop_invoices changes
-    const invoiceSub = supabase
-      .channel(`billing_invoices_${shopId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "shop_invoices", filter: `shop_id=eq.${shopId}` }, () => {
         refreshBilling();
       })
       .subscribe();
 
-    // 3. Live 1-second ticker for remaining countdown
+    // Live 1-second ticker for remaining countdown
     const timer = setInterval(() => {
       setBillingInfo((prev) => {
         if (!prev || !prev.dueDate) return prev;
@@ -71,8 +67,7 @@ export function useBillingSystem(shopId: string | null | undefined) {
 
     return () => {
       clearInterval(timer);
-      supabase.removeChannel(shopSub);
-      supabase.removeChannel(invoiceSub);
+      supabase.removeChannel(channel);
     };
   }, [shopId, refreshBilling]);
 
