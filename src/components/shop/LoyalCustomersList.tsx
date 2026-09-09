@@ -163,7 +163,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
     loadCustomers();
 
     const channel = supabase
-      .channel(`orders-loyalty-${shopId}`)
+      .channel(`orders-loyalty-${shopId}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `shop_id=eq.${shopId}` }, () => loadCustomers())
       .subscribe();
 

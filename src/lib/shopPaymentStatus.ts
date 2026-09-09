@@ -120,7 +120,7 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
     };
 
     const channel = supabase
-      .channel(`shop_payment_status_${shopId}`)
+      .channel(`shop_payment_status_${shopId}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "shops", filter: `id=eq.${shopId}` }, (payload) => {
         setInfo(computeShopPaymentInfo(payload.new));
       })

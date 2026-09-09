@@ -47,7 +47,7 @@ export function AbandonedCartsList({ shopId }: { shopId: string }) {
   useEffect(() => {
     load();
     const channel = supabase
-      .channel(`abandoned-${shopId}`)
+      .channel(`abandoned-${shopId}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "abandoned_carts", filter: `shop_id=eq.${shopId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };

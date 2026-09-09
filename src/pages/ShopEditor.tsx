@@ -233,7 +233,7 @@ const ShopEditor = () => {
 
   useEffect(() => {
     if (!id) return;
-    const channel = supabase.channel(`shop-orders-${id}`)
+    const channel = supabase.channel(`shop-orders-${id}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
         const newOrder = payload.new as Order;
         setOrders(prev => [newOrder, ...prev]);
@@ -242,7 +242,7 @@ const ShopEditor = () => {
       })
       .subscribe();
     // Realtime shop status — auto-unlock after payment confirmation
-    const shopChannel = supabase.channel(`shop-status-${id}`)
+    const shopChannel = supabase.channel(`shop-status-${id}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "shops", filter: `id=eq.${id}` }, (payload) => {
         const next: any = payload.new;
         setShop((prev: any) => {

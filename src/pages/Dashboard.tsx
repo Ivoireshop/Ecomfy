@@ -78,7 +78,7 @@ const Dashboard = () => {
       setLoading(false);
       
       // 3. Realtime subscription for these shops
-      const channel = supabase.channel(`dashboard-orders-${session.user.id}`)
+      const channel = supabase.channel(`dashboard-orders-${session.user.id}_${Math.random().toString(36).substring(2, 8)}`)
         .on(
           "postgres_changes", 
           { event: "INSERT", schema: "public", table: "orders" }, 
