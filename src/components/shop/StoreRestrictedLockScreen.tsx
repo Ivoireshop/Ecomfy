@@ -3,7 +3,7 @@ import { Lock, CreditCard, ShieldAlert, ArrowRight, Eye, Package, Settings, User
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-import { BillingPaymentModal } from "./BillingPaymentModal";
+import { PayCommissionDialog } from "./PayCommissionDialog";
 
 interface StoreRestrictedLockScreenProps {
   shopId?: string | null;
@@ -117,7 +117,8 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
 
       </div>
 
-      <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
+      {shopId && <PayCommissionDialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} balanceDue={12000} fullOnly={true} />}
     </div>
   );
 };
+

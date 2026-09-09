@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useBillingSystem } from "@/hooks/useBillingSystem";
 
-import { BillingPaymentModal } from "./BillingPaymentModal";
+import { PayCommissionDialog } from "./PayCommissionDialog";
 
 interface BillingAlertBannerProps {
   shopId?: string | null;
@@ -22,9 +22,9 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
   const { billingInfo: hookBillingInfo } = useBillingSystem(shopId);
   const billingInfo = propsBillingInfo !== undefined ? propsBillingInfo : hookBillingInfo;
 
-  if (!billingInfo) return null;
+  if (!billingInfo || !shopId) return null;
 
-  const { isRestricted, isGracePeriod, remainingMs, dueDate, invoiceNumber, status } = billingInfo;
+  const { isRestricted, isGracePeriod, remainingMs, dueDate, invoiceNumber, status, amountDue } = billingInfo;
 
   const handlePay = () => {
     if (onPayClick) {
@@ -33,6 +33,8 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
       setPaymentModalOpen(true);
     }
   };
+
+  const effectiveDue = Math.max(12000, amountDue || 12000);
 
   // 1. STORE_RESTRICTED (Red Lock Banner)
   if (isRestricted) {
@@ -63,7 +65,7 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
               </p>
 
               <div className="flex items-center gap-4 text-xs text-red-200/90 font-medium pt-1">
-                <span>Montant dû : <strong className="text-white font-bold text-sm">12 000 FCFA</strong></span>
+                <span>Montant dû : <strong className="text-white font-bold text-sm">{effectiveDue.toLocaleString("fr-FR")} FCFA</strong></span>
                 <span>•</span>
                 <span>Statut : <strong className="text-red-300 font-bold uppercase">IMPAYÉ</strong></span>
               </div>
@@ -75,12 +77,12 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
             className="w-full md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-500 hover:to-rose-500 text-white font-black text-sm shadow-lg shadow-red-600/40 border border-red-400 shrink-0 flex items-center justify-center gap-2 group transition-all duration-200"
           >
             <CreditCard className="w-4 h-4" />
-            <span>PAYER 12 000 FCFA</span>
+            <span>PAYER {effectiveDue.toLocaleString("fr-FR")} FCFA</span>
             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
 
-        <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
+        <PayCommissionDialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} balanceDue={effectiveDue} fullOnly={true} />
       </div>
     );
   }
@@ -117,7 +119,7 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
               </div>
 
               <p className="text-sm text-slate-200 leading-snug">
-                Votre boutique a atteint 240 commandes. Un montant de <strong>12 000 FCFA</strong> est maintenant dû.
+                Votre boutique a atteint 240 commandes. Un montant de <strong>{effectiveDue.toLocaleString("fr-FR")} FCFA</strong> est maintenant dû.
                 Vous disposez de 3 jours pour effectuer le règlement afin de conserver un accès normal à la gestion de votre boutique.
               </p>
 
@@ -133,12 +135,12 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
             className="w-full md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/30 border border-yellow-300 shrink-0 flex items-center justify-center gap-2 group transition-all duration-200"
           >
             <CreditCard className="w-4 h-4 text-slate-950" />
-            <span>PAYER 12 000 FCFA</span>
+            <span>PAYER {effectiveDue.toLocaleString("fr-FR")} FCFA</span>
             <ChevronRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
 
-        <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
+        <PayCommissionDialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} balanceDue={effectiveDue} fullOnly={false} />
       </div>
     );
   }
@@ -152,7 +154,7 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
           <div>
             <h4 className="font-bold text-sm text-emerald-300">✅ Paiement confirmé</h4>
             <p className="text-xs text-slate-300">
-              Votre règlement de 12 000 FCFA a été confirmé. Votre boutique est maintenant entièrement réactivée et les coordonnées clients sont accessibles.
+              Votre règlement de {effectiveDue.toLocaleString("fr-FR")} FCFA a été confirmé. Votre boutique est maintenant entièrement réactivée et les coordonnées clients sont accessibles.
             </p>
           </div>
         </div>
@@ -168,7 +170,8 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
 
   return (
     <>
-      <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
+      <PayCommissionDialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} balanceDue={effectiveDue} fullOnly={isRestricted} />
     </>
   );
 };
+

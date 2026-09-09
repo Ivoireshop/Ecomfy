@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useBillingSystem } from "@/hooks/useBillingSystem";
+import { supabase } from "@/integrations/supabase/client";
+import { openPaymentWindow, redirectToPaymentUrl, closePaymentWindow } from "@/lib/paymentRedirect";
 import { toast } from "sonner";
 
 interface BillingPaymentModalProps {
@@ -14,7 +16,7 @@ interface BillingPaymentModalProps {
 }
 
 export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, onOpenChange, shopId }) => {
-  const { billingInfo, processingPayment, handleConfirmPayment, refreshBilling } = useBillingSystem(shopId);
+  const { billingInfo, processingPayment, refreshBilling } = useBillingSystem(shopId);
 
   const [selectedProvider, setSelectedProvider] = useState<string>("wave");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -23,28 +25,39 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
   if (!shopId) return null;
 
   const invoiceNumber = billingInfo?.invoiceNumber || "BILL-ECOMFY-000001";
-  const amountDue = billingInfo?.amountDue || 12000;
+  const amountDue = Math.max(12000, billingInfo?.amountDue || 12000);
 
   const executePayment = async () => {
     setSubmittingPayment(true);
+    const win = openPaymentWindow();
     try {
-      const ref = `PAY-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
-      const res = await handleConfirmPayment(ref, selectedProvider);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non connecté. Veuillez vous connecter.");
 
-      if (res.success) {
-        toast.success("Paiement confirmé ! 🎉", {
-          description: "Votre règlement de 12 000 FCFA a été confirmé. Votre boutique est maintenant entièrement réactivée.",
-          duration: 6000,
-        });
-        await refreshBilling();
+      const { data, error } = await supabase.functions.invoke("process-payment", {
+        body: {
+          amount: amountDue,
+          payment_method: "mobile_money",
+          user_id: session.user.id,
+          provider: selectedProvider,
+          phone: phoneNumber,
+          payment_type: "commission_payment",
+          shop_id: shopId,
+        },
+      });
+
+      if (error) throw error;
+      const url = data?.payment_url || data?.checkout_url;
+      if (data?.success === false) throw new Error(data?.error || "Erreur de paiement");
+      if (url) {
+        redirectToPaymentUrl(url, win);
         onOpenChange(false);
-      } else {
-        toast.error("Échec du paiement", {
-          description: res.message || "Impossible de confirmer le paiement. Veuillez réessayer.",
-        });
+        return;
       }
+      throw new Error("Lien de paiement introuvable");
     } catch (e: any) {
-      toast.error("Erreur de paiement", { description: e.message || "Une erreur est survenue lors du paiement." });
+      closePaymentWindow(win);
+      toast.error("Erreur de paiement", { description: e?.message || "Une erreur est survenue lors de la redirection vers le paiement." });
     } finally {
       setSubmittingPayment(false);
     }

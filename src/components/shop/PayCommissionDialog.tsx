@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,21 +29,27 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Mat
 
 export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fullOnly = false }: PayCommissionDialogProps) {
   const { toast } = useToast();
-  const [provider, setProvider] = useState("all");
+  const effectiveBalance = Math.max(12000, Number(balanceDue) || 12000);
+  const [provider, setProvider] = useState("wave");
   const [phone, setPhone] = useState("");
-  const [amount, setAmount] = useState<number>(Math.max(100, Math.round(balanceDue)));
+  const [amount, setAmount] = useState<number>(effectiveBalance);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setAmount(effectiveBalance);
+    }
+  }, [open, effectiveBalance]);
+
   const submit = async () => {
-    const chargeAmount = fullOnly ? Math.round(balanceDue) : amount;
+    const chargeAmount = fullOnly ? effectiveBalance : (amount || effectiveBalance);
     if (!chargeAmount || chargeAmount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
-    if (chargeAmount > balanceDue) { toast({ title: "Montant trop élevé", description: `Solde dû : ${fmt(balanceDue)} FCFA`, variant: "destructive" }); return; }
 
     setLoading(true);
     const win = openPaymentWindow();
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Non connecté");
+      if (!session) throw new Error("Non connecté. Veuillez vous connecter.");
       const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
           amount: chargeAmount,
@@ -58,11 +64,15 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
       if (error) throw error;
       const url = data?.payment_url || data?.checkout_url;
       if (data?.success === false) throw new Error(data?.error || "Erreur de paiement");
-      if (url) { redirectToPaymentUrl(url, win); return; }
+      if (url) {
+        redirectToPaymentUrl(url, win);
+        onOpenChange(false);
+        return;
+      }
       throw new Error("Lien de paiement introuvable");
     } catch (err) {
       closePaymentWindow(win);
-      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Erreur de paiement", variant: "destructive" });
+      toast({ title: "Erreur de paiement", description: err instanceof Error ? err.message : "Erreur lors de la redirection vers la page de paiement", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -74,7 +84,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-red-600" />Régler ma commission</DialogTitle>
           <DialogDescription>
-            Solde à payer : <span className="font-bold text-red-600">{fmt(balanceDue)} FCFA</span>.
+            Solde à payer : <span className="font-bold text-red-600">{fmt(effectiveBalance)} FCFA</span>.
             {fullOnly
               ? " Votre boutique est verrouillée : seul le paiement complet est autorisé."
               : " Vous pouvez régler 25%, 50%, 75% ou 100% pendant les 3 premiers jours."}
@@ -112,7 +122,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
             {fullOnly ? (
               <div className="mt-2 rounded-xl border-2 border-red-600 bg-red-50 p-4 text-center">
                 <p className="text-xs uppercase tracking-wide text-red-700 font-semibold">Paiement complet obligatoire</p>
-                <p className="text-2xl font-bold text-red-700 mt-1">{fmt(balanceDue)} FCFA</p>
+                <p className="text-2xl font-bold text-red-700 mt-1">{fmt(effectiveBalance)} FCFA</p>
                 <p className="text-xs text-red-700/80 mt-2">
                   Les paiements en tranche (25%, 50%, 75%) ne sont plus disponibles car votre boutique est verrouillée.
                 </p>
@@ -121,10 +131,10 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
               <>
                 <div className="grid grid-cols-4 gap-2 mt-2">
                   {[
-                    { label: "25%", value: Math.max(100, Math.round(balanceDue * 0.25)) },
-                    { label: "50%", value: Math.max(100, Math.round(balanceDue * 0.5)) },
-                    { label: "75%", value: Math.max(100, Math.round(balanceDue * 0.75)) },
-                    { label: "100%", value: Math.max(100, Math.round(balanceDue)) },
+                    { label: "25%", value: Math.max(100, Math.round(effectiveBalance * 0.25)) },
+                    { label: "50%", value: Math.max(100, Math.round(effectiveBalance * 0.5)) },
+                    { label: "75%", value: Math.max(100, Math.round(effectiveBalance * 0.75)) },
+                    { label: "100%", value: Math.max(100, Math.round(effectiveBalance)) },
                   ].map((preset) => (
                     <button
                       key={preset.label}
@@ -139,13 +149,13 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
                 <Input
                   type="number"
                   min={100}
-                  max={Math.round(balanceDue)}
+                  max={Math.round(effectiveBalance)}
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
                   className="mt-2"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Payez en plusieurs fois si besoin. Minimum 100 FCFA · Maximum : {fmt(balanceDue)} FCFA
+                  Payez en plusieurs fois si besoin. Minimum 100 FCFA · Maximum : {fmt(effectiveBalance)} FCFA
                 </p>
               </>
             )}
@@ -153,7 +163,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
 
           <Button onClick={submit} disabled={loading || !provider} className="w-full gap-2" size="lg">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-            {loading ? "Redirection..." : `Payer ${fmt(fullOnly ? Math.round(balanceDue) : amount)} FCFA`}
+            {loading ? "Redirection..." : `Payer ${fmt(fullOnly ? Math.round(effectiveBalance) : amount)} FCFA`}
           </Button>
         </div>
       </DialogContent>

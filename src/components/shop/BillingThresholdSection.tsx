@@ -18,20 +18,16 @@ import {
   ArrowUpRight,
   TrendingUp
 } from "lucide-react";
-import { useBillingSystem } from "@/hooks/useBillingSystem";
-import { toast } from "sonner";
+import { PayCommissionDialog } from "./PayCommissionDialog";
 
 interface BillingThresholdSectionProps {
   shopId: string | null | undefined;
 }
 
 export const BillingThresholdSection: React.FC<BillingThresholdSectionProps> = ({ shopId }) => {
-  const { billingInfo, invoices, loading, processingPayment, handleConfirmPayment, formattedCountdown } = useBillingSystem(shopId);
+  const { billingInfo, invoices, loading, formattedCountdown } = useBillingSystem(shopId);
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<string>("wave");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [submittingPayment, setSubmittingPayment] = useState(false);
 
   if (!shopId) return null;
 
@@ -279,101 +275,13 @@ export const BillingThresholdSection: React.FC<BillingThresholdSectionProps> = (
       </Card>
 
       {/* 3. MODAL DE PAIEMENT MULTI-RÉSEAUX */}
-      <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              <CreditCard className="w-5 h-5 text-emerald-500" /> Règlement Facture 12 000 FCFA
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Réglez votre facture de seuil Ecomfy pour déverrouiller et réactiver automatiquement votre boutique.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Amount Summary */}
-            <div className="p-4 rounded-xl bg-slate-950 text-white flex items-center justify-between">
-              <div>
-                <span className="text-xs text-slate-400 block font-bold">Obligation de paiement</span>
-                <span className="text-xs text-slate-300 font-mono">{activeInvoice?.invoice_number || "BILL-ECOMFY-000001"}</span>
-              </div>
-              <div className="text-2xl font-black text-emerald-400 font-mono">
-                12 000 FCFA
-              </div>
-            </div>
-
-            {/* Provider Selection */}
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider">Mode de paiement préféré</Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {[
-                  { id: "orange", label: "Orange Money", color: "bg-orange-500" },
-                  { id: "mtn", label: "MTN MoMo", color: "bg-yellow-500" },
-                  { id: "wave", label: "Wave", color: "bg-sky-500" },
-                  { id: "moov", label: "Moov Money", color: "bg-emerald-600" },
-                  { id: "card", label: "Carte Visa/MC", color: "bg-purple-600" },
-                ].map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelectedProvider(p.id)}
-                    className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all flex items-center justify-start gap-2 ${
-                      selectedProvider === p.id 
-                        ? "border-emerald-500 bg-emerald-500/10 shadow-sm" 
-                        : "border-border hover:border-emerald-500/40"
-                    }`}
-                  >
-                    <div className={`h-2.5 w-2.5 rounded-full ${p.color} shrink-0`} />
-                    <span className="truncate">{p.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Phone number input */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label className="text-xs font-medium">Numéro de téléphone mobile</Label>
-                <span className="text-[11px] text-muted-foreground">(Facultatif)</span>
-              </div>
-              <Input
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="Ex: 07 01 02 03 04"
-                className="text-sm font-mono"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setPaymentModalOpen(false)}
-              className="w-full sm:w-auto text-xs"
-            >
-              Annuler
-            </Button>
-
-            <Button
-              onClick={executePayment}
-              disabled={submittingPayment || processingPayment}
-              className="w-full sm:w-auto font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm py-5 shadow-lg flex items-center justify-center gap-2"
-            >
-              {submittingPayment || processingPayment ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Confirmation en cours…</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>CONFIRMER LE PAIEMENT (12 000 FCFA)</span>
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PayCommissionDialog
+        open={paymentModalOpen}
+        onOpenChange={setPaymentModalOpen}
+        shopId={shopId}
+        balanceDue={amountDue > 0 ? amountDue : 12000}
+        fullOnly={isRestricted}
+      />
 
     </div>
   );
