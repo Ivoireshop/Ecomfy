@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 interface StoreRestrictedLockScreenProps {
+  shopId?: string | null;
   title?: string;
   description?: string;
   invoiceNumber?: string | null;

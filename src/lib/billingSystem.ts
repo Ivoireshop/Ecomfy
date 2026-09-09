@@ -42,6 +42,7 @@ export interface BillingStatusInfo {
   remainingMs: number;
   activeInvoice: ShopInvoice | null;
   invoiceNumber: string | null;
+  hasInvoice: boolean;
 }
 
 export const BILLING_CONFIG = {
@@ -138,6 +139,7 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       remainingMs,
       activeInvoice,
       invoiceNumber: activeInvoice?.invoice_number || null,
+      hasInvoice: !!activeInvoice,
     };
   } catch (err) {
     console.error("[BillingSystem] Error fetching billing status:", err);
@@ -154,6 +156,7 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       remainingMs: 0,
       activeInvoice: null,
       invoiceNumber: null,
+      hasInvoice: false,
     };
   }
 }

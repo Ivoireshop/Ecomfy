@@ -4,14 +4,20 @@ import { Button } from "@/components/ui/button";
 import { BillingStatusInfo, formatGracePeriodCountdown } from "@/lib/billingSystem";
 import { useNavigate } from "react-router-dom";
 
+import { useBillingSystem } from "@/hooks/useBillingSystem";
+
 interface BillingAlertBannerProps {
-  billingInfo: BillingStatusInfo | null;
+  shopId?: string | null;
+  billingInfo?: BillingStatusInfo | null;
   onPayClick?: () => void;
 }
 
-export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ billingInfo, onPayClick }) => {
+export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, billingInfo: propsBillingInfo, onPayClick }) => {
   const navigate = useNavigate();
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
+
+  const { billingInfo: hookBillingInfo } = useBillingSystem(shopId);
+  const billingInfo = propsBillingInfo !== undefined ? propsBillingInfo : hookBillingInfo;
 
   if (!billingInfo) return null;
 
