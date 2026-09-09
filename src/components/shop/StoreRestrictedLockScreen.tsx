@@ -3,6 +3,8 @@ import { Lock, CreditCard, ShieldAlert, ArrowRight, Eye, Package, Settings, User
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
+import { BillingPaymentModal } from "./BillingPaymentModal";
+
 interface StoreRestrictedLockScreenProps {
   shopId?: string | null;
   title?: string;
@@ -14,6 +16,7 @@ interface StoreRestrictedLockScreenProps {
 }
 
 export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps> = ({
+  shopId,
   title = "Gestion de boutique suspendue",
   description = "Votre boutique continue de recevoir des commandes, mais l'accès aux données clients et la modification des produits et paramètres sont temporairement suspendus.",
   invoiceNumber,
@@ -22,6 +25,7 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
   isRestricted = true,
 }) => {
   const navigate = useNavigate();
+  const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
 
   if (!isRestricted) {
     return <>{children}</>;
@@ -31,7 +35,7 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
     if (onPayClick) {
       onPayClick();
     } else {
-      navigate("/dashboard/billing");
+      setPaymentModalOpen(true);
     }
   };
 
@@ -112,6 +116,8 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
         </div>
 
       </div>
+
+      <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
     </div>
   );
 };

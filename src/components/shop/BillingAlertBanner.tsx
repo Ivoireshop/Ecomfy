@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 
 import { useBillingSystem } from "@/hooks/useBillingSystem";
 
+import { BillingPaymentModal } from "./BillingPaymentModal";
+
 interface BillingAlertBannerProps {
   shopId?: string | null;
   billingInfo?: BillingStatusInfo | null;
@@ -15,6 +17,7 @@ interface BillingAlertBannerProps {
 export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, billingInfo: propsBillingInfo, onPayClick }) => {
   const navigate = useNavigate();
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
   const { billingInfo: hookBillingInfo } = useBillingSystem(shopId);
   const billingInfo = propsBillingInfo !== undefined ? propsBillingInfo : hookBillingInfo;
@@ -27,7 +30,7 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
     if (onPayClick) {
       onPayClick();
     } else {
-      navigate("/dashboard/billing");
+      setPaymentModalOpen(true);
     }
   };
 
@@ -76,6 +79,8 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
+
+        <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
       </div>
     );
   }
@@ -132,6 +137,8 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
             <ChevronRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
+
+        <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
       </div>
     );
   }
@@ -159,5 +166,9 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
     );
   }
 
-  return null;
+  return (
+    <>
+      <BillingPaymentModal open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} />
+    </>
+  );
 };

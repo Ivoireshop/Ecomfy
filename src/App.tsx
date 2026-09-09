@@ -454,6 +454,8 @@ const AppContent = () => {
           </Route>
           <Route path="/docs" element={<Documentation />} />
           <Route path="/documentation" element={<Documentation />} />
+          <Route path="/dashboard/billing" element={<Navigate to="/shop-manager" replace />} />
+          <Route path="/billing" element={<Navigate to="/shop-manager" replace />} />
           <Route path="/health" element={<Health />} />
           <Route path="/healthz" element={<Health />} />
           <Route path="*" element={<NotFound />} />
