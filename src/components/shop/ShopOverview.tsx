@@ -34,9 +34,10 @@ interface ShopOverviewProps {
   totalRevenue: number;
   newOrders: number;
   onViewAllOrders: () => void;
+  isRestricted?: boolean;
 }
 
-export function ShopOverview({ orders, productCount, totalRevenue, newOrders, onViewAllOrders }: ShopOverviewProps) {
+export function ShopOverview({ orders, productCount, totalRevenue, newOrders, onViewAllOrders, isRestricted = false }: ShopOverviewProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   const periods = useMemo(() => {
@@ -230,7 +231,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate pr-2">
-                          {order.customer_name}
+                          {isRestricted ? "••••••••" : order.customer_name}
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-[11px] font-mono text-slate-500">{order.order_number}</p>

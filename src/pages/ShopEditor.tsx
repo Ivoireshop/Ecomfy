@@ -985,6 +985,7 @@ const ShopEditor = () => {
         {/* Payment status: bannière compte à rebours (phase pending). En état
             locked/final, tout l'espace propriétaire est verrouillé via ShopPaymentGate. */}
         {(() => {
+          if (billingInfo?.hasInvoice || billingInfo?.isPaymentDue || billingInfo?.isRestricted) return null;
           const info = computeShopPaymentInfo(shop);
           if (info.status !== "payment_pending") return null;
           return <ShopPaymentCountdown shopId={shop.id} info={info} />;
@@ -1143,7 +1144,7 @@ const ShopEditor = () => {
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
-            <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} />
+            <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
           )}
 
           {activeSection === "statistics" && (

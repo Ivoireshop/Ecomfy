@@ -56,6 +56,9 @@ interface OrdersListProps {
 }
 
 export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrderUpdated, isRestricted = false }: OrdersListProps) {
+  if (isRestricted) {
+    return <StoreRestrictedLockScreen shopId={shopId} isRestricted={true} />;
+  }
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
