@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
   TrendingUp
 } from "lucide-react";
+import { useBillingSystem } from "@/hooks/useBillingSystem";
 import { PayCommissionDialog } from "./PayCommissionDialog";
 
 interface BillingThresholdSectionProps {
@@ -53,30 +54,6 @@ export const BillingThresholdSection: React.FC<BillingThresholdSectionProps> = (
   };
 
   const progressPercent = Math.min(100, Math.round((ordersCount / threshold) * 100));
-
-  const executePayment = async () => {
-    setSubmittingPayment(true);
-    try {
-      const ref = `PAY-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`;
-      const res = await handleConfirmPayment(ref, selectedProvider);
-      
-      if (res.success) {
-        toast.success("Paiement confirmé ! 🎉", {
-          description: "Votre règlement de 12 000 FCFA a été confirmé. Votre boutique est maintenant entièrement réactivée.",
-          duration: 6000,
-        });
-        setPaymentModalOpen(false);
-      } else {
-        toast.error("Échec du paiement", {
-          description: res.message || "Impossible de confirmer le paiement. Veuillez réessayer.",
-        });
-      }
-    } catch (e: any) {
-      toast.error("Erreur de paiement", { description: e.message });
-    } finally {
-      setSubmittingPayment(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
