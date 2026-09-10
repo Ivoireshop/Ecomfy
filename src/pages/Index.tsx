@@ -28,19 +28,6 @@ import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFinalCta } from "@/components/landing/LandingFinalCta";
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { session, isReady } = useAuthReady();
-
-  useEffect(() => {
-    // Redirige vers le dashboard si l'utilisateur est déjà connecté
-    if (isReady && session?.user) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [isReady, navigate, session]);
-
-  // Si l'utilisateur est connecté, on n'affiche rien (le useEffect redirige)
-  if (session?.user) return null;
-
   return (
     <div className="min-h-screen bg-white selection:bg-[#0E7C66] selection:text-white font-['Inter',sans-serif]">
       <SEO

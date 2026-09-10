@@ -25,7 +25,7 @@ export function LandingPillarCreate() {
   ];
 
   return (
-    <section id="features" className="py-24 bg-white overflow-hidden">
+    <section id="boutique" className="py-24 bg-white overflow-hidden">
       <div className="container mx-auto px-4">
         <div 
           ref={ref}

@@ -130,9 +130,15 @@ const isCustomShopHost = (() => {
   if (import.meta.env.DEV) return false;
 
   const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
-  const KNOWN = ["ecomfy.cloud", "localhost", "127.0.0.1"];
+  const MAIN_DOMAINS = ["ecomfy.cloud", "localhost", "127.0.0.1"];
   
-  if (KNOWN.includes(host) || host.endsWith(".vercel.app")) return false;
+  if (MAIN_DOMAINS.includes(host)) return false;
+  if (
+    host.endsWith(".vercel.app") || 
+    host.endsWith(".netlify.app") || 
+    host.endsWith(".onrender.com") || 
+    host.endsWith(".pages.dev")
+  ) return false;
   
   return true;
 })();
