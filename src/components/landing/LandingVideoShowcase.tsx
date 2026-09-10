@@ -1,16 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { 
-  Play, 
   Volume2, 
   VolumeX, 
   Sparkles, 
-  CheckCircle2, 
   ArrowRight, 
   TrendingUp, 
   Zap, 
-  ShieldCheck,
-  ExternalLink,
-  RefreshCw
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -20,14 +16,12 @@ export function LandingVideoShowcase() {
   const navigate = useNavigate();
   const { ref, isVisible } = useScrollReveal({ threshold: 0.15 });
   const [isMuted, setIsMuted] = useState(true);
-  const [isLoaded, setIsLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const vimeoVideoId = "1225512009";
-  const vimeoDirectUrl = `https://vimeo.com/${vimeoVideoId}`;
 
-  // Complete PWA-compatible Vimeo embed URL with playsinline=1, dnt=1, transparent=0
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&controls=1&app_id=58479`;
+  // Clean Vimeo embed URL with playsinline=1, dnt=1, badge=0, title=0, byline=0, portrait=0
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0&controls=1`;
 
   const toggleSound = () => {
     setIsMuted(!isMuted);
@@ -69,23 +63,22 @@ export function LandingVideoShowcase() {
               {/* Aspect Ratio 16:9 Container */}
               <div className="relative w-full aspect-video bg-slate-950">
                 
-                {/* Vimeo Iframe with Full PWA Standalone Support */}
+                {/* Embedded Video Player */}
                 <iframe
                   ref={iframeRef}
                   src={embedUrl}
                   title="Présentation Ecomfy"
                   className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10"
-                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share"
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  onLoad={() => setIsLoaded(true)}
                   // @ts-ignore
                   playsInline
                   // @ts-ignore
                   webkit-playsinline="true"
                 />
 
-                {/* Quick Audio & Fullscreen Overlay Controls */}
+                {/* Audio Toggle Control */}
                 <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
                   <button
                     onClick={toggleSound}
@@ -104,17 +97,6 @@ export function LandingVideoShowcase() {
                       </>
                     )}
                   </button>
-
-                  <a
-                    href={vimeoDirectUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white backdrop-blur-md px-3 py-2 rounded-full border border-slate-700/80 text-xs font-medium transition-all shadow-md"
-                    title="Ouvrir la vidéo sur Vimeo HD"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Plein Écran HD</span>
-                  </a>
                 </div>
               </div>
             </div>
