@@ -225,6 +225,7 @@ interface ProductData {
   slug?: string;
   bundle_offers?: BundleOffer[];
   bundle_position?: string;
+  bundle_title?: string;
   variants?: VariantGroup[];
   section_order?: ProductSectionOrder;
   videos?: ProductVideo[];
@@ -276,7 +277,8 @@ export function ProductEditor({
     name: "", description: "", short_description: "", price: 0, compare_at_price: 0,
     category: "Autre", stock_quantity: 10, is_digital: false, is_published: true,
     sku: "", weight: 0, is_featured: false, slug: "",
-    bundle_offers: [], bundle_position: "after_countdown",
+    bundle_offers: initialData?.bundle_offers || [], bundle_position: initialData?.bundle_position || "after_countdown",
+    bundle_title: initialData?.bundle_title || "",
     variants: initialData?.variants || [],
     section_order: initialData?.section_order || { layout: "image_left", blocks: [...DEFAULT_PRODUCT_BLOCKS] },
     videos: initialData?.videos || [],
@@ -1737,6 +1739,18 @@ export function ProductEditor({
               <p className="text-xs text-muted-foreground">
                 Proposez des remises selon la quantité (ex: 1 = 7 500, 2 = 10 000, 3 = 16 000). Le client choisit son lot directement sur la fiche produit.
               </p>
+              <div className="space-y-1.5 pb-2 border-b">
+                <Label className="text-sm font-semibold">Titre personnalisé de la section</Label>
+                <Input
+                  value={product.bundle_title || ""}
+                  placeholder="Offres en lot (ou ex: 🎁 Formules Promo, ⚡ Choisissez votre pack...)"
+                  onChange={(e) => setProduct({ ...product, bundle_title: e.target.value })}
+                  className="h-10 font-medium"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Ce texte apparaîtra au-dessus des options d'offres sur votre fiche produit publique (par défaut : « Offres en lot »).
+                </p>
+              </div>
               <div className="space-y-2">
                 {(product.bundle_offers || []).map((offer, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-end p-2 rounded-lg border bg-muted/20">

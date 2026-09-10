@@ -551,6 +551,7 @@ const ShopEditor = () => {
           ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
           : [],
         bundle_position: data.bundle_position || "after_countdown",
+        bundle_title: data.bundle_title ? data.bundle_title.trim() : null,
         variants: Array.isArray(data.variants)
           ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
           : [],
@@ -646,6 +647,7 @@ const ShopEditor = () => {
         ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
         : [],
       bundle_position: data.bundle_position || "after_countdown",
+      bundle_title: data.bundle_title ? data.bundle_title.trim() : null,
       variants: Array.isArray(data.variants)
         ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
         : [],
@@ -1107,6 +1109,7 @@ const ShopEditor = () => {
                 slug: (editingProduct as any).slug || "",
                 bundle_offers: (editingProduct as any).bundle_offers || [],
                 bundle_position: (editingProduct as any).bundle_position || "after_countdown",
+                bundle_title: (editingProduct as any).bundle_title || "",
                 variants: (editingProduct as any).variants || [],
                 section_order: (editingProduct as any).section_order || undefined,
                 videos: (editingProduct as any).videos || [],

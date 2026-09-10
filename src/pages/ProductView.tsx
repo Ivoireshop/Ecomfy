@@ -137,6 +137,7 @@ interface Product {
   currency: string | null;
   bundle_offers?: { quantity: number; price: number; label?: string }[] | null;
   bundle_position?: string | null;
+  bundle_title?: string | null;
   variants?: { name: string; options: string[] }[] | null;
   section_order?: any;
   product_images: { id: string; image_url: string; is_primary: boolean; display_order: number | null }[];
@@ -1615,7 +1616,9 @@ const ProductView = () => {
                   <div key="bundle_offers" className="space-y-3 rounded-2xl border p-4 shadow-sm bg-white" style={{ borderColor: primaryColor + "20" }}>
                     <div className="flex items-center gap-2 mb-1">
                       <div className="h-6 w-6 rounded-full flex items-center justify-center text-white text-xs" style={{ backgroundColor: primaryColor }}>🎁</div>
-                      <p className="text-base font-bold" style={{ color: primaryColor }}>Offres en lot</p>
+                      <p className="text-base font-bold" style={{ color: primaryColor }}>
+                        {product.bundle_title || "Offres en lot"}
+                      </p>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {product.bundle_offers.map((b, i) => {
