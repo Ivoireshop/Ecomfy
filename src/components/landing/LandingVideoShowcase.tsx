@@ -9,7 +9,8 @@ import {
   TrendingUp, 
   Zap, 
   ShieldCheck,
-  Maximize2
+  ExternalLink,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -19,13 +20,14 @@ export function LandingVideoShowcase() {
   const navigate = useNavigate();
   const { ref, isVisible } = useScrollReveal({ threshold: 0.15 });
   const [isMuted, setIsMuted] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const vimeoVideoId = "1225512009";
+  const vimeoDirectUrl = `https://vimeo.com/${vimeoVideoId}`;
 
-  // Compute Vimeo embed URL dynamically based on mute state
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&title=0&byline=0&portrait=0&controls=1`;
+  // Complete PWA-compatible Vimeo embed URL with playsinline=1, dnt=1, transparent=0
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&controls=1&app_id=58479`;
 
   const toggleSound = () => {
     setIsMuted(!isMuted);
@@ -65,21 +67,29 @@ export function LandingVideoShowcase() {
             <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-[0_0_50px_rgba(16,185,129,0.15)] group">
               
               {/* Aspect Ratio 16:9 Container */}
-              <div className="relative w-full aspect-video bg-black">
+              <div className="relative w-full aspect-video bg-slate-950">
+                
+                {/* Vimeo Iframe with Full PWA Standalone Support */}
                 <iframe
                   ref={iframeRef}
                   src={embedUrl}
                   title="Présentation Ecomfy"
-                  className="w-full h-full border-0 rounded-2xl sm:rounded-3xl"
-                  allow="autoplay; fullscreen; picture-in-picture"
+                  className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10"
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share"
                   allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  onLoad={() => setIsLoaded(true)}
+                  // @ts-ignore
+                  playsInline
+                  // @ts-ignore
+                  webkit-playsinline="true"
                 />
 
-                {/* Quick Audio Toggle Overlay Control */}
+                {/* Quick Audio & Fullscreen Overlay Controls */}
                 <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
                   <button
                     onClick={toggleSound}
-                    className="flex items-center gap-2 bg-slate-950/80 hover:bg-emerald-600/90 text-white backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/80 text-xs sm:text-sm font-medium transition-all shadow-lg hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 bg-slate-950/90 hover:bg-emerald-600/90 text-white backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/80 text-xs sm:text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95"
                     title={isMuted ? "Activer le son" : "Couper le son"}
                   >
                     {isMuted ? (
@@ -94,6 +104,17 @@ export function LandingVideoShowcase() {
                       </>
                     )}
                   </button>
+
+                  <a
+                    href={vimeoDirectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white backdrop-blur-md px-3 py-2 rounded-full border border-slate-700/80 text-xs font-medium transition-all shadow-md"
+                    title="Ouvrir la vidéo sur Vimeo HD"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Plein Écran HD</span>
+                  </a>
                 </div>
               </div>
             </div>

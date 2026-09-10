@@ -7,12 +7,11 @@ import {
   Trophy, 
   Gift, 
   X, 
-  ChevronDown, 
   ChevronUp, 
   Video, 
-  Zap, 
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +29,10 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
   const [isMuted, setIsMuted] = useState<boolean>(true);
 
   const vimeoVideoId = "1225512009";
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&title=0&byline=0&portrait=0&controls=1`;
+  const vimeoDirectUrl = `https://vimeo.com/${vimeoVideoId}`;
+
+  // Complete PWA-compatible Vimeo embed URL with playsinline=1, dnt=1, transparent=0
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&controls=1&app_id=58479`;
 
   useEffect(() => {
     try {
@@ -199,6 +201,16 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
               )}
             </button>
 
+            <a
+              href={vimeoDirectUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium px-3.5 py-2 rounded-full transition-all shadow-sm"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Ouvrir en HD</span>
+            </a>
+
             <Button
               size="sm"
               onClick={() => navigate("/studio")}
@@ -210,15 +222,20 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
           </div>
         </div>
 
-        {/* Right Column: Vimeo Video Player */}
+        {/* Right Column: Vimeo Video Player with PWA Standalone Optimization */}
         <div className="lg:col-span-5">
           <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/40 shadow-2xl aspect-video group">
             <iframe
               src={embedUrl}
               title="Présentation Ecomfy Vendeurs"
-              className="w-full h-full border-0 rounded-2xl"
-              allow="autoplay; fullscreen; picture-in-picture"
+              className="w-full h-full border-0 rounded-2xl relative z-10"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share"
               allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+              // @ts-ignore
+              playsInline
+              // @ts-ignore
+              webkit-playsinline="true"
             />
           </div>
         </div>
