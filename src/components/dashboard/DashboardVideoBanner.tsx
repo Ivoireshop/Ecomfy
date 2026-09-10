@@ -29,8 +29,8 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
 
   const vimeoVideoId = "1225512009";
 
-  // Clean Vimeo embed URL with playsinline=1, dnt=1, badge=0, title=0, byline=0, portrait=0
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0&controls=1`;
+  // Automatic seamless playback URL with NO controls (controls=0) - only sound toggle allowed
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&controls=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
 
   useEffect(() => {
     try {
@@ -210,9 +210,9 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
           </div>
         </div>
 
-        {/* Right Column: Vimeo Video Player with Clean Embedded Player */}
+        {/* Right Column: Vimeo Video Player - Autoplay without controls */}
         <div className="lg:col-span-5">
-          <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/40 shadow-2xl aspect-video group">
+          <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/40 shadow-2xl aspect-video group pointer-events-none">
             <iframe
               src={embedUrl}
               title="Présentation Ecomfy Vendeurs"

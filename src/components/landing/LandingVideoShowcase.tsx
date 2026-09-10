@@ -20,8 +20,8 @@ export function LandingVideoShowcase() {
 
   const vimeoVideoId = "1225512009";
 
-  // Clean Vimeo embed URL with playsinline=1, dnt=1, badge=0, title=0, byline=0, portrait=0
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0&controls=1`;
+  // Automatic seamless playback URL with NO controls (controls=0) - only sound toggle allowed
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&controls=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
 
   const toggleSound = () => {
     setIsMuted(!isMuted);
@@ -61,9 +61,9 @@ export function LandingVideoShowcase() {
             <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-[0_0_50px_rgba(16,185,129,0.15)] group">
               
               {/* Aspect Ratio 16:9 Container */}
-              <div className="relative w-full aspect-video bg-slate-950">
+              <div className="relative w-full aspect-video bg-slate-950 pointer-events-none">
                 
-                {/* Embedded Video Player */}
+                {/* Embedded Video Player - Autoplay without controls */}
                 <iframe
                   ref={iframeRef}
                   src={embedUrl}
@@ -77,27 +77,28 @@ export function LandingVideoShowcase() {
                   // @ts-ignore
                   webkit-playsinline="true"
                 />
+              </div>
 
-                {/* Audio Toggle Control */}
-                <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
-                  <button
-                    onClick={toggleSound}
-                    className="flex items-center gap-2 bg-slate-950/90 hover:bg-emerald-600/90 text-white backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/80 text-xs sm:text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95"
-                    title={isMuted ? "Activer le son" : "Couper le son"}
-                  >
-                    {isMuted ? (
-                      <>
-                        <VolumeX className="w-4 h-4 text-amber-400" />
-                        <span>Activer le son</span>
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 className="w-4 h-4 text-emerald-400" />
-                        <span>Son activé</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+              {/* Sound Toggle Control Only */}
+              <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSound}
+                  className="flex items-center gap-2 bg-slate-950/90 hover:bg-emerald-600/90 text-white backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/80 text-xs sm:text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto"
+                  title={isMuted ? "Activer le son" : "Couper le son"}
+                >
+                  {isMuted ? (
+                    <>
+                      <VolumeX className="w-4 h-4 text-amber-400" />
+                      <span>Activer le son</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-4 h-4 text-emerald-400" />
+                      <span>Son activé</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
