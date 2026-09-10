@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { InstallPwaBanner } from "@/components/InstallPwaBanner";
 import { WebPushBanner } from "@/components/WebPushBanner";
+import { DashboardVideoBanner } from "@/components/dashboard/DashboardVideoBanner";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -255,6 +256,9 @@ const Dashboard = () => {
             Voici un aperçu de votre activité aujourd'hui.
           </p>
         </div>
+
+        {/* Video Presentation & Seller Perks Banner */}
+        <DashboardVideoBanner firstName={firstName} />
 
         <InstallPwaBanner />
         <WebPushBanner />
