@@ -20,8 +20,36 @@ export function LandingVideoShowcase() {
 
   const vimeoVideoId = "1225512009";
 
-  // Fixed background embed URL that NEVER changes, preventing iframe reloads or poster freezes
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?background=1&autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
+  // URL tuned for Mobile PWA / Safari / Chrome autoplay compatibility
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0&controls=0`;
+
+  const triggerVimeoPlay = () => {
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "setVolume", value: isMuted ? "0" : "1" }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "play" }),
+          "*"
+        );
+      } catch (_) {}
+    }
+  };
+
+  // Multi-pass play trigger to overcome mobile Safari / Android Webview autoplay restrictions
+  useEffect(() => {
+    triggerVimeoPlay();
+    const t1 = setTimeout(triggerVimeoPlay, 500);
+    const t2 = setTimeout(triggerVimeoPlay, 1500);
+    const t3 = setTimeout(triggerVimeoPlay, 3000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isMuted]);
 
   // Dynamic sound toggle using Vimeo postMessage API (no iframe reload)
   const toggleSound = () => {
@@ -30,7 +58,6 @@ export function LandingVideoShowcase() {
 
     if (iframeRef.current?.contentWindow) {
       try {
-        // Send postMessage to Vimeo player window
         iframeRef.current.contentWindow.postMessage(
           JSON.stringify({
             method: "setVolume",
@@ -52,18 +79,7 @@ export function LandingVideoShowcase() {
 
   // Ensure playback starts immediately upon iframe load
   const handleIframeLoad = () => {
-    if (iframeRef.current?.contentWindow) {
-      try {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ method: "setVolume", value: "0" }),
-          "*"
-        );
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ method: "play" }),
-          "*"
-        );
-      } catch (_) {}
-    }
+    triggerVimeoPlay();
   };
 
   return (
@@ -100,14 +116,18 @@ export function LandingVideoShowcase() {
             <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-[0_0_50px_rgba(16,185,129,0.15)] group">
               
               {/* Aspect Ratio 16:9 Container */}
-              <div className="relative w-full aspect-video bg-slate-950 overflow-hidden">
+              <div 
+                onClick={triggerVimeoPlay}
+                onTouchStart={triggerVimeoPlay}
+                className="relative w-full aspect-video bg-slate-950 overflow-hidden cursor-pointer"
+              >
                 
-                {/* Embedded Video Player - Background Autoplay without controls or poster freeze */}
+                {/* Embedded Video Player - Autoplay without controls freeze */}
                 <iframe
                   ref={iframeRef}
                   src={embedUrl}
                   title="Présentation Ecomfy"
-                  className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10 scale-105 pointer-events-none"
+                  className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10 scale-105 pointer-events-auto"
                   allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"

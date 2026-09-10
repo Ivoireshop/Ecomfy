@@ -30,8 +30,23 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
 
   const vimeoVideoId = "1225512009";
 
-  // Fixed background embed URL that NEVER changes, preventing iframe reloads or poster freezes
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?background=1&autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
+  // URL tuned for Mobile PWA / Safari / Chrome autoplay compatibility
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0&controls=0`;
+
+  const triggerVimeoPlay = () => {
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "setVolume", value: isMuted ? "0" : "1" }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "play" }),
+          "*"
+        );
+      } catch (_) {}
+    }
+  };
 
   useEffect(() => {
     try {
@@ -43,6 +58,19 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
       console.warn("Could not read localStorage for video banner:", e);
     }
   }, []);
+
+  // Multi-pass play trigger to overcome mobile Safari / Android Webview autoplay restrictions
+  useEffect(() => {
+    triggerVimeoPlay();
+    const t1 = setTimeout(triggerVimeoPlay, 500);
+    const t2 = setTimeout(triggerVimeoPlay, 1500);
+    const t3 = setTimeout(triggerVimeoPlay, 3000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isMuted]);
 
   const handleDismiss = () => {
     setIsDismissed(true);
@@ -84,18 +112,7 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
   };
 
   const handleIframeLoad = () => {
-    if (iframeRef.current?.contentWindow) {
-      try {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ method: "setVolume", value: "0" }),
-          "*"
-        );
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ method: "play" }),
-          "*"
-        );
-      } catch (_) {}
-    }
+    triggerVimeoPlay();
   };
 
   if (isDismissed) {
@@ -253,14 +270,18 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
           </div>
         </div>
 
-        {/* Right Column: Vimeo Video Player with background=1 Autoplay */}
+        {/* Right Column: Vimeo Video Player */}
         <div className="lg:col-span-5">
-          <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/40 shadow-2xl aspect-video group">
+          <div 
+            onClick={triggerVimeoPlay}
+            onTouchStart={triggerVimeoPlay}
+            className="relative rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/40 shadow-2xl aspect-video group cursor-pointer"
+          >
             <iframe
               ref={iframeRef}
               src={embedUrl}
               title="Présentation Ecomfy Vendeurs"
-              className="w-full h-full border-0 rounded-2xl relative z-10 scale-105 pointer-events-none"
+              className="w-full h-full border-0 rounded-2xl relative z-10 scale-105 pointer-events-auto"
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
