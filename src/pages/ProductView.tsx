@@ -1617,7 +1617,7 @@ const ProductView = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <div className="h-6 w-6 rounded-full flex items-center justify-center text-white text-xs" style={{ backgroundColor: primaryColor }}>🎁</div>
                       <p className="text-base font-bold" style={{ color: primaryColor }}>
-                        {product.bundle_title || "Offres en lot"}
+                        {product.bundle_title || (product.section_order as any)?.bundle_title || "Offres en lot"}
                       </p>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

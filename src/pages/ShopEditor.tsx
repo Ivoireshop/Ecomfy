@@ -541,6 +541,12 @@ const ShopEditor = () => {
     setSaving(true);
     try {
       const productSlug = editingProduct?.slug || await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
+      const rawSectionOrder = typeof data.section_order === "object" && data.section_order !== null ? data.section_order : {};
+      const sectionOrderWithTitle = {
+        ...rawSectionOrder,
+        bundle_title: data.bundle_title ? data.bundle_title.trim() : null,
+      };
+
       const productData = {
         name: data.name, description: data.description, short_description: data.short_description,
         price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
@@ -551,11 +557,10 @@ const ShopEditor = () => {
           ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
           : [],
         bundle_position: data.bundle_position || "after_countdown",
-        bundle_title: data.bundle_title ? data.bundle_title.trim() : null,
         variants: Array.isArray(data.variants)
           ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
           : [],
-        section_order: data.section_order ?? null,
+        section_order: sectionOrderWithTitle,
       };
       let prodId = editingProduct?.id;
 
@@ -638,6 +643,12 @@ const ShopEditor = () => {
   // Silent auto-save: updates the product fields in DB without closing the editor and without re-uploading images.
   const handleProductAutoSave = async (data: any): Promise<boolean> => {
     if (!id || !editingProduct?.id) return false;
+    const rawSectionOrder = typeof data.section_order === "object" && data.section_order !== null ? data.section_order : {};
+    const sectionOrderWithTitle = {
+      ...rawSectionOrder,
+      bundle_title: data.bundle_title ? data.bundle_title.trim() : null,
+    };
+
     const productData = {
       name: data.name, description: data.description, short_description: data.short_description,
       price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
@@ -647,11 +658,10 @@ const ShopEditor = () => {
         ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
         : [],
       bundle_position: data.bundle_position || "after_countdown",
-      bundle_title: data.bundle_title ? data.bundle_title.trim() : null,
       variants: Array.isArray(data.variants)
         ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
         : [],
-      section_order: data.section_order ?? null,
+      section_order: sectionOrderWithTitle,
     };
     const { error } = await supabase
       .from("products")
@@ -1109,7 +1119,7 @@ const ShopEditor = () => {
                 slug: (editingProduct as any).slug || "",
                 bundle_offers: (editingProduct as any).bundle_offers || [],
                 bundle_position: (editingProduct as any).bundle_position || "after_countdown",
-                bundle_title: (editingProduct as any).bundle_title || "",
+                bundle_title: (editingProduct as any).bundle_title || (editingProduct as any).section_order?.bundle_title || "",
                 variants: (editingProduct as any).variants || [],
                 section_order: (editingProduct as any).section_order || undefined,
                 videos: (editingProduct as any).videos || [],
