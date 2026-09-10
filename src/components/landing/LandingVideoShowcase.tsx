@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { 
   Volume2, 
   VolumeX, 
@@ -20,11 +20,50 @@ export function LandingVideoShowcase() {
 
   const vimeoVideoId = "1225512009";
 
-  // Automatic seamless playback URL with NO controls (controls=0) - only sound toggle allowed
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&controls=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
+  // Fixed background embed URL that NEVER changes, preventing iframe reloads or poster freezes
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?background=1&autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
 
+  // Dynamic sound toggle using Vimeo postMessage API (no iframe reload)
   const toggleSound = () => {
-    setIsMuted(!isMuted);
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+
+    if (iframeRef.current?.contentWindow) {
+      try {
+        // Send postMessage to Vimeo player window
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            method: "setVolume",
+            value: nextMuted ? "0" : "1"
+          }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            method: "play"
+          }),
+          "*"
+        );
+      } catch (err) {
+        console.warn("Vimeo postMessage error:", err);
+      }
+    }
+  };
+
+  // Ensure playback starts immediately upon iframe load
+  const handleIframeLoad = () => {
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "setVolume", value: "0" }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "play" }),
+          "*"
+        );
+      } catch (_) {}
+    }
   };
 
   return (
@@ -61,44 +100,45 @@ export function LandingVideoShowcase() {
             <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-[0_0_50px_rgba(16,185,129,0.15)] group">
               
               {/* Aspect Ratio 16:9 Container */}
-              <div className="relative w-full aspect-video bg-slate-950 pointer-events-none">
+              <div className="relative w-full aspect-video bg-slate-950 overflow-hidden">
                 
-                {/* Embedded Video Player - Autoplay without controls */}
+                {/* Embedded Video Player - Background Autoplay without controls or poster freeze */}
                 <iframe
                   ref={iframeRef}
                   src={embedUrl}
                   title="Présentation Ecomfy"
-                  className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10"
+                  className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10 scale-105 pointer-events-none"
                   allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
+                  onLoad={handleIframeLoad}
                   // @ts-ignore
                   playsInline
                   // @ts-ignore
                   webkit-playsinline="true"
                 />
-              </div>
 
-              {/* Sound Toggle Control Only */}
-              <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleSound}
-                  className="flex items-center gap-2 bg-slate-950/90 hover:bg-emerald-600/90 text-white backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/80 text-xs sm:text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto"
-                  title={isMuted ? "Activer le son" : "Couper le son"}
-                >
-                  {isMuted ? (
-                    <>
-                      <VolumeX className="w-4 h-4 text-amber-400" />
-                      <span>Activer le son</span>
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="w-4 h-4 text-emerald-400" />
-                      <span>Son activé</span>
-                    </>
-                  )}
-                </button>
+                {/* Sound Toggle Control Only */}
+                <div className="absolute bottom-4 right-4 z-30 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleSound}
+                    className="flex items-center gap-2 bg-slate-950/90 hover:bg-emerald-600/90 text-white backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/80 text-xs sm:text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto"
+                    title={isMuted ? "Activer le son" : "Couper le son"}
+                  >
+                    {isMuted ? (
+                      <>
+                        <VolumeX className="w-4 h-4 text-amber-400" />
+                        <span>Activer le son</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-4 h-4 text-emerald-400" />
+                        <span>Son activé</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

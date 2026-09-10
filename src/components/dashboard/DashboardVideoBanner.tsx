@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Play, 
   Volume2, 
@@ -26,11 +26,12 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const vimeoVideoId = "1225512009";
 
-  // Automatic seamless playback URL with NO controls (controls=0) - only sound toggle allowed
-  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?autoplay=1&muted=${isMuted ? 1 : 0}&loop=1&autopause=0&controls=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
+  // Fixed background embed URL that NEVER changes, preventing iframe reloads or poster freezes
+  const embedUrl = `https://player.vimeo.com/video/${vimeoVideoId}?background=1&autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0`;
 
   useEffect(() => {
     try {
@@ -54,6 +55,47 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
 
   const handleToggleMinimize = () => {
     setIsMinimized(!isMinimized);
+  };
+
+  // Dynamic sound toggle using Vimeo postMessage API (no iframe reload)
+  const toggleSound = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            method: "setVolume",
+            value: nextMuted ? "0" : "1"
+          }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            method: "play"
+          }),
+          "*"
+        );
+      } catch (err) {
+        console.warn("Vimeo postMessage error:", err);
+      }
+    }
+  };
+
+  const handleIframeLoad = () => {
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "setVolume", value: "0" }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "play" }),
+          "*"
+        );
+      } catch (_) {}
+    }
   };
 
   if (isDismissed) {
@@ -183,8 +225,9 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
           {/* Sound & Action Buttons */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <button
-              onClick={() => setIsMuted(!isMuted)}
-              className="inline-flex items-center gap-2 bg-slate-800 hover:bg-emerald-600 text-white border border-slate-700 hover:border-emerald-500 text-xs font-semibold px-4 py-2 rounded-full transition-all shadow-sm"
+              type="button"
+              onClick={toggleSound}
+              className="inline-flex items-center gap-2 bg-slate-800 hover:bg-emerald-600 text-white border border-slate-700 hover:border-emerald-500 text-xs font-semibold px-4 py-2 rounded-full transition-all shadow-sm cursor-pointer"
             >
               {isMuted ? (
                 <>
@@ -210,16 +253,18 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
           </div>
         </div>
 
-        {/* Right Column: Vimeo Video Player - Autoplay without controls */}
+        {/* Right Column: Vimeo Video Player with background=1 Autoplay */}
         <div className="lg:col-span-5">
-          <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/40 shadow-2xl aspect-video group pointer-events-none">
+          <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-emerald-500/40 shadow-2xl aspect-video group">
             <iframe
+              ref={iframeRef}
               src={embedUrl}
               title="Présentation Ecomfy Vendeurs"
-              className="w-full h-full border-0 rounded-2xl relative z-10"
+              className="w-full h-full border-0 rounded-2xl relative z-10 scale-105 pointer-events-none"
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
+              onLoad={handleIframeLoad}
               // @ts-ignore
               playsInline
               // @ts-ignore
