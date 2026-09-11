@@ -50,8 +50,8 @@ export interface TrackPayload {
   country?: string;
 }
 
-const genEventId = () =>
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const genEventId = (orderId?: string) =>
+  orderId ? `ord_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, "_")}` : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 function ensureLoaded(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -194,7 +194,7 @@ export async function trackEvent(
   payload: TrackPayload = {}
 ) {
   if (!shop || shop.tracking_enabled === false || typeof window === "undefined") return;
-  const eventId = genEventId();
+  const eventId = genEventId(payload.order_id);
   const currency = payload.currency || "XOF";
 
   try {
@@ -207,9 +207,15 @@ export async function trackEvent(
       num_items: payload.num_items,
       order_id: payload.order_id,
     };
-    (shop.facebook_pixels || []).forEach(() => {
-      window.fbq?.("track", FB_EVENT_MAP[event], fbPayload, { eventID: eventId });
-    });
+
+    const fbPixels = (shop.facebook_pixels || []).filter(Boolean);
+    if (fbPixels.length > 0 && window.fbq) {
+      fbPixels.forEach((pixelId) => {
+        if (typeof window.fbq === "function") {
+          window.fbq("trackSingle", pixelId, FB_EVENT_MAP[event], fbPayload, { eventID: eventId });
+        }
+      });
+    }
 
     (shop.tiktok_pixels || []).forEach(() => {
       window.ttq?.track?.(TT_EVENT_MAP[event], {

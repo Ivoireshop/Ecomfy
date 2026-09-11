@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Loader2, Mail, Trash2, UserPlus, ShieldCheck, Clock, Ban, Eye, Edit3, DollarSign, PackageCheck, LayoutList, LineChart, Users, ShieldAlert, UsersRound, Send } from "lucide-react";
+import { Loader2, Mail, Trash2, UserPlus, ShieldCheck, Clock, Ban, Eye, Edit3, DollarSign, PackageCheck, LayoutList, LineChart, Users, ShieldAlert, UsersRound, Send, Copy } from "lucide-react";
 
 type Role = 
   | "view_orders" 
@@ -59,6 +59,7 @@ interface Collab {
   status: "pending" | "active" | "revoked";
   accepted_at: string | null;
   created_at: string;
+  invitation_token?: string;
 }
 
 interface Props {
@@ -76,7 +77,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
   const load = async () => {
     setLoading(true);
     const { data } = await (supabase.from("shop_collaborators" as any) as any)
-      .select("id, invited_email, roles, status, accepted_at, created_at")
+      .select("id, invited_email, roles, status, accepted_at, created_at, invitation_token")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
     setList((data as Collab[]) || []);
@@ -88,29 +89,60 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
   const toggleRole = (r: Role) =>
     setRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
 
-  const invite = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
+  const invite = async (overrideEmail?: string | React.MouseEvent, overrideRoles?: Role[]) => {
+    const targetEmail = (typeof overrideEmail === "string" ? overrideEmail : email).trim().toLowerCase();
+    const targetRoles = Array.isArray(overrideRoles) ? overrideRoles : roles;
+
+    if (!targetEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(targetEmail)) {
       toast.error("Adresse email invalide");
       return;
     }
-    if (roles.length === 0) { toast.error("Sélectionnez au moins un rôle"); return; }
+    if (targetRoles.length === 0) { toast.error("Sélectionnez au moins un rôle"); return; }
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("invite-shop-collaborator", {
-        body: { shop_id: shopId, email: trimmed, roles, shop_name: shopName },
+        body: { shop_id: shopId, email: targetEmail, roles: targetRoles, shop_name: shopName },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Échec de l'envoi");
-      toast.success("Invitation envoyée", { description: `Un email a été envoyé à ${trimmed}.` });
-      setEmail("");
-      setRoles(["view_orders"]);
+      if (!data?.success) {
+        throw new Error(data?.details || data?.error || "Échec de l'enregistrement de l'invitation");
+      }
+      if (data?.email_sent === false) {
+        toast.warning("Invitation créée (Email non délivré) ⚠️", {
+          description: `L'accès est créé. Motif Resend: ${data.warning || "Restriction de domaine"}. Utilisez le bouton "Copier lien" ci-dessous pour lui envoyer par WhatsApp ou SMS.`,
+          duration: 7000,
+        });
+      } else {
+        toast.success("Invitation envoyée avec succès ! 🚀", {
+          description: `Un e-mail d'invitation a été transmis à ${targetEmail}.`,
+        });
+      }
+      if (typeof overrideEmail !== "string") {
+        setEmail("");
+        setRoles(["view_orders"]);
+      }
       load();
     } catch (e: any) {
-      toast.error("Erreur", { description: e?.message || "Impossible d'envoyer l'invitation" });
+      console.error("Invite collaborator error:", e);
+      toast.error("Échec de l'invitation", {
+        description: e?.message || "Impossible d'envoyer l'invitation pour le moment.",
+      });
     } finally {
       setSending(false);
     }
+  };
+
+  const copyInviteLink = (token?: string) => {
+    if (!token) {
+      toast.error("Lien d'invitation indisponible");
+      return;
+    }
+    const origin = window.location.origin;
+    const url = `${origin}/accept-shop-invite?token=${encodeURIComponent(token)}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Lien d'invitation copié ! 📋", {
+      description: "Vous pouvez l'envoyer directement à votre collaborateur (WhatsApp, SMS, Email).",
+    });
   };
 
   const updateRoles = async (id: string, nextRoles: Role[]) => {
@@ -228,7 +260,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
               </div>
 
               <Button 
-                onClick={invite} 
+                onClick={() => invite()} 
                 disabled={sending || !email.trim()} 
                 className="w-full h-12 text-base font-semibold shadow-sm gap-2"
                 size="lg"
@@ -295,6 +327,31 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
                         </div>
                         
                         <div className="flex items-center gap-1 shrink-0">
+                          {c.status === "pending" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyInviteLink(c.invitation_token)}
+                                title="Copier le lien d'invitation direct"
+                                className="h-8 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                              >
+                                <Copy className="h-3 w-3" />
+                                Copier lien
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => invite(c.invited_email, c.roles)}
+                                disabled={sending}
+                                title="Renvoyer l'e-mail d'invitation"
+                                className="h-8 text-xs gap-1 border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                              >
+                                <Send className="h-3 w-3" />
+                                Renvoyer
+                              </Button>
+                            </>
+                          )}
                           {c.status !== "revoked" && (
                             <Button size="icon" variant="ghost" onClick={() => revoke(c.id)} title="Révoquer l'accès" className="h-8 w-8 text-muted-foreground hover:text-destructive">
                               <Ban className="h-4 w-4" />

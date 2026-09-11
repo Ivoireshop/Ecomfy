@@ -62,15 +62,33 @@ Deno.serve(async (req) => {
       if (insErr) return json({ success: false, error: insErr.message })
     }
 
-    const origin = req.headers.get('origin') || 'https://visuelpro.cloud'
+    const origin = req.headers.get('origin') || 'https://ecomfy.cloud'
     const acceptUrl = `${origin}/accept-shop-invite?token=${encodeURIComponent(finalToken)}`
 
-    // Direct send via Resend (no DNS setup required, uses onboarding@resend.dev)
+    const displayShop = shop.business_name || shopName
+
     const resendKey = Deno.env.get('RESEND_API_KEY')
     if (!resendKey) {
-      return json({ success: false, error: 'email_not_sent', details: 'RESEND_API_KEY missing' })
+      console.warn('RESEND_API_KEY missing, attempting Supabase Auth invite fallback...')
+      try {
+        const { error: authErr } = await admin.auth.admin.inviteUserByEmail(emailRaw, {
+          redirectTo: acceptUrl,
+          data: { shop_id: shopId, shop_name: displayShop, roles, invitation_token: finalToken },
+        })
+        if (!authErr) {
+          return json({ success: true, method: 'supabase_auth_fallback' })
+        }
+        console.warn('Supabase Auth invite fallback failed:', authErr)
+      } catch (e) {
+        console.warn('Supabase Auth invite fallback exception:', e)
+      }
+
+      return json({
+        success: false,
+        error: 'email_not_sent',
+        details: 'RESEND_API_KEY non configurée dans Supabase. Veuillez définir la clé RESEND_API_KEY.',
+      })
     }
-    const displayShop = shop.business_name || shopName
     const rolesLabels: Record<string, string> = {
       view_orders: 'Voir les commandes',
       edit_shop: 'Modifier la boutique',
@@ -78,55 +96,97 @@ Deno.serve(async (req) => {
       manage_delivered_orders: 'Gérer les commandes livrées',
       manage_catalog: 'Gérer le catalogue',
       view_stats: 'Voir les statistiques',
-      manage_customers: 'Service client',
+      manage_customers: 'Service client (Avis & Contacts)',
       full_admin: 'Accès total (Admin)',
     }
-    const rolesHtml = roles.map((r: string) => `<li>${rolesLabels[r] || r}</li>`).join('')
-    const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#fff;padding:24px;color:#0f172a">
-      <div style="max-width:560px;margin:0 auto">
-        <h1 style="font-size:22px;margin:0 0 16px">Invitation à collaborer 🤝</h1>
-        <p style="font-size:15px;line-height:1.6;color:#334155">
-          Vous avez été invité(e) à rejoindre la boutique <strong>${displayShop}</strong> sur VisualPro Cloud.
-        </p>
-        ${rolesHtml ? `<p style="font-size:15px;color:#334155;margin-bottom:6px">Rôles attribués :</p><ul style="color:#334155;font-size:14px">${rolesHtml}</ul>` : ''}
-        <p style="font-size:15px;line-height:1.6;color:#334155">
-          Pour accepter, cliquez sur le bouton ci-dessous puis connectez-vous (ou créez votre compte) avec cette adresse email.
-        </p>
-        <p style="text-align:center;margin:28px 0">
-          <a href="${acceptUrl}" style="background:#0f172a;color:#fff;padding:12px 24px;border-radius:8px;font-weight:600;text-decoration:none;display:inline-block">Accepter l'invitation</a>
-        </p>
-        <p style="font-size:12px;color:#94a3b8;margin-top:32px">
-          Si vous n'attendiez pas cette invitation, vous pouvez ignorer cet email.<br/>
-          Ou copiez ce lien : ${acceptUrl}
-        </p>
+    const rolesHtml = roles.map((r: string) => `<li style="margin-bottom:4px;"><strong>${rolesLabels[r] || r}</strong></li>`).join('')
+    
+    const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background-color:#f8fafc;padding:32px 16px;color:#0f172a;margin:0;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <h1 style="font-size:24px;font-weight:800;color:#0f172a;margin:0 0 8px;">Ecomfy 🛍️</h1>
+      <p style="font-size:14px;color:#64748b;margin:0;">Invitation d'accès collaborateur</p>
+    </div>
+    <div style="border-top:1px solid #f1f5f9;padding-top:24px;">
+      <p style="font-size:16px;line-height:1.6;color:#334155;margin-top:0;">
+        Bonjour,
+      </p>
+      <p style="font-size:16px;line-height:1.6;color:#334155;">
+        Vous avez été invité(e) à rejoindre la boutique <strong>${displayShop}</strong> sur Ecomfy.
+      </p>
+      ${rolesHtml ? `
+      <div style="background:#f1f5f9;border-radius:12px;padding:16px;margin:20px 0;">
+        <p style="font-size:14px;font-weight:700;color:#0f172a;margin:0 0 8px;">Rôles et permissions attribués :</p>
+        <ul style="color:#334155;font-size:14px;margin:0;padding-left:20px;">
+          ${rolesHtml}
+        </ul>
+      </div>` : ''}
+      <p style="font-size:15px;line-height:1.6;color:#334155;">
+        Cliquez sur le bouton ci-dessous pour accepter votre invitation et accéder directement à l'espace de gestion de la boutique :
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${acceptUrl}" style="background:#10b981;color:#ffffff;padding:14px 28px;border-radius:9999px;font-weight:700;font-size:15px;text-decoration:none;display:inline-block;box-shadow:0 4px 12px rgba(16,185,129,0.25);">
+          Accepter l'invitation
+        </a>
       </div>
-    </body></html>`
+      <p style="font-size:13px;color:#64748b;line-height:1.5;">
+        Cette invitation est personnelle et liée à votre adresse email (<strong>${emailRaw}</strong>).
+      </p>
+    </div>
+    <div style="border-top:1px solid #f1f5f9;margin-top:32px;padding-top:16px;text-align:center;font-size:12px;color:#94a3b8;">
+      <p style="margin:0 0 8px;">Si vous n'attendiez pas cette invitation, vous pouvez ignorer cet email.</p>
+      <p style="margin:0;word-break:break-all;">Lien direct : <a href="${acceptUrl}" style="color:#10b981;">${acceptUrl}</a></p>
+      <p style="margin-top:16px;color:#cbd5e1;">&copy; Ecomfy — Tous droits réservés</p>
+    </div>
+  </div>
+</body>
+</html>`
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'VisualPro Cloud <noreply@visuelpro.cloud>',
-        to: [emailRaw],
-        reply_to: 'contact@visuelpro.cloud',
-        subject: `Invitation à collaborer sur ${displayShop}`,
-        html,
-      }),
-    })
-    const resendData = await resendRes.json().catch(() => ({}))
-    if (!resendRes.ok) {
-      console.error('Resend invite failed', resendRes.status, resendData)
-      return json({
-        success: false,
-        error: 'email_not_sent',
-        details: resendData?.message || `Resend HTTP ${resendRes.status}`,
+    const sendWithFrom = async (fromAddress: string) => {
+      return await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: [emailRaw],
+          subject: `Invitation à rejoindre la boutique ${displayShop} — Ecomfy`,
+          html,
+        }),
       })
     }
 
-    return json({ success: true })
+    // Try configured custom sender first, fallback to onboarding@resend.dev
+    const customFrom = Deno.env.get('RESEND_FROM_EMAIL') || 'Ecomfy <noreply@ecomfy.cloud>'
+    let resendRes = await sendWithFrom(customFrom)
+    let resendData = await resendRes.json().catch(() => ({}))
+
+    if (!resendRes.ok) {
+      console.warn('Custom from sender failed, falling back to onboarding sender:', resendData)
+      const fallbackFrom = 'Ecomfy <onboarding@resend.dev>'
+      if (customFrom !== fallbackFrom) {
+        resendRes = await sendWithFrom(fallbackFrom)
+        resendData = await resendRes.json().catch(() => ({}))
+      }
+    }
+
+    if (!resendRes.ok) {
+      console.error('Resend invite failed', resendRes.status, resendData)
+      return json({
+        success: true,
+        email_sent: false,
+        warning: resendData?.message || `Erreur d'envoi Resend (${resendRes.status})`,
+      })
+    }
+
+    return json({ success: true, email_sent: true })
   } catch (e: any) {
     return json({ success: false, error: e?.message || 'unexpected_error' })
   }

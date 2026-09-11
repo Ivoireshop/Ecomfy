@@ -58,6 +58,7 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazyWithRetry(() => import("./pages/VerifyEmail"));
 const OAuthConsent = lazyWithRetry(() => import("./pages/OAuthConsent"));
+const AcceptShopInvite = lazyWithRetry(() => import("./pages/AcceptShopInvite"));
 const PaymentHistory = lazyWithRetry(() => import("./pages/PaymentHistory"));
 const PromoCodeManager = lazyWithRetry(() => import("./pages/PromoCodeManager"));
 const FounderDashboard = lazyWithRetry(() => import("./pages/FounderDashboard"));
@@ -96,7 +97,6 @@ const VideosPublicitaires = lazyWithRetry(() => import("./pages/VideosPublicitai
 const BoutiquesEcommerce = lazyWithRetry(() => import("./pages/BoutiquesEcommerce"));
 const Community = lazyWithRetry(() => import("./pages/Community"));
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
-const AcceptShopInvite = lazyWithRetry(() => import("./pages/AcceptShopInvite"));
 const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
 const Health = lazyWithRetry(() => import("./pages/Health"));
 const AiQuota = lazyWithRetry(() => import("./pages/AiQuota"));
@@ -198,6 +198,7 @@ const AppContent = () => {
           />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/oauth/consent" element={<OAuthConsent />} />
+          <Route path="/accept-shop-invite" element={<AcceptShopInvite />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/visuels-publicitaires" element={<VisuelsPublicitaires />} />
           <Route path="/videos-publicitaires" element={<VideosPublicitaires />} />
