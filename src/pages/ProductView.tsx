@@ -660,6 +660,8 @@ const ProductView = () => {
     submittingOrderRef.current = true;
     setOrderLoading(true);
     try {
+      const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
+      const detectedCountry = parseFullPhone(normalizedPhone).country?.name || shop?.country || null;
       const isSubscribedShop = shop?.commission_rate === 0 || 
         ["STORE_ACTIVE", "PAYMENT_CONFIRMED", "STORE_REACTIVATED", "active"].includes(shop?.shop_payment_status) ||
         Boolean(shop?.is_subscribed);
