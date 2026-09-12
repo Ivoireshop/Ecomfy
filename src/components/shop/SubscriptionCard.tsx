@@ -65,16 +65,20 @@ export function SubscriptionCard({ shopId, shop }: Props) {
             Évitez la commission de 50 FCFA par commande grâce à un forfait mensuel fixe.
           </p>
         </div>
-        <Badge variant={isActive ? "default" : "secondary"} className="capitalize">
-          {isActive ? `${plan} actif` : "Plan Free"}
+        <Badge variant={isActive ? "default" : "secondary"} className={isActive ? "bg-emerald-600 font-bold tracking-wide" : "capitalize"}>
+          {isActive ? `✓ PLAN ACTUEL (${plan})` : "Plan Free"}
         </Badge>
       </div>
 
       {isActive && activeUntil && (
-        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
-          ✓ Abonnement <b className="capitalize">{plan}</b> actif jusqu'au{" "}
+        <div className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3.5 text-sm text-emerald-800 dark:text-emerald-300 font-medium shadow-sm">
+          <div className="font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 mb-1">
+            <ShieldCheck className="h-4 w-4" />
+            [ ✓ PLAN ACTUEL ] — Pass Zéro Commission Activé
+          </div>
+          Votre abonnement <b className="capitalize">{plan}</b> est actif jusqu'au{" "}
           <b>{activeUntil.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</b>.
-          Aucune commission n'est appliquée sur vos commandes pendant cette période.
+          Aucune commission de 50 FCFA n'est prélevée sur vos commandes.
         </div>
       )}
 

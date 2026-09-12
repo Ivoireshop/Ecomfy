@@ -267,6 +267,17 @@ serve(async (req) => {
         end_date: end.toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("user_id", userId);
+
+      // Also sync shop subscription state
+      const plan = (meta.plan as string) || "pro_monthly";
+      await supabase.rpc("apply_shop_subscription", {
+        p_shop_id: shopId,
+        p_user_id: userId,
+        p_plan: plan,
+        p_amount: Number(payment.amount) || 0,
+        p_transaction_reference: payment.transaction_id || reference,
+        p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
+      });
     }
 
     return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {

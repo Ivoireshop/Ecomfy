@@ -355,19 +355,19 @@ const Subscription = () => {
 
         {/* Status Card for Active Users */}
         {(isActive || isFounder) && (
-          <Card className="mb-12 max-w-2xl mx-auto border-primary/20 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10">
+          <Card className="mb-12 max-w-2xl mx-auto border-emerald-500/40 shadow-lg bg-emerald-500/5">
+            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10">
               <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="h-6 w-6 text-primary" />
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                 Statut de l'abonnement
-                <Badge variant="default" className="ml-auto">
-                  {isFounder ? "Accès Illimité" : "Pro Actif"}
+                <Badge variant="default" className="ml-auto bg-emerald-600 font-extrabold text-xs px-3 py-1">
+                  {isFounder ? "Accès Illimité Fondateur" : "[ ✓ PLAN ACTUEL ] — Pass 0 FCFA Commission"}
                 </Badge>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-emerald-900 font-medium">
                 {isFounder
                   ? "Accès complet à toutes les fonctionnalités sans limitation"
-                  : `Votre abonnement est valide jusqu'au ${subscription?.end_date ? new Date(subscription.end_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) : "N/A"}`}
+                  : `Votre abonnement est actif jusqu'au ${subscription?.end_date ? new Date(subscription.end_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) : "N/A"}. Aucune commission de 50 FCFA n'est prélevée sur vos commandes.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">

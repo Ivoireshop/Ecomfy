@@ -393,6 +393,16 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq("user_id", userId);
 
+      const plan = (metadata?.plan as string) || "pro_monthly";
+      await supabase.rpc("apply_shop_subscription", {
+        p_shop_id: metadata?.shop_id || null,
+        p_user_id: userId,
+        p_plan: plan,
+        p_amount: amountPaid,
+        p_transaction_reference: reference || null,
+        p_payment_method: data?.payment_method || data?.provider || "geniuspay",
+      });
+
       // Send confirmation email
       try {
         const { data: profile } = await supabase

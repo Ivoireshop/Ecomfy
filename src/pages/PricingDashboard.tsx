@@ -10,7 +10,59 @@ export default function PricingDashboard() {
   const { session } = useAuthReady();
   const [loading, setLoading] = useState<string | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      loadActivePlan();
+    }
+  }, [session]);
+
+  const loadActivePlan = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const { data: subData } = await supabase
+        .from("subscriptions")
+        .select("plan, end_date, status")
+        .eq("user_id", session.user.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      const { data: shopData } = await supabase
+        .from("shops")
+        .select("subscription_plan, subscription_active_until, is_subscribed")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const plan = shopData?.subscription_plan || subData?.plan || null;
+      const until = shopData?.subscription_active_until || subData?.end_date || null;
+      const isSub = shopData?.is_subscribed || (subData?.status === "active");
+
+      if (isSub || (until && new Date(until).getTime() > Date.now())) {
+        setActivePlanId(plan);
+      }
+    } catch (e) {
+      console.error("Error loading active plan:", e);
+    }
+  };
+
+  const isPlanActive = (planId: string) => {
+    if (!activePlanId) return planId === "starter_free";
+    const norm = activePlanId.toLowerCase();
+    if (planId === "pro_monthly" && (norm.includes("pro") || norm.includes("starter") || norm.includes("business"))) {
+      return true;
+    }
+    if (planId === "premium_academy_pro" && (norm.includes("premium") || norm.includes("vip") || norm.includes("academy"))) {
+      return true;
+    }
+    if (planId === "starter_free" && (norm === "free" || norm === "starter_free")) {
+      return true;
+    }
+    return norm === planId.toLowerCase();
+  };
 
   // Déclenchement automatique post-connexion si l'utilisateur avait sélectionné un plan
   useEffect(() => {
@@ -162,7 +214,16 @@ export default function PricingDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
           
           {/* Plan 1: Free */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col justify-between space-y-6">
+          <div className={`rounded-3xl p-6 sm:p-8 border flex flex-col justify-between space-y-6 transition-all ${
+            isPlanActive("starter_free")
+              ? "bg-white border-2 border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative"
+              : "bg-white border-slate-200 shadow-sm"
+          }`}>
+            {isPlanActive("starter_free") && (
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[10px] font-extrabold px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                [ ✓ PLAN ACTUEL ]
+              </div>
+            )}
             <div className="space-y-5">
               <div>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Formule Débutant</span>
@@ -179,11 +240,16 @@ export default function PricingDashboard() {
               </div>
 
               <Button
-                variant="outline"
-                className="w-full rounded-xl font-bold border-slate-300 text-slate-700 h-11 text-sm"
+                variant={isPlanActive("starter_free") ? "default" : "outline"}
+                className={`w-full rounded-xl font-bold h-11 text-sm ${
+                  isPlanActive("starter_free")
+                    ? "bg-emerald-600 text-white cursor-default opacity-90"
+                    : "border-slate-300 text-slate-700"
+                }`}
+                disabled={isPlanActive("starter_free")}
                 onClick={() => navigate("/dashboard")}
               >
-                Plan Actuel
+                {isPlanActive("starter_free") ? "✓ VOTRE PLAN ACTUEL" : "Plan Démarrage"}
               </Button>
 
               <ul className="space-y-3 text-xs text-slate-600">
@@ -208,9 +274,13 @@ export default function PricingDashboard() {
           </div>
 
           {/* Plan 2: Pro (12 000 FCFA / mois - ou 9 900 FCFA / mois en annuel) */}
-          <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-emerald-500/40 shadow-xl relative flex flex-col justify-between space-y-6">
+          <div className={`rounded-3xl p-6 sm:p-8 border relative flex flex-col justify-between space-y-6 transition-all ${
+            isPlanActive("pro_monthly")
+              ? "bg-slate-900 text-white border-2 border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.3)] ring-2 ring-emerald-500/40"
+              : "bg-slate-900 text-white border-emerald-500/40 shadow-xl"
+          }`}>
             <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-              ⚡ POPULAIRE
+              {isPlanActive("pro_monthly") ? "[ ✓ PLAN ACTUEL ]" : "⚡ POPULAIRE"}
             </div>
 
             <div className="space-y-5">
@@ -234,12 +304,20 @@ export default function PricingDashboard() {
               </div>
 
               <Button
-                className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 shadow-lg text-sm"
+                className={`w-full rounded-xl font-bold h-11 shadow-lg text-sm ${
+                  isPlanActive("pro_monthly")
+                    ? "bg-emerald-600 text-white opacity-90 cursor-default"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                }`}
                 onClick={() => handleSubscribe("pro_monthly", proPrice)}
-                disabled={loading === "pro_monthly"}
+                disabled={loading === "pro_monthly" || isPlanActive("pro_monthly")}
               >
-                {loading === "pro_monthly" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
-                Activer le Plan Pro
+                {loading === "pro_monthly" ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                )}
+                {isPlanActive("pro_monthly") ? "✓ VOTRE PLAN ACTUEL (0 FCFA COMMISSION)" : "Activer le Plan Pro"}
               </Button>
               <div className="text-[10px] text-center text-emerald-400 font-medium">
                 Paiement 🟠 Orange · 🟡 MTN · 🔵 Wave · 🟢 Moov · 💳 Carte
@@ -271,10 +349,14 @@ export default function PricingDashboard() {
           </div>
 
           {/* Plan 3: Premium Académie & VIP (35 000 FCFA / mois - ou 28 500 FCFA / mois en annuel) */}
-          <div className="bg-gradient-to-b from-[#0F1B2C] via-[#0b1422] to-[#080d16] text-white rounded-3xl p-6 sm:p-8 border-2 border-amber-400/60 shadow-2xl relative flex flex-col justify-between space-y-6">
+          <div className={`rounded-3xl p-6 sm:p-8 border-2 relative flex flex-col justify-between space-y-6 transition-all ${
+            isPlanActive("premium_academy_pro")
+              ? "bg-gradient-to-b from-[#0F1B2C] via-[#0b1422] to-[#080d16] text-white border-emerald-400 shadow-[0_0_35px_rgba(251,191,36,0.3)] ring-2 ring-emerald-400/50"
+              : "bg-gradient-to-b from-[#0F1B2C] via-[#0b1422] to-[#080d16] text-white border-amber-400/60 shadow-2xl"
+          }`}>
             <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-amber-400 text-slate-950 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
               <Crown className="w-3.5 h-3.5" />
-              OFFRE MEMBRE VIP
+              {isPlanActive("premium_academy_pro") ? "[ ✓ PLAN ACTUEL ]" : "OFFRE MEMBRE VIP"}
             </div>
 
             <div className="space-y-5">
@@ -298,12 +380,20 @@ export default function PricingDashboard() {
               </div>
 
               <Button
-                className="w-full rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-extrabold h-11 shadow-xl hover:opacity-95 text-sm"
+                className={`w-full rounded-xl font-extrabold h-11 shadow-xl text-sm ${
+                  isPlanActive("premium_academy_pro")
+                    ? "bg-emerald-600 text-white opacity-90 cursor-default"
+                    : "bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 hover:opacity-95"
+                }`}
                 onClick={() => handleSubscribe("premium_academy_pro", premiumPrice)}
-                disabled={loading === "premium_academy_pro"}
+                disabled={loading === "premium_academy_pro" || isPlanActive("premium_academy_pro")}
               >
-                {loading === "premium_academy_pro" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
-                Activer le Pass Premium
+                {loading === "premium_academy_pro" ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                )}
+                {isPlanActive("premium_academy_pro") ? "✓ VOTRE PLAN ACTUEL (0 FCFA COMMISSION)" : "Activer le Pass Premium"}
               </Button>
 
               <ul className="space-y-3 text-xs text-slate-100">
