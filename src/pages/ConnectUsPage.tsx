@@ -82,8 +82,8 @@ export default function ConnectUsPage() {
     };
   }, [searchQuery]);
 
-  const handleToggleFollowUser = (targetId: string) => {
-    const isNowFollowing = toggleFollow(targetId);
+  const handleToggleFollowUser = async (targetId: string) => {
+    const isNowFollowing = await toggleFollow(targetId);
     setFollowingMap(prev => ({ ...prev, [targetId]: isNowFollowing }));
   };
 
@@ -92,9 +92,9 @@ export default function ConnectUsPage() {
     setShowInviteModal(true);
   };
 
-  const handleSendInviteMessage = (targetId: string, message: string) => {
-    ConnectUsService.sendInvitation(userId, targetId, message);
-    handleToggleFollowUser(targetId);
+  const handleSendInviteMessage = async (targetId: string, message: string) => {
+    await ConnectUsService.sendInvitation(userId, targetId, message);
+    await handleToggleFollowUser(targetId);
   };
 
   const filteredPosts = posts.filter((p) => {

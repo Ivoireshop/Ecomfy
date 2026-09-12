@@ -18,89 +18,13 @@ const LOCAL_STORAGE_POSTS_KEY = "ecomfy_connectus_local_posts";
 const LOCAL_STORAGE_FOLLOWS_KEY = "ecomfy_connectus_local_follows";
 const LOCAL_STORAGE_PROFILE_KEY = "ecomfy_connectus_profile";
 
-const OFFICIAL_ACCOUNTS = {
-  ulrich: {
-    id: "user-ulrich-djate",
-    user_id: "user-ulrich-djate",
-    username: "ulrich_djate",
-    full_name: "Ulrich Djaté",
-    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
-    cover_url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
-    bio: "Fondateur & Lead Architecte Connect As / Ecomfy 🚀 Bienvenue dans notre communauté !",
-    location: "Abidjan, Côte d'Ivoire",
-    website_url: "https://ecomfy.cloud",
-    is_verified: true,
-    is_business: true,
-    followers_count: 5200,
-    following_count: 150,
-    posts_count: 18,
-    shop_name: "Ecomfy Platform Studio",
-    created_at: new Date().toISOString(),
-  },
-  connectus: {
-    id: "user-connectus-official",
-    user_id: "user-connectus-official",
-    username: "connect_as_official",
-    full_name: "Connect As Officiel",
-    avatar_url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
-    cover_url: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&auto=format&fit=crop&q=80",
-    bio: "Compte officiel Connect As • Actualités de la communauté, fonctionnalités & annonces 📢",
-    location: "Abidjan / Afrique",
-    website_url: "https://ecomfy.cloud/connectus",
-    is_verified: true,
-    is_business: true,
-    followers_count: 12800,
-    following_count: 10,
-    posts_count: 45,
-    shop_name: "Connect As Hub",
-    created_at: new Date().toISOString(),
-  }
-};
-
-const INITIAL_DEMO_POSTS: ConnectUsPost[] = [
-  {
-    id: "official-post-1",
-    user_id: OFFICIAL_ACCOUNTS.ulrich.id,
-    author: OFFICIAL_ACCOUNTS.ulrich,
-    content: "Bienvenue sur Connect As ! 🚀 Nous avons conçu cette plateforme pour permettre à tous les créateurs, vendeurs et membres d'échanger en direct, de partager leurs produits et d'accélérer leur visibilité. N'hésitez pas à publier vos nouveautés !",
-    media_urls: [
-      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop&q=80"
-    ],
-    attached_product: null,
-    visibility: "public",
-    likes_count: 342,
-    comments_count: 56,
-    shares_count: 42,
-    user_reaction: "love",
-    created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: "official-post-2",
-    user_id: OFFICIAL_ACCOUNTS.connectus.id,
-    author: OFFICIAL_ACCOUNTS.connectus,
-    content: "📢 **ANNONCE OFFICIELLE CONNECT AS** : Les lives vidéos interactifs, les stories de 24h et les fiches produits Single-Page sont désormais totalement optimisés et ultra-rapides. Merci à tous les marchands pour leur confiance !",
-    media_urls: [
-      "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800&auto=format&fit=crop&q=80"
-    ],
-    attached_product: null,
-    visibility: "public",
-    likes_count: 512,
-    comments_count: 89,
-    shares_count: 74,
-    user_reaction: "fire",
-    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-  }
-];
-
 export class ConnectUsService {
   /**
-   * Safe insertion into Supabase community_messages table with UUID validation and fallback
+   * Safe insertion into Supabase community_messages table (backwards compatibility fallback)
    */
   static async insertCommunityMessage(userId: string | undefined, payloadObj: any): Promise<boolean> {
     try {
       const bodyStr = typeof payloadObj === "string" ? payloadObj : JSON.stringify(payloadObj);
-      
-      // Attempt to retrieve active auth user from Supabase session for 100% RLS compliance
       let activeAuthId = userId;
       if (!activeAuthId || activeAuthId.startsWith("guest_") || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeAuthId)) {
         const { data: { session } } = await supabase.auth.getSession();
@@ -120,235 +44,40 @@ export class ConnectUsService {
       ]);
 
       if (error) {
-        console.error("Supabase community message insert error:", error.message);
+        console.warn("Supabase community message insert info:", error.message);
         return false;
       }
       return true;
     } catch (e) {
-      console.error("Community message insert exception:", e);
+      console.warn("Community message insert exception:", e);
       return false;
     }
   }
 
   /**
-   * Fetch all feed posts (Cloud DB + Local cache + Demo posts + Aggregated Likes & Comments)
-   */
-  static async getFeedPosts(userId?: string): Promise<ConnectUsPost[]> {
-    let cloudPosts: ConnectUsPost[] = [];
-    const cloudReactionsMap = new Map<string, Map<string, ReactionType>>();
-    const cloudCommentsMap = new Map<string, any[]>();
-
-    // 1. Fetch posts, reactions, and comments from Supabase cloud community_messages table
-    try {
-      const { data: dbMessages, error: dbError } = await supabase
-        .from("community_messages")
-        .select("id, user_id, body, created_at")
-        .order("created_at", { ascending: false })
-        .limit(300);
-
-      if (dbError) {
-        console.error("Supabase getFeedPosts DB error:", dbError.message);
-      }
-
-      if (dbMessages && dbMessages.length > 0) {
-        dbMessages.forEach((msg: any) => {
-          try {
-            if (!msg || !msg.body) return;
-
-            let parsed: any;
-            if (typeof msg.body === "string") {
-              try {
-                parsed = JSON.parse(msg.body);
-              } catch (e) {
-                // Message en texte brut (ex: "Bonjour à tous") -> Convertir en post !
-                parsed = {
-                  connectus_type: "post",
-                  content: msg.body,
-                };
-              }
-            } else {
-              parsed = msg.body;
-            }
-
-            if (!parsed || typeof parsed !== "object") {
-              parsed = { connectus_type: "post", content: String(msg.body || "") };
-            }
-
-            const type = parsed.connectus_type;
-
-            // Extract Reactions (Likes)
-            if (type === "reaction" && parsed.post_id) {
-              if (!cloudReactionsMap.has(parsed.post_id)) {
-                cloudReactionsMap.set(parsed.post_id, new Map());
-              }
-              if (parsed.reaction) {
-                cloudReactionsMap.get(parsed.post_id)!.set(msg.user_id || parsed.user_id, parsed.reaction);
-              } else {
-                cloudReactionsMap.get(parsed.post_id)!.delete(msg.user_id || parsed.user_id);
-              }
-              return;
-            }
-
-            // Extract Comments
-            if (type === "comment" && parsed.post_id) {
-              if (!cloudCommentsMap.has(parsed.post_id)) {
-                cloudCommentsMap.set(parsed.post_id, []);
-              }
-              cloudCommentsMap.get(parsed.post_id)!.push({
-                id: msg.id || `c-${Math.random()}`,
-                authorName: parsed.author?.full_name || "Membre",
-                text: parsed.text || parsed.content || "",
-                date: parsed.created_at || msg.created_at || new Date().toISOString(),
-              });
-              return;
-            }
-
-            // Exclure uniquement les types système hors-feed (notification, private_message, story)
-            if (["notification", "private_message", "story", "story_like"].includes(type)) {
-              return;
-            }
-
-            // EXTRACTION ROBUSTE DES POSTS : texte, content, médias, vidéo, produit attaché
-            const postContent = parsed.content || parsed.text || parsed.message || (typeof parsed === "string" ? parsed : "");
-            const hasMedia = (Array.isArray(parsed.media_urls) && parsed.media_urls.length > 0) || Boolean(parsed.video_url) || Boolean(parsed.attached_product) || Boolean(parsed.link_preview);
-
-            if (postContent || hasMedia || type === "post" || type === "message" || !type) {
-              const rawDate = parsed.created_at || msg.created_at;
-              const validDate = rawDate && !isNaN(new Date(rawDate).getTime())
-                ? new Date(rawDate).toISOString()
-                : new Date().toISOString();
-
-              const fallbackAuthor: ConnectUsProfile = {
-                id: msg.user_id || "user-anon",
-                user_id: msg.user_id || "user-anon",
-                username: parsed.author?.username || `user_${(msg.user_id || "").slice(0, 6)}`,
-                full_name: parsed.author?.full_name || "Membre Ecomfy",
-                avatar_url: parsed.author?.avatar_url || null,
-                cover_url: parsed.author?.cover_url || null,
-                bio: parsed.author?.bio || "Membre de la communauté ConnectUs",
-                location: parsed.author?.location || null,
-                website_url: parsed.author?.website_url || null,
-                is_verified: true,
-                is_business: !!parsed.author?.is_business,
-                followers_count: parsed.author?.followers_count || 10,
-                following_count: parsed.author?.following_count || 5,
-                posts_count: parsed.author?.posts_count || 1,
-                created_at: validDate,
-              };
-
-              const postId = parsed.id || msg.id || `post-${msg.created_at || Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
-              cloudPosts.push({
-                id: postId,
-                user_id: msg.user_id || fallbackAuthor.id,
-                author: parsed.author && parsed.author.id ? { ...fallbackAuthor, ...parsed.author } : fallbackAuthor,
-                content: postContent,
-                media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
-                video_url: parsed.video_url || null,
-                link_preview: parsed.link_preview || null,
-                attached_product: parsed.attached_product || null,
-                visibility: parsed.visibility || "public",
-                likes_count: Number(parsed.likes_count) || 0,
-                comments_count: Number(parsed.comments_count) || 0,
-                shares_count: Number(parsed.shares_count) || 0,
-                user_reaction: null,
-                created_at: validDate,
-              } as ConnectUsPost);
-            }
-          } catch (e) {
-            console.warn("Message parsing fallback warning:", e);
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("Could not load cloud community posts:", e);
-    }
-
-    // 2. Load local posts
-    let localPosts: ConnectUsPost[] = [];
-    try {
-      const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-      if (localStoredJson) {
-        localPosts = JSON.parse(localStoredJson);
-      }
-    } catch (e) {}
-
-    // Load deleted post IDs
-    let deletedPostIds: string[] = [];
-    try {
-      const deletedJson = localStorage.getItem("ecomfy_connectus_deleted_posts");
-      if (deletedJson) deletedPostIds = JSON.parse(deletedJson);
-    } catch (e) {}
-    const deletedSet = new Set(deletedPostIds);
-
-    // 3. Merge real user posts (cloud + local) removing duplicates and deleted posts
-    const realPostsMap = new Map<string, ConnectUsPost>();
-    [...localPosts, ...cloudPosts].forEach((p) => {
-      if (!deletedSet.has(p.id)) {
-        realPostsMap.set(p.id, p);
-      }
-    });
-
-    const realPosts = Array.from(realPostsMap.values()).sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-
-    // 4. Combine real user posts with demo posts
-    const finalFeed = [...realPosts];
-    INITIAL_DEMO_POSTS.forEach((demo) => {
-      if (!realPostsMap.has(demo.id) && !deletedSet.has(demo.id)) {
-        finalFeed.push(demo);
-      }
-    });
-
-    // 5. Sync latest saved profile settings & aggregate reactions/comments on EVERY Post
-    finalFeed.forEach((post) => {
-      const authorId = post.user_id || post.author?.id || post.author?.user_id;
-      if (authorId) {
-        const savedAuthorJson = localStorage.getItem(`${LOCAL_STORAGE_PROFILE_KEY}_${authorId}`) ||
-                                 (authorId === userId ? localStorage.getItem(LOCAL_STORAGE_PROFILE_KEY) : null);
-        if (savedAuthorJson) {
-          try {
-            const savedAuthorProfile: ConnectUsProfile = JSON.parse(savedAuthorJson);
-            if (savedAuthorProfile) {
-              post.author = {
-                ...post.author,
-                ...savedAuthorProfile,
-                full_name: savedAuthorProfile.full_name || post.author?.full_name || "Membre ConnectUs",
-                username: savedAuthorProfile.username || post.author?.username || "membre",
-                show_shop_on_profile: Boolean(savedAuthorProfile.show_shop_on_profile),
-              };
-            }
-          } catch (e) {}
-        }
-      }
-
-      const postReactions = cloudReactionsMap.get(post.id);
-      if (postReactions) {
-        post.likes_count = postReactions.size;
-        if (userId && postReactions.has(userId)) {
-          post.user_reaction = postReactions.get(userId) || "like";
-        }
-      }
-
-      const postComments = cloudCommentsMap.get(post.id);
-      if (postComments) {
-        post.comments_count = postComments.length;
-        post.comments = postComments;
-      }
-    });
-
-    if (finalFeed.length === 0) {
-      return INITIAL_DEMO_POSTS;
-    }
-
-    return finalFeed;
-  }
-
-  /**
-   * Persistent Fetch profile with user-scoped storage & Supabase DB sync
+   * Persistent Fetch profile with Supabase DB sync & user-scoped storage
    */
   static async getProfile(userId: string): Promise<ConnectUsProfile> {
+    if (!userId) {
+      return {
+        id: "anon",
+        user_id: "anon",
+        username: "invite",
+        full_name: "Membre Ecomfy",
+        avatar_url: null,
+        cover_url: null,
+        bio: "Membre de la communauté ConnectUs",
+        location: "Côte d'Ivoire",
+        website_url: null,
+        is_verified: true,
+        is_business: false,
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0,
+        created_at: new Date().toISOString(),
+      };
+    }
+
     const userStorageKey = `${LOCAL_STORAGE_PROFILE_KEY}_${userId}`;
     let savedProfile: Partial<ConnectUsProfile> | null = null;
 
@@ -363,12 +92,22 @@ export class ConnectUsService {
     } catch (e) {}
 
     try {
+      // 1. Check connectus_profiles table first
+      // @ts-ignore - DB types regenerate after migration
+      const { data: connProfile } = await supabase
+        .from("connectus_profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      // 2. Fetch standard profiles table
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
+      // 3. Fetch user shop
       const { data: userShop } = await supabase
         .from("shops")
         .select("id, business_name, slug")
@@ -377,9 +116,29 @@ export class ConnectUsService {
         .limit(1)
         .maybeSingle();
 
-      const defaultFullName = savedProfile?.full_name || profile?.full_name || "Membre Ecomfy";
+      // 4. Fetch counts from DB
+      let followersCount = connProfile?.followers_count || 0;
+      let followingCount = connProfile?.following_count || 0;
+      let postsCount = connProfile?.posts_count || 0;
+
+      if (!userId.startsWith("guest_")) {
+        try {
+          // @ts-ignore
+          const { count: fCount } = await supabase.from("connectus_follows").select("*", { count: "exact", head: true }).eq("target_id", userId);
+          // @ts-ignore
+          const { count: fgCount } = await supabase.from("connectus_follows").select("*", { count: "exact", head: true }).eq("follower_id", userId);
+          // @ts-ignore
+          const { count: pCount } = await supabase.from("connectus_posts").select("*", { count: "exact", head: true }).eq("user_id", userId);
+
+          if (fCount !== null) followersCount = fCount;
+          if (fgCount !== null) followingCount = fgCount;
+          if (pCount !== null) postsCount = pCount;
+        } catch (e) {}
+      }
+
+      const defaultFullName = connProfile?.full_name || profile?.full_name || savedProfile?.full_name || "Membre Ecomfy";
       const savedCustomUsername = localStorage.getItem(`ecomfy_connectus_custom_username_${userId}`);
-      const username = savedCustomUsername || savedProfile?.username || (
+      const username = connProfile?.username || savedCustomUsername || savedProfile?.username || (
         (profile?.full_name || defaultFullName)
           .toLowerCase()
           .replace(/[^a-z0-9]/g, "_")
@@ -389,21 +148,21 @@ export class ConnectUsService {
         id: userId,
         user_id: userId,
         username,
-        full_name: savedProfile?.full_name || defaultFullName,
-        avatar_url: savedProfile?.avatar_url || profile?.avatar_url || null,
-        cover_url: savedProfile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
-        bio: savedProfile?.bio || (userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs"),
-        location: savedProfile?.location || "Côte d'Ivoire",
-        website_url: savedProfile?.website_url || null,
+        full_name: connProfile?.full_name || savedProfile?.full_name || defaultFullName,
+        avatar_url: connProfile?.avatar_url || savedProfile?.avatar_url || profile?.avatar_url || null,
+        cover_url: connProfile?.cover_url || savedProfile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
+        bio: connProfile?.bio || savedProfile?.bio || (userShop ? `Fondateur de ${userShop.business_name} sur Ecomfy 🚀` : "Membre passionné de la communauté ConnectUs"),
+        location: connProfile?.location || savedProfile?.location || "Côte d'Ivoire",
+        website_url: connProfile?.website_url || savedProfile?.website_url || null,
         is_verified: true,
-        is_business: savedProfile?.is_business ?? false,
-        followers_count: savedProfile?.followers_count || 45,
-        following_count: savedProfile?.following_count || 12,
-        posts_count: savedProfile?.posts_count || 5,
-        shop_id: userShop?.id || savedProfile?.shop_id,
-        shop_slug: userShop?.slug || savedProfile?.shop_slug,
-        shop_name: userShop?.business_name || savedProfile?.shop_name,
-        show_shop_on_profile: savedProfile?.show_shop_on_profile ?? false,
+        is_business: connProfile?.is_business ?? savedProfile?.is_business ?? Boolean(userShop),
+        followers_count: followersCount,
+        following_count: followingCount,
+        posts_count: postsCount,
+        shop_id: userShop?.id || connProfile?.shop_id || savedProfile?.shop_id,
+        shop_slug: userShop?.slug || connProfile?.shop_slug || savedProfile?.shop_slug,
+        shop_name: userShop?.business_name || connProfile?.shop_name || savedProfile?.shop_name,
+        show_shop_on_profile: connProfile?.show_shop_on_profile ?? savedProfile?.show_shop_on_profile ?? Boolean(userShop),
         created_at: profile?.updated_at || savedProfile?.created_at || new Date().toISOString(),
       };
 
@@ -433,7 +192,7 @@ export class ConnectUsService {
   }
 
   /**
-   * Save persistent profile changes with quota safety and Supabase DB sync
+   * Save persistent profile changes with Supabase DB sync & LocalStorage fallback
    */
   static async saveProfile(profile: ConnectUsProfile): Promise<boolean> {
     try {
@@ -446,24 +205,38 @@ export class ConnectUsService {
           } catch (e) {}
         }
       }
-      if (profile.id && profile.id !== profile.user_id) {
-        safeLocalStorageSet(`${LOCAL_STORAGE_PROFILE_KEY}_${profile.id}`, profile);
-        if (profile.username) {
-          try {
-            localStorage.setItem(`ecomfy_connectus_custom_username_${profile.id}`, profile.username);
-          } catch (e) {}
-        }
-      }
 
       if (profile.user_id && !profile.user_id.startsWith("guest_")) {
-        const { error } = await supabase.from("profiles").update({
+        // Sync to standard profiles table
+        await supabase.from("profiles").update({
           full_name: profile.full_name,
           avatar_url: profile.avatar_url || null,
           updated_at: new Date().toISOString(),
         }).eq("id", profile.user_id);
 
-        if (error) {
-          console.warn("Supabase profile sync warning:", error);
+        // Sync to connectus_profiles table
+        try {
+          // @ts-ignore
+          await supabase.from("connectus_profiles").upsert({
+            id: profile.user_id,
+            user_id: profile.user_id,
+            username: profile.username,
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url || null,
+            cover_url: profile.cover_url || null,
+            bio: profile.bio || null,
+            location: profile.location || null,
+            website_url: profile.website_url || null,
+            is_verified: profile.is_verified,
+            is_business: profile.is_business,
+            show_shop_on_profile: Boolean(profile.show_shop_on_profile),
+            shop_id: profile.shop_id || null,
+            shop_name: profile.shop_name || null,
+            shop_slug: profile.shop_slug || null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id" });
+        } catch (e) {
+          console.warn("connectus_profiles upsert fallback warning:", e);
         }
       }
       return true;
@@ -474,7 +247,155 @@ export class ConnectUsService {
   }
 
   /**
-   * Create a new post in ConnectUs with Cloud database sync & Quota protection
+   * Fetch all feed posts (Cloud DB + Local cache + Aggregated Likes & Comments)
+   */
+  static async getFeedPosts(userId?: string): Promise<ConnectUsPost[]> {
+    let cloudPosts: ConnectUsPost[] = [];
+
+    // 1. Attempt to fetch real posts from connectus_posts SQL table
+    try {
+      // @ts-ignore
+      const { data: dbPosts, error: postsErr } = await supabase
+        .from("connectus_posts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!postsErr && dbPosts && dbPosts.length > 0) {
+        for (const p of dbPosts) {
+          const author = await this.getProfile(p.user_id);
+          cloudPosts.push({
+            id: p.id,
+            user_id: p.user_id,
+            author,
+            content: p.content || "",
+            media_urls: p.media_urls || [],
+            video_url: p.video_url || null,
+            link_preview: p.link_preview || null,
+            attached_product: p.attached_product || null,
+            attached_shop_id: p.attached_shop_id || null,
+            visibility: p.visibility || "public",
+            likes_count: p.likes_count || 0,
+            comments_count: p.comments_count || 0,
+            shares_count: p.shares_count || 0,
+            user_reaction: null,
+            created_at: p.created_at || new Date().toISOString(),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("connectus_posts table query fallback:", e);
+    }
+
+    // 2. Fallback to community_messages if connectus_posts is empty
+    if (cloudPosts.length === 0) {
+      try {
+        const { data: dbMessages } = await supabase
+          .from("community_messages")
+          .select("id, user_id, body, created_at")
+          .order("created_at", { ascending: false })
+          .limit(200);
+
+        if (dbMessages && dbMessages.length > 0) {
+          for (const msg of dbMessages) {
+            if (!msg || !msg.body) continue;
+            let parsed: any;
+            try {
+              parsed = typeof msg.body === "string" ? JSON.parse(msg.body) : msg.body;
+            } catch (e) {
+              parsed = { connectus_type: "post", content: msg.body };
+            }
+
+            if (parsed?.connectus_type === "post" || (!parsed?.connectus_type && parsed?.content)) {
+              const author = await this.getProfile(msg.user_id);
+              cloudPosts.push({
+                id: parsed.id || msg.id,
+                user_id: msg.user_id,
+                author,
+                content: parsed.content || parsed.text || "",
+                media_urls: Array.isArray(parsed.media_urls) ? parsed.media_urls : [],
+                video_url: parsed.video_url || null,
+                link_preview: parsed.link_preview || null,
+                attached_product: parsed.attached_product || null,
+                visibility: parsed.visibility || "public",
+                likes_count: Number(parsed.likes_count) || 0,
+                comments_count: Number(parsed.comments_count) || 0,
+                shares_count: Number(parsed.shares_count) || 0,
+                created_at: parsed.created_at || msg.created_at || new Date().toISOString(),
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 3. Load local posts cache
+    let localPosts: ConnectUsPost[] = [];
+    try {
+      const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+      if (localStoredJson) localPosts = JSON.parse(localStoredJson);
+    } catch (e) {}
+
+    // Load deleted post IDs
+    let deletedPostIds: string[] = [];
+    try {
+      const deletedJson = localStorage.getItem("ecomfy_connectus_deleted_posts");
+      if (deletedJson) deletedPostIds = JSON.parse(deletedJson);
+    } catch (e) {}
+    const deletedSet = new Set(deletedPostIds);
+
+    // Merge and deduplicate
+    const realPostsMap = new Map<string, ConnectUsPost>();
+    [...localPosts, ...cloudPosts].forEach((p) => {
+      if (p && p.id && !deletedSet.has(p.id)) {
+        realPostsMap.set(p.id, p);
+      }
+    });
+
+    const finalFeed = Array.from(realPostsMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    // 4. Attach user reactions & comments
+    for (const post of finalFeed) {
+      if (userId && !userId.startsWith("guest_")) {
+        try {
+          // @ts-ignore
+          const { data: myLike } = await supabase.from("connectus_post_likes").select("reaction_type").eq("post_id", post.id).eq("user_id", userId).maybeSingle();
+          if (myLike) {
+            post.user_reaction = (myLike.reaction_type as ReactionType) || "like";
+          }
+
+          // @ts-ignore
+          const { count: likesCount } = await supabase.from("connectus_post_likes").select("*", { count: "exact", head: true }).eq("post_id", post.id);
+          if (likesCount !== null && likesCount > 0) {
+            post.likes_count = likesCount;
+          }
+
+          // @ts-ignore
+          const { data: commentsData } = await supabase.from("connectus_comments").select("*").eq("post_id", post.id).order("created_at", { ascending: true });
+          if (commentsData && commentsData.length > 0) {
+            post.comments_count = commentsData.length;
+            post.comments = commentsData.map((c: any) => ({
+              id: c.id,
+              post_id: c.post_id,
+              user_id: c.user_id,
+              authorName: c.authorName || "Membre",
+              text: c.text,
+              likes_count: c.likes_count || 0,
+              created_at: c.created_at,
+              date: c.created_at,
+            }));
+          }
+        } catch (e) {}
+      }
+    }
+
+    return finalFeed;
+  }
+
+  /**
+   * Create a new post in ConnectUs with Cloud database sync
    */
   static async createPost(
     userId: string,
@@ -494,9 +415,10 @@ export class ConnectUsService {
     }
 
     const authorProfile = await this.getProfile(activeUserId);
+    const postId = `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     const newPost: ConnectUsPost = {
-      id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: postId,
       user_id: activeUserId,
       author: authorProfile,
       content: postData.content,
@@ -513,6 +435,30 @@ export class ConnectUsService {
       created_at: new Date().toISOString(),
     };
 
+    // 1. Insert into connectus_posts SQL table
+    if (!activeUserId.startsWith("guest_")) {
+      try {
+        // @ts-ignore
+        await supabase.from("connectus_posts").insert([
+          {
+            id: newPost.id,
+            user_id: activeUserId,
+            content: newPost.content,
+            media_urls: newPost.media_urls,
+            video_url: newPost.video_url,
+            link_preview: newPost.link_preview,
+            attached_product: newPost.attached_product,
+            attached_shop_id: newPost.attached_shop_id,
+            visibility: newPost.visibility,
+            created_at: newPost.created_at,
+          },
+        ]);
+      } catch (e) {
+        console.warn("connectus_posts insert fallback:", e);
+      }
+    }
+
+    // 2. Also insert JSON payload into community_messages as fallback
     const postPayload = JSON.stringify({
       connectus_type: "post",
       id: newPost.id,
@@ -526,27 +472,11 @@ export class ConnectUsService {
       visibility: newPost.visibility,
       created_at: newPost.created_at,
     });
+    await this.insertCommunityMessage(activeUserId, postPayload);
 
-    const isSavedInCloud = await this.insertCommunityMessage(activeUserId, postPayload);
-    if (!isSavedInCloud) {
-      console.warn("Retrying post insertion into community_messages...");
-      const retrySuccess = await this.insertCommunityMessage(session?.user?.id || activeUserId, postPayload);
-      if (!retrySuccess) {
-        console.error("Cloud insert failed for ConnectUs post!");
-      }
-    }
-
-    // Save locally as secondary cache
+    // 3. Save locally as secondary cache
     const existingJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-    let existingPosts: ConnectUsPost[] = [];
-    if (existingJson) {
-      try {
-        existingPosts = JSON.parse(existingJson);
-      } catch (e) {
-        existingPosts = [];
-      }
-    }
-
+    let existingPosts: ConnectUsPost[] = existingJson ? JSON.parse(existingJson) : [];
     existingPosts.unshift(newPost);
     safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, existingPosts);
 
@@ -558,7 +488,6 @@ export class ConnectUsService {
    */
   static async deletePost(postId: string, userId: string): Promise<boolean> {
     try {
-      // Save deleted postId to localStorage blacklist
       try {
         const deletedJson = localStorage.getItem("ecomfy_connectus_deleted_posts");
         let deletedPostIds: string[] = deletedJson ? JSON.parse(deletedJson) : [];
@@ -567,28 +496,15 @@ export class ConnectUsService {
           localStorage.setItem("ecomfy_connectus_deleted_posts", JSON.stringify(deletedPostIds));
         }
       } catch (e) {}
+
       if (userId && !userId.startsWith("guest_")) {
         try {
-          await supabase
-            .from("community_messages")
-            .delete()
-            .eq("user_id", userId)
-            .eq("id", postId);
+          // @ts-ignore
+          await supabase.from("connectus_posts").delete().eq("id", postId).eq("user_id", userId);
         } catch (e) {}
 
         try {
-          const { data: userMsgs } = await supabase
-            .from("community_messages")
-            .select("id, body")
-            .eq("user_id", userId);
-
-          if (userMsgs && userMsgs.length > 0) {
-            for (const msg of userMsgs) {
-              if (msg.body && typeof msg.body === "string" && msg.body.includes(postId)) {
-                await supabase.from("community_messages").delete().eq("id", msg.id);
-              }
-            }
-          }
+          await supabase.from("community_messages").delete().eq("user_id", userId).eq("id", postId);
         } catch (e) {}
       }
 
@@ -617,59 +533,44 @@ export class ConnectUsService {
     let userReaction: ReactionType | null = reactionType;
     let likesCount = 1;
 
-    const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-    let localPosts: ConnectUsPost[] = localStoredJson ? JSON.parse(localStoredJson) : [];
-    const postIndex = localPosts.findIndex(p => p.id === postId);
-
-    if (postIndex !== -1) {
-      const post = localPosts[postIndex];
-      const isAlreadyReacted = post.user_reaction === reactionType;
-      
-      post.user_reaction = isAlreadyReacted ? null : reactionType;
-      post.likes_count = Math.max(0, post.likes_count + (isAlreadyReacted ? -1 : 1));
-
-      safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, localPosts);
-      userReaction = post.user_reaction;
-      likesCount = post.likes_count;
-    } else {
-      const demoPost = INITIAL_DEMO_POSTS.find(p => p.id === postId);
-      if (demoPost) {
-        const isAlreadyReacted = demoPost.user_reaction === reactionType;
-        demoPost.user_reaction = isAlreadyReacted ? null : reactionType;
-        demoPost.likes_count = Math.max(0, demoPost.likes_count + (isAlreadyReacted ? -1 : 1));
-        userReaction = demoPost.user_reaction;
-        likesCount = demoPost.likes_count;
-      }
-    }
-
-    // Sync reaction to Supabase Cloud DB
     if (userId && !userId.startsWith("guest_")) {
       try {
-        const payload = JSON.stringify({
-          connectus_type: "reaction",
-          post_id: postId,
-          user_id: userId,
-          reaction: userReaction,
-          created_at: new Date().toISOString(),
-        });
-        await this.insertCommunityMessage(userId, payload);
+        // @ts-ignore
+        const { data: existingLike } = await supabase.from("connectus_post_likes").select("*").eq("post_id", postId).eq("user_id", userId).maybeSingle();
+        if (existingLike) {
+          // @ts-ignore
+          await supabase.from("connectus_post_likes").delete().eq("post_id", postId).eq("user_id", userId);
+          userReaction = null;
+        } else {
+          // @ts-ignore
+          await supabase.from("connectus_post_likes").insert([{ post_id: postId, user_id: userId, reaction_type: reactionType }]);
+          userReaction = reactionType;
+        }
+
+        // @ts-ignore
+        const { count } = await supabase.from("connectus_post_likes").select("*", { count: "exact", head: true }).eq("post_id", postId);
+        if (count !== null) likesCount = count;
+
+        // Update post likes_count in connectus_posts
+        // @ts-ignore
+        await supabase.from("connectus_posts").update({ likes_count: likesCount }).eq("id", postId);
       } catch (e) {
-        console.warn("Reaction cloud sync warning:", e);
+        console.warn("connectus_post_likes fallback:", e);
       }
     }
 
-    // Trigger real-time notification to post author if reacted
-    if (userReaction === reactionType && postIndex !== -1) {
-      const targetPost = localPosts[postIndex];
-      if (targetPost && targetPost.user_id && targetPost.user_id !== userId) {
-        this.sendNotification(
-          targetPost.user_id,
-          userId,
-          "like",
-          `a aimé votre publication : "${targetPost.content ? targetPost.content.slice(0, 35) + '...' : 'Media'}"`,
-          { postId, postSummary: targetPost.content }
-        );
-      }
+    // Local fallback update
+    const localStoredJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
+    if (localStoredJson) {
+      try {
+        let localPosts: ConnectUsPost[] = JSON.parse(localStoredJson);
+        const postIndex = localPosts.findIndex(p => p.id === postId);
+        if (postIndex !== -1) {
+          localPosts[postIndex].user_reaction = userReaction;
+          localPosts[postIndex].likes_count = likesCount;
+          safeLocalStorageSet(LOCAL_STORAGE_POSTS_KEY, localPosts);
+        }
+      } catch (e) {}
     }
 
     return { likesCount, userReaction };
@@ -684,49 +585,32 @@ export class ConnectUsService {
     author: Partial<ConnectUsProfile>,
     text: string
   ): Promise<any> {
+    const commentId = `comment-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const commentObj = {
-      id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: commentId,
+      post_id: postId,
+      user_id: userId,
       authorName: author.full_name || "Membre",
       text: text.trim(),
       date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     };
 
     if (userId && !userId.startsWith("guest_")) {
       try {
-        const payload = JSON.stringify({
-          connectus_type: "comment",
-          post_id: postId,
-          user_id: userId,
-          author: {
-            full_name: author.full_name,
-            avatar_url: author.avatar_url,
-            username: author.username,
+        // @ts-ignore
+        await supabase.from("connectus_comments").insert([
+          {
+            id: commentId,
+            post_id: postId,
+            user_id: userId,
+            text: commentObj.text,
+            created_at: commentObj.created_at,
           },
-          text: commentObj.text,
-          created_at: commentObj.date,
-        });
-        await this.insertCommunityMessage(userId, payload);
+        ]);
       } catch (e) {
-        console.warn("Comment cloud sync warning:", e);
+        console.warn("connectus_comments insert fallback:", e);
       }
-    }
-
-    // Trigger real-time notification to post author
-    const localPostsJson = localStorage.getItem(LOCAL_STORAGE_POSTS_KEY);
-    if (localPostsJson) {
-      try {
-        const postsList: ConnectUsPost[] = JSON.parse(localPostsJson);
-        const targetPost = postsList.find(p => p.id === postId);
-        if (targetPost && targetPost.user_id && targetPost.user_id !== userId) {
-          this.sendNotification(
-            targetPost.user_id,
-            userId,
-            "comment",
-            `a commenté votre publication : "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}"`,
-            { postId, postSummary: targetPost.content }
-          );
-        }
-      } catch (e) {}
     }
 
     return commentObj;
@@ -746,8 +630,9 @@ export class ConnectUsService {
 
     try {
       const actorProfile = await this.getProfile(actorUserId);
+      const notifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const newNotif: ConnectUsNotification = {
-        id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: notifId,
         user_id: recipientUserId,
         actor_id: actorUserId,
         actor: actorProfile,
@@ -760,29 +645,33 @@ export class ConnectUsService {
         created_at: new Date().toISOString(),
       };
 
+      if (!actorUserId.startsWith("guest_")) {
+        try {
+          // @ts-ignore
+          await supabase.from("connectus_notifications").insert([
+            {
+              id: notifId,
+              recipient_id: recipientUserId,
+              actor_id: actorUserId,
+              type,
+              post_id: options?.postId || null,
+              post_summary: options?.postSummary || null,
+              message: options?.message || text,
+              status: newNotif.status || null,
+              is_read: false,
+              created_at: newNotif.created_at,
+            },
+          ]);
+        } catch (e) {
+          console.warn("connectus_notifications insert fallback:", e);
+        }
+      }
+
       const storageKey = `ecomfy_connectus_notifs_${recipientUserId}`;
       const existingJson = localStorage.getItem(storageKey);
       let notifs: ConnectUsNotification[] = existingJson ? JSON.parse(existingJson) : [];
       notifs.unshift(newNotif);
       safeLocalStorageSet(storageKey, notifs);
-
-      if (!actorUserId.startsWith("guest_")) {
-        try {
-          const payload = JSON.stringify({
-            connectus_type: "notification",
-            recipient_id: recipientUserId,
-            notif: newNotif,
-          });
-          await supabase.from("community_messages").insert([
-            {
-              user_id: actorUserId,
-              body: payload,
-            },
-          ]);
-        } catch (e) {
-          console.warn("Notification cloud sync warning:", e);
-        }
-      }
 
       return true;
     } catch (e) {
@@ -797,46 +686,58 @@ export class ConnectUsService {
   static async getNotifications(userId: string): Promise<ConnectUsNotification[]> {
     if (!userId) return [];
 
+    let notifs: ConnectUsNotification[] = [];
+
+    if (!userId.startsWith("guest_")) {
+      try {
+        // @ts-ignore
+        const { data: dbNotifs } = await supabase
+          .from("connectus_notifications")
+          .select("*")
+          .eq("recipient_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(100);
+
+        if (dbNotifs && dbNotifs.length > 0) {
+          for (const n of dbNotifs) {
+            const actor = await this.getProfile(n.actor_id);
+            notifs.push({
+              id: n.id,
+              user_id: n.recipient_id,
+              actor_id: n.actor_id,
+              actor,
+              type: n.type as any,
+              post_id: n.post_id || null,
+              post_summary: n.post_summary || null,
+              message: n.message || null,
+              status: n.status as any,
+              read: n.is_read || false,
+              created_at: n.created_at || new Date().toISOString(),
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
     const storageKey = `ecomfy_connectus_notifs_${userId}`;
     const localJson = localStorage.getItem(storageKey);
     let localNotifs: ConnectUsNotification[] = localJson ? JSON.parse(localJson) : [];
 
-    try {
-      const { data: cloudMsgs } = await supabase
-        .from("community_messages")
-        .select("id, body")
-        .order("created_at", { ascending: false })
-        .limit(1000);
+    const mergedMap = new Map<string, ConnectUsNotification>();
+    [...localNotifs, ...notifs].forEach((n) => mergedMap.set(n.id, n));
+    const result = Array.from(mergedMap.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      if (cloudMsgs && cloudMsgs.length > 0) {
-        for (const msg of cloudMsgs) {
-          if (msg.body && typeof msg.body === "string" && msg.body.includes("connectus_type\":\"notification")) {
-            try {
-              const parsed = JSON.parse(msg.body);
-              if (parsed?.recipient_id === userId && parsed?.notif) {
-                if (!localNotifs.some(n => n.id === parsed.notif.id)) {
-                  localNotifs.unshift(parsed.notif);
-                }
-              }
-            } catch (e) {}
-          }
-        }
-      }
-    } catch (e) {}
-
-    localNotifs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    safeLocalStorageSet(storageKey, localNotifs);
-
-    return localNotifs;
+    safeLocalStorageSet(storageKey, result);
+    return result;
   }
 
   /**
-   * Accept follow invitation & send Return Notification ("Ulrich Djaté a accepté votre invitation...")
+   * Accept follow invitation
    */
   static async acceptFollowInvitation(userId: string, notifId: string, actorUserId: string): Promise<boolean> {
     try {
-      this.toggleFollow(userId, actorUserId);
-      this.toggleFollow(actorUserId, userId);
+      await this.toggleFollow(userId, actorUserId);
+      await this.toggleFollow(actorUserId, userId);
 
       const storageKey = `ecomfy_connectus_notifs_${userId}`;
       const localJson = localStorage.getItem(storageKey);
@@ -846,12 +747,19 @@ export class ConnectUsService {
         safeLocalStorageSet(storageKey, notifs);
       }
 
+      if (!userId.startsWith("guest_")) {
+        try {
+          // @ts-ignore
+          await supabase.from("connectus_notifications").update({ status: "accepted", is_read: true }).eq("id", notifId);
+        } catch (e) {}
+      }
+
       const userProfile = await this.getProfile(userId);
       await this.sendNotification(
         actorUserId,
         userId,
         "invite_accepted",
-        `${userProfile.full_name} a accepté votre invitation et vous suit à présent ! Suivez-le en retour.`
+        `${userProfile.full_name} a accepté votre invitation et vous suit à présent !`
       );
 
       return true;
@@ -872,6 +780,13 @@ export class ConnectUsService {
         let notifs: ConnectUsNotification[] = JSON.parse(localJson);
         notifs = notifs.map(n => n.id === notifId ? { ...n, status: "declined", read: true } : n);
         safeLocalStorageSet(storageKey, notifs);
+      }
+
+      if (!userId.startsWith("guest_")) {
+        try {
+          // @ts-ignore
+          await supabase.from("connectus_notifications").update({ status: "declined", is_read: true }).eq("id", notifId);
+        } catch (e) {}
       }
       return true;
     } catch (e) {
@@ -916,34 +831,55 @@ export class ConnectUsService {
   /**
    * Toggle Follow / Unfollow
    */
-  static toggleFollow(followerId: string, targetUserId: string): boolean {
+  static async toggleFollow(followerId: string, targetUserId: string): Promise<boolean> {
+    if (!followerId || !targetUserId || followerId === targetUserId) return false;
+    let nowFollowing = false;
+
+    if (!followerId.startsWith("guest_")) {
+      try {
+        // @ts-ignore
+        const { data: existing } = await supabase.from("connectus_follows").select("*").eq("follower_id", followerId).eq("target_id", targetUserId).maybeSingle();
+        if (existing) {
+          // @ts-ignore
+          await supabase.from("connectus_follows").delete().eq("follower_id", followerId).eq("target_id", targetUserId);
+          nowFollowing = false;
+        } else {
+          // @ts-ignore
+          await supabase.from("connectus_follows").insert([{ follower_id: followerId, target_id: targetUserId }]);
+          nowFollowing = true;
+          // Send notification
+          const followerProfile = await this.getProfile(followerId);
+          await this.sendNotification(
+            targetUserId,
+            followerId,
+            "follow",
+            `${followerProfile.full_name} a commencé à vous suivre sur ConnectUs !`
+          );
+        }
+      } catch (e) {
+        console.warn("connectus_follows fallback:", e);
+      }
+    }
+
     try {
       const followsJson = localStorage.getItem(LOCAL_STORAGE_FOLLOWS_KEY);
       let follows: string[] = followsJson ? JSON.parse(followsJson) : [];
-
       const index = follows.indexOf(targetUserId);
-      let nowFollowing = false;
       if (index >= 0) {
         follows.splice(index, 1);
-        nowFollowing = false;
+        if (followerId.startsWith("guest_")) nowFollowing = false;
       } else {
         follows.push(targetUserId);
-        nowFollowing = true;
+        if (followerId.startsWith("guest_")) nowFollowing = true;
       }
-
       safeLocalStorageSet(LOCAL_STORAGE_FOLLOWS_KEY, follows);
-      return nowFollowing;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) {}
+
+    return nowFollowing;
   }
 
   /**
    * Search registered profiles by name, username, shop name or partial match
-   */
-  /**
-   * Search registered profiles by name, username, shop name or partial match
-   * Prioritizes REAL created accounts from Supabase DB & LocalStorage.
    */
   static async searchProfiles(query: string): Promise<ConnectUsProfile[]> {
     if (!query || query.trim().length === 0) return [];
@@ -951,10 +887,41 @@ export class ConnectUsService {
     if (!cleanQ) return [];
 
     const realResults: ConnectUsProfile[] = [];
-    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const targetNorm = normalize(cleanQ);
 
-    // 1. Search Real Profiles in Supabase Database
+    // 1. Search in connectus_profiles SQL table
+    try {
+      // @ts-ignore
+      const { data: connProfiles } = await supabase
+        .from("connectus_profiles")
+        .select("*")
+        .or(`full_name.ilike.%${cleanQ}%,username.ilike.%${cleanQ}%,shop_name.ilike.%${cleanQ}%`)
+        .limit(20);
+
+      if (connProfiles && connProfiles.length > 0) {
+        for (const p of connProfiles) {
+          realResults.push({
+            id: p.user_id,
+            user_id: p.user_id,
+            username: p.username,
+            full_name: p.full_name,
+            avatar_url: p.avatar_url || null,
+            cover_url: p.cover_url || null,
+            bio: p.bio || null,
+            location: p.location || "Côte d'Ivoire",
+            website_url: p.website_url || null,
+            is_verified: true,
+            is_business: p.is_business,
+            show_shop_on_profile: Boolean(p.show_shop_on_profile),
+            followers_count: p.followers_count || 0,
+            following_count: p.following_count || 0,
+            posts_count: p.posts_count || 0,
+            created_at: p.updated_at || new Date().toISOString(),
+          });
+        }
+      }
+    } catch (e) {}
+
+    // 2. Search in standard profiles table
     try {
       const { data: dbProfiles } = await supabase
         .from("profiles")
@@ -964,77 +931,13 @@ export class ConnectUsService {
 
       if (dbProfiles && dbProfiles.length > 0) {
         for (const p of dbProfiles) {
-          const username = (p.full_name || "user").toLowerCase().replace(/[^a-z0-9]/g, "_");
-          const customUsername = localStorage.getItem(`ecomfy_connectus_custom_username_${p.id}`);
-          
-          const savedLocal = localStorage.getItem(`${LOCAL_STORAGE_PROFILE_KEY}_${p.id}`);
-          let showShop = false;
-          if (savedLocal) {
-            try {
-              const parsed = JSON.parse(savedLocal);
-              showShop = parsed.show_shop_on_profile || false;
-            } catch (e) {}
+          if (!realResults.some(r => r.id === p.id)) {
+            const profile = await this.getProfile(p.id);
+            realResults.push(profile);
           }
-          
-          realResults.push({
-            id: p.id,
-            user_id: p.id,
-            username: customUsername || username,
-            full_name: p.full_name || "Membre ConnectUs",
-            avatar_url: p.avatar_url || null,
-            cover_url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80",
-            bio: `Membre de la communauté ConnectUs`,
-            location: "Côte d'Ivoire",
-            website_url: null,
-            is_verified: true,
-            is_business: false,
-            show_shop_on_profile: showShop,
-            followers_count: 120,
-            following_count: 45,
-            posts_count: 8,
-            created_at: p.updated_at || new Date().toISOString(),
-          });
         }
       }
     } catch (e) {}
-
-    // 2. Search Real Profiles saved in LocalStorage
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith(LOCAL_STORAGE_PROFILE_KEY) || key.startsWith("ecomfy_connectus_profile"))) {
-          try {
-            const raw = localStorage.getItem(key);
-            if (raw) {
-              const parsed: ConnectUsProfile = JSON.parse(raw);
-              if (parsed && parsed.full_name) {
-                const normName = normalize(parsed.full_name);
-                const normUser = normalize(parsed.username || "");
-                if (normName.includes(targetNorm) || normUser.includes(targetNorm)) {
-                  if (!realResults.some(r => r.id === parsed.id || r.user_id === parsed.user_id)) {
-                    realResults.push(parsed);
-                  }
-                }
-              }
-            }
-          } catch (e) {}
-        }
-      }
-    } catch (e) {}
-
-    // 3. Official Platform Accounts Matching (Ulrich Djaté, Connect As Officiel)
-    const officialAccountsList = [OFFICIAL_ACCOUNTS.ulrich, OFFICIAL_ACCOUNTS.connectus];
-    officialAccountsList.forEach((acc) => {
-      const matchName = normalize(acc.full_name).includes(targetNorm);
-      const matchUsername = normalize(acc.username).includes(targetNorm);
-      const matchShop = normalize(acc.shop_name || "").includes(targetNorm);
-
-      if (matchName || matchUsername || matchShop) {
-        if (!realResults.some((r) => r.id === acc.id || r.user_id === acc.user_id)) {
-          realResults.push(acc);
-        }
-      }
-    });
 
     return realResults;
   }
@@ -1050,8 +953,9 @@ export class ConnectUsService {
     text: string,
     parentAuthorId?: string
   ): Promise<any> {
+    const replyId = `reply-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const replyObj: ConnectUsComment = {
-      id: `reply-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: replyId,
       post_id: postId,
       user_id: userId,
       parent_id: parentCommentId,
@@ -1065,24 +969,22 @@ export class ConnectUsService {
 
     if (userId && !userId.startsWith("guest_")) {
       try {
-        const payload = JSON.stringify({
-          connectus_type: "comment_reply",
-          post_id: postId,
-          parent_comment_id: parentCommentId,
-          user_id: userId,
-          reply: replyObj,
-        });
-        await supabase.from("community_messages").insert([
+        // @ts-ignore
+        await supabase.from("connectus_comments").insert([
           {
+            id: replyId,
+            post_id: postId,
             user_id: userId,
-            body: payload,
+            parent_id: parentCommentId,
+            text: replyObj.text,
+            created_at: replyObj.created_at,
           },
         ]);
       } catch (e) {}
     }
 
     if (parentAuthorId && parentAuthorId !== userId) {
-      this.sendNotification(
+      await this.sendNotification(
         parentAuthorId,
         userId,
         "comment_reply",
@@ -1123,12 +1025,7 @@ export class ConnectUsService {
     try {
       const followsJson = localStorage.getItem(LOCAL_STORAGE_FOLLOWS_KEY);
       const follows: string[] = followsJson ? JSON.parse(followsJson) : [];
-
-      // Check userA follows userB AND userB follows userA (or demo/local accounts)
-      const aFollowsB = follows.includes(userBId) || userBId.startsWith("demo-user");
-      const bFollowsA = follows.includes(`followed_by_${userBId}_${userAId}`) || true; // Allow mutual interaction between registered members
-
-      return aFollowsB;
+      return follows.includes(userBId);
     } catch (e) {
       return false;
     }
@@ -1139,27 +1036,44 @@ export class ConnectUsService {
    */
   static async getConversations(userId: string): Promise<ConnectUsConversation[]> {
     if (!userId) return [];
-    const storageKey = `ecomfy_connectus_conversations_${userId}`;
-    const localJson = localStorage.getItem(storageKey);
-    let conversations: ConnectUsConversation[] = localJson ? JSON.parse(localJson) : [];
+    let conversations: ConnectUsConversation[] = [];
 
-    // Fallback demo conversation with Koffi Mensah if no conversations exist
-    if (conversations.length === 0) {
-      const koffiProfile = await this.getProfile("demo-user-1");
-      conversations = [
-        {
-          id: `conv_${userId}_demo-user-1`,
-          participant_ids: [userId, "demo-user-1"],
-          other_user: koffiProfile,
-          last_message: "Bonjour ! Bienvenue sur la messagerie privée ConnectUs 💬",
-          last_message_at: new Date().toISOString(),
-          unread_count: 1,
-        },
-      ];
-      safeLocalStorageSet(storageKey, conversations);
+    if (!userId.startsWith("guest_")) {
+      try {
+        // @ts-ignore
+        const { data: dbConvs } = await supabase
+          .from("connectus_conversations")
+          .select("*")
+          .contains("participant_ids", [userId])
+          .order("last_message_at", { ascending: false });
+
+        if (dbConvs && dbConvs.length > 0) {
+          for (const c of dbConvs) {
+            const otherUserId = c.participant_ids.find((id: string) => id !== userId) || userId;
+            const otherProfile = await this.getProfile(otherUserId);
+            conversations.push({
+              id: c.id,
+              participant_ids: c.participant_ids,
+              other_user: otherProfile,
+              last_message: c.last_message || "",
+              last_message_at: c.last_message_at || c.created_at,
+              unread_count: 0,
+            });
+          }
+        }
+      } catch (e) {}
     }
 
-    return conversations;
+    const storageKey = `ecomfy_connectus_conversations_${userId}`;
+    const localJson = localStorage.getItem(storageKey);
+    let localConvs: ConnectUsConversation[] = localJson ? JSON.parse(localJson) : [];
+
+    const mergedMap = new Map<string, ConnectUsConversation>();
+    [...localConvs, ...conversations].forEach(c => mergedMap.set(c.id, c));
+    const result = Array.from(mergedMap.values());
+    safeLocalStorageSet(storageKey, result);
+
+    return result;
   }
 
   /**
@@ -1167,37 +1081,44 @@ export class ConnectUsService {
    */
   static async getMessages(conversationId: string): Promise<ConnectUsPrivateMessage[]> {
     if (!conversationId) return [];
-    const storageKey = `ecomfy_connectus_messages_${conversationId}`;
-    const localJson = localStorage.getItem(storageKey);
-    let messages: ConnectUsPrivateMessage[] = localJson ? JSON.parse(localJson) : [];
+    let messages: ConnectUsPrivateMessage[] = [];
 
     try {
-      const { data: cloudMsgs } = await supabase
-        .from("community_messages")
-        .select("id, body, created_at")
-        .order("created_at", { ascending: false })
-        .limit(1000);
+      // @ts-ignore
+      const { data: dbMsgs } = await supabase
+        .from("connectus_messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
 
-      if (cloudMsgs && cloudMsgs.length > 0) {
-        for (const msg of cloudMsgs) {
-          if (msg.body && typeof msg.body === "string" && msg.body.includes("connectus_type\":\"private_message")) {
-            try {
-              const parsed = JSON.parse(msg.body);
-              if (parsed?.msg && parsed?.msg.conversation_id === conversationId) {
-                if (!messages.some(m => m.id === parsed.msg.id)) {
-                  messages.push(parsed.msg);
-                }
-              }
-            } catch (e) {}
-          }
+      if (dbMsgs && dbMsgs.length > 0) {
+        for (const m of dbMsgs) {
+          const senderProfile = await this.getProfile(m.sender_id);
+          messages.push({
+            id: m.id,
+            conversation_id: m.conversation_id,
+            sender_id: m.sender_id,
+            receiver_id: m.receiver_id,
+            sender: senderProfile,
+            content: m.content,
+            media_url: m.media_url || null,
+            status: (m.status as any) || "sent",
+            created_at: m.created_at || new Date().toISOString(),
+          });
         }
       }
     } catch (e) {}
 
-    messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    safeLocalStorageSet(storageKey, messages);
+    const storageKey = `ecomfy_connectus_messages_${conversationId}`;
+    const localJson = localStorage.getItem(storageKey);
+    let localMsgs: ConnectUsPrivateMessage[] = localJson ? JSON.parse(localJson) : [];
 
-    return messages;
+    const mergedMap = new Map<string, ConnectUsPrivateMessage>();
+    [...localMsgs, ...messages].forEach(m => mergedMap.set(m.id, m));
+    const result = Array.from(mergedMap.values()).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    safeLocalStorageSet(storageKey, result);
+    return result;
   }
 
   /**
@@ -1211,9 +1132,10 @@ export class ConnectUsService {
   ): Promise<ConnectUsPrivateMessage> {
     const senderProfile = await this.getProfile(senderId);
     const conversationId = `conv_${[senderId, receiverId].sort().join("_")}`;
+    const msgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
     const newMsg: ConnectUsPrivateMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: msgId,
       conversation_id: conversationId,
       sender_id: senderId,
       receiver_id: receiverId,
@@ -1224,6 +1146,37 @@ export class ConnectUsService {
       created_at: new Date().toISOString(),
     };
 
+    if (!senderId.startsWith("guest_")) {
+      try {
+        // Upsert conversation row
+        // @ts-ignore
+        await supabase.from("connectus_conversations").upsert({
+          id: conversationId,
+          participant_ids: [senderId, receiverId],
+          last_message: mediaUrl ? "📷 Image partagée" : content,
+          last_message_at: newMsg.created_at,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "id" });
+
+        // Insert message
+        // @ts-ignore
+        await supabase.from("connectus_messages").insert([
+          {
+            id: msgId,
+            conversation_id: conversationId,
+            sender_id: senderId,
+            receiver_id: receiverId,
+            content: newMsg.content,
+            media_url: newMsg.media_url,
+            status: "sent",
+            created_at: newMsg.created_at,
+          },
+        ]);
+      } catch (e) {
+        console.warn("connectus_messages insert fallback:", e);
+      }
+    }
+
     // Save locally
     const storageKey = `ecomfy_connectus_messages_${conversationId}`;
     const existingJson = localStorage.getItem(storageKey);
@@ -1231,49 +1184,8 @@ export class ConnectUsService {
     messages.push(newMsg);
     safeLocalStorageSet(storageKey, messages);
 
-    // Update conversation metadata
-    const receiverProfile = await this.getProfile(receiverId);
-    const senderConvKey = `ecomfy_connectus_conversations_${senderId}`;
-    const receiverConvKey = `ecomfy_connectus_conversations_${receiverId}`;
-
-    const senderConvs: ConnectUsConversation[] = JSON.parse(localStorage.getItem(senderConvKey) || "[]");
-    const existingSenderIdx = senderConvs.findIndex(c => c.id === conversationId);
-    const convObjSender: ConnectUsConversation = {
-      id: conversationId,
-      participant_ids: [senderId, receiverId],
-      other_user: receiverProfile,
-      last_message: mediaUrl ? "📷 Image partagée" : content,
-      last_message_at: newMsg.created_at,
-      unread_count: 0,
-    };
-
-    if (existingSenderIdx >= 0) {
-      senderConvs[existingSenderIdx] = convObjSender;
-    } else {
-      senderConvs.unshift(convObjSender);
-    }
-    safeLocalStorageSet(senderConvKey, senderConvs);
-
-    // Sync to Cloud Supabase
-    if (!senderId.startsWith("guest_")) {
-      try {
-        const payload = JSON.stringify({
-          connectus_type: "private_message",
-          msg: newMsg,
-        });
-        await supabase.from("community_messages").insert([
-          {
-            user_id: senderId,
-            body: payload,
-          },
-        ]);
-      } catch (e) {
-        console.warn("Private message cloud sync warning:", e);
-      }
-    }
-
     // Trigger Notification to Receiver
-    this.sendNotification(
+    await this.sendNotification(
       receiverId,
       senderId,
       "private_message",
@@ -1287,9 +1199,9 @@ export class ConnectUsService {
   /**
    * Send invitation & auto-follow user & trigger notification
    */
-  static sendInvitation(senderUserId: string, targetUserId: string, message: string): boolean {
-    this.toggleFollow(senderUserId, targetUserId);
-    this.sendNotification(
+  static async sendInvitation(senderUserId: string, targetUserId: string, message: string): Promise<boolean> {
+    await this.toggleFollow(senderUserId, targetUserId);
+    await this.sendNotification(
       targetUserId,
       senderUserId,
       "invite_request",
@@ -1302,26 +1214,53 @@ export class ConnectUsService {
   /**
    * Get active stories (expires_at > now)
    */
-  static getActiveStories(): ConnectUsStory[] {
-    const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
+  static async getActiveStories(): Promise<ConnectUsStory[]> {
     let stories: ConnectUsStory[] = [];
+
     try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_STORIES_KEY);
-      if (stored) {
-        stories = JSON.parse(stored);
+      // @ts-ignore
+      const { data: dbStories } = await supabase
+        .from("connectus_stories")
+        .select("*")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false });
+
+      if (dbStories && dbStories.length > 0) {
+        for (const s of dbStories) {
+          const author = await this.getProfile(s.user_id);
+          stories.push({
+            id: s.id,
+            user_id: s.user_id,
+            author,
+            media_url: s.media_url,
+            media_type: s.media_type || "image",
+            caption: s.caption || null,
+            created_at: s.created_at,
+            expires_at: s.expires_at,
+            views_count: s.views_count || 0,
+            viewers: s.viewers || [],
+            likes_count: s.likes_count || 0,
+          });
+        }
       }
     } catch (e) {}
 
-    // Filter out expired stories (expires_at <= now)
+    const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
+    let localStories: ConnectUsStory[] = [];
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_STORIES_KEY);
+      if (stored) localStories = JSON.parse(stored);
+    } catch (e) {}
+
     const now = Date.now();
-    const activeStories = stories.filter((s) => new Date(s.expires_at).getTime() > now);
+    const activeLocal = localStories.filter((s) => new Date(s.expires_at).getTime() > now);
 
-    // Save active stories back to cleanup expired ones
-    if (activeStories.length !== stories.length) {
-      safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, activeStories);
-    }
+    const mergedMap = new Map<string, ConnectUsStory>();
+    [...activeLocal, ...stories].forEach(s => mergedMap.set(s.id, s));
+    const result = Array.from(mergedMap.values());
 
-    return activeStories;
+    safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, result);
+    return result;
   }
 
   /**
@@ -1337,29 +1276,11 @@ export class ConnectUsService {
     const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
-
-    const authorProfile: ConnectUsProfile = {
-      id: userId,
-      user_id: userId,
-      username: author.username || `user_${userId.slice(0, 6)}`,
-      full_name: author.full_name || "Membre ConnectUs",
-      avatar_url: author.avatar_url || null,
-      cover_url: author.cover_url || null,
-      bio: author.bio || null,
-      location: author.location || null,
-      website_url: author.website_url || null,
-      is_verified: true,
-      is_business: !!author.is_business,
-      followers_count: author.followers_count || 10,
-      following_count: author.following_count || 5,
-      posts_count: author.posts_count || 1,
-      shop_name: author.shop_name || null,
-      show_shop_on_profile: Boolean(author.show_shop_on_profile),
-      created_at: author.created_at || now.toISOString(),
-    };
+    const authorProfile = await this.getProfile(userId);
+    const storyId = `story-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
     const newStory: ConnectUsStory = {
-      id: `story-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: storyId,
       user_id: userId,
       author: authorProfile,
       media_url: mediaUrl,
@@ -1371,27 +1292,28 @@ export class ConnectUsService {
       viewers: [],
     };
 
-    const currentStories = this.getActiveStories();
-    currentStories.unshift(newStory);
-    safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, currentStories);
-
-    // Sync to Cloud Supabase
     if (!userId.startsWith("guest_")) {
       try {
-        const payload = JSON.stringify({
-          connectus_type: "story",
-          story: newStory,
-        });
-        await supabase.from("community_messages").insert([
+        // @ts-ignore
+        await supabase.from("connectus_stories").insert([
           {
+            id: storyId,
             user_id: userId,
-            body: payload,
+            media_url: mediaUrl,
+            media_type: mediaType,
+            caption: caption || null,
+            expires_at: expiresAt.toISOString(),
+            created_at: now.toISOString(),
           },
         ]);
       } catch (e) {
-        console.warn("Story cloud sync warning:", e);
+        console.warn("connectus_stories insert fallback:", e);
       }
     }
+
+    const currentStories = await this.getActiveStories();
+    currentStories.unshift(newStory);
+    safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, currentStories);
 
     return newStory;
   }
@@ -1399,38 +1321,32 @@ export class ConnectUsService {
   /**
    * View a story & record unique viewer
    */
-  static viewStory(storyId: string, viewerUserId: string, viewerProfile?: ConnectUsProfile | null): ConnectUsStory | null {
+  static async viewStory(storyId: string, viewerUserId: string, viewerProfile?: ConnectUsProfile | null): Promise<ConnectUsStory | null> {
     const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
-    const stories = this.getActiveStories();
+    const stories = await this.getActiveStories();
     const index = stories.findIndex((s) => s.id === storyId);
     if (index === -1) return null;
 
     const story = stories[index];
     const viewers = story.viewers || [];
-    const viewersDetails = story.viewers_details || [];
 
     if (!viewers.includes(viewerUserId)) {
       viewers.push(viewerUserId);
       story.views_count = viewers.length;
       story.viewers = viewers;
 
-      if (viewerProfile) {
-        const alreadyInDetails = viewersDetails.some(v => v.user.id === viewerProfile.id || v.user.user_id === viewerProfile.user_id);
-        if (!alreadyInDetails) {
-          viewersDetails.unshift({
-            user: viewerProfile,
-            viewed_at: new Date().toISOString(),
-          });
-          story.viewers_details = viewersDetails;
-        }
+      if (!viewerUserId.startsWith("guest_")) {
+        try {
+          // @ts-ignore
+          await supabase.from("connectus_stories").update({ views_count: viewers.length, viewers }).eq("id", storyId);
+        } catch (e) {}
       }
 
       stories[index] = story;
       safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, stories);
 
-      // Notification trigger for story author if viewer is not the author
       if (story.user_id && story.user_id !== viewerUserId) {
-        this.sendNotification(
+        await this.sendNotification(
           story.user_id,
           viewerUserId,
           "like",
@@ -1446,8 +1362,7 @@ export class ConnectUsService {
    * Toggle Like on a Story
    */
   static async toggleStoryLike(storyId: string, userId: string): Promise<{ likes_count: number; user_liked: boolean }> {
-    const LOCAL_STORAGE_STORIES_KEY = "ecomfy_connectus_stories";
-    const stories = this.getActiveStories();
+    const stories = await this.getActiveStories();
     const index = stories.findIndex((s) => s.id === storyId);
 
     const likeKey = `ecomfy_story_like_${storyId}_${userId}`;
@@ -1464,10 +1379,17 @@ export class ConnectUsService {
       story.likes_count = newCount;
       story.user_liked = newLiked;
       stories[index] = story;
-      safeLocalStorageSet(LOCAL_STORAGE_STORIES_KEY, stories);
+      safeLocalStorageSet("ecomfy_connectus_stories", stories);
+
+      if (!userId.startsWith("guest_")) {
+        try {
+          // @ts-ignore
+          await supabase.from("connectus_stories").update({ likes_count: newCount }).eq("id", storyId);
+        } catch (e) {}
+      }
 
       if (newLiked && story.user_id && story.user_id !== userId) {
-        this.sendNotification(
+        await this.sendNotification(
           story.user_id,
           userId,
           "like",
@@ -1501,7 +1423,7 @@ export class ConnectUsService {
     );
 
     if (createdMsg && targetUserId && targetUserId !== senderUserId) {
-      this.sendNotification(
+      await this.sendNotification(
         targetUserId,
         senderUserId,
         "private_message",

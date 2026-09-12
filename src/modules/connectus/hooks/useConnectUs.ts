@@ -248,9 +248,9 @@ export function useConnectUs() {
   };
 
   // 8. Toggle Follow
-  const handleToggleFollow = (targetUserId: string) => {
+  const handleToggleFollow = async (targetUserId: string) => {
     if (!userId) return false;
-    const nowFollowing = ConnectUsService.toggleFollow(userId, targetUserId);
+    const nowFollowing = await ConnectUsService.toggleFollow(userId, targetUserId);
     
     toast({
       title: nowFollowing ? "Abonnement réussi ✓" : "Abonnement retiré",
