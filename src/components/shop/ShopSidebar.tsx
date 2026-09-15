@@ -2,7 +2,7 @@ import { BarChart3, ShoppingCart, Package, Store, Palette, Settings, Users, Tren
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export type ActiveSection = "overview" | "products" | "orders" | "abandoned" | "loyal-customers" | "promo-codes" | "appearance" | "statistics" | "theme" | "shop-themes" | "billing" | "finances" | "ai-optimizer" | "assistant" | "reviews" | "collaborators" | "settings";
+export type ActiveSection = "overview" | "products" | "orders" | "abandoned" | "loyal-customers" | "promo-codes" | "appearance" | "homepage" | "statistics" | "theme" | "shop-themes" | "billing" | "finances" | "ai-optimizer" | "assistant" | "reviews" | "collaborators" | "settings";
 
 interface ShopSidebarProps {
   shopName: string;
@@ -35,9 +35,10 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; is
   { id: "finances", label: "Finances", icon: Wallet },
   { id: "ai-optimizer", label: "Optimiseur IA", icon: Brain },
   { id: "assistant", label: "Assistant IA", icon: Bot, isNew: true },
+  { id: "homepage", label: "Page d'accueil", icon: LayoutTemplate, isNew: true },
   { id: "appearance", label: "Boutique", icon: Palette },
   { id: "theme", label: "Thème", icon: Paintbrush },
-  { id: "shop-themes", label: "Thèmes", icon: LayoutTemplate, isNew: true },
+  { id: "shop-themes", label: "Thèmes", icon: LayoutTemplate },
   { id: "billing", label: "Facturation", icon: Receipt },
   { id: "reviews", label: "Avis", icon: MessageSquare },
   { id: "collaborators", label: "Collaborateurs", icon: UserPlus, isNew: true, ownerOnly: true },
@@ -96,7 +97,7 @@ export function ShopSidebar({
               <item.icon className="h-[18px] w-[18px] shrink-0 opacity-75" />
               <span className="flex-1 text-left">{item.label}</span>
               {item.isNew && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">NEW</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#0E7C66] text-white">NEW</span>
               )}
               {count > 0 && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${

@@ -43,6 +43,7 @@ import {
 } from "@/lib/productAppearance";
 import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPublic";
 import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
+import { ecomfyPayApi } from "@/lib/ecomfyPay";
 
 // Non-critical, below-the-fold widgets. Loaded only after the LCP image and
 // the "Commander maintenant" button are interactive — keeps the initial JS
@@ -710,6 +711,27 @@ const ProductView = () => {
         first_name: customerInfo.name,
         city: customerInfo.city,
       });
+      // Si le moyen de paiement est Mobile Money / Ecomfy Pay, déceler l'initialisation du paiement sécurisé
+      if (customerInfo.paymentMethod === "mobile_money") {
+        const payRes = await ecomfyPayApi.initiateCustomerPayment({
+          shop_id: shop.id,
+          product_id: product?.id,
+          order_id: orderId,
+          amount: effectiveOrderCartTotal,
+          payment_method: "mobile_money",
+          customer_name: customerInfo.name,
+          customer_phone: normalizedPhone,
+          customer_email: customerInfo.email,
+          customer_address: customerInfo.address,
+          customer_city: customerInfo.city,
+        });
+
+        if (payRes.success && payRes.checkout_url) {
+          window.location.href = payRes.checkout_url;
+          return;
+        }
+      }
+
       setCart([]);
       setShowInlineCheckout(false);
       setCheckoutOpen(false);

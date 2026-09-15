@@ -45,6 +45,7 @@ const ShopFinances = lazy(() => import("@/components/shop/ShopFinances").then(m 
 const ProductAIOptimizer = lazy(() => import("@/components/shop/ProductAIOptimizer").then(m => ({ default: m.ProductAIOptimizer })));
 const ShopCollaboratorsManager = lazy(() => import("@/components/shop/ShopCollaboratorsManager").then(m => ({ default: m.ShopCollaboratorsManager })));
 const DragDropEditor = lazy(() => import("@/components/shop/DragDropEditor/DragDropEditor").then(m => ({ default: m.DragDropEditor })));
+const HomepageBuilder = lazy(() => import("@/components/shop/HomepageBuilder/HomepageBuilder").then(m => ({ default: m.HomepageBuilder })));
 
 const SectionFallback = () => (
   <div className="flex items-center justify-center py-12">
@@ -1363,6 +1364,14 @@ const ShopEditor = () => {
 
 
             </div>
+          )}
+
+          {activeSection === "homepage" && (
+            <HomepageBuilder
+              shop={shop}
+              setShop={setShop}
+              products={products as any}
+            />
           )}
 
           {activeSection === "settings" && (

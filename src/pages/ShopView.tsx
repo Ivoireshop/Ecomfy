@@ -24,6 +24,7 @@ import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
 import { useDeferredMount } from "@/lib/useDeferredMount";
 import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
+import { HomepageRenderer } from "@/components/shop/HomepageBuilder/HomepageRenderer";
 
 // Heavy, non-critical widgets — load only after the shop hero/products grid is
 // visible so the LCP and "Commander" button are not blocked by extra JS.
@@ -669,9 +670,40 @@ const ShopView = () => {
   const secondaryColor = shop.secondary_color || "#7c3aed";
   const themeConfig = shop.theme_config || {};
 
+  const homepageConfig = themeConfig?.homepage;
+  if (homepageConfig?.enabled && Array.isArray(homepageConfig?.sections) && homepageConfig.sections.length > 0 && !classicOptOut) {
+    return (
+      <>
+        <Helmet>
+          <title>{shop.seo_title || shop.business_name || "Boutique"}</title>
+          <meta name="description" content={shop.business_description || `Boutique ${shop.business_name}`} />
+          <link rel="canonical" href={window.location.href} />
+        </Helmet>
+        <HomepageRenderer
+          config={homepageConfig}
+          shop={shop}
+          products={products}
+          primaryColor={primaryColor}
+          onAddToCart={(p) => addToCart(p)}
+          onViewProduct={(p) => {
+            if (p.slug) navigate(`/shop/${shop.slug}/p/${p.slug}`);
+            else setSelectedProduct(p);
+          }}
+          onSelectCategory={(cat) => setSelectedCategory(cat)}
+          onActionClick={(action, url) => {
+            if (action === "checkout") {
+              setCheckoutOpen(true);
+            } else if (url && url.startsWith("/")) {
+              navigate(url);
+            }
+          }}
+        />
+      </>
+    );
+  }
+
   // Optional pro theme — early return when a theme is active and user did not opt-out via ?classic=1
   const activeShopThemeSlug: string | null = themeConfig?.active_theme_slug || null;
-  const classicOptOut = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("classic") === "1";
   if (activeShopThemeSlug && !classicOptOut) {
     return (
       <>

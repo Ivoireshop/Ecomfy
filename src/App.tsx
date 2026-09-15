@@ -117,6 +117,8 @@ const DeliveryStatusPage = lazyWithRetry(() => import("./pages/DeliveryStatusPag
 const DeliveryAdminPage = lazyWithRetry(() => import("./pages/DeliveryAdminPage"));
 const DeliveryPartnerDashboard = lazyWithRetry(() => import("./pages/DeliveryPartnerDashboard"));
 const DeliveryResubmissionPage = lazyWithRetry(() => import("./pages/DeliveryResubmissionPage"));
+const EcomfyPay = lazyWithRetry(() => import("./pages/EcomfyPay"));
+const EcomfyPayCheckout = lazyWithRetry(() => import("./pages/EcomfyPayCheckout"));
 
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
@@ -174,7 +176,8 @@ const AppContent = () => {
   useWebPush();
     const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
-  const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
+  const isPayCheckout = location.pathname.startsWith("/pay/");
+  const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed || isPayCheckout;
   const isDriverApp = location.pathname.startsWith("/delivery/driver");
   const showSidebar = !isPublicPage && !isShopView && !isDriverApp;
   const showSupport = !isPublicPage && !isShopView && !isDriverApp;
@@ -309,6 +312,15 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/ecomfy-pay"
+            element={
+              <ProtectedRoute>
+                <EcomfyPay />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/pay/:linkKey" element={<EcomfyPayCheckout />} />
           <Route
             path="/founder-troubleshooting"
             element={
@@ -520,9 +532,10 @@ const AppWithSidebar = () => {
                            location.pathname.startsWith("/shop-builder");
   const isDriverApp = location.pathname.startsWith("/delivery/driver");
   const isConnectUs = location.pathname.startsWith("/connectus");
+  const isPayCheckout = location.pathname.startsWith("/pay/");
 
   // Showcase/shop/public pages and ConnectUs dedicated layout: no sidebar at all
-  if (isShopView || isPublicPage || isShopManagement || isDriverApp || isConnectUs) {
+  if (isShopView || isPublicPage || isShopManagement || isDriverApp || isConnectUs || isPayCheckout) {
     return (
       <main className="w-full">
         <AppContent />

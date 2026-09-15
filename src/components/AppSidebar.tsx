@@ -124,6 +124,7 @@ export function AppSidebar() {
     { title: "Accueil", url: "/dashboard", icon: Home },
     { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
     { title: "Boutique", url: "/shop-manager", icon: Store },
+    { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard },
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Studio IA", url: "/studio", icon: Image },
