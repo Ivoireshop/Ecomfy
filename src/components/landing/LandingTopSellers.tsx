@@ -60,9 +60,9 @@ export const LandingTopSellers: React.FC = () => {
         // 2. Fetch all valid orders for these shops to compute real-time product revenue sums
         const { data: ordersData } = await supabase
           .from("orders")
-          .select("id, shop_id, total, status")
+          .select("id, shop_id, total, order_status")
           .in("shop_id", shopIds)
-          .neq("status", "cancelled");
+          .neq("order_status", "cancelled");
 
         // Map shop_id to user_id and shop details
         const shopMap: Record<string, any> = {};

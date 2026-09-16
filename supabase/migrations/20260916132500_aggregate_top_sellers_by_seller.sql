@@ -39,7 +39,7 @@ AS $$
     WHERE COALESCE(s.is_published, false) = true
       AND COALESCE(s.is_activated, false) = true
       AND COALESCE(s.is_suspended, false) = false
-      AND COALESCE(o.status, '') != 'cancelled'
+      AND COALESCE(o.order_status, '') != 'cancelled'
     GROUP BY s.user_id
   )
   SELECT
