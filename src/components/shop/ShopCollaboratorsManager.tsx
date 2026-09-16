@@ -86,12 +86,44 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
 
   useEffect(() => { load(); }, [shopId]);
 
-  const toggleRole = (r: Role) =>
-    setRoles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
+  const ALL_ROLES: Role[] = [
+    "view_orders",
+    "edit_shop",
+    "manage_expenses",
+    "manage_delivered_orders",
+    "manage_catalog",
+    "view_stats",
+    "manage_customers",
+    "full_admin"
+  ];
+
+  const toggleRole = (r: Role) => {
+    setRoles((prev) => {
+      if (r === "full_admin") {
+        if (prev.includes("full_admin")) {
+          return ["view_orders"];
+        }
+        return [...ALL_ROLES];
+      }
+      let next = prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r];
+      const nonAdminRoles = ALL_ROLES.filter((x) => x !== "full_admin");
+      const hasAllNonAdmin = nonAdminRoles.every((x) => next.includes(x));
+      if (hasAllNonAdmin && !next.includes("full_admin")) {
+        next = [...next, "full_admin"];
+      } else if (!hasAllNonAdmin && next.includes("full_admin")) {
+        next = next.filter((x) => x !== "full_admin");
+      }
+      return next;
+    });
+  };
 
   const invite = async (overrideEmail?: string | React.MouseEvent, overrideRoles?: Role[]) => {
     const targetEmail = (typeof overrideEmail === "string" ? overrideEmail : email).trim().toLowerCase();
-    const targetRoles = Array.isArray(overrideRoles) ? overrideRoles : roles;
+    let targetRoles = Array.isArray(overrideRoles) ? overrideRoles : roles;
+
+    if (targetRoles.includes("full_admin")) {
+      targetRoles = Array.from(new Set([...targetRoles, ...ALL_ROLES]));
+    }
 
     if (!targetEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(targetEmail)) {
       toast.error("Adresse email invalide");

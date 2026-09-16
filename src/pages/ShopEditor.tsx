@@ -942,12 +942,26 @@ const ShopEditor = () => {
   const isOwner = !!currentUserId && shop?.user_id === currentUserId;
   const allowedSections: ActiveSection[] | undefined = isOwner ? undefined : (() => {
     const r = collabRoles || [];
+    if (r.includes("full_admin")) return undefined; // Full admin gets access to all sections
     const allowed: ActiveSection[] = ["overview"];
     if (r.includes("view_orders") || r.includes("manage_delivered_orders") || r.includes("edit_shop")) {
       allowed.push("orders", "abandoned", "loyal-customers", "promo-codes", "statistics");
     }
-    if (r.includes("edit_shop")) allowed.push("products", "appearance", "theme", "shop-themes", "ai-optimizer", "reviews");
-    if (r.includes("manage_expenses")) allowed.push("finances", "billing");
+    if (r.includes("manage_catalog") || r.includes("edit_shop")) {
+      allowed.push("products");
+    }
+    if (r.includes("edit_shop")) {
+      allowed.push("appearance", "theme", "shop-themes", "ai-optimizer", "reviews", "homepage", "assistant", "settings");
+    }
+    if (r.includes("manage_customers")) {
+      allowed.push("reviews", "loyal-customers");
+    }
+    if (r.includes("view_stats")) {
+      allowed.push("statistics");
+    }
+    if (r.includes("manage_expenses")) {
+      allowed.push("finances", "billing");
+    }
     return allowed;
   })();
 
