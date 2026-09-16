@@ -178,9 +178,17 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
   };
 
   const updateRoles = async (id: string, nextRoles: Role[]) => {
-    const { error } = await (supabase.from("shop_collaborators" as any) as any)
+    let { error } = await (supabase.from("shop_collaborators" as any) as any)
       .update({ roles: nextRoles }).eq("id", id);
-    if (error) toast.error("Erreur"); else { toast.success("Rôles mis à jour"); load(); }
+    if (error && error.message?.includes("enum shop_collab_role")) {
+      const LEGACY_ROLES = ["view_orders", "edit_shop", "manage_expenses", "manage_delivered_orders"];
+      const safeRoles = nextRoles.filter((r) => LEGACY_ROLES.includes(r as any));
+      const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ROLES;
+      const retry = await (supabase.from("shop_collaborators" as any) as any)
+        .update({ roles: finalRoles }).eq("id", id);
+      error = retry.error;
+    }
+    if (error) toast.error("Erreur: " + error.message); else { toast.success("Rôles mis à jour"); load(); }
   };
 
   const revoke = async (id: string) => {

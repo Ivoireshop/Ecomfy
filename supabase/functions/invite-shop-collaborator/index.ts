@@ -48,19 +48,45 @@ Deno.serve(async (req) => {
     const { data: existing } = await admin.from('shop_collaborators').select('id, invitation_token')
       .eq('shop_id', shopId).ilike('invited_email', emailRaw).maybeSingle()
 
+    const LEGACY_ENUM_ROLES = ['view_orders', 'edit_shop', 'manage_expenses', 'manage_delivered_orders']
+
     let finalToken = invitationToken
+    let dbError: any = null
+
     if (existing?.id) {
       finalToken = existing.invitation_token || invitationToken
-      await admin.from('shop_collaborators').update({
+      const res = await admin.from('shop_collaborators').update({
         roles, status: 'pending', invited_by: user.id, updated_at: new Date().toISOString(),
       }).eq('id', existing.id)
+      dbError = res.error
+
+      if (dbError && dbError.message?.includes('enum shop_collab_role')) {
+        const safeRoles = roles.filter((r: string) => LEGACY_ENUM_ROLES.includes(r))
+        const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ENUM_ROLES
+        const retryRes = await admin.from('shop_collaborators').update({
+          roles: finalRoles, status: 'pending', invited_by: user.id, updated_at: new Date().toISOString(),
+        }).eq('id', existing.id)
+        dbError = retryRes.error
+      }
     } else {
-      const { error: insErr } = await admin.from('shop_collaborators').insert({
+      const res = await admin.from('shop_collaborators').insert({
         shop_id: shopId, invited_email: emailRaw, roles, status: 'pending',
         invitation_token: invitationToken, invited_by: user.id,
       })
-      if (insErr) return json({ success: false, error: insErr.message })
+      dbError = res.error
+
+      if (dbError && dbError.message?.includes('enum shop_collab_role')) {
+        const safeRoles = roles.filter((r: string) => LEGACY_ENUM_ROLES.includes(r))
+        const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ENUM_ROLES
+        const retryRes = await admin.from('shop_collaborators').insert({
+          shop_id: shopId, invited_email: emailRaw, roles: finalRoles, status: 'pending',
+          invitation_token: invitationToken, invited_by: user.id,
+        })
+        dbError = retryRes.error
+      }
     }
+
+    if (dbError) return json({ success: false, error: dbError.message })
 
     const origin = req.headers.get('origin') || 'https://ecomfy.cloud'
     const acceptUrl = `${origin}/accept-shop-invite?token=${encodeURIComponent(finalToken)}`
