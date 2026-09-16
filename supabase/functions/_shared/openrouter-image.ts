@@ -1,6 +1,8 @@
 // Shared OpenRouter image generation helper.
 // Tries OpenRouter first (auto-routes to the best image model), with optional fallback.
 
+declare const Deno: any;
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Models OpenRouter routes to for image generation, in order of preference.

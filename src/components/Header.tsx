@@ -57,17 +57,18 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-xs">
       <div className="container mx-auto px-4 max-w-7xl">
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex h-20 md:h-24 items-center justify-between gap-4">
           <div
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap shrink-0"
+            className="flex items-center cursor-pointer hover:opacity-95 transition-all whitespace-nowrap shrink-0 group py-1.5"
           >
-            <img src={logo} alt="Logo Ecomfy" className="h-7 w-7 shrink-0" />
-            <span className="text-xl font-extrabold text-[#0E7C66] tracking-tight whitespace-nowrap">
-              Ecomfy
-            </span>
+            <img 
+              src={logo} 
+              alt="Logo Ecomfy" 
+              className="h-14 sm:h-16 md:h-20 lg:h-24 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform duration-300 drop-shadow-md" 
+            />
           </div>
 
           <nav className="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 flex-nowrap shrink-0 overflow-x-auto no-scrollbar py-1">
@@ -120,11 +121,8 @@ export function Header() {
             </div>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <div className="flex flex-col gap-6 mt-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <img src={logo} alt="Logo Ecomfy" className="h-7 w-7" />
-                  <span className="text-xl font-bold text-[#0E7C66]">
-                    Ecomfy
-                  </span>
+                <div className="flex items-center mb-4">
+                  <img src={logo} alt="Logo Ecomfy" className="h-16 w-auto object-contain" />
                 </div>
 
                 <nav className="flex flex-col gap-4">

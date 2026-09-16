@@ -43,77 +43,114 @@ export async function geminiChat(opts: ChatOptions): Promise<ChatResult> {
   const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
 
-  // 1) Try OpenRouter
+  const fallbackModels = model 
+    ? [model, "google/gemini-2.5-flash", "google/gemini-1.5-flash", "openai/gpt-4o-mini"]
+    : ["google/gemini-2.5-flash", "google/gemini-1.5-flash", "openai/gpt-4o-mini"];
+
+  // 1) Try OpenRouter with model fallbacks
   if (openRouterKey) {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const resp = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://visuelpro.cloud",
-          "X-Title": "VisuelPro",
-        },
-        body: JSON.stringify({
-          model: model || OPENROUTER_TEXT_MODEL,
-          messages,
-          ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const content = data?.choices?.[0]?.message?.content ?? "";
-        if (content) return { content, provider: "openrouter", status: 200 };
-        console.warn("[geminiChat] OpenRouter returned empty content, falling back");
-      } else {
-        const errText = await resp.text();
-        console.warn(`[geminiChat] OpenRouter ${resp.status}:`, errText.slice(0, 300));
-        if (!shouldFallback(resp.status)) {
-          throw new Error(`OpenRouter ${resp.status}: ${errText.slice(0, 200)}`);
+    for (const m of fallbackModels) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        // First try with jsonMode if requested
+        const bodyObj: any = { model: m, messages };
+        if (jsonMode) bodyObj.response_format = { type: "json_object" };
+
+        let resp = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${openRouterKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://visuelpro.cloud",
+            "X-Title": "VisuelPro",
+          },
+          body: JSON.stringify(bodyObj),
+        });
+
+        // If jsonMode failed with 400/422, retry without response_format
+        if (!resp.ok && jsonMode && (resp.status === 400 || resp.status === 422)) {
+          delete bodyObj.response_format;
+          resp = await fetch(OPENROUTER_URL, {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+              Authorization: `Bearer ${openRouterKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://visuelpro.cloud",
+              "X-Title": "VisuelPro",
+            },
+            body: JSON.stringify(bodyObj),
+          });
         }
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const content = data?.choices?.[0]?.message?.content ?? "";
+          if (content) return { content, provider: "openrouter", status: 200 };
+          console.warn(`[geminiChat] OpenRouter ${m} returned empty content, trying next model`);
+        } else {
+          const errText = await resp.text();
+          console.warn(`[geminiChat] OpenRouter ${m} ${resp.status}:`, errText.slice(0, 300));
+        }
+      } catch (e) {
+        console.warn(`[geminiChat] OpenRouter ${m} exception:`, e instanceof Error ? e.message : e);
+      } finally {
+        clearTimeout(t);
       }
-    } catch (e) {
-      console.warn("[geminiChat] OpenRouter exception:", e instanceof Error ? e.message : e);
-    } finally {
-      clearTimeout(t);
     }
   }
 
-  // 2) Fallback to Lovable Cloud
-  if (!lovableKey) {
-    throw new Error("Aucun fournisseur IA disponible (OpenRouter et Lovable Cloud)");
-  }
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const resp = await fetch(LOVABLE_URL, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model || LOVABLE_TEXT_MODEL,
-        messages,
-        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-      }),
-    });
-    if (!resp.ok) {
-      const errText = await resp.text();
-      const err: any = new Error(`Lovable Cloud ${resp.status}: ${errText.slice(0, 200)}`);
-      err.status = resp.status;
-      throw err;
+  // 2) Fallback to Lovable Cloud with model fallbacks
+  if (lovableKey) {
+    for (const m of fallbackModels) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const bodyObj: any = { model: m, messages };
+        if (jsonMode) bodyObj.response_format = { type: "json_object" };
+
+        let resp = await fetch(LOVABLE_URL, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${lovableKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(bodyObj),
+        });
+
+        if (!resp.ok && jsonMode && (resp.status === 400 || resp.status === 422)) {
+          delete bodyObj.response_format;
+          resp = await fetch(LOVABLE_URL, {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+              Authorization: `Bearer ${lovableKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(bodyObj),
+          });
+        }
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const content = data?.choices?.[0]?.message?.content ?? "";
+          if (content) return { content, provider: "lovable", status: 200 };
+        } else {
+          const errText = await resp.text();
+          console.warn(`[geminiChat] Lovable Cloud ${m} ${resp.status}:`, errText.slice(0, 300));
+        }
+      } catch (e) {
+        console.warn(`[geminiChat] Lovable Cloud ${m} exception:`, e instanceof Error ? e.message : e);
+      } finally {
+        clearTimeout(t);
+      }
     }
-    const data = await resp.json();
-    const content = data?.choices?.[0]?.message?.content ?? "";
-    return { content, provider: "lovable", status: 200 };
-  } finally {
-    clearTimeout(t);
   }
+
+  throw new Error("Service IA temporairement indisponible sur tous les modèles. Veuillez réessayer.");
 }
 
 /**

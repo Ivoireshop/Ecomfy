@@ -48,11 +48,8 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 mb-16">
           {/* ECOMFY */}
           <div className="col-span-2 lg:col-span-2">
-            <div className="flex items-center gap-2 mb-6">
-              <img src={logo} alt="Logo Ecomfy" className="h-8 w-8 brightness-0 invert" />
-              <span className="text-2xl font-extrabold text-white">
-                Ecomfy
-              </span>
+            <div className="flex items-center mb-6">
+              <img src={logo} alt="Logo Ecomfy" className="h-14 sm:h-16 w-auto object-contain brightness-0 invert" />
             </div>
             <p className="text-sm text-slate-400 mb-6 max-w-sm leading-relaxed">
               Le système d'exploitation du e-commerce moderne. Créez, vendez, gérez et développez votre activité depuis une seule plateforme propulsée par l'IA.

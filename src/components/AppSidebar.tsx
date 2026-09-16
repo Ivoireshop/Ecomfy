@@ -29,55 +29,104 @@ import {
 } from "@/components/ui/tooltip";
 
 interface NavItemProps {
-  item: { title: string; url: string; icon: React.ElementType; onClick?: () => void };
+  item: {
+    title: string;
+    url: string;
+    icon: React.ElementType;
+    comingSoon?: boolean;
+    onClick?: () => void;
+  };
   isCollapsed: boolean;
 }
 
-const NavItem = ({ item, isCollapsed }: NavItemProps) => (
-  <SidebarMenuItem>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <SidebarMenuButton asChild tooltip={item.title}>
-          {item.onClick ? (
-            <button
-              onClick={item.onClick}
-              className="flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground w-full text-left"
-            >
-              <item.icon className={`h-[18px] w-[18px] shrink-0 transition-opacity ${isCollapsed ? '' : 'opacity-75'}`} />
-              <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
-            </button>
-          ) : (
-            <NavLink
-              to={item.url}
-              end={item.url === "/"}
-              className={({ isActive }) => {
-                // Determine if we are on this route or a child route (if needed, but NavLink handles it mostly)
-                const isCurrent = isActive;
-                return `flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 ${
-                  isCurrent
-                    ? "bg-primary/10 text-primary font-semibold border-primary"
-                    : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                }`;
-              }}
-            >
-              <item.icon className={`h-[18px] w-[18px] shrink-0 transition-opacity ${isCollapsed ? '' : 'opacity-75'}`} />
-              <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
-            </NavLink>
+const NavItem = ({ item, isCollapsed }: NavItemProps) => {
+  const { toast } = useToast();
+
+  if (item.comingSoon) {
+    return (
+      <SidebarMenuItem>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SidebarMenuButton asChild tooltip={`${item.title} (Bientôt disponible)`}>
+              <div
+                onClick={(e) => {
+                  e.preventDefault();
+                  toast({
+                    title: "Bientôt disponible 🚀",
+                    description: `L'option ${item.title.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim()} sera disponible très prochainement.`,
+                  });
+                }}
+                className="flex items-center justify-between gap-2 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13px] font-medium text-slate-400 bg-slate-50/40 opacity-60 cursor-not-allowed w-full text-left select-none border-l-4 border-transparent hover:bg-slate-100/50"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <item.icon className="h-[18px] w-[18px] shrink-0 opacity-50 text-slate-400" />
+                  <span className={isCollapsed ? "md:hidden truncate" : "truncate"}>
+                    {item.title}
+                  </span>
+                </div>
+                {!isCollapsed && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600 shrink-0 uppercase tracking-tighter border border-slate-300/60">
+                    Bientôt disponible
+                  </span>
+                )}
+              </div>
+            </SidebarMenuButton>
+          </TooltipTrigger>
+          {isCollapsed && (
+            <TooltipContent side="right">
+              <p>{item.title} (Bientôt disponible)</p>
+            </TooltipContent>
           )}
-        </SidebarMenuButton>
-      </TooltipTrigger>
-      {isCollapsed && (
-        <TooltipContent side="right">
-          <p>{item.title}</p>
-        </TooltipContent>
-      )}
-    </Tooltip>
-  </SidebarMenuItem>
-);
+        </Tooltip>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SidebarMenuButton asChild tooltip={item.title}>
+            {item.onClick ? (
+              <button
+                onClick={item.onClick}
+                className="flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground w-full text-left"
+              >
+                <item.icon className={`h-[18px] w-[18px] shrink-0 transition-opacity ${isCollapsed ? '' : 'opacity-75'}`} />
+                <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
+              </button>
+            ) : (
+              <NavLink
+                to={item.url}
+                end={item.url === "/"}
+                className={({ isActive }) => {
+                  const isCurrent = isActive;
+                  return `flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 ${
+                    isCurrent
+                      ? "bg-primary/10 text-primary font-semibold border-primary"
+                      : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  }`;
+                }}
+              >
+                <item.icon className={`h-[18px] w-[18px] shrink-0 transition-opacity ${isCollapsed ? '' : 'opacity-75'}`} />
+                <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
+              </NavLink>
+            )}
+          </SidebarMenuButton>
+        </TooltipTrigger>
+        {isCollapsed && (
+          <TooltipContent side="right">
+            <p>{item.title}</p>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </SidebarMenuItem>
+  );
+};
 
 interface NavSectionProps {
   label?: string;
-  items: { title: string; url: string; icon: React.ElementType; onClick?: () => void }[];
+  items: { title: string; url: string; icon: React.ElementType; comingSoon?: boolean; onClick?: () => void }[];
   isCollapsed: boolean;
 }
 
@@ -120,27 +169,23 @@ export function AppSidebar() {
     }
   };
 
-  const mainItems = [
+  // 1. Available active options first
+  const activeMainItems = [
     { title: "Accueil", url: "/dashboard", icon: Home },
-    { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
     { title: "Boutique", url: "/shop-manager", icon: Store },
-    { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard },
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
     { title: "Académie", url: "/academy", icon: GraduationCap },
-    { title: "Studio IA", url: "/studio", icon: Image },
-    { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck },
     { title: "Communauté", url: "/community", icon: Users },
     { title: "Tarifs", url: "/pricing", icon: CreditCard },
     { title: "Bibliothèque", url: "/library", icon: FolderHeart },
   ];
 
-  const publicItems = [
-    { title: "Accueil", url: "/", icon: Home },
-    { title: "Studio IA", url: "/studio", icon: Image },
-    { title: "Bibliothèque", url: "/library", icon: FolderHeart },
-    { title: "Statistiques", url: "/statistics", icon: BarChart2 },
-    { title: "Communauté", url: "/community", icon: Users },
-    { title: "Tarifs", url: "/pricing", icon: CreditCard },
+  // 2. Grouped "Bientôt disponible" options placed below Bibliothèque
+  const comingSoonItems = [
+    { title: "ConnectUs 🌐", url: "/connectus", icon: Globe, comingSoon: true },
+    { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard, comingSoon: true },
+    { title: "Studio IA", url: "/studio", icon: Image, comingSoon: true },
+    { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck, comingSoon: true },
   ];
 
   const bottomItems = [
@@ -204,8 +249,12 @@ export function AppSidebar() {
 
           {/* Navigation groups */}
           <div className="flex-1 overflow-y-auto space-y-2 pt-1">
-            <NavSection items={mainItems} isCollapsed={isCollapsed} />
+            {/* Options Actives Disponibles */}
+            <NavSection items={activeMainItems} isCollapsed={isCollapsed} />
             
+            {/* Options Bientôt Disponibles Regroupées après Bibliothèque */}
+            <NavSection label="Bientôt disponible" items={comingSoonItems} isCollapsed={isCollapsed} />
+
             {isFounder && (
               <NavSection label={t("sidebar.sections.admin")} items={founderItems} isCollapsed={isCollapsed} />
             )}

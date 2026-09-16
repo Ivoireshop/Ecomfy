@@ -92,7 +92,7 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
     setLoading(true);
     try {
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Délai d'attente dépassé (20s). L'IA est surchargée.")), 20000)
+        setTimeout(() => reject(new Error("Délai d'attente dépassé (60s). L'IA est surchargée, réessayez.")), 60000)
       );
 
       const fetchPromise = supabase.functions.invoke("product-ai-optimizer", {

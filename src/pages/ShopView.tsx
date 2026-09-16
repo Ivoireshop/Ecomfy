@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { thumbUrl } from "@/lib/imageUrl";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,8 @@ const sortProductImages = (images?: Product["product_images"] | null) =>
 const ShopView = () => {
   const { slug, id } = useParams<{ slug?: string; id?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const classicOptOut = searchParams.get("classic") === "1" || searchParams.get("classic") === "true";
   // Defer mounting non-critical widgets (social proof toasts, AI chat) so the
   // shop hero + products grid + "Commander" button paint as fast as possible.
   const deferredReady = useDeferredMount(1500);
