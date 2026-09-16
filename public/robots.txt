@@ -26,5 +26,4 @@ Disallow: /dashboard
 Disallow: /settings
 
 Sitemap: https://ecomfy.cloud/sitemap.xml
-Sitemap: https://dqlbmtkaamjohgbcjwtw.supabase.co/functions/v1/dynamic-sitemap
 Host: ecomfy.cloud

@@ -9,9 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export function triggerSeoAutoIndex(url?: string): void {
   try {
-    // Use the dynamic sitemap (always fresh) so GSC sees latest pages.
-    const sitemapUrl =
-      "https://dqlbmtkaamjohgbcjwtw.supabase.co/functions/v1/dynamic-sitemap";
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://ecomfy.cloud";
+    const sitemapUrl = `${baseUrl}/functions/v1/dynamic-sitemap`;
     supabase.functions
       .invoke("seo-auto-index", { body: { url, sitemapUrl } })
       .catch((e) => console.warn("[seo-auto-index] failed", e));

@@ -103,9 +103,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Preconnect to backend & media CDNs to save ~100-300ms on first request -->
-    <link rel="preconnect" href="https://dqlbmtkaamjohgbcjwtw.supabase.co" crossorigin>
-    <link rel="dns-prefetch" href="https://dqlbmtkaamjohgbcjwtw.supabase.co">
+    <!-- Preconnect to media CDNs -->
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
     <link rel="dns-prefetch" href="https://res.cloudinary.com">
     <!-- Load Google Fonts asynchronously to avoid blocking first paint.
@@ -134,8 +132,9 @@
     <script>
       (function () {
         try {
-          var SUPABASE_URL = "https://dqlbmtkaamjohgbcjwtw.supabase.co";
-          var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxbGJtdGthYW1qb2hnYmNqd3R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMTMyNTAsImV4cCI6MjA3NzY4OTI1MH0.Y74c0ym91Q29oW6C-F5g8rBF8y4AphYtB4KJtu1AOLg";
+          var SUPABASE_URL = "%VITE_SUPABASE_URL%";
+          var ANON = "%VITE_SUPABASE_PUBLISHABLE_KEY%";
+          if (!SUPABASE_URL || SUPABASE_URL.indexOf("VITE_SUPABASE") !== -1) return;
           var path = location.pathname;
           var headers = {
             "Content-Type": "application/json",

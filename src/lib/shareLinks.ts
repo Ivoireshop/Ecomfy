@@ -10,8 +10,8 @@
  *
  * Use this URL anywhere the user copies/shares a product link.
  */
-const SUPABASE_PROJECT_ID = "dqlbmtkaamjohgbcjwtw";
-const SHARE_BASE = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/share-product`;
+const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://ecomfy.cloud";
+const SHARE_BASE = `${baseUrl}/functions/v1/share-product`;
 
 export function buildProductShareUrl(params: {
   shopSlug: string;
