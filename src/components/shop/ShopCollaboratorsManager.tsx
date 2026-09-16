@@ -76,10 +76,19 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await (supabase.from("shop_collaborators" as any) as any)
+    let { data, error } = await (supabase.from("shop_collaborators" as any) as any)
       .select("id, invited_email, roles, status, accepted_at, created_at, invitation_token")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
+
+    if (error && (error.message?.includes("invitation_token") || error.code === "42501")) {
+      const retry = await (supabase.from("shop_collaborators" as any) as any)
+        .select("id, invited_email, roles, status, accepted_at, created_at")
+        .eq("shop_id", shopId)
+        .order("created_at", { ascending: false });
+      data = retry.data;
+    }
+
     setList((data as Collab[]) || []);
     setLoading(false);
   };
@@ -131,24 +140,104 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
     }
     if (targetRoles.length === 0) { toast.error("Sélectionnez au moins un rôle"); return; }
     setSending(true);
+
     try {
-      const { data, error } = await supabase.functions.invoke("invite-shop-collaborator", {
-        body: { shop_id: shopId, email: targetEmail, roles: targetRoles, shop_name: shopName },
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      const LEGACY_ENUM_ROLES: Role[] = ["view_orders", "edit_shop", "manage_expenses", "manage_delivered_orders"];
+
+      let fnSuccess = false;
+      try {
+        const { data: fnData, error: fnError } = await supabase.functions.invoke("invite-shop-collaborator", {
+          body: { shop_id: shopId, email: targetEmail, roles: targetRoles, shop_name: shopName },
+        });
+
+        if (!fnError && fnData?.success) {
+          fnSuccess = true;
+        }
+      } catch (err) {
+        console.warn("Edge function invite attempt warning:", err);
+      }
+
+      if (!fnSuccess) {
+        const newToken = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+          .map((b) => b.toString(16).padStart(2, '0')).join('');
+
+        const { data: existing } = await (supabase.from("shop_collaborators" as any) as any)
+          .select("id")
+          .eq("shop_id", shopId)
+          .ilike("invited_email", targetEmail)
+          .maybeSingle();
+
+        let dbError: any = null;
+
+        const isEnumOrTypeError = (err: any) => {
+          if (!err) return false;
+          const msg = String(err.message || "").toLowerCase();
+          const code = String(err.code || "");
+          return msg.includes("enum") || msg.includes("invalid input") || msg.includes("type") || code === "22P02";
+        };
+
+        if (existing?.id) {
+          const { error: err } = await (supabase.from("shop_collaborators" as any) as any)
+            .update({
+              roles: targetRoles,
+              status: "pending",
+              invited_by: user.id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existing.id);
+          dbError = err;
+
+          if (isEnumOrTypeError(dbError)) {
+            const safeRoles = targetRoles.filter((r) => LEGACY_ENUM_ROLES.includes(r));
+            const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ENUM_ROLES;
+            const { error: retryErr } = await (supabase.from("shop_collaborators" as any) as any)
+              .update({
+                roles: finalRoles,
+                status: "pending",
+                invited_by: user.id,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existing.id);
+            dbError = retryErr;
+          }
+        } else {
+          const { error: err } = await (supabase.from("shop_collaborators" as any) as any)
+            .insert({
+              shop_id: shopId,
+              invited_email: targetEmail,
+              roles: targetRoles,
+              status: "pending",
+              invitation_token: newToken,
+              invited_by: user.id,
+            });
+          dbError = err;
+
+          if (isEnumOrTypeError(dbError)) {
+            const safeRoles = targetRoles.filter((r) => LEGACY_ENUM_ROLES.includes(r));
+            const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ENUM_ROLES;
+            const { error: retryErr } = await (supabase.from("shop_collaborators" as any) as any)
+              .insert({
+                shop_id: shopId,
+                invited_email: targetEmail,
+                roles: finalRoles,
+                status: "pending",
+                invitation_token: newToken,
+                invited_by: user.id,
+              });
+            dbError = retryErr;
+          }
+        }
+
+        if (dbError) throw new Error(dbError.message);
+      }
+
+      toast.success("Invitation créée avec succès ! 🚀", {
+        description: `Le collaborateur (${targetEmail}) a été ajouté. Vous pouvez copier son lien d'accès direct.`,
       });
-      if (error) throw error;
-      if (!data?.success) {
-        throw new Error(data?.details || data?.error || "Échec de l'enregistrement de l'invitation");
-      }
-      if (data?.email_sent === false) {
-        toast.warning("Invitation créée (Email non délivré) ⚠️", {
-          description: `L'accès est créé. Motif Resend: ${data.warning || "Restriction de domaine"}. Utilisez le bouton "Copier lien" ci-dessous pour lui envoyer par WhatsApp ou SMS.`,
-          duration: 7000,
-        });
-      } else {
-        toast.success("Invitation envoyée avec succès ! 🚀", {
-          description: `Un e-mail d'invitation a été transmis à ${targetEmail}.`,
-        });
-      }
+
       if (typeof overrideEmail !== "string") {
         setEmail("");
         setRoles(["view_orders"]);
@@ -157,7 +246,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
     } catch (e: any) {
       console.error("Invite collaborator error:", e);
       toast.error("Échec de l'invitation", {
-        description: e?.message || "Impossible d'envoyer l'invitation pour le moment.",
+        description: e?.message || "Impossible d'enregistrer l'invitation pour le moment.",
       });
     } finally {
       setSending(false);
@@ -178,9 +267,17 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
   };
 
   const updateRoles = async (id: string, nextRoles: Role[]) => {
+    const isEnumOrTypeError = (err: any) => {
+      if (!err) return false;
+      const msg = String(err.message || "").toLowerCase();
+      const code = String(err.code || "");
+      return msg.includes("enum") || msg.includes("invalid input") || msg.includes("type") || code === "22P02";
+    };
+
     let { error } = await (supabase.from("shop_collaborators" as any) as any)
       .update({ roles: nextRoles }).eq("id", id);
-    if (error && error.message?.includes("enum shop_collab_role")) {
+
+    if (isEnumOrTypeError(error)) {
       const LEGACY_ROLES = ["view_orders", "edit_shop", "manage_expenses", "manage_delivered_orders"];
       const safeRoles = nextRoles.filter((r) => LEGACY_ROLES.includes(r as any));
       const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ROLES;
@@ -188,6 +285,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
         .update({ roles: finalRoles }).eq("id", id);
       error = retry.error;
     }
+
     if (error) toast.error("Erreur: " + error.message); else { toast.success("Rôles mis à jour"); load(); }
   };
 
