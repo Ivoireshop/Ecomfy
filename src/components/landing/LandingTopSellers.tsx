@@ -33,59 +33,6 @@ const getDisplayName = (seller: TopSellerItem): string => {
   return "Entrepreneur Ecomfy";
 };
 
-const FALLBACK_SELLERS: TopSellerItem[] = [
-  {
-    shop_id: "demo-1",
-    full_name: "Kouadio Alex",
-    shop_name: "Terminus Coco & Secrets d'Hommes",
-    slug: "terminus-coco",
-    avatar_url: null,
-    logo_url: null,
-    total_sales: 5150000,
-    total_orders: 104,
-  },
-  {
-    shop_id: "demo-2",
-    full_name: "Koffi Marc",
-    shop_name: "Secrets d'Hommes",
-    slug: "secrets-d-hommes",
-    avatar_url: null,
-    logo_url: null,
-    total_sales: 3200000,
-    total_orders: 68,
-  },
-  {
-    shop_id: "demo-3",
-    full_name: "Awa Diop",
-    shop_name: "Dakar Chic",
-    slug: "dakar-chic",
-    avatar_url: null,
-    logo_url: null,
-    total_sales: 2450000,
-    total_orders: 52,
-  },
-  {
-    shop_id: "demo-4",
-    full_name: "Ange Patricia",
-    shop_name: "Maison Beauté CI",
-    slug: "maison-beaute",
-    avatar_url: null,
-    logo_url: null,
-    total_sales: 1890000,
-    total_orders: 39,
-  },
-  {
-    shop_id: "demo-5",
-    full_name: "Ibrahima Sory",
-    shop_name: "Tech Hub Abidjan",
-    slug: "tech-hub",
-    avatar_url: null,
-    logo_url: null,
-    total_sales: 1240000,
-    total_orders: 26,
-  },
-];
-
 export const LandingTopSellers: React.FC = () => {
   const [sellers, setSellers] = useState<TopSellerItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -94,128 +41,88 @@ export const LandingTopSellers: React.FC = () => {
     const fetchTopSellers = async () => {
       setLoading(true);
       try {
-        // 1. Fetch all published shops (do not over-filter so shops with null activated status are included)
-        const { data: directShops } = await supabase
-          .from("shops")
-          .select("id, business_name, slug, logo_url, total_sales, total_orders, user_id, is_published, is_activated, is_suspended")
-          .eq("is_published", true);
+        // 1. Primary RPC Call (SECURITY DEFINER to bypass RLS and fetch REAL seller accounts & totals)
+        const { data: rpcData, error: rpcError } = await supabase.rpc("get_top_sellers", { p_limit: 10 });
 
-        if (!directShops || directShops.length === 0) {
-          setSellers(FALLBACK_SELLERS);
-          setLoading(false);
-          return;
-        }
+        let processed: TopSellerItem[] = [];
 
-        const shopIds = directShops.map((s) => s.id);
+        if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
+          const shopIds = (rpcData as any[]).map((s: any) => s.shop_id).filter(Boolean);
 
-        // 2. Fetch all valid orders for these shops to compute real-time product revenue sums
-        const { data: ordersData } = await supabase
-          .from("orders")
-          .select("id, shop_id, total, order_status")
-          .in("shop_id", shopIds)
-          .neq("order_status", "cancelled");
+          let shopDetailsMap: Record<string, { logo_url?: string; business_name?: string }> = {};
+          if (shopIds.length > 0) {
+            const { data: shopsData } = await supabase
+              .from("shops")
+              .select("id, logo_url, business_name")
+              .in("id", shopIds);
 
-        // Map shop_id to user_id and shop details
-        const shopMap: Record<string, any> = {};
-        directShops.forEach((s) => {
-          shopMap[s.id] = s;
-        });
-
-        // Group & Aggregate by Seller (user_id) across ALL products & shops
-        const sellerMap: Record<
-          string,
-          {
-            userId: string;
-            shops: any[];
-            orderSales: number;
-            orderCount: number;
-            shopSales: number;
-            shopOrders: number;
-          }
-        > = {};
-
-        directShops.forEach((s) => {
-          const uid = s.user_id;
-          if (!uid) return;
-          if (!sellerMap[uid]) {
-            sellerMap[uid] = {
-              userId: uid,
-              shops: [],
-              orderSales: 0,
-              orderCount: 0,
-              shopSales: 0,
-              shopOrders: 0,
-            };
-          }
-          sellerMap[uid].shops.push(s);
-          sellerMap[uid].shopSales += Number(s.total_sales || 0);
-          sellerMap[uid].shopOrders += Number(s.total_orders || 0);
-        });
-
-        if (ordersData && ordersData.length > 0) {
-          ordersData.forEach((order) => {
-            const shop = shopMap[order.shop_id];
-            if (!shop || !shop.user_id) return;
-            const uid = shop.user_id;
-            if (sellerMap[uid]) {
-              sellerMap[uid].orderSales += Number(order.total || 0);
-              sellerMap[uid].orderCount += 1;
+            if (shopsData) {
+              (shopsData as any[]).forEach((s) => {
+                shopDetailsMap[s.id] = { logo_url: s.logo_url || undefined, business_name: s.business_name || undefined };
+              });
             }
+          }
+
+          processed = (rpcData as any[]).map((item: any) => {
+            const shopExtra = shopDetailsMap[item.shop_id] || {};
+            return {
+              shop_id: item.shop_id,
+              full_name: item.full_name || null,
+              shop_name: shopExtra.business_name || null,
+              slug: item.slug || null,
+              avatar_url: item.avatar_url || null,
+              logo_url: shopExtra.logo_url || null,
+              total_sales: Number(item.total_sales || 0),
+              total_orders: Number(item.total_orders || 0),
+            };
           });
-        }
+        } else {
+          // 2. Direct Supabase Query Fallback
+          const { data: directShops } = await supabase
+            .from("shops")
+            .select("id, business_name, slug, logo_url, total_sales, total_orders, user_id, is_published, is_activated, is_suspended")
+            .eq("is_published", true);
 
-        // Fetch seller profile names & avatars for user_ids
-        const userIds = Object.keys(sellerMap);
-        let profileMap: Record<string, { full_name?: string; avatar_url?: string }> = {};
+          if (directShops && directShops.length > 0) {
+            const userIds = directShops.map((s) => s.user_id).filter(Boolean);
+            let profileMap: Record<string, { full_name?: string; avatar_url?: string }> = {};
 
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .in("id", userIds);
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabase
+                .from("profiles")
+                .select("id, full_name, avatar_url")
+                .in("id", userIds);
 
-          if (profiles) {
-            profiles.forEach((p) => {
-              profileMap[p.id] = { full_name: p.full_name || undefined, avatar_url: p.avatar_url || undefined };
+              if (profiles) {
+                profiles.forEach((p) => {
+                  profileMap[p.id] = { full_name: p.full_name || undefined, avatar_url: p.avatar_url || undefined };
+                });
+              }
+            }
+
+            processed = directShops.map((s) => {
+              const prof = profileMap[s.user_id] || {};
+              return {
+                shop_id: s.id,
+                full_name: prof.full_name || null,
+                shop_name: s.business_name || null,
+                slug: s.slug || null,
+                avatar_url: prof.avatar_url || null,
+                logo_url: s.logo_url || null,
+                total_sales: Number(s.total_sales || 0),
+                total_orders: Number(s.total_orders || 0),
+              };
             });
           }
         }
 
-        // Build list of aggregated sellers with combined revenue from all products & shops
-        const processed: TopSellerItem[] = userIds.map((userId) => {
-          const data = sellerMap[userId];
-          const prof = profileMap[userId] || {};
-          const primaryShop = data.shops[0] || {};
-          const shopNames = data.shops.map((s) => s.business_name).filter(Boolean).join(" & ");
-
-          // Take the highest reliable total (orders table sum vs accumulated shop total_sales)
-          const totalSales = Math.max(data.orderSales, data.shopSales);
-          const totalOrders = Math.max(data.orderCount, data.shopOrders);
-
-          return {
-            shop_id: primaryShop.id || userId,
-            full_name: prof.full_name || null,
-            shop_name: shopNames || primaryShop.business_name || null,
-            slug: primaryShop.slug || null,
-            avatar_url: prof.avatar_url || null,
-            logo_url: primaryShop.logo_url || null,
-            total_sales: totalSales,
-            total_orders: totalOrders,
-          };
-        });
-
-        // Sort descending by combined total_sales and take top 5
+        // Sort descending by total_sales and take top 5 real sellers
         const finalTop = processed
           .sort((a, b) => b.total_sales - a.total_sales);
 
-        if (finalTop.length > 0 && finalTop.some((s) => s.total_sales > 0)) {
-          setSellers(finalTop.slice(0, 5));
-        } else {
-          setSellers(FALLBACK_SELLERS);
-        }
+        setSellers(finalTop.slice(0, 5));
       } catch (err) {
-        console.error("Error fetching top sellers:", err);
-        setSellers(FALLBACK_SELLERS);
+        console.error("Error fetching real top sellers:", err);
       } finally {
         setLoading(false);
       }
@@ -224,9 +131,12 @@ export const LandingTopSellers: React.FC = () => {
     fetchTopSellers();
   }, []);
 
-  const displayList = sellers.length > 0 ? sellers : FALLBACK_SELLERS;
-  const top1 = displayList[0];
-  const runnersUp = displayList.slice(1);
+  if (loading || sellers.length === 0) {
+    return null;
+  }
+
+  const top1 = sellers[0];
+  const runnersUp = sellers.slice(1);
 
   return (
     <section className="relative py-24 bg-[#0A0F1D] text-white overflow-hidden font-['Inter',sans-serif]">
