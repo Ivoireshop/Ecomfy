@@ -41,89 +41,124 @@ export const LandingTopSellers: React.FC = () => {
     const fetchTopSellers = async () => {
       setLoading(true);
       try {
-        // 1. Primary RPC call
-        const { data: rpcData, error: rpcError } = await supabase.rpc("get_top_sellers", { p_limit: 5 });
+        // 1. Fetch all active published shops
+        const { data: directShops } = await supabase
+          .from("shops")
+          .select("id, business_name, slug, logo_url, total_sales, total_orders, user_id, is_published, is_activated, is_suspended")
+          .eq("is_published", true)
+          .eq("is_activated", true)
+          .eq("is_suspended", false);
 
-        let processed: TopSellerItem[] = [];
+        if (!directShops || directShops.length === 0) {
+          setSellers([]);
+          setLoading(false);
+          return;
+        }
 
-        if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
-          const shopIds = (rpcData as any[]).map((s: any) => s.shop_id).filter(Boolean);
+        const shopIds = directShops.map((s) => s.id);
 
-          let shopDetailsMap: Record<string, { logo_url?: string; business_name?: string }> = {};
-          if (shopIds.length > 0) {
-            const { data: shopsData } = await supabase
-              .from("shops")
-              .select("id, logo_url, business_name")
-              .in("id", shopIds);
+        // 2. Fetch all valid orders for these shops to compute real-time product revenue sums
+        const { data: ordersData } = await supabase
+          .from("orders")
+          .select("id, shop_id, total, status")
+          .in("shop_id", shopIds)
+          .neq("status", "cancelled");
 
-            if (shopsData) {
-              (shopsData as any[]).forEach((s) => {
-                shopDetailsMap[s.id] = { logo_url: s.logo_url || undefined, business_name: s.business_name || undefined };
-              });
-            }
+        // Map shop_id to user_id and shop details
+        const shopMap: Record<string, any> = {};
+        directShops.forEach((s) => {
+          shopMap[s.id] = s;
+        });
+
+        // Group & Aggregate by Seller (user_id) across ALL products & shops
+        const sellerMap: Record<
+          string,
+          {
+            userId: string;
+            shops: any[];
+            orderSales: number;
+            orderCount: number;
+            shopSales: number;
+            shopOrders: number;
           }
+        > = {};
 
-          processed = (rpcData as any[]).map((item: any) => {
-            const shopExtra = shopDetailsMap[item.shop_id] || {};
-            return {
-              shop_id: item.shop_id,
-              full_name: item.full_name || null,
-              shop_name: shopExtra.business_name || null,
-              slug: item.slug || null,
-              avatar_url: item.avatar_url || null,
-              logo_url: shopExtra.logo_url || null,
-              total_sales: Number(item.total_sales || 0),
-              total_orders: Number(item.total_orders || 0),
+        directShops.forEach((s) => {
+          const uid = s.user_id;
+          if (!uid) return;
+          if (!sellerMap[uid]) {
+            sellerMap[uid] = {
+              userId: uid,
+              shops: [],
+              orderSales: 0,
+              orderCount: 0,
+              shopSales: 0,
+              shopOrders: 0,
             };
-          });
-        } else {
-          // 2. Direct Supabase Query Fallback
-          const { data: directShops } = await supabase
-            .from("shops")
-            .select("id, business_name, slug, logo_url, total_sales, total_orders, user_id, is_published, is_activated, is_suspended")
-            .eq("is_published", true)
-            .eq("is_activated", true)
-            .eq("is_suspended", false)
-            .gt("total_sales", 0)
-            .order("total_sales", { ascending: false })
-            .limit(5);
+          }
+          sellerMap[uid].shops.push(s);
+          sellerMap[uid].shopSales += Number(s.total_sales || 0);
+          sellerMap[uid].shopOrders += Number(s.total_orders || 0);
+        });
 
-          if (directShops && directShops.length > 0) {
-            const userIds = (directShops as any[]).map((s) => s.user_id).filter(Boolean);
-            let profileMap: Record<string, { full_name?: string; avatar_url?: string }> = {};
-
-            if (userIds.length > 0) {
-              const { data: profiles } = await supabase
-                .from("profiles")
-                .select("id, full_name, avatar_url")
-                .in("id", userIds);
-
-              if (profiles) {
-                (profiles as any[]).forEach((p) => {
-                  profileMap[p.id] = { full_name: p.full_name || undefined, avatar_url: p.avatar_url || undefined };
-                });
-              }
+        if (ordersData && ordersData.length > 0) {
+          ordersData.forEach((order) => {
+            const shop = shopMap[order.shop_id];
+            if (!shop || !shop.user_id) return;
+            const uid = shop.user_id;
+            if (sellerMap[uid]) {
+              sellerMap[uid].orderSales += Number(order.total || 0);
+              sellerMap[uid].orderCount += 1;
             }
+          });
+        }
 
-            processed = (directShops as any[]).map((s) => {
-              const prof = profileMap[s.user_id] || {};
-              return {
-                shop_id: s.id,
-                full_name: prof.full_name || null,
-                shop_name: s.business_name || null,
-                slug: s.slug || null,
-                avatar_url: prof.avatar_url || null,
-                logo_url: s.logo_url || null,
-                total_sales: Number(s.total_sales || 0),
-                total_orders: Number(s.total_orders || 0),
-              };
+        // Fetch seller profile names & avatars for user_ids
+        const userIds = Object.keys(sellerMap);
+        let profileMap: Record<string, { full_name?: string; avatar_url?: string }> = {};
+
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url")
+            .in("id", userIds);
+
+          if (profiles) {
+            profiles.forEach((p) => {
+              profileMap[p.id] = { full_name: p.full_name || undefined, avatar_url: p.avatar_url || undefined };
             });
           }
         }
 
-        // Sort descending by total_sales and take top 5
-        processed.sort((a, b) => b.total_sales - a.total_sales);
-        setSellers(processed.slice(0, 5));
+        // Build list of aggregated sellers with combined revenue from all products & shops
+        const processed: TopSellerItem[] = userIds.map((userId) => {
+          const data = sellerMap[userId];
+          const prof = profileMap[userId] || {};
+          const primaryShop = data.shops[0] || {};
+          const shopNames = data.shops.map((s) => s.business_name).filter(Boolean).join(" & ");
+
+          // Take the highest reliable total (orders table sum vs accumulated shop total_sales)
+          const totalSales = Math.max(data.orderSales, data.shopSales);
+          const totalOrders = Math.max(data.orderCount, data.shopOrders);
+
+          return {
+            shop_id: primaryShop.id || userId,
+            full_name: prof.full_name || null,
+            shop_name: shopNames || primaryShop.business_name || null,
+            slug: primaryShop.slug || null,
+            avatar_url: prof.avatar_url || null,
+            logo_url: primaryShop.logo_url || null,
+            total_sales: totalSales,
+            total_orders: totalOrders,
+          };
+        });
+
+        // Sort descending by combined total_sales and take top 5
+        const finalTop = processed
+          .filter((s) => s.total_sales > 0)
+          .sort((a, b) => b.total_sales - a.total_sales);
+
+        setSellers(finalTop.slice(0, 5));
       } catch (err) {
         console.error("Error fetching top sellers:", err);
       } finally {
