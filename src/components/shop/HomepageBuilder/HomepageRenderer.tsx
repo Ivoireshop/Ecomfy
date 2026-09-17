@@ -2,12 +2,16 @@ import React from "react";
 import { HomepageConfig, HomepageSection } from "./types";
 import { HeroSection } from "./sections/HeroSection";
 import { ProductsGridSection } from "./sections/ProductsGridSection";
+import { SingleProductCheckoutSection } from "./sections/SingleProductCheckoutSection";
+import { FeaturedProductsSection } from "./sections/FeaturedProductsSection";
 import { CategoriesSection } from "./sections/CategoriesSection";
 import { FeaturesSection } from "./sections/FeaturesSection";
 import { TextImageSection } from "./sections/TextImageSection";
+import { VideoSection } from "./sections/VideoSection";
 import { TestimonialsSection } from "./sections/TestimonialsSection";
 import { BannerCtaSection } from "./sections/BannerCtaSection";
 import { FaqSection } from "./sections/FaqSection";
+import { ContactFormSection } from "./sections/ContactFormSection";
 import { FooterCustomSection } from "./sections/FooterCustomSection";
 
 interface HomepageRendererProps {
@@ -19,6 +23,13 @@ interface HomepageRendererProps {
   onViewProduct?: (product: any) => void;
   onSelectCategory?: (category: string) => void;
   onActionClick?: (actionType: string, url?: string) => void;
+  onDirectOrder?: (orderData: {
+    product: any;
+    quantity: number;
+    customer_name: string;
+    customer_phone: string;
+    customer_address?: string;
+  }) => Promise<boolean | void>;
 }
 
 export const HomepageRenderer: React.FC<HomepageRendererProps> = ({
@@ -30,6 +41,7 @@ export const HomepageRenderer: React.FC<HomepageRendererProps> = ({
   onViewProduct,
   onSelectCategory,
   onActionClick,
+  onDirectOrder,
 }) => {
   if (!config || !config.enabled || !Array.isArray(config.sections)) {
     return null;
@@ -50,9 +62,30 @@ export const HomepageRenderer: React.FC<HomepageRendererProps> = ({
                 onAction={(type, url) => onActionClick?.(type, url)}
               />
             );
+          case "single_product_checkout":
+            return (
+              <SingleProductCheckoutSection
+                key={section.id}
+                settings={section.settings as any}
+                products={products}
+                primaryColor={primaryColor}
+                onDirectOrder={onDirectOrder}
+              />
+            );
           case "products_grid":
             return (
               <ProductsGridSection
+                key={section.id}
+                settings={section.settings as any}
+                products={products}
+                primaryColor={primaryColor}
+                onAddToCart={onAddToCart}
+                onViewProduct={onViewProduct}
+              />
+            );
+          case "featured_products":
+            return (
+              <FeaturedProductsSection
                 key={section.id}
                 settings={section.settings as any}
                 products={products}
@@ -86,6 +119,15 @@ export const HomepageRenderer: React.FC<HomepageRendererProps> = ({
                 onAction={(type, url) => onActionClick?.(type, url)}
               />
             );
+          case "video":
+            return (
+              <VideoSection
+                key={section.id}
+                settings={section.settings as any}
+                primaryColor={primaryColor}
+                onAction={(type, url) => onActionClick?.(type, url)}
+              />
+            );
           case "testimonials":
             return (
               <TestimonialsSection
@@ -105,6 +147,15 @@ export const HomepageRenderer: React.FC<HomepageRendererProps> = ({
           case "faq":
             return (
               <FaqSection key={section.id} settings={section.settings as any} />
+            );
+          case "contact_form":
+            return (
+              <ContactFormSection
+                key={section.id}
+                settings={section.settings as any}
+                primaryColor={primaryColor}
+                whatsappNumber={shop?.whatsapp_number}
+              />
             );
           case "footer_custom":
             return (

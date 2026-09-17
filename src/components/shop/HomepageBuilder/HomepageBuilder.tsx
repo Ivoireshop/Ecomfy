@@ -23,6 +23,10 @@ import {
   Trash2,
   Settings2,
   Loader2,
+  Eye,
+  Globe,
+  Copy,
+  Layers,
 } from "lucide-react";
 import {
   Dialog,
@@ -40,14 +44,18 @@ interface HomepageBuilderProps {
 }
 
 const SECTION_OPTIONS: { type: SectionType; label: string; icon: string }[] = [
-  { type: "hero", label: "Bannière Principal (Hero)", icon: "🎯" },
+  { type: "hero", label: "Bannière Principale (Hero)", icon: "🎯" },
+  { type: "single_product_checkout", label: "Produit Spotlight & Commande Directe", icon: "⚡" },
+  { type: "featured_products", label: "Produits Vedettes", icon: "🌟" },
   { type: "products_grid", label: "Grille de Produits", icon: "🛍️" },
   { type: "categories", label: "Grille de Catégories", icon: "🏷️" },
   { type: "features", label: "Engagements & Bénéfices", icon: "✨" },
   { type: "text_image", label: "Texte + Image (Storytelling)", icon: "🖼️" },
-  { type: "testimonials", label: "Témoignages Clients", icon: "⭐" },
+  { type: "video", label: "Présentation Vidéo", icon: "🎥" },
+  { type: "testimonials", label: "Témoignages & Avis Clients", icon: "⭐" },
   { type: "banner_cta", label: "Bandeau Promo / Vente Flash", icon: "🔥" },
   { type: "faq", label: "Foire Aux Questions (FAQ)", icon: "❓" },
+  { type: "contact_form", label: "Formulaire de Contact", icon: "✉️" },
   { type: "footer_custom", label: "Pied de Page Personnalisé", icon: "🔻" },
 ];
 
@@ -58,13 +66,17 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
   onClose,
 }) => {
   const [device, setDevice] = useState<DeviceType>("desktop");
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
 
-  // Initialize homepage config from shop.theme_config.homepage
+  // Initialize homepage config from shop.theme_config.homepage_draft or homepage
   const [config, setConfig] = useState<HomepageConfig>(() => {
-    const existing = shop?.theme_config?.homepage;
+    const draft = shop?.theme_config?.homepage_draft;
+    const published = shop?.theme_config?.homepage;
+    const existing = draft || published;
     if (existing && Array.isArray(existing.sections)) {
       return existing;
     }
@@ -105,6 +117,21 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
     }));
     setSelectedSectionId(newSection.id);
     toast({ title: "Section ajoutée ✓", description: "Personnalisez ses options dans le panneau." });
+  };
+
+  const handleDuplicateSection = (id: string) => {
+    const target = config.sections.find((s) => s.id === id);
+    if (!target) return;
+    const dup: HomepageSection = {
+      ...JSON.parse(JSON.stringify(target)),
+      id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    };
+    const index = config.sections.findIndex((s) => s.id === id);
+    const newSections = [...config.sections];
+    newSections.splice(index + 1, 0, dup);
+    setConfig((prev) => ({ ...prev, sections: newSections }));
+    setSelectedSectionId(dup.id);
+    toast({ title: "Section dupliquée ✓" });
   };
 
   const handleUpdateSection = (updated: HomepageSection) => {
@@ -151,12 +178,13 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
     });
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
+  // Save Draft (Brouillon) — Does NOT touch published live site
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true);
     try {
       const updatedThemeConfig = {
         ...(shop.theme_config || {}),
-        homepage: {
+        homepage_draft: {
           ...config,
           enabled: true,
           updated_at: new Date().toISOString(),
@@ -172,19 +200,67 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
 
       setShop({ ...shop, theme_config: updatedThemeConfig });
       toast({
-        title: "Page d'accueil sauvegardée ✓",
-        description: "Les modifications sont enregistrées pour votre boutique.",
+        title: "Brouillon enregistré ✓",
+        description: "Les modifications sont conservées en brouillon sans affecter la version en ligne.",
       });
     } catch (err: any) {
       console.error(err);
       toast({
-        title: "Erreur de sauvegarde",
-        description: err.message || "Impossible d'enregistrer les modifications.",
+        title: "Erreur de sauvegarde brouillon",
+        description: err.message || "Impossible d'enregistrer le brouillon.",
         variant: "destructive",
       });
     } finally {
-      setIsSaving(false);
+      setIsSavingDraft(false);
     }
+  };
+
+  // Explicit Publish — Copies homepage_draft to homepage (published live site)
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      const publishedConfig = {
+        ...config,
+        enabled: true,
+        is_published: true,
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const updatedThemeConfig = {
+        ...(shop.theme_config || {}),
+        homepage_draft: publishedConfig,
+        homepage: publishedConfig,
+      };
+
+      const { error } = await supabase
+        .from("shops")
+        .update({ theme_config: updatedThemeConfig })
+        .eq("id", shop.id);
+
+      if (error) throw error;
+
+      setShop({ ...shop, theme_config: updatedThemeConfig });
+      setPublishConfirmOpen(false);
+      toast({
+        title: "Boutique publiée avec succès ! 🚀",
+        description: "La nouvelle page d'accueil est désormais visible par vos clients.",
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Erreur lors de la publication",
+        description: err.message || "Impossible de publier la page d'accueil.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleOpenPreview = () => {
+    const previewUrl = `/shop-preview/${shop.id}?preview=draft`;
+    window.open(previewUrl, "_blank");
   };
 
   const selectedSection = config.sections.find((s) => s.id === selectedSectionId);
@@ -249,7 +325,8 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
             }`}
             onClick={() => setDevice("desktop")}
           >
-            <Monitor className="w-3.5 h-3.5 mr-1" /> Desktop
+            <Monitor className="w-3.5 h-3.5 mr-1" />
+            PC
           </Button>
           <Button
             variant={device === "tablet" ? "default" : "ghost"}
@@ -259,7 +336,8 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
             }`}
             onClick={() => setDevice("tablet")}
           >
-            <Tablet className="w-3.5 h-3.5 mr-1" /> Tablette
+            <Tablet className="w-3.5 h-3.5 mr-1" />
+            Tablette
           </Button>
           <Button
             variant={device === "mobile" ? "default" : "ghost"}
@@ -269,123 +347,224 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
             }`}
             onClick={() => setDevice("mobile")}
           >
-            <Smartphone className="w-3.5 h-3.5 mr-1" /> Mobile
+            <Smartphone className="w-3.5 h-3.5 mr-1" />
+            Mobile
           </Button>
         </div>
 
-        {/* Right Actions */}
+        {/* Actions Bar (Save Draft, Live Preview, Explicit Publish) */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenPreview}
+            className="h-9 gap-1.5 text-xs font-semibold rounded-xl border-slate-300 text-slate-700 hover:bg-slate-50"
+          >
+            <Eye className="w-3.5 h-3.5 text-indigo-600" />
+            Aperçu Direct
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveDraft}
+            disabled={isSavingDraft}
+            className="h-9 gap-1.5 text-xs font-semibold rounded-xl border-slate-300 text-slate-700 hover:bg-slate-50"
+          >
+            {isSavingDraft ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+            ) : (
+              <Save className="w-3.5 h-3.5 text-slate-600" />
+            )}
+            Enregistrer Brouillon
+          </Button>
+
+          <Dialog open={publishConfirmOpen} onOpenChange={setPublishConfirmOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                className="h-9 gap-1.5 text-xs font-bold rounded-xl bg-[#0E7C66] hover:bg-[#0E7C66]/90 text-white shadow-sm"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                Publier la boutique
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="font-space font-bold text-lg text-slate-900">
+                  Publier la nouvelle page d'accueil ?
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2 text-sm text-slate-600">
+                <p>
+                  Cette action va rendre visibles immédiatement vos modifications sur la vitrine publique de votre boutique.
+                </p>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                  ⚡ La version publique actuelle sera mise à jour avec vos nouvelles sections et paramètres.
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setPublishConfirmOpen(false)} className="rounded-xl">
+                    Annuler
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handlePublish}
+                    disabled={isPublishing}
+                    className="bg-[#0E7C66] hover:bg-[#0E7C66]/90 text-white font-bold rounded-xl gap-1.5"
+                  >
+                    {isPublishing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Publication...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-4 h-4" />
+                        Confirmer & Publier
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {onClose && (
-            <Button variant="outline" size="sm" className="h-9 rounded-xl" onClick={onClose}>
-              <X className="w-4 h-4 mr-1" /> Fermer
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-slate-400 hover:text-slate-600"
+              onClick={onClose}
+            >
+              <X className="w-4 h-4" />
             </Button>
           )}
-          <Button
-            size="sm"
-            className="h-9 px-4 rounded-xl bg-[#0E7C66] hover:bg-[#0E7C66]/90 text-white font-semibold shadow-sm"
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
-            Enregistrer la page
-          </Button>
         </div>
       </header>
 
       {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Section Manager */}
-        <aside className="w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
+        {/* Left Sidebar: Section List & Section Adder */}
+        <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <span className="font-space font-bold text-sm text-slate-900">
-              Sections de la page ({config.sections.length})
+            <span className="font-bold text-xs uppercase tracking-wider text-slate-500">
+              Sections de la Page ({config.sections.length})
             </span>
           </div>
 
-          {/* Section List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {config.sections.map((sec, index) => {
-              const isSelected = sec.id === selectedSectionId;
-              const secDef = SECTION_OPTIONS.find((o) => o.type === sec.type);
-
+          <div className="p-3 flex-1 space-y-2 overflow-y-auto">
+            {config.sections.map((section, idx) => {
+              const option = SECTION_OPTIONS.find((o) => o.type === section.type);
+              const isSelected = selectedSectionId === section.id;
               return (
                 <div
-                  key={sec.id}
-                  onClick={() => setSelectedSectionId(sec.id)}
-                  className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                  key={section.id}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between group ${
                     isSelected
                       ? "border-[#0E7C66] bg-[#0E7C66]/5 shadow-sm"
-                      : "border-slate-200 hover:border-slate-300 bg-white"
-                  } ${!sec.enabled ? "opacity-50" : ""}`}
+                      : "border-slate-200/80 hover:border-slate-300 bg-white"
+                  }`}
+                  onClick={() => setSelectedSectionId(section.id)}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-base">{secDef?.icon || "🧩"}</span>
+                    <span className="text-lg shrink-0">{option?.icon || "📄"}</span>
                     <div className="min-w-0">
-                      <span className="font-semibold text-xs text-slate-900 block truncate">
-                        {sec.settings?.title || secDef?.label || sec.type}
-                      </span>
-                      <span className="text-[10px] text-slate-400 capitalize">
-                        {sec.type.replace("_", " ")}
+                      <h4 className="font-semibold text-xs text-slate-800 truncate">
+                        {option?.label || section.type}
+                      </h4>
+                      <span className="text-[10px] text-slate-400 block">
+                        {section.enabled ? "Visible" : "Masquée"}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                      disabled={index === 0}
-                      onClick={() => handleMoveSection(index, "up")}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-slate-400 hover:text-slate-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveSection(idx, "up");
+                      }}
+                      title="Monter"
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                      disabled={index === config.sections.length - 1}
-                      onClick={() => handleMoveSection(index, "down")}
+                      <ArrowUp className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-slate-400 hover:text-slate-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveSection(idx, "down");
+                      }}
+                      title="Descendre"
                     >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
+                      <ArrowDown className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-slate-400 hover:text-indigo-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDuplicateSection(section.id);
+                      }}
+                      title="Dupliquer"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-rose-400 hover:text-rose-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSection(section.id);
+                      }}
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
               );
             })}
-          </div>
 
-          {/* Add Section Selector */}
-          <div className="p-3 border-t border-slate-100 bg-slate-50 space-y-2">
-            <span className="text-xs font-semibold text-slate-500 block px-1">
-              + Ajouter une section
-            </span>
-            <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto p-1">
-              {SECTION_OPTIONS.map((opt) => (
-                <button
-                  key={opt.type}
-                  onClick={() => handleAddSection(opt.type)}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 bg-white rounded-lg border border-slate-200 hover:border-[#0E7C66] hover:text-[#0E7C66] transition-colors text-left"
-                >
-                  <span className="text-sm">{opt.icon}</span>
-                  <span className="flex-1 truncate">{opt.label}</span>
-                  <Plus className="w-3.5 h-3.5 shrink-0 opacity-60" />
-                </button>
-              ))}
+            {/* Add Section Picker */}
+            <div className="pt-4 space-y-2">
+              <span className="font-bold text-[11px] uppercase tracking-wider text-slate-400 block px-1">
+                + Ajouter une section
+              </span>
+              <div className="grid grid-cols-1 gap-1.5">
+                {SECTION_OPTIONS.map((opt) => (
+                  <Button
+                    key={opt.type}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs font-medium text-slate-700 hover:bg-[#0E7C66]/10 hover:text-[#0E7C66] rounded-xl h-9 gap-2"
+                    onClick={() => handleAddSection(opt.type)}
+                  >
+                    <span>{opt.icon}</span>
+                    <span className="truncate">{opt.label}</span>
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </aside>
 
-        {/* Center Live Canvas Preview */}
-        <main className="flex-1 bg-slate-200/70 p-4 md:p-8 overflow-y-auto flex items-start justify-center">
+        {/* Center Frame: Live Responsive Canvas */}
+        <main className="flex-1 bg-slate-200/70 p-4 md:p-8 flex items-center justify-center overflow-auto relative">
           <div
-            className="transition-all duration-300 mx-auto shadow-2xl rounded-2xl overflow-hidden bg-white border border-slate-300"
-            style={{
-              width:
-                device === "desktop"
-                  ? "100%"
-                  : device === "tablet"
-                  ? "768px"
-                  : "375px",
-              maxWidth: device === "desktop" ? "1280px" : undefined,
-              minHeight: "750px",
-            }}
+            className={`bg-white shadow-2xl transition-all duration-300 rounded-2xl overflow-y-auto border border-slate-300/80 ${
+              device === "mobile"
+                ? "w-[375px] h-[720px]"
+                : device === "tablet"
+                ? "w-[768px] h-[850px]"
+                : "w-full max-w-5xl h-full"
+            }`}
           >
             <HomepageRenderer
               config={config}
@@ -396,7 +575,7 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
           </div>
         </main>
 
-        {/* Right Settings Panel for Selected Section */}
+        {/* Right Sidebar: Section Settings Panel */}
         {selectedSection && (
           <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shrink-0 overflow-y-auto p-4 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -411,6 +590,7 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
               onChange={handleUpdateSection}
               onDelete={() => handleDeleteSection(selectedSection.id)}
               categories={categories}
+              products={products}
               shopId={shop?.id}
             />
           </aside>
@@ -435,9 +615,25 @@ function getDefaultSettingsForType(type: SectionType): any {
         content_alignment: "center",
         height: "medium",
       };
+    case "single_product_checkout":
+      return {
+        title: "Offre Spéciale — Commander en 1 Clic",
+        subtitle: "Produit Vedette avec Livraison Rapide & Paiement à la Livraison",
+        badge: "-30% AUJOURD'HUI SEULEMENT",
+        button_text: "Valider ma commande maintenant",
+      };
+    case "featured_products":
+      return {
+        title: "Nos Produits Vedettes",
+        subtitle: "Sélection exclusive des meilleures ventes",
+        badge_text: "Top Ventes",
+        show_badge: true,
+        button_text: "Commander",
+        columns_desktop: 3,
+      };
     case "products_grid":
       return {
-        title: "Nos Produits",
+        title: "Notre Catalogue de Produits",
         selection_rule: "all",
         limit: 8,
         columns_desktop: 4,
@@ -462,11 +658,18 @@ function getDefaultSettingsForType(type: SectionType): any {
         image_position: "right",
         button_text: "En savoir plus",
       };
+    case "video":
+      return {
+        title: "Présentation de notre boutique en vidéo",
+        description: "Regardez notre vidéo pour découvrir nos produits en action.",
+        video_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        button_text: "Découvrir la collection",
+      };
     case "testimonials":
       return {
-        title: "Avis Clients",
+        title: "Ce que nos clients disent de nous",
         items: [
-          { id: "1", author_name: "Mariam S.", rating: 5, content: "Superbe expérience d'achat !" },
+          { id: "1", author_name: "Mariam S.", rating: 5, content: "Superbe expérience d'achat ! Produits de très bonne qualité." },
         ],
       };
     case "banner_cta":
@@ -482,6 +685,14 @@ function getDefaultSettingsForType(type: SectionType): any {
         items: [
           { id: "1", question: "Comment passer commande ?", answer: "Sélectionnez votre produit et validez avec votre numéro de téléphone." },
         ],
+      };
+    case "contact_form":
+      return {
+        title: "Contactez-nous",
+        subtitle: "Une question sur une commande ? Écrivez-nous directement.",
+        show_phone: true,
+        show_email: true,
+        button_text: "Envoyer le message",
       };
     case "footer_custom":
       return {

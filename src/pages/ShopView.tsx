@@ -672,7 +672,52 @@ const ShopView = () => {
   const secondaryColor = shop.secondary_color || "#7c3aed";
   const themeConfig = shop.theme_config || {};
 
-  const homepageConfig = themeConfig?.homepage;
+  const isPreviewDraft = shop._isPreview || (typeof window !== "undefined" && window.location.search.includes("preview=draft"));
+  const homepageConfig = isPreviewDraft
+    ? (themeConfig?.homepage_draft || themeConfig?.homepage)
+    : themeConfig?.homepage;
+
+  const handleDirectOrderFromHomepage = async (orderData: {
+    product: any;
+    quantity: number;
+    customer_name: string;
+    customer_phone: string;
+    customer_address?: string;
+  }) => {
+    const { product, quantity, customer_name, customer_phone, customer_address } = orderData;
+    const unitPrice = Number(product.price || 0);
+    const total = unitPrice * quantity;
+
+    const orderNumber = `EC-${Date.now().toString().slice(-6)}`;
+    const { data: newOrder, error: orderErr } = await supabase.from("orders").insert({
+      shop_id: shop.id,
+      order_number: orderNumber,
+      customer_name,
+      customer_phone,
+      customer_address: customer_address || "Livraison à domicile",
+      total,
+      payment_method: "cod",
+      payment_status: "pending",
+      order_status: "pending",
+    }).select("id").single();
+
+    if (orderErr) throw orderErr;
+
+    if (newOrder?.id) {
+      await supabase.from("order_items").insert({
+        order_id: newOrder.id,
+        product_id: product.id,
+        product_name: product.name,
+        quantity,
+        unit_price: unitPrice,
+        total_price: total,
+        product_image_url: product.product_images?.[0]?.image_url || null,
+      });
+    }
+
+    cacheInvalidate(`orders:${shop.id}`);
+  };
+
   if (homepageConfig?.enabled && Array.isArray(homepageConfig?.sections) && homepageConfig.sections.length > 0 && !classicOptOut) {
     return (
       <>
@@ -699,6 +744,7 @@ const ShopView = () => {
               navigate(url);
             }
           }}
+          onDirectOrder={handleDirectOrderFromHomepage}
         />
       </>
     );

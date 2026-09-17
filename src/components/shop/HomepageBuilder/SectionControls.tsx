@@ -22,6 +22,8 @@ import {
   Palette,
   Type,
   LayoutGrid,
+  Video,
+  ShoppingBag,
 } from "lucide-react";
 
 interface SectionControlsProps {
@@ -31,6 +33,7 @@ interface SectionControlsProps {
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   categories?: string[];
+  products?: any[];
   shopId?: string;
 }
 
@@ -49,15 +52,25 @@ const ImageUploadField: React.FC<{
 
     setUploading(true);
     try {
-      const compressedFile = await prepareImageForUpload(file);
-      const ext = file.name.split(".").pop() || "jpg";
+      const res = await prepareImageForUpload(file);
+      if (!res.ok) {
+        toast({
+          title: "Format non supporté",
+          description: res.reason,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const fileToUpload = res.file;
+      const ext = fileToUpload.name.split(".").pop() || "jpg";
       const path = `homepage/${shopId || "common"}/${Date.now()}_${Math.random()
         .toString(36)
         .slice(2, 7)}.${ext}`;
 
       const { error } = await supabase.storage
         .from("shop-images")
-        .upload(path, compressedFile, { upsert: true });
+        .upload(path, fileToUpload, { upsert: true });
 
       if (error) throw error;
 
@@ -141,6 +154,115 @@ const ImageUploadField: React.FC<{
   );
 };
 
+const VideoUploadField: React.FC<{
+  label: string;
+  value?: string;
+  onChange: (url: string) => void;
+  shopId?: string;
+}> = ({ label, value, onChange, shopId }) => {
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast({ title: "Fichier invalide", description: "Veuillez sélectionner un fichier vidéo (MP4, WEBM).", variant: "destructive" });
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast({ title: "Vidéo trop lourde", description: "Les vidéos doivent faire moins de 25 Mo.", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "mp4";
+      const path = `homepage/videos/${shopId || "common"}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from("shop-images")
+        .upload(path, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
+      if (data?.publicUrl) {
+        onChange(data.publicUrl);
+        toast({ title: "Vidéo téléversée ✓", description: "La vidéo a été ajoutée avec succès." });
+      }
+    } catch (err: any) {
+      console.error("Video upload failed", err);
+      toast({ title: "Échec du téléversement", description: err.message || "Impossible d'importer la vidéo.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold text-slate-700">{label}</Label>
+      {value ? (
+        <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-900 p-2 flex items-center gap-3 text-white">
+          <div className="w-14 h-14 rounded-lg bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">
+            <Video className="w-6 h-6 text-amber-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-medium text-slate-200 block truncate">Vidéo configurée</span>
+            <span className="text-[10px] text-slate-400 block truncate">{value}</span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-rose-400 hover:bg-rose-900/50 rounded-lg shrink-0"
+            onClick={() => onChange("")}
+            title="Supprimer la vidéo"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/mp4,video/webm"
+            className="hidden"
+            onChange={handleVideoChange}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11 border-dashed border-2 border-slate-300 hover:border-[#0E7C66] text-slate-700 bg-slate-50 hover:bg-[#0E7C66]/5 rounded-xl font-medium text-xs gap-2"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#0E7C66]" />
+                <span>Importation de la vidéo...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 text-[#0E7C66]" />
+                <span>Importer une vidéo MP4 (Max 25 Mo)</span>
+              </>
+            )}
+          </Button>
+          <Input
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Ou coller une URL vidéo (YouTube, Vimeo, MP4)"
+            className="text-xs h-8 font-mono bg-white"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const SectionControls: React.FC<SectionControlsProps> = ({
   section,
   onChange,
@@ -148,6 +270,7 @@ export const SectionControls: React.FC<SectionControlsProps> = ({
   onMoveUp,
   onMoveDown,
   categories = [],
+  products = [],
   shopId,
 }) => {
   const updateSettings = (key: string, value: any) => {
@@ -295,6 +418,60 @@ export const SectionControls: React.FC<SectionControlsProps> = ({
         </div>
       )}
 
+      {/* Single Product Direct Checkout Controls */}
+      {section.type === "single_product_checkout" && (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Produit à mettre en avant (Checkout Direct)</Label>
+            <Select
+              value={settings.product_id || ""}
+              onValueChange={(val) => updateSettings("product_id", val)}
+            >
+              <SelectTrigger className="h-9 text-xs mt-1">
+                <SelectValue placeholder="Choisir un produit" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} ({p.price?.toLocaleString("fr-FR")} FCFA)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Titre d'Accroche</Label>
+            <Input
+              value={settings.title || ""}
+              onChange={(e) => updateSettings("title", e.target.value)}
+              placeholder="Offre Spéciale - Commander en 1 Clic"
+              className="mt-1 font-semibold text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Badge Promo</Label>
+            <Input
+              value={settings.badge || ""}
+              onChange={(e) => updateSettings("badge", e.target.value)}
+              placeholder="ex: -30% AUJOURD'HUI SEULEMENT"
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Texte du Bouton Valider</Label>
+            <Input
+              value={settings.button_text || ""}
+              onChange={(e) => updateSettings("button_text", e.target.value)}
+              placeholder="Valider ma commande maintenant"
+              className="mt-1 text-xs"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Products Grid Controls */}
       {section.type === "products_grid" && (
         <div className="space-y-4">
@@ -388,6 +565,39 @@ export const SectionControls: React.FC<SectionControlsProps> = ({
         </div>
       )}
 
+      {/* Featured Products Controls */}
+      {section.type === "featured_products" && (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Titre de la section</Label>
+            <Input
+              value={settings.title || ""}
+              onChange={(e) => updateSettings("title", e.target.value)}
+              placeholder="Nos Produits Vedettes"
+              className="mt-1 font-semibold"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Texte du Badge</Label>
+            <Input
+              value={settings.badge_text || ""}
+              onChange={(e) => updateSettings("badge_text", e.target.value)}
+              placeholder="Sélection Vedette"
+              className="mt-1 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Texte du Bouton</Label>
+            <Input
+              value={settings.button_text || ""}
+              onChange={(e) => updateSettings("button_text", e.target.value)}
+              placeholder="Commander"
+              className="mt-1 text-xs"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Text Image Controls */}
       {section.type === "text_image" && (
         <div className="space-y-4">
@@ -421,6 +631,44 @@ export const SectionControls: React.FC<SectionControlsProps> = ({
             label="Visuel d'illustration"
             value={settings.image_url || ""}
             onChange={(url) => updateSettings("image_url", url)}
+            shopId={shopId}
+          />
+        </div>
+      )}
+
+      {/* Video Section Controls */}
+      {section.type === "video" && (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Titre de la section</Label>
+            <Input
+              value={settings.title || ""}
+              onChange={(e) => updateSettings("title", e.target.value)}
+              placeholder="Découvrez notre boutique en vidéo"
+              className="mt-1 font-semibold text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Texte de description</Label>
+            <Textarea
+              value={settings.description || ""}
+              onChange={(e) => updateSettings("description", e.target.value)}
+              rows={2}
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <VideoUploadField
+            label="Vidéo (MP4 ou URL YouTube/Vimeo)"
+            value={settings.video_url || ""}
+            onChange={(url) => updateSettings("video_url", url)}
+            shopId={shopId}
+          />
+
+          <ImageUploadField
+            label="Image de couverture (Miniature)"
+            value={settings.cover_image_url || ""}
+            onChange={(url) => updateSettings("cover_image_url", url)}
             shopId={shopId}
           />
         </div>
@@ -461,6 +709,46 @@ export const SectionControls: React.FC<SectionControlsProps> = ({
             <Switch
               checked={!!settings.show_countdown}
               onCheckedChange={(val) => updateSettings("show_countdown", val)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Contact Form Controls */}
+      {section.type === "contact_form" && (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Titre du Formulaire</Label>
+            <Input
+              value={settings.title || ""}
+              onChange={(e) => updateSettings("title", e.target.value)}
+              placeholder="Contactez-nous"
+              className="mt-1 font-semibold text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Sous-titre</Label>
+            <Input
+              value={settings.subtitle || ""}
+              onChange={(e) => updateSettings("subtitle", e.target.value)}
+              placeholder="Une question ? Écrivez-nous directement."
+              className="mt-1 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Numéro WhatsApp Réception</Label>
+            <Input
+              value={settings.whatsapp_number || ""}
+              onChange={(e) => updateSettings("whatsapp_number", e.target.value)}
+              placeholder="ex: +2250700000000"
+              className="mt-1 text-xs"
+            />
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <Label className="text-xs font-semibold text-slate-700">Champ Téléphone</Label>
+            <Switch
+              checked={!!settings.show_phone}
+              onCheckedChange={(val) => updateSettings("show_phone", val)}
             />
           </div>
         </div>

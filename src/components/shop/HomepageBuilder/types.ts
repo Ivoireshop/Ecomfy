@@ -1,14 +1,20 @@
 export type DeviceType = "desktop" | "tablet" | "mobile";
 
+export type DeviceType = "desktop" | "tablet" | "mobile";
+
 export type SectionType =
   | "hero"
   | "products_grid"
+  | "single_product_checkout"
+  | "featured_products"
   | "categories"
   | "features"
   | "text_image"
+  | "video"
   | "testimonials"
   | "banner_cta"
   | "faq"
+  | "contact_form"
   | "footer_custom";
 
 export interface HeroSectionSettings {
@@ -16,10 +22,11 @@ export interface HeroSectionSettings {
   subtitle: string;
   description?: string;
   badge?: string;
-  bg_type: "color" | "gradient" | "image";
+  bg_type: "color" | "gradient" | "image" | "video";
   bg_color?: string;
   bg_gradient?: string;
   bg_image_url?: string;
+  bg_video_url?: string;
   text_color?: string;
   primary_button_text: string;
   primary_button_link_type: "checkout" | "products" | "custom";
@@ -31,6 +38,18 @@ export interface HeroSectionSettings {
   content_alignment: "left" | "center" | "right";
   overlay_opacity?: number;
   height: "compact" | "medium" | "full";
+}
+
+export interface SingleProductCheckoutSectionSettings {
+  title: string;
+  subtitle?: string;
+  product_id?: string;
+  badge?: string;
+  button_text: string;
+  bg_color?: string;
+  show_timer?: boolean;
+  timer_hours?: number;
+  accent_color?: string;
 }
 
 export interface ProductsGridSectionSettings {
@@ -46,6 +65,17 @@ export interface ProductsGridSectionSettings {
   button_action: "checkout" | "view_product";
   show_compare_price: boolean;
   show_stock_badge: boolean;
+  show_description?: boolean;
+}
+
+export interface FeaturedProductsSectionSettings {
+  title: string;
+  subtitle?: string;
+  selected_product_ids: string[];
+  columns_desktop: 2 | 3 | 4;
+  button_text: string;
+  show_badge: boolean;
+  badge_text?: string;
 }
 
 export interface CategoriesSectionSettings {
@@ -82,7 +112,20 @@ export interface TextImageSectionSettings {
   image_url: string;
   image_position: "left" | "right";
   button_text?: string;
-  button_link_type?: "products" | "custom";
+  button_link_type?: "products" | "custom" | "checkout";
+  button_custom_url?: string;
+  bg_color?: string;
+}
+
+export interface VideoSectionSettings {
+  title: string;
+  subtitle?: string;
+  description?: string;
+  video_url: string;
+  cover_image_url?: string;
+  autoplay?: boolean;
+  button_text?: string;
+  button_link_type?: "products" | "custom" | "checkout";
   button_custom_url?: string;
   bg_color?: string;
 }
@@ -94,6 +137,7 @@ export interface TestimonialItem {
   author_avatar?: string;
   rating: number;
   content: string;
+  video_url?: string;
 }
 
 export interface TestimonialsSectionSettings {
@@ -109,6 +153,7 @@ export interface BannerCtaSectionSettings {
   badge?: string;
   button_text: string;
   button_action: "checkout" | "products";
+  target_product_id?: string;
   bg_color?: string;
   text_color?: string;
   show_countdown?: boolean;
@@ -127,6 +172,16 @@ export interface FaqSectionSettings {
   items: FaqItem[];
 }
 
+export interface ContactFormSectionSettings {
+  title: string;
+  subtitle?: string;
+  show_phone: boolean;
+  show_email: boolean;
+  whatsapp_number?: string;
+  button_text: string;
+  bg_color?: string;
+}
+
 export interface FooterCustomSectionSettings {
   business_description?: string;
   show_social_links: boolean;
@@ -140,13 +195,17 @@ export interface FooterCustomSectionSettings {
 
 export type SectionSettings =
   | HeroSectionSettings
+  | SingleProductCheckoutSectionSettings
   | ProductsGridSectionSettings
+  | FeaturedProductsSectionSettings
   | CategoriesSectionSettings
   | FeaturesSectionSettings
   | TextImageSectionSettings
+  | VideoSectionSettings
   | TestimonialsSectionSettings
   | BannerCtaSectionSettings
   | FaqSectionSettings
+  | ContactFormSectionSettings
   | FooterCustomSectionSettings
   | Record<string, any>;
 
@@ -171,4 +230,6 @@ export interface HomepageConfig {
   global_styles: HomepageGlobalStyles;
   sections: HomepageSection[];
   updated_at?: string;
+  published_at?: string;
+  is_published?: boolean;
 }
