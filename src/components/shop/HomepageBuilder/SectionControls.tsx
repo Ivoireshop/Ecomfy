@@ -24,6 +24,7 @@ import {
   LayoutGrid,
   Video,
   ShoppingBag,
+  Mic,
 } from "lucide-react";
 
 interface SectionControlsProps {
@@ -62,9 +63,11 @@ const ImageUploadField: React.FC<{
         return;
       }
 
+      const { data: { user } } = await supabase.auth.getUser();
+      const userFolder = user?.id || shopId || "common";
       const fileToUpload = res.file;
       const ext = fileToUpload.name.split(".").pop() || "jpg";
-      const path = `homepage/${shopId || "common"}/${Date.now()}_${Math.random()
+      const path = `${userFolder}/homepage/${Date.now()}_${Math.random()
         .toString(36)
         .slice(2, 7)}.${ext}`;
 
@@ -167,19 +170,17 @@ const VideoUploadField: React.FC<{
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("video/")) {
+    if (!file.type.startsWith("video/") && !/\.(mp4|webm|mov|m4v)$/i.test(file.name)) {
       toast({ title: "Fichier invalide", description: "Veuillez sélectionner un fichier vidéo (MP4, WEBM).", variant: "destructive" });
-      return;
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      toast({ title: "Vidéo trop lourde", description: "Les vidéos doivent faire moins de 25 Mo.", variant: "destructive" });
       return;
     }
 
     setUploading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userFolder = user?.id || shopId || "common";
       const ext = file.name.split(".").pop() || "mp4";
-      const path = `homepage/videos/${shopId || "common"}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+      const path = `${userFolder}/homepage/videos/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
 
       const { error } = await supabase.storage
         .from("shop-images")
@@ -205,8 +206,8 @@ const VideoUploadField: React.FC<{
       <Label className="text-xs font-semibold text-slate-700">{label}</Label>
       {value ? (
         <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-900 p-2 flex items-center gap-3 text-white">
-          <div className="w-14 h-14 rounded-lg bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">
-            <Video className="w-6 h-6 text-amber-400" />
+          <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">
+            <Video className="w-5 h-5 text-amber-400" />
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-[11px] font-medium text-slate-200 block truncate">Vidéo configurée</span>
@@ -228,7 +229,7 @@ const VideoUploadField: React.FC<{
           <input
             ref={fileInputRef}
             type="file"
-            accept="video/mp4,video/webm"
+            accept="video/mp4,video/webm,video/quicktime"
             className="hidden"
             onChange={handleVideoChange}
           />
@@ -247,14 +248,116 @@ const VideoUploadField: React.FC<{
             ) : (
               <>
                 <Upload className="w-4 h-4 text-[#0E7C66]" />
-                <span>Importer une vidéo MP4 (Max 25 Mo)</span>
+                <span>Importer une vidéo (30s max MP4)</span>
               </>
             )}
           </Button>
           <Input
             value={value || ""}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Ou coller une URL vidéo (YouTube, Vimeo, MP4)"
+            placeholder="Ou coller une URL vidéo (MP4, YouTube, Vimeo)"
+            className="text-xs h-8 font-mono bg-white"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AudioUploadField: React.FC<{
+  label: string;
+  value?: string;
+  onChange: (url: string) => void;
+  shopId?: string;
+}> = ({ label, value, onChange, shopId }) => {
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleAudioChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userFolder = user?.id || shopId || "common";
+      const ext = file.name.split(".").pop() || "mp3";
+      const path = `${userFolder}/homepage/audios/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from("shop-images")
+        .upload(path, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
+      if (data?.publicUrl) {
+        onChange(data.publicUrl);
+        toast({ title: "Audio téléversé ✓", description: "Le fichier audio a été ajouté avec succès." });
+      }
+    } catch (err: any) {
+      console.error("Audio upload failed", err);
+      toast({ title: "Échec du téléversement", description: err.message || "Impossible d'importer le fichier audio.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold text-slate-700">{label}</Label>
+      {value ? (
+        <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-emerald-950 p-2 flex items-center gap-3 text-white">
+          <div className="w-10 h-10 rounded-lg bg-emerald-800 flex items-center justify-center shrink-0 border border-emerald-700">
+            <Mic className="w-5 h-5 text-emerald-300" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-medium text-emerald-200 block truncate">Vocal / Audio configuré</span>
+            <span className="text-[10px] text-emerald-400 block truncate">{value}</span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-rose-400 hover:bg-rose-900/50 rounded-lg shrink-0"
+            onClick={() => onChange("")}
+            title="Supprimer l'audio"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,.mp3,.wav,.m4a,.ogg"
+            className="hidden"
+            onChange={handleAudioChange}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11 border-dashed border-2 border-slate-300 hover:border-[#0E7C66] text-slate-700 bg-slate-50 hover:bg-[#0E7C66]/5 rounded-xl font-medium text-xs gap-2"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#0E7C66]" />
+                <span>Importation du vocal...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 text-[#0E7C66]" />
+                <span>Importer un vocal audio (MP3 / M4A)</span>
+              </>
+            )}
+          </Button>
+          <Input
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Ou coller une URL d'un fichier MP3/Vocal"
             className="text-xs h-8 font-mono bg-white"
           />
         </div>
@@ -633,6 +736,188 @@ export const SectionControls: React.FC<SectionControlsProps> = ({
             onChange={(url) => updateSettings("image_url", url)}
             shopId={shopId}
           />
+        </div>
+      )}
+
+      {/* Video Shorts Controls (30s max) */}
+      {section.type === "video_shorts" && (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Titre des Vidéos Shorts</Label>
+            <Input
+              value={settings.title || ""}
+              onChange={(e) => updateSettings("title", e.target.value)}
+              placeholder="Vidéos Shorts & Démonstrations"
+              className="mt-1 font-semibold text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Sous-titre</Label>
+            <Input
+              value={settings.subtitle || ""}
+              onChange={(e) => updateSettings("subtitle", e.target.value)}
+              placeholder="Découvrez le produit en action (30s max)"
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+              Liste des Vidéos Shorts ({(settings.items || []).length})
+            </Label>
+            {(settings.items || []).map((vid: any, i: number) => (
+              <div key={vid.id || i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-slate-700">Vidéo #{i + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-rose-500 hover:bg-rose-100 rounded-lg"
+                    onClick={() => {
+                      const nextItems = (settings.items || []).filter((_: any, idx: number) => idx !== i);
+                      updateSettings("items", nextItems);
+                    }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+
+                <Input
+                  value={vid.title || ""}
+                  onChange={(e) => {
+                    const nextItems = [...(settings.items || [])];
+                    nextItems[i] = { ...nextItems[i], title: e.target.value };
+                    updateSettings("items", nextItems);
+                  }}
+                  placeholder="Titre de la vidéo short"
+                  className="text-xs h-8"
+                />
+
+                <VideoUploadField
+                  label="Fichier vidéo MP4 (30s max)"
+                  value={vid.video_url || ""}
+                  onChange={(url) => {
+                    const nextItems = [...(settings.items || [])];
+                    nextItems[i] = { ...nextItems[i], video_url: url };
+                    updateSettings("items", nextItems);
+                  }}
+                  shopId={shopId}
+                />
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full h-9 border-dashed text-xs font-semibold gap-1.5 rounded-xl border-slate-300"
+              onClick={() => {
+                const newItem = {
+                  id: `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  title: "Nouveau Short 30s",
+                  video_url: "",
+                };
+                updateSettings("items", [...(settings.items || []), newItem]);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Ajouter une vidéo short
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Audio Testimonials Controls */}
+      {section.type === "audio_testimonials" && (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs font-semibold text-slate-700">Titre des Témoignages Audio</Label>
+            <Input
+              value={settings.title || ""}
+              onChange={(e) => updateSettings("title", e.target.value)}
+              placeholder="Témoignages Audio de nos Clients"
+              className="mt-1 font-semibold text-xs"
+            />
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+              Liste des Audio Vocaux ({(settings.items || []).length})
+            </Label>
+            {(settings.items || []).map((item: any, i: number) => (
+              <div key={item.id || i} className="p-3 bg-emerald-50/60 border border-emerald-200/80 rounded-xl space-y-2 relative">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-emerald-900">Vocal #{i + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-rose-500 hover:bg-rose-100 rounded-lg"
+                    onClick={() => {
+                      const nextItems = (settings.items || []).filter((_: any, idx: number) => idx !== i);
+                      updateSettings("items", nextItems);
+                    }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={item.author_name || ""}
+                    onChange={(e) => {
+                      const nextItems = [...(settings.items || [])];
+                      nextItems[i] = { ...nextItems[i], author_name: e.target.value };
+                      updateSettings("items", nextItems);
+                    }}
+                    placeholder="Nom du client"
+                    className="text-xs h-8"
+                  />
+                  <Input
+                    value={item.author_role || ""}
+                    onChange={(e) => {
+                      const nextItems = [...(settings.items || [])];
+                      nextItems[i] = { ...nextItems[i], author_role: e.target.value };
+                      updateSettings("items", nextItems);
+                    }}
+                    placeholder="Ex: Cliente d'Abidjan"
+                    className="text-xs h-8"
+                  />
+                </div>
+
+                <AudioUploadField
+                  label="Fichier Audio MP3 / Vocal"
+                  value={item.audio_url || ""}
+                  onChange={(url) => {
+                    const nextItems = [...(settings.items || [])];
+                    nextItems[i] = { ...nextItems[i], audio_url: url };
+                    updateSettings("items", nextItems);
+                  }}
+                  shopId={shopId}
+                />
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full h-9 border-dashed text-xs font-semibold gap-1.5 rounded-xl border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+              onClick={() => {
+                const newItem = {
+                  id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  author_name: "Mariam K.",
+                  author_role: "Cliente Vérifiée",
+                  audio_url: "",
+                };
+                updateSettings("items", [...(settings.items || []), newItem]);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Ajouter un témoignage audio
+            </Button>
+          </div>
         </div>
       )}
 

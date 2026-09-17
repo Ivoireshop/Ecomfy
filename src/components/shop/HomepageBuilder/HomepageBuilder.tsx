@@ -52,7 +52,9 @@ const SECTION_OPTIONS: { type: SectionType; label: string; icon: string }[] = [
   { type: "features", label: "Engagements & Bénéfices", icon: "✨" },
   { type: "text_image", label: "Texte + Image (Storytelling)", icon: "🖼️" },
   { type: "video", label: "Présentation Vidéo", icon: "🎥" },
+  { type: "video_shorts", label: "Vidéos Shorts 9:16 (Reels)", icon: "📱" },
   { type: "testimonials", label: "Témoignages & Avis Clients", icon: "⭐" },
+  { type: "audio_testimonials", label: "Témoignages Vocaux (Audios)", icon: "🎙️" },
   { type: "banner_cta", label: "Bandeau Promo / Vente Flash", icon: "🔥" },
   { type: "faq", label: "Foire Aux Questions (FAQ)", icon: "❓" },
   { type: "contact_form", label: "Formulaire de Contact", icon: "✉️" },
@@ -665,11 +667,38 @@ function getDefaultSettingsForType(type: SectionType): any {
         video_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         button_text: "Découvrir la collection",
       };
+    case "video_shorts":
+      return {
+        title: "Nos Produits en Démo (Vidéos Shorts)",
+        subtitle: "Découvrez nos produits en action avec nos vidéos format Reels (30s max)",
+        items: [
+          {
+            id: "1",
+            title: "Démonstration produit en direct",
+            video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+          },
+        ],
+      };
     case "testimonials":
       return {
         title: "Ce que nos clients disent de nous",
         items: [
           { id: "1", author_name: "Mariam S.", rating: 5, content: "Superbe expérience d'achat ! Produits de très bonne qualité." },
+        ],
+      };
+    case "audio_testimonials":
+      return {
+        title: "Ce que disent nos clients (Note Vocale)",
+        subtitle: "Écoutez les retours d'expérience audio de nos clients satisfaits",
+        items: [
+          {
+            id: "1",
+            client_name: "Awa K.",
+            client_location: "Abidjan, CI",
+            audio_url: "",
+            duration: "0:45",
+            comment: "J'ai reçu ma commande en 24h à Cocody, qualité incroyable !",
+          },
         ],
       };
     case "banner_cta":

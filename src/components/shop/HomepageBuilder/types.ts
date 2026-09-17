@@ -1,7 +1,5 @@
 export type DeviceType = "desktop" | "tablet" | "mobile";
 
-export type DeviceType = "desktop" | "tablet" | "mobile";
-
 export type SectionType =
   | "hero"
   | "products_grid"
@@ -11,7 +9,9 @@ export type SectionType =
   | "features"
   | "text_image"
   | "video"
+  | "video_shorts"
   | "testimonials"
+  | "audio_testimonials"
   | "banner_cta"
   | "faq"
   | "contact_form"
@@ -130,6 +130,21 @@ export interface VideoSectionSettings {
   bg_color?: string;
 }
 
+export interface VideoShortItem {
+  id: string;
+  title?: string;
+  video_url: string;
+  thumbnail_url?: string;
+  duration_seconds?: number;
+}
+
+export interface VideoShortsSectionSettings {
+  title: string;
+  subtitle?: string;
+  items: VideoShortItem[];
+  bg_color?: string;
+}
+
 export interface TestimonialItem {
   id: string;
   author_name: string;
@@ -144,6 +159,22 @@ export interface TestimonialsSectionSettings {
   title: string;
   subtitle?: string;
   items: TestimonialItem[];
+  bg_color?: string;
+}
+
+export interface AudioTestimonialItem {
+  id: string;
+  author_name: string;
+  author_role?: string;
+  author_avatar?: string;
+  audio_url: string;
+  duration_seconds?: number;
+}
+
+export interface AudioTestimonialsSectionSettings {
+  title: string;
+  subtitle?: string;
+  items: AudioTestimonialItem[];
   bg_color?: string;
 }
 
@@ -202,7 +233,9 @@ export type SectionSettings =
   | FeaturesSectionSettings
   | TextImageSectionSettings
   | VideoSectionSettings
+  | VideoShortsSectionSettings
   | TestimonialsSectionSettings
+  | AudioTestimonialsSectionSettings
   | BannerCtaSectionSettings
   | FaqSectionSettings
   | ContactFormSectionSettings

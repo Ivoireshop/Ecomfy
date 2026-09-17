@@ -8,7 +8,9 @@ import { CategoriesSection } from "./sections/CategoriesSection";
 import { FeaturesSection } from "./sections/FeaturesSection";
 import { TextImageSection } from "./sections/TextImageSection";
 import { VideoSection } from "./sections/VideoSection";
+import { VideoShortsSection } from "./sections/VideoShortsSection";
 import { TestimonialsSection } from "./sections/TestimonialsSection";
+import { AudioTestimonialsSection } from "./sections/AudioTestimonialsSection";
 import { BannerCtaSection } from "./sections/BannerCtaSection";
 import { FaqSection } from "./sections/FaqSection";
 import { ContactFormSection } from "./sections/ContactFormSection";
@@ -128,11 +130,27 @@ export const HomepageRenderer: React.FC<HomepageRendererProps> = ({
                 onAction={(type, url) => onActionClick?.(type, url)}
               />
             );
+          case "video_shorts":
+            return (
+              <VideoShortsSection
+                key={section.id}
+                settings={section.settings as any}
+                primaryColor={primaryColor}
+              />
+            );
           case "testimonials":
             return (
               <TestimonialsSection
                 key={section.id}
                 settings={section.settings as any}
+              />
+            );
+          case "audio_testimonials":
+            return (
+              <AudioTestimonialsSection
+                key={section.id}
+                settings={section.settings as any}
+                primaryColor={primaryColor}
               />
             );
           case "banner_cta":
