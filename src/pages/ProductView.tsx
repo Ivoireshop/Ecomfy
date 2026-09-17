@@ -76,14 +76,14 @@ const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; 
   }, []);
 
   const Box = ({ val, label }: { val: number; label: string }) => (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center flex-1 min-w-0">
       <div
-        className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-black text-base sm:text-xl tabular-nums shadow-sm border-b-[3px]"
+        className="w-full max-w-[64px] h-11 sm:h-12 rounded-xl flex items-center justify-center text-white font-black text-base sm:text-lg tabular-nums shadow-sm border-b-[3px]"
         style={{ backgroundColor: color, borderColor: "rgba(0,0,0,0.2)" }}
       >
         {String(val).padStart(2, '0')}
       </div>
-      <span className="text-[10px] sm:text-xs text-gray-500 mt-1 font-semibold uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] sm:text-xs text-gray-500 mt-1 font-bold uppercase tracking-wider text-center">{label}</span>
     </div>
   );
 
@@ -91,15 +91,15 @@ const CountdownTimerInline = ({ color, days, hours, minutes }: { color: string; 
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 w-full bg-gray-50 border border-gray-100 rounded-2xl shadow-sm">
       <div className="flex items-center gap-2">
         <Clock className="w-5 h-5 shrink-0 animate-pulse" style={{ color }} />
-        <span className="text-sm sm:text-base font-bold" style={{ color }}>L'offre expire bientôt !</span>
+        <span className="text-sm sm:text-base font-bold tracking-tight" style={{ color }}>L'offre expire bientôt !</span>
       </div>
-      <div className="flex items-start gap-1 sm:gap-1.5">
+      <div className="flex items-center justify-between gap-1 sm:gap-2 w-full sm:w-auto">
         <Box val={timeLeft.d} label="Jours" />
-        <span className="text-xl font-bold mt-1.5 sm:mt-2 text-gray-300">:</span>
+        <span className="text-lg font-bold pb-4 text-gray-300 shrink-0">:</span>
         <Box val={timeLeft.h} label="Heures" />
-        <span className="text-xl font-bold mt-1.5 sm:mt-2 text-gray-300">:</span>
+        <span className="text-lg font-bold pb-4 text-gray-300 shrink-0">:</span>
         <Box val={timeLeft.m} label="Min" />
-        <span className="text-xl font-bold mt-1.5 sm:mt-2 text-gray-300">:</span>
+        <span className="text-lg font-bold pb-4 text-gray-300 shrink-0">:</span>
         <Box val={timeLeft.s} label="Sec" />
       </div>
     </div>
