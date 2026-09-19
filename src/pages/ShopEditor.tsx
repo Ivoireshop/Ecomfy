@@ -241,6 +241,10 @@ const ShopEditor = () => {
         setUnreadOrders(prev => prev + 1);
         toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
       })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
+        const updatedOrder = payload.new as Order;
+        setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
+      })
       .subscribe();
     // Realtime shop status — auto-unlock after payment confirmation
     const shopChannel = supabase.channel(`shop-status-${id}_${Math.random().toString(36).substring(2, 8)}`)
@@ -1236,7 +1240,7 @@ const ShopEditor = () => {
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked
               ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
-              : <OrdersList shopId={shop.id} orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={() => {}} isRestricted={isRestricted} />;
+              : <OrdersList shopId={shop.id} orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={fetchData} isRestricted={isRestricted} />;
           })()}
 
           {activeSection === "abandoned" && shop?.id && (() => {

@@ -74,6 +74,21 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   const [deliveryFilter, setDeliveryFilter] = useState<string>("all");
   const [localOrdersState, setLocalOrdersState] = useState<Record<string, { date: string | null; note: string | null }>>({});
 
+  useEffect(() => {
+    // Sync local state when incoming orders prop updates from Supabase Realtime
+    setLocalOrdersState((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      orders.forEach((o) => {
+        if (next[o.id]) {
+          delete next[o.id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [orders]);
+
   const formatISODate = (d: Date): string => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, "0");
