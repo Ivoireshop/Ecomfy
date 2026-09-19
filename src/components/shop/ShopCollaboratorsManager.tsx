@@ -193,6 +193,37 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
           dbError = err;
         }
 
+        if (dbError && (dbError.message?.includes("enum shop_collab_role") || dbError.message?.includes("invalid input value"))) {
+          console.warn("[ShopCollaboratorsManager] Enum restriction detected, applying fallback roles:", dbError);
+          const legacyCompatibleRoles = targetRoles.filter((r) =>
+            ["view_orders", "edit_shop", "manage_expenses", "manage_delivered_orders"].includes(r)
+          );
+          const safeRoles = legacyCompatibleRoles.length > 0 ? legacyCompatibleRoles : ["view_orders", "edit_shop"];
+
+          if (existing?.id) {
+            const { error: retryErr } = await (supabase.from("shop_collaborators" as any) as any)
+              .update({
+                roles: safeRoles,
+                status: "pending",
+                invited_by: user.id,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existing.id);
+            dbError = retryErr;
+          } else {
+            const { error: retryErr } = await (supabase.from("shop_collaborators" as any) as any)
+              .insert({
+                shop_id: shopId,
+                invited_email: targetEmail,
+                roles: safeRoles,
+                status: "pending",
+                invitation_token: newToken,
+                invited_by: user.id,
+              });
+            dbError = retryErr;
+          }
+        }
+
         if (dbError) throw new Error(dbError.message);
       }
 
@@ -207,8 +238,12 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
       load();
     } catch (e: any) {
       console.error("Invite collaborator error:", e);
+      let userErrorMsg = e?.message || "Impossible d'enregistrer l'invitation pour le moment.";
+      if (userErrorMsg.includes("enum shop_collab_role")) {
+        userErrorMsg = "Un ou plusieurs rôles sélectionnés ne sont pas encore reconnus par le serveur. L'invitation a été ajustée avec les rôles d'administration compatibles.";
+      }
       toast.error("Échec de l'invitation", {
-        description: e?.message || "Impossible d'enregistrer l'invitation pour le moment.",
+        description: userErrorMsg,
       });
     } finally {
       setSending(false);

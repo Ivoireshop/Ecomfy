@@ -5467,6 +5467,10 @@ export type Database = {
         | "edit_shop"
         | "manage_expenses"
         | "manage_delivered_orders"
+        | "manage_catalog"
+        | "view_stats"
+        | "manage_customers"
+        | "full_admin"
     }
     CompositeTypes: {
       [_ in never]: never
