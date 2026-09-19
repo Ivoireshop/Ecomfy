@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Globe, Sparkles, Users, ShoppingBag, Radio, ArrowRight, Play, Heart, MessageCircle,
-  Share2, BarChart2, Megaphone, Layers, TrendingUp, CheckCircle2, Store, Video
+  Share2, BarChart2, Megaphone, Layers, TrendingUp, CheckCircle2, Store, Video,
+  Volume2, VolumeX
 } from "lucide-react";
 
 export function LandingConnectUsSection() {
@@ -14,6 +15,63 @@ export function LandingConnectUsSection() {
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [mobileTab, setMobileTab] = useState<'feed' | 'live' | 'ads' | 'trends'>('feed');
+
+  // Vimeo Autoplay & Mute Control (Video ID: 1228069425)
+  const [isMuted, setIsMuted] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const connectUsVideoId = "1228069425";
+  const embedUrl = `https://player.vimeo.com/video/${connectUsVideoId}?autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0&controls=0`;
+
+  const triggerVimeoPlay = () => {
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "setVolume", value: isMuted ? "0" : "1" }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "play" }),
+          "*"
+        );
+      } catch (_) {}
+    }
+  };
+
+  useEffect(() => {
+    triggerVimeoPlay();
+    const t1 = setTimeout(triggerVimeoPlay, 500);
+    const t2 = setTimeout(triggerVimeoPlay, 1500);
+    const t3 = setTimeout(triggerVimeoPlay, 3000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isMuted]);
+
+  const toggleSound = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            method: "setVolume",
+            value: nextMuted ? "0" : "1"
+          }),
+          "*"
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ method: "play" }),
+          "*"
+        );
+      } catch (err) {
+        console.warn("Vimeo postMessage error:", err);
+      }
+    }
+  };
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -49,7 +107,7 @@ export function LandingConnectUsSection() {
 
       <div className="container relative mx-auto px-4 max-w-7xl">
         {/* Header Badge & Titles */}
-        <div className="text-center space-y-3 sm:space-y-3.5 max-w-3xl mx-auto mb-8 sm:mb-12">
+        <div className="text-center space-y-3 sm:space-y-3.5 max-w-3xl mx-auto mb-6 sm:mb-8">
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-emerald-100/90 border border-emerald-300/80 text-emerald-900 text-[11px] sm:text-xs font-bold shadow-2xs max-w-full">
             <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#0E7C66] shrink-0" />
             <span className="truncate">Une plateforme complète pour l'avenir du digital</span>
@@ -72,6 +130,57 @@ export function LandingConnectUsSection() {
           <p className="text-xs xs:text-sm sm:text-base text-slate-600 font-inter leading-relaxed max-w-2xl mx-auto px-2">
             Le réseau social et l'écosystème business d'Ecomfy pour apprendre, échanger, créer, promouvoir et faire grandir votre activité en ligne.
           </p>
+        </div>
+
+        {/* ConnectUs Vimeo Video Player (ID: 1228069425 - Autoplay Muted with Sound Toggle Button) */}
+        <div className="max-w-4xl mx-auto mb-10 sm:mb-12">
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-emerald-500/30 bg-slate-950 shadow-[0_0_40px_rgba(14,124,102,0.2)] group">
+            <div 
+              onClick={triggerVimeoPlay}
+              onTouchStart={triggerVimeoPlay}
+              className="relative w-full aspect-video bg-slate-950 overflow-hidden cursor-pointer"
+            >
+              <iframe
+                ref={iframeRef}
+                src={embedUrl}
+                title="Présentation ConnectUs Ecomfy"
+                className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10 scale-105 pointer-events-auto"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                onLoad={triggerVimeoPlay}
+                // @ts-ignore
+                playsInline
+                // @ts-ignore
+                webkit-playsinline="true"
+              />
+
+              {/* Sound Toggle Control Overlay (Activer / Desactiver le son) */}
+              <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-30 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSound();
+                  }}
+                  className="flex items-center gap-2 bg-slate-950/90 hover:bg-[#0E7C66] text-white backdrop-blur-md px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full border border-emerald-400/40 text-xs sm:text-sm font-bold transition-all shadow-lg hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto"
+                  title={isMuted ? "Activer le son" : "Couper le son"}
+                >
+                  {isMuted ? (
+                    <>
+                      <VolumeX className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Activer le son</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Son activé</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ========================================================================= */}
@@ -182,46 +291,46 @@ export function LandingConnectUsSection() {
               <div className="absolute bottom-1/3 left-1/2 h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_10px_#F59E0B] animate-ping" style={{ animationDelay: "2.4s" }} />
             </div>
 
-            {/* 6 FLOATING PERSONAS & FEATURE BADGES */}
+            {/* 4 FLOATING PERSONAS & FEATURE BADGES (UNIFORM HARMONIOUS SIZES) */}
             
             {/* Persona 1: Top Center Avatar */}
             <div className="absolute -top-3 left-[32%] z-20">
-              <div className="h-16 w-16 rounded-full ring-4 ring-emerald-400/80 shadow-2xl overflow-hidden border-2 border-white">
+              <div className="h-14 w-14 rounded-full ring-4 ring-emerald-400/80 shadow-2xl overflow-hidden border-2 border-white">
                 <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
               </div>
             </div>
 
             {/* Feature Badge 1: Top Right Community Icon */}
             <div className="absolute top-2 right-[32%] z-20">
-              <div className="h-11 w-11 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg border-2 border-white">
+              <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg border-2 border-white">
                 <Users className="h-5 w-5" />
               </div>
             </div>
 
             {/* Feature Badge 2: Mid-Left Video Camera Badge */}
-            <div className="absolute top-[42%] -left-8 z-20">
-              <div className="h-12 w-12 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-xl border-2 border-white">
-                <Video className="h-6 w-6" />
+            <div className="absolute top-[42%] -left-6 z-20">
+              <div className="h-10 w-10 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-xl border-2 border-white">
+                <Video className="h-5 w-5" />
               </div>
             </div>
 
             {/* Persona 2: Bottom-Left Woman Avatar */}
             <div className="absolute bottom-4 left-14 z-20">
-              <div className="h-20 w-20 rounded-full ring-4 ring-teal-400/80 shadow-2xl overflow-hidden border-2 border-white">
+              <div className="h-14 w-14 rounded-full ring-4 ring-teal-400/80 shadow-2xl overflow-hidden border-2 border-white">
                 <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
               </div>
             </div>
 
             {/* Persona 3: Bottom-Right Smiling Woman Avatar */}
             <div className="absolute bottom-6 right-24 z-20">
-              <div className="h-20 w-20 rounded-full ring-4 ring-amber-400/90 shadow-2xl overflow-hidden border-2 border-white">
+              <div className="h-14 w-14 rounded-full ring-4 ring-amber-400/90 shadow-2xl overflow-hidden border-2 border-white">
                 <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
               </div>
             </div>
 
-            {/* Persona 4: Far Right Smiling Man Avatar */}
-            <div className="absolute top-[40%] -right-8 z-20">
-              <div className="h-18 w-18 rounded-full ring-4 ring-cyan-400/80 shadow-2xl overflow-hidden border-2 border-white">
+            {/* Persona 4: Far Right Smiling Man Avatar (Normalized size) */}
+            <div className="absolute top-[40%] -right-6 z-20">
+              <div className="h-14 w-14 rounded-full ring-4 ring-cyan-400/80 shadow-2xl overflow-hidden border-2 border-white">
                 <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80" alt="" className="h-full w-full object-cover" />
               </div>
             </div>

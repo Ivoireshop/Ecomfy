@@ -145,8 +145,6 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
 
-      const LEGACY_ENUM_ROLES: Role[] = ["view_orders", "edit_shop", "manage_expenses", "manage_delivered_orders"];
-
       let fnSuccess = false;
       try {
         const { data: fnData, error: fnError } = await supabase.functions.invoke("invite-shop-collaborator", {
@@ -172,13 +170,6 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
 
         let dbError: any = null;
 
-        const isEnumOrTypeError = (err: any) => {
-          if (!err) return false;
-          const msg = String(err.message || "").toLowerCase();
-          const code = String(err.code || "");
-          return msg.includes("enum") || msg.includes("invalid input") || msg.includes("type") || code === "22P02";
-        };
-
         if (existing?.id) {
           const { error: err } = await (supabase.from("shop_collaborators" as any) as any)
             .update({
@@ -189,20 +180,6 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
             })
             .eq("id", existing.id);
           dbError = err;
-
-          if (isEnumOrTypeError(dbError)) {
-            const safeRoles = targetRoles.filter((r) => LEGACY_ENUM_ROLES.includes(r));
-            const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ENUM_ROLES;
-            const { error: retryErr } = await (supabase.from("shop_collaborators" as any) as any)
-              .update({
-                roles: finalRoles,
-                status: "pending",
-                invited_by: user.id,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existing.id);
-            dbError = retryErr;
-          }
         } else {
           const { error: err } = await (supabase.from("shop_collaborators" as any) as any)
             .insert({
@@ -214,21 +191,6 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
               invited_by: user.id,
             });
           dbError = err;
-
-          if (isEnumOrTypeError(dbError)) {
-            const safeRoles = targetRoles.filter((r) => LEGACY_ENUM_ROLES.includes(r));
-            const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ENUM_ROLES;
-            const { error: retryErr } = await (supabase.from("shop_collaborators" as any) as any)
-              .insert({
-                shop_id: shopId,
-                invited_email: targetEmail,
-                roles: finalRoles,
-                status: "pending",
-                invitation_token: newToken,
-                invited_by: user.id,
-              });
-            dbError = retryErr;
-          }
         }
 
         if (dbError) throw new Error(dbError.message);
@@ -266,41 +228,36 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
     });
   };
 
-  const updateRoles = async (id: string, nextRoles: Role[]) => {
-    const isEnumOrTypeError = (err: any) => {
-      if (!err) return false;
-      const msg = String(err.message || "").toLowerCase();
-      const code = String(err.code || "");
-      return msg.includes("enum") || msg.includes("invalid input") || msg.includes("type") || code === "22P02";
-    };
-
-    let { error } = await (supabase.from("shop_collaborators" as any) as any)
-      .update({ roles: nextRoles }).eq("id", id);
-
-    if (isEnumOrTypeError(error)) {
-      const LEGACY_ROLES = ["view_orders", "edit_shop", "manage_expenses", "manage_delivered_orders"];
-      const safeRoles = nextRoles.filter((r) => LEGACY_ROLES.includes(r as any));
-      const finalRoles = safeRoles.length > 0 ? safeRoles : LEGACY_ROLES;
-      const retry = await (supabase.from("shop_collaborators" as any) as any)
-        .update({ roles: finalRoles }).eq("id", id);
-      error = retry.error;
+  const updateRoles = async (id: string, rawNextRoles: Role[]) => {
+    let nextRoles = rawNextRoles;
+    if (nextRoles.includes("full_admin")) {
+      nextRoles = Array.from(new Set([...nextRoles, ...ALL_ROLES]));
     }
 
-    if (error) toast.error("Erreur: " + error.message); else { toast.success("Rôles mis à jour"); load(); }
+    const { error } = await (supabase.from("shop_collaborators" as any) as any)
+      .update({ roles: nextRoles, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Erreur lors de la mise à jour : " + error.message);
+    } else {
+      toast.success("Rôles et permissions mis à jour avec succès");
+      load();
+    }
   };
 
   const revoke = async (id: string) => {
     if (!confirm("Révoquer l'accès de ce collaborateur ?")) return;
     const { error } = await (supabase.from("shop_collaborators" as any) as any)
-      .update({ status: "revoked" }).eq("id", id);
-    if (error) toast.error("Erreur"); else { toast.success("Accès révoqué"); load(); }
+      .update({ status: "revoked", updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) toast.error("Erreur: " + error.message); else { toast.success("Accès révoqué"); load(); }
   };
 
   const remove = async (id: string) => {
     if (!confirm("Supprimer définitivement cette invitation ?")) return;
     const { error } = await (supabase.from("shop_collaborators" as any) as any)
       .delete().eq("id", id);
-    if (error) toast.error("Erreur"); else { toast.success("Supprimé"); load(); }
+    if (error) toast.error("Erreur: " + error.message); else { toast.success("Supprimé"); load(); }
   };
 
   return (
@@ -507,7 +464,27 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
                           return (
                             <button
                               key={r}
-                              onClick={() => updateRoles(c.id, has ? c.roles.filter((x) => x !== r) : [...c.roles, r])}
+                              onClick={() => {
+                                let next: Role[];
+                                if (r === "full_admin") {
+                                  if (has) {
+                                    next = c.roles.filter((x) => x !== "full_admin");
+                                  } else {
+                                    next = [...ALL_ROLES];
+                                  }
+                                } else {
+                                  let base = has ? c.roles.filter((x) => x !== r) : [...c.roles, r];
+                                  const nonAdminRoles = ALL_ROLES.filter((x) => x !== "full_admin");
+                                  const hasAllNonAdmin = nonAdminRoles.every((x) => base.includes(x));
+                                  if (hasAllNonAdmin && !base.includes("full_admin")) {
+                                    base = [...base, "full_admin"];
+                                  } else if (!hasAllNonAdmin && base.includes("full_admin")) {
+                                    base = base.filter((x) => x !== "full_admin");
+                                  }
+                                  next = base;
+                                }
+                                updateRoles(c.id, next);
+                              }}
                               className={`text-[10px] font-medium px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${
                                 has 
                                   ? "bg-primary text-primary-foreground shadow-sm" 

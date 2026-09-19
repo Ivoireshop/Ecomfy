@@ -2230,6 +2230,7 @@ export type Database = {
           delivery_provider_id: string | null
           delivery_transferred_at: string | null
           id: string
+          internal_delivery_note: string | null
           is_read: boolean | null
           locked_at_order_time: string | null
           notes: string | null
@@ -2239,6 +2240,7 @@ export type Database = {
           payment_status: string
           products_summary: string | null
           received_during_lock: boolean
+          scheduled_delivery_date: string | null
           shop_id: string
           subtotal: number
           total: number
@@ -2256,6 +2258,7 @@ export type Database = {
           delivery_provider_id?: string | null
           delivery_transferred_at?: string | null
           id?: string
+          internal_delivery_note?: string | null
           is_read?: boolean | null
           locked_at_order_time?: string | null
           notes?: string | null
@@ -2265,6 +2268,7 @@ export type Database = {
           payment_status?: string
           products_summary?: string | null
           received_during_lock?: boolean
+          scheduled_delivery_date?: string | null
           shop_id: string
           subtotal?: number
           total?: number
@@ -2282,6 +2286,7 @@ export type Database = {
           delivery_provider_id?: string | null
           delivery_transferred_at?: string | null
           id?: string
+          internal_delivery_note?: string | null
           is_read?: boolean | null
           locked_at_order_time?: string | null
           notes?: string | null
@@ -2291,6 +2296,7 @@ export type Database = {
           payment_status?: string
           products_summary?: string | null
           received_during_lock?: boolean
+          scheduled_delivery_date?: string | null
           shop_id?: string
           subtotal?: number
           total?: number

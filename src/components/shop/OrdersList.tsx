@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send, Lock, CreditCard } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, Home, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send, Lock, CreditCard, CalendarDays, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { PushToDeliveryModal } from "./PushToDeliveryModal";
 import { StoreRestrictedLockScreen } from "./StoreRestrictedLockScreen";
+import { ScheduleDeliveryModal } from "./ScheduleDeliveryModal";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -34,6 +35,8 @@ interface Order {
   is_read: boolean;
   created_at: string;
   products_summary?: string | null;
+  scheduled_delivery_date?: string | null;
+  internal_delivery_note?: string | null;
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; selected_variants?: Record<string, string> | null }[];
   order_deliveries?: {
     status: string;
@@ -65,21 +68,141 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   const [search, setSearch] = useState("");
   const [pushModalOpen, setPushModalOpen] = useState(false);
   const [orderToPush, setOrderToPush] = useState<string | null>(null);
+  
+  // Delivery Schedule state & modals
+  const [scheduleModalOrder, setScheduleModalOrder] = useState<Order | null>(null);
+  const [deliveryFilter, setDeliveryFilter] = useState<string>("all");
+  const [localOrdersState, setLocalOrdersState] = useState<Record<string, { date: string | null; note: string | null }>>({});
+
+  const formatISODate = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayISO = useMemo(() => formatISODate(new Date()), []);
+  const tomorrowISO = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return formatISODate(d);
+  }, []);
+  const afterTomorrowISO = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return formatISODate(d);
+  }, []);
+
+  const getDeliveryBadge = (scheduledDate?: string | null) => {
+    if (!scheduledDate) {
+      return {
+        label: "Date de livraison non définie",
+        className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700",
+        icon: CalendarDays,
+      };
+    }
+
+    if (scheduledDate === todayISO) {
+      return {
+        label: "Livraison prévue aujourd'hui !",
+        className: "bg-rose-600 text-white font-black animate-pulse shadow-md border-0",
+        icon: Clock,
+      };
+    }
+
+    if (scheduledDate === tomorrowISO) {
+      return {
+        label: "Livraison prévue demain",
+        className: "bg-amber-500 text-white font-bold shadow-sm border-0",
+        icon: CalendarDays,
+      };
+    }
+
+    if (scheduledDate === afterTomorrowISO) {
+      return {
+        label: "Livraison prévue après-demain",
+        className: "bg-blue-600 text-white font-bold shadow-sm border-0",
+        icon: CalendarDays,
+      };
+    }
+
+    try {
+      const parts = scheduledDate.split("-");
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        const formatted = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+        return {
+          label: `Livraison prévue le ${formatted}`,
+          className: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800",
+          icon: CalendarDays,
+        };
+      }
+    } catch (_) {}
+
+    return {
+      label: `Livraison prévue le ${scheduledDate}`,
+      className: "bg-indigo-50 text-indigo-700 font-bold border border-indigo-200",
+      icon: CalendarDays,
+    };
+  };
 
   const normalized = (v: string | null | undefined) =>
     (v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+  // Compute counts for summary indicator cards
+  const counts = useMemo(() => {
+    let todayCount = 0;
+    let tomorrowCount = 0;
+    let scheduledCount = 0;
+    let unscheduledCount = 0;
+
+    orders.forEach((o) => {
+      const override = localOrdersState[o.id];
+      const date = override !== undefined ? override.date : o.scheduled_delivery_date;
+      if (!date) {
+        unscheduledCount++;
+      } else {
+        scheduledCount++;
+        if (date === todayISO) todayCount++;
+        if (date === tomorrowISO) tomorrowCount++;
+      }
+    });
+
+    return { todayCount, tomorrowCount, scheduledCount, unscheduledCount };
+  }, [orders, localOrdersState, todayISO, tomorrowISO]);
+
   const filteredOrders = useMemo(() => {
+    let result = orders.map((o) => {
+      const override = localOrdersState[o.id];
+      if (override !== undefined) {
+        return { ...o, scheduled_delivery_date: override.date, internal_delivery_note: override.note };
+      }
+      return o;
+    });
+
+    if (deliveryFilter !== "all") {
+      if (deliveryFilter === "today") {
+        result = result.filter((o) => o.scheduled_delivery_date === todayISO);
+      } else if (deliveryFilter === "tomorrow") {
+        result = result.filter((o) => o.scheduled_delivery_date === tomorrowISO);
+      } else if (deliveryFilter === "scheduled") {
+        result = result.filter((o) => !!o.scheduled_delivery_date);
+      } else if (deliveryFilter === "unscheduled") {
+        result = result.filter((o) => !o.scheduled_delivery_date);
+      }
+    }
+
     const q = normalized(search).trim();
-    if (!q) return orders;
-    return orders.filter((o) => {
+    if (!q) return result;
+
+    return result.filter((o) => {
       const hay = [
         o.order_number, o.customer_name, o.customer_phone, o.customer_email,
-        o.customer_city, o.customer_address,
+        o.customer_city, o.customer_address, o.internal_delivery_note,
       ].map(normalized).join(" | ");
       return hay.includes(q);
     });
-  }, [orders, search]);
+  }, [orders, search, deliveryFilter, localOrdersState, todayISO, tomorrowISO]);
 
   const buildOrderText = (order: Order, sequence: number) => {
     const lines: string[] = [];
@@ -238,16 +361,96 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
         </div>
       )}
 
+      {/* Delivery Schedule Indicator Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-2">
+        <button
+          type="button"
+          onClick={() => setDeliveryFilter(deliveryFilter === "today" ? "all" : "today")}
+          className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+            deliveryFilter === "today"
+              ? "bg-rose-600 text-white border-rose-700 shadow-md ring-2 ring-rose-500/30"
+              : "bg-card border-border hover:border-rose-300 hover:bg-rose-50/20"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold opacity-90">Aujourd'hui</span>
+            <Clock className="h-4 w-4 shrink-0" />
+          </div>
+          <div className="text-xl font-black mt-1">{counts.todayCount}</div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDeliveryFilter(deliveryFilter === "tomorrow" ? "all" : "tomorrow")}
+          className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+            deliveryFilter === "tomorrow"
+              ? "bg-amber-500 text-white border-amber-600 shadow-md ring-2 ring-amber-500/30"
+              : "bg-card border-border hover:border-amber-300 hover:bg-amber-50/20"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold opacity-90">Demain</span>
+            <CalendarDays className="h-4 w-4 shrink-0" />
+          </div>
+          <div className="text-xl font-black mt-1">{counts.tomorrowCount}</div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDeliveryFilter(deliveryFilter === "scheduled" ? "all" : "scheduled")}
+          className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+            deliveryFilter === "scheduled"
+              ? "bg-indigo-600 text-white border-indigo-700 shadow-md ring-2 ring-indigo-500/30"
+              : "bg-card border-border hover:border-indigo-300 hover:bg-indigo-50/20"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold opacity-90">Planifiées</span>
+            <CalendarDays className="h-4 w-4 shrink-0" />
+          </div>
+          <div className="text-xl font-black mt-1">{counts.scheduledCount}</div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDeliveryFilter(deliveryFilter === "unscheduled" ? "all" : "unscheduled")}
+          className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+            deliveryFilter === "unscheduled"
+              ? "bg-slate-700 text-white border-slate-800 shadow-md ring-2 ring-slate-500/30"
+              : "bg-card border-border hover:border-slate-300 hover:bg-slate-100/50"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold opacity-90">Non planifiées</span>
+            <CalendarDays className="h-4 w-4 shrink-0 opacity-60" />
+          </div>
+          <div className="text-xl font-black mt-1">{counts.unscheduledCount}</div>
+        </button>
+      </div>
+
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-bold">Commandes ({filteredOrders.length}{search ? ` / ${orders.length}` : ""})</h2>
+        <h2 className="text-xl font-bold">Commandes ({filteredOrders.length}{search || deliveryFilter !== "all" ? ` / ${orders.length}` : ""})</h2>
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-          <div className="relative w-full sm:w-80">
+          <Select value={deliveryFilter} onValueChange={(v) => setDeliveryFilter(v)}>
+            <SelectTrigger className="w-full sm:w-48 h-9 text-xs font-medium">
+              <SelectValue placeholder="Filtre livraison" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les dates</SelectItem>
+              <SelectItem value="today">🚨 Aujourd'hui ({counts.todayCount})</SelectItem>
+              <SelectItem value="tomorrow">⏳ Demain ({counts.tomorrowCount})</SelectItem>
+              <SelectItem value="scheduled">🗓️ Planifiées ({counts.scheduledCount})</SelectItem>
+              <SelectItem value="unscheduled">❓ Non planifiées ({counts.unscheduledCount})</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher (n°, nom, téléphone, ville…)"
-              className="pl-9 h-9"
+              placeholder="Rechercher (n°, nom, tél…)"
+              className="pl-9 h-9 text-xs"
             />
           </div>
           <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel}>
@@ -261,170 +464,203 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
       {filteredOrders.length === 0 ? (
         <Card className="p-12 text-center">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-1">{search ? "Aucun résultat" : "Aucune commande"}</h3>
+          <h3 className="font-semibold mb-1">{search || deliveryFilter !== "all" ? "Aucun résultat pour ce filtre" : "Aucune commande"}</h3>
           <p className="text-sm text-muted-foreground">
-            {search ? "Essayez d'autres mots-clés (commune, ville, numéro…)." : "Les commandes apparaîtront ici en temps réel"}
+            {search || deliveryFilter !== "all" ? "Essayez de modifier les filtres ou la recherche." : "Les commandes apparaîtront ici en temps réel"}
           </p>
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order) => (
-            <Card key={order.id} className={`overflow-hidden ${!order.is_read ? 'ring-1 ring-primary' : ''}`} onClick={() => !order.is_read && onMarkRead(order.id)}>
-              <div className="p-3 sm:p-5">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-3">
-                    {!order.is_read && <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />}
-                     <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-bold">Commande #{sequenceById[order.id]}</span>
-                        <span className="font-mono text-[11px] text-muted-foreground">{order.order_number}</span>
-                      </div>
-                      <div className="mt-1 grid gap-0.5 text-xs sm:text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 shrink-0" /> <span className="font-medium text-foreground">{order.customer_name}</span></span>
-                        <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 shrink-0" /> {order.customer_phone}</span>
-                        {order.customer_city && (
-                          <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 shrink-0" /> {order.customer_city}</span>
-                        )}
-                        {order.customer_address && (
-                          <span className="flex items-center gap-1.5"><Home className="h-3.5 w-3.5 shrink-0" /> {order.customer_address}</span>
-                        )}
-                        {order.customer_email && (
-                          <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 shrink-0" /> {order.customer_email}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold">{fmt(order.total)} FCFA</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(order.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                </div>
-                {order.order_items && order.order_items.length > 0 ? (
-                  <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
-                    {order.order_items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 text-xs whitespace-nowrap">
-                        {item.product_image_url && <img src={item.product_image_url} alt="" className="h-6 w-6 rounded object-cover" />}
-                        <span>{item.quantity}x {item.product_name}</span>
-                        {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
-                          <span className="text-primary font-medium">
-                            ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ")})
-                          </span>
-                        )}
-                        <span className="text-muted-foreground">{fmt(item.total_price)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : order.products_summary ? (
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {order.products_summary.split(" ; ").map((p, i) => (
-                      <div key={i} className="bg-muted/50 rounded-lg px-3 py-1.5 text-xs font-medium">
-                        {p}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                
-                {order.order_deliveries && order.order_deliveries.length > 0 && (
-                  <div className="mb-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-3 sm:p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-300">Suivi Livraison</h4>
-                    </div>
-                    {order.order_deliveries.map((delivery, i) => (
-                      <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="bg-white dark:bg-background">
-                            {delivery.status === "pending" ? "En attente d'assignation" :
-                             delivery.status === "assigned" ? "Assigné au livreur" :
-                             delivery.status === "picked_up" ? "Récupéré" :
-                             delivery.status === "in_transit" ? "En route" :
-                             delivery.status === "delivered" ? "Livré" :
-                             delivery.status === "returned" ? "Retourné" :
-                             delivery.status === "failed" ? "Échec" : delivery.status}
-                          </Badge>
-                          {delivery.provider && (
-                            <span className="text-muted-foreground text-xs font-medium">via {delivery.provider.company_name}</span>
+          {filteredOrders.map((order) => {
+            const badgeInfo = getDeliveryBadge(order.scheduled_delivery_date);
+            const BadgeIcon = badgeInfo.icon;
+            return (
+              <Card key={order.id} className={`overflow-hidden ${!order.is_read ? 'ring-1 ring-primary' : ''}`} onClick={() => !order.is_read && onMarkRead(order.id)}>
+                <div className="p-3 sm:p-5">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-3">
+                      {!order.is_read && <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />}
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold">Commande #{sequenceById[order.id]}</span>
+                          <span className="font-mono text-[11px] text-muted-foreground">{order.order_number}</span>
+                        </div>
+                        <div className="mt-1 grid gap-0.5 text-xs sm:text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 shrink-0" /> <span className="font-medium text-foreground">{order.customer_name}</span></span>
+                          <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 shrink-0" /> {order.customer_phone}</span>
+                          {order.customer_city && (
+                            <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 shrink-0" /> {order.customer_city}</span>
+                          )}
+                          {order.customer_address && (
+                            <span className="flex items-center gap-1.5"><Home className="h-3.5 w-3.5 shrink-0" /> {order.customer_address}</span>
+                          )}
+                          {order.customer_email && (
+                            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 shrink-0" /> {order.customer_email}</span>
                           )}
                         </div>
-                        {delivery.driver ? (
-                          <div className="flex items-center gap-2 text-xs font-medium bg-white dark:bg-background px-3 py-1.5 rounded-lg border shadow-sm w-fit">
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>{delivery.driver.name}</span>
-                            <span className="text-muted-foreground">•</span>
-                            <a href={`tel:${delivery.driver.phone}`} className="text-primary hover:underline flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                              <Phone className="h-3 w-3" />
-                              {delivery.driver.phone}
-                            </a>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">Aucun livreur assigné</span>
-                        )}
                       </div>
-                    ))}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">{fmt(order.total)} FCFA</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(order.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
                   </div>
-                )}
-
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <Select value={order.order_status} onValueChange={(v) => onUpdateStatus(order.id, v)}>
-                    <SelectTrigger className="w-full sm:w-44 h-10 min-h-10"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(STATUS_MAP).map(([key, val]) => (
-                        <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                  {order.order_items && order.order_items.length > 0 ? (
+                    <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+                      {order.order_items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 text-xs whitespace-nowrap">
+                          {item.product_image_url && <img src={item.product_image_url} alt="" className="h-6 w-6 rounded object-cover" />}
+                          <span>{item.quantity}x {item.product_name}</span>
+                          {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
+                            <span className="text-primary font-medium">
+                              ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                            </span>
+                          )}
+                          <span className="text-muted-foreground">{fmt(item.total_price)}</span>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <Badge variant={order.payment_method === "mobile_money" ? "default" : "outline"} className="text-xs">
-                    {order.payment_method === "mobile_money" ? "Mobile Money" : "À la livraison"}
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-10 min-h-10 flex-1 sm:flex-none"
-                    onClick={(e) => { e.stopPropagation(); handleCopy(order, sequenceById[order.id]); }}
-                  >
-                    {copiedId === order.id ? (
-                      <><Check className="h-4 w-4 mr-1" /> Copié</>
-                    ) : (
-                      <><Copy className="h-4 w-4 mr-1" /> Copier</>
-                    )}
-                  </Button>
-                  {order.customer_phone && (
-                    <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-10 min-h-10 flex-1 sm:flex-none"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOrderToPush(order.id);
-                          setPushModalOpen(true);
-                        }}
-                      >
-                        <Send className="h-4 w-4 mr-1" /> Expédier
-                      </Button>
-                      <Button asChild size="sm" variant="outline" className="h-10 min-h-10 flex-1 sm:flex-none">
-                        <a href={`tel:${order.customer_phone.replace(/[^0-9+]/g, "")}`} onClick={(e) => e.stopPropagation()}>
-                          <Phone className="h-4 w-4 mr-1" /> Appeler
-                        </a>
-                      </Button>
-                      <Button asChild size="sm" className="h-10 min-h-10 flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white">
-                        <a
-                          href={`https://wa.me/${order.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}?text=${encodeURIComponent(`Bonjour ${order.customer_name}, je vous contacte au sujet de votre commande ${order.order_number}.`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp
-                        </a>
-                      </Button>
+                    </div>
+                  ) : order.products_summary ? (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {order.products_summary.split(" ; ").map((p, i) => (
+                        <div key={i} className="bg-muted/50 rounded-lg px-3 py-1.5 text-xs font-medium">
+                          {p}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  
+                  {order.order_deliveries && order.order_deliveries.length > 0 && (
+                    <div className="mb-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-3 sm:p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-300">Suivi Livraison</h4>
+                      </div>
+                      {order.order_deliveries.map((delivery, i) => (
+                        <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-white dark:bg-background">
+                              {delivery.status === "pending" ? "En attente d'assignation" :
+                               delivery.status === "assigned" ? "Assigné au livreur" :
+                               delivery.status === "picked_up" ? "Récupéré" :
+                               delivery.status === "in_transit" ? "En route" :
+                               delivery.status === "delivered" ? "Livré" :
+                               delivery.status === "returned" ? "Retourné" :
+                               delivery.status === "failed" ? "Échec" : delivery.status}
+                            </Badge>
+                            {delivery.provider && (
+                              <span className="text-muted-foreground text-xs font-medium">via {delivery.provider.company_name}</span>
+                            )}
+                          </div>
+                          {delivery.driver ? (
+                            <div className="flex items-center gap-2 text-xs font-medium bg-white dark:bg-background px-3 py-1.5 rounded-lg border shadow-sm w-fit">
+                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{delivery.driver.name}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <a href={`tel:${delivery.driver.phone}`} className="text-primary hover:underline flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                <Phone className="h-3 w-3" />
+                                {delivery.driver.phone}
+                              </a>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">Aucun livreur assigné</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
+
+                  {/* Scheduled Delivery Status & Quick Action Bar */}
+                  <div className="mb-3 p-3 rounded-2xl bg-indigo-50/30 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <Badge className={`gap-1.5 px-3 py-1 text-xs font-bold rounded-xl ${badgeInfo.className}`}>
+                        <BadgeIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span>{badgeInfo.label}</span>
+                      </Badge>
+                      {order.internal_delivery_note && (
+                        <span className="text-xs font-medium text-amber-900 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/60 border border-amber-300/60 dark:border-amber-800 px-2.5 py-1 rounded-xl flex items-center gap-1 max-w-sm truncate" title={order.internal_delivery_note}>
+                          <Phone className="h-3 w-3 shrink-0 text-amber-700 dark:text-amber-400" />
+                          <span className="truncate">{order.internal_delivery_note}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs font-bold rounded-xl gap-1.5 border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:bg-slate-900 dark:hover:bg-indigo-950 shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setScheduleModalOrder(order);
+                      }}
+                    >
+                      <CalendarDays className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>{order.scheduled_delivery_date ? "Modifier la date" : "Planifier la livraison"}</span>
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <Select value={order.order_status} onValueChange={(v) => onUpdateStatus(order.id, v)}>
+                      <SelectTrigger className="w-full sm:w-44 h-10 min-h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_MAP).map(([key, val]) => (
+                          <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Badge variant={order.payment_method === "mobile_money" ? "default" : "outline"} className="text-xs">
+                      {order.payment_method === "mobile_money" ? "Mobile Money" : "À la livraison"}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-10 min-h-10 flex-1 sm:flex-none"
+                      onClick={(e) => { e.stopPropagation(); handleCopy(order, sequenceById[order.id]); }}
+                    >
+                      {copiedId === order.id ? (
+                        <><Check className="h-4 w-4 mr-1" /> Copié</>
+                      ) : (
+                        <><Copy className="h-4 w-4 mr-1" /> Copier</>
+                      )}
+                    </Button>
+                    {order.customer_phone && (
+                      <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-10 min-h-10 flex-1 sm:flex-none"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOrderToPush(order.id);
+                            setPushModalOpen(true);
+                          }}
+                        >
+                          <Send className="h-4 w-4 mr-1" /> Expédier
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="h-10 min-h-10 flex-1 sm:flex-none">
+                          <a href={`tel:${order.customer_phone.replace(/[^0-9+]/g, "")}`} onClick={(e) => e.stopPropagation()}>
+                            <Phone className="h-4 w-4 mr-1" /> Appeler
+                          </a>
+                        </Button>
+                        <Button asChild size="sm" className="h-10 min-h-10 flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white">
+                          <a
+                            href={`https://wa.me/${order.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}?text=${encodeURIComponent(`Bonjour ${order.customer_name}, je vous contacte au sujet de votre commande ${order.order_number}.`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp
+                          </a>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
       
@@ -438,6 +674,21 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
           orderId={orderToPush}
           shopId={shopId}
           onSuccess={() => {
+            if (onOrderUpdated) onOrderUpdated();
+          }}
+        />
+      )}
+
+      {scheduleModalOrder && (
+        <ScheduleDeliveryModal
+          isOpen={!!scheduleModalOrder}
+          onClose={() => setScheduleModalOrder(null)}
+          order={scheduleModalOrder}
+          onSaveSuccess={(orderId, deliveryDate, note) => {
+            setLocalOrdersState((prev) => ({
+              ...prev,
+              [orderId]: { date: deliveryDate, note },
+            }));
             if (onOrderUpdated) onOrderUpdated();
           }}
         />
