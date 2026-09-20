@@ -268,7 +268,7 @@ const ShopEditor = () => {
     if (!id) return;
     const refresh = () => {
       const now = Date.now();
-      if (now - lastPassiveRefreshRef.current < 30000) return;
+      if (now - lastPassiveRefreshRef.current < 3000) return;
       lastPassiveRefreshRef.current = now;
       fetchData();
     };

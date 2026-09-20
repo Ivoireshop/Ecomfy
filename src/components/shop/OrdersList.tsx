@@ -20,6 +20,8 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Annulé", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
 };
 
+import { getOrderScheduleInfo } from "@/lib/utils";
+
 interface Order {
   id: string;
   order_number: string;
@@ -37,6 +39,7 @@ interface Order {
   products_summary?: string | null;
   scheduled_delivery_date?: string | null;
   internal_delivery_note?: string | null;
+  notes?: string | null;
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; selected_variants?: Record<string, string> | null }[];
   order_deliveries?: {
     status: string;
@@ -77,12 +80,15 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   useEffect(() => {
     // Sync local state when incoming orders prop updates from Supabase Realtime
     setLocalOrdersState((prev) => {
-      const next = { ...prev };
       let changed = false;
+      const next = { ...prev };
       orders.forEach((o) => {
         if (next[o.id]) {
-          delete next[o.id];
-          changed = true;
+          const dbSchedule = getOrderScheduleInfo(o);
+          if (dbSchedule.date === next[o.id].date && dbSchedule.note === next[o.id].note) {
+            delete next[o.id];
+            changed = true;
+          }
         }
       });
       return changed ? next : prev;
@@ -173,7 +179,8 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
 
     orders.forEach((o) => {
       const override = localOrdersState[o.id];
-      const date = override !== undefined ? override.date : o.scheduled_delivery_date;
+      const schedule = override !== undefined ? override : getOrderScheduleInfo(o);
+      const date = schedule.date;
       if (!date) {
         unscheduledCount++;
       } else {
@@ -189,10 +196,12 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   const filteredOrders = useMemo(() => {
     let result = orders.map((o) => {
       const override = localOrdersState[o.id];
-      if (override !== undefined) {
-        return { ...o, scheduled_delivery_date: override.date, internal_delivery_note: override.note };
-      }
-      return o;
+      const schedule = override !== undefined ? override : getOrderScheduleInfo(o);
+      return {
+        ...o,
+        scheduled_delivery_date: schedule.date,
+        internal_delivery_note: schedule.note,
+      };
     });
 
     if (deliveryFilter !== "all") {
@@ -213,7 +222,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
     return result.filter((o) => {
       const hay = [
         o.order_number, o.customer_name, o.customer_phone, o.customer_email,
-        o.customer_city, o.customer_address, o.internal_delivery_note,
+        o.customer_city, o.customer_address, o.internal_delivery_note, o.notes,
       ].map(normalized).join(" | ");
       return hay.includes(q);
     });

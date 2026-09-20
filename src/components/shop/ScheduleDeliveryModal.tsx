@@ -9,6 +9,8 @@ import { Calendar as CalendarIcon, Clock, Sparkles, Check, Trash2, PhoneCall, Lo
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { getOrderScheduleInfo } from "@/lib/utils";
+
 interface Order {
   id: string;
   order_number: string;
@@ -16,6 +18,7 @@ interface Order {
   customer_phone: string;
   scheduled_delivery_date?: string | null;
   internal_delivery_note?: string | null;
+  notes?: string | null;
 }
 
 interface ScheduleDeliveryModalProps {
@@ -67,8 +70,9 @@ export function ScheduleDeliveryModal({
 
   useEffect(() => {
     if (order) {
-      setSelectedDate(order.scheduled_delivery_date || "");
-      setNote(order.internal_delivery_note || "");
+      const schedule = getOrderScheduleInfo(order);
+      setSelectedDate(schedule.date || "");
+      setNote(schedule.note || "");
     }
   }, [order]);
 
