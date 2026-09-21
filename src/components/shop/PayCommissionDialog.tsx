@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, Wallet } from "lucide-react";
+import { Loader2, Wallet, ShieldCheck, MessageCircle, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { openPaymentWindow, redirectToPaymentUrl, closePaymentWindow } from "@/lib/paymentRedirect";
@@ -34,10 +34,12 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState<number>(effectiveBalance);
   const [loading, setLoading] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setAmount(effectiveBalance);
+      setLastError(null);
     }
   }, [open, effectiveBalance]);
 
@@ -46,6 +48,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
     if (!chargeAmount || chargeAmount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
 
     setLoading(true);
+    setLastError(null);
     const win = openPaymentWindow();
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -69,10 +72,59 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
         onOpenChange(false);
         return;
       }
-      throw new Error("Lien de paiement introuvable");
+      throw new Error(data?.error || "Lien de paiement GeniusPay introuvable");
     } catch (err) {
       closePaymentWindow(win);
-      toast({ title: "Erreur de paiement", description: err instanceof Error ? err.message : "Erreur lors de la redirection vers la page de paiement", variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Erreur lors de la redirection vers la page de paiement";
+      setLastError(msg);
+      toast({ title: "Erreur de paiement", description: msg, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleManualPayment = async () => {
+    const chargeAmount = fullOnly ? effectiveBalance : (amount || effectiveBalance);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non connecté. Veuillez vous connecter.");
+
+      // Check if user is founder/co_founder
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .in("role", ["founder", "co_founder"]);
+
+      const isFounder = !!roleData?.length;
+
+      if (isFounder) {
+        const confirmPay = window.confirm(`[ADMIN FONDATEUR]\nVoulez-vous valider manuellement ce règlement de ${fmt(chargeAmount)} FCFA et déverrouiller cette boutique immédiatement ?`);
+        if (!confirmPay) return;
+
+        setLoading(true);
+        const { error } = await supabase.rpc("apply_commission_payment", {
+          p_shop_id: shopId,
+          p_amount: chargeAmount,
+          p_transaction_reference: `MANUAL-DIRECT-${Date.now()}`,
+          p_created_by: session.user.id,
+          p_payment_method: "cash_direct",
+          p_notes: "Validation manuelle directe par le fondateur",
+        });
+
+        if (error) throw error;
+        toast({ title: "Paiement manuel validé !", description: "La boutique a été créditée et réactivée immédiatement." });
+        onOpenChange(false);
+        window.location.reload();
+        return;
+      }
+
+      // For regular merchants: open WhatsApp support for direct payment confirmation
+      const msg = encodeURIComponent(`Bonjour Support Ecomfy, je souhaite effectuer un règlement manuel / direct de ma commission de ${fmt(chargeAmount)} FCFA pour ma boutique (ID: ${shopId}).`);
+      window.open(`https://wa.me/2250701020304?text=${msg}`, "_blank");
+      toast({ title: "Contact Support WhatsApp", description: "Veuillez transmettre votre confirmation de dépôt direct à l'assistance Ecomfy." });
+    } catch (err) {
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Erreur lors du traitement manuel", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -92,6 +144,27 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
         </DialogHeader>
 
         <div className="space-y-4">
+          {lastError && (
+            <div className="p-3.5 rounded-xl border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs space-y-2">
+              <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                <span>Information réseau de paiement</span>
+              </div>
+              <p>{lastError}</p>
+              <div className="pt-1 flex items-center gap-2">
+                <a
+                  href="https://wa.me/2250701020304?text=Bonjour%20Ecomfy,%20la%20passerelle%20en%20ligne%20est%20en%20maintenance.%20Je%20souhaite%20régler%20directement."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 hover:underline text-xs"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Contacter le Support WhatsApp
+                </a>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label className="text-sm font-semibold">Mode de paiement préféré</Label>
             <div className="grid grid-cols-2 gap-2 mt-2 sm:grid-cols-3">
@@ -161,10 +234,23 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
             )}
           </div>
 
-          <Button onClick={submit} disabled={loading || !provider} className="w-full gap-2" size="lg">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-            {loading ? "Redirection..." : `Payer ${fmt(fullOnly ? Math.round(effectiveBalance) : amount)} FCFA`}
-          </Button>
+          <div className="space-y-2 pt-1">
+            <Button onClick={submit} disabled={loading || !provider} className="w-full gap-2" size="lg">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+              {loading ? "Redirection..." : `Payer ${fmt(fullOnly ? Math.round(effectiveBalance) : amount)} FCFA en ligne`}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleManualPayment}
+              disabled={loading}
+              className="w-full text-xs font-bold border-amber-500/50 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 flex items-center justify-center gap-1.5"
+            >
+              <ShieldCheck className="h-4 w-4 text-amber-600" />
+              <span>Paiement Manuel / Validation Directe Admin</span>
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

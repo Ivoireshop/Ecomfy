@@ -63,6 +63,53 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
     }
   };
 
+  const executeManualPayment = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non connecté. Veuillez vous connecter.");
+
+      // Check if user is founder/co_founder
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .in("role", ["founder", "co_founder"]);
+
+      const isFounder = !!roleData?.length;
+
+      if (isFounder) {
+        const confirmPay = window.confirm(`[ADMIN FONDATEUR]\nVoulez-vous valider manuellement ce règlement de ${amountDue.toLocaleString("fr-FR")} FCFA et déverrouiller cette boutique immédiatement ?`);
+        if (!confirmPay) return;
+
+        setSubmittingPayment(true);
+        const { error } = await supabase.rpc("apply_commission_payment", {
+          p_shop_id: shopId,
+          p_amount: amountDue,
+          p_transaction_reference: `MANUAL-DIRECT-${Date.now()}`,
+          p_created_by: session.user.id,
+          p_payment_method: "cash_direct",
+          p_notes: "Validation manuelle directe par le fondateur",
+        });
+
+        if (error) throw error;
+        toast.success("Paiement manuel validé !", { description: "La boutique a été réactivée immédiatement." });
+        onOpenChange(false);
+        refreshBilling();
+        window.location.reload();
+        return;
+      }
+
+      // Merchant fallback: open WhatsApp contact
+      const msg = encodeURIComponent(`Bonjour Support Ecomfy, je souhaite effectuer un règlement manuel / direct de ma commission de ${amountDue.toLocaleString("fr-FR")} FCFA pour ma boutique (ID: ${shopId}).`);
+      window.open(`https://wa.me/2250701020304?text=${msg}`, "_blank");
+      toast.info("Contact Support WhatsApp", { description: "Transmettez votre confirmation de dépôt direct à l'assistance Ecomfy." });
+    } catch (e: any) {
+      toast.error("Erreur", { description: e?.message || "Erreur lors du traitement manuel" });
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-slate-900 border-2 border-emerald-500/50 text-white shadow-2xl">
@@ -130,19 +177,11 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto text-xs border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white"
-          >
-            Annuler
-          </Button>
-
+        <DialogFooter className="flex-col gap-2 pt-2">
           <Button
             onClick={executePayment}
             disabled={submittingPayment || processingPayment}
-            className="w-full sm:w-auto font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm py-5 shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2"
+            className="w-full font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm py-5 shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2"
           >
             {submittingPayment || processingPayment ? (
               <>
@@ -152,9 +191,26 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
             ) : (
               <>
                 <ShieldCheck className="w-4 h-4" />
-                <span>CONFIRMER LE PAIEMENT ({amountDue.toLocaleString("fr-FR")} FCFA)</span>
+                <span>PAYER EN LIGNE ({amountDue.toLocaleString("fr-FR")} FCFA)</span>
               </>
             )}
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={executeManualPayment}
+            disabled={submittingPayment || processingPayment}
+            className="w-full text-xs font-bold border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+          >
+            ⚡ Règlement Manuel / Validation Directe Admin
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="w-full text-xs text-slate-400 hover:text-white"
+          >
+            Annuler
           </Button>
         </DialogFooter>
       </DialogContent>
