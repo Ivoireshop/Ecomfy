@@ -121,7 +121,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
 
       // For regular merchants: open WhatsApp support for direct payment confirmation
       const msg = encodeURIComponent(`Bonjour Support Ecomfy, je souhaite effectuer un règlement manuel / direct de ma commission de ${fmt(chargeAmount)} FCFA pour ma boutique (ID: ${shopId}).`);
-      window.open(`https://wa.me/2250701020304?text=${msg}`, "_blank");
+      window.open(`https://wa.me/2250758152761?text=${msg}`, "_blank");
       toast({ title: "Contact Support WhatsApp", description: "Veuillez transmettre votre confirmation de dépôt direct à l'assistance Ecomfy." });
     } catch (err) {
       toast({ title: "Erreur", description: err instanceof Error ? err.message : "Erreur lors du traitement manuel", variant: "destructive" });
@@ -153,7 +153,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
               <p>{lastError}</p>
               <div className="pt-1 flex items-center gap-2">
                 <a
-                  href="https://wa.me/2250701020304?text=Bonjour%20Ecomfy,%20la%20passerelle%20en%20ligne%20est%20en%20maintenance.%20Je%20souhaite%20régler%20directement."
+                  href="https://wa.me/2250758152761?text=Bonjour%20Ecomfy,%20la%20passerelle%20en%20ligne%20est%20en%20maintenance.%20Je%20souhaite%20régler%20directement."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 hover:underline text-xs"

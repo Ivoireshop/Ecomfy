@@ -101,7 +101,7 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
 
       // Merchant fallback: open WhatsApp contact
       const msg = encodeURIComponent(`Bonjour Support Ecomfy, je souhaite effectuer un règlement manuel / direct de ma commission de ${amountDue.toLocaleString("fr-FR")} FCFA pour ma boutique (ID: ${shopId}).`);
-      window.open(`https://wa.me/2250701020304?text=${msg}`, "_blank");
+      window.open(`https://wa.me/2250758152761?text=${msg}`, "_blank");
       toast.info("Contact Support WhatsApp", { description: "Transmettez votre confirmation de dépôt direct à l'assistance Ecomfy." });
     } catch (e: any) {
       toast.error("Erreur", { description: e?.message || "Erreur lors du traitement manuel" });
