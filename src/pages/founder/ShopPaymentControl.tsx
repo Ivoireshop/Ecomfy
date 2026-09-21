@@ -66,6 +66,27 @@ export default function ShopPaymentControl() {
     void load();
   };
 
+  const manualPayment = async (shop: any) => {
+    const defaultAmount = Math.round(Number(shop.commission_balance_due) || 12000);
+    const raw = window.prompt(`Saisir le montant encaissé manuellement pour "${shop.business_name}" (FCFA) :`, String(defaultAmount));
+    if (!raw) return;
+    const amount = Math.max(1, parseInt(raw, 10) || defaultAmount);
+    setBusyId(shop.id);
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.rpc("apply_commission_payment", {
+      p_shop_id: shop.id,
+      p_amount: amount,
+      p_transaction_reference: `MANUAL-${Date.now()}`,
+      p_created_by: userData.user?.id || shop.user_id,
+      p_payment_method: "cash_direct",
+      p_notes: "Règlement manuel admin enregistré par le fondateur (Secours GeniusPay)",
+    });
+    setBusyId(null);
+    if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    toast({ title: `Paiement manuel de ${fmt(amount)} FCFA enregistré !` });
+    void load();
+  };
+
   const filtered = rows.filter((r) => {
     const info = computeShopPaymentInfo(r);
     if (tab === "pending" && info.status !== "payment_pending") return false;
@@ -142,10 +163,13 @@ export default function ShopPaymentControl() {
                         <p className="text-xs text-muted-foreground">Échéance : {formatRemaining(info.remainingMs)}</p>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button size="sm" variant="outline" onClick={() => navigate(`/shop-editor/${shop.id}`)}>Voir</Button>
                       <Button size="sm" variant="outline" onClick={() => grantExtra(shop.id)} disabled={busyId === shop.id}>
                         <CalendarClock className="h-4 w-4 mr-1" /> Délai +
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => manualPayment(shop)} disabled={busyId === shop.id}>
+                        Paiement Manuel
                       </Button>
                       <Button size="sm" onClick={() => reset(shop.id)} disabled={busyId === shop.id}>
                         {busyId === shop.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Réactiver"}
