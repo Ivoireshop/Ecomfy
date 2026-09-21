@@ -142,7 +142,7 @@ export const BillingThresholdSection: React.FC<BillingThresholdSectionProps> = (
 
                 <div className="text-right w-full sm:w-auto">
                   <div className="text-2xl font-black text-primary font-mono">
-                    12 000 FCFA
+                    {amountDue > 0 ? amountDue.toLocaleString("fr-FR") : "12 000"} FCFA
                   </div>
                   {invoiceNumber && (
                     <span className="text-[11px] text-muted-foreground font-mono block">
@@ -153,7 +153,7 @@ export const BillingThresholdSection: React.FC<BillingThresholdSectionProps> = (
                     onClick={() => setPaymentModalOpen(true)}
                     className="mt-2 w-full sm:w-auto font-black px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg"
                   >
-                    <CreditCard className="w-4 h-4 mr-2" /> PAYER 12 000 FCFA
+                    <CreditCard className="w-4 h-4 mr-2" /> PAYER {amountDue > 0 ? amountDue.toLocaleString("fr-FR") : "12 000"} FCFA
                   </Button>
                 </div>
               </div>

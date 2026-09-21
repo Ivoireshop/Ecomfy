@@ -1,3 +1,6 @@
+// @ts-nocheck
+declare const Deno: any;
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
@@ -173,14 +176,14 @@ serve(async (req) => {
     let validatedData;
     try {
       validatedData = PaymentSchema.parse(requestBody);
-    } catch (e) {
+    } catch (e: any) {
       if (e instanceof z.ZodError) {
         console.error("Validation error:", e.errors);
         return new Response(
           JSON.stringify({ 
             success: false,
             error: "Données de paiement invalides",
-            details: e.errors.map(err => ({
+            details: e.errors.map((err: any) => ({
               field: err.path.join("."),
               message: err.message
             }))
@@ -539,21 +542,27 @@ serve(async (req) => {
 
       const json = await resp.json().catch(() => ({}));
       if (!resp.ok || json?.success === false) {
-        const errMsg = json?.error?.message || json?.message || `HTTP ${resp.status}`;
+        const is504 = resp.status === 504 || json?.status === 504;
+        const errMsg = is504
+          ? "Le serveur du fournisseur de paiement Mobile Money est temporairement surchargé (Erreur 504 Timeout). Veuillez réinstaller dans 2 minutes."
+          : json?.error?.message || json?.message || `HTTP ${resp.status}`;
         console.error("GeniusPay API error:", resp.status, json);
         await supabase.from("payments").update({
           status: "failed",
           metadata: { ...metadata, gateway_error: errMsg },
         }).eq("id", pendingPaymentId);
         return new Response(
-          JSON.stringify({ success: false, error: `Erreur passerelle de paiement: ${errMsg}` }),
+          JSON.stringify({ success: false, error: errMsg }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       paymentData = json.data || json;
       console.log("GeniusPay response:", { reference: paymentData?.reference, status: paymentData?.status });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
+      const msg = isAbort
+        ? "Le service de paiement Mobile Money n'a pas répondu à temps (Timeout 504). Veuillez réessayer dans 2 minutes."
+        : err instanceof Error ? err.message : String(err);
       console.error("GeniusPay request failed:", msg);
       await supabase.from("payments").update({
         status: "failed",
@@ -562,7 +571,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Le service de paiement est temporairement indisponible. Veuillez réessayer."
+          error: isAbort
+            ? "Le serveur de paiement est temporairement surchargé (Timeout 504). Veuillez réinstruire votre paiement dans 2 minutes."
+            : "Le service de paiement est temporairement indisponible. Veuillez réinstruire votre paiement."
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

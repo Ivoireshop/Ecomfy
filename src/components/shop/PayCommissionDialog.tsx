@@ -29,7 +29,7 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Mat
 
 export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fullOnly = false }: PayCommissionDialogProps) {
   const { toast } = useToast();
-  const effectiveBalance = Math.max(12000, Number(balanceDue) || 12000);
+  const effectiveBalance = Math.max(100, Number(balanceDue) || 12000);
   const [provider, setProvider] = useState("wave");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState<number>(effectiveBalance);

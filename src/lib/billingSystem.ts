@@ -127,6 +127,18 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
 
     const isPaymentDue = ordersCount >= BILLING_CONFIG.THRESHOLD_ORDERS || isGracePeriod || isRestricted;
 
+    // Calculate real dynamic total balance due (e.g. 15 000, 18 000, 25 000 FCFA if orders grew during grace period)
+    const storedBalanceDue = Number(updatedShop?.commission_balance_due || 0);
+    const activeInvoiceAmount = Number(activeInvoice?.amount || 0);
+    const calculatedAccrued = ordersCount * 50; // 50 FCFA per order fallback
+
+    const realAmountDue = Math.max(
+      BILLING_CONFIG.BILLING_AMOUNT,
+      storedBalanceDue,
+      activeInvoiceAmount,
+      calculatedAccrued
+    );
+
     return {
       status: isRestricted ? "STORE_RESTRICTED" : isGracePeriod ? "GRACE_PERIOD" : rawStatus,
       isRestricted,
@@ -134,7 +146,7 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       isPaymentDue,
       ordersCount,
       threshold: BILLING_CONFIG.THRESHOLD_ORDERS,
-      amountDue: isPaymentDue ? BILLING_CONFIG.BILLING_AMOUNT : 0,
+      amountDue: isPaymentDue ? realAmountDue : (storedBalanceDue > 0 ? storedBalanceDue : 0),
       currency: BILLING_CONFIG.CURRENCY,
       dueDate,
       remainingMs,

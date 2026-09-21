@@ -2,11 +2,12 @@ import React from "react";
 import { Lock, CreditCard, ShieldAlert, ArrowRight, Eye, Package, Settings, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-
+import { useBillingSystem } from "@/hooks/useBillingSystem";
 import { PayCommissionDialog } from "./PayCommissionDialog";
 
 interface StoreRestrictedLockScreenProps {
   shopId?: string | null;
+  balanceDue?: number;
   title?: string;
   description?: string;
   invoiceNumber?: string | null;
@@ -15,8 +16,11 @@ interface StoreRestrictedLockScreenProps {
   isRestricted?: boolean;
 }
 
+const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
+
 export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps> = ({
   shopId,
+  balanceDue,
   title = "Gestion de boutique suspendue",
   description = "Votre boutique continue de recevoir des commandes, mais l'accès aux données clients et la modification des produits et paramètres sont temporairement suspendus.",
   invoiceNumber,
@@ -26,10 +30,14 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
 }) => {
   const navigate = useNavigate();
   const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
+  const { billingInfo } = useBillingSystem(shopId);
 
   if (!isRestricted) {
     return <>{children}</>;
   }
+
+  const effectiveDue = Math.max(12000, Number(balanceDue) || Number(billingInfo?.amountDue) || 12000);
+  const displayInvoiceNumber = invoiceNumber || billingInfo?.invoiceNumber;
 
   const handlePay = () => {
     if (onPayClick) {
@@ -69,14 +77,14 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
         {/* Amount Due Box */}
         <div className="p-4 rounded-2xl bg-slate-950/80 border border-red-500/30 text-center space-y-1 max-w-sm mx-auto shadow-inner">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-            Montant dû pour réactivation instantanée
+            Montant total dû pour réactivation instantanée
           </span>
           <div className="text-3xl font-black text-red-400 font-mono tracking-tight">
-            12 000 FCFA
+            {fmt(effectiveDue)} FCFA
           </div>
-          {invoiceNumber && (
+          {displayInvoiceNumber && (
             <span className="text-[11px] text-slate-400 block font-mono">
-              Facture n° {invoiceNumber}
+              Facture n° {displayInvoiceNumber}
             </span>
           )}
         </div>
@@ -110,14 +118,14 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
             className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-500 hover:to-rose-500 text-white font-black text-base shadow-xl shadow-red-600/40 border border-red-400 flex items-center justify-center gap-2 group transition-all"
           >
             <CreditCard className="w-5 h-5" />
-            <span>PAYER 12 000 FCFA ET DÉVERROUILLER</span>
+            <span>PAYER {fmt(effectiveDue)} FCFA ET DÉVERROUILLER</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
 
       </div>
 
-      {shopId && <PayCommissionDialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} balanceDue={12000} fullOnly={true} />}
+      {shopId && <PayCommissionDialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen} shopId={shopId} balanceDue={effectiveDue} fullOnly={true} />}
     </div>
   );
 };
