@@ -456,18 +456,25 @@ serve(async (req) => {
       .eq('id', user_id)
       .single();
 
-    const customer: Record<string, string> = {};
-    if (userProfile?.full_name) customer.name = userProfile.full_name;
-    if (userProfile?.email) customer.email = userProfile.email;
+    const customerName = userProfile?.full_name?.trim() || "Marchand Ecomfy";
+    const customerEmail = userProfile?.email?.trim() || "contact@ecomfy.cloud";
+    const customerObj: Record<string, string> = {
+      name: customerName,
+      email: customerEmail,
+    };
+
     const customerPhone = phone || userProfile?.phone;
     if (customerPhone) {
       let v = String(customerPhone).trim().replace(/[^\d+]/g, "");
       if (!v.startsWith("+")) {
         if (v.startsWith("225")) v = `+${v}`;
         else if (v.length === 10 && v.startsWith("0")) v = `+225${v.slice(1)}`;
+        else if (v.length === 10 || v.length === 8) v = `+225${v}`;
         else v = `+225${v}`;
       }
-      customer.phone = v;
+      if (v.replace(/\D/g, "").length >= 10) {
+        customerObj.phone = v;
+      }
     }
 
     // Metadata embedded in the payment for the webhook to credit the user
@@ -506,12 +513,12 @@ serve(async (req) => {
     }
     pendingPaymentId = pendingPayment.id;
 
-    // Hosted checkout (no payment_method) -> client picks Wave/Orange/MTN/Moov/Card
+    // Hosted checkout -> client picks Wave/Orange/MTN/Moov/Card on GeniusPay
     const geniusPayload: Record<string, unknown> = {
       amount: finalAmount,
       currency: "XOF",
       description,
-      customer,
+      customer: customerObj,
       metadata,
       success_url: payment_type === "shop_activation" && shop_id
         ? `${baseReturnUrl}/payment-success?ref=${orderId}&shop_id=${shop_id}&type=shop_activation`
@@ -521,12 +528,12 @@ serve(async (req) => {
       error_url: `${baseReturnUrl}/subscription?payment=failed`,
     };
 
-    console.log("Calling GeniusPay:", { ...geniusPayload, customer: { ...customer, phone: customer.phone ? `${customer.phone.slice(0, 4)}****` : undefined } });
+    console.log("Calling GeniusPay:", { ...geniusPayload, customer: { ...customerObj, phone: customerObj.phone ? `${customerObj.phone.slice(0, 4)}****` : undefined } });
 
     let paymentData: any = null;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       const resp = await fetch("https://pay.genius.ci/api/v1/merchant/payments", {
         method: "POST",
@@ -541,11 +548,23 @@ serve(async (req) => {
       clearTimeout(timeoutId);
 
       const json = await resp.json().catch(() => ({}));
-      if (!resp.ok || json?.success === false) {
+      if (!resp.ok || json?.success === false || json?.status === "error") {
         const is504 = resp.status === 504 || json?.status === 504;
-        const errMsg = is504
-          ? "Le serveur du fournisseur de paiement Mobile Money est temporairement surchargé (Erreur 504 Timeout). Veuillez réinstaller dans 2 minutes."
-          : json?.error?.message || json?.message || `HTTP ${resp.status}`;
+        let errMsg = "Erreur du serveur de paiement GeniusPay";
+        if (is504) {
+          errMsg = "Le serveur GeniusPay est temporairement surchargé (Erreur 504 Timeout). Veuillez réinstruire votre paiement dans 2 minutes.";
+        } else if (typeof json?.error === "string") {
+          errMsg = json.error;
+        } else if (json?.error?.message) {
+          errMsg = json.error.message;
+        } else if (json?.message) {
+          errMsg = json.message;
+        } else if (json?.errors && typeof json.errors === "object") {
+          errMsg = Object.values(json.errors).flat().join(", ");
+        } else {
+          errMsg = `GeniusPay HTTP ${resp.status}`;
+        }
+
         console.error("GeniusPay API error:", resp.status, json);
         await supabase.from("payments").update({
           status: "failed",
@@ -556,12 +575,12 @@ serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      paymentData = json.data || json;
+      paymentData = json.data || json.result || json;
       console.log("GeniusPay response:", { reference: paymentData?.reference, status: paymentData?.status });
     } catch (err) {
       const isAbort = err instanceof Error && (err.name === "AbortError" || err.message.includes("aborted"));
       const msg = isAbort
-        ? "Le service de paiement Mobile Money n'a pas répondu à temps (Timeout 504). Veuillez réessayer dans 2 minutes."
+        ? "Le service de paiement GeniusPay n'a pas répondu à temps (Timeout 504). Veuillez réessayer dans 2 minutes."
         : err instanceof Error ? err.message : String(err);
       console.error("GeniusPay request failed:", msg);
       await supabase.from("payments").update({
@@ -572,14 +591,32 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           error: isAbort
-            ? "Le serveur de paiement est temporairement surchargé (Timeout 504). Veuillez réinstruire votre paiement dans 2 minutes."
-            : "Le service de paiement est temporairement indisponible. Veuillez réinstruire votre paiement."
+            ? "Le serveur GeniusPay est temporairement surchargé (Timeout 504). Veuillez réinstruire votre paiement dans 2 minutes."
+            : "Le service de paiement GeniusPay est temporairement indisponible. Veuillez réinstruire votre paiement."
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const gatewayReference = paymentData.reference || orderId;
+    const gatewayReference = paymentData.reference || paymentData.id || orderId;
+    const checkoutUrl =
+      paymentData?.checkout_url ||
+      paymentData?.payment_url ||
+      paymentData?.redirect_url ||
+      paymentData?.url ||
+      paymentData?.link;
+
+    if (!checkoutUrl) {
+      console.error("GeniusPay response missing checkout URL:", paymentData);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "GeniusPay n'a pas retourné de lien de redirection de paiement valide. Veuillez réessayer.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { error: paymentUpdateError } = await supabase.from("payments").update({
       transaction_id: gatewayReference,
       metadata: { ...metadata, order_id: orderId, gateway_reference: gatewayReference },
@@ -612,8 +649,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        payment_url: paymentData.checkout_url || paymentData.payment_url,
-        checkout_url: paymentData.checkout_url || paymentData.payment_url,
+        payment_url: checkoutUrl,
+        checkout_url: checkoutUrl,
         transaction_id: gatewayReference,
         reference: gatewayReference,
       }),

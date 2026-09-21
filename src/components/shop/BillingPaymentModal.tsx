@@ -25,7 +25,7 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
   if (!shopId) return null;
 
   const invoiceNumber = billingInfo?.invoiceNumber || "BILL-ECOMFY-000001";
-  const amountDue = Math.max(12000, billingInfo?.amountDue || 12000);
+  const amountDue = Math.max(100, Number(billingInfo?.amountDue) || 12000);
 
   const executePayment = async () => {
     setSubmittingPayment(true);
@@ -54,10 +54,10 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
         onOpenChange(false);
         return;
       }
-      throw new Error("Lien de paiement introuvable");
+      throw new Error(data?.error || "Lien de paiement GeniusPay introuvable");
     } catch (e: any) {
       closePaymentWindow(win);
-      toast.error("Erreur de paiement", { description: e?.message || "Une erreur est survenue lors de la redirection vers le paiement." });
+      toast.error("Erreur de paiement", { description: e?.message || "Une erreur est survenue lors de la redirection vers GeniusPay." });
     } finally {
       setSubmittingPayment(false);
     }
@@ -68,10 +68,10 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
       <DialogContent className="max-w-md bg-slate-900 border-2 border-emerald-500/50 text-white shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white">
-            <CreditCard className="w-5 h-5 text-emerald-400" /> Règlement Facture 12 000 FCFA
+            <CreditCard className="w-5 h-5 text-emerald-400" /> Règlement Facture {amountDue.toLocaleString("fr-FR")} FCFA
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-300">
-            Réglez votre facture de seuil Ecomfy (240 commandes) pour déverrouiller et réactiver automatiquement l'accès complet à votre boutique.
+            Réglez votre facture de commission Ecomfy pour déverrouiller et réactiver automatiquement l'accès complet à votre boutique.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,7 +152,7 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
             ) : (
               <>
                 <ShieldCheck className="w-4 h-4" />
-                <span>CONFIRMER LE PAIEMENT (12 000 FCFA)</span>
+                <span>CONFIRMER LE PAIEMENT ({amountDue.toLocaleString("fr-FR")} FCFA)</span>
               </>
             )}
           </Button>
