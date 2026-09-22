@@ -198,6 +198,90 @@ const FounderDashboard = () => {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [shopSearchQuery, setShopSearchQuery] = useState("");
 
+  // Manual Shop Activation Modal State
+  const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
+  const [manualShopInput, setManualShopInput] = useState("");
+  const [manualAmount, setManualAmount] = useState(12000);
+  const [manualPaymentType, setManualPaymentType] = useState<"commission_payment" | "shop_activation">("commission_payment");
+  const [manualMethod, setManualMethod] = useState("wave_direct");
+  const [manualNotes, setManualNotes] = useState("");
+  const [isSubmittingManualPay, setIsSubmittingManualPay] = useState(false);
+
+  const handleExecuteManualPayment = async () => {
+    const query = manualShopInput.trim();
+    if (!query) {
+      toast({ title: "Champ requis", description: "Saisissez l'ID, le slug ou le nom de la boutique.", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmittingManualPay(true);
+    try {
+      let targetShop: { id: string; business_name: string; user_id: string } | null = null;
+      
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query);
+      if (isUuid) {
+        const { data } = await supabase.from("shops").select("id, business_name, user_id").eq("id", query).maybeSingle();
+        targetShop = data;
+      }
+
+      if (!targetShop) {
+        const { data } = await supabase
+          .from("shops")
+          .select("id, business_name, user_id")
+          .or(`slug.eq.${query},business_name.ilike.%${query}%`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        targetShop = data;
+      }
+
+      if (!targetShop) {
+        toast({ title: "Boutique introuvable", description: `Aucune boutique trouvée pour "${query}". Vérifiez l'ID ou le nom.`, variant: "destructive" });
+        setIsSubmittingManualPay(false);
+        return;
+      }
+
+      const ref = `MANUAL-${manualMethod.toUpperCase()}-${Date.now()}`;
+      const currentUserId = session?.user?.id || targetShop.user_id;
+
+      if (manualPaymentType === "shop_activation") {
+        const { error: actErr } = await supabase.rpc("apply_shop_activation", {
+          p_shop_id: targetShop.id,
+          p_user_id: targetShop.user_id,
+          p_amount: manualAmount,
+          p_transaction_reference: ref,
+          p_payment_method: manualMethod,
+        });
+        if (actErr) throw actErr;
+      } else {
+        const { error: comErr } = await supabase.rpc("apply_commission_payment", {
+          p_shop_id: targetShop.id,
+          p_amount: manualAmount,
+          p_transaction_reference: ref,
+          p_created_by: currentUserId,
+          p_payment_method: manualMethod,
+          p_notes: manualNotes || `Règlement manuel encaisse via ${manualMethod}`,
+        });
+        if (comErr) throw comErr;
+      }
+
+      toast({
+        title: "Paiement Validé & Boutique Réactivée !",
+        description: `Le règlement de ${manualAmount.toLocaleString()} FCFA pour "${targetShop.business_name}" a été enregistré et la boutique est réactivée.`,
+      });
+
+      setIsManualPaymentModalOpen(false);
+      setManualShopInput("");
+      setManualNotes("");
+      loadDashboardData();
+    } catch (err: any) {
+      console.error("Manual payment execution failed:", err);
+      toast({ title: "Erreur de validation", description: err?.message || "Impossible de réactiver la boutique.", variant: "destructive" });
+    } finally {
+      setIsSubmittingManualPay(false);
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -661,6 +745,15 @@ const FounderDashboard = () => {
             </div>
 
             <Button
+              size="sm"
+              onClick={() => setIsManualPaymentModalOpen(true)}
+              className="rounded-full bg-gradient-to-r from-[#0E7C66] to-emerald-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-bold gap-2 shadow-lg cursor-pointer shrink-0"
+            >
+              <Zap className="h-3.5 w-3.5 text-amber-300" />
+              <span>⚡ Activer par ID Boutique</span>
+            </Button>
+
+            <Button
               variant="outline"
               size="sm"
               onClick={() => { setAuditModalTab("revenue"); setIsAuditModalOpen(true); }}
@@ -1082,10 +1175,23 @@ const FounderDashboard = () => {
                         )}
                       </div>
 
-                      <div className="text-left sm:text-right shrink-0">
+                      <div className="text-left sm:text-right shrink-0 space-y-1">
                         <p className="text-xs font-bold text-white">{(shop.total_orders || 0)} commandes</p>
                         <p className="text-[11px] text-emerald-400 font-semibold">{(shop.total_sales || 0).toLocaleString()} FCFA reçus</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Créée le {new Date(shop.created_at).toLocaleDateString("fr-FR")}</p>
+                        <p className="text-[10px] text-slate-500">Créée le {new Date(shop.created_at).toLocaleDateString("fr-FR")}</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setManualShopInput(shop.id);
+                            setManualAmount(12000);
+                            setIsManualPaymentModalOpen(true);
+                          }}
+                          className="mt-1 h-7 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-[11px] font-bold gap-1 rounded-xl"
+                        >
+                          <Zap className="h-3 w-3 text-amber-300" />
+                          <span>⚡ Valider Paiement</span>
+                        </Button>
                       </div>
                     </div>
                   ))
@@ -1229,6 +1335,125 @@ const FounderDashboard = () => {
         initialTab={auditModalTab}
         onRefresh={loadDashboardData}
       />
+
+      {/* Modal de Validation Manuelle / Activation par ID */}
+      <Dialog open={isManualPaymentModalOpen} onOpenChange={setIsManualPaymentModalOpen}>
+        <DialogContent className="max-w-md bg-slate-900 border-2 border-emerald-500/50 text-white shadow-2xl rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-white">
+              <Zap className="w-5 h-5 text-emerald-400" /> Validation & Réactivation Manuelle Boutique
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-300">
+              Collez l'ID de la boutique (ou son nom/slug) transmis par le vendeur après avoir reçu son paiement direct par Wave ou Orange Money.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                ID de la Boutique (ou Slug / Nom)
+              </Label>
+              <Input
+                value={manualShopInput}
+                onChange={(e) => setManualShopInput(e.target.value)}
+                placeholder="Ex: e8a7192f-1234... ou ma-boutique"
+                className="mt-1 font-mono text-xs bg-slate-950 border-slate-800 text-white placeholder:text-slate-600"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Copiez l'ID fourni par le marchand dans WhatsApp et collez-le ici.
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Type de Règlement
+              </Label>
+              <Select
+                value={manualPaymentType}
+                onValueChange={(val: any) => setManualPaymentType(val)}
+              >
+                <SelectTrigger className="mt-1 bg-slate-950 border-slate-800 text-xs text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
+                  <SelectItem value="commission_payment">Règlement Facture / Commission (ex: 12 000 FCFA)</SelectItem>
+                  <SelectItem value="shop_activation">Frais d'Activation Boutique (1 300 FCFA)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Montant Réglé (FCFA)
+              </Label>
+              <Input
+                type="number"
+                value={manualAmount}
+                onChange={(e) => setManualAmount(Number(e.target.value))}
+                className="mt-1 font-mono text-sm bg-slate-950 border-slate-800 text-emerald-400 font-bold"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Canal de Réception du Paiement
+              </Label>
+              <Select value={manualMethod} onValueChange={setManualMethod}>
+                <SelectTrigger className="mt-1 bg-slate-950 border-slate-800 text-xs text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
+                  <SelectItem value="wave_direct">Wave Direct (Marchand)</SelectItem>
+                  <SelectItem value="orange_direct">Orange Money Direct</SelectItem>
+                  <SelectItem value="mtn_direct">MTN Mobile Money Direct</SelectItem>
+                  <SelectItem value="moov_direct">Moov Money Direct</SelectItem>
+                  <SelectItem value="cash_direct">Espèces / Encaissé direct</SelectItem>
+                  <SelectItem value="bank_transfer">Virement Bancaire</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Note / Référence (Facultatif)
+              </Label>
+              <Input
+                value={manualNotes}
+                onChange={(e) => setManualNotes(e.target.value)}
+                placeholder="Ex: Reçu par Wave sur 0758152761"
+                className="mt-1 text-xs bg-slate-950 border-slate-800 text-white"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsManualPaymentModalOpen(false)}
+              className="w-1/3 text-xs border-slate-700 bg-slate-950 text-slate-300"
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleExecuteManualPayment}
+              disabled={isSubmittingManualPay || !manualShopInput.trim()}
+              className="w-2/3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2"
+            >
+              {isSubmittingManualPay ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Validation...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>VALIDER & RÉACTIVER LA BOUTIQUE</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
