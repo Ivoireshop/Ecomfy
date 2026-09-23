@@ -264,6 +264,8 @@ const AppContent = () => {
               </ProtectedRoute>
             } 
           />
+          <Route path="/founder" element={<Navigate to="/founder-dashboard" replace />} />
+          <Route path="/admin" element={<Navigate to="/founder-dashboard" replace />} />
           <Route
             path="/corporate-governance"
             element={
