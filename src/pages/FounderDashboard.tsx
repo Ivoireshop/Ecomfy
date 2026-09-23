@@ -558,12 +558,12 @@ const FounderDashboard = () => {
   const loadRecentPayments = async () => {
     try {
       const metrics = await FinancialMetricsService.fetchFinancialMetrics("all");
-      const recents: RecentPayment[] = metrics.validatedTransactions.slice(0, 10).map(tx => ({
+      const recents: RecentPayment[] = (metrics?.validatedTransactions || []).slice(0, 10).map(tx => ({
         id: tx.id,
-        amount: tx.amount,
-        status: tx.status,
-        payment_method: tx.payment_method,
-        created_at: tx.created_at,
+        amount: tx.amount || 0,
+        status: tx.status || "completed",
+        payment_method: tx.payment_method || "Mobile Money",
+        created_at: tx.created_at || new Date().toISOString(),
         user_id: tx.user_id,
         user_email: tx.user_email || "Client",
         description: tx.description || "Paiement validé"
@@ -578,14 +578,14 @@ const FounderDashboard = () => {
     try {
       const points = await FinancialMetricsService.fetchChartData(timeRange as TimeRangeFilter);
       
-      const revData: ChartDataPoint[] = points.map(p => ({
+      const revData: ChartDataPoint[] = (points || []).map(p => ({
         date: p.date,
-        value: p.revenue
+        value: p.revenue || 0
       }));
 
-      const signupsData: ChartDataPoint[] = points.map(p => ({
+      const signupsData: ChartDataPoint[] = (points || []).map(p => ({
         date: p.date,
-        value: p.signups
+        value: p.signups || 0
       }));
 
       setRevenueChartData(revData);
@@ -593,7 +593,7 @@ const FounderDashboard = () => {
 
       const metrics = await FinancialMetricsService.fetchFinancialMetrics(timeRange as TimeRangeFilter);
       const methodCounts = new Map<string, number>();
-      metrics.validatedTransactions.forEach(tx => {
+      (metrics?.validatedTransactions || []).forEach(tx => {
         const m = tx.payment_method || "Mobile Money";
         methodCounts.set(m, (methodCounts.get(m) || 0) + 1);
       });
@@ -952,10 +952,10 @@ const FounderDashboard = () => {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                     <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 11 }} />
-                    <YAxis stroke="#64748b" tick={{ fontSize: 11 }} tickFormatter={(val) => `${val.toLocaleString()}`} />
+                    <YAxis stroke="#64748b" tick={{ fontSize: 11 }} tickFormatter={(val) => `${(Number(val) || 0).toLocaleString()}`} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "1rem", color: "#fff" }}
-                      formatter={(val: number) => [`${val.toLocaleString()} FCFA`, "Revenus"]}
+                      formatter={(val: any) => [`${(Number(val) || 0).toLocaleString()} FCFA`, "Revenus"]}
                     />
                     <Area 
                       type="monotone" 
