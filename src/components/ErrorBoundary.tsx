@@ -112,11 +112,11 @@ export class ErrorBoundary extends Component<Props, State> {
             </Button>
           </div>
 
-          {/* Technical Error Details strictly restricted to Local Dev mode only */}
-          {isDev && this.state.error && (
-            <details className="w-full max-w-lg text-left bg-slate-900/90 text-slate-200 rounded-3xl p-4 text-xs font-mono border border-amber-500/30 shadow-2xl backdrop-blur-md overflow-hidden">
+          {/* Technical Error Details */}
+          {this.state.error && (
+            <details className="w-full max-w-lg text-left bg-slate-900/90 text-slate-200 rounded-3xl p-4 text-xs font-mono border border-amber-500/30 shadow-2xl backdrop-blur-md overflow-hidden" open>
               <summary className="cursor-pointer font-bold text-amber-400 flex items-center justify-between">
-                <span>⚡ Mode Dev : Détails techniques ({this.state.error.name})</span>
+                <span>⚡ Détails techniques ({this.state.error.name})</span>
                 <ChevronDown className="h-4 w-4" />
               </summary>
               <div className="mt-3 space-y-2 whitespace-pre-wrap break-all text-[11px]">
