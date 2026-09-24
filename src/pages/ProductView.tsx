@@ -701,7 +701,8 @@ const ProductView = () => {
       }));
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems) as any;
       if (itemsError) console.error("[ProductView] order_items insert failed", itemsError);
-      trackEvent(shop, "Purchase", {
+      // Distinguer le tracking Meta: InitiateCheckout pour paiement en ligne, Purchase pour paiement à la livraison
+      const trackingPayload = {
         value: effectiveOrderCartTotal,
         order_id: order.order_number,
         contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
@@ -710,9 +711,10 @@ const ProductView = () => {
         phone: normalizedPhone,
         first_name: customerInfo.name,
         city: customerInfo.city,
-      });
-      // Si le moyen de paiement est Mobile Money / Ecomfy Pay, déceler l'initialisation du paiement sécurisé
+      };
+
       if (customerInfo.paymentMethod === "mobile_money") {
+        trackEvent(shop, "InitiateCheckout", trackingPayload);
         const payRes = await ecomfyPayApi.initiateCustomerPayment({
           shop_id: shop.id,
           product_id: product?.id,
@@ -730,6 +732,8 @@ const ProductView = () => {
           window.location.href = payRes.checkout_url;
           return;
         }
+      } else {
+        trackEvent(shop, "Purchase", trackingPayload);
       }
 
       setCart([]);

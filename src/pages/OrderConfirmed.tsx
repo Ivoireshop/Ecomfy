@@ -1,7 +1,10 @@
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Phone, MessageCircle, Home } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { initShopPixels, trackEvent } from "@/lib/tracking";
 
 interface OrderConfirmedState {
   shopName?: string;
@@ -12,6 +15,7 @@ interface OrderConfirmedState {
   whatsappNumber?: string;
   orderNumber?: string;
   total?: number;
+  isPaid?: boolean;
 }
 
 const DEFAULT_MESSAGE =
@@ -24,6 +28,32 @@ export default function OrderConfirmed() {
   const primary = state.primaryColor || "#2563eb";
   const message = state.message || DEFAULT_MESSAGE;
   const cleanPhone = (p?: string) => (p || "").replace(/[^0-9+]/g, "");
+  const trackedRef = useRef(false);
+
+  useEffect(() => {
+    if (trackedRef.current || !state.orderNumber || !state.shopSlug) return;
+    trackedRef.current = true;
+
+    (async () => {
+      try {
+        const { data: shop } = await supabase
+          .from("shops")
+          .select("id, tracking_enabled, facebook_pixels, tiktok_pixels, snapchat_pixels, ga4_measurement_id, google_analytics_ids")
+          .eq("slug", state.shopSlug)
+          .maybeSingle();
+
+        if (shop) {
+          initShopPixels(shop);
+          trackEvent(shop, "Purchase", {
+            value: state.total || 0,
+            order_id: state.orderNumber,
+          });
+        }
+      } catch (e) {
+        console.warn("[OrderConfirmed] tracking error", e);
+      }
+    })();
+  }, [state.orderNumber, state.shopSlug, state.total]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

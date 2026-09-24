@@ -87,7 +87,7 @@ const ShopView = () => {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const [customerInfo, setCustomerInfo] = useState({
-    name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money",
+    name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery",
   });
   const [cityError, setCityError] = useState("");
 
@@ -584,7 +584,7 @@ const ShopView = () => {
           });
         } catch (_) {}
       }
-      trackEvent(shop, "Purchase", {
+      const trackingPayload = {
         value: cartTotal,
         order_id: order.order_number,
         content_ids: cart.map((c) => c.product.id),
@@ -594,9 +594,15 @@ const ShopView = () => {
         phone: normalizedPhone,
         first_name: customerInfo.name,
         city: customerInfo.city,
-      });
+      };
+
+      if (customerInfo.paymentMethod === "mobile_money") {
+        trackEvent(shop, "InitiateCheckout", trackingPayload);
+      } else {
+        trackEvent(shop, "Purchase", trackingPayload);
+      }
       setCart([]);
-      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "mobile_money" });
+      setCustomerInfo({ name: "", phone: "", email: "", address: "", city: "", paymentMethod: "cash_on_delivery" });
       setCityError("");
       setCheckoutOpen(false);
       navigate("/order-confirmed", {

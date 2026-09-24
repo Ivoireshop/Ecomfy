@@ -224,9 +224,35 @@ serve(async (req) => {
       }
     }
 
-    // Only credit on success
-    if (event !== "payment.success" && status !== "completed" && status !== "paid") {
-      return ack({ success: true, ignored: true, event, status }, true);
+    // Helper: Envoi CAPI Meta Serveur lors d'un paiement de commande validé
+    const triggerServerSidePurchaseCapi = async (ordId: string, shpId: string) => {
+      try {
+        await supabase.from("orders").update({ status: "paid" }).or(`id.eq.${ordId},order_number.eq.${ordId}`);
+        await supabase.functions.invoke("track-conversion", {
+          body: {
+            shop_id: shpId,
+            event: "Purchase",
+            event_id: `ord_${String(ordId).replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+            event_source_url: "https://ecomfy.cloud/pay-webhook",
+            user_agent: "GeniusPay-Webhook/Server",
+            payload: {
+              value: amountPaid,
+              currency,
+              order_id: String(ordId),
+              email: metadata?.customer_email || metadata?.email,
+              phone: metadata?.customer_phone || metadata?.phone,
+              first_name: metadata?.customer_name || metadata?.name,
+            },
+          },
+        });
+        console.log("CAPI Purchase event triggered server-side for order:", ordId);
+      } catch (e) {
+        console.warn("triggerServerSidePurchaseCapi non-blocking error:", e);
+      }
+    };
+
+    if (isConfirmedPayment && (metadata?.order_id || metadata?.order_number) && metadata?.shop_id) {
+      void triggerServerSidePurchaseCapi(metadata.order_id || metadata.order_number, metadata.shop_id);
     }
 
     const userId = metadata?.user_id;
