@@ -4,6 +4,7 @@ declare const Deno: any;
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,7 +45,7 @@ const reconcilePendingShopActivation = async (
     if (!reference) continue;
 
     try {
-      const resp = await fetch(`https://pay.genius.ci/api/v1/merchant/payments/${reference}`, {
+      const resp = await fetch(`${GENIUSPAY_API_URL}/payments/${reference}`, {
         method: "GET",
         headers: { "X-API-Key": apiKey, "X-API-Secret": apiSecret },
       });
@@ -535,7 +536,7 @@ serve(async (req) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const resp = await fetch("https://pay.genius.ci/api/v1/merchant/payments", {
+      const resp = await fetch(`${GENIUSPAY_API_URL}/payments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

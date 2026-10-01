@@ -1,5 +1,5 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -173,6 +173,7 @@ export function AppSidebar() {
   const activeMainItems = [
     { title: "Accueil", url: "/dashboard", icon: Home },
     { title: "Boutique", url: "/shop-manager", icon: Store },
+    { title: "Gestion Stock 📦", url: "/inventory-advanced", icon: Boxes },
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Communauté", url: "/community", icon: Users },

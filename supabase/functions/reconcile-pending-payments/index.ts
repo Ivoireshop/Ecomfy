@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
+import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const resp = await fetch(`https://pay.genius.ci/api/v1/merchant/payments/${reference}`, {
+      const resp = await fetch(`${GENIUSPAY_API_URL}/payments/${reference}`, {
         method: "GET",
         headers: { "X-API-Key": apiKey, "X-API-Secret": apiSecret },
       });

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,7 +107,7 @@ serve(async (req) => {
           },
         };
 
-        const resp = await fetch("https://pay.genius.ci/api/v1/merchant/payouts", {
+        const resp = await fetch(`${GENIUSPAY_API_URL}/payouts`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
