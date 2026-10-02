@@ -48,6 +48,32 @@ export interface TrackPayload {
   last_name?: string;
   city?: string;
   country?: string;
+  fbp?: string;
+  fbc?: string;
+}
+
+function getCookie(name: string): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const match = document.cookie.match(new RegExp("(^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, "\\$1") + "=([^;]*)"));
+  return match ? decodeURIComponent(match[2]) : undefined;
+}
+
+function getFbc(): string | undefined {
+  const fbc = getCookie("_fbc");
+  if (fbc) return fbc;
+  if (typeof window === "undefined") return undefined;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fbclid = urlParams.get("fbclid");
+    if (fbclid) {
+      return `fb.1.${Date.now()}.${fbclid}`;
+    }
+  } catch { /* ignore */ }
+  return undefined;
+}
+
+function getFbp(): string | undefined {
+  return getCookie("_fbp");
 }
 
 const genEventId = (orderId?: string) =>
@@ -266,6 +292,9 @@ export async function trackEvent(
   }
 
   try {
+    const fbpVal = payload.fbp || getFbp();
+    const fbcVal = payload.fbc || getFbc();
+
     void supabase.functions.invoke("track-conversion", {
       body: {
         shop_id: shop.id,
@@ -273,7 +302,12 @@ export async function trackEvent(
         event_id: eventId,
         event_source_url: window.location.href,
         user_agent: navigator.userAgent,
-        payload: { ...payload, currency },
+        payload: {
+          ...payload,
+          currency,
+          ...(fbpVal ? { fbp: fbpVal } : {}),
+          ...(fbcVal ? { fbc: fbcVal } : {}),
+        },
       },
     });
   } catch (e) {

@@ -120,6 +120,8 @@ Deno.serve(async (req) => {
       if (hashedLn) userData.ln = [hashedLn];
       if (hashedCity) userData.ct = [hashedCity];
       if (hashedCountry) userData.country = [hashedCountry];
+      if (payload.fbp) userData.fbp = payload.fbp;
+      if (payload.fbc) userData.fbc = payload.fbc;
 
       const customData: Record<string, unknown> = {
         currency,

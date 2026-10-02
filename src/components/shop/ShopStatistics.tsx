@@ -7,6 +7,7 @@ import {
   Smartphone, Tablet, Globe, Clock, Target, Activity, Users, Filter, ArrowUpRight
 } from "lucide-react";
 import { TrafficGlobe } from "./TrafficGlobe";
+import { TrackingReconciliation } from "./TrackingReconciliation";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, BarChart, Bar, ComposedChart, Line
@@ -36,10 +37,11 @@ interface ShopStatisticsProps {
   products: Product[];
   primaryColor: string;
   monthlyGoal: number;
+  shopId?: string;
   visits?: { visited_at: string; product_id?: string | null; session_id?: string | null; visitor_country?: string | null; referrer?: string | null; device_type?: string | null; }[];
 }
 
-export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, visits = [] }: ShopStatisticsProps) {
+export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, shopId, visits = [] }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("30d");
 
@@ -735,6 +737,13 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, vi
           )}
         </Card>
       </div>
+
+      {/* Automatic Meta Tracking Reconciliation (Procédure 22 BIS) */}
+      {shopId && (
+        <div className="pt-6">
+          <TrackingReconciliation shopId={shopId} />
+        </div>
+      )}
 
     </div>
   );

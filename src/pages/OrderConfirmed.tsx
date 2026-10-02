@@ -32,7 +32,18 @@ export default function OrderConfirmed() {
 
   useEffect(() => {
     if (trackedRef.current || !state.orderNumber || !state.shopSlug) return;
+    
+    // Deduplication check via sessionStorage
+    const storageKey = `vp_tracked_purchase_${state.orderNumber}`;
+    if (typeof window !== "undefined" && sessionStorage.getItem(storageKey)) {
+      trackedRef.current = true;
+      return;
+    }
+
     trackedRef.current = true;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(storageKey, "1");
+    }
 
     (async () => {
       try {

@@ -228,24 +228,27 @@ serve(async (req) => {
     const triggerServerSidePurchaseCapi = async (ordId: string, shpId: string) => {
       try {
         await supabase.from("orders").update({ status: "paid" }).or(`id.eq.${ordId},order_number.eq.${ordId}`);
+        const effectiveOrderId = metadata?.order_number || ordId;
         await supabase.functions.invoke("track-conversion", {
           body: {
             shop_id: shpId,
             event: "Purchase",
-            event_id: `ord_${String(ordId).replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+            event_id: `ord_${String(effectiveOrderId).replace(/[^a-zA-Z0-9_-]/g, "_")}`,
             event_source_url: "https://ecomfy.cloud/pay-webhook",
             user_agent: "GeniusPay-Webhook/Server",
             payload: {
               value: amountPaid,
               currency,
-              order_id: String(ordId),
+              order_id: String(effectiveOrderId),
               email: metadata?.customer_email || metadata?.email,
               phone: metadata?.customer_phone || metadata?.phone,
               first_name: metadata?.customer_name || metadata?.name,
+              fbp: metadata?.fbp,
+              fbc: metadata?.fbc,
             },
           },
         });
-        console.log("CAPI Purchase event triggered server-side for order:", ordId);
+        console.log("CAPI Purchase event triggered server-side for order:", effectiveOrderId);
       } catch (e) {
         console.warn("triggerServerSidePurchaseCapi non-blocking error:", e);
       }

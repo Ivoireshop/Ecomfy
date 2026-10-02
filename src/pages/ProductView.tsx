@@ -733,6 +733,9 @@ const ProductView = () => {
           return;
         }
       } else {
+        if (typeof window !== "undefined" && order.order_number) {
+          sessionStorage.setItem(`vp_tracked_purchase_${order.order_number}`, "1");
+        }
         trackEvent(shop, "Purchase", trackingPayload);
       }
 
