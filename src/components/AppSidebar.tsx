@@ -173,7 +173,6 @@ export function AppSidebar() {
   const activeMainItems = [
     { title: "Accueil", url: "/dashboard", icon: Home },
     { title: "Boutique", url: "/shop-manager", icon: Store },
-    { title: "Gestion Stock 📦", url: "/inventory-advanced", icon: Boxes },
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
     { title: "Académie", url: "/academy", icon: GraduationCap },
     { title: "Communauté", url: "/community", icon: Users },

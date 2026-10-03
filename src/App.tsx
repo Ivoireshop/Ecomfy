@@ -78,7 +78,6 @@ const StudentCertificates = lazyWithRetry(() => import("./pages/StudentCertifica
 const EnrollmentCheckout = lazyWithRetry(() => import("./pages/EnrollmentCheckout"));
 const PaymentSuccess = lazyWithRetry(() => import("./pages/PaymentSuccess"));
 const VerifyCertificate = lazyWithRetry(() => import("./pages/VerifyCertificate"));
-const InventoryAdvanced = lazyWithRetry(() => import("./pages/InventoryAdvanced"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const CookiesPolicy = lazyWithRetry(() => import("./pages/CookiesPolicy"));
@@ -197,14 +196,6 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/inventory-advanced"
-            element={
-              <ProtectedRoute>
-                <InventoryAdvanced />
               </ProtectedRoute>
             }
           />
