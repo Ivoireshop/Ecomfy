@@ -344,7 +344,7 @@ serve(async (req) => {
             const { data: profileRow } = await supabase
               .from("profiles").select("email").eq("id", userId).maybeSingle();
             if (profileRow?.email) {
-              const unlocked = !shopRow || shopRow.shop_payment_status === "active" || Number(shopRow.commission_balance_due || 0) <= 0;
+              const unlocked = !shopRow || shopRow.shop_payment_status === "active" || shopRow.shop_payment_status === "STORE_ACTIVE" || Number(shopRow.commission_balance_due || 0) <= 0;
               const shopUrl = shopRow?.slug ? `https://ecomfy.cloud/shop/${shopRow.slug}` : undefined;
               await supabase.functions.invoke("send-transactional-email", {
                 body: {

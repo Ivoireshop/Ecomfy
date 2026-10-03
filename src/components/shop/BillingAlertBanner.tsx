@@ -34,7 +34,9 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
     }
   };
 
-  const effectiveDue = Math.max(12000, amountDue || 12000);
+  const effectiveDue = Math.max(0, Number(amountDue) || 0);
+
+  if (effectiveDue <= 0 && !isRestricted && !isGracePeriod) return null;
 
   // 1. STORE_RESTRICTED (Red Lock Banner)
   if (isRestricted) {

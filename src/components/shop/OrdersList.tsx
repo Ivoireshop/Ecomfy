@@ -371,7 +371,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
             <div>
               <h4 className="font-bold text-sm text-red-200">🔒 Coordonnées clients temporairement masquées</h4>
               <p className="text-xs text-slate-300">
-                Seuil de facturation atteint (240 commandes). Les données personnelles des clients sont masquées jusqu'au règlement de votre facture de 12 000 FCFA.
+                Seuil de facturation atteint. Les données personnelles des clients sont masquées jusqu'au règlement de votre solde en attente.
               </p>
             </div>
           </div>
@@ -380,7 +380,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
             className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shrink-0 w-full sm:w-auto shadow-md"
             onClick={() => window.location.href = "/dashboard/billing"}
           >
-            <CreditCard className="h-3.5 w-3.5 mr-1" /> PAYER 12 000 FCFA
+            <CreditCard className="h-3.5 w-3.5 mr-1" /> RÉGLER LA FACTURE
           </Button>
         </div>
       )}

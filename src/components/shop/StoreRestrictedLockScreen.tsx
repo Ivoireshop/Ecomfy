@@ -36,7 +36,7 @@ export const StoreRestrictedLockScreen: React.FC<StoreRestrictedLockScreenProps>
     return <>{children}</>;
   }
 
-  const effectiveDue = Math.max(12000, Number(balanceDue) || Number(billingInfo?.amountDue) || 12000);
+  const effectiveDue = Math.max(0, Number(balanceDue) || Number(billingInfo?.amountDue) || 0);
   const displayInvoiceNumber = invoiceNumber || billingInfo?.invoiceNumber;
 
   const handlePay = () => {
