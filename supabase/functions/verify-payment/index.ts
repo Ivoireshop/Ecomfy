@@ -281,7 +281,13 @@ serve(async (req) => {
         p_amount: Number(payment.amount) || 0,
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
-      });
+    // Trigger affiliate commission processing non-destructively
+    try {
+      if (payment?.id) {
+        await supabase.rpc("process_affiliate_commission_for_payment", { p_payment_id: payment.id });
+      }
+    } catch (affErr) {
+      console.warn("Affiliate commission process error (non-fatal):", affErr);
     }
 
     return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {

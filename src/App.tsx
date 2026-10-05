@@ -119,6 +119,8 @@ const DeliveryPartnerDashboard = lazyWithRetry(() => import("./pages/DeliveryPar
 const DeliveryResubmissionPage = lazyWithRetry(() => import("./pages/DeliveryResubmissionPage"));
 const EcomfyPay = lazyWithRetry(() => import("./pages/EcomfyPay"));
 const EcomfyPayCheckout = lazyWithRetry(() => import("./pages/EcomfyPayCheckout"));
+const AffiliateSpace = lazyWithRetry(() => import("./pages/AffiliateSpace"));
+const CompleteProfile = lazyWithRetry(() => import("./pages/CompleteProfile"));
 
 
 // Detect when the visitor arrives via a custom shop domain. In that case the
@@ -446,6 +448,8 @@ const AppContent = () => {
           <Route path="/api-documentation" element={<ProtectedRoute><ApiDocumentation /></ProtectedRoute>} />
           <Route path="/legal-notice" element={<LegalNotice />} />
           <Route path="/shop-manager" element={<ProtectedRoute><ShopManager /></ProtectedRoute>} />
+          <Route path="/affiliate" element={<ProtectedRoute><AffiliateSpace /></ProtectedRoute>} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/courses-manager" element={<ProtectedRoute><CoursesManager /></ProtectedRoute>} />
           <Route path="/shop-builder" element={<ProtectedRoute><ShopBuilder /></ProtectedRoute>} />
           <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
@@ -535,9 +539,10 @@ const AppWithSidebar = () => {
   const isDriverApp = location.pathname.startsWith("/delivery/driver");
   const isConnectUs = location.pathname.startsWith("/connectus");
   const isPayCheckout = location.pathname.startsWith("/pay/");
+  const isCompleteProfile = location.pathname === "/complete-profile";
 
-  // Showcase/shop/public pages and ConnectUs dedicated layout: no sidebar at all
-  if (isShopView || isPublicPage || isShopManagement || isDriverApp || isConnectUs || isPayCheckout) {
+  // Showcase/shop/public pages, complete-profile and ConnectUs dedicated layout: no sidebar at all
+  if (isShopView || isPublicPage || isShopManagement || isDriverApp || isConnectUs || isPayCheckout || isCompleteProfile) {
     return (
       <main className="w-full">
         <AppContent />

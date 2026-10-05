@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import PromoCodeManager from "./PromoCodeManager";
 import { FounderManager } from "@/components/founder/FounderManager";
+import { FounderAffiliateAdmin } from "@/components/founder/FounderAffiliateAdmin";
 import { Session } from "@supabase/supabase-js";
 import { FinancialMetricsService, FinancialMetrics, TimeRangeFilter, TransactionDetail } from "@/services/financialMetricsService";
 import { RevenueAuditModal } from "@/components/founder/RevenueAuditModal";
@@ -1023,6 +1024,10 @@ const FounderDashboard = () => {
               <Users className="h-4 w-4" />
               <span>Utilisateurs ({allUsers.length})</span>
             </TabsTrigger>
+            <TabsTrigger value="affiliates" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <Sparkles className="h-4 w-4 text-emerald-300" />
+              <span>Affiliation & Ambassadeurs 🤝</span>
+            </TabsTrigger>
             <TabsTrigger value="governance" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-amber-600 data-[state=active]:text-white">
               <Crown className="h-4 w-4 text-amber-400" />
               <span>Gouvernance & Fondateurs</span>
@@ -1044,6 +1049,11 @@ const FounderDashboard = () => {
               <span>Avis Clients ({allFeedback.length})</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* TAB AFFILIATION & AMBASSADEURS */}
+          <TabsContent value="affiliates" className="mt-6">
+            <FounderAffiliateAdmin />
+          </TabsContent>
 
           {/* TAB 0: GOVERNANCE & FOUNDERS MANAGER */}
           <TabsContent value="governance" className="mt-6 space-y-6">

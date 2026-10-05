@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import authHeroV5 from "@/assets/auth-hero-v5.jpg";
 import { SEO } from "@/components/seo/SEO";
 import { cn } from "@/lib/utils";
+import { affiliateService } from "@/services/affiliateService";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -59,9 +60,10 @@ const Auth = () => {
   }, [prefillEmail, isInvite]);
 
   useEffect(() => {
-    const refCode = searchParams.get("ref");
+    const refCode = searchParams.get("ref") || localStorage.getItem("ecomfy_affiliate_ref");
     if (refCode) {
       setReferralCode(refCode.toUpperCase());
+      localStorage.setItem("ecomfy_affiliate_ref", refCode.toUpperCase());
     }
   }, [searchParams]);
 
@@ -82,7 +84,7 @@ const Auth = () => {
 
     if (isEmailConfirmed) {
       const referralKey = `referral_${currentSession.user.email}`;
-      const storedReferralCode = localStorage.getItem(referralKey);
+      const storedReferralCode = localStorage.getItem(referralKey) || localStorage.getItem("ecomfy_affiliate_ref");
 
       if (storedReferralCode) {
         try {
@@ -90,6 +92,9 @@ const Auth = () => {
             referred_user_id: currentSession.user.id,
             referral_code_input: storedReferralCode,
           });
+
+          // Record in affiliate system for 20% commission tracking
+          await affiliateService.recordReferral(currentSession.user.id, storedReferralCode);
 
           if (!refError && refResult) {
             toast({

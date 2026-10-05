@@ -5,6 +5,8 @@ import { Loader2 } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { refreshMySubscriptionStatus } from "@/lib/subscriptionStatus";
 
+import { profileCompletionService } from "@/services/profileCompletionService";
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireActiveSubscription?: boolean;
@@ -24,9 +26,17 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState(0);
   const [isFounder, setIsFounder] = useState(false);
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
 
   const checkSubscription = useCallback(async (userId: string) => {
     try {
+      // Check profile completeness first
+      const profile = await profileCompletionService.getUserProfile(userId);
+      const isComplete = profileCompletionService.isProfileComplete(profile);
+      if (!isComplete && window.location.pathname !== "/complete-profile") {
+        setNeedsProfileCompletion(true);
+      }
+
       const roleRes = await withTimeout(
         supabase
           .from("user_roles")
@@ -106,11 +116,6 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
       return;
     }
 
-    if (!requireActiveSubscription) {
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     void checkSubscription(user.id);
   }, [checkSubscription, isReady, requireActiveSubscription, user]);
@@ -127,11 +132,9 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
     return <Navigate to="/auth" replace />;
   }
 
-  /* TEMPORARILY DISABLED
-  if (requireActiveSubscription && !isFounder && !hasActiveSubscription && freeGenerationsRemaining <= 0) {
-    return <Navigate to="/subscription" replace />;
+  if (needsProfileCompletion && window.location.pathname !== "/complete-profile") {
+    return <Navigate to="/complete-profile" replace />;
   }
-  */
 
   return <>{children}</>;
 };

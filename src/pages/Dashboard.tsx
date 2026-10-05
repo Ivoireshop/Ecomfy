@@ -12,6 +12,7 @@ import {
 import { InstallPwaBanner } from "@/components/InstallPwaBanner";
 import { WebPushBanner } from "@/components/WebPushBanner";
 import { DashboardVideoBanner } from "@/components/dashboard/DashboardVideoBanner";
+import { affiliateService } from "@/services/affiliateService";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ const Dashboard = () => {
       return;
     }
     
+    // Automatically generate / pre-warm affiliate profile & link for merchant
+    void affiliateService.getOrCreateProfile(session.user.id);
+
     // Fetch profile
     void supabase
       .from("profiles")
