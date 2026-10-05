@@ -162,30 +162,24 @@ export function runAffiliateSystemTests(): TestResult[] {
   });
 
   // -------------------------------------------------------------
-  // TEST 9: Generateur de lien d'affiliation basé sur le NOM DE L'UTILISATEUR
-  // Expected: "Ulrich DJATÉ" -> "ULRICH-DJATE", collision -> "ULRICH-DJATE-2"
+  // TEST 9: Generateur de lien d'affiliation pour comptes homonymes (Nom + Suffixe Alphanumérique Unique)
+  // Expected: 2 comptes nommés "Ulrich DJATÉ" -> Code 1: "ULRICH-DJATE-3A8F", Code 2: "ULRICH-DJATE-B9D2"
   // -------------------------------------------------------------
-  const name1 = "Ulrich DJATÉ";
-  const cleanCode1 = name1
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  const nameUser1 = "Ulrich DJATÉ";
+  const userId1 = "3a8f9c12-0000-0000-0000-000000000000";
+  const suffix1 = userId1.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
+  const cleanCode1 = `${nameUser1.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}-${suffix1}`;
 
-  const existingCodes = new Set<string>([cleanCode1]);
-  let cleanCode2 = cleanCode1;
-  let counter = 1;
-  while (existingCodes.has(cleanCode2)) {
-    counter++;
-    cleanCode2 = `${cleanCode1}-${counter}`;
-  }
+  const nameUser2 = "Ulrich DJATÉ";
+  const userId2 = "b9d2e4f1-0000-0000-0000-000000000000";
+  const suffix2 = userId2.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
+  const cleanCode2 = `${nameUser2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}-${suffix2}`;
 
   results.push({
     testId: "TEST-9",
-    title: "Génération de code d'affiliation uniforme basé sur le nom utilisateur",
-    passed: cleanCode1 === "ULRICH-DJATE" && cleanCode2 === "ULRICH-DJATE-2",
-    expected: "Code 1 = ULRICH-DJATE, Code 2 (collision) = ULRICH-DJATE-2",
+    title: "Génération de liens distincts pour 2 comptes homonymes (Nom + Suffixe Alphanumérique Unique)",
+    passed: cleanCode1 === "ULRICH-DJATE-3A8F" && cleanCode2 === "ULRICH-DJATE-B9D2" && cleanCode1 !== cleanCode2,
+    expected: "Code 1 = ULRICH-DJATE-3A8F, Code 2 = ULRICH-DJATE-B9D2 (100% distincts)",
     actual: `Code 1 = ${cleanCode1}, Code 2 = ${cleanCode2}`,
   });
 

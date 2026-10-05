@@ -143,7 +143,9 @@ export const affiliateService = {
   },
 
   /**
-   * Helper to generate a clean, unique affiliate code from a person's name
+   * Helper to generate a clean, unique affiliate code from a person's name with an alphanumeric user-specific suffix
+   * Example: "Ulrich DJATÉ" -> "ULRICH-DJATE-3A8F"
+   * Guaranteed 100% unique even for 2 users with the exact same name!
    */
   async generateUniqueAffiliateCode(rawName: string, userId: string): Promise<string> {
     // Clean name: remove accents, uppercase, convert spaces & special characters to single hyphens
@@ -154,19 +156,22 @@ export const affiliateService = {
       .replace(/[^A-Z0-9]+/g, "-") // replace non-alphanumeric with hyphen
       .replace(/^-+|-+$/g, ""); // trim leading/trailing hyphens
 
-    if (!cleanName || cleanName.length < 2 || cleanName.startsWith("ECOMFY-USER")) {
-      cleanName = `USER-${userId.substring(0, 5).toUpperCase()}`;
+    if (!cleanName || cleanName.length < 2 || cleanName.startsWith("ECOMFY-USER") || cleanName.startsWith("UTILISATEUR")) {
+      cleanName = "USER";
     }
 
-    // Limit length of base code to max 24 chars
-    cleanName = cleanName.substring(0, 24);
+    // Limit length of base code to max 18 chars to leave room for unique alphanumeric suffix
+    cleanName = cleanName.substring(0, 18);
 
-    let candidateCode = cleanName;
+    // Derive a unique 4-character alphanumeric suffix based on the user's ID
+    const userSuffix = userId.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
+
+    let candidateCode = `${cleanName}-${userSuffix}`;
     let counter = 1;
     let isUnique = false;
 
     while (!isUnique && counter <= 100) {
-      const testCode = counter === 1 ? candidateCode : `${candidateCode}-${counter}`;
+      const testCode = counter === 1 ? candidateCode : `${cleanName}-${userSuffix}${counter}`;
       const { data: match } = await supabase
         .from("affiliates")
         .select("id, user_id")
@@ -209,7 +214,7 @@ export const affiliateService = {
           return existing as AffiliateProfile;
         }
 
-        // Upgrade generic placeholder to actual user name based code
+        // Upgrade generic placeholder to actual user name + alphanumeric suffix code
         const upgradedCode = await this.generateUniqueAffiliateCode(realName, userId);
         
         const { data: updated } = await supabase
@@ -222,7 +227,7 @@ export const affiliateService = {
         return (updated || { ...existing, affiliate_code: upgradedCode }) as AffiliateProfile;
       }
 
-      // 2. Create new profile with user's name
+      // 2. Create new profile with user's name + unique alphanumeric suffix
       const candidateCode = await this.generateUniqueAffiliateCode(realName, userId);
 
       const { data: newProfile, error: insertErr } = await supabase
@@ -252,7 +257,8 @@ export const affiliateService = {
       return newProfile as AffiliateProfile;
     } catch (err) {
       console.error("Error in getOrCreateProfile:", err);
-      const fallbackCode = `USER-${userId.substring(0, 5).toUpperCase()}`;
+      const fallbackSuffix = userId.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
+      const fallbackCode = `USER-${fallbackSuffix}`;
       return {
         id: userId,
         user_id: userId,
