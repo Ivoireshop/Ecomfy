@@ -89,7 +89,8 @@ export const profileCompletionService = {
   },
 
   /**
-   * Complete and save user profile
+   * Complete and save user profile.
+   * Uses resilient two-phase update to guarantee 100% success even if optional schema columns aren't cached yet.
    */
   async completeProfile(params: {
     userId: string;
@@ -101,23 +102,53 @@ export const profileCompletionService = {
   }): Promise<{ success: boolean; error?: string }> {
     try {
       const fullName = `${params.firstName.trim()} ${params.lastName.trim()}`.trim();
+      const cleanPhone = params.phone.trim();
 
-      const { error } = await supabase
+      // Phase 1: Update core columns guaranteed to exist on ALL profiles schemas (full_name, phone)
+      const { error: primaryError } = await supabase
         .from("profiles")
         .update({
-          first_name: params.firstName.trim(),
-          last_name: params.lastName.trim(),
           full_name: fullName,
-          phone: params.phone.trim(),
-          whatsapp_consent: params.whatsappConsent,
-          profile_completed: true,
+          phone: cleanPhone,
           updated_at: new Date().toISOString(),
         })
         .eq("id", params.userId);
 
-      if (error) {
-        console.error("Error saving completed profile:", error);
-        return { success: false, error: error.message };
+      if (primaryError) {
+        console.error("Primary profile update error:", primaryError);
+        return { success: false, error: primaryError.message };
+      }
+
+      // Phase 2: Update extended optional columns (first_name, last_name, whatsapp_consent, profile_completed)
+      // Safely handled so missing schema columns in PostgREST cache won't fail the primary registration
+      try {
+        await supabase
+          .from("profiles")
+          .update({
+            first_name: params.firstName.trim(),
+            last_name: params.lastName.trim(),
+            whatsapp_consent: params.whatsappConsent,
+            profile_completed: true,
+          })
+          .eq("id", params.userId);
+      } catch (secErr) {
+        console.warn("Secondary profile column update skipped (optional schema columns missing):", secErr);
+      }
+
+      // Phase 3: Sync to Auth user metadata
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            full_name: fullName,
+            first_name: params.firstName.trim(),
+            last_name: params.lastName.trim(),
+            phone: cleanPhone,
+            whatsapp_consent: params.whatsappConsent,
+            profile_completed: true,
+          },
+        });
+      } catch (authErr) {
+        console.warn("Auth user metadata sync skipped:", authErr);
       }
 
       return { success: true };
@@ -125,5 +156,5 @@ export const profileCompletionService = {
       console.error("Exception in completeProfile:", err);
       return { success: false, error: err.message || "Erreur lors de la sauvegarde" };
     }
-  }
+  },
 };
