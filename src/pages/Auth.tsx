@@ -82,6 +82,13 @@ const Auth = () => {
       window.location.hash.includes("type=signup") || 
       window.location.hash.includes("access_token");
 
+    // Always attempt to record any pending referral stored in localStorage for the newly authenticated user
+    try {
+      await affiliateService.checkAndRecordPendingReferral(currentSession.user.id, currentSession.user.email);
+    } catch (err) {
+      console.error("Error processing pending affiliate referral:", err);
+    }
+
     if (isEmailConfirmed) {
       const referralKey = `referral_${currentSession.user.email}`;
       const storedReferralCode = localStorage.getItem(referralKey) || localStorage.getItem("ecomfy_affiliate_ref");
@@ -92,9 +99,6 @@ const Auth = () => {
             referred_user_id: currentSession.user.id,
             referral_code_input: storedReferralCode,
           });
-
-          // Record in affiliate system for 20% commission tracking
-          await affiliateService.recordReferral(currentSession.user.id, storedReferralCode);
 
           if (!refError && refResult) {
             toast({

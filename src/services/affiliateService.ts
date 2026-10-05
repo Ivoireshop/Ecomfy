@@ -88,7 +88,7 @@ export interface FounderAffiliateListItem {
 
 export const affiliateService = {
   /**
-   * Fetch or create affiliate profile for current logged-in user with shop-aware code generation
+   * Fetch or create affiliate profile for current logged-in user with deterministic user-name based code generation
    */
   async getOrCreateProfile(userId: string): Promise<AffiliateProfile | null> {
     try {
@@ -103,52 +103,63 @@ export const affiliateService = {
         return existing as AffiliateProfile;
       }
 
-      // 2. Try RPC
-      const { data: rpcData, error: rpcErr } = await supabase.rpc("get_or_create_affiliate", {
-        p_user_id: userId,
-      });
-
-      if (!rpcErr && rpcData) {
-        return rpcData as AffiliateProfile;
-      }
-
-      // 3. Fallback direct DB creation (handles cases where SQL migration hasn't been executed on live connection yet)
+      // 2. Fetch user profile for personal name (Name-based referral code)
       const { data: userProfile } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("full_name, first_name, last_name, email")
         .eq("id", userId)
         .maybeSingle();
 
-      const { data: shop } = await supabase
-        .from("shops")
-        .select("slug, business_name")
-        .eq("user_id", userId)
-        .limit(1)
-        .maybeSingle();
-
-      let baseCode = "";
-      if (shop?.slug) {
-        baseCode = shop.slug.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      } else if (shop?.business_name) {
-        baseCode = shop.business_name.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      } else if (userProfile?.full_name) {
-        baseCode = userProfile.full_name.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      let rawName = "";
+      if (userProfile?.full_name && userProfile.full_name.trim().length > 0) {
+        rawName = userProfile.full_name.trim();
+      } else if (userProfile?.first_name || userProfile?.last_name) {
+        rawName = `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim();
       } else if (userProfile?.email) {
-        baseCode = userProfile.email.split("@")[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
+        rawName = userProfile.email.split("@")[0];
       }
 
-      if (!baseCode || baseCode.length < 3) {
-        baseCode = "ECOMFY";
+      // Clean name: remove accents, uppercase, convert spaces & special characters to single hyphens
+      let cleanName = rawName
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // strip accents
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "-") // replace non-alphanumeric with hyphen
+        .replace(/^-+|-+$/g, ""); // trim leading/trailing hyphens
+
+      if (!cleanName || cleanName.length < 2) {
+        cleanName = "ECOMFY-USER";
       }
 
-      const randomSuffix = Math.floor(100 + Math.random() * 900);
-      const generatedCode = `${baseCode.substring(0, 10)}-${randomSuffix}`;
+      // Limit length of base code
+      cleanName = cleanName.substring(0, 20);
+
+      // Check collision and find unique code (e.g. ULRICH-DJATE, ULRICH-DJATE-2, ULRICH-DJATE-3)
+      let candidateCode = cleanName;
+      let counter = 1;
+      let isUnique = false;
+
+      while (!isUnique && counter <= 100) {
+        const testCode = counter === 1 ? candidateCode : `${candidateCode}-${counter}`;
+        const { data: match } = await supabase
+          .from("affiliates")
+          .select("id")
+          .eq("affiliate_code", testCode)
+          .maybeSingle();
+
+        if (!match) {
+          candidateCode = testCode;
+          isUnique = true;
+        } else {
+          counter++;
+        }
+      }
 
       const { data: newProfile, error: insertErr } = await supabase
         .from("affiliates")
         .insert({
           user_id: userId,
-          affiliate_code: generatedCode,
+          affiliate_code: candidateCode,
           commission_rate: 0.20,
           status: "active",
         })
@@ -157,11 +168,11 @@ export const affiliateService = {
 
       if (insertErr) {
         console.error("Error inserting affiliate profile fallback:", insertErr);
-        // Emergency in-memory profile representation if DB table doesn't exist yet
+        // Emergency in-memory profile representation if DB insert failed
         return {
           id: userId,
           user_id: userId,
-          affiliate_code: generatedCode,
+          affiliate_code: candidateCode,
           commission_rate: 0.20,
           status: "active",
           created_at: new Date().toISOString(),
@@ -172,7 +183,6 @@ export const affiliateService = {
       return newProfile as AffiliateProfile;
     } catch (err) {
       console.error("Error in getOrCreateProfile:", err);
-      // Emergency fallback object so UI never blocks or fails to display link
       const fallbackCode = `ECOMFY-${userId.substring(0, 5).toUpperCase()}`;
       return {
         id: userId,
@@ -424,23 +434,101 @@ export const affiliateService = {
   },
 
   /**
-   * Record referral code when user registers
+   * Record referral code when user registers (with direct DB fallback)
    */
   async recordReferral(referredUserId: string, affiliateCode: string): Promise<boolean> {
+    const cleanCode = (affiliateCode || "").trim().toUpperCase();
+    if (!cleanCode || !referredUserId) return false;
+
     try {
+      // 1. Try RPC
       const { data, error } = await supabase.rpc("record_affiliate_referral", {
         p_referred_user_id: referredUserId,
-        p_affiliate_code: affiliateCode,
+        p_affiliate_code: cleanCode,
       });
 
-      if (error) {
-        console.error("Error recording referral:", error);
+      if (!error && (data as any)?.success === true) {
+        return true;
+      }
+
+      // 2. Direct DB fallback if RPC fails or doesn't exist
+      const { data: affiliate } = await supabase
+        .from("affiliates")
+        .select("id, user_id")
+        .eq("affiliate_code", cleanCode)
+        .maybeSingle();
+
+      if (!affiliate) {
+        console.warn(`No affiliate found with code: ${cleanCode}`);
         return false;
       }
 
-      return (data as any)?.success === true;
+      // Do not allow self-referral
+      if (affiliate.user_id === referredUserId) {
+        console.warn("Self referral ignored");
+        return false;
+      }
+
+      // Check if referral already recorded for this user
+      const { data: existingRef } = await supabase
+        .from("affiliate_referrals")
+        .select("id")
+        .eq("referred_user_id", referredUserId)
+        .maybeSingle();
+
+      if (existingRef) {
+        return true; // Already recorded
+      }
+
+      const { error: insertErr } = await supabase
+        .from("affiliate_referrals")
+        .insert({
+          affiliate_id: affiliate.id,
+          referred_user_id: referredUserId,
+          referral_code_used: cleanCode,
+        });
+
+      if (insertErr) {
+        if (insertErr.code === "23505") return true; // Unique constraint hit
+        console.error("Error inserting affiliate referral fallback:", insertErr);
+        return false;
+      }
+
+      return true;
     } catch (err) {
       console.error("Error in recordReferral:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Automatically check and record any pending referral code stored in localStorage for the logged in user
+   */
+  async checkAndRecordPendingReferral(userId: string, email?: string): Promise<boolean> {
+    try {
+      const storedRefCode = 
+        localStorage.getItem("ecomfy_affiliate_ref") || 
+        (email ? localStorage.getItem(`referral_${email}`) : null);
+
+      if (!storedRefCode || !storedRefCode.trim()) {
+        return false;
+      }
+
+      const cleanCode = storedRefCode.trim().toUpperCase();
+      console.log(`Processing pending referral for user ${userId} with code ${cleanCode}`);
+
+      const success = await this.recordReferral(userId, cleanCode);
+
+      if (success) {
+        localStorage.removeItem("ecomfy_affiliate_ref");
+        if (email) {
+          localStorage.removeItem(`referral_${email}`);
+        }
+      }
+
+      return success;
+    } catch (err) {
+      console.error("Error in checkAndRecordPendingReferral:", err);
       return false;
     }
   },

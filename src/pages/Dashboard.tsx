@@ -31,6 +31,7 @@ const Dashboard = () => {
     
     // Automatically generate / pre-warm affiliate profile & link for merchant
     void affiliateService.getOrCreateProfile(session.user.id);
+    void affiliateService.checkAndRecordPendingReferral(session.user.id, session.user.email);
 
     // Fetch profile
     void supabase

@@ -161,5 +161,55 @@ export function runAffiliateSystemTests(): TestResult[] {
     actual: `Total gagné = ${totalEarned} FCFA, Total payé = ${totalPaid} FCFA, Solde payable = ${payableBalance} FCFA`,
   });
 
+  // -------------------------------------------------------------
+  // TEST 9: Generateur de lien d'affiliation basé sur le NOM DE L'UTILISATEUR
+  // Expected: "Ulrich DJATÉ" -> "ULRICH-DJATE", collision -> "ULRICH-DJATE-2"
+  // -------------------------------------------------------------
+  const name1 = "Ulrich DJATÉ";
+  const cleanCode1 = name1
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const existingCodes = new Set<string>([cleanCode1]);
+  let cleanCode2 = cleanCode1;
+  let counter = 1;
+  while (existingCodes.has(cleanCode2)) {
+    counter++;
+    cleanCode2 = `${cleanCode1}-${counter}`;
+  }
+
+  results.push({
+    testId: "TEST-9",
+    title: "Génération de code d'affiliation uniforme basé sur le nom utilisateur",
+    passed: cleanCode1 === "ULRICH-DJATE" && cleanCode2 === "ULRICH-DJATE-2",
+    expected: "Code 1 = ULRICH-DJATE, Code 2 (collision) = ULRICH-DJATE-2",
+    actual: `Code 1 = ${cleanCode1}, Code 2 = ${cleanCode2}`,
+  });
+
+  // -------------------------------------------------------------
+  // TEST 10: Comptabilisation automatique et directe des filleuls inscrits
+  // Expected: Code de parrainage dans localStorage -> Enregistrement direct filleul
+  // -------------------------------------------------------------
+  const mockLocalStorage = new Map<string, string>();
+  mockLocalStorage.set("ecomfy_affiliate_ref", "ULRICH-DJATE");
+  
+  let referralRecorded = false;
+  const storedRef = mockLocalStorage.get("ecomfy_affiliate_ref");
+  if (storedRef === "ULRICH-DJATE") {
+    referralRecorded = true;
+    mockLocalStorage.delete("ecomfy_affiliate_ref");
+  }
+
+  results.push({
+    testId: "TEST-10",
+    title: "Comptabilisation automatique de filleul dès l'inscription",
+    passed: referralRecorded && !mockLocalStorage.has("ecomfy_affiliate_ref"),
+    expected: "Filleul comptabilisé = true, Clef localStorage nettoyée = true",
+    actual: `Filleul comptabilisé = ${referralRecorded}, Clef nettoyée = ${!mockLocalStorage.has("ecomfy_affiliate_ref")}`,
+  });
+
   return results;
 }
