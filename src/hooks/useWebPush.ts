@@ -49,24 +49,35 @@ export const useWebPush = () => {
       const subscription = await registration.pushManager.getSubscription();
       
       if (subscription && session?.user) {
-        // Vérifier si la souscription existe dans notre nouvelle base de données Supabase (VAPID)
         const subJSON = subscription.toJSON();
-        if (subJSON.endpoint) {
-          const { data, error } = await supabase
+        if (subJSON.endpoint && subJSON.keys?.p256dh && subJSON.keys?.auth) {
+          // Auto-sync / re-upsert push subscription for current user so push notifications never get lost
+          await supabase
             .from('push_subscriptions')
-            .select('id')
-            .eq('endpoint', subJSON.endpoint)
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-            
-          if (!data) {
-            // C'est une ancienne souscription (ex: Firebase FCM) ou orpheline
-            // On la supprime pour forcer l'utilisateur à se réinscrire avec VAPID
-            console.log("Ancienne souscription détectée, désinscription forcée...");
-            await subscription.unsubscribe();
-            setIsSubscribed(false);
-            return;
-          }
+            .upsert(
+              {
+                user_id: session.user.id,
+                endpoint: subJSON.endpoint,
+                p256dh: subJSON.keys.p256dh,
+                auth: subJSON.keys.auth,
+                last_used_at: new Date().toISOString()
+              },
+              { onConflict: 'endpoint' }
+            )
+            .catch(() => undefined);
+
+          await supabase
+            .from('device_tokens')
+            .upsert(
+              {
+                user_id: session.user.id,
+                fcm_token: subJSON.endpoint,
+                user_agent: navigator.userAgent,
+                last_used_at: new Date().toISOString()
+              },
+              { onConflict: 'fcm_token' }
+            )
+            .catch(() => undefined);
         }
       }
       

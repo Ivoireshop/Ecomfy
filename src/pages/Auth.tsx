@@ -517,20 +517,33 @@ const Auth = () => {
   };
 
   const handleSocialLogin = async (provider: "google") => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast({
+        title: "Pas de connexion internet 📶",
+        description: "Veuillez vérifier votre réseau wifi ou données mobiles avant de tenter la connexion Google.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
+      const redirectUrl = `${window.location.origin}/dashboard`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}${window.location.search}`,
+          redirectTo: redirectUrl,
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
       if (error) throw error;
     } catch (error) {
       console.error(`Erreur connexion ${provider}:`, error);
       toast({
-        title: "Erreur",
-        description: "Impossible de se connecter avec Google",
+        title: "Erreur de connexion Google",
+        description: "Impossible d'initier l'authentification Google. Veuillez réessayer.",
         variant: "destructive",
       });
     } finally {

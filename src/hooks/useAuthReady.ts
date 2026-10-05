@@ -8,7 +8,7 @@ type AuthReadyState = {
   isReady: boolean;
 };
 
-const AUTH_READY_TIMEOUT_MS = 3500;
+const AUTH_READY_TIMEOUT_MS = 4000;
 
 let authState: AuthReadyState = { session: null, user: null, isReady: false };
 let authInitialized = false;
@@ -20,28 +20,30 @@ const emitAuthState = (next: AuthReadyState) => {
   authListeners.forEach((listener) => listener());
 };
 
-const getSessionWithTimeout = () =>
-  Promise.race([
-    supabase.auth.getSession(),
-    new Promise<"timeout">((resolve) => {
-      window.setTimeout(() => resolve("timeout"), AUTH_READY_TIMEOUT_MS);
-    }),
-  ]);
+/** Checks if localStorage contains any Supabase auth token key. */
+const hasStoredAuthToken = (): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    const keys = Object.keys(localStorage);
+    return keys.some(
+      (k) =>
+        k.includes("auth-token") ||
+        k.includes("supabase.auth.token") ||
+        k.includes("ecomfy-auth-token")
+    );
+  } catch {
+    return false;
+  }
+};
 
 const initializeAuthState = () => {
   if (authInitialized) return;
   authInitialized = true;
 
-  const readyFallback = window.setTimeout(() => {
-    if (!authState.isReady) {
-      emitAuthState({ ...authState, isReady: true });
-    }
-  }, AUTH_READY_TIMEOUT_MS + 500);
-
+  // Supabase Auth Listener (handles INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED, etc.)
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-    window.clearTimeout(readyFallback);
     emitAuthState({
       session: nextSession,
       user: nextSession?.user ?? null,
@@ -49,30 +51,55 @@ const initializeAuthState = () => {
     });
   });
 
-  void getSessionWithTimeout()
-    .then((result) => {
-      window.clearTimeout(readyFallback);
-      if (result === "timeout") {
-        emitAuthState({ ...authState, isReady: true });
-        return;
+  // Direct initial session retrieval
+  void supabase.auth
+    .getSession()
+    .then(({ data: { session: currentSession } }) => {
+      if (currentSession) {
+        emitAuthState({
+          session: currentSession,
+          user: currentSession.user,
+          isReady: true,
+        });
+      } else if (!hasStoredAuthToken()) {
+        // Truly no stored session found
+        emitAuthState({
+          session: null,
+          user: null,
+          isReady: true,
+        });
+      } else {
+        // A token exists in local storage but getSession returned null (e.g., token needs refresh)
+        void supabase.auth
+          .refreshSession()
+          .then(({ data: { session: refreshedSession } }) => {
+            emitAuthState({
+              session: refreshedSession,
+              user: refreshedSession?.user ?? null,
+              isReady: true,
+            });
+          })
+          .catch(() => {
+            emitAuthState({ session: null, user: null, isReady: true });
+          });
       }
-
-      const currentSession = result.data.session;
-      emitAuthState({
-        session: currentSession,
-        user: currentSession?.user ?? null,
-        isReady: true,
-      });
     })
     .catch(() => {
-      window.clearTimeout(readyFallback);
-      emitAuthState({ session: null, user: null, isReady: true });
+      if (!hasStoredAuthToken()) {
+        emitAuthState({ session: null, user: null, isReady: true });
+      }
     });
+
+  // Fallback timeout ONLY if there is no token stored in localStorage
+  window.setTimeout(() => {
+    if (!authState.isReady && !hasStoredAuthToken()) {
+      emitAuthState({ ...authState, isReady: true });
+    }
+  }, AUTH_READY_TIMEOUT_MS);
 
   window.addEventListener("beforeunload", () => subscription.unsubscribe(), { once: true });
 
-  // Mobile/PWA: when device wakes up from sleep, force a session refresh
-  // so the user isn't kicked back to /auth on iOS/Android home-screen apps.
+  // Mobile/PWA: when device wakes up from sleep or user returns to PWA, force session refresh
   const handleResume = () => {
     if (document.visibilityState !== "visible") return;
     void supabase.auth
@@ -83,18 +110,22 @@ const initializeAuthState = () => {
           const expiresInSeconds = typeof s.expires_at === "number" ? s.expires_at - nowSeconds : 0;
           const nowMs = Date.now();
 
-          // Proactively refresh only when the token is close to expiry. Refreshing
-          // on every focus/pageshow can create concurrent refreshes that revoke
-          // each other's token and make login look unstable on web/mobile.
-          if (expiresInSeconds < 300 && nowMs - lastRefreshAttemptAt > 60_000) {
+          if (expiresInSeconds < 300 && nowMs - lastRefreshAttemptAt > 30_000) {
             lastRefreshAttemptAt = nowMs;
             void supabase.auth.refreshSession().catch(() => undefined);
           }
           emitAuthState({ session: s, user: s.user, isReady: true });
+        } else if (hasStoredAuthToken()) {
+          void supabase.auth.refreshSession().then(({ data: { session: refreshed } }) => {
+            if (refreshed) {
+              emitAuthState({ session: refreshed, user: refreshed.user, isReady: true });
+            }
+          }).catch(() => undefined);
         }
       })
       .catch(() => undefined);
   };
+
   document.addEventListener("visibilitychange", handleResume);
   window.addEventListener("focus", handleResume);
   window.addEventListener("pageshow", handleResume);
