@@ -25,7 +25,7 @@ import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164, parseFullPhone } from "@/lib/phoneCountries";
 import { normalizeSectionOrder, type ProductSectionKey } from "@/lib/productSections";
-import { containsDigits, stripDigits } from "@/lib/utils";
+import { containsDigits, stripDigits, getCTAAnimationClass } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheIsFresh, shopKey, productKey } from "@/lib/shopCache";
 import { useDeferredMount } from "@/lib/useDeferredMount";
@@ -1269,25 +1269,38 @@ const ProductView = () => {
         </div>
       )}
 
-      {/* Sticky Order Button - always visible when enabled, forced on mobile */}
+      {/* Sticky Order Bar - paired quantity + buy button */}
       {!isCustomTheme && !shop._isPreview && (shop.theme_config?.sticky_order_button || true) && product && !isCheckoutVisible && (
-        <div className={`fixed bottom-4 left-4 right-4 z-[9999] bg-white rounded-2xl border shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-4 py-3 ${!shop.theme_config?.sticky_order_button ? "md:hidden" : ""}`}>
-          <div className="max-w-6xl mx-auto flex items-center gap-3">
-            <div className="flex-1 min-w-0 hidden sm:block">
+        <div className={`fixed bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-[9999] bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-[0_-4px_30px_rgba(0,0,0,0.15)] px-3 py-2.5 sm:px-4 sm:py-3 ${!shop.theme_config?.sticky_order_button ? "md:hidden" : ""}`}>
+          <div className="max-w-6xl mx-auto flex items-center gap-2 sm:gap-3">
+            <div className="flex-1 min-w-0 hidden md:block">
               <p className="font-bold text-sm truncate">{product.name}</p>
-              <p className="font-bold text-lg" style={{ color: primaryColor }}>{formatPrice(product.price)} FCFA</p>
+              <p className="font-black text-base sm:text-lg" style={{ color: primaryColor }}>{formatPrice(product.price * quantity)} FCFA</p>
             </div>
+
+            {/* Sticky Inline Quantity Control */}
+            <div className="flex items-center shrink-0 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden bg-gray-50 dark:bg-slate-800 h-11 sm:h-14 px-0.5">
+              <button
+                type="button"
+                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                className="h-9 w-7 sm:w-9 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200 font-bold"
+                aria-label="Moins"
+              >
+                <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </button>
+              <span className="w-6 sm:w-8 text-center font-black text-xs sm:text-base text-gray-900 dark:text-white">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => setQuantity(q => q + 1)}
+                className="h-9 w-7 sm:w-9 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200 font-bold"
+                aria-label="Plus"
+              >
+                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </button>
+            </div>
+
             <Button 
-              className={`flex-1 sm:flex-none h-12 sm:h-14 rounded-xl font-bold flex items-center justify-between px-3 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all group ${
-                shop.theme_config?.cta_animation_type === 'shake' ? 'animate-wiggle' :
-                shop.theme_config?.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
-                shop.theme_config?.cta_animation_type === 'bounce' ? 'animate-bounce' :
-                shop.theme_config?.cta_animation_type === 'static' ? '' :
-                'animate-pulse hover:animate-none'
-              } ${
-                shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
-                shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
-              }`}
+              className={`flex-1 sm:flex-none h-11 sm:h-14 rounded-xl font-black flex items-center justify-center px-2 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all group relative z-20 ${getCTAAnimationClass(shop.theme_config?.cta_animation_type, shop.theme_config?.cta_animation_speed)}`}
               style={{ backgroundColor: primaryColor }}
               onClick={() => {
                 addToCart(product, quantity, true, true);
@@ -1296,14 +1309,20 @@ const ProductView = () => {
               }}
               disabled={!isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false)}
             >
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 group-hover:scale-110 transition-transform" />
-                <span className="text-[15px] sm:text-lg whitespace-nowrap">
-                  {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
-                </span>
-              </div>
-              <div className="sm:hidden bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-lg text-[14px] font-extrabold whitespace-nowrap flex items-center">
-                {formatPrice(product.price)} FCFA
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2 max-w-full overflow-hidden px-1">
+                <div className="p-1 rounded-full bg-white/20 shrink-0 flex items-center justify-center">
+                  <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:scale-110 transition-transform text-white" />
+                </div>
+                <div className="flex flex-col items-center sm:items-start text-center sm:text-left leading-tight min-w-0">
+                  <span className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-white truncate max-w-full">
+                    {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
+                  </span>
+                  {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
+                    <span className="text-[9.5px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
+                      {formatPrice(product.price * quantity)} FCFA
+                    </span>
+                  )}
+                </div>
               </div>
             </Button>
           </div>
@@ -1803,71 +1822,76 @@ const ProductView = () => {
               return null;
             })}
 
-            {/* Quantity + Add to Cart */}
-            <div className="pt-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <Label className="text-base font-bold text-gray-700">Quantité</Label>
-                <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden bg-white">
-                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="h-11 w-11 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-600">
-                    <Minus className="h-5 w-5" />
+            {/* Quantity Selector + Commander Button (Side-by-side on the SAME row like Image 2) */}
+            <div className="pt-4 space-y-3">
+              <div className="flex items-center gap-2 sm:gap-3 w-full">
+                {/* Quantity Control (- 1 +) */}
+                <div className="flex items-center shrink-0 border-2 border-gray-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-sm h-[54px] sm:h-16 px-0.5 sm:px-1">
+                  <button 
+                    type="button"
+                    onClick={() => setQuantity(q => Math.max(1, q - 1))} 
+                    className="h-10 w-8 sm:w-11 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200 font-bold"
+                    aria-label="Réduire la quantité"
+                  >
+                    <Minus className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   </button>
-                  <span className="w-14 text-center font-bold text-lg">{quantity}</span>
-                  <button onClick={() => setQuantity(q => q + 1)} className="h-11 w-11 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-600">
-                    <Plus className="h-5 w-5" />
+                  <span className="w-7 sm:w-10 text-center font-black text-sm sm:text-lg text-gray-900 dark:text-white">{quantity}</span>
+                  <button 
+                    type="button"
+                    onClick={() => setQuantity(q => q + 1)} 
+                    className="h-10 w-8 sm:w-11 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-200 font-bold"
+                    aria-label="Augmenter la quantité"
+                  >
+                    <Plus className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   </button>
+                </div>
+
+                {/* Commander / Buy Button */}
+                <div className="flex-1 min-w-0">
+                  {shop._isPreview ? (
+                    <PreviewLockedNotice primaryColor={primaryColor} />
+                  ) : (
+                    <Button 
+                      className={`w-full h-[54px] sm:h-16 rounded-2xl font-black flex items-center justify-center px-2 sm:px-6 text-white shadow-xl hover:shadow-2xl transition-all group relative z-20 ${getCTAAnimationClass(shop.theme_config?.cta_animation_type, shop.theme_config?.cta_animation_speed)}`}
+                      style={{ backgroundColor: primaryColor }}
+                      onClick={() => {
+                        addToCart(product, quantity, true, true);
+                        scrollToCheckout();
+                      }}
+                      disabled={!isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false)}
+                    >
+                      <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 max-w-full overflow-hidden px-1">
+                        <div className="p-1 sm:p-1.5 rounded-full bg-white/20 shrink-0 flex items-center justify-center">
+                          <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform text-white" />
+                        </div>
+                        <div className="flex flex-col items-center sm:items-start text-center sm:text-left leading-tight min-w-0">
+                          <span className="text-[11px] xs:text-xs sm:text-base font-extrabold tracking-wider uppercase text-white truncate max-w-full">
+                            {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
+                          </span>
+                          {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
+                            <span className="text-[10px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
+                              {formatPrice(product.price * quantity)} FCFA
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
-                {shop._isPreview ? (
-                  <PreviewLockedNotice primaryColor={primaryColor} />
-                ) : (
-                  <Button 
-                    className={`w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-between px-4 sm:px-6 text-white shadow-xl hover:shadow-2xl transition-all group ${
-                      shop.theme_config?.cta_animation_type === 'shake' ? 'animate-wiggle' :
-                      shop.theme_config?.cta_animation_type === 'slide' ? 'hover:translate-x-2' :
-                      shop.theme_config?.cta_animation_type === 'bounce' ? 'animate-bounce' :
-                      shop.theme_config?.cta_animation_type === 'static' ? 'hover:-translate-y-0.5' :
-                      'animate-pulse hover:animate-none hover:-translate-y-0.5'
-                    } ${
-                      shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
-                      shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
-                    }`}
-                    style={{ backgroundColor: primaryColor }}
-                    onClick={() => {
-                      addToCart(product, quantity, true, true);
-                      scrollToCheckout();
-                    }}
-                    disabled={!isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="text-[15px] sm:text-lg whitespace-nowrap">
-                        {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
-                      </span>
-                    </div>
-                    {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
-                      <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-xl text-[14px] sm:text-base font-extrabold whitespace-nowrap flex items-center">
-                        {formatPrice(product.price * quantity)} FCFA
-                      </div>
-                    )}
+              {!shop._isPreview && shop.whatsapp_number && shop.theme_config?.enable_whatsapp_checkout && isPremiumShop(shop) && (
+                <a 
+                  href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par "${product.name}" à ${formatPrice(product.price)} FCFA`)}`} 
+                  target="_blank" rel="noopener noreferrer" 
+                  className="block"
+                >
+                  <Button variant="outline" className="w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-center gap-2 border-[3px] border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 transition-colors text-[15px] sm:text-lg shadow-sm">
+                    <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" /> 
+                    <span>Commander via WhatsApp</span>
                   </Button>
-                )}
-
-                {!shop._isPreview && shop.whatsapp_number && shop.theme_config?.enable_whatsapp_checkout && isPremiumShop(shop) && (
-                  <a 
-                    href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par "${product.name}" à ${formatPrice(product.price)} FCFA`)}`} 
-                    target="_blank" rel="noopener noreferrer" 
-                    className="block"
-                  >
-                    <Button variant="outline" className="w-full h-[60px] sm:h-16 rounded-2xl font-bold flex items-center justify-center gap-2 border-[3px] border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 transition-colors text-[15px] sm:text-lg shadow-sm">
-                      <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" /> 
-                      <span>Commander via WhatsApp</span>
-                    </Button>
-                  </a>
-                )}
-              </div>
-
+                </a>
+              )}
             </div>
 
             {/* Trust badges (Option de masquage & personnalisation) */}

@@ -452,6 +452,153 @@ p, .text-content {
   animation: shimmer-sweep 1.8s infinite linear;
 }
 
+/* ===== Ultra-Professional High-Impact CTA Button Animations (Effet Waouh) ===== */
+
+/* 1. Pulse Orb / Boule Lumineuse (Aura d'énergie) */
+@keyframes cta-pulse-orb {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7), 0 8px 25px -4px rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    transform: scale(1.035);
+    box-shadow: 0 0 0 14px rgba(34, 197, 94, 0), 0 16px 35px -2px rgba(34, 197, 94, 0.7);
+  }
+}
+
+/* 2. Shake X / Secousse Gauche <-> Droite */
+@keyframes cta-shake-horizontal {
+  0%, 100% { transform: translateX(0); }
+  12% { transform: translateX(-8px) rotate(-1deg); }
+  24% { transform: translateX(8px) rotate(1deg); }
+  36% { transform: translateX(-6px) rotate(-0.5deg); }
+  48% { transform: translateX(6px) rotate(0.5deg); }
+  60% { transform: translateX(-3px); }
+  72% { transform: translateX(3px); }
+}
+
+/* 3. Bounce Y / Rebond Haut <-> Bas */
+@keyframes cta-bounce-vertical {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px) scale(1.02); }
+}
+
+/* 4. Cross 3D / Mouvement en Croix ❌ (Effet Visuel Frappant) */
+@keyframes cta-cross-motion {
+  0%, 100% { transform: rotate(0deg) skew(0deg) scale(1); }
+  20% { transform: translate(-4px, -4px) rotate(-2deg) scale(1.03); }
+  40% { transform: translate(4px, 4px) rotate(2deg) scale(0.98); }
+  60% { transform: translate(-4px, 4px) rotate(-2deg) scale(1.03); }
+  80% { transform: translate(4px, -4px) rotate(2deg) scale(0.99); }
+}
+
+/* 5. Shimmer Sweep / Balayage Métallique Éclair ⚡ */
+@keyframes cta-shimmer-sweep {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 6. Heartbeat / Double Impulsion 💓 */
+@keyframes cta-heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.07); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.07); }
+  70% { transform: scale(1); }
+}
+
+/* 7. Wobble 3D / Oscillation Visuelle 🎭 */
+@keyframes cta-wobble-3d {
+  0%, 100% { transform: translateX(0%) rotate(0deg); }
+  15% { transform: translateX(-8%) rotate(-4deg); }
+  30% { transform: translateX(6%) rotate(3deg); }
+  45% { transform: translateX(-4%) rotate(-2deg); }
+  60% { transform: translateX(3%) rotate(1deg); }
+  75% { transform: translateX(-1.5%) rotate(-0.5deg); }
+}
+
+/* 8. 3D Pop-Out & Croix Explosive 🚀 (Sortie de zone vers le prospect + Vibration en Croix "BrrBrr") */
+@keyframes cta-pop-cross-3d {
+  0%, 100% {
+    transform: scale(1) translate(0, 0) rotate(0deg);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    filter: brightness(1);
+  }
+  /* 1. Sortie de zone : le bouton quitte son cadre et se projette vers le visage du prospect */
+  18% {
+    transform: scale(1.15) translateY(-6px) rotate(-1deg);
+    box-shadow: 0 20px 35px -4px rgba(0, 0, 0, 0.45), 0 0 25px rgba(37, 99, 235, 0.55);
+    filter: brightness(1.1);
+  }
+  /* 2. Vibration rapide en croix "brrbrr" devant le prospect */
+  26% {
+    transform: scale(1.17) translate(-7px, -7px) rotate(-3deg);
+  }
+  34% {
+    transform: scale(1.17) translate(7px, 7px) rotate(3deg);
+  }
+  42% {
+    transform: scale(1.17) translate(7px, -7px) rotate(-2.5deg);
+  }
+  50% {
+    transform: scale(1.17) translate(-7px, 7px) rotate(2.5deg);
+  }
+  58% {
+    transform: scale(1.15) translate(0, 0) rotate(0deg);
+  }
+  /* 3. Retrait : Rentre doucement dans sa zone initiale */
+  78% {
+    transform: scale(1) translate(0, 0) rotate(0deg);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    filter: brightness(1);
+  }
+}
+
+.cta-anim-pulse {
+  animation: cta-pulse-orb 2s infinite ease-in-out;
+}
+
+.cta-anim-shake {
+  animation: cta-shake-horizontal 1.8s infinite cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.cta-anim-bounce {
+  animation: cta-bounce-vertical 1.8s infinite ease-in-out;
+}
+
+.cta-anim-cross {
+  animation: cta-cross-motion 1.4s infinite ease-in-out;
+}
+
+.cta-anim-pop-cross {
+  position: relative;
+  z-index: 30;
+  will-change: transform, box-shadow;
+  animation: cta-pop-cross-3d 1.8s infinite ease-in-out;
+}
+
+.cta-anim-shimmer {
+  background: linear-gradient(90deg, currentColor 0%, rgba(255,255,255,0.4) 50%, currentColor 100%) !important;
+  background-size: 200% 100% !important;
+  animation: cta-shimmer-sweep 2s infinite linear;
+}
+
+.cta-anim-heartbeat {
+  animation: cta-heartbeat 1.6s infinite ease-in-out;
+}
+
+.cta-anim-wobble {
+  animation: cta-wobble-3d 1.8s infinite ease-in-out;
+}
+
+.cta-anim-speed-fast {
+  animation-duration: 0.9s !important;
+}
+
+.cta-anim-speed-slow {
+  animation-duration: 3s !important;
+}
+
 /* Cascade delays for Hero and landing sections */
 .stagger-1 { animation-delay: 100ms; }
 .stagger-2 { animation-delay: 200ms; }

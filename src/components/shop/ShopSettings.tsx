@@ -23,6 +23,7 @@ import { DnsConfigurationAssistant } from "@/components/DnsConfigurationAssistan
 import { NotificationSettings } from "./NotificationSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { ShopDeliveryPartners } from "./ShopDeliveryPartners";
+import { getCTAAnimationClass } from "@/lib/utils";
 
 type SettingsTab = "general" | "payment" | "checkout" | "delivery" | "notifications" | "languages" | "analytics" | "domain" | "danger";
 
@@ -625,11 +626,16 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                                 <SelectValue placeholder="Choisir une animation" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="pulse">Pulsation (Doux)</SelectItem>
-                                <SelectItem value="shake">Secousse (Urgent)</SelectItem>
-                                <SelectItem value="slide">Glissement (Au survol)</SelectItem>
-                                <SelectItem value="bounce">Rebond (Attractif)</SelectItem>
-                                <SelectItem value="static">Aucune animation</SelectItem>
+                                <SelectItem value="pop_cross">🚀 Projection 3D &amp; Croix "BrrBrr" (Effet Visage + Croix)</SelectItem>
+                                <SelectItem value="pulse">🔮 Pulsation Aura (Boule Lumineuse)</SelectItem>
+                                <SelectItem value="shake">↔️ Secousse Gauche-Droite (Alerte rapide)</SelectItem>
+                                <SelectItem value="bounce">↕️ Rebond Haut-Bas (Flottement vertical)</SelectItem>
+                                <SelectItem value="cross">❌ Mouvement en Croix (Vibration rapide)</SelectItem>
+                                <SelectItem value="shimmer">⚡ Balayage Éclair (Métallique Brillante)</SelectItem>
+                                <SelectItem value="heartbeat">💓 Battement de Cœur (Double Impulsion)</SelectItem>
+                                <SelectItem value="wobble">🎭 Oscillation 3D (Attraction maximale)</SelectItem>
+                                <SelectItem value="slide">➡️ Glissement au survol</SelectItem>
+                                <SelectItem value="static">⏸️ Aucune animation (Statique)</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -648,6 +654,30 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                                 <SelectItem value="fast">Rapide</SelectItem>
                               </SelectContent>
                             </Select>
+                          </div>
+                        </div>
+
+                        {/* Live CTA Animation Preview */}
+                        <div className="pt-2 border-t border-border/40">
+                          <p className="text-xs font-semibold text-muted-foreground mb-2.5 flex items-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5 text-primary" /> Aperçu en direct de l'animation sur votre boutique :
+                          </p>
+                          <div className="p-4 rounded-xl bg-background border border-border/60 flex items-center justify-center min-h-[85px] overflow-visible">
+                            <Button
+                              type="button"
+                              className={`h-12 px-6 rounded-2xl font-black text-white shadow-lg transition-all ${getCTAAnimationClass(shop.theme_config?.cta_animation_type || "pulse", shop.theme_config?.cta_animation_speed || "normal")}`}
+                              style={{ backgroundColor: shop.primary_color || "#2563eb" }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="p-1 rounded-full bg-white/20 shrink-0 flex items-center justify-center">
+                                  <ShoppingCart className="h-4 w-4 text-white" />
+                                </div>
+                                <div className="flex flex-col items-start leading-tight text-left">
+                                  <span className="text-xs font-extrabold uppercase tracking-wider text-white">Commander</span>
+                                  <span className="text-[10px] font-semibold text-white/90">15 000 FCFA</span>
+                                </div>
+                              </div>
+                            </Button>
                           </div>
                         </div>
                       </div>

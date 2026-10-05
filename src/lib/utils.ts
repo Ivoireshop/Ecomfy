@@ -55,3 +55,51 @@ export function getOrderScheduleInfo(order: {
   };
 }
 
+/**
+ * Returns class names for ultra-professional high-impact CTA button animations.
+ */
+export function getCTAAnimationClass(type?: string | null, speed?: string | null): string {
+  let baseClass = "";
+  switch (type) {
+    case "pop_cross":
+    case "pop_cross_3d":
+      baseClass = "cta-anim-pop-cross";
+      break;
+    case "pulse":
+      baseClass = "cta-anim-pulse";
+      break;
+    case "shake":
+      baseClass = "cta-anim-shake";
+      break;
+    case "bounce":
+      baseClass = "cta-anim-bounce";
+      break;
+    case "cross":
+      baseClass = "cta-anim-cross";
+      break;
+    case "shimmer":
+      baseClass = "cta-anim-shimmer";
+      break;
+    case "heartbeat":
+      baseClass = "cta-anim-heartbeat";
+      break;
+    case "wobble":
+      baseClass = "cta-anim-wobble";
+      break;
+    case "slide":
+      baseClass = "hover:translate-x-2 transition-transform";
+      break;
+    case "static":
+      baseClass = "";
+      break;
+    default:
+      baseClass = "cta-anim-pulse";
+      break;
+  }
+
+  if (!baseClass) return "";
+  if (speed === "fast") return `${baseClass} cta-anim-speed-fast`;
+  if (speed === "slow") return `${baseClass} cta-anim-speed-slow`;
+  return baseClass;
+}
+
