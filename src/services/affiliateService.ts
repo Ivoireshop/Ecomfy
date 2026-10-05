@@ -88,11 +88,110 @@ export interface FounderAffiliateListItem {
 
 export const affiliateService = {
   /**
+   * Helper to derive the user's real personal name from all available sources (Auth metadata, Profiles table, Email, Shop)
+   */
+  async getUserPersonalName(userId: string): Promise<string> {
+    try {
+      // 1. Try Supabase Auth user metadata
+      const { data: authUser } = await supabase.auth.getUser();
+      if (authUser?.user && authUser.user.id === userId) {
+        const meta = authUser.user.user_metadata || {};
+        const metaName = meta.full_name || meta.name || `${meta.first_name || ""} ${meta.last_name || ""}`.trim();
+        if (metaName && metaName.trim().length >= 2) {
+          return metaName.trim();
+        }
+      }
+
+      // 2. Try DB profiles table
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("full_name, first_name, last_name, email")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (userProfile?.full_name && userProfile.full_name.trim().length >= 2) {
+        return userProfile.full_name.trim();
+      }
+      if (userProfile?.first_name || userProfile?.last_name) {
+        const combined = `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim();
+        if (combined.length >= 2) return combined;
+      }
+
+      // 3. Try email prefix if available
+      const email = userProfile?.email || authUser?.user?.email;
+      if (email && email.includes("@")) {
+        const prefix = email.split("@")[0].replace(/[._+]/g, " ").trim();
+        if (prefix.length >= 2) return prefix;
+      }
+
+      // 4. Try shop owner or business name if name not set anywhere
+      const { data: shop } = await supabase
+        .from("shops")
+        .select("business_name")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (shop?.business_name && shop.business_name.trim().length >= 2) {
+        return shop.business_name.trim();
+      }
+    } catch (e) {
+      console.error("Error fetching user personal name:", e);
+    }
+
+    return `UTILISATEUR-${userId.substring(0, 5).toUpperCase()}`;
+  },
+
+  /**
+   * Helper to generate a clean, unique affiliate code from a person's name
+   */
+  async generateUniqueAffiliateCode(rawName: string, userId: string): Promise<string> {
+    // Clean name: remove accents, uppercase, convert spaces & special characters to single hyphens
+    let cleanName = rawName
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // strip accents
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-") // replace non-alphanumeric with hyphen
+      .replace(/^-+|-+$/g, ""); // trim leading/trailing hyphens
+
+    if (!cleanName || cleanName.length < 2 || cleanName.startsWith("ECOMFY-USER")) {
+      cleanName = `USER-${userId.substring(0, 5).toUpperCase()}`;
+    }
+
+    // Limit length of base code to max 24 chars
+    cleanName = cleanName.substring(0, 24);
+
+    let candidateCode = cleanName;
+    let counter = 1;
+    let isUnique = false;
+
+    while (!isUnique && counter <= 100) {
+      const testCode = counter === 1 ? candidateCode : `${candidateCode}-${counter}`;
+      const { data: match } = await supabase
+        .from("affiliates")
+        .select("id, user_id")
+        .eq("affiliate_code", testCode)
+        .maybeSingle();
+
+      if (!match || match.user_id === userId) {
+        candidateCode = testCode;
+        isUnique = true;
+      } else {
+        counter++;
+      }
+    }
+
+    return candidateCode;
+  },
+
+  /**
    * Fetch or create affiliate profile for current logged-in user with deterministic user-name based code generation
    */
   async getOrCreateProfile(userId: string): Promise<AffiliateProfile | null> {
     try {
-      // 1. Try fetching existing affiliate row
+      const realName = await this.getUserPersonalName(userId);
+
+      // 1. Fetch existing affiliate row
       const { data: existing } = await supabase
         .from("affiliates")
         .select("*")
@@ -100,60 +199,31 @@ export const affiliateService = {
         .maybeSingle();
 
       if (existing) {
-        return existing as AffiliateProfile;
-      }
+        // Check if existing code is generic placeholder (e.g. ECOMFY-USER or ECOMFY-USER-1)
+        const isGenericPlaceholder = 
+          existing.affiliate_code.startsWith("ECOMFY-USER") || 
+          existing.affiliate_code.startsWith("ECOMFY-") ||
+          existing.affiliate_code.startsWith("UTILISATEUR-");
 
-      // 2. Fetch user profile for personal name (Name-based referral code)
-      const { data: userProfile } = await supabase
-        .from("profiles")
-        .select("full_name, first_name, last_name, email")
-        .eq("id", userId)
-        .maybeSingle();
-
-      let rawName = "";
-      if (userProfile?.full_name && userProfile.full_name.trim().length > 0) {
-        rawName = userProfile.full_name.trim();
-      } else if (userProfile?.first_name || userProfile?.last_name) {
-        rawName = `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim();
-      } else if (userProfile?.email) {
-        rawName = userProfile.email.split("@")[0];
-      }
-
-      // Clean name: remove accents, uppercase, convert spaces & special characters to single hyphens
-      let cleanName = rawName
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // strip accents
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, "-") // replace non-alphanumeric with hyphen
-        .replace(/^-+|-+$/g, ""); // trim leading/trailing hyphens
-
-      if (!cleanName || cleanName.length < 2) {
-        cleanName = "ECOMFY-USER";
-      }
-
-      // Limit length of base code
-      cleanName = cleanName.substring(0, 20);
-
-      // Check collision and find unique code (e.g. ULRICH-DJATE, ULRICH-DJATE-2, ULRICH-DJATE-3)
-      let candidateCode = cleanName;
-      let counter = 1;
-      let isUnique = false;
-
-      while (!isUnique && counter <= 100) {
-        const testCode = counter === 1 ? candidateCode : `${candidateCode}-${counter}`;
-        const { data: match } = await supabase
-          .from("affiliates")
-          .select("id")
-          .eq("affiliate_code", testCode)
-          .maybeSingle();
-
-        if (!match) {
-          candidateCode = testCode;
-          isUnique = true;
-        } else {
-          counter++;
+        if (!isGenericPlaceholder) {
+          return existing as AffiliateProfile;
         }
+
+        // Upgrade generic placeholder to actual user name based code
+        const upgradedCode = await this.generateUniqueAffiliateCode(realName, userId);
+        
+        const { data: updated } = await supabase
+          .from("affiliates")
+          .update({ affiliate_code: upgradedCode, updated_at: new Date().toISOString() })
+          .eq("id", existing.id)
+          .select()
+          .single();
+
+        return (updated || { ...existing, affiliate_code: upgradedCode }) as AffiliateProfile;
       }
+
+      // 2. Create new profile with user's name
+      const candidateCode = await this.generateUniqueAffiliateCode(realName, userId);
 
       const { data: newProfile, error: insertErr } = await supabase
         .from("affiliates")
@@ -168,7 +238,6 @@ export const affiliateService = {
 
       if (insertErr) {
         console.error("Error inserting affiliate profile fallback:", insertErr);
-        // Emergency in-memory profile representation if DB insert failed
         return {
           id: userId,
           user_id: userId,
@@ -183,7 +252,7 @@ export const affiliateService = {
       return newProfile as AffiliateProfile;
     } catch (err) {
       console.error("Error in getOrCreateProfile:", err);
-      const fallbackCode = `ECOMFY-${userId.substring(0, 5).toUpperCase()}`;
+      const fallbackCode = `USER-${userId.substring(0, 5).toUpperCase()}`;
       return {
         id: userId,
         user_id: userId,
