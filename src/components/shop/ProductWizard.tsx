@@ -250,6 +250,7 @@ export function ProductWizard({
             const StepIcon = s.icon;
             return (
               <button
+                type="button"
                 key={s.key}
                 onClick={() => setStep(i)}
                 className={`relative flex flex-col items-center gap-2 px-1 min-w-[64px] transition-all duration-300 ease-in-out outline-none ${
@@ -318,7 +319,19 @@ export function ProductWizard({
 
         {step === 1 && (
           <div className="space-y-5">
-            <label className="relative flex flex-col items-center justify-center w-full h-48 sm:h-56 border-2 border-dashed rounded-xl cursor-pointer bg-muted/20 hover:bg-muted/40 border-muted-foreground/30 hover:border-primary/60 transition-all duration-300 group overflow-hidden">
+            <input
+              id="product-wizard-photos-upload"
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                e.stopPropagation();
+                if (e.target.files && e.target.files.length > 0) void onAddImages(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+            <label htmlFor="product-wizard-photos-upload" className="relative flex flex-col items-center justify-center w-full h-48 sm:h-56 border-2 border-dashed rounded-xl cursor-pointer bg-muted/20 hover:bg-muted/40 border-muted-foreground/30 hover:border-primary/60 transition-all duration-300 group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex flex-col items-center justify-center pt-5 pb-6 relative z-10">
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-300">
@@ -331,16 +344,6 @@ export function ProductWizard({
                   JPG, PNG, WEBP (Max 2 Mo)
                 </p>
               </div>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) void onAddImages(e.target.files);
-                  e.currentTarget.value = "";
-                }}
-              />
             </label>
 
             {totalImages > 0 && (
@@ -354,6 +357,7 @@ export function ProductWizard({
                       {idx === 0 && <span className="absolute top-1 left-1 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded">Principale</span>}
                       {onDeleteExisting && (
                         <button
+                          type="button"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteExisting(img.id); }}
                           className="absolute top-1 right-1 h-7 w-7 rounded-full bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 shadow-sm"
                           aria-label="Supprimer"
@@ -368,6 +372,7 @@ export function ProductWizard({
                       <img src={img.previewUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <button
+                        type="button"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemovePending(img.id); }}
                         className="absolute top-1 right-1 h-7 w-7 rounded-full bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 shadow-sm"
                         aria-label="Retirer"
@@ -679,6 +684,7 @@ export function ProductWizard({
 
             <div className="pt-4 space-y-4">
               <Button 
+                type="button"
                 onClick={() => void onSave()} 
                 disabled={saving} 
                 className="w-full h-14 text-base font-bold gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01]"
@@ -687,6 +693,7 @@ export function ProductWizard({
                 {saving ? "Enregistrement en cours…" : isEditing ? "Sauvegarder les modifications" : "Terminer et créer le produit"}
               </Button>
               <button 
+                type="button"
                 onClick={onSwitchToExpert} 
                 className="w-full text-xs sm:text-sm text-muted-foreground hover:text-primary underline underline-offset-4 transition-colors"
               >
@@ -700,6 +707,7 @@ export function ProductWizard({
         {/* Navigation bottom bar inside the card */}
         <div className="flex items-center justify-between gap-4 pt-6 mt-4 border-t border-border/50">
           <Button 
+            type="button"
             variant="outline" 
             onClick={back} 
             disabled={step === 0} 
@@ -709,6 +717,7 @@ export function ProductWizard({
           </Button>
           {step < STEPS.length - 1 ? (
             <Button 
+              type="button"
               onClick={next} 
               disabled={!canNext()} 
               className="gap-2 h-11 px-8 bg-primary text-primary-foreground font-semibold shadow-md shadow-primary/20 transition-transform active:scale-95"

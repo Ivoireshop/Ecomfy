@@ -308,6 +308,7 @@ export function RichTextEditor({ value, onChange, minHeight = 160 }: RichTextEdi
     input.type = "file";
     input.accept = "image/*";
     input.onchange = async (e) => {
+      e.stopPropagation();
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const tId = toast({ title: "Téléversement de l'image…" }).id;

@@ -1204,7 +1204,7 @@ export function ProductEditor({
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px]">
                       <div className="grid grid-cols-6 gap-1">
                         {COLORS.map(color => (
-                          <button key={color} className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          <button key={color} type="button" className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
                             style={{ backgroundColor: color }}
                             onMouseDown={(e) => { e.preventDefault(); execCmd("foreColor", color); setShowTextColor(false); }} />
                         ))}
@@ -1221,7 +1221,7 @@ export function ProductEditor({
                     <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px]">
                       <div className="grid grid-cols-6 gap-1">
                         {COLORS.map(color => (
-                          <button key={color} className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                          <button key={color} type="button" className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
                             style={{ backgroundColor: color }}
                             onMouseDown={(e) => { e.preventDefault(); execCmd("hiliteColor", color); setShowBgColor(false); }} />
                         ))}
@@ -1328,16 +1328,16 @@ export function ProductEditor({
                     className="absolute z-50 flex items-center gap-1 bg-popover border rounded-lg shadow-lg p-1.5"
                     style={{ top: Math.max(0, imageToolbar.top), left: imageToolbar.left }}
                   >
-                    <button onClick={() => resizeImage("25%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="25%">25%</button>
-                    <button onClick={() => resizeImage("50%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="50%">50%</button>
-                    <button onClick={() => resizeImage("75%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="75%">75%</button>
-                    <button onClick={() => resizeImage("100%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="100%">100%</button>
+                    <button type="button" onClick={() => resizeImage("25%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="25%">25%</button>
+                    <button type="button" onClick={() => resizeImage("50%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="50%">50%</button>
+                    <button type="button" onClick={() => resizeImage("75%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="75%">75%</button>
+                    <button type="button" onClick={() => resizeImage("100%")} className="px-2 py-1 text-xs rounded hover:bg-muted" title="100%">100%</button>
                     <div className="w-px h-5 bg-border mx-0.5" />
-                    <button onClick={() => alignImage("left")} className="p-1 rounded hover:bg-muted" title="Gauche"><AlignLeft className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => alignImage("center")} className="p-1 rounded hover:bg-muted" title="Centre"><AlignCenter className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => alignImage("right")} className="p-1 rounded hover:bg-muted" title="Droite"><AlignRight className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => alignImage("left")} className="p-1 rounded hover:bg-muted" title="Gauche"><AlignLeft className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => alignImage("center")} className="p-1 rounded hover:bg-muted" title="Centre"><AlignCenter className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => alignImage("right")} className="p-1 rounded hover:bg-muted" title="Droite"><AlignRight className="h-3.5 w-3.5" /></button>
                     <div className="w-px h-5 bg-border mx-0.5" />
-                    <button onClick={deleteEditorImage} className="p-1 rounded hover:bg-destructive/10 text-destructive" title="Supprimer"><X className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={deleteEditorImage} className="p-1 rounded hover:bg-destructive/10 text-destructive" title="Supprimer"><X className="h-3.5 w-3.5" /></button>
                   </div>
                 )}
                 <div
@@ -1517,25 +1517,31 @@ export function ProductEditor({
                   ))}
                 </div>
               )}
+              <input
+                id="product-images-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
+                multiple
+                className="hidden"
+                onChange={async (e) => {
+                  e.stopPropagation();
+                  const files = e.target.files;
+                  if (files && files.length > 0) {
+                    await handleProductImageFiles(files);
+                  }
+                  e.target.value = "";
+                }}
+              />
               <label htmlFor="product-images-upload" className="cursor-pointer block">
-                <input
-                  id="product-images-upload"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,image/jpg"
-                  multiple
-                  className="hidden"
-                  onChange={async (e) => {
-                    await handleProductImageFiles(e.target.files);
-                    // Reset so selecting the same file again still triggers onChange
-                    e.target.value = "";
-                  }}
-                />
                 <div
                   className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors"
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={async (e) => {
                     e.preventDefault();
-                    await handleProductImageFiles(e.dataTransfer.files);
+                    e.stopPropagation();
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      await handleProductImageFiles(e.dataTransfer.files);
+                    }
                   }}
                 >
                   {validatingImages ? (
@@ -2144,7 +2150,10 @@ export function ProductEditor({
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => handleAiSourceFile(e.target.files?.[0])}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleAiSourceFile(e.target.files?.[0]);
+                    }}
                     disabled={aiLoading}
                   />
                 </label>
@@ -2224,7 +2233,7 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: {
     <div className="bg-card border shadow-sm rounded-xl overflow-hidden transition-all duration-300">
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger asChild>
-          <button className="w-full flex items-center justify-between py-4 px-5 hover:bg-muted/30 transition-colors">
+          <button type="button" className="w-full flex items-center justify-between py-4 px-5 hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 text-primary rounded-lg">
                 {icon}

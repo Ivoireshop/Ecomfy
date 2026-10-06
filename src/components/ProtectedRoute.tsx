@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -103,6 +103,8 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
     }
   }, []);
 
+  const checkedUserIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!isReady) {
       return;
@@ -113,10 +115,15 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
       setFreeGenerationsRemaining(0);
       setIsFounder(false);
       setIsLoading(false);
+      checkedUserIdRef.current = null;
       return;
     }
 
-    setIsLoading(true);
+    if (checkedUserIdRef.current !== user.id) {
+      setIsLoading(true);
+      checkedUserIdRef.current = user.id;
+    }
+    
     void checkSubscription(user.id);
   }, [checkSubscription, isReady, requireActiveSubscription, user]);
 

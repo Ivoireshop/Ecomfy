@@ -264,15 +264,21 @@ const ShopEditor = () => {
   }, [id]);
 
   // Refresh orders when the tab becomes visible or window regains focus
+  const showProductEditorRef = useRef(showProductEditor);
+  useEffect(() => {
+    showProductEditorRef.current = showProductEditor;
+  }, [showProductEditor]);
+
   useEffect(() => {
     if (!id) return;
     const refresh = () => {
+      if (showProductEditorRef.current) return;
       const now = Date.now();
       if (now - lastPassiveRefreshRef.current < 3000) return;
       lastPassiveRefreshRef.current = now;
       fetchData();
     };
-    const onVis = () => { if (document.visibilityState === "visible") refresh(); };
+    const onVis = () => { if (document.visibilityState === "visible" && !showProductEditorRef.current) refresh(); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", refresh);
     return () => {
@@ -622,9 +628,27 @@ const ShopEditor = () => {
           ? "La fiche et ses images sont sauvegardées. Vous pourrez les retrouver après actualisation ou reconnexion."
           : "La fiche produit est sauvegardée.",
       });
-      setShowProductEditor(false);
-      setEditingProduct(null);
-      resetProductForm();
+      
+      if (!editingProduct) {
+        setShowProductEditor(false);
+        setEditingProduct(null);
+        resetProductForm();
+      } else if (prodId) {
+        // Keep editor open and refresh editingProduct in sync with DB
+        const { data: updatedProd } = await supabase
+          .from("products")
+          .select("*, product_images(*)")
+          .eq("id", prodId)
+          .maybeSingle() as any;
+        if (updatedProd) {
+          setEditingProduct({
+            ...updatedProd,
+            product_images: sortProductImages(updatedProd.product_images || []),
+            videos: data.videos || updatedProd.videos || [],
+          });
+        }
+      }
+      
       await fetchData();
       // Invalidate public-facing caches so the new product + images appear
       // immediately for visitors arriving from ads/links.
@@ -1153,7 +1177,7 @@ const ShopEditor = () => {
               onSave={handleProductEditorSave}
               onAutoSave={handleProductAutoSave}
               onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
-              onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file) : undefined}
+              onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file, false) : undefined}
               onDeleteImage={deleteProductImage}
               onSetPrimaryImage={setPrimaryProductImage}
               onReorderImages={async (orderedIds) => {

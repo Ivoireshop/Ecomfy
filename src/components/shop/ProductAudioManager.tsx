@@ -150,6 +150,7 @@ export function ProductAudioManager({ productId, shopId }: Props) {
           <h3 className="text-sm font-semibold">Témoignages audio</h3>
         </div>
         <Button
+          type="button"
           size="sm"
           variant="outline"
           disabled={uploading}
@@ -250,6 +251,7 @@ export function ProductAudioManager({ productId, shopId }: Props) {
                 </label>
                 <div className="flex items-center gap-1.5">
                   <Button
+                    type="button"
                     size="sm"
                     variant="ghost"
                     className="h-7 px-2 text-xs gap-1"
@@ -261,6 +263,7 @@ export function ProductAudioManager({ productId, shopId }: Props) {
                     <RefreshCw className="h-3 w-3" /> Remplacer
                   </Button>
                   <Button
+                    type="button"
                     size="sm"
                     variant="ghost"
                     className="h-7 px-2 text-xs text-destructive gap-1"
