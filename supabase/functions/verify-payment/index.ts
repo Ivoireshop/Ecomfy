@@ -281,6 +281,9 @@ serve(async (req) => {
         p_amount: Number(payment.amount) || 0,
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
+      });
+    }
+
     // Trigger affiliate commission processing non-destructively
     try {
       if (payment?.id) {

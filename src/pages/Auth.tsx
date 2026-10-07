@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Gift, Eye, EyeOff, GitPullRequestCreate, UserPlus } from "lucide-react";
+import { Loader2, Sparkles, Gift, Eye, EyeOff, GitPullRequestCreate, UserPlus, Volume2, VolumeX } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -42,6 +42,29 @@ const Auth = () => {
   const isInvite = searchParams.get("invite") === "1";
   const [activeTab, setActiveTab] = useState<string>("signin");
   const [hasError, setHasError] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const vimeoIframeRef = useRef<HTMLIFrameElement>(null);
+
+  const toggleSound = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (vimeoIframeRef.current?.contentWindow) {
+      vimeoIframeRef.current.contentWindow.postMessage(
+        JSON.stringify({
+          method: "setVolume",
+          value: nextMuted ? 0 : 1,
+        }),
+        "*"
+      );
+      vimeoIframeRef.current.contentWindow.postMessage(
+        JSON.stringify({
+          method: "setMuted",
+          value: nextMuted,
+        }),
+        "*"
+      );
+    }
+  };
 
   const triggerErrorShake = useCallback(() => {
     setHasError(true);
@@ -890,39 +913,55 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* Right: hero image column */}
-      <div className="relative hidden md:block h-full w-full">
+      {/* Right: presentation video column */}
+      <div className="relative hidden md:flex flex-col justify-between h-full w-full min-h-screen overflow-hidden bg-slate-950">
+        {/* Background poster fallback while video loads */}
         <img
           src={authHeroV5}
-          alt="Créateur africain utilisant Ecomfy"
-          className="absolute inset-0 h-full w-full object-cover object-[70%_center] md:object-center"
-          width={1024}
-          height={1024}
+          alt="Créateur Ecomfy"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-30"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
 
-        <div className="absolute top-4 right-4 md:top-6 md:right-6">
-          <div className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-medium text-white">
-            v5
-          </div>
+        {/* Embedded Clean Vimeo Video (Background mode: no Vimeo logo, no title overlay, auto-looping) */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+          <iframe
+            ref={vimeoIframeRef}
+            src="https://player.vimeo.com/video/1233651989?h=7f9d1d1563&autoplay=1&muted=1&loop=1&autopause=0&playsinline=1&dnt=1&transparent=0&title=0&byline=0&portrait=0&badge=0&controls=0&api=1"
+            className="absolute top-1/2 left-1/2 w-[300%] h-[300%] min-w-full min-h-full -translate-x-1/2 -translate-y-1/2 object-cover"
+            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            title="Présentation Ecomfy V5"
+          />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-10 text-white">
-          <div className="mb-2 md:mb-3 flex items-center gap-3">
-            <span className="h-px w-8 md:w-10 bg-white/50" />
-            <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] text-white/70 uppercase">
-              Ecomfy V5
-            </span>
+        {/* Subtle top gradient for header elements readability only */}
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/60 to-transparent pointer-events-none" />
+
+        {/* Top bar over video: Version tag & Mute/Unmute toggle */}
+        <div className="relative z-10 p-6 flex items-center justify-between">
+          <div className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 text-xs font-medium text-white flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>v5</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl xl:text-5xl font-bold leading-tight mb-2 md:mb-4">
-            Créez des visuels publicitaires.<br />
-            <span className="bg-gradient-to-r from-white to-secondary bg-clip-text text-transparent">
-              Vendez, lancez votre boutique.
-            </span>
-          </h2>
-          <p className="text-sm md:text-base xl:text-lg text-white/80 max-w-md">
-            Créez des vidéos publicitaires en quelques secondes grâce à l'intelligence artificielle.
-          </p>
+
+          <button
+            type="button"
+            onClick={toggleSound}
+            className="rounded-full bg-slate-900/60 hover:bg-slate-900/90 backdrop-blur-md border border-white/20 px-3.5 py-1.5 text-white transition-all hover:scale-105 active:scale-95 flex items-center gap-2 text-xs font-medium cursor-pointer shadow-lg"
+            title={isMuted ? "Activer le son" : "Désactiver le son"}
+          >
+            {isMuted ? (
+              <>
+                <VolumeX className="h-4 w-4 text-white/80" />
+                <span className="hidden sm:inline">Activer le son</span>
+              </>
+            ) : (
+              <>
+                <Volume2 className="h-4 w-4 text-emerald-400 animate-pulse" />
+                <span className="hidden sm:inline">Son activé</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
