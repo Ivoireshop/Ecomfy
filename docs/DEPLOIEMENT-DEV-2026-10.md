@@ -1,7 +1,8 @@
 # Déploiement des correctifs de sécurité sur la base dev (octobre 2026)
 
 **Cible :** projet Supabase **dev** `xfpbpxncserliskrbaim` (copie de la production). **Ne pas utiliser ce guide tel quel sur la production** (voir la section 9).
-**Points couverts :** C1 (portefeuille), C2 (RPC de facturation et serveur), C3 (`get_shop_orders_secure`), C7 (`manage-founder-roles`), C8 (`tracking.ts`, `track-conversion`). H2 (gouvernance) est déjà appliqué sur dev.
+**Points couverts :** C1 (portefeuille), C4 (KYC, dans le même fichier 02), C2 (RPC de facturation et serveur), C3 (`get_shop_orders_secure`), C7 (`manage-founder-roles`), C8 (`tracking.ts`, `track-conversion`). H2 (gouvernance) est déjà appliqué sur dev.
+**KYC, écran de revue, production :** `docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md`.
 **Contexte :** `docs/VERIFICATION-CORRECTIFS-2026-10.md` (état constaté de dev le 12/10/2026).
 
 ## 0. État du déploiement sur dev (12 octobre 2026)
@@ -12,7 +13,7 @@
 | B. Front de la branche `jeanmarc` | Oui (testé en local contre dev) | Navigateur |
 | C. `01_c2_c3_security.sql` | Oui | Requête SQL en lecture seule ; script HTTP |
 | C bis. `04_user_roles_rls.sql` | Oui | `user_roles` répond 200 ; pages fondateur accessibles |
-| D. `02_c1_wallet_dev.sql` (C1, optionnel) | **Non** | 6 échecs attendus du script HTTP (fonctions de portefeuille absentes) |
+| D. `02_c1_wallet_dev.sql` (C1 et C4, optionnel) | **Non** (version avec correctif C4 prête, jamais exécutée sur dev) | 6 échecs attendus du script HTTP (fonctions de portefeuille absentes) |
 | F. Comptes jetables et tests | Oui | Script HTTP : 42 réussis, 6 échecs (C1) ; interface : boutique créée, GA4 invalide refusé, activation et paiement manuels |
 
 Les données de test créées sur dev (deux comptes, une boutique, un paiement, deux lignes de commission) sont à nettoyer : section 8.3.
@@ -117,7 +118,7 @@ Validé sur une base locale qui imite dev (migrations jusqu'au 01/09 + hotfix + 
 
 1. Le système Ecomfy Pay n'existe pas sur dev (ni `wallets`, `merchant_kyc`, `withdrawal_requests`…). Pour tester C1 sur dev, il faut le déployer : ce fichier le fait.
 2. **Conflit de noms trouvé :** `public.payment_links` existe déjà sur dev (migration `20251120131345`, liens de paiement de **cours** : `course_id`, `provider`, `payment_url`). La migration Ecomfy Pay veut une autre table du même nom (`shop_id`, `link_key`) : son `CREATE TABLE IF NOT EXISTS` est ignoré et ses index et politiques sur `shop_id` échoueraient, ce qui annulerait tout. Le fichier 02 retire ces quatre instructions et la colonne `is_sandbox` sur `payment_links`. Conséquence : **les liens de paiement Ecomfy Pay ne fonctionnent pas** sur dev avec ce fichier. Le portefeuille, le KYC, les retraits et les fonctions C1 fonctionnent. Cela devra être résolu (renommer la table Ecomfy Pay, par exemple `ecomfy_payment_links`) avant toute mise en production.
-3. **Failles non corrigées introduites par ce déploiement :** `evaluate_merchant_kyc_security` (C4) sera exécutable par `PUBLIC`, `anon` et `authenticated` : n'importe qui pourra marquer un KYC « VERIFIED », ce qui est la barrière des retraits. Sur dev (données de test) c'est acceptable ; ne pas le reproduire en production. Les Edge Functions `ecomfy-pay-webhook` (C5, sans signature) et `ecomfy-pay-initiate` (C6, montants libres) ne sont pas à déployer sur dev tant qu'elles ne sont pas corrigées.
+3. **C4 (KYC) est corrigé dans ce fichier** : l'ancienne `evaluate_merchant_kyc_security` n'est plus créée, le statut KYC n'est écrit que par `review_merchant_kyc` (fondateur ou `service_role`), et **les retraits sont suspendus par défaut** (`ecomfy_pay_settings.withdrawals_enabled = false`). Pour tester un retrait sur dev : passer l'interrupteur à `true`, faire valider un compte jetable depuis `/founder/kyc-review`, puis le remettre à `false` (voir `docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md`). **Non corrigées et introduites par ce déploiement :** les Edge Functions `ecomfy-pay-webhook` (C5, sans signature) et `ecomfy-pay-initiate` (C6, montants libres) ne sont pas à déployer sur dev tant qu'elles ne sont pas corrigées.
 4. Non idempotent (`CREATE POLICY`) : à exécuter une seule fois. En cas d'échec, tout est annulé.
 
 Même procédure que l'étape C, avec `supabase/deploy-dev/02_c1_wallet_dev.sql`. Ensuite, déployer `ecomfy-pay-withdraw` (section 3).
@@ -179,9 +180,9 @@ Si une de ces suppressions échoue sur une contrainte de clé étrangère, la bo
 
 ## 9. Ce qu'il ne faut pas faire, et limites
 
-- **Ne pas déployer `20260909100000` en entier** : il contient `confirm_invoice_payment` (C4). Seule `get_shop_orders_secure` est reprise ici. Conséquence sur dev : `confirm_invoice_payment` reste absente, et les écrans de facturation par seuil qui en dépendent ne fonctionnent pas.
+- **Ne pas déployer `20260909100000` en entier** : il contient `confirm_invoice_payment` (C2). Seule `get_shop_orders_secure` est reprise ici. Conséquence sur dev : `confirm_invoice_payment` reste absente, et les écrans de facturation par seuil qui en dépendent ne fonctionnent pas.
 - **Ne pas utiliser `supabase db push`.**
-- **Production :** ne pas y appliquer le fichier 02 (conflit `payment_links`, C4, C5, C6 ouverts). Pour `01`, suivre `docs/SECURITY-HOTFIX-2026-10.md` : Edge Functions d'abord, front, puis migrations, après snapshot ; tâches planifiées appelant ces RPC avec la clé `anon` à vérifier (elles échoueront en 42501 après `150000`).
+- **Production :** ne pas y appliquer le fichier 02 (conflit `payment_links`, C5, C6 ouverts). C4 y est corrigé mais ne suffit pas à rendre ce fichier déployable en production ; procédure : `docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md` section 5. Pour `01`, suivre `docs/SECURITY-HOTFIX-2026-10.md` : Edge Functions d'abord, front, puis migrations, après snapshot ; tâches planifiées appelant ces RPC avec la clé `anon` à vérifier (elles échoueront en 42501 après `150000`).
 - **Non corrigé par ces scripts :** `corporate_invitations`, le groupe B de l'annexe F.3 de l'audit (`record_affiliate_referral`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`…), les e-mails en dur côté interface, les données déjà piégées dans `google_analytics_code` (C8).
 - `getWallet()` (`src/lib/ecomfyPay.ts`) appelle encore `get_or_create_merchant_wallet` depuis le navigateur : refusé après l'étape D (voir le rapport de vérification, section 6, point 2).
 

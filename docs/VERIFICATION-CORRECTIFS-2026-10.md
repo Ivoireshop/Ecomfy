@@ -23,7 +23,7 @@ Documents liés : `AUDIT-PROJET-2026-10.md` (constats et annexes), `docs/SECURIT
 | Annexe B sur la base réelle | **Faite sur dev, pas sur la production.** | Section 5.2 |
 | Journaux Supabase | **Non fait.** | Section 2 |
 
-Script HTTP final (comptes jetables) : **42 réussis, 6 échecs** ; les 6 échecs sont les fonctions de portefeuille de C1 (absentes de dev). Reste ouvert, non couvert par ces correctifs : C4 (`evaluate_merchant_kyc_security` ouvert à `anon` dès que C1 est déployé), groupe B de l'annexe F.3, `corporate_invitations`, e-mails en dur côté interface (section 6).
+Script HTTP final (comptes jetables) : **42 réussis, 6 échecs** ; les 6 échecs sont les fonctions de portefeuille de C1 (absentes de dev). Reste ouvert, non couvert par ces correctifs : groupe B de l'annexe F.3, `corporate_invitations`, e-mails en dur côté interface (section 6).
 
 ---
 
@@ -96,7 +96,7 @@ node --experimental-strip-types --test supabase/tests/manage-founder-roles.test.
 | `request_wallet_withdrawal_atomic` | `authenticated`, `service_role` | conforme (C1) |
 | `get_shop_orders_secure` | `authenticated`, `service_role` | conforme (C3) |
 | `get_or_create_affiliate` | `service_role` seul | conforme |
-| `evaluate_merchant_kyc_security` | `PUBLIC`, `anon`, `authenticated` | **ouvert** (C4, non corrigé) |
+| `evaluate_merchant_kyc_security` | `PUBLIC`, `anon`, `authenticated` | **supprimée** par le correctif C4 (remplacée par `review_merchant_kyc`, fondateur / `service_role`) ; le constat ci-dessus date d'avant le correctif |
 | `record_affiliate_referral` | `PUBLIC`, `anon`, `authenticated` | **ouvert** (groupe B de l'annexe F.3) |
 | `process_affiliate_commission_for_payment` | `PUBLIC`, `anon`, `authenticated` | **ouvert** (groupe B) |
 
@@ -337,7 +337,7 @@ Après les migrations dans la transaction : **0 fonction du lot de 16 encore ex�
 1. **Ordre de déploiement (respecté sur dev).** Edge Functions, front, puis migrations. Sur la production, appliquer `20261012130000` ou `20261012140000` avant les Edge Functions `founder-*` casserait le paiement manuel et l'activation manuelle des fondateurs (`docs/SECURITY-HOTFIX-2026-10.md` section 5.4).
 2. **Régression de `getWallet()`** (`src/lib/ecomfyPay.ts:76`). Elle appelle `get_or_create_merchant_wallet` depuis le navigateur. Cette fonction est désormais réservée à `service_role` : l'appel échoue en 42501. Le repli par `SELECT` direct sur `wallets` fonctionne si la ligne existe (test 39), mais un marchand qui n'a pas encore de portefeuille reçoit `null` au lieu de voir le portefeuille créé. À corriger : créer le portefeuille côté serveur (Edge Function ou premier crédit) ou ajouter une RPC `authenticated` limitée à `auth.uid()`.
 3. **RLS de `user_roles` (C7) : corrigée sur dev par `04_user_roles_rls.sql`, à reporter sur la production.** Constat d'origine : `user_roles_manage_policy` (migration `20260831190000`), auto-référente, provoquait une récursion (42P17, HTTP 500) pour toute lecture ou écriture d'un utilisateur connecté, donc « Accès restreint » sur les pages fondateur pour tout compte sans contournement par e-mail ; elle autorisait aussi tout `co_founder` à écrire n'importe quel rôle, et `user_roles_select_policy` (`true`) rendait la table lisible par tous. Correctif : migration `20261012160000_fix_user_roles_rls_recursion.sql` (chacun lit ses rôles, `founder` et `co_founder` lisent tout via `is_corporate_founder()`, plus d'écriture directe pour `authenticated` et `anon`). Vérifié sur dev (section 10.1). La production a très probablement le même défaut.
-4. **C4 non corrigé.** `evaluate_merchant_kyc_security` est exécutable par `anon` (test 46), alors que le KYC est la barrière des retraits (C1).
+4. **C4 corrigé dans les migrations (12/10/2026), pas encore sur dev.** `evaluate_merchant_kyc_security` était exécutable par `anon` (test 46). Elle est supprimée ; statut KYC écrit uniquement par `review_merchant_kyc` ; retraits suspendus par défaut. Vérifié par `supabase/tests/c4_kyc_review.sql` (18 cas, base jetable) et par l'écran de revue dans Chrome (faux serveur Supabase) ; guide : `docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md`. Pour dev : ré-exécuter `deploy-dev/02_c1_wallet_dev.sql` (voir `99_rollback.sql` pour repartir de zéro, car le script n'est pas idempotent).
 5. **Groupe B de l'annexe F.3** : `record_affiliate_referral`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`, `enforce_shop_billing_deadlines`, `enforce_shop_payment_state_for`, `process_referral_signup` restent ouvertes. Groupe E à relire, en priorité `mark_affiliate_payout_paid`, `consume_ai_credit`, `record_stock_movement`.
 6. **`corporate_invitations`** reste ouverte en lecture et écriture à `public` (à corriger avant de déployer `20260906000000`).
 7. **E-mails en dur côté interface** (contrôle d'accès contournable par un e-mail contenant « djateulrich ») : `src/components/AppSidebar.tsx:200`, `src/components/FounderRoute.tsx:21`, `src/pages/AssociateSpace.tsx:49`, `src/pages/CorporateGovernance.tsx:384,387,536`, `src/pages/FounderDashboard.tsx:344,371`, `src/pages/FounderTroubleshooting.tsx:90,118`, `supabase/functions/app-health-monitor/index.ts:11` (liste d'e-mails). Aussi les migrations qui comparent `auth.jwt() ->> 'email'` (`20260902140000`, pas encore déployée).
@@ -449,3 +449,19 @@ Remarques : le solde de commission de la boutique de test valait 0 avant le paie
 **Données de test créées sur dev :** deux comptes jetables, la boutique `c1083a4b-046f-4cd5-b4ed-9a369ab055b5` (activée, avec l'identifiant GA4 `G-TEST12345`), 1 ligne `payments` et 2 lignes `commission_payments`. Nettoyage : `docs/DEPLOIEMENT-DEV-2026-10.md`, section 8.3.
 
 **Non testé :** C1 (non déployé), nomination et révocation par le fondateur principal (compte réel, non jetable), paiement GeniusPay, vitrine publique d'une boutique avec pixels dans un navigateur.
+
+## 11. C4 : correctif KYC et écran de revue (12 octobre 2026)
+
+Vérification **locale uniquement** ; rien n'est déployé sur dev ni sur la production. Détail et procédure : `docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md`.
+
+| Vérification | Méthode | Résultat |
+|---|---|---|
+| Migrations d'origine `20260914190000` puis `20260914200000` | Base Postgres 16 jetable (image `pgvector/pgvector:pg16`), `auth` et rôles simulés, **sans** `is_corporate_founder()` préexistante | Appliquées sans erreur |
+| `deploy-dev/02_c1_wallet_dev.sql` | Même base, avec une table `payment_links` de cours préexistante | Appliqué sans erreur |
+| `supabase/tests/c4_kyc_review.sql` | Les deux bases ci-dessus | 18 cas sur 18 |
+| Écran `/founder/kyc-review` | Chrome, application locale (`127.0.0.1:8080`) contre un faux serveur Supabase (3 dossiers fictifs, un compte fondateur fictif) | Liste et compteur, fiche, rejet sans motif (aucun appel), rejet avec motif (appel `REJECTED` + motif), validation (appel `VERIFIED`), onglet Tous |
+| Types TypeScript | `tsc --noEmit -p tsconfig.app.json` | Aucune erreur sur `KycReview.tsx` et `App.tsx` ; erreurs préexistantes sur `ecomfyPay.ts` et `KycVerificationTab.tsx` (types Supabase périmés) |
+
+Limites : l'environnement SQL simule `auth` et les rôles, il n'est pas un Supabase réel (droits par défaut, extensions, Edge Functions). Le faux serveur ne contrôle aucun droit : les droits sont couverts par les tests SQL, pas par le test navigateur. Non testés : « Pièces redemandées » dans l'interface, affichage mobile, console du navigateur, `ecomfy-pay-withdraw` de bout en bout.
+
+Un défaut a été trouvé et corrigé pendant ces tests : le script `deploy-dev/02` avait perdu le trigger lors de sa régénération (les cas 2, 3, 11, 13 et 14 échouaient) ; le test l'a détecté avant tout déploiement.
