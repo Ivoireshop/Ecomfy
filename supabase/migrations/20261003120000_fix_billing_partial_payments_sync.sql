@@ -17,6 +17,16 @@ DECLARE
   v_new_balance numeric;
   v_event text;
 BEGIN
+  -- Garde d'accès : service_role, connexion directe ou fondateur uniquement
+  IF COALESCE(auth.role(), '') <> 'service_role'
+     AND session_user NOT IN ('postgres', 'supabase_admin', 'service_role')
+     AND NOT EXISTS (
+       SELECT 1 FROM public.user_roles ur
+       WHERE ur.user_id = auth.uid() AND ur.role::text IN ('founder', 'co_founder')
+     ) THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+
   IF p_shop_id IS NULL OR COALESCE(p_amount, 0) <= 0 THEN
     RETURN jsonb_build_object('success', false, 'error', 'invalid_input');
   END IF;
@@ -121,4 +131,5 @@ BEGIN
   );
 END $$;
 
-GRANT EXECUTE ON FUNCTION public.apply_commission_payment(uuid, numeric, text, uuid, text, text) TO authenticated, service_role, anon;
+GRANT EXECUTE ON FUNCTION public.apply_commission_payment(uuid, numeric, text, uuid, text, text) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.apply_commission_payment(uuid, numeric, text, uuid, text, text) FROM PUBLIC, anon;

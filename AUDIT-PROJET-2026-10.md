@@ -34,6 +34,19 @@ Ecomfy est une plateforme SaaS e-commerce multi-boutiques pour l'Afrique francop
 
 > **Réserve importante.** Les constats SQL (droits `EXECUTE`, politiques RLS) viennent des migrations présentes dans le dépôt. L'état réel de la base peut différer, car des migrations semblent manquantes (voir M11). Le script de vérification en annexe B permet de confirmer chaque point en 2 minutes sur la base réelle.
 
+### État des correctifs (mis à jour le 12 octobre 2026)
+
+L'annexe B a été exécutée sur la base de dev (copie de la production), puis les deux requêtes clés sur la production. Résultat : la production est arrêtée à la migration `20260901020000`, les 25 migrations suivantes du dépôt n'y sont pas, et les failles ci-dessous sont **confirmées en base**.
+
+| Constat | État en base | Correctif |
+|---|---|---|
+| C2, partie `apply_commission_payment` / `apply_shop_subscription` | **Confirmé** : exécutables par `anon` et `PUBLIC` | Hotfix `20261012120000` : validé sur la dev, **à déployer en production** |
+| H2, tables `corporate_*` | **Confirmé, et plus large** : les 14 tables sont ouvertes (lecture et écriture) à tout utilisateur connecté, car `strict_multitenant_privacy` n'est pas appliquée | Même hotfix : validé sur la dev, **à déployer en production** |
+| C1, C3, C4, `confirm_invoice_payment` | **Non exploitables aujourd'hui** : `wallets`, `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
+| Autres constats (C5 à C8, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
+
+Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
+
 ---
 
 ## 1. Périmètre et méthode
@@ -333,11 +346,11 @@ Ecomfy est une plateforme SaaS e-commerce multi-boutiques pour l'Afrique francop
 ## 7. Plan d'action recommandé
 
 ### Immédiat (24 à 48 h)
-1. **Script SQL de durcissement** : `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` sur `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `evaluate_merchant_kyc_security`, `record_affiliate_referral`, `get_or_create_affiliate`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`. Restreindre `get_shop_orders_secure` aux propriétaires/collaborateurs. Ajouter un `REVOKE` par défaut pour les prochaines fonctions (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`).
+1. **Script SQL de durcissement** *(partiellement fait : `apply_commission_payment` et `apply_shop_subscription`, voir le hotfix `20261012120000`)* : `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` sur `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `evaluate_merchant_kyc_security`, `record_affiliate_referral`, `get_or_create_affiliate`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`. Restreindre `get_shop_orders_secure` aux propriétaires/collaborateurs. Ajouter un `REVOKE` par défaut pour les prochaines fonctions (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`).
 2. **`ecomfy-pay-webhook`** : signature + rappel API fournisseur.
 3. **`manage-founder-roles`** : supprimer la logique basée sur l'e-mail et valider les rôles.
 4. **`tracking.ts`** : n'accepter que `G-XXXX`.
-5. **Gouvernance** : corriger les 8 tables ouvertes.
+5. **Gouvernance** : corriger les 8 tables ouvertes. *(Fait pour les 14 tables `corporate_*` par le hotfix `20261012120000`, à déployer en production ; restent `corporate_invitations` et `strict_multitenant_privacy`.)*
 6. **Audit des données déjà exposées** : consulter les journaux Supabase pour détecter des appels anonymes à `get_shop_orders_secure`, `confirm_invoice_payment`, `apply_commission_payment`, des écritures suspectes dans `user_roles`, des wallets créditées sans paiement.
 
 ### Court terme (1 à 2 semaines)
@@ -429,6 +442,19 @@ from wallets w
 where w.total_received > coalesce((select sum(net_merchant_amount) from ecomfy_payments p
                                    where p.merchant_id = w.merchant_id and p.status = 'SUCCEEDED'), 0);
 ```
+
+### Résultats observés le 12 octobre 2026
+
+| Requête | Dev (copie de la production) | Production |
+|---|---|---|
+| 1. Droits `EXECUTE` | `apply_commission_payment` et `apply_shop_subscription` ouvertes à `PUBLIC`, `anon`, `authenticated` ; les autres fonctions de la liste n'existent pas | `apply_commission_payment` et `apply_shop_subscription` ouvertes à `PUBLIC` et `anon` |
+| 2. Politiques permissives | 28 politiques `USING (true)` sur les 14 tables `corporate_*` (lecture et écriture, rôle `authenticated`) | non exécutée |
+| 3. `is_founder_or_cofounder` | absente | non exécutée |
+| 4. Rôles privilégiés | 1 `founder`, 1 `co_founder` | non exécutée |
+| 5. Portefeuilles sans paiement | impossible : la table `wallets` n'existe pas | non exécutée |
+| `max(version)` de `schema_migrations` | `20260901020000` | `20260901020000` |
+
+Après le hotfix, sur la dev : plus de droit `anon`/`PUBLIC` sur les deux fonctions, et 2 politiques permissives restantes (insertion seule dans `corporate_audit_logs` et `corporate_document_acceptances`, voulu pour l'onboarding).
 
 ## Annexe C. Modèle de correctif pour les fonctions financières
 
