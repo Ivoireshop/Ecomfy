@@ -43,7 +43,8 @@ L'annexe B a été exécutée sur la base de dev (copie de la production), puis 
 | C2, partie `apply_commission_payment` / `apply_shop_subscription` | **Confirmé** : exécutables par `anon` et `PUBLIC` | Hotfix `20261012120000` : validé sur la dev, **à déployer en production** |
 | H2, tables `corporate_*` | **Confirmé, et plus large** : les 14 tables sont ouvertes (lecture et écriture) à tout utilisateur connecté, car `strict_multitenant_privacy` n'est pas appliquée | Même hotfix : validé sur la dev, **à déployer en production** |
 | C1 | **Non exploitable aujourd'hui** : `wallets` n'existe pas en base | **Corrigé dans la migration d'origine** `20260914190000` (`REVOKE` + `GRANT service_role`, retrait via `auth.uid()`, `ecomfy-pay-withdraw` appelle la RPC avec le JWT du marchand). SQL validé sur une base locale jetable (13 tests, annexe D) ; Edge Function non testée de bout en bout |
-| C3, C4, `confirm_invoice_payment` | **Non exploitables aujourd'hui** : `wallets`, `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
+| C3 | **Non exploitable aujourd'hui** : les fonctions de facturation par seuil n'existent pas en base | **Corrigé dans la migration d'origine** `20260909100000` (contrôle propriétaire / collaborateur actif / fondateur via `auth.uid()`, `REVOKE` pour `anon` et `PUBLIC`). SQL validé sur une base locale jetable (19 tests, annexe E) |
+| C4, `confirm_invoice_payment` | **Non exploitables aujourd'hui** : `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
 | Autres constats (C5 à C8, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
 
 Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
@@ -530,3 +531,31 @@ Droits d'exécution constatés après la migration :
 **Reste ouvert, lié à C1 :**
 - un marchand authentifié peut appeler `request_wallet_withdrawal_atomic` directement, sans passer par l'Edge Function : la demande reste `REQUESTED` et ne touche que son solde, mais l'envoi du paiement n'est pas déclenché. La vraie barrière est le KYC, aujourd'hui contournable (C4) : corriger C4 avant tout déploiement ;
 - `ecomfy-pay-settlement` n'authentifie pas son appelant : n'importe qui peut déclencher `process_wallet_settlements` (sans gain direct, mais à protéger par un secret ou un cron interne).
+
+## Annexe E. Tests du correctif C3 (`get_shop_orders_secure`)
+
+**Date :** 12 octobre 2026. **Environnement :** base Postgres locale jetable (même image que l'annexe D, rôles réels), détruite après les tests. Script rejouable : [`supabase/tests/c3_get_shop_orders_secure.sql`](supabase/tests/c3_get_shop_orders_secure.sql). La fonction testée est extraite telle quelle de la migration `20260909100000` ; les tables (`shops`, `shop_collaborators`, `user_roles`, `orders`) et les helpers (`has_role`, `is_shop_owner`, `is_shop_collaborator`) sont des copies minimales des définitions réelles.
+
+**Jeu de données :** boutique A (active, 2 commandes), boutique B (active, 1 commande), boutique R (`STORE_RESTRICTED`, 1 commande). Acteurs : propriétaires de A, B et R, collaborateur actif et collaborateur invité (`pending`) de A, `founder`, `co_founder`, tiers sans lien.
+
+| # | Cas | Attendu | Observé |
+|---|---|---|---|
+| 1, 14 | `anon` (boutique A, boutique R) | refusé | `permission denied` |
+| 2 | `authenticated` sans identité | refusé | `forbidden` |
+| 3, 13 | tiers sur A, sur R | refusé | `forbidden` |
+| 4, 6 | propriétaire de B lit A, propriétaire de A lit B | refusé | `forbidden` |
+| 5 | propriétaire de A lit A | 2 lignes en clair | 2 lignes, noms en clair, `is_restricted = false` |
+| 7 | collaborateur actif lit A | 2 lignes en clair | idem |
+| 8 | collaborateur invité (`pending`) lit A | refusé | `forbidden` |
+| 9 | collaborateur de A lit B | refusé | `forbidden` |
+| 10, 11 | `founder` lit A, `co_founder` lit B | autorisé | lignes en clair |
+| 12 | propriétaire de la boutique restreinte | lignes masquées | 1 ligne, `is_restricted = true`, aucun nom en clair |
+| 15 | `service_role` (pas de `auth.uid()`) | refusé | `forbidden` |
+| 16, 17 | boutique inexistante, UUID `NULL` | refusé | `forbidden` |
+| 18, 19 | droit `EXECUTE` | `anon` non, `authenticated` oui | conforme |
+
+**Résultat : 19 réussis, 0 échec.**
+
+**Contre-épreuve :** le même script rejoué sur l'ancienne fonction (version de `HEAD` avant correctif) donne 6 réussis et 13 échecs : `anon`, un tiers ou un autre marchand lisent les commandes de A, y compris les noms en clair. Les tests détectent donc bien la faille.
+
+**Non couvert :** application de la chaîne complète des migrations (seule la fonction et ses dépendances directes sont simulées) ; déploiement sur la base de dev. Comme la migration `20260909100000` crée aussi `confirm_invoice_payment` (C4), elle ne doit toujours pas être déployée avant la correction de ce dernier.
