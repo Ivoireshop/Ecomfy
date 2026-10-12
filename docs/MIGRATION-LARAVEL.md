@@ -33,7 +33,7 @@ Flag par domaine : `VITE_API_DOMAINS="public-shop,affiliate,..."` ou config runt
 
 Porter le code « tel quel » reproduirait les failles de `AUDIT-PROJET-2026-10.md`. À traiter côté Supabase d'abord (SQL + edge functions), car les domaines concernés seront réécrits plus tard :
 - Script SQL `REVOKE` des RPC wallet/billing exposées (C1, C2, C3), correctif KYC (C4), HMAC sur `ecomfy-pay-webhook` (C5), recalcul des montants côté serveur (C6), `manage-founder-roles` (C7), XSS `tracking.ts` (C8).
-- Rotation des secrets, retrait de `.env` du suivi git, lever l'ambiguïté des deux projets Supabase (`dqlbmtkaamjohgbcjwtw` vs `yfggrceynzcwklbxhgix`) (H11).
+- Rotation des secrets, retrait de `.env` du suivi git, deux projets Supabase désormais clarifiés (prod `yfggrceynzcwklbxhgix`, dev `xfpbpxncserliskrbaim`) (H11, corrigé dans le dépôt ; vérifications en environnement réel listées dans `AUDIT-PROJET-2026-10.md`).
 - **Rendre le schéma reproductible** : `pg_dump --schema-only` de la prod comme baseline (les 229 migrations ne reproduisent pas la base : `is_founder_or_cofounder()`, `product_variants`, colonnes `profiles` manquantes).
 - Inventaire des données prod (volumétrie par table) pour la Phase 9.
 - Créer le dossier `backend/` (Laravel) dans le repo, CI (lint, Pest, build).

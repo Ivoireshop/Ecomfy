@@ -240,6 +240,17 @@ Ecomfy est une plateforme SaaS e-commerce multi-boutiques pour l'Afrique francop
 - **Où :** `.env` est suivi par Git malgré `.gitignore` (présent dans l'historique, notamment les commits `513f0cb`, `de9fb1e`, `3771de8`). `supabase/config.toml` : `project_id = "dqlbmtkaamjohgbcjwtw"` ; `.env` et `supabase/.temp/project-ref` : `yfggrceynzcwklbxhgix`. Des migrations codent en dur la clé `anon` et l'URL de l'**ancien** projet (`20260506110734_...sql:33`, `20260601094150_...sql:73`) et du nouveau (`20260813104500_...sql:9`).
 - **Constat :** le fichier ne contient que des clés publiques (clé `anon`, clé VAPID publique) donc pas de fuite de secret serveur. Mais l'habitude est dangereuse, et les déclencheurs `pg_net` pointent potentiellement vers le mauvais projet.
 - **Correctif :** `git rm --cached .env`, ajouter `.env.example`, aligner `config.toml`, remplacer les valeurs codées en dur dans les migrations par un paramètre de base ou un secret Vault.
+- **Statut (2026-10-12) : corrigé dans le dépôt, validation en environnement réel en attente.**
+  - Rôles retenus : prod = `yfggrceynzcwklbxhgix`, dev = `xfpbpxncserliskrbaim`. `dqlbmtkaamjohgbcjwtw` (ancienne prod) et `izyxawbadxttpukpntmh` (ancien dev) sont abandonnés.
+  - Fait : `.env` et `supabase/.temp/` retirés du suivi Git (`.gitignore` mis à jour), `.env.example` ajouté, `supabase/config.toml` sans ref de projet (`project_id = "ecomfy"`), `functions/mcp` déduit le ref de `SUPABASE_URL`, build Vite qui échoue si `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` manquent (au lieu du repli silencieux sur `dummy.supabase.co`), migration `20261011120000_edge_function_url_from_vault.sql` (trigger `notify_new_order_push` et cron `app-health-monitor` passent par `invoke_edge_function()`, qui lit le secret Vault `supabase_project_url`).
+  - Volontairement laissé : les anciennes migrations (`20260506110734`, `20260601094150`, `20260813104500`) gardent leurs URL et clés `anon` publiques, car elles sont déjà appliquées. `.env` reste dans l'historique Git (clés publiques uniquement, pas de purge nécessaire).
+  - **Non vérifié, à confirmer avant de clore H11 :**
+    1. Variables d'environnement Vercel : `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY` en Production (valeurs `yfgg…`) et en Preview (valeurs `xfpb…`). Sans elles, le prochain déploiement échoue (c'est le but du contrôle de build).
+    2. Secret Vault `supabase_project_url` à créer dans chaque projet **avant** d'appliquer la migration (`select vault.create_secret('https://<ref>.supabase.co', 'supabase_project_url');`). Sans lui, les push de nouvelle commande et le health-monitor sont ignorés avec un `WARNING`.
+    3. La migration n'a jamais été exécutée sur une base (relecture uniquement). À appliquer d'abord sur le dev, puis à vérifier : création de commande (appel de `send-push-notification`), présence du job `app-health-monitor`, disponibilité de `vault` et `pg_net` sur chaque projet.
+    4. État réel du cron en prod : `select command from cron.job where jobname = 'app-health-monitor';`. S'il visait `dqlb…`, le monitoring de la prod ne tournait pas ; après la migration il redémarre et peut créer des entrées dans `app_incidents`.
+    5. Secrets des Edge Functions (VAPID, etc.) présents dans chaque projet utilisé.
+    6. Le contrôle de build ne vérifie pas que l'URL pointe vers le bon projet : une URL de dev en Production passerait.
 
 ### MOYEN
 

@@ -1,10 +1,32 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Variables indispensables au build : sans elles, src/integrations/supabase/client.ts
+// retombe silencieusement sur "dummy.supabase.co" et le site déployé ne fonctionne plus.
+const REQUIRED_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"] as const;
+
+function assertBuildEnv(mode: string) {
+  // loadEnv fusionne les fichiers .env et process.env (variables Vercel comprises).
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const problems = REQUIRED_ENV.filter((k) => !env[k]?.trim()).map((k) => `${k} est manquante`);
+  if (env.VITE_SUPABASE_URL && !/^https:\/\/[a-z0-9]+\.supabase\.co\/?$/.test(env.VITE_SUPABASE_URL.trim())) {
+    problems.push(`VITE_SUPABASE_URL invalide : ${env.VITE_SUPABASE_URL}`);
+  }
+  if (problems.length) {
+    throw new Error(
+      "Build interrompu, configuration Supabase incomplète :\n - " +
+        problems.join("\n - ") +
+        "\nDéfinissez ces variables dans Vercel (Settings > Environment Variables) ou dans votre .env local (voir .env.example)."
+    );
+  }
+}
+
 // https://vitejs.dev/config/
-export default defineConfig(() => ({
+export default defineConfig(({ command, mode }) => {
+  if (command === "build") assertBuildEnv(mode);
+  return {
   server: {
     host: "::",
     port: 8080,
@@ -48,4 +70,5 @@ export default defineConfig(() => ({
     sourcemap: false,
     chunkSizeWarningLimit: 1000,
   },
-}));
+};
+});

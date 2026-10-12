@@ -120,7 +120,7 @@ var list_shop_orders_default = defineTool3({
 });
 
 // src/lib/mcp/index.ts
-var projectRef = "dqlbmtkaamjohgbcjwtw";
+var projectRef = new URL(Deno.env.get("SUPABASE_URL")).hostname.split(".")[0];
 var mcp_default = defineMcp({
   name: "visualpro-mcp",
   title: "VisualPro",
