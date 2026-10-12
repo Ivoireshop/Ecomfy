@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
+import { verifyWebhookSignature } from "../_shared/webhookSignature.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-webhook-timestamp, x-webhook-event, x-webhook-environment, x-webhook-delivery",
 };
 
 serve(async (req) => {
@@ -11,20 +13,46 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const ack = (body: Record<string, unknown>) => {
+  const ack = (body: Record<string, unknown>, status = 200) => {
     return new Response(JSON.stringify(body), {
-      status: 200,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   };
 
   try {
+    // C5 : authentifier l'appelant avant toute lecture ou écriture en base.
+    const secret = Deno.env.get("GENIUSPAY_WEBHOOK_SECRET");
+    if (!secret) {
+      // 500 : le fournisseur réessaiera une fois le secret configuré.
+      console.error("[ecomfy-pay-webhook] GENIUSPAY_WEBHOOK_SECRET not configured");
+      return ack({ success: false, error: "Webhook secret not configured" }, 500);
+    }
+
+    const rawBody = await req.text();
+    const check = await verifyWebhookSignature({
+      secret,
+      rawBody,
+      signature: req.headers.get("x-webhook-signature") || "",
+      timestamp: req.headers.get("x-webhook-timestamp") || "",
+    });
+    if (!check.ok) {
+      console.warn("[ecomfy-pay-webhook] Rejected:", check.reason);
+      return ack({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    let payload: any;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return ack({ success: false, error: "Invalid JSON" }, 400);
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload = await req.json().catch(() => ({}));
-    const event = payload?.event || "payment.success";
+    const event = payload?.event || req.headers.get("x-webhook-event") || "payment.success";
     const data = payload?.data || payload;
     const meta = data?.metadata || {};
 
@@ -33,6 +61,31 @@ serve(async (req) => {
 
     if (!internalRef && !providerRef) {
       return ack({ success: false, error: "Missing transaction reference" });
+    }
+
+    // Confirmation auprès de l'API GeniusPay avant de traiter un succès. Placée avant l'insertion
+    // d'idempotence : en cas d'échec (503), la nouvelle tentative du fournisseur n'est pas ignorée.
+    if (event === "payment.success" || data?.status === "completed" || data?.status === "success") {
+      const apiKey = Deno.env.get("GENIUSPAY_API_KEY");
+      const apiSecret = Deno.env.get("GENIUSPAY_API_SECRET");
+      if (!apiKey || !apiSecret || !providerRef) {
+        console.error("[ecomfy-pay-webhook] Cannot confirm payment with provider", { hasKeys: !!(apiKey && apiSecret), providerRef });
+        return ack({ success: false, error: "Cannot confirm payment" }, 503);
+      }
+      const resp = await fetch(`${GENIUSPAY_API_URL}/payments/${encodeURIComponent(String(providerRef))}`, {
+        method: "GET",
+        headers: { "X-API-Key": apiKey, "X-API-Secret": apiSecret },
+      }).catch(() => null);
+      const json: any = resp ? await resp.json().catch(() => ({})) : {};
+      const remoteStatus = (json?.data || json)?.status;
+      if (!resp?.ok) {
+        console.error("[ecomfy-pay-webhook] Provider confirmation failed:", resp?.status);
+        return ack({ success: false, error: "Cannot confirm payment" }, 503);
+      }
+      if (remoteStatus !== "completed" && remoteStatus !== "paid" && remoteStatus !== "success") {
+        console.warn("[ecomfy-pay-webhook] Provider does not confirm success:", { providerRef, remoteStatus });
+        return ack({ success: false, error: "Payment not confirmed by provider" });
+      }
     }
 
     // 1. Idempotence Webhook

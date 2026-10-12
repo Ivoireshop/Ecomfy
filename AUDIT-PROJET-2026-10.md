@@ -22,7 +22,7 @@ Ecomfy est une plateforme SaaS e-commerce multi-boutiques pour l'Afrique francop
 ### Les 10 actions à faire en premier
 
 1. Révoquer `EXECUTE` pour `anon`/`PUBLIC` sur toutes les fonctions financières et de facturation (C1, C2, C3). *(Fait pour C1, C2 et C3 dans les migrations, voir l'état des correctifs ; reste le groupe B de l'annexe F.3. Ce n'est plus « un seul script » : un `REVOKE ... FROM PUBLIC` seul ne suffit pas, il faut nommer `anon` et `authenticated`.)*
-2. Vérifier la signature HMAC dans `ecomfy-pay-webhook` (C5).
+2. Vérifier la signature HMAC dans `ecomfy-pay-webhook` (C5). *(Fait dans le code, voir C5.)*
 3. Recalculer côté serveur les montants et les crédits dans `process-payment` et `ecomfy-pay-initiate` (C6).
 4. Corriger `manage-founder-roles` : supprimer `includes("djateulrich")` et valider le rôle demandé (C7).
 5. Supprimer l'exécution de scripts libres dans `tracking.ts` (C8). *(Fait, voir C8.)*
@@ -50,7 +50,8 @@ L'annexe B a été exécutée sur la base de dev (copie de la production), puis 
 | C4 (KYC factice) | **Non exploitable aujourd'hui** : `merchant_kyc` et `wallets` n'existent pas en base | **Corrigé dans les migrations d'origine** `20260914190000` et `20260914200000` (voir C4 : plus d'auto-validation, revue manuelle, retraits suspendus par défaut). 18 tests sur base jetable, écran testé dans le navigateur. Reste H1 (bucket public). Le guide de déploiement et la procédure de production sont dans `docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md` |
 | C7, `manage-founder-roles` | **Non vérifié en base** (Edge Function, aucun effet SQL) | **Corrigé dans le code** : décision sur `user_roles` uniquement (plus d'e-mail), liste blanche des rôles, nommer/révoquer réservé au rôle `founder`, révocation d'un rôle précis. 14 tests Node (annexe F) ; non déployé, non testé contre Supabase. **Reste ouvert :** la politique RLS `user_roles_manage_policy` (voir annexe F) |
 | C8, XSS stocké via `google_analytics_code` | **Non vérifié en base** (le champ n'a pas d'écran de saisie mais reste modifiable par l'API par le propriétaire de la boutique : voir la requête de détection ci-dessous). Côté code : exploitable, y compris les scripts en ligne | **Corrigé** : plus aucun code marchand exécuté, identifiants validés partout (navigateur, éditeur, `track-conversion`). 6 tests Node, contre-épreuve sur l'ancien code. Pas déployé |
-| Autres constats (C5, C6, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
+| C5, `ecomfy-pay-webhook` | Non vérifié en base | **Corrigé dans le code** : signature HMAC + rappel API GeniusPay. 7 tests Node ; non déployé, non testé contre GeniusPay (voir C5) |
+| Autres constats (C6, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
 
 Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
 
@@ -198,6 +199,12 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 - **Constat :** contrairement à `geniuspay-webhook` (qui vérifie un HMAC-SHA256 avec fenêtre anti-rejeu de 5 minutes), ce webhook accepte n'importe quel JSON. Il marque le paiement `SUCCEEDED`, passe la commande en `PAID` et crédite le portefeuille.
 - **Scénario :** `POST {event:"payment.success", data:{metadata:{internal_reference:"ECM-PAY-XXXX"}}}` : fausse confirmation de paiement. La référence est devinable (voir M4) ou récupérable car renvoyée par `ecomfy-pay-initiate`.
 - **Correctif :** reprendre `computeSignature` + `timingSafeEqual` de `geniuspay-webhook`. En complément, rappeler l'API GeniusPay pour confirmer le statut avant de créditer.
+
+- **Statut (12 octobre 2026) : corrigé dans le code, testé en local, pas déployé.**
+  - `supabase/functions/_shared/webhookSignature.ts` (nouveau) : HMAC-SHA256 de `timestamp.corps brut` avec `GENIUSPAY_WEBHOOK_SECRET` (en-têtes `X-Webhook-Signature` / `X-Webhook-Timestamp`, fenêtre de 5 minutes, comparaison à temps constant), même schéma que `geniuspay-webhook`.
+  - `ecomfy-pay-webhook` : signature vérifiée avant tout accès à la base (401 si absente ou invalide, 500 si le secret manque). Avant de traiter un succès, la fonction interroge `GET /payments/{ref}` chez GeniusPay et ne crédite que si le statut est `completed`, `paid` ou `success` (503 si l'appel échoue, avant l'insertion d'idempotence, pour que la nouvelle tentative ne soit pas ignorée). 7 tests Node : `supabase/tests/webhook-signature.test.ts`.
+  - **À vérifier avant déploiement :** que `GENIUSPAY_WEBHOOK_SECRET` est défini ; que GeniusPay appelle bien cette URL pour les paiements Ecomfy Pay ; qu'un paiement de test sur dev est confirmé par `GET /payments/{ref}` (sinon tous les succès partent en 503). Format de signature supposé identique à `geniuspay-webhook`, non vérifié sur un envoi réel.
+  - **Reste ouvert :** le montant renvoyé par GeniusPay n'est pas comparé à `payment.amount` (lié à C6) ; M6 (échec du crédit acquitté).
 
 #### C6. Montants et crédits décidés par le navigateur
 - **Où :** `supabase/functions/process-payment/index.ts:113,216,436-520` ; `supabase/functions/ecomfy-pay-initiate/index.ts:23-36,60-73`.
@@ -433,7 +440,7 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 
 | Fonction | Auth interne | Observation |
 |---|---|---|
-| `ecomfy-pay-webhook` | **Non** (aucune signature) | C5 |
+| `ecomfy-pay-webhook` | Signature HMAC (`GENIUSPAY_WEBHOOK_SECRET`) | C5 corrigé dans le code, non déployé |
 | `ecomfy-pay-initiate` | Non | Public par nature (checkout), mais montants libres (C6) |
 | `ecomfy-pay-settlement` | Non | Déclenchable par tous (M6) |
 | `geniuspay-webhook` | Signature HMAC | Bug de portée (H7) |
@@ -733,4 +740,4 @@ Script HTTP avec de vrais JWT (comptes jetables) : 42 réussis, 6 échecs (les f
 5. **Facturation par seuil non déployée sur dev** (`shop_invoices`, `enforce_shop_billing_deadlines`, `confirm_invoice_payment` absents) : les écrans correspondants reçoivent des 404.
 6. **Données** : des logos de boutiques de dev pointent vers le stockage de la production (URLs copiées avec les données).
 
-**Reste ouvert, non couvert** : C5 et C6 (`ecomfy-pay-webhook`, `ecomfy-pay-initiate`), groupe B de l'annexe F.3, `corporate_invitations`, e-mails en dur côté interface, nettoyage des `google_analytics_code` déjà stockés, journaux Supabase non exportés, annexe B non lancée sur la production.
+**Reste ouvert, non couvert** : C5 (corrigé dans le code, non déployé) et C6 (`ecomfy-pay-initiate`), groupe B de l'annexe F.3, `corporate_invitations`, e-mails en dur côté interface, nettoyage des `google_analytics_code` déjà stockés, journaux Supabase non exportés, annexe B non lancée sur la production.
