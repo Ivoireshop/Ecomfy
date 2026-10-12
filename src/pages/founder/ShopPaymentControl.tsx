@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { recordManualCommissionPayment } from "@/lib/founderBilling";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,17 +73,19 @@ export default function ShopPaymentControl() {
     if (!raw) return;
     const amount = Math.max(1, parseInt(raw, 10) || defaultAmount);
     setBusyId(shop.id);
-    const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.rpc("apply_commission_payment", {
-      p_shop_id: shop.id,
-      p_amount: amount,
-      p_transaction_reference: `MANUAL-${Date.now()}`,
-      p_created_by: userData.user?.id || shop.user_id,
-      p_payment_method: "cash_direct",
-      p_notes: "Règlement manuel admin enregistré par le fondateur (Secours GeniusPay)",
-    });
+    try {
+      await recordManualCommissionPayment({
+        shopId: shop.id,
+        amount,
+        transactionReference: `MANUAL-${Date.now()}`,
+        paymentMethod: "cash_direct",
+        notes: "Règlement manuel admin enregistré par le fondateur (Secours GeniusPay)",
+      });
+    } catch (e: any) {
+      setBusyId(null);
+      return toast({ title: "Erreur", description: e?.message, variant: "destructive" });
+    }
     setBusyId(null);
-    if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
     toast({ title: `Paiement manuel de ${fmt(amount)} FCFA enregistré !` });
     void load();
   };

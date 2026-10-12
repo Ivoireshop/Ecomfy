@@ -1,7 +1,7 @@
 # Hotfix sécurité d'octobre 2026 : déploiement et tests
 
 **Migration :** `supabase/migrations/20261012120000_hotfix_security_billing_rpc_and_corporate_rls.sql`
-**Constats traités :** C2 (en partie : `apply_commission_payment`, `apply_shop_subscription`) et H2 (tables `corporate_*`), voir `AUDIT-PROJET-2026-10.md`.
+**Constats traités :** C2 (en partie : `apply_commission_payment`, `apply_shop_subscription` ; complété par la migration `20261012130000`, voir 5.4) et H2 (tables `corporate_*`), voir `AUDIT-PROJET-2026-10.md`.
 **État :** appliqué et validé sur la base de dev (copie de la production). **Pas encore appliqué en production.**
 
 ---
@@ -110,6 +110,70 @@ curl -s -X PATCH "$URL/rest/v1/corporate_companies?id=eq.00000000-0000-0000-0000
 | Tâche `reconcile-pending-payments` | s'exécute sans erreur `forbidden` dans les journaux |
 
 Surveiller après le déploiement, dans les journaux Postgres et edge functions : les erreurs `42501` et `forbidden`, qui signalent soit une tentative d'abus, soit un appelant légitime oublié.
+
+## 5.4 Complément C2 : migration `20261012130000` (à appliquer après le hotfix)
+
+Les trois fonctions de facturation (`apply_commission_payment`, `apply_shop_subscription`, `confirm_invoice_payment`) sont réservées à `service_role`. **Ce complément remplace les attendus de 5.1 et 5.2 pour `apply_commission_payment`** : un fondateur connecté ne peut plus l'appeler directement (`42501 permission denied`).
+
+Ordre de déploiement : déployer d'abord les Edge Functions, puis le front, puis les migrations `20261012130000` et `20261012140000` (voir ci-dessous). Sinon les écrans de paiement manuel et d'activation manuelle des fondateurs échouent.
+
+```bash
+supabase functions deploy founder-record-commission-payment
+supabase functions deploy founder-activate-shop
+```
+
+Vérification SQL (attendu : seule la ligne `service_role` pour chaque fonction) :
+
+```sql
+select routine_name, grantee
+from information_schema.routine_privileges
+where routine_schema = 'public'
+  and routine_name in ('apply_commission_payment', 'apply_shop_subscription', 'confirm_invoice_payment',
+                       'apply_shop_activation', 'prepare_shop_activation_payment')
+  and grantee in ('anon', 'PUBLIC', 'authenticated', 'service_role')
+order by 1, 2;
+```
+
+Tests d'API (`FN` = `$URL/functions/v1/founder-record-commission-payment`, UUID de boutique inexistant) :
+
+```bash
+FAKE=eeeeeeee-0000-4000-8000-00000000000e
+B="\"shop_id\":\"$FAKE\",\"amount\":1,\"transaction_reference\":\"c2-test\""
+H="-H apikey:$KEY -H Content-Type:application/json"
+curl -s -X POST "$FN" $H -d "$B"                                              # sans JWT   -> 401
+curl -s -X POST "$FN" $H -H "Authorization: Bearer $TOKEN_MARCHAND" -d "$B"   # marchand   -> 403
+curl -s -X POST "$FN" $H -H "Authorization: Bearer $TOKEN_FONDATEUR" -d "$B"  # fondateur  -> {"success":false,"error":"shop_not_found"}
+call "$TOKEN_FONDATEUR" apply_commission_payment "$CP"                         # RPC directe, même fondateur -> 42501 permission denied
+```
+
+Migration `20261012140000` : réserve aussi `apply_shop_activation` et `prepare_shop_activation_payment` à `service_role` (leur `REVOKE ... FROM PUBLIC` d'origine laissait `anon` et `authenticated`). L'activation manuelle de `FounderDashboard` passe par `founder-activate-shop` :
+
+```bash
+FA="$URL/functions/v1/founder-activate-shop"
+BA="{\"shop_id\":\"$FAKE\",\"amount\":1}"
+curl -s -X POST "$FA" $H -d "$BA"                                              # sans JWT  -> 401
+curl -s -X POST "$FA" $H -H "Authorization: Bearer $TOKEN_MARCHAND" -d "$BA"   # marchand  -> 403
+curl -s -X POST "$FA" $H -H "Authorization: Bearer $TOKEN_FONDATEUR" -d "$BA"  # fondateur -> {"success":false,"error":"Boutique introuvable."}
+```
+
+Tests dans l'application : les parcours « paiement manuel » de `ShopPaymentControl`, `FounderDashboard`, `BillingPaymentModal` et `PayCommissionDialog` (fondateur) doivent toujours enregistrer le paiement et réactiver la boutique. Dans `FounderDashboard`, l'onglet « activation de boutique » doit activer la boutique (auparavant, il affichait un succès sans rien activer) et créer une ligne `payments` avec `metadata.manual = true`. Les webhooks (`geniuspay-webhook`, `verify-payment`, `reconcile-pending-payments`) ne changent pas : ils utilisent déjà `service_role`.
+
+Migration `20261012150000` : réserve à `service_role` seize fonctions serveur (files d'e-mails, tâches de maintenance, limitation de débit, incidents, usage des codes promo, file IA, `get_or_create_affiliate`), restées exécutables par `anon` et `authenticated` à cause d'un `REVOKE ... FROM PUBLIC` seul. Liste et analyse : annexe F.3 de l'audit. Vérification SQL après déploiement (attendu : 0 ligne) :
+
+```sql
+select p.proname
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('read_email_batch','enqueue_email','delete_email','move_to_dlq','cleanup_expired_trash',
+    'cleanup_old_generated_media','cleanup_old_image_cache','expire_stale_pending_payments','expire_subscriptions',
+    'enforce_shop_payment_state','check_rate_limit','record_app_incident','increment_promo_usage',
+    'get_next_queue_item','count_processing_generations','get_or_create_affiliate')
+  and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+```
+
+Après déploiement, surveiller les erreurs `42501` dans les journaux : une tâche planifiée qui appellerait ces fonctions via l'API REST avec la clé `anon` échouerait.
+
+Retour arrière : `GRANT EXECUTE ON FUNCTION public.apply_commission_payment(uuid, numeric, text, uuid, text, text) TO authenticated;` rétablit l'appel direct par les fondateurs (la garde interne du hotfix reste active).
 
 ## 6. Audit des accès passés (à faire en parallèle)
 

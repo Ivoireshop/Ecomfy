@@ -209,39 +209,6 @@ export async function fetchShopInvoicesHistory(shopId: string): Promise<ShopInvo
 }
 
 /**
- * Confirms payment for an invoice and restores shop access automatically
- */
-export async function confirmBillingPayment(
-  shopId: string, 
-  invoiceId?: string | null, 
-  paymentRef?: string,
-  method = "online"
-): Promise<{ success: boolean; message?: string }> {
-  try {
-    const { data, error } = await supabase.rpc("confirm_invoice_payment" as any, {
-      p_shop_id: shopId,
-      p_invoice_id: invoiceId || null,
-      p_payment_reference: paymentRef || null,
-      p_payment_method: method,
-    });
-
-    if (error) {
-      console.error("[BillingSystem] Payment confirmation RPC error:", error);
-      return { success: false, message: error.message };
-    }
-
-    const res = data as any;
-    return {
-      success: res?.success || false,
-      message: res?.message || "Paiement confirmé avec succès.",
-    };
-  } catch (err: any) {
-    console.error("[BillingSystem] Payment confirmation exception:", err);
-    return { success: false, message: err.message || "Erreur de traitement du paiement." };
-  }
-}
-
-/**
  * Formats countdown timer (e.g. "2j 14h 32min 10s")
  */
 export function formatGracePeriodCountdown(ms: number): string {

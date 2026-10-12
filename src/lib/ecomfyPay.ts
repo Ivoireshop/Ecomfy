@@ -97,7 +97,6 @@ export const ecomfyPayApi = {
     if (!session?.user) return { success: false, error: "Non connecté" };
 
     const { data, error } = await supabase.rpc("save_merchant_payout_config", {
-      p_merchant_id: session.user.id,
       p_payout_phone: params.payout_phone,
       p_payout_name: params.payout_name,
       p_payout_provider: params.payout_provider || "wave",

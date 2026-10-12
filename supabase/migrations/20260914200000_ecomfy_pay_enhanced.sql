@@ -24,8 +24,8 @@ ADD COLUMN IF NOT EXISTS doc_type_validated BOOLEAN DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS verification_notes TEXT;
 
 -- 4. FONCTION RPC : ENREGISTRER CONFIGURATION DE RETRAIT PAR DÉFAUT
+-- Le marchand est l'appelant authentifié (auth.uid()) : aucun p_merchant_id en paramètre (audit C1).
 CREATE OR REPLACE FUNCTION public.save_merchant_payout_config(
-    p_merchant_id UUID,
     p_payout_phone TEXT,
     p_payout_name TEXT,
     p_payout_provider TEXT DEFAULT 'wave'
@@ -33,10 +33,16 @@ CREATE OR REPLACE FUNCTION public.save_merchant_payout_config(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
+    p_merchant_id UUID := auth.uid();
     v_wallet public.wallets;
 BEGIN
+    IF p_merchant_id IS NULL THEN
+        RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+    END IF;
+
     v_wallet := public.get_or_create_merchant_wallet(p_merchant_id);
     
     UPDATE public.wallets
@@ -55,6 +61,10 @@ BEGIN
     );
 END;
 $$;
+
+-- Réservée aux marchands connectés (anon n'a aucun droit).
+REVOKE ALL ON FUNCTION public.save_merchant_payout_config(TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.save_merchant_payout_config(TEXT, TEXT, TEXT) TO authenticated, service_role;
 
 -- 5. FONCTION RPC : INSPECTION ET VALIDATION STRICTE DU KYC MARCHAND
 CREATE OR REPLACE FUNCTION public.evaluate_merchant_kyc_security(

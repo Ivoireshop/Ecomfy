@@ -21,7 +21,7 @@ Ecomfy est une plateforme SaaS e-commerce multi-boutiques pour l'Afrique francop
 
 ### Les 10 actions à faire en premier
 
-1. Révoquer `EXECUTE` pour `anon`/`PUBLIC` sur toutes les fonctions financières et de facturation (C1, C2, C3). C'est un seul script SQL.
+1. Révoquer `EXECUTE` pour `anon`/`PUBLIC` sur toutes les fonctions financières et de facturation (C1, C2, C3). *(Fait pour C1, C2 et C3 dans les migrations, voir l'état des correctifs ; reste le groupe B de l'annexe F.3. Ce n'est plus « un seul script » : un `REVOKE ... FROM PUBLIC` seul ne suffit pas, il faut nommer `anon` et `authenticated`.)*
 2. Vérifier la signature HMAC dans `ecomfy-pay-webhook` (C5).
 3. Recalculer côté serveur les montants et les crédits dans `process-payment` et `ecomfy-pay-initiate` (C6).
 4. Corriger `manage-founder-roles` : supprimer `includes("djateulrich")` et valider le rôle demandé (C7).
@@ -40,11 +40,14 @@ L'annexe B a été exécutée sur la base de dev (copie de la production), puis 
 
 | Constat | État en base | Correctif |
 |---|---|---|
-| C2, partie `apply_commission_payment` / `apply_shop_subscription` | **Confirmé** : exécutables par `anon` et `PUBLIC` | Hotfix `20261012120000` : validé sur la dev, **à déployer en production** |
+| C2, partie `apply_commission_payment` / `apply_shop_subscription` | **Confirmé** : exécutables par `anon` et `PUBLIC` | Hotfix `20261012120000` : validé sur la dev, **à déployer en production**. Puis migration `20261012130000` : trois fonctions réservées à `service_role` (SQL validé en local, annexe F ; Edge Function non testée de bout en bout) |
+| C2, `confirm_invoice_payment` | **Non exploitable aujourd'hui** : la fonction n'existe pas en base | Réservée à `service_role` par la migration `20261012130000` ; appel client supprimé (code mort) |
+| C2 (suite), `apply_shop_activation` / `prepare_shop_activation_payment` | **Probablement exécutables par `anon` et `authenticated`** : leurs migrations font `REVOKE ... FROM PUBLIC` seulement, ce qui ne retire pas ces rôles sur Supabase (reproduit en local). Exploitabilité limitée par la preuve de paiement exigée. À confirmer par l'annexe B | Migration `20261012140000` : réservées à `service_role`. L'activation manuelle d'un fondateur (qui échouait en silence) passe par l'Edge Function `founder-activate-shop`. SQL validé en local (annexe F) ; Edge Function non testée de bout en bout |
+| Autres fonctions `SECURITY DEFINER` (analyse de toutes les migrations, annexe F.3) | **68 fonctions encore appelables par `anon` ou `authenticated`** d'après l'analyse statique, dont 31 qui écrivent. Files d'e-mails lisibles par n'importe qui. À confirmer sur la dev (annexe B sans filtre) | Groupe A (16 fonctions serveur) : migration `20261012150000`, validée en local. Groupe B (7 fonctions appelées par le navigateur : KYC, affiliation, facturation par seuil, parrainage) : **non corrigé**. Groupe E (11 fonctions avec garde interne) : à relire |
 | H2, tables `corporate_*` | **Confirmé, et plus large** : les 14 tables sont ouvertes (lecture et écriture) à tout utilisateur connecté, car `strict_multitenant_privacy` n'est pas appliquée | Même hotfix : validé sur la dev, **à déployer en production** |
-| C1 | **Non exploitable aujourd'hui** : `wallets` n'existe pas en base | **Corrigé dans la migration d'origine** `20260914190000` (`REVOKE` + `GRANT service_role`, retrait via `auth.uid()`, `ecomfy-pay-withdraw` appelle la RPC avec le JWT du marchand). SQL validé sur une base locale jetable (13 tests, annexe D) ; Edge Function non testée de bout en bout |
+| C1 (et `save_merchant_payout_config`, oubliée par l'audit initial) | **Non exploitable aujourd'hui** : `wallets` n'existe pas en base | **Corrigé dans la migration d'origine** `20260914190000` (`REVOKE` + `GRANT service_role`, retrait via `auth.uid()`, `ecomfy-pay-withdraw` appelle la RPC avec le JWT du marchand). SQL validé sur une base locale jetable (13 tests, annexe D) ; Edge Function non testée de bout en bout |
 | C3 | **Non exploitable aujourd'hui** : les fonctions de facturation par seuil n'existent pas en base | **Corrigé dans la migration d'origine** `20260909100000` (contrôle propriétaire / collaborateur actif / fondateur via `auth.uid()`, `REVOKE` pour `anon` et `PUBLIC`). SQL validé sur une base locale jetable (19 tests, annexe E) |
-| C4, `confirm_invoice_payment` | **Non exploitables aujourd'hui** : `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
+| C4 | **Non exploitable aujourd'hui** : `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
 | Autres constats (C5 à C8, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
 
 Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
@@ -150,6 +153,7 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
   - `20260914190000_ecomfy_pay_system.sql` : `REVOKE` à `PUBLIC`/`anon`/`authenticated` puis `GRANT` à `service_role` sur `get_or_create_merchant_wallet` (non citée à l'origine : elle créait des portefeuilles et divulguait les soldes), `credit_merchant_wallet_pending` et `process_wallet_settlements`.
   - `request_wallet_withdrawal_atomic` n'a plus de paramètre `p_merchant_id` : elle utilise `auth.uid()`, refuse un appelant non connecté et rejette les montants nuls ou négatifs (un montant négatif aurait crédité le portefeuille). Accordée à `authenticated` et `service_role`, retirée à `anon`. Les quatre fonctions ont `SET search_path = public`.
   - `ecomfy-pay-withdraw` appelle la RPC avec un client lié au JWT du marchand (`SUPABASE_ANON_KEY` + en-tête `Authorization`). Avec la clé `service_role`, `auth.uid()` serait nul et tous les retraits seraient refusés.
+  - **Fonction oubliée par l'audit initial : `save_merchant_payout_config`** (`20260914200000_ecomfy_pay_enhanced.sql`). Elle prenait `p_merchant_id` du client sans contrôle : n'importe quel utilisateur, `anon` compris, pouvait réécrire le numéro de retrait par défaut d'un autre marchand (pré-rempli dans le formulaire de retrait). Corrigée de la même façon : `auth.uid()`, plus de paramètre `p_merchant_id`, `search_path` fixé, `REVOKE` de `PUBLIC`/`anon`, `GRANT` à `authenticated` et `service_role`. `src/lib/ecomfyPay.ts` n'envoie plus `p_merchant_id`. Tests : annexe F.3.
   - Résultats des tests : annexe D.
 
 #### C2. Contournement de la facturation (commissions et abonnements)
@@ -157,6 +161,14 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 - **Constat :** aucune de ces fonctions ne vérifie qu'un paiement réel a eu lieu ni que l'appelant possède la boutique.
 - **Scénario :** n'importe qui efface la dette de commission de n'importe quelle boutique (`commission_balance_due = 0`, statut `STORE_ACTIVE`), ou active un abonnement Pro gratuitement.
 - **Correctif :** réserver ces trois fonctions à `service_role` (appelées uniquement depuis les webhooks). Supprimer l'appel client à `confirm_invoice_payment`.
+- **Statut (12 octobre 2026) : corrigé, SQL validé en local, pas déployé.**
+  - Migration `20261012130000_c2_reserve_billing_rpc_to_service_role.sql` : `REVOKE` à `PUBLIC`/`anon`/`authenticated`, `GRANT` à `service_role` sur `apply_commission_payment`, `apply_shop_subscription` et `confirm_invoice_payment`. Idempotente ; la partie `confirm_invoice_payment` est protégée par `to_regprocedure` car la fonction n'existe pas en production.
+  - Les quatre écrans fondateur qui appelaient `apply_commission_payment` depuis le navigateur (`BillingPaymentModal`, `PayCommissionDialog`, `ShopPaymentControl`, `FounderDashboard`) passent par la nouvelle Edge Function `founder-record-commission-payment` (helper `src/lib/founderBilling.ts`). Elle vérifie le JWT et le rôle `founder` / `co_founder`, valide les entrées, fixe `p_created_by` depuis la session, puis appelle la RPC avec `service_role`.
+  - `confirmBillingPayment` (seul appelant client de `confirm_invoice_payment`) et `handleConfirmPayment` du hook `useBillingSystem` sont supprimés : aucun composant ne les utilisait.
+  - La garde interne de `apply_commission_payment` (hotfix `20261012120000`) est conservée en défense en profondeur.
+  - **Complément `apply_shop_activation` / `prepare_shop_activation_payment`** (migration `20261012140000`). Les migrations d'origine (`20260516133834`, `20260516161922`) font seulement `REVOKE ... FROM PUBLIC` : sur Supabase, `anon` et `authenticated` gardent `EXECUTE` (privilèges par défaut du schéma `public`, reproduit en local, annexe F). Elles sont maintenant réservées à `service_role`. Exploitabilité limitée : la fonction exige un paiement `completed` correspondant, et `payments` refuse l'insertion aux utilisateurs (politique `WITH CHECK (false)`).
+  - **Défaut fonctionnel corrigé au passage :** l'activation manuelle de `FounderDashboard` passait une référence `MANUAL-...` sans paiement `completed` associé. La fonction répondait `success:false` et le client, qui ne testait que `error`, affichait « Paiement validé ». Elle passe par la nouvelle Edge Function `founder-activate-shop` : contrôle du rôle fondateur, propriétaire lu en base, enregistrement d'un paiement `completed` marqué `manual` (avec `recorded_by`), puis appel de la RPC ; si la RPC échoue, le paiement est repassé à `failed`.
+  - Les deux Edge Functions fondateur partagent `supabase/functions/_shared/founderAuth.ts` (JWT + rôle).
 
 #### C3. Fuite des données clients de toutes les boutiques
 - **Où :** `20260909100000_ecomfy_billing_threshold_system.sql:207` et `:305`.
@@ -341,7 +353,7 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 - Webhook `geniuspay-webhook` : signature HMAC, comparaison à temps constant, fenêtre anti-rejeu, idempotence par table d'événements, contrôles de cohérence montant/devise/utilisateur.
 - `process-payment` : JWT vérifié, `user_id` comparé à l'utilisateur authentifié, validation Zod, limitation de débit par utilisateur, vérification de propriété de boutique pour l'activation.
 - Colonnes sensibles de `profiles` protégées (`REVOKE UPDATE` puis `GRANT UPDATE` sur 5 colonnes), `subscriptions` en écriture réservée au serveur.
-- `apply_shop_activation` et `prepare_shop_activation_payment` correctement réservées (`REVOKE ALL ... FROM PUBLIC`).
+- `apply_shop_activation` exige un paiement `completed` correspondant avant d'activer (la réservation à `service_role` était incomplète, voir C2).
 - DOMPurify sur les descriptions de produit, avis et contenus de cours, avec listes de balises autorisées. `share-product` et les e-mails de contact/réservation échappent correctement leurs variables et prennent le destinataire en base.
 - Séparation des vues publiques (`shops_public`, `showcase_sites_public`, `product_reviews_public`) pour ne pas exposer `user_id` ni le code d'analytics.
 - Gestion d'erreurs côté client avec **masquage des secrets** (`src/lib/error-handler.ts`) et identifiants de corrélation.
@@ -353,7 +365,7 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 ## 7. Plan d'action recommandé
 
 ### Immédiat (24 à 48 h)
-1. **Script SQL de durcissement** *(partiellement fait : `apply_commission_payment` et `apply_shop_subscription`, voir le hotfix `20261012120000` ; `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic` et `get_or_create_merchant_wallet`, voir C1 et l'annexe D)* : `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` sur `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `evaluate_merchant_kyc_security`, `record_affiliate_referral`, `get_or_create_affiliate`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`. Restreindre `get_shop_orders_secure` aux propriétaires/collaborateurs. Ajouter un `REVOKE` par défaut pour les prochaines fonctions (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`).
+1. **Script SQL de durcissement** *(partiellement fait : `apply_commission_payment`, `apply_shop_subscription` et `confirm_invoice_payment`, voir le hotfix `20261012120000` puis la migration `20261012130000` ; `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic`, `get_or_create_merchant_wallet` et `save_merchant_payout_config`, voir C1 et l'annexe D ; `apply_shop_activation`, `prepare_shop_activation_payment` et 16 fonctions serveur, voir les migrations `20261012140000` et `20261012150000` et l'annexe F ; reste à faire : le groupe B de l'annexe F.3)* : `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` sur `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `evaluate_merchant_kyc_security`, `record_affiliate_referral`, `get_or_create_affiliate`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`. Restreindre `get_shop_orders_secure` aux propriétaires/collaborateurs. Ajouter un `REVOKE` par défaut pour les prochaines fonctions (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`).
 2. **`ecomfy-pay-webhook`** : signature + rappel API fournisseur.
 3. **`manage-founder-roles`** : supprimer la logique basée sur l'e-mail et valider les rôles.
 4. **`tracking.ts`** : n'accepter que `G-XXXX`.
@@ -421,7 +433,8 @@ where routine_schema = 'public'
     'apply_commission_payment','apply_shop_subscription',
     'evaluate_merchant_kyc_security','get_shop_orders_secure',
     'record_affiliate_referral','get_or_create_affiliate',
-    'process_affiliate_commission_for_payment'
+    'process_affiliate_commission_for_payment',
+    'apply_shop_activation','prepare_shop_activation_payment'
   )
 order by routine_name, grantee;
 
@@ -559,3 +572,81 @@ Droits d'exécution constatés après la migration :
 **Contre-épreuve :** le même script rejoué sur l'ancienne fonction (version de `HEAD` avant correctif) donne 6 réussis et 13 échecs : `anon`, un tiers ou un autre marchand lisent les commandes de A, y compris les noms en clair. Les tests détectent donc bien la faille.
 
 **Non couvert :** application de la chaîne complète des migrations (seule la fonction et ses dépendances directes sont simulées) ; déploiement sur la base de dev. Comme la migration `20260909100000` crée aussi `confirm_invoice_payment` (C4), elle ne doit toujours pas être déployée avant la correction de ce dernier.
+
+## Annexe F. Tests de la réservation à `service_role` (C2)
+
+**Date :** 12 octobre 2026. **Environnement :** base Postgres locale jetable (même image que l'annexe D), détruite après les tests. Les trois fonctions sont remplacées par des fonctions de même signature qui renvoient `{"success": true}` : le test porte sur les droits d'exécution, pas sur la logique métier, inchangée. Droits initiaux : `anon`, `authenticated` et `service_role` (cas de la production).
+
+| Test | Attendu | Observé |
+|---|---|---|
+| Droits avant migration | tous les rôles | `anon`, `authenticated`, `service_role` sur les trois fonctions |
+| Droits après migration | `service_role` seul | `service_role` seul sur les trois fonctions |
+| Migration exécutée deux fois | idempotente | OK |
+| Migration sans `confirm_invoice_payment` (cas production) | pas d'erreur | OK |
+| `anon` : `apply_commission_payment` | refusé | `permission denied` |
+| `authenticated` : `apply_commission_payment` | refusé | `permission denied` |
+| `authenticated` : `apply_shop_subscription` | refusé | `permission denied` |
+| `anon` : `confirm_invoice_payment` | refusé | `permission denied` |
+| `service_role` : les trois | succès | succès |
+
+**Non couvert :**
+- l'Edge Function `founder-record-commission-payment` (non exécutée, `deno` absent du poste) : à tester avec un JWT de fondateur (succès), un JWT de marchand (attendu : 403) et sans JWT (attendu : 401) ;
+- les quatre écrans fondateur dans l'application ;
+- `tsc` : aucune erreur sur les fichiers modifiés ; le reste du projet a des erreurs de typage préexistantes.
+
+### F.2 Réservation de `apply_shop_activation` et `prepare_shop_activation_payment`
+
+Même environnement que ci-dessus. Les deux fonctions sont recréées avec leur signature réelle, puis passées par exactement les instructions des migrations d'origine (`REVOKE ALL ... FROM PUBLIC; GRANT EXECUTE ... TO service_role`).
+
+| Test | Attendu | Observé |
+|---|---|---|
+| Droits après les migrations d'origine | `service_role` seul, si le `REVOKE` suffisait | `anon`, `authenticated`, `service_role` : **le `REVOKE ... FROM PUBLIC` ne retire pas `anon` ni `authenticated`** |
+| Droits après la migration `20261012140000` | `service_role` seul | `service_role` seul sur les deux fonctions |
+| Migration exécutée deux fois | idempotente | OK |
+| Migration sans les fonctions | pas d'erreur | OK |
+| `anon` : `apply_shop_activation` | refusé | `permission denied` |
+| `authenticated` : `apply_shop_activation` | refusé | `permission denied` |
+| `authenticated` : `prepare_shop_activation_payment` | refusé | `permission denied` |
+| `service_role` : les deux | succès | succès |
+
+**Non couvert :** l'Edge Function `founder-activate-shop` (non exécutée, `deno` absent) : à tester avec un JWT de fondateur (activation effective, ligne `payments` `manual` créée), un JWT de marchand (403), sans JWT (401), et sur une boutique déjà activée (`already_activated`). Les appelants existants (`process-payment`, `verify-payment`, `payment-callback`, `geniuspay-webhook`, `reconcile-pending-payments`) utilisent `service_role` et ne changent pas.
+
+**À vérifier sur toute autre fonction `SECURITY DEFINER` :** la même erreur (`REVOKE ... FROM PUBLIC` seul) est probablement répandue. Lister les fonctions de `public` exécutables par `anon` ou `authenticated` (requête 1 de l'annexe B, sans filtre sur les noms) et traiter les écarts.
+
+### F.3 Analyse systématique des fonctions `SECURITY DEFINER` (toutes les migrations)
+
+**Méthode :** script d'analyse statique de `supabase/migrations/*.sql` qui rejoue dans l'ordre les `CREATE FUNCTION`, `REVOKE` et `GRANT` avec le modèle Supabase (une fonction de `public` démarre exécutable par `PUBLIC`, `anon`, `authenticated`, `service_role`), puis croise avec les appelants (navigateur, Edge Functions, SQL). Résultat à confirmer sur la base de dev avec la requête 1 de l'annexe B sans filtre sur les noms : l'analyse est heuristique (détection de garde par motifs, `GRANT` hors migrations ignorés).
+
+**Résultat :** 115 fonctions, 108 `SECURITY DEFINER` dont 30 fonctions de trigger (non appelables en RPC). **68 fonctions restent appelables par `anon` ou `authenticated`**, dont 31 écrivent des données.
+
+| Groupe | Fonctions | Traitement |
+|---|---|---|
+| A. Serveur uniquement : aucun appelant navigateur, Edge Functions en `service_role` ou cron | `read_email_batch`, `enqueue_email`, `delete_email`, `move_to_dlq` (lecture et suppression des e-mails en attente par n'importe qui), `cleanup_expired_trash`, `cleanup_old_generated_media`, `cleanup_old_image_cache`, `expire_stale_pending_payments`, `expire_subscriptions`, `enforce_shop_payment_state`, `check_rate_limit`, `record_app_incident`, `increment_promo_usage`, `get_next_queue_item`, `count_processing_generations`, `get_or_create_affiliate` | **Corrigé** : migration `20261012150000` (toutes les surcharges, idempotente) |
+| B. Appelées par le navigateur, sans garde interne : à corriger avec l'écran concerné | `evaluate_merchant_kyc_security` (C4), `record_affiliate_referral`, `process_affiliate_commission_for_payment` (aussi appelée par `verify-payment`), `check_and_trigger_billing_threshold`, `enforce_shop_billing_deadlines`, `enforce_shop_payment_state_for`, `process_referral_signup` | **Non corrigé.** Migrations affiliation, Ecomfy Pay et facturation par seuil non déployées : à traiter avant leur déploiement, comme C1 (identité par `auth.uid()` ou passage par une Edge Function) |
+| C. Publiques par conception (storefront, communauté, certificats) | `get_public_shop_by_slug`, `get_public_shop_by_custom_domain`, `get_public_product_page`, `get_shop_social_proof_orders`, `get_top_sellers`, `get_community_profiles`, `search_community_profiles`, `verify_certificate_by_number`, `validate_promo_code`, `generate_order_number`, `upsert_abandoned_cart`, `mark_abandoned_cart_converted`, `get_invite_email_by_token` | À conserver ; vérifier la limitation de débit et les données renvoyées (`get_invite_email_by_token` renvoie un e-mail pour un jeton) |
+| D. Aides de RLS (évaluées avec les droits de l'appelant, `EXECUTE` requis) | `has_role`, `is_shop_owner`, `is_shop_collaborator`, `has_shop_role`, `is_shop_publicly_visible`, `is_shop_subscription_active`, `is_founder_or_master`, `can_manage_shop`, `is_shop_owner_or_collaborator`, `is_authorized_corporate_member`, `is_corporate_*` | À conserver. Effet de bord connu : elles permettent de tester l'appartenance d'un identifiant arbitraire à une boutique ou un rôle (fuite d'information mineure) |
+| E. Avec garde interne, à relire | `accept_shop_invitation`, `consume_ai_credit`, `founder_grant_extra_deadline`, `founder_reset_shop_payment`, `get_my_subscription_status`, `increment_shop_gif_count`, `mark_affiliate_payout_paid`, `push_order_to_delivery_provider`, `record_stock_movement`, `get_ai_quota`, `get_locked_orders_summary` | La garde est détectée par motif, pas vérifiée. À relire une par une (en priorité `mark_affiliate_payout_paid`, `record_stock_movement`, `consume_ai_credit`) |
+| F. Autres : générateurs sans état sensible | `generate_api_key`, `generate_certificate_number`, `generate_referral_code`, `generate_domain_verification_code`, `generate_shop_domain_verification_code` | Sans conséquence ; `generate_certificate_number` est appelée avec le JWT de l'utilisateur dans `generate-certificate` (ne pas la réserver à `service_role` sans changer cette Edge Function) |
+
+**Tests du groupe A** (base locale jetable, fonctions de même signature créées avec `REVOKE ... FROM PUBLIC` seul, comme dans les migrations d'origine) :
+
+| Test | Attendu | Observé |
+|---|---|---|
+| Droits avant migration | `anon`, `authenticated`, `service_role` | confirmé sur l'échantillon |
+| Droits après migration | `service_role` seul | `service_role` seul ; 0 fonction du lot encore exposée |
+| Migration exécutée deux fois | idempotente | OK |
+| `anon` : `read_email_batch` | refusé | `permission denied` |
+| `authenticated` : `enqueue_email`, `check_rate_limit`, `get_or_create_affiliate` | refusé | `permission denied` |
+| `service_role` : `read_email_batch` | succès | succès |
+| `anon` : `validate_promo_code` (hors lot) | reste public | succès |
+
+**Tests de `save_merchant_payout_config`** :
+
+| Test | Attendu | Observé |
+|---|---|---|
+| Marchand A modifie son numéro | succès, B inchangé | A = `0799999999`, B = `0700000002` |
+| Appel à l'ancienne signature avec `p_merchant_id` = B | impossible | `function ... does not exist` |
+| `anon` | refusé | `permission denied` |
+| `authenticated` sans identité | refusé | `forbidden` |
+
+**Vérifications avant déploiement de `20261012150000` :** les Edge Functions appelantes utilisent bien `SUPABASE_SERVICE_ROLE_KEY` (`process-payment`, `send-booking-notification`, `send-contact-notification`, `geniuspay-webhook`, `payment-callback`, `app-health-monitor`, `process-queue`, `process-email-queue`, `send-transactional-email`), vérifié dans le code. Les tâches `pg_cron` s'exécutent avec le rôle `postgres`, non concerné. Si une tâche planifiée appelle ces fonctions par l'API REST avec la clé `anon`, elle échouera : surveiller les erreurs `42501` après déploiement.
