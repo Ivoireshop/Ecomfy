@@ -34,7 +34,6 @@ export const ecomfyPayApi = {
     const payload = {
       ...kycData,
       user_id: session.user.id,
-      verification_status: "PENDING",
       updated_at: new Date().toISOString(),
     };
 
@@ -46,24 +45,8 @@ export const ecomfyPayApi = {
       return { success: false, error: error.message };
     }
 
-    // Appeler la fonction RPC d'évaluation de sécurité strict
-    try {
-      const { data: evalRes } = await supabase.rpc("evaluate_merchant_kyc_security", {
-        p_merchant_id: session.user.id,
-        p_doc_type: kycData.document_type || "cni",
-        p_doc_number: kycData.document_number || "",
-        p_declared_name: kycData.full_name || "",
-        p_doc_front_url: kycData.document_front_url || "",
-        p_selfie_url: kycData.selfie_url || null,
-      });
-
-      if (evalRes && evalRes.success === false) {
-        return { success: false, error: evalRes.reason || "Document non conforme aux exigences KYC." };
-      }
-    } catch (e) {
-      console.warn("RPC evaluate_merchant_kyc_security warning:", e);
-    }
-
+    // Aucune validation automatique (audit C4) : le statut reste PENDING jusqu'à la revue manuelle
+    // (review_merchant_kyc, réservée aux fondateurs). Le serveur ignore tout statut envoyé par le navigateur.
     return { success: true };
   },
 

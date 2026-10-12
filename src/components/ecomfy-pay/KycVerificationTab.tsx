@@ -196,7 +196,7 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
     setEvaluatingKyc(true);
 
     try {
-      // 1. Soumission standard DB
+      // Soumission du dossier : statut PENDING, décision par un relecteur humain
       const submitRes = await ecomfyPayApi.submitKyc({
         full_name: fullName,
         country,
@@ -209,31 +209,14 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
         selfie_url: selfieUrl,
       });
 
-      if (!submitRes.success || !submitRes.kycId) {
+      if (!submitRes.success) {
         throw new Error(submitRes.error || "Échec de la création du dossier.");
       }
 
-      // 2. Contrôle de sécurité strict via RPC evaluate_merchant_kyc_security
-      const { data: evalData, error: evalErr } = await supabase.rpc("evaluate_merchant_kyc_security", {
-        p_kyc_id: submitRes.kycId,
+      toast({
+        title: "Dossier KYC transmis ✓",
+        description: "Vos documents seront examinés par notre équipe. Les retraits restent bloqués jusqu'à la validation.",
       });
-
-      if (evalErr) {
-        console.warn("[KYC Strict Eval Error]", evalErr);
-      }
-
-      if (evalData && evalData.decision === "REJECTED") {
-        toast({
-          title: "❌ Pièce d'identité rejetée par le contrôle de sécurité",
-          description: evalData.reason || "Le document fourni n'est pas une Carte Nationale d'Identité ou un Passeport valide.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Dossier KYC transmis avec succès ✓",
-          description: "Vos documents ont été analysés et enregistrés pour validation finale.",
-        });
-      }
 
       onRefresh();
     } catch (err: any) {
@@ -281,7 +264,7 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
           {status === "VERIFIED"
             ? "✓ COMPTE VÉRIFIÉ & APPROUVÉ"
             : status === "PENDING" || status === "UNDER_REVIEW"
-            ? "⏳ ANLYSE EN COURS (72H MAX)"
+            ? "⏳ EXAMEN EN COURS (72H MAX)"
             : status === "REJECTED"
             ? "✕ DOCUMENT REJETÉ"
             : "NON TRANSMIS"}
@@ -291,7 +274,7 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
       {status === "REJECTED" && kyc?.rejection_reason && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs text-rose-900 space-y-1.5">
           <div className="font-bold flex items-center gap-2 text-rose-800 text-sm">
-            <XCircle className="w-4 h-4 text-rose-600" /> Motif du Rejet Automatique :
+            <XCircle className="w-4 h-4 text-rose-600" /> Motif du rejet :
           </div>
           <p className="font-medium pl-6">{kyc.rejection_reason}</p>
         </div>
@@ -530,12 +513,12 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
                 {submitting || evaluatingKyc ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Contrôle de sécurité strict et validation en cours...</span>
+                    <span>Envoi du dossier en cours...</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck className="w-5 h-5" />
-                    <span>Soumettre mon dossier KYC (Contrôle Anti-Fraude Strict)</span>
+                    <span>Soumettre mon dossier KYC pour examen</span>
                   </>
                 )}
               </Button>

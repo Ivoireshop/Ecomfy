@@ -31,9 +31,10 @@ GRANT EXECUTE ON FUNCTION public.prepare_shop_activation_payment(uuid, uuid) TO 
 --     elles n'existaient pas avant). Ne touche pas à payment_links (table de cours préexistante).
 -- DROP FUNCTION IF EXISTS public.request_wallet_withdrawal_atomic(numeric, text, text, text, text, text);
 -- DROP FUNCTION IF EXISTS public.save_merchant_payout_config(text, text, text);
--- DROP FUNCTION IF EXISTS public.evaluate_merchant_kyc_security(uuid, text, text, text, text, text);
+-- DROP FUNCTION IF EXISTS public.review_merchant_kyc(uuid, text, text);
+-- DROP FUNCTION IF EXISTS public.merchant_kyc_guard_review_columns();
 -- DROP FUNCTION IF EXISTS public.process_wallet_settlements();
 -- DROP FUNCTION IF EXISTS public.credit_merchant_wallet_pending(uuid, uuid, numeric, numeric, text, int, text);
 -- DROP FUNCTION IF EXISTS public.get_or_create_merchant_wallet(uuid);
 -- DROP TABLE IF EXISTS public.withdrawal_requests, public.wallet_ledger, public.settlements, public.payment_events,
---                      public.ecomfy_payments, public.wallets, public.merchant_kyc CASCADE;
+--                      public.ecomfy_payments, public.wallets, public.merchant_kyc, public.ecomfy_pay_settings CASCADE;
