@@ -1,5 +1,5 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -221,6 +221,7 @@ export function AppSidebar() {
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },
     { title: "Fondation Livraison 🛡️", url: "/delivery-admin", icon: Truck },
+    { title: "Revue KYC", url: "/founder/kyc-review", icon: ShieldCheck },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
     { title: "Console API", url: "/api-documentation", icon: Code2 },
     { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },
