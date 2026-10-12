@@ -48,7 +48,8 @@ L'annexe B a été exécutée sur la base de dev (copie de la production), puis 
 | C1 (et `save_merchant_payout_config`, oubliée par l'audit initial) | **Non exploitable aujourd'hui** : `wallets` n'existe pas en base | **Corrigé dans la migration d'origine** `20260914190000` (`REVOKE` + `GRANT service_role`, retrait via `auth.uid()`, `ecomfy-pay-withdraw` appelle la RPC avec le JWT du marchand). SQL validé sur une base locale jetable (13 tests, annexe D) ; Edge Function non testée de bout en bout |
 | C3 | **Non exploitable aujourd'hui** : les fonctions de facturation par seuil n'existent pas en base | **Corrigé dans la migration d'origine** `20260909100000` (contrôle propriétaire / collaborateur actif / fondateur via `auth.uid()`, `REVOKE` pour `anon` et `PUBLIC`). SQL validé sur une base locale jetable (19 tests, annexe E) |
 | C4 | **Non exploitable aujourd'hui** : `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
-| Autres constats (C5 à C8, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
+| C7, `manage-founder-roles` | **Non vérifié en base** (Edge Function, aucun effet SQL) | **Corrigé dans le code** : décision sur `user_roles` uniquement (plus d'e-mail), liste blanche des rôles, nommer/révoquer réservé au rôle `founder`, révocation d'un rôle précis. 14 tests Node (annexe F) ; non déployé, non testé contre Supabase. **Reste ouvert :** la politique RLS `user_roles_manage_policy` (voir annexe F) |
+| Autres constats (C5, C6, C8, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
 
 Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
 
@@ -650,3 +651,26 @@ Même environnement que ci-dessus. Les deux fonctions sont recréées avec leur 
 | `authenticated` sans identité | refusé | `forbidden` |
 
 **Vérifications avant déploiement de `20261012150000` :** les Edge Functions appelantes utilisent bien `SUPABASE_SERVICE_ROLE_KEY` (`process-payment`, `send-booking-notification`, `send-contact-notification`, `geniuspay-webhook`, `payment-callback`, `app-health-monitor`, `process-queue`, `process-email-queue`, `send-transactional-email`), vérifié dans le code. Les tâches `pg_cron` s'exécutent avec le rôle `postgres`, non concerné. Si une tâche planifiée appelle ces fonctions par l'API REST avec la clé `anon`, elle échouera : surveiller les erreurs `42501` après déploiement.
+
+## Annexe F. Correctif C7 (`manage-founder-roles`) et tests
+
+**Date :** 12 octobre 2026. **Code :** `supabase/functions/manage-founder-roles/handler.ts` (logique) et `index.ts` (serveur Deno, 10 lignes). **Tests :** [`supabase/tests/manage-founder-roles.test.ts`](supabase/tests/manage-founder-roles.test.ts), client Supabase simulé en mémoire, lancés avec `node --experimental-strip-types --test supabase/tests/manage-founder-roles.test.ts`.
+
+**Règles appliquées**
+
+| Action | Qui | Détail |
+|---|---|---|
+| Toute action | rôle `founder` ou `co_founder` dans `user_roles` | plus aucune décision sur l'e-mail ; `shareholder` et `admin` ne passent plus |
+| `list` | `founder`, `co_founder` | liste `founder`, `co_founder`, `shareholder`, `admin` ; `is_main_founder` = rôle `founder` ; plus d'entrée synthétique « main-founder-id » |
+| `add` | `founder` uniquement | rôle dans la liste blanche `co_founder`, `shareholder`, `admin` ; `founder` n'est jamais attribuable ; e-mail cherché sur toutes les pages de `listUsers` (auparavant seule la première page de 50 comptes) |
+| `revoke` | `founder` uniquement | supprime le couple (utilisateur, rôle) demandé, rôle de la liste blanche, identifiant au format UUID ; le rôle `founder` n'est pas révocable |
+
+Autres changements : message d'erreur 500 générique (le message interne n'est plus renvoyé), corps JSON invalide → 400. Interface (`FounderManager.tsx`) : l'appel `revoke` envoie le rôle, le formulaire d'invitation et le bouton de révocation n'apparaissent que si le serveur répond `isMainFounder`, plus d'e-mail ni de nom en dur, plus de faux « fondateur principal » affiché en cas d'erreur de chargement.
+
+**Résultat des tests : 14 réussis, 0 échec.** Cas couverts : jeton absent ; e-mail contenant « djateulrich » sans rôle (refusé en `list`, `add` y compris avec le rôle `founder`, `revoke`) ; utilisateur sans rôle, `shareholder`, `admin` refusés ; fondateur reconnu par son rôle même avec un autre e-mail ; `co_founder` peut lister mais ni nommer ni révoquer ; liste blanche (`founder`, `user`, `delivery`, vide, non-chaîne, « co_founder » avec espace refusés) ; e-mail insensible à la casse ; e-mail inconnu ; révocation d'un seul rôle ; `founder` irrévocable ; UUID mal formé ; corps invalide ; CORS. Pas de contre-épreuve sur l'ancien code (il lançait le serveur à l'import).
+
+**Non couvert / reste ouvert**
+- **Politique RLS `user_roles_manage_policy`** (`20260831190000_manage_founder_roles.sql`) : elle autorise tout `co_founder` à écrire n'importe quel rôle dans `user_roles` directement via l'API PostgREST, sans passer par la fonction. Un co-fondateur peut donc s'attribuer `founder` : la restriction ci-dessus n'est contournée que tant que cette politique existe. À restreindre au seul `founder` (ou à retirer l'écriture directe pour `authenticated`) ; non vérifié en base. La politique est aussi auto-référente (risque de récursion RLS).
+- **Dépendance au rôle `founder` en base** : le fondateur principal doit avoir une ligne `founder` dans `user_roles` (posée par les migrations `20260831190000` et `20260831200000`). À vérifier avant déploiement, sinon il perd l'accès à la fonction (l'ancien code le laissait passer sur son e-mail).
+- **Même motif ailleurs, non traité ici** : `FounderDashboard.tsx:344,371`, `FounderTroubleshooting.tsx:90,118`, `FounderRoute.tsx:21`, `AppSidebar.tsx:200`, `AssociateSpace.tsx:49`, `CorporateGovernance.tsx:384,387,536` (contrôle d'accès côté interface, contournable par un compte dont l'e-mail contient « djateulrich »), `app-health-monitor/index.ts:11` (liste d'e-mails en dur) et les migrations qui comparent `auth.jwt() ->> 'email'` (`20260902140000`).
+- Déploiement de la fonction et test avec un vrai JWT.

@@ -24,6 +24,8 @@ export const FounderManager = () => {
   const [founders, setFounders] = useState<FounderMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Seul le fondateur principal (rôle `founder`) peut nommer et révoquer ; la valeur vient du serveur.
+  const [canManage, setCanManage] = useState(false);
 
   // Form states
   const [email, setEmail] = useState("");
@@ -44,20 +46,16 @@ export const FounderManager = () => {
       if (data?.founders) {
         setFounders(data.founders);
       }
+      setCanManage(data?.isMainFounder === true);
     } catch (err: any) {
       console.error("Error fetching founders:", err);
-      // Fallback: Display main founder Ulrich DJATÉ
-      setFounders([
-        {
-          id: "main-founder",
-          user_id: "main-founder-id",
-          role: "founder",
-          created_at: new Date().toISOString(),
-          email: "djateulrich@gmail.com",
-          full_name: "Ulrich DJATÉ",
-          is_main_founder: true,
-        },
-      ]);
+      setFounders([]);
+      setCanManage(false);
+      toast({
+        title: "Chargement impossible",
+        description: "La liste de l'équipe dirigeante n'a pas pu être récupérée.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -136,6 +134,7 @@ export const FounderManager = () => {
         body: {
           action: "revoke",
           target_user_id: memberToRevoke.user_id,
+          role: memberToRevoke.role,
         },
       });
 
@@ -162,7 +161,7 @@ export const FounderManager = () => {
   };
 
   const getRoleBadge = (member: FounderMember) => {
-    if (member.is_main_founder || member.role === "founder" || member.email.toLowerCase().includes("djateulrich")) {
+    if (member.is_main_founder || member.role === "founder") {
       return (
         <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold px-3 py-1 gap-1.5 shadow-sm">
           <Crown className="w-3.5 h-3.5" /> Fondateur Principal & Propriétaire Unique
@@ -208,13 +207,14 @@ export const FounderManager = () => {
               Gestion de l'Équipe Dirigeante (Nomination par Email)
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-2xl">
-              Vous êtes <strong>Ulrich DJATÉ (`djateulrich@gmail.com`)</strong>, l'unique Fondateur Principal, Concepteur et Architecte d'Ecomfy. Vous seul avez la capacité d'ajouter, modifier ou révoquer l'accès aux co-fondateurs, actionnaires et investisseurs par invitation mail.
+              Seul le <strong>Fondateur Principal</strong> peut ajouter ou révoquer l'accès des co-fondateurs, actionnaires et administrateurs par invitation mail. Les co-fondateurs peuvent consulter la liste.
             </p>
           </div>
         </div>
       </div>
 
       {/* Form: Invite New Founder by Email */}
+      {canManage && (
       <Card className="border-slate-200 dark:border-slate-800 shadow-md">
         <CardHeader>
           <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -272,6 +272,7 @@ export const FounderManager = () => {
           </form>
         </CardContent>
       </Card>
+      )}
 
       {/* List of Nominated Founders */}
       <Card className="border-slate-200 dark:border-slate-800 shadow-md">
@@ -297,7 +298,7 @@ export const FounderManager = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {founders.map((member) => {
-                const isMain = member.is_main_founder || member.email.toLowerCase().includes("djateulrich");
+                const isMain = member.is_main_founder;
                 return (
                   <div
                     key={member.id || member.user_id}
@@ -320,7 +321,7 @@ export const FounderManager = () => {
                         </div>
                         <div>
                           <h4 className="font-bold text-slate-900 dark:text-white text-base leading-snug">
-                            {isMain ? "Ulrich DJATÉ" : (member.full_name || member.email)}
+                            {member.full_name || member.email}
                           </h4>
                           <p className="text-xs text-slate-500 dark:text-slate-400">{member.email}</p>
                         </div>
@@ -337,7 +338,7 @@ export const FounderManager = () => {
                         <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg flex items-center gap-1">
                           <Lock className="w-3 h-3" /> Inaltérable
                         </span>
-                      ) : (
+                      ) : canManage ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -346,7 +347,7 @@ export const FounderManager = () => {
                         >
                           <Trash2 className="w-3.5 h-3.5 mr-1" /> Révoquer les droits
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
