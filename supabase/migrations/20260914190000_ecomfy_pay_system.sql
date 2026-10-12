@@ -204,6 +204,7 @@ CREATE OR REPLACE FUNCTION public.get_or_create_merchant_wallet(p_merchant_id UU
 RETURNS public.wallets
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_wallet public.wallets;
@@ -233,6 +234,7 @@ CREATE OR REPLACE FUNCTION public.credit_merchant_wallet_pending(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_wallet public.wallets;
@@ -289,6 +291,7 @@ CREATE OR REPLACE FUNCTION public.process_wallet_settlements()
 RETURNS INT
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     r_settlement RECORD;
@@ -331,8 +334,8 @@ END;
 $$;
 
 -- D. DEMANDE DE RETRAIT ATOMIQUE AVEC VERROUILLAGE SÉCURISÉ
+-- Le marchand est toujours l'appelant authentifié (auth.uid()) : aucun p_merchant_id en paramètre.
 CREATE OR REPLACE FUNCTION public.request_wallet_withdrawal_atomic(
-    p_merchant_id UUID,
     p_amount NUMERIC,
     p_payout_method TEXT,
     p_destination_phone TEXT DEFAULT NULL,
@@ -343,13 +346,23 @@ CREATE OR REPLACE FUNCTION public.request_wallet_withdrawal_atomic(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
+    p_merchant_id UUID := auth.uid();
     v_wallet public.wallets;
     v_kyc public.merchant_kyc;
     v_withdrawal_id UUID;
     v_ref TEXT;
 BEGIN
+    IF p_merchant_id IS NULL THEN
+        RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+    END IF;
+
+    IF p_amount IS NULL OR p_amount <= 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Montant de retrait invalide.');
+    END IF;
+
     -- 1. Vérifier KYC
     SELECT * INTO v_kyc FROM public.merchant_kyc WHERE user_id = p_merchant_id;
     IF v_kyc.id IS NULL OR v_kyc.verification_status != 'VERIFIED' THEN
@@ -406,3 +419,19 @@ BEGIN
     );
 END;
 $$;
+
+-- ========================================================
+-- E. DROITS D'EXÉCUTION (audit C1)
+-- Supabase accorde EXECUTE à anon/authenticated par défaut sur public.* :
+-- on retire tout, puis on rouvre uniquement ce qui est nécessaire.
+-- ========================================================
+REVOKE ALL ON FUNCTION public.get_or_create_merchant_wallet(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.credit_merchant_wallet_pending(UUID, UUID, NUMERIC, NUMERIC, TEXT, INT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.process_wallet_settlements() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.request_wallet_withdrawal_atomic(NUMERIC, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.get_or_create_merchant_wallet(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.credit_merchant_wallet_pending(UUID, UUID, NUMERIC, NUMERIC, TEXT, INT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.process_wallet_settlements() TO service_role;
+-- Retrait : le marchand connecté l'appelle avec son propre JWT (auth.uid() identifie le portefeuille).
+GRANT EXECUTE ON FUNCTION public.request_wallet_withdrawal_atomic(NUMERIC, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated, service_role;

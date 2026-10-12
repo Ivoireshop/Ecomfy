@@ -42,7 +42,8 @@ L'annexe B a été exécutée sur la base de dev (copie de la production), puis 
 |---|---|---|
 | C2, partie `apply_commission_payment` / `apply_shop_subscription` | **Confirmé** : exécutables par `anon` et `PUBLIC` | Hotfix `20261012120000` : validé sur la dev, **à déployer en production** |
 | H2, tables `corporate_*` | **Confirmé, et plus large** : les 14 tables sont ouvertes (lecture et écriture) à tout utilisateur connecté, car `strict_multitenant_privacy` n'est pas appliquée | Même hotfix : validé sur la dev, **à déployer en production** |
-| C1, C3, C4, `confirm_invoice_payment` | **Non exploitables aujourd'hui** : `wallets`, `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
+| C1 | **Non exploitable aujourd'hui** : `wallets` n'existe pas en base | **Corrigé dans la migration d'origine** `20260914190000` (`REVOKE` + `GRANT service_role`, retrait via `auth.uid()`, `ecomfy-pay-withdraw` appelle la RPC avec le JWT du marchand). SQL validé sur une base locale jetable (13 tests, annexe D) ; Edge Function non testée de bout en bout |
+| C3, C4, `confirm_invoice_payment` | **Non exploitables aujourd'hui** : `wallets`, `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
 | Autres constats (C5 à C8, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
 
 Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
@@ -144,6 +145,11 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 - **Constat (confirmé dans les migrations) :** ces fonctions sont `SECURITY DEFINER`, reçoivent `p_merchant_id` en paramètre, ne vérifient pas `auth.uid()` et n'ont aucun `REVOKE ... FROM PUBLIC`. Dans Supabase, `anon` et `authenticated` obtiennent `EXECUTE` par défaut.
 - **Scénario :** un visiteur anonyme appelle `rpc('credit_merchant_wallet_pending', {p_merchant_id: <son id>, p_net_amount: 5000000, ...})`, puis `request_wallet_withdrawal_atomic` pour demander un retrait. Il peut aussi vider le solde disponible d'un autre marchand vers une demande de retrait qu'il contrôle.
 - **Correctif :** `REVOKE ALL ON FUNCTION ... FROM PUBLIC, anon, authenticated; GRANT EXECUTE ... TO service_role;`. Pour le retrait, ne pas passer `p_merchant_id` : utiliser `auth.uid()` dans la fonction.
+- **Statut (12 octobre 2026) : corrigé dans la migration d'origine, validé en local, pas déployé.**
+  - `20260914190000_ecomfy_pay_system.sql` : `REVOKE` à `PUBLIC`/`anon`/`authenticated` puis `GRANT` à `service_role` sur `get_or_create_merchant_wallet` (non citée à l'origine : elle créait des portefeuilles et divulguait les soldes), `credit_merchant_wallet_pending` et `process_wallet_settlements`.
+  - `request_wallet_withdrawal_atomic` n'a plus de paramètre `p_merchant_id` : elle utilise `auth.uid()`, refuse un appelant non connecté et rejette les montants nuls ou négatifs (un montant négatif aurait crédité le portefeuille). Accordée à `authenticated` et `service_role`, retirée à `anon`. Les quatre fonctions ont `SET search_path = public`.
+  - `ecomfy-pay-withdraw` appelle la RPC avec un client lié au JWT du marchand (`SUPABASE_ANON_KEY` + en-tête `Authorization`). Avec la clé `service_role`, `auth.uid()` serait nul et tous les retraits seraient refusés.
+  - Résultats des tests : annexe D.
 
 #### C2. Contournement de la facturation (commissions et abonnements)
 - **Où :** `20260909100000_ecomfy_billing_threshold_system.sql:380` (`confirm_invoice_payment`, accordée à `anon`) ; `20261003120000_fix_billing_partial_payments_sync.sql:124` (`apply_commission_payment`, accordée explicitement à `anon`) ; `20260912000000_fix_subscription_plan_aliases_and_zero_commission.sql:53` (`apply_shop_subscription`, aucun `REVOKE`). Le client appelle d'ailleurs `confirm_invoice_payment` directement : `src/lib/billingSystem.ts:221`.
@@ -346,7 +352,7 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 ## 7. Plan d'action recommandé
 
 ### Immédiat (24 à 48 h)
-1. **Script SQL de durcissement** *(partiellement fait : `apply_commission_payment` et `apply_shop_subscription`, voir le hotfix `20261012120000`)* : `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` sur `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `evaluate_merchant_kyc_security`, `record_affiliate_referral`, `get_or_create_affiliate`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`. Restreindre `get_shop_orders_secure` aux propriétaires/collaborateurs. Ajouter un `REVOKE` par défaut pour les prochaines fonctions (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`).
+1. **Script SQL de durcissement** *(partiellement fait : `apply_commission_payment` et `apply_shop_subscription`, voir le hotfix `20261012120000` ; `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic` et `get_or_create_merchant_wallet`, voir C1 et l'annexe D)* : `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` sur `credit_merchant_wallet_pending`, `process_wallet_settlements`, `request_wallet_withdrawal_atomic`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `evaluate_merchant_kyc_security`, `record_affiliate_referral`, `get_or_create_affiliate`, `process_affiliate_commission_for_payment`, `check_and_trigger_billing_threshold`. Restreindre `get_shop_orders_secure` aux propriétaires/collaborateurs. Ajouter un `REVOKE` par défaut pour les prochaines fonctions (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`).
 2. **`ecomfy-pay-webhook`** : signature + rappel API fournisseur.
 3. **`manage-founder-roles`** : supprimer la logique basée sur l'e-mail et valider les rôles.
 4. **`tracking.ts`** : n'accepter que `G-XXXX`.
@@ -470,6 +476,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLI
 
 -- Retrait : utiliser l'identité de la session, pas un paramètre
 -- dans request_wallet_withdrawal_atomic : v_merchant := auth.uid(); (et supprimer p_merchant_id)
+-- (appliqué dans 20260914190000_ecomfy_pay_system.sql, voir l'annexe D)
 ```
 
 ```ts
@@ -481,3 +488,45 @@ if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return ack({ success: false 
 const expected = await computeSignature(Deno.env.get("GENIUSPAY_WEBHOOK_SECRET")!, `${ts}.${rawBody}`);
 if (!timingSafeEqual(expected, sig)) return ack({ success: false });
 ```
+
+## Annexe D. Tests du correctif C1 (portefeuille Ecomfy Pay)
+
+**Date :** 12 octobre 2026. **Environnement :** base Postgres locale jetable (image `public.ecr.aws/supabase/postgres:17.6.1.155`, rôles `anon`, `authenticated`, `service_role` réels), détruite après les tests. La base de dev partagée n'a pas été utilisée. Les tables `shops`, `products` et `orders` sont remplacées par des tables minimales (seules leurs clés servent).
+
+**Méthode :** la migration `20260914190000_ecomfy_pay_system.sql` corrigée est appliquée en entier, puis chaque appel est fait sous `SET LOCAL ROLE`, avec l'identité posée par `request.jwt.claim.sub` (c'est ce que lit `auth.uid()` dans cette image). Marchand A : KYC `VERIFIED`, 10 000 disponibles. Marchand B : sans KYC, 7 000 disponibles.
+
+Droits d'exécution constatés après la migration :
+
+| Fonction | Rôles autorisés |
+|---|---|
+| `get_or_create_merchant_wallet(uuid)` | `service_role` |
+| `credit_merchant_wallet_pending(...)` | `service_role` |
+| `process_wallet_settlements()` | `service_role` |
+| `request_wallet_withdrawal_atomic(numeric, text, text, text, text, text)` | `authenticated`, `service_role` |
+
+| # | Test | Attendu | Observé |
+|---|---|---|---|
+| 1 | `anon` : `credit_merchant_wallet_pending` | refusé | `permission denied` |
+| 2 | `authenticated` : `credit_merchant_wallet_pending` | refusé | `permission denied` |
+| 3 | `authenticated` : `process_wallet_settlements` | refusé | `permission denied` |
+| 4 | `authenticated` : `get_or_create_merchant_wallet` | refusé | `permission denied` |
+| 5 | `anon` : retrait | refusé | `permission denied` |
+| 6 | `authenticated` sans identité : retrait | refusé | `forbidden` |
+| 7 | A retire 4 000 | succès | succès, reste 6 000 |
+| 8 | A retire -500 | refusé | « Montant de retrait invalide » |
+| 9 | A retire 999 999 | refusé | « Solde disponible insuffisant » |
+| 10 | B (sans KYC) retire 1 000 | refusé | « KYC doit être vérifié » |
+| 11 | `service_role` : crédit d'un paiement | succès | succès, 900 en attente |
+| 12 | `service_role` : retrait (pas de `auth.uid()`) | refusé | `forbidden` |
+| 13 | `service_role` : `process_wallet_settlements` | s'exécute | succès, 0 règlement échu |
+
+État final conforme : A à 6 000 disponibles (4 000 retirés, une seule demande `REQUESTED` à son nom) ; B inchangé (7 000 disponibles, 900 en attente). Un marchand ne peut ni créditer, ni retirer sur le portefeuille d'un autre.
+
+**Non couvert par ces tests :**
+- l'Edge Function `ecomfy-pay-withdraw` (non compilée, non exécutée) : à tester avec un vrai JWT de marchand, `SUPABASE_ANON_KEY` étant injectée par Supabase ;
+- le chemin complet webhook → `credit_merchant_wallet_pending` ;
+- le déploiement sur la base de dev réelle.
+
+**Reste ouvert, lié à C1 :**
+- un marchand authentifié peut appeler `request_wallet_withdrawal_atomic` directement, sans passer par l'Edge Function : la demande reste `REQUESTED` et ne touche que son solde, mais l'envoi du paiement n'est pas déclenché. La vraie barrière est le KYC, aujourd'hui contournable (C4) : corriger C4 avant tout déploiement ;
+- `ecomfy-pay-settlement` n'authentifie pas son appelant : n'importe qui peut déclencher `process_wallet_settlements` (sans gain direct, mais à protéger par un secret ou un cron interne).

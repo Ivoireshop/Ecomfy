@@ -136,5 +136,5 @@ Pour retirer la garde de `apply_commission_payment`, réexécuter la définition
 - La garde accepte les connexions directes à la base (`session_user` `postgres` ou `supabase_admin`) : sans effet sur l'API (rôle `authenticator`), mais cela rend les tests par simulation de rôle en SQL non fiables. Tester par HTTP.
 - `corporate_invitations` (migration `20260906000000`, pas encore déployée) est ouverte à tous, y compris `anon` : à revoir avant tout déploiement.
 - `strict_multitenant_privacy` (`20260902140000`, pas encore déployée) ne supprime pas les politiques `Allow authenticated view…` (mauvais nom), a un e-mail codé en dur et dépend de `profiles.is_admin` : à corriger avant déploiement.
-- Les migrations Ecomfy Pay, affiliation et facturation par seuil contiennent les failles C1, C3 et C4 : ne pas les déployer avant correction (annexe C de l'audit).
+- C1 (portefeuille Ecomfy Pay) est corrigé dans la migration d'origine `20260914190000` et validé en local (annexe D de l'audit), mais pas déployé. Les migrations d'affiliation et de facturation par seuil contiennent encore les failles C3 et C4 : ne pas les déployer avant correction (annexe C de l'audit).
 - Les autres constats de l'audit (webhooks, rôles fondateur, XSS, KYC, cron, e-mails) ne sont pas traités par ce hotfix.
