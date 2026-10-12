@@ -698,4 +698,30 @@ Autres changements : message d'erreur 500 générique (le message interne n'est 
 - **Politique RLS `user_roles_manage_policy`** (`20260831190000_manage_founder_roles.sql`) : elle autorise tout `co_founder` à écrire n'importe quel rôle dans `user_roles` directement via l'API PostgREST, sans passer par la fonction. Un co-fondateur peut donc s'attribuer `founder` : la restriction ci-dessus n'est contournée que tant que cette politique existe. À restreindre au seul `founder` (ou à retirer l'écriture directe pour `authenticated`) ; non vérifié en base. La politique est aussi auto-référente (risque de récursion RLS).
 - **Dépendance au rôle `founder` en base** : le fondateur principal doit avoir une ligne `founder` dans `user_roles` (posée par les migrations `20260831190000` et `20260831200000`). À vérifier avant déploiement, sinon il perd l'accès à la fonction (l'ancien code le laissait passer sur son e-mail).
 - **Même motif ailleurs, non traité ici** : `FounderDashboard.tsx:344,371`, `FounderTroubleshooting.tsx:90,118`, `FounderRoute.tsx:21`, `AppSidebar.tsx:200`, `AssociateSpace.tsx:49`, `CorporateGovernance.tsx:384,387,536` (contrôle d'accès côté interface, contournable par un compte dont l'e-mail contient « djateulrich »), `app-health-monitor/index.ts:11` (liste d'e-mails en dur) et les migrations qui comparent `auth.jwt() ->> 'email'` (`20260902140000`).
-- Déploiement de la fonction et test avec un vrai JWT.
+- Déploiement de la fonction et test avec un vrai JWT. *(Fait sur dev le 12/10/2026 : voir l'annexe G. La politique RLS `user_roles_manage_policy` est corrigée sur dev par `20261012160000_fix_user_roles_rls_recursion.sql`.)*
+
+## Annexe G. Vérification sur la base dev après déploiement (12 octobre 2026)
+
+Rapport complet : [`docs/VERIFICATION-CORRECTIFS-2026-10.md`](docs/VERIFICATION-CORRECTIFS-2026-10.md). Procédure de déploiement : [`docs/DEPLOIEMENT-DEV-2026-10.md`](docs/DEPLOIEMENT-DEV-2026-10.md). Scripts : `supabase/deploy-dev/`. Tests : `scripts/verify-dev-security.mjs`, `supabase/tests/verification_c1_c2_c3_h2.sql`.
+
+| Constat | État sur dev |
+|---|---|
+| C1 portefeuille | Corrigé dans le code ; **non déployé sur dev** ; validé en local |
+| C2 RPC de facturation, d'activation et serveur | **Appliqué et vérifié** : `service_role` seul, lot de 16 fonctions : 0 exposition ; paiement et activation manuels testés dans l'interface |
+| C3 `get_shop_orders_secure` | **Appliqué et vérifié** (aucun écran ne l'appelle) |
+| C7 `manage-founder-roles` et RLS `user_roles` | **Appliqué et vérifié** ; nomination et révocation par le fondateur principal non testées |
+| C8 identifiants de suivi | **Vérifié** dans l'interface et par tests Node |
+| H2 gouvernance `corporate_*` | **Appliqué et vérifié** |
+| H11 projets Supabase | Vérifié dans le navigateur |
+
+Script HTTP avec de vrais JWT (comptes jetables) : 42 réussis, 6 échecs (les fonctions de portefeuille de C1, absentes de dev).
+
+**Constats nouveaux de cette vérification**
+1. **`user_roles` : récursion de politique (HTTP 500)** sur dev. La politique `user_roles_manage_policy` (migration `20260831190000`) interrogeait `user_roles` dans sa condition : toute lecture ou écriture par un utilisateur connecté échouait, et les pages fondateur affichaient « Accès restreint » pour un compte sans contournement par e-mail. Elle autorisait aussi un `co_founder` à écrire n'importe quel rôle, et une politique `USING (true)` rendait la table lisible par tous. Corrigé par `20261012160000_fix_user_roles_rls_recursion.sql`. **À reporter sur la production** (très probablement concernée).
+2. **Exposition d'origine sur dev, et probablement en production** : `anon` exécutait `apply_shop_activation`, `prepare_shop_activation_payment`, `check_rate_limit` et 15 fonctions serveur (files d'e-mails comprises). Corrigé sur dev par `130000`, `140000`, `150000`.
+3. **Conflit de noms `payment_links`** : une table `payment_links` (liens de paiement de cours, `course_id`, `payment_url`) existe déjà ; la migration Ecomfy Pay `20260914190000` en veut une autre du même nom (`shop_id`, `link_key`). Telle quelle, elle échoue sur dev et en production. À résoudre (renommer la table Ecomfy Pay) avant tout déploiement de C1 ; `supabase/deploy-dev/02_c1_wallet_dev.sql` contourne le conflit pour dev en retirant les liens de paiement Ecomfy Pay.
+4. **`get_shop_orders_secure` n'est appelée par aucun fichier de `src/`** : C3 protège l'API directe, pas un écran.
+5. **Facturation par seuil non déployée sur dev** (`shop_invoices`, `enforce_shop_billing_deadlines`, `confirm_invoice_payment` absents) : les écrans correspondants reçoivent des 404.
+6. **Données** : des logos de boutiques de dev pointent vers le stockage de la production (URLs copiées avec les données).
+
+**Reste ouvert, non couvert** : C4 (`evaluate_merchant_kyc_security` ouvert à `anon` dès que C1 est déployé), C5 et C6 (`ecomfy-pay-webhook`, `ecomfy-pay-initiate`), groupe B de l'annexe F.3, `corporate_invitations`, e-mails en dur côté interface, nettoyage des `google_analytics_code` déjà stockés, journaux Supabase non exportés, annexe B non lancée sur la production.

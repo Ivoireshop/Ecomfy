@@ -3,6 +3,7 @@
 **Migration :** `supabase/migrations/20261012120000_hotfix_security_billing_rpc_and_corporate_rls.sql`
 **Constats traités :** C2 (en partie : `apply_commission_payment`, `apply_shop_subscription` ; complété par la migration `20261012130000`, voir 5.4) et H2 (tables `corporate_*`), voir `AUDIT-PROJET-2026-10.md`.
 **État :** appliqué et validé sur la base de dev (copie de la production). **Pas encore appliqué en production.**
+**Suite (12/10/2026) :** les compléments C2 (`20261012130000`, `140000`, `150000`), le correctif C3 et le correctif RLS de `user_roles` (`20261012160000`) ont été déployés et vérifiés sur dev avec des scripts ciblés : voir [`DEPLOIEMENT-DEV-2026-10.md`](DEPLOIEMENT-DEV-2026-10.md) et [`VERIFICATION-CORRECTIFS-2026-10.md`](VERIFICATION-CORRECTIFS-2026-10.md). Avant de déployer en production, lire en particulier la section 9 du guide de déploiement et reporter `20261012160000` (la politique `user_roles_manage_policy` fautive est très probablement aussi en production).
 
 ---
 
@@ -195,6 +196,9 @@ GRANT EXECUTE ON FUNCTION public.apply_shop_subscription(uuid, uuid, text, numer
 Pour retirer la garde de `apply_commission_payment`, réexécuter la définition de la migration `20260701091528_fe65ae6e-2a3c-4adf-9ff0-fe9f5aeca17f.sql` (fonction `apply_commission_payment`, section 6). Pour les politiques `corporate_*`, recréer celles de `20260901000000_corporate_governance_system.sql` (lignes 278 à 307).
 
 ## 8. Limites connues et suite
+
+- **Vérifié sur dev le 12/10/2026 :** avant les compléments, `anon` pouvait encore exécuter `apply_shop_activation`, `prepare_shop_activation_payment`, `check_rate_limit` et 15 fonctions serveur. Le hotfix seul ne suffit donc pas : appliquer aussi `130000`, `140000`, `150000` (section 5.4).
+- **`user_roles` :** la politique `user_roles_manage_policy` provoque une récursion (HTTP 500) pour toute lecture ou écriture d'un utilisateur connecté. Correctif : `20261012160000_fix_user_roles_rls_recursion.sql` (appliqué sur dev).
 
 - `corporate_audit_logs` et `corporate_document_acceptances` restent ouverts en insertion à tout utilisateur connecté (onboarding). Un marchand peut y écrire de fausses lignes ; à restreindre (`user_id = auth.uid()` ou e-mail du JWT).
 - La garde accepte les connexions directes à la base (`session_user` `postgres` ou `supabase_admin`) : sans effet sur l'API (rôle `authenticator`), mais cela rend les tests par simulation de rôle en SQL non fiables. Tester par HTTP.
