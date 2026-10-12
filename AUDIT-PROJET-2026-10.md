@@ -25,7 +25,7 @@ Ecomfy est une plateforme SaaS e-commerce multi-boutiques pour l'Afrique francop
 2. Vérifier la signature HMAC dans `ecomfy-pay-webhook` (C5).
 3. Recalculer côté serveur les montants et les crédits dans `process-payment` et `ecomfy-pay-initiate` (C6).
 4. Corriger `manage-founder-roles` : supprimer `includes("djateulrich")` et valider le rôle demandé (C7).
-5. Supprimer l'exécution de scripts libres dans `tracking.ts` (C8).
+5. Supprimer l'exécution de scripts libres dans `tracking.ts` (C8). *(Fait, voir C8.)*
 6. Rendre le KYC réel et déplacer les pièces d'identité vers un bucket privé (C4, H1).
 7. Corriger les politiques RLS des 8 tables de gouvernance restées ouvertes (H2).
 8. Corriger `isAuthorizedCron`, qui accepte un JWT non vérifié (H3).
@@ -49,7 +49,8 @@ L'annexe B a été exécutée sur la base de dev (copie de la production), puis 
 | C3 | **Non exploitable aujourd'hui** : les fonctions de facturation par seuil n'existent pas en base | **Corrigé dans la migration d'origine** `20260909100000` (contrôle propriétaire / collaborateur actif / fondateur via `auth.uid()`, `REVOKE` pour `anon` et `PUBLIC`). SQL validé sur une base locale jetable (19 tests, annexe E) |
 | C4 | **Non exploitable aujourd'hui** : `ecomfy_payments` et les fonctions de facturation par seuil n'existent pas en base | **Non corrigés.** Les migrations qui les créent contiennent les failles : ne pas les déployer avant correction (annexe C) |
 | C7, `manage-founder-roles` | **Non vérifié en base** (Edge Function, aucun effet SQL) | **Corrigé dans le code** : décision sur `user_roles` uniquement (plus d'e-mail), liste blanche des rôles, nommer/révoquer réservé au rôle `founder`, révocation d'un rôle précis. 14 tests Node (annexe F) ; non déployé, non testé contre Supabase. **Reste ouvert :** la politique RLS `user_roles_manage_policy` (voir annexe F) |
-| Autres constats (C5, C6, C8, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
+| C8, XSS stocké via `google_analytics_code` | **Non vérifié en base** (le champ n'a pas d'écran de saisie mais reste modifiable par l'API par le propriétaire de la boutique : voir la requête de détection ci-dessous). Côté code : exploitable, y compris les scripts en ligne | **Corrigé** : plus aucun code marchand exécuté, identifiants validés partout (navigateur, éditeur, `track-conversion`). 6 tests Node, contre-épreuve sur l'ancien code. Pas déployé |
+| Autres constats (C5, C6, H1, H3 à H11, M, F) | Non vérifiés en base | Hors périmètre du hotfix |
 
 Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
 
@@ -208,6 +209,30 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 - **Constat :** si le champ ne contient pas d'identifiant `G-XXXX`, le code HTML du propriétaire de boutique est injecté et ses balises `<script>` sont recréées. Le filtre ne s'applique qu'aux scripts **avec** `src` : `srcUrl && !regex.test(srcUrl)`. Les scripts **inline** s'exécutent donc sans aucun contrôle. De plus, la regex n'est pas ancrée : `https://evil.tld/?https://googletagmanager.com` ou `https://googletagmanager.com.evil.tld` passent.
 - **Impact :** un marchand malveillant exécute du JavaScript sur `ecomfy.cloud/shop/<slug>`, donc sur la même origine que l'application. Le jeton de session est dans `localStorage` (`ecomfy-auth-token`, voir M8) : prise de contrôle du compte de tout visiteur connecté, y compris un fondateur.
 - **Correctif :** supprimer le chemin « code libre ». N'accepter qu'un identifiant validé par regex (`^G-[A-Z0-9]{4,}$`), comme le recommandait déjà l'audit de juin (Lot 2, point 6).
+- **Statut (12 octobre 2026) : corrigé, testé en local, pas déployé.**
+  - `src/lib/trackingIds.ts` (nouveau) : validateurs stricts et ancrés. GA4 `^G-[A-Z0-9]{4,20}$`, Meta `^\d{5,20}$`, TikTok `^[A-Z0-9]{8,32}$` (insensible à la casse), Snapchat `^[A-Za-z0-9-]{8,64}$`. `extractGa4Id` extrait l'identifiant d'un snippet collé et jette tout le reste.
+  - `src/lib/tracking.ts` : le chemin « code libre » est **supprimé** (plus de `template`, `innerHTML`, copie d'attributs ni de contenu de script). `google_analytics_code` ne sert plus qu'à en extraire un `G-XXXX`. Chaque chargeur (`loadFacebook`, `loadTikTok`, `loadSnapchat`, `loadGA4`) valide son identifiant avant toute insertion de script, et `trackEvent` filtre aussi les identifiants. Les identifiants `UA-` (Universal Analytics, arrêté en 2023) ne sont plus acceptés.
+  - `ShopSettings.tsx` : la saisie d'un pixel est refusée avec un message si le format est invalide.
+  - `track-conversion` (défense en profondeur) : les identifiants de pixel et le GA4 sont filtrés avant d'être insérés dans les URLs `graph.facebook.com`, `tr.snapchat.com` et `google-analytics.com`, qui reçoivent le jeton du marchand ; le secret GA4 est encodé.
+  - Limite : la base peut toujours contenir des valeurs invalides : aucune contrainte `CHECK` n'est ajoutée sur ces colonnes, pour ne pas bloquer l'enregistrement des boutiques dont les données existantes sont déjà hors format. Ces valeurs sont ignorées par le navigateur et par `track-conversion`.
+  - Tests : `supabase/tests/tracking-ids.test.ts` (6 tests : formats, charges utiles XSS dont les deux contournements de regex cités ci-dessus, garde de non-régression sur le source). Exécution : `node --experimental-strip-types --test supabase/tests/tracking-ids.test.ts`. Contre-épreuve : l'ancien `tracking.ts` contient `innerHTML`, `template`, `.text =` et la copie d'attributs que le test interdit, et l'ancien filtre acceptait `https://evil.tld/?https://googletagmanager.com` et `https://googletagmanager.com.evil.tld/x.js`.
+  - **À faire après déploiement :** détecter les boutiques déjà piégées (le correctif neutralise l'exécution, mais l'attaque a pu avoir lieu avant) et réinitialiser les jetons de session si un abus est trouvé :
+
+```sql
+select id, slug, user_id, left(google_analytics_code, 120) as extrait
+from shops
+where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javascript:|fetch\(|localStorage|document\.cookie)'
+   or (google_analytics_code is not null and google_analytics_code !~ '^\s*G-[A-Za-z0-9]{4,20}\s*$'
+       and google_analytics_code ~ '[<>]');
+```
+  - Reste lié : M8 (jeton de session dans `localStorage`) aggrave l'impact de toute XSS ; le correctif C8 supprime la principale, pas la classe de risque.
+  - **Points à connaître :**
+    - **Universal Analytics :** les identifiants `UA-XXXXXXX-X` ne sont plus acceptés (service arrêté en 2023). Un marchand qui n'a que cet identifiant n'aura plus de suivi Google tant qu'il n'a pas saisi un identifiant GA4.
+    - **Snippet complet collé :** si le champ contient un snippet gtag complet, seul le premier `G-XXXX` est utilisé ; les autres balises, scripts ou événements personnalisés sont ignorés. Un marchand qui s'appuyait sur du code personnalisé (Google Tag Manager `GTM-XXXX`, balises de conversion `AW-`) perd cette fonction : les ajouter comme champs dédiés avec validation si le besoin existe.
+    - **Données existantes :** les colonnes ne portent aucune contrainte `CHECK` ; une valeur hors format reste en base mais est ignorée par le navigateur et par `track-conversion`. Les marchands concernés ne voient pas d'erreur : leurs pixels cessent simplement de fonctionner.
+    - **Boutiques déjà piégées :** le correctif neutralise l'exécution mais pas une attaque antérieure ; lancer la requête de détection ci-dessus après déploiement, et réinitialiser les sessions concernées si un abus est trouvé.
+    - **Couverture des tests :** formats, charges utiles et garde sur le source, exécutés sous Node. Aucun test dans un navigateur réel ni dans un DOM : le comportement de `initShopPixels` n'est pas exécuté de bout en bout. Le dépôt n'a pas de lanceur de tests (`vitest` absent) ; les tests suivent la convention `node --test` de `supabase/tests/`.
+    - **Écran de saisie :** `google_analytics_code` n'a pas de champ dans `ShopSettings.tsx` ; il n'est modifiable que par l'API, ce qui limite la population exposée mais pas le risque (tout propriétaire de boutique peut écrire cette colonne).
 
 ### ÉLEVÉ
 

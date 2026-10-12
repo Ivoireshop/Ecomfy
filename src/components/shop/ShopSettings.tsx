@@ -24,6 +24,7 @@ import { NotificationSettings } from "./NotificationSettings";
 import { LanguageSettings } from "./LanguageSettings";
 import { ShopDeliveryPartners } from "./ShopDeliveryPartners";
 import { getCTAAnimationClass } from "@/lib/utils";
+import { isValidFacebookPixelId, isValidGa4Id, isValidSnapchatPixelId, isValidTiktokPixelId } from "@/lib/trackingIds";
 
 type SettingsTab = "general" | "payment" | "checkout" | "delivery" | "notifications" | "languages" | "analytics" | "domain" | "danger";
 
@@ -77,11 +78,24 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
     { id: "last_name", label: "Nom de famille", type: "text", enabled: false, required: false },
   ];
 
+  const PIXEL_VALIDATORS: Record<string, { check: (v: string) => boolean; hint: string }> = {
+    facebook_pixels: { check: isValidFacebookPixelId, hint: "L'identifiant Meta est composé de 5 à 20 chiffres." },
+    tiktok_pixels: { check: isValidTiktokPixelId, hint: "L'identifiant TikTok est composé de 8 à 32 lettres majuscules ou chiffres (ex : C1234567890)." },
+    snapchat_pixels: { check: isValidSnapchatPixelId, hint: "L'identifiant Snapchat est composé de 8 à 64 lettres, chiffres ou tirets." },
+    google_analytics_ids: { check: isValidGa4Id, hint: "L'identifiant GA4 doit avoir la forme G-XXXXXXXXXX (lettres majuscules et chiffres)." },
+  };
+
   const addPixel = (field: string, value: string, setter: (v: string) => void) => {
-    if (!value.trim()) return;
+    const id = value.trim();
+    if (!id) return;
+    const validator = PIXEL_VALIDATORS[field];
+    if (validator && !validator.check(id)) {
+      toast({ title: "Identifiant invalide", description: validator.hint, variant: "destructive" });
+      return;
+    }
     const current = shop[field] || [];
-    if (current.includes(value.trim())) { toast({ title: "Pixel déjà ajouté", variant: "destructive" }); return; }
-    setShop({ ...shop, [field]: [...current, value.trim()] });
+    if (current.includes(id)) { toast({ title: "Pixel déjà ajouté", variant: "destructive" }); return; }
+    setShop({ ...shop, [field]: [...current, id] });
     setter("");
   };
 
