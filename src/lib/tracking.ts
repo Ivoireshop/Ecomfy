@@ -5,6 +5,13 @@
  * deduplication (Shopify / Systeme.io behavior).
  */
 import { supabase } from "@/integrations/supabase/client";
+import {
+  extractGa4Id,
+  isValidFacebookPixelId,
+  isValidGa4Id,
+  isValidSnapchatPixelId,
+  isValidTiktokPixelId,
+} from "@/lib/trackingIds";
 
 declare global {
   interface Window {
@@ -88,6 +95,7 @@ function ensureLoaded(key: string): boolean {
 }
 
 function loadFacebook(pixelId: string) {
+  if (!isValidFacebookPixelId(pixelId)) return;
   if (!ensureLoaded(`fb_${pixelId}`)) {
     if (window.fbq) window.fbq("init", pixelId);
     return;
@@ -106,6 +114,7 @@ function loadFacebook(pixelId: string) {
 }
 
 function loadTikTok(pixelId: string) {
+  if (!isValidTiktokPixelId(pixelId)) return;
   if (!ensureLoaded(`tt_${pixelId}`)) {
     if (window.ttq?.load) window.ttq.load(pixelId);
     return;
@@ -132,6 +141,7 @@ function loadTikTok(pixelId: string) {
 }
 
 function loadSnapchat(pixelId: string) {
+  if (!isValidSnapchatPixelId(pixelId)) return;
   if (!ensureLoaded(`sn_${pixelId}`)) {
     if (window.snaptr) window.snaptr("init", pixelId);
     return;
@@ -150,6 +160,7 @@ function loadSnapchat(pixelId: string) {
 }
 
 function loadGA4(measurementId: string) {
+  if (!isValidGa4Id(measurementId)) return;
   if (!ensureLoaded(`ga_${measurementId}`)) return;
   const s = document.createElement("script");
   s.async = true;
@@ -170,29 +181,10 @@ export function initShopPixels(shop: ShopTracking) {
   if (shop.ga4_measurement_id) loadGA4(shop.ga4_measurement_id);
   (shop.google_analytics_ids || []).forEach(loadGA4);
 
-  if (shop.google_analytics_code && ensureLoaded("ga_custom")) {
-    try {
-      // If user pasted a Measurement ID (e.g. G-XXXXXXX or UA-XXXXXXX-X), load it safely via loadGA4
-      const idMatch = shop.google_analytics_code.match(/\b(G-[A-Z0-9]+|UA-\d+-\d+)\b/i);
-      if (idMatch) {
-        loadGA4(idMatch[1]);
-      } else {
-        const tpl = document.createElement("template");
-        tpl.innerHTML = shop.google_analytics_code;
-        tpl.content.querySelectorAll("script").forEach((src) => {
-          // Only execute scripts hosted on trusted google analytics/tagmanager domains
-          const srcUrl = src.getAttribute("src");
-          if (srcUrl && !/https?:\/\/(www\.)?(googletagmanager|google-analytics)\.com/i.test(srcUrl)) {
-            return;
-          }
-          const s = document.createElement("script");
-          for (const attr of Array.from(src.attributes)) s.setAttribute(attr.name, attr.value);
-          s.text = src.textContent || "";
-          document.head.appendChild(s);
-        });
-      }
-    } catch { /* ignore */ }
-  }
+  // Le champ « code Google Analytics » peut contenir un snippet collé tel quel : on n'en
+  // extrait que l'identifiant G-XXXXXXX. Aucun code fourni par le marchand n'est exécuté (audit C8).
+  const pastedId = extractGa4Id(shop.google_analytics_code);
+  if (pastedId) loadGA4(pastedId);
 }
 
 const FB_EVENT_MAP: Record<TrackEvent, string> = {
@@ -234,7 +226,7 @@ export async function trackEvent(
       order_id: payload.order_id,
     };
 
-    const fbPixels = (shop.facebook_pixels || []).filter(Boolean);
+    const fbPixels = (shop.facebook_pixels || []).filter(isValidFacebookPixelId);
     if (fbPixels.length > 0 && window.fbq) {
       fbPixels.forEach((pixelId) => {
         if (typeof window.fbq === "function") {
@@ -265,7 +257,7 @@ export async function trackEvent(
     const gaIds = [
       shop.ga4_measurement_id,
       ...(shop.google_analytics_ids || []),
-    ].filter(Boolean) as string[];
+    ].filter(isValidGa4Id);
     if (window.gtag && gaIds.length) {
       const gaEvent =
         event === "Purchase" ? "purchase" :

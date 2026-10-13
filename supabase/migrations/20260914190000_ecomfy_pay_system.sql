@@ -173,10 +173,50 @@ ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wallet_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawal_requests ENABLE ROW LEVEL SECURITY;
 
--- KYC
+-- Dépendance de la politique ci-dessous et de review_merchant_kyc() : même définition que dans le hotfix
+-- 20261012120000 (CREATE OR REPLACE, donc sans effet si elle existe déjà). Évite qu'un rejeu des migrations dans
+-- l'ordre des horodatages échoue ici parce que le hotfix, daté après, n'a pas encore tourné.
+CREATE OR REPLACE FUNCTION public.is_corporate_founder()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = auth.uid() AND ur.role::text IN ('founder', 'co_founder')
+  );
+$$;
+REVOKE ALL ON FUNCTION public.is_corporate_founder() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_corporate_founder() TO authenticated, service_role;
+
+-- KYC (audit C4)
+-- Le marchand dépose et corrige son dossier, mais ne décide jamais de son statut : le trigger
+-- merchant_kyc_guard_review_columns (migration 20260914200000) ignore toute écriture des colonnes de décision venant d'un
+-- rôle API (anon / authenticated). Seuls service_role et la fonction review_merchant_kyc() peuvent les écrire.
 CREATE POLICY "Users view own KYC" ON public.merchant_kyc FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users insert/update own KYC" ON public.merchant_kyc FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users update own KYC" ON public.merchant_kyc FOR UPDATE USING (auth.uid() = user_id);
+-- Lecture des dossiers par les fondateurs / co-fondateurs, pour l'écran de revue (/founder/kyc-review).
+CREATE POLICY "Founders view all KYC" ON public.merchant_kyc FOR SELECT TO authenticated USING (public.is_corporate_founder());
+CREATE POLICY "Users insert own KYC" ON public.merchant_kyc FOR INSERT
+    WITH CHECK (auth.uid() = user_id AND verification_status = 'PENDING');
+CREATE POLICY "Users update own KYC" ON public.merchant_kyc FOR UPDATE
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Réglages globaux d'Ecomfy Pay, lisibles et modifiables uniquement côté serveur (aucune politique RLS).
+CREATE TABLE IF NOT EXISTS public.ecomfy_pay_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.ecomfy_pay_settings ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.ecomfy_pay_settings FROM PUBLIC, anon, authenticated;
+
+-- Retraits suspendus par défaut (audit C4) : à activer explicitement, avec service_role ou l'éditeur SQL, une fois
+-- qu'un processus de revue KYC est en place :
+--   UPDATE public.ecomfy_pay_settings SET value = 'true'::jsonb, updated_at = NOW() WHERE key = 'withdrawals_enabled';
+INSERT INTO public.ecomfy_pay_settings (key, value) VALUES ('withdrawals_enabled', 'false'::jsonb)
+ON CONFLICT (key) DO NOTHING;
 
 -- PAYMENT LINKS
 CREATE POLICY "Merchants manage own payment links" ON public.payment_links FOR ALL USING (
@@ -204,6 +244,7 @@ CREATE OR REPLACE FUNCTION public.get_or_create_merchant_wallet(p_merchant_id UU
 RETURNS public.wallets
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_wallet public.wallets;
@@ -233,6 +274,7 @@ CREATE OR REPLACE FUNCTION public.credit_merchant_wallet_pending(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_wallet public.wallets;
@@ -289,6 +331,7 @@ CREATE OR REPLACE FUNCTION public.process_wallet_settlements()
 RETURNS INT
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     r_settlement RECORD;
@@ -331,8 +374,8 @@ END;
 $$;
 
 -- D. DEMANDE DE RETRAIT ATOMIQUE AVEC VERROUILLAGE SÉCURISÉ
+-- Le marchand est toujours l'appelant authentifié (auth.uid()) : aucun p_merchant_id en paramètre.
 CREATE OR REPLACE FUNCTION public.request_wallet_withdrawal_atomic(
-    p_merchant_id UUID,
     p_amount NUMERIC,
     p_payout_method TEXT,
     p_destination_phone TEXT DEFAULT NULL,
@@ -343,14 +386,29 @@ CREATE OR REPLACE FUNCTION public.request_wallet_withdrawal_atomic(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
+    p_merchant_id UUID := auth.uid();
     v_wallet public.wallets;
     v_kyc public.merchant_kyc;
     v_withdrawal_id UUID;
     v_ref TEXT;
 BEGIN
-    -- 1. Vérifier KYC
+    IF p_merchant_id IS NULL THEN
+        RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+    END IF;
+
+    IF p_amount IS NULL OR p_amount <= 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Montant de retrait invalide.');
+    END IF;
+
+    -- 0. Interrupteur global (audit C4) : retraits suspendus tant que la revue KYC n'est pas en place.
+    IF COALESCE((SELECT (value)::text = 'true' FROM public.ecomfy_pay_settings WHERE key = 'withdrawals_enabled'), FALSE) IS NOT TRUE THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Les retraits sont temporairement suspendus. Réessayez plus tard.');
+    END IF;
+
+    -- 1. Vérifier KYC (statut écrit uniquement par un relecteur : trigger merchant_kyc_guard_review_columns)
     SELECT * INTO v_kyc FROM public.merchant_kyc WHERE user_id = p_merchant_id;
     IF v_kyc.id IS NULL OR v_kyc.verification_status != 'VERIFIED' THEN
         RETURN jsonb_build_object('success', false, 'error', 'Votre compte d''identité (KYC) doit être vérifié avant de demander un retrait.');
@@ -406,3 +464,19 @@ BEGIN
     );
 END;
 $$;
+
+-- ========================================================
+-- E. DROITS D'EXÉCUTION (audit C1)
+-- Supabase accorde EXECUTE à anon/authenticated par défaut sur public.* :
+-- on retire tout, puis on rouvre uniquement ce qui est nécessaire.
+-- ========================================================
+REVOKE ALL ON FUNCTION public.get_or_create_merchant_wallet(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.credit_merchant_wallet_pending(UUID, UUID, NUMERIC, NUMERIC, TEXT, INT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.process_wallet_settlements() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.request_wallet_withdrawal_atomic(NUMERIC, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.get_or_create_merchant_wallet(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.credit_merchant_wallet_pending(UUID, UUID, NUMERIC, NUMERIC, TEXT, INT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.process_wallet_settlements() TO service_role;
+-- Retrait : le marchand connecté l'appelle avec son propre JWT (auth.uid() identifie le portefeuille).
+GRANT EXECUTE ON FUNCTION public.request_wallet_withdrawal_atomic(NUMERIC, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated, service_role;

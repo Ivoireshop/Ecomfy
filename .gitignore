@@ -26,3 +26,8 @@ dist-ssr
 *.sw?
 scratch/
 .vercel
+
+# Supabase CLI (lien local au projet, propre à chaque poste)
+supabase/.temp/
+!.env.example
+backups/

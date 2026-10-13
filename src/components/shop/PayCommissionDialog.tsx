@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, Wallet, ShieldCheck, MessageCircle, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { recordManualCommissionPayment } from "@/lib/founderBilling";
 import { useToast } from "@/hooks/use-toast";
 import { openPaymentWindow, redirectToPaymentUrl, closePaymentWindow } from "@/lib/paymentRedirect";
 
@@ -103,16 +104,13 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
         if (!confirmPay) return;
 
         setLoading(true);
-        const { error } = await supabase.rpc("apply_commission_payment", {
-          p_shop_id: shopId,
-          p_amount: chargeAmount,
-          p_transaction_reference: `MANUAL-DIRECT-${Date.now()}`,
-          p_created_by: session.user.id,
-          p_payment_method: "cash_direct",
-          p_notes: "Validation manuelle directe par le fondateur",
+        await recordManualCommissionPayment({
+          shopId,
+          amount: chargeAmount,
+          transactionReference: `MANUAL-DIRECT-${Date.now()}`,
+          paymentMethod: "cash_direct",
+          notes: "Validation manuelle directe par le fondateur",
         });
-
-        if (error) throw error;
         toast({ title: "Paiement manuel validé !", description: "La boutique a été créditée et réactivée immédiatement." });
         onOpenChange(false);
         window.location.reload();

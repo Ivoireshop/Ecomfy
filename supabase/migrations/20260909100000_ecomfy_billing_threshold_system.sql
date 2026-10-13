@@ -234,6 +234,20 @@ DECLARE
   v_status text;
   v_is_restricted boolean;
 BEGIN
+  -- Contrôle de propriété : propriétaire, collaborateur actif ou fondateur uniquement.
+  -- On n'utilise pas can_manage_shop() : il exclut les boutiques restreintes, or ce sont
+  -- justement elles qui doivent recevoir les données masquées.
+  IF auth.uid() IS NULL
+     OR NOT (
+       public.is_shop_owner(_shop_id, auth.uid())
+       OR public.is_shop_collaborator(_shop_id, auth.uid())
+       OR public.has_role(auth.uid(), 'founder')
+       OR public.has_role(auth.uid(), 'co_founder')
+     )
+  THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+
   -- Determine shop status
   SELECT shop_payment_status INTO v_status
     FROM public.shops
@@ -302,7 +316,8 @@ BEGIN
   END IF;
 END $$;
 
-GRANT EXECUTE ON FUNCTION public.get_shop_orders_secure(uuid) TO authenticated, anon;
+REVOKE EXECUTE ON FUNCTION public.get_shop_orders_secure(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_shop_orders_secure(uuid) TO authenticated;
 
 -- 7. Function: Confirm Invoice Payment & Restore Full Store Access
 CREATE OR REPLACE FUNCTION public.confirm_invoice_payment(

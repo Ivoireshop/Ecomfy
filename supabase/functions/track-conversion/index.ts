@@ -90,6 +90,15 @@ Deno.serve(async (req) => {
     ]);
     if (shopRes.error || !shopRes.data) return fail("shop_not_found");
     const shop: any = { ...shopRes.data, ...(secretsRes.data || {}) };
+
+    // Ces identifiants sont insérés dans des URLs d'API tierces avec le jeton du marchand :
+    // on ignore tout ce qui n'a pas le format attendu (mêmes règles que src/lib/trackingIds.ts, audit C8).
+    const onlyValid = (ids: unknown, re: RegExp): string[] =>
+      Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string" && re.test(id)) : [];
+    shop.facebook_pixels = onlyValid(shop.facebook_pixels, /^\d{5,20}$/);
+    shop.tiktok_pixels = onlyValid(shop.tiktok_pixels, /^[A-Z0-9]{8,32}$/i);
+    shop.snapchat_pixels = onlyValid(shop.snapchat_pixels, /^[A-Za-z0-9-]{8,64}$/);
+    if (!/^G-[A-Z0-9]{4,20}$/.test(String(shop.ga4_measurement_id ?? ""))) shop.ga4_measurement_id = null;
     if (shop.tracking_enabled === false) return ok({ skipped: "tracking_disabled" });
 
     const ip = pickIp(req);
@@ -266,7 +275,7 @@ Deno.serve(async (req) => {
       };
       try {
         const r = await fetch(
-          `https://www.google-analytics.com/mp/collect?measurement_id=${shop.ga4_measurement_id}&api_secret=${shop.ga4_api_secret}`,
+          `https://www.google-analytics.com/mp/collect?measurement_id=${shop.ga4_measurement_id}&api_secret=${encodeURIComponent(shop.ga4_api_secret)}`,
           { method: "POST", body: JSON.stringify(reqBody) },
         );
         results.ga4 = { status: r.status };

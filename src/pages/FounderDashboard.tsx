@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { activateShopManually, recordManualCommissionPayment } from "@/lib/founderBilling";
 import { 
   Loader2, 
   Users, 
@@ -244,27 +245,21 @@ const FounderDashboard = () => {
       }
 
       const ref = `MANUAL-${manualMethod.toUpperCase()}-${Date.now()}`;
-      const currentUserId = session?.user?.id || targetShop.user_id;
 
       if (manualPaymentType === "shop_activation") {
-        const { error: actErr } = await supabase.rpc("apply_shop_activation", {
-          p_shop_id: targetShop.id,
-          p_user_id: targetShop.user_id,
-          p_amount: manualAmount,
-          p_transaction_reference: ref,
-          p_payment_method: manualMethod,
+        await activateShopManually({
+          shopId: targetShop.id,
+          amount: manualAmount,
+          paymentMethod: manualMethod,
         });
-        if (actErr) throw actErr;
       } else {
-        const { error: comErr } = await supabase.rpc("apply_commission_payment", {
-          p_shop_id: targetShop.id,
-          p_amount: manualAmount,
-          p_transaction_reference: ref,
-          p_created_by: currentUserId,
-          p_payment_method: manualMethod,
-          p_notes: manualNotes || `Règlement manuel encaisse via ${manualMethod}`,
+        await recordManualCommissionPayment({
+          shopId: targetShop.id,
+          amount: manualAmount,
+          transactionReference: ref,
+          paymentMethod: manualMethod,
+          notes: manualNotes || `Règlement manuel encaisse via ${manualMethod}`,
         });
-        if (comErr) throw comErr;
       }
 
       toast({

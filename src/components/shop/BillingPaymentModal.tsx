@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useBillingSystem } from "@/hooks/useBillingSystem";
+import { recordManualCommissionPayment } from "@/lib/founderBilling";
 import { supabase } from "@/integrations/supabase/client";
 import { openPaymentWindow, redirectToPaymentUrl, closePaymentWindow } from "@/lib/paymentRedirect";
 import { toast } from "sonner";
@@ -16,7 +17,7 @@ interface BillingPaymentModalProps {
 }
 
 export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, onOpenChange, shopId }) => {
-  const { billingInfo, processingPayment, refreshBilling } = useBillingSystem(shopId);
+  const { billingInfo, refreshBilling } = useBillingSystem(shopId);
 
   const [selectedProvider, setSelectedProvider] = useState<string>("wave");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -82,16 +83,13 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
         if (!confirmPay) return;
 
         setSubmittingPayment(true);
-        const { error } = await supabase.rpc("apply_commission_payment", {
-          p_shop_id: shopId,
-          p_amount: amountDue,
-          p_transaction_reference: `MANUAL-DIRECT-${Date.now()}`,
-          p_created_by: session.user.id,
-          p_payment_method: "cash_direct",
-          p_notes: "Validation manuelle directe par le fondateur",
+        await recordManualCommissionPayment({
+          shopId,
+          amount: amountDue,
+          transactionReference: `MANUAL-DIRECT-${Date.now()}`,
+          paymentMethod: "cash_direct",
+          notes: "Validation manuelle directe par le fondateur",
         });
-
-        if (error) throw error;
         toast.success("Paiement manuel validé !", { description: "La boutique a été réactivée immédiatement." });
         onOpenChange(false);
         refreshBilling();
@@ -180,10 +178,10 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
         <DialogFooter className="flex-col gap-2 pt-2">
           <Button
             onClick={executePayment}
-            disabled={submittingPayment || processingPayment}
+            disabled={submittingPayment}
             className="w-full font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm py-5 shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2"
           >
-            {submittingPayment || processingPayment ? (
+            {submittingPayment ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Confirmation en cours…</span>
@@ -199,7 +197,7 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
           <Button
             variant="outline"
             onClick={executeManualPayment}
-            disabled={submittingPayment || processingPayment}
+            disabled={submittingPayment}
             className="w-full text-xs font-bold border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
           >
             ⚡ Règlement Manuel / Validation Directe Admin

@@ -4,7 +4,6 @@ import {
   ShopInvoice, 
   fetchShopBillingStatus, 
   fetchShopInvoicesHistory, 
-  confirmBillingPayment,
   formatGracePeriodCountdown
 } from "@/lib/billingSystem";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +12,6 @@ export function useBillingSystem(shopId: string | null | undefined) {
   const [billingInfo, setBillingInfo] = useState<BillingStatusInfo | null>(null);
   const [invoices, setInvoices] = useState<ShopInvoice[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [processingPayment, setProcessingPayment] = useState<boolean>(false);
 
   const refreshBilling = useCallback(async () => {
     if (!shopId) return;
@@ -71,28 +69,11 @@ export function useBillingSystem(shopId: string | null | undefined) {
     };
   }, [shopId, refreshBilling]);
 
-  const handleConfirmPayment = async (paymentRef?: string, method = "online") => {
-    if (!shopId || !billingInfo) return { success: false, message: "Boutique introuvable." };
-    setProcessingPayment(true);
-    try {
-      const activeInvoiceId = billingInfo.activeInvoice?.id || null;
-      const res = await confirmBillingPayment(shopId, activeInvoiceId, paymentRef, method);
-      if (res.success) {
-        await refreshBilling();
-      }
-      return res;
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
   return {
     billingInfo,
     invoices,
     loading,
-    processingPayment,
     refreshBilling,
-    handleConfirmPayment,
     formattedCountdown: billingInfo ? formatGracePeriodCountdown(billingInfo.remainingMs) : "",
   };
 }

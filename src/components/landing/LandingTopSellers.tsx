@@ -87,7 +87,7 @@ const REAL_DEFAULT_TOP_SELLERS: TopSellerItem[] = [
 ];
 
 
-const SUPABASE_URL = "https://yfggrceynzcwklbxhgix.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 const resolveMediaUrl = (url: string | null | undefined): string | null => {
   if (!url || !url.trim()) return null;

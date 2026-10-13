@@ -36,7 +36,6 @@ serve(async (req) => {
       );
     }
 
-    const merchantId = userData.user.id;
     const body = await req.json();
     const {
       amount,
@@ -61,11 +60,14 @@ serve(async (req) => {
       );
     }
 
-    // Exécuter la procédure Postgres atomique (verrouillage anti-double retrait + vérification KYC + déduction du solde)
-    const { data: result, error: rpcError } = await supabase.rpc(
+    // Exécuter la procédure Postgres atomique (verrouillage anti-double retrait + vérification KYC + déduction du solde).
+    // Client rattaché au JWT du marchand : la fonction identifie le portefeuille via auth.uid(), pas via un paramètre.
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: result, error: rpcError } = await userClient.rpc(
       "request_wallet_withdrawal_atomic",
       {
-        p_merchant_id: merchantId,
         p_amount: amount,
         p_payout_method: payout_method,
         p_destination_phone: destination_phone || null,
