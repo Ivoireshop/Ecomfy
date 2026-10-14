@@ -3,7 +3,12 @@
 -- L'URL de base du projet est lue dans Vault (secret `supabase_project_url`), à définir UNE fois par projet :
 --   select vault.create_secret('https://<project-ref>.supabase.co', 'supabase_project_url');
 -- (prod : yfggrceynzcwklbxhgix, dev : xfpbpxncserliskrbaim). Sans ce secret, les appels sont ignorés.
--- Les fonctions `send-push-notification` et `app-health-monitor` ont verify_jwt = false : aucune clé n'est transmise.
+-- `send-push-notification` a verify_jwt = false et ne contrôle pas l'appelant : aucune clé n'est nécessaire.
+-- `app-health-monitor` a verify_jwt = false mais appelle isAuthorizedCron() : sans en-tête x-cron-secret
+-- valide elle répond 401. Le secret est lu dans Vault (`cron_secret`, même valeur que le secret d'Edge
+-- Function CRON_SECRET) et transmis seulement s'il existe :
+--   select vault.create_secret('<valeur aléatoire>', 'cron_secret');
+--   supabase secrets set CRON_SECRET=<même valeur> --project-ref <ref>
 
 CREATE OR REPLACE FUNCTION public.invoke_edge_function(p_name text, p_body jsonb DEFAULT '{}'::jsonb)
 RETURNS void
@@ -13,6 +18,8 @@ SET search_path = public
 AS $$
 DECLARE
   v_base text;
+  v_cron text;
+  v_headers jsonb := jsonb_build_object('Content-Type', 'application/json');
 BEGIN
   SELECT decrypted_secret INTO v_base
   FROM vault.decrypted_secrets
@@ -24,9 +31,18 @@ BEGIN
     RETURN;
   END IF;
 
+  SELECT decrypted_secret INTO v_cron
+  FROM vault.decrypted_secrets
+  WHERE name = 'cron_secret'
+  LIMIT 1;
+
+  IF v_cron IS NOT NULL AND v_cron <> '' THEN
+    v_headers := v_headers || jsonb_build_object('x-cron-secret', v_cron);
+  END IF;
+
   PERFORM net.http_post(
     url := rtrim(v_base, '/') || '/functions/v1/' || p_name,
-    headers := jsonb_build_object('Content-Type', 'application/json'),
+    headers := v_headers,
     body := p_body
   );
 END;

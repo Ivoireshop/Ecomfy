@@ -2,7 +2,7 @@
 
 **Migration :** `supabase/migrations/20261012120000_hotfix_security_billing_rpc_and_corporate_rls.sql`
 **Constats traités :** C2 (en partie : `apply_commission_payment`, `apply_shop_subscription` ; complété par la migration `20261012130000`, voir 5.4) et H2 (tables `corporate_*`), voir `AUDIT-PROJET-2026-10.md`.
-**État :** appliqué et validé sur la base de dev (copie de la production). **Pas encore appliqué en production.**
+**État :** appliqué et validé sur la base de dev. **Appliqué en production le 12 octobre 2026**, avec les compléments `130000`, `140000`, `150000` et `160000` : voir [`DEPLOIEMENT-PROD-2026-10.md`](DEPLOIEMENT-PROD-2026-10.md) (vérifications, front en attente, points restants).
 **Suite (12/10/2026) :** les compléments C2 (`20261012130000`, `140000`, `150000`), le correctif C3 et le correctif RLS de `user_roles` (`20261012160000`) ont été déployés et vérifiés sur dev avec des scripts ciblés : voir [`DEPLOIEMENT-DEV-2026-10.md`](DEPLOIEMENT-DEV-2026-10.md) et [`VERIFICATION-CORRECTIFS-2026-10.md`](VERIFICATION-CORRECTIFS-2026-10.md). Avant de déployer en production, lire en particulier la section 9 du guide de déploiement et reporter `20261012160000` (la politique `user_roles_manage_policy` fautive est très probablement aussi en production).
 
 ---

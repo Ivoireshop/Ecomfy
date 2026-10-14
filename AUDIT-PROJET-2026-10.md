@@ -55,6 +55,8 @@ L'annexe B a été exécutée sur la base de dev (copie de la production), puis 
 
 Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURITY-HOTFIX-2026-10.md`](docs/SECURITY-HOTFIX-2026-10.md).
 
+**Production (12 octobre 2026, vague 1) :** les Edge Functions `founder-record-commission-payment`, `founder-activate-shop`, `manage-founder-roles` et `track-conversion`, le hotfix `20261012120000`, `01_c2_c3_security.sql` (`130000`, `140000`, `150000`, `get_shop_orders_secure`), `20261012160000` et la migration H11 `20261011120000` sont appliqués et vérifiés (C2, C3, C7 côté RLS et fonction, H2, H11). **Le front a été déployé le 13/10/2026** ; l'écran de revue KYC y affiche une erreur de table absente (`merchant_kyc`), attendue tant que la vague 2 n'est pas déployée. Le health-monitor a répondu 401 jusqu'au 14/10/2026 (`CRON_SECRET` à définir par un Owner ou Administrator), puis 200 une fois le secret défini côté Edge Functions et Vault. Détail, tests restants et liste des points à traiter : [`docs/DEPLOIEMENT-PROD-2026-10.md`](docs/DEPLOIEMENT-PROD-2026-10.md). Ecomfy Pay (C1, C4, C5) n'est pas déployé : C6, H1 et le conflit `payment_links` le bloquent.
+
 ---
 
 ## 1. Périmètre et méthode
@@ -164,7 +166,7 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 - **Constat :** aucune de ces fonctions ne vérifie qu'un paiement réel a eu lieu ni que l'appelant possède la boutique.
 - **Scénario :** n'importe qui efface la dette de commission de n'importe quelle boutique (`commission_balance_due = 0`, statut `STORE_ACTIVE`), ou active un abonnement Pro gratuitement.
 - **Correctif :** réserver ces trois fonctions à `service_role` (appelées uniquement depuis les webhooks). Supprimer l'appel client à `confirm_invoice_payment`.
-- **Statut (12 octobre 2026) : corrigé, SQL validé en local, pas déployé.**
+- **Statut (12 octobre 2026) : corrigé. SQL et Edge Functions `founder-*` appliqués en production le 12/10/2026 et vérifiés (droits `service_role` seul) ; le front des écrans fondateur est déployé (13/10/2026) ; tests applicatifs à confirmer (`docs/DEPLOIEMENT-PROD-2026-10.md`).**
   - Migration `20261012130000_c2_reserve_billing_rpc_to_service_role.sql` : `REVOKE` à `PUBLIC`/`anon`/`authenticated`, `GRANT` à `service_role` sur `apply_commission_payment`, `apply_shop_subscription` et `confirm_invoice_payment`. Idempotente ; la partie `confirm_invoice_payment` est protégée par `to_regprocedure` car la fonction n'existe pas en production.
   - Les quatre écrans fondateur qui appelaient `apply_commission_payment` depuis le navigateur (`BillingPaymentModal`, `PayCommissionDialog`, `ShopPaymentControl`, `FounderDashboard`) passent par la nouvelle Edge Function `founder-record-commission-payment` (helper `src/lib/founderBilling.ts`). Elle vérifie le JWT et le rôle `founder` / `co_founder`, valide les entrées, fixe `p_created_by` depuis la session, puis appelle la RPC avec `service_role`.
   - `confirmBillingPayment` (seul appelant client de `confirm_invoice_payment`) et `handleConfirmPayment` du hook `useBillingSystem` sont supprimés : aucun composant ne les utilisait.
@@ -225,7 +227,7 @@ Procédure de déploiement, tests de recette et retour arrière : [`docs/SECURIT
 - **Constat :** si le champ ne contient pas d'identifiant `G-XXXX`, le code HTML du propriétaire de boutique est injecté et ses balises `<script>` sont recréées. Le filtre ne s'applique qu'aux scripts **avec** `src` : `srcUrl && !regex.test(srcUrl)`. Les scripts **inline** s'exécutent donc sans aucun contrôle. De plus, la regex n'est pas ancrée : `https://evil.tld/?https://googletagmanager.com` ou `https://googletagmanager.com.evil.tld` passent.
 - **Impact :** un marchand malveillant exécute du JavaScript sur `ecomfy.cloud/shop/<slug>`, donc sur la même origine que l'application. Le jeton de session est dans `localStorage` (`ecomfy-auth-token`, voir M8) : prise de contrôle du compte de tout visiteur connecté, y compris un fondateur.
 - **Correctif :** supprimer le chemin « code libre ». N'accepter qu'un identifiant validé par regex (`^G-[A-Z0-9]{4,}$`), comme le recommandait déjà l'audit de juin (Lot 2, point 6).
-- **Statut (12 octobre 2026) : corrigé, testé en local, pas déployé.**
+- **Statut (12 octobre 2026) : corrigé. `track-conversion` et le front (`tracking.ts`, `ShopSettings.tsx`) déployés en production (front signalé le 13/10/2026). Requête de détection non lancée en production.**
   - `src/lib/trackingIds.ts` (nouveau) : validateurs stricts et ancrés. GA4 `^G-[A-Z0-9]{4,20}$`, Meta `^\d{5,20}$`, TikTok `^[A-Z0-9]{8,32}$` (insensible à la casse), Snapchat `^[A-Za-z0-9-]{8,64}$`. `extractGa4Id` extrait l'identifiant d'un snippet collé et jette tout le reste.
   - `src/lib/tracking.ts` : le chemin « code libre » est **supprimé** (plus de `template`, `innerHTML`, copie d'attributs ni de contenu de script). `google_analytics_code` ne sert plus qu'à en extraire un `G-XXXX`. Chaque chargeur (`loadFacebook`, `loadTikTok`, `loadSnapchat`, `loadGA4`) valide son identifiant avant toute insertion de script, et `trackEvent` filtre aussi les identifiants. Les identifiants `UA-` (Universal Analytics, arrêté en 2023) ne sont plus acceptés.
   - `ShopSettings.tsx` : la saisie d'un pixel est refusée avec un message si le format est invalide.
@@ -314,7 +316,7 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 - **Où :** `.env` est suivi par Git malgré `.gitignore` (présent dans l'historique, notamment les commits `513f0cb`, `de9fb1e`, `3771de8`). `supabase/config.toml` : `project_id = "dqlbmtkaamjohgbcjwtw"` ; `.env` et `supabase/.temp/project-ref` : `yfggrceynzcwklbxhgix`. Des migrations codent en dur la clé `anon` et l'URL de l'**ancien** projet (`20260506110734_...sql:33`, `20260601094150_...sql:73`) et du nouveau (`20260813104500_...sql:9`).
 - **Constat :** le fichier ne contient que des clés publiques (clé `anon`, clé VAPID publique) donc pas de fuite de secret serveur. Mais l'habitude est dangereuse, et les déclencheurs `pg_net` pointent potentiellement vers le mauvais projet.
 - **Correctif :** `git rm --cached .env`, ajouter `.env.example`, aligner `config.toml`, remplacer les valeurs codées en dur dans les migrations par un paramètre de base ou un secret Vault.
-- **Statut (2026-10-12) : corrigé dans le dépôt, validation en environnement réel en attente.**
+- **Statut (2026-10-12) : corrigé dans le dépôt ; migration et secret Vault appliqués en production, push de commande vérifié ; health-monitor en 401 jusqu'au 14/10/2026, puis 200 (voir `docs/DEPLOIEMENT-PROD-2026-10.md` section 5).**
   - Rôles retenus : prod = `yfggrceynzcwklbxhgix`, dev = `xfpbpxncserliskrbaim`. `dqlbmtkaamjohgbcjwtw` (ancienne prod) et `izyxawbadxttpukpntmh` (ancien dev) sont abandonnés.
   - Fait : `.env` et `supabase/.temp/` retirés du suivi Git (`.gitignore` mis à jour), `.env.example` ajouté, `supabase/config.toml` sans ref de projet (`project_id = "ecomfy"`), `functions/mcp` déduit le ref de `SUPABASE_URL`, build Vite qui échoue si `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` manquent (au lieu du repli silencieux sur `dummy.supabase.co`), migration `20261011120000_edge_function_url_from_vault.sql` (trigger `notify_new_order_push` et cron `app-health-monitor` passent par `invoke_edge_function()`, qui lit le secret Vault `supabase_project_url`).
   - Volontairement laissé : les anciennes migrations (`20260506110734`, `20260601094150`, `20260813104500`) gardent leurs URL et clés `anon` publiques, car elles sont déjà appliquées. `.env` reste dans l'historique Git (clés publiques uniquement, pas de purge nécessaire).
@@ -714,7 +716,7 @@ Autres changements : message d'erreur 500 générique (le message interne n'est 
 - **Politique RLS `user_roles_manage_policy`** (`20260831190000_manage_founder_roles.sql`) : elle autorise tout `co_founder` à écrire n'importe quel rôle dans `user_roles` directement via l'API PostgREST, sans passer par la fonction. Un co-fondateur peut donc s'attribuer `founder` : la restriction ci-dessus n'est contournée que tant que cette politique existe. À restreindre au seul `founder` (ou à retirer l'écriture directe pour `authenticated`) ; non vérifié en base. La politique est aussi auto-référente (risque de récursion RLS).
 - **Dépendance au rôle `founder` en base** : le fondateur principal doit avoir une ligne `founder` dans `user_roles` (posée par les migrations `20260831190000` et `20260831200000`). À vérifier avant déploiement, sinon il perd l'accès à la fonction (l'ancien code le laissait passer sur son e-mail).
 - **Même motif ailleurs, non traité ici** : `FounderDashboard.tsx:344,371`, `FounderTroubleshooting.tsx:90,118`, `FounderRoute.tsx:21`, `AppSidebar.tsx:200`, `AssociateSpace.tsx:49`, `CorporateGovernance.tsx:384,387,536` (contrôle d'accès côté interface, contournable par un compte dont l'e-mail contient « djateulrich »), `app-health-monitor/index.ts:11` (liste d'e-mails en dur) et les migrations qui comparent `auth.jwt() ->> 'email'` (`20260902140000`).
-- Déploiement de la fonction et test avec un vrai JWT. *(Fait sur dev le 12/10/2026 : voir l'annexe G. La politique RLS `user_roles_manage_policy` est corrigée sur dev par `20261012160000_fix_user_roles_rls_recursion.sql`.)*
+- Déploiement de la fonction et test avec un vrai JWT. *(Fait sur dev le 12/10/2026 : voir l'annexe G. Fonction et RLS `20261012160000` appliquées en production le 12/10/2026 (401 sans JWT, `INSERT`/`UPDATE`/`DELETE` retirés à `authenticated` et `anon`) ; front déployé ; les tests avec un vrai JWT restent à confirmer. La politique `Admins can manage all roles` subsiste : elle laisse un `admin` lire toute la table. La politique RLS `user_roles_manage_policy` est corrigée sur dev par `20261012160000_fix_user_roles_rls_recursion.sql`.)*
 
 ## Annexe G. Vérification sur la base dev après déploiement (12 octobre 2026)
 
@@ -741,3 +743,23 @@ Script HTTP avec de vrais JWT (comptes jetables) : 42 réussis, 6 échecs (les f
 6. **Données** : des logos de boutiques de dev pointent vers le stockage de la production (URLs copiées avec les données).
 
 **Reste ouvert, non couvert** : C5 (corrigé dans le code, non déployé) et C6 (`ecomfy-pay-initiate`), groupe B de l'annexe F.3, `corporate_invitations`, e-mails en dur côté interface, nettoyage des `google_analytics_code` déjà stockés, journaux Supabase non exportés, annexe B non lancée sur la production.
+
+## Annexe H. Déploiement en production, vague 1 (12 octobre 2026)
+
+Procédure, résultats, incident ouvert et liste des points restants : [`docs/DEPLOIEMENT-PROD-2026-10.md`](docs/DEPLOIEMENT-PROD-2026-10.md).
+
+| Constat | État en production |
+|---|---|
+| C2 RPC de facturation, d'activation et lot de 16 fonctions serveur | **Appliqué et vérifié** (`service_role` seul, 0 fonction du lot exposée) |
+| C3 `get_shop_orders_secure` | **Appliqué** (`authenticated` + `service_role`, contrôle du propriétaire interne) |
+| C7 `manage-founder-roles` + RLS `user_roles` | **Appliqué** ; 401 sans JWT ; écriture directe retirée ; nomination et révocation non testées |
+| C8 | `track-conversion` et front déployés ; requête de détection non lancée |
+| H2 `corporate_*` | **Appliqué et vérifié** (2 politiques d'insertion voulues) |
+| H11 | Migration et secret Vault appliqués ; push de commande OK ; health-monitor : 200 depuis le 14/10/2026 |
+| C1, C4, C5 (Ecomfy Pay) | **Non déployés** ; bloqués par C6, H1 et le conflit `payment_links` |
+| Front | **Déployé** (13/10/2026). Variables `VITE_*` à définir aussi pour Preview si les previews doivent builder. Tests applicatifs à confirmer. |
+
+**Constats nouveaux**
+1. Les migrations passées dans l'éditeur SQL ne sont pas enregistrées dans `schema_migrations` : si « Deploy to production » est actif dans l'intégration GitHub de Supabase, la fusion de la PR appliquera automatiquement toutes les migrations en attente (Ecomfy Pay, affiliation, facturation par seuil), hors du runbook. À désactiver avant de fusionner.
+2. La branche de preview Supabase échoue sur `ad_templates.created_by` (migration `20251107132948`) : migrations non reproductibles (M11). Correctif existant dans la branche locale `fix/migrations-fresh-database` (`7eb936e`), non intégré ; son renommage `payment_links` en `ecomfy_payment_links` demande d'adapter le front.
+3. `invoke_edge_function` (H11) n'authentifiait pas `app-health-monitor`, qui exige `x-cron-secret` ou la clé de service (`isAuthorizedCron`). Corrigé dans le dépôt (secret Vault `cron_secret`) ; la production attend un `CRON_SECRET` défini par un Owner ou un Administrator.
