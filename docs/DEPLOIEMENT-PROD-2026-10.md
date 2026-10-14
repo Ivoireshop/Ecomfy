@@ -14,7 +14,7 @@
 |---|---|---|---|
 | Annexe B sur la base réelle | Dev : oui | **Partiel** : deux requêtes clés avant correctifs, vérifications après correctifs | Lancer l'annexe B complète, consigner les résultats |
 | Export des journaux Supabase | Non | Non | Exporter (rétention limitée), chercher les appels `anon` suspects |
-| H11, projets Supabase | Oui | **Partiel** : migration, secret Vault, push de commande, variables Vercel Production | Health-monitor en 401 : `CRON_SECRET` défini par un administrateur le 13/10/2026 ; reste le secret Vault `cron_secret` et `invoke_edge_function` (section 5) ; variables Vercel Preview |
+| H11, projets Supabase | Oui | **Partiel** : migration, secret Vault, push de commande, variables Vercel Production | **Clos le 14/10/2026** : le health-monitor répond 200 avec ses sondes (section 5). Reste les variables Vercel Preview ; variables Vercel Preview |
 | C1, portefeuille | Oui (13 tests sur base jetable) | Non | Vague 2 (section 7) |
 | C2, facturation et activation | Oui | **Oui** : SQL, Edge Functions `founder-*`, front | Tests des écrans fondateur : confirmés fonctionnels le 13/10/2026 (détail des cas non consigné) |
 | C3, `get_shop_orders_secure` | Oui | **Oui** | Rien |
@@ -34,7 +34,7 @@
 | Hotfix `20261012120000` (C2 partiel, H2) | **Appliqué à la main** (éditeur SQL) |
 | `deploy-dev/01_c2_c3_security.sql` (= `130000`, `140000`, `150000` et `get_shop_orders_secure`) | **Appliqué à la main** |
 | `20261012160000` (RLS `user_roles`) | **Appliqué à la main** |
-| `20261011120000` (H11, URL Vault) | **Appliquée à la main**, secret Vault `supabase_project_url` créé. **Le health-monitor répond 401** (section 5). |
+| `20261011120000` (H11, URL Vault) | **Appliquée à la main**, secret Vault `supabase_project_url` créé. Le health-monitor a répondu 401 jusqu'au 14/10/2026, puis 200 (section 5). |
 | Front (branche `jeanmarc`) | **Déployé** (signalé le 13/10/2026). Le build contient l'écran de revue KYC, qui affiche une erreur de chargement tant que la vague 2 n'est pas déployée (attendu). Tests applicatifs des écrans fondateur : confirmés fonctionnels par le responsable le 13/10/2026. |
 | Annexe B sur la production | Requêtes de vérification de la section 3 exécutées après correctif. Les résultats d'avant correctif ne sont pas consignés ici. |
 
@@ -89,7 +89,7 @@ Réserve connue : la politique `Admins can manage all roles` subsiste (elle date
 - Front déployé le 13/10/2026. L'entrée « Revue KYC » du menu fondateur ouvre un écran en erreur (« Could not find the table 'public.merchant_kyc' in the schema cache ») : attendu, la table appartient à la vague 2. Option : masquer l'entrée de menu jusqu'à la vague 2.
 - Jouer les tests de la section 8.
 
-## 5. Incident ouvert : `app-health-monitor` répond 401
+## 5. Incident clos le 14 octobre 2026 : `app-health-monitor` répondait 401
 
 **Cause :** `app-health-monitor` est en `verify_jwt = false` mais appelle `isAuthorizedCron()` (clé de service ou en-tête `x-cron-secret`). La première version de `invoke_edge_function` n'envoyait aucun en-tête. Aucune fonction n'est exposée : elle refuse. Le monitoring de production ne tourne simplement pas (il ne tournait probablement pas avant non plus : l'ancien job visait `dqlb…`).
 
@@ -107,7 +107,11 @@ Réserve connue : la politique `Admins can manage all roles` subsiste (elle date
 5. Éditeur SQL : rejouer `CREATE OR REPLACE FUNCTION public.invoke_edge_function` de la migration modifiée, puis `REVOKE ALL ON FUNCTION public.invoke_edge_function(text, jsonb) FROM PUBLIC, anon, authenticated;`
 6. Après le prochain passage du cron : `select id, status_code, left(content::text,150), created from net._http_response order by created desc limit 3;` doit montrer `200`.
 
-Pour faire cesser les 401 en attendant : `select cron.unschedule('app-health-monitor');` (le bloc `cron.schedule` de la migration le remet).
+**Résolution (14/10/2026) :** `CRON_SECRET` défini par un administrateur, secret Vault `cron_secret` créé avec la même valeur, `invoke_edge_function` remplacée. Le cron de 00:10 UTC reçoit `200 {"success":true,"probes":[…]}` (sondes `db.shops.read`, `auth.health`, `frontend.public`, `payments.flow.24h`, `orders.flow.48h`). La première exécution (00:05) a une réponse vide sans code HTTP (probablement un délai dépassé ou un démarrage à froid) ; à surveiller. Le monitoring peut désormais créer des lignes dans `app_incidents`.
+
+Si les 401 reviennent (valeur Vault différente de `CRON_SECRET`) : `select vault.update_secret((select id from vault.secrets where name='cron_secret'), '<VALEUR EXACTE>');`.
+
+Pour faire cesser des 401 en attendant : `select cron.unschedule('app-health-monitor');` (le bloc `cron.schedule` de la migration le remet).
 
 Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vault, et donnent le droit de déclencher les fonctions cron tant que H3 n'est pas corrigé : ne pas les partager.
 
@@ -155,7 +159,7 @@ Avec un compte fondateur (jeton dans `localStorage`, clé `ecomfy-auth-token`) e
 
 ### Immédiat (vague 1 à terminer)
 1. **Front** : déployé. Reste : confirmer que « Deploy to production » de l'intégration Supabase est désactivé (sinon la fusion applique les migrations en attente), variables Vercel Preview si les previews doivent builder, puis les tests de la section 8.
-2. **Health-monitor** : `CRON_SECRET` (nécessite un Owner ou Administrator), secret Vault `cron_secret`, `invoke_edge_function` mise à jour, 200 attendu (section 5). Commiter la migration `20261011120000` modifiée.
+2. **Health-monitor** : fait (14/10/2026, section 5). À surveiller : réponses vides sans code HTTP, lignes dans `app_incidents`.
 3. **C8** : requête de détection des `google_analytics_code` piégés (`AUDIT-PROJET-2026-10.md`, statut de C8). Si une ligne ressort, réinitialiser les sessions concernées.
 4. **Audit des abus passés** : exporter les journaux de l'API Supabase (rétention limitée) pour les appels `anon` à `rpc/apply_commission_payment`, `rpc/apply_shop_subscription`, `rpc/apply_shop_activation`, `rpc/prepare_shop_activation_payment`, `rpc/check_rate_limit`, `rpc/enqueue_email`, `rpc/read_email_batch` ; lire `commission_payments` (lignes sans paiement GeniusPay associé) et `user_roles` (lignes inattendues).
 5. **Surveillance 24 à 48 h** : erreurs `42501`, `forbidden`, `permission denied` dans les journaux Postgres et Edge Functions (tâche planifiée appelant les 16 fonctions serveur avec la clé `anon`).
