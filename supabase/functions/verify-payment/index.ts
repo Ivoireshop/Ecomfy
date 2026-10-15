@@ -158,10 +158,14 @@ serve(async (req) => {
     }
 
     // Marquer payé + créditer (mêmes règles que le webhook)
-    await supabase.from("payments").update({
+    // Réservation atomique : seul l'appel qui fait passer le paiement à « completed » peut
+    // créditer les packs et activer l'abonnement utilisateur (course avec le webhook GeniusPay).
+    const { data: claimedRows, error: claimError } = await supabase.from("payments").update({
       status: "completed",
       payment_method: remote?.payment_method || remote?.provider || "geniuspay",
-    }).eq("id", payment.id);
+    }).eq("id", payment.id).neq("status", "completed").select("id");
+    if (claimError) console.error("verify-payment claim error:", claimError);
+    const paymentClaimed = (claimedRows?.length ?? 0) > 0;
 
     const userId = payment.user_id;
     const creditsSize = Number(meta.credits_size || 0);
@@ -250,6 +254,11 @@ serve(async (req) => {
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
       });
     } else if (paymentType === "credits" && creditsSize > 0) {
+      if (!paymentClaimed) {
+        return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const { data: profile } = await supabase
         .from("profiles").select("purchased_credits, has_showcase_access").eq("id", userId).single();
       const newTotal = (profile?.purchased_credits || 0) + creditsSize;
@@ -262,6 +271,11 @@ serve(async (req) => {
         pack_price: Number(payment.amount) || 0, credits_added: creditsSize,
       });
     } else {
+      if (!paymentClaimed) {
+        return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const start = new Date();
       const end = new Date();
       end.setDate(end.getDate() + 30);

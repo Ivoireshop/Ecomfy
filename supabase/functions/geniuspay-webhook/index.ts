@@ -101,6 +101,8 @@ serve(async (req) => {
     const isConfirmedPayment = event === "payment.success" || status === "completed" || status === "paid";
     // Vrai uniquement si un paiement local existe et a passé les contrôles anti-fraude
     let localPaymentValidated = false;
+    // Vrai si CET appel a fait passer le paiement à « completed » (premier à le confirmer)
+    let paymentClaimed = false;
 
     console.log("GeniusPay webhook:", { event, reference, status, environment: payload?.environment });
 
@@ -220,7 +222,14 @@ serve(async (req) => {
         };
 
         if (paymentToUpdate) {
-          await supabase.from("payments").update(paymentRow).eq("id", paymentToUpdate.id);
+          // Réservation atomique : seul l'appel qui fait passer le paiement à « completed »
+          // peut créditer les packs et activer l'abonnement utilisateur (verify-payment et
+          // reconcile-pending-payments appliquent la même règle).
+          let paymentUpdate = supabase.from("payments").update(paymentRow).eq("id", paymentToUpdate.id);
+          if (isConfirmedPayment) paymentUpdate = paymentUpdate.neq("status", "completed");
+          const { data: updatedRows, error: updateErr } = await paymentUpdate.select("id");
+          if (updateErr) console.error("Failed to update payment row:", updateErr);
+          paymentClaimed = isConfirmedPayment && (updatedRows?.length ?? 0) > 0;
         } else if (paymentRow.user_id) {
           await supabase.from("payments").insert(paymentRow);
         }
@@ -403,6 +412,10 @@ serve(async (req) => {
       }
       console.log(`Shop subscription ${plan} activated for shop ${shopId}`, subResult);
     } else if (paymentType === "credits" && creditsSize > 0) {
+      if (!paymentClaimed) {
+        console.log("Credits already applied by another handler, skipping:", reference);
+        return ack({ success: true, alreadyCompleted: true, reference }, true);
+      }
       const { data: profile } = await supabase
         .from("profiles")
         .select("purchased_credits, has_showcase_access")
@@ -425,6 +438,10 @@ serve(async (req) => {
       });
       console.log(`Credited ${creditsSize} credits to`, userId, "total:", newTotal);
     } else {
+      if (!paymentClaimed) {
+        console.log("Subscription already applied by another handler, skipping:", reference);
+        return ack({ success: true, alreadyCompleted: true, reference }, true);
+      }
       // Subscription
       const startDate = new Date();
       const endDate = new Date();

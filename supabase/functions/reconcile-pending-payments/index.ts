@@ -78,11 +78,14 @@ Deno.serve(async (req) => {
       const remoteStatus: string | undefined = remote?.status;
 
       if (remoteStatus === "completed" || remoteStatus === "paid") {
-        // Marquer payé
-        await supabase.from("payments").update({
+        // Marquer payé : réservation atomique, seul l'appel qui fait passer le paiement à
+        // « completed » crédite les packs / active l'abonnement (course avec webhook et verify-payment)
+        const { data: claimedRows, error: claimError } = await supabase.from("payments").update({
           status: "completed",
           payment_method: remote?.payment_method || remote?.provider || p.payment_method || "geniuspay",
-        }).eq("id", p.id);
+        }).eq("id", p.id).neq("status", "completed").select("id");
+        if (claimError) console.error("reconcile claim error:", claimError);
+        const paymentClaimed = (claimedRows?.length ?? 0) > 0;
 
         // Appliquer le crédit selon le type
         try {
@@ -114,7 +117,7 @@ Deno.serve(async (req) => {
             });
           } else if (paymentType === "credits") {
             const size = Number(meta.credits_size || 0);
-            if (size > 0) {
+            if (size > 0 && paymentClaimed) {
               const { data: profile } = await supabase
                 .from("profiles")
                 .select("purchased_credits, has_showcase_access")
@@ -128,7 +131,7 @@ Deno.serve(async (req) => {
                 pack_price: Number(p.amount) || 0, credits_added: size,
               });
             }
-          } else {
+          } else if (paymentClaimed) {
             const start = new Date();
             const end = new Date(); end.setDate(end.getDate() + 30);
             await supabase.from("subscriptions").update({
