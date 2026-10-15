@@ -44,10 +44,11 @@ lot_a AS (
     AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 ),
 corp AS (
-  SELECT 'H2 politiques permissives corporate_* (insertion seule voulue)' AS controle,
-         '2' AS attendu,
+  -- Depuis 20261015150000 (H2, ajout seul au nom de l'appelant), plus aucune politique corporate_* en USING/WITH CHECK (true).
+  SELECT 'H2 politiques permissives corporate_* (aucune attendue)' AS controle,
+         '0' AS attendu,
          count(*)::text AS observe,
-         count(*) = 2 AS ok
+         count(*) = 0 AS ok
   FROM pg_policies
   WHERE schemaname = 'public' AND tablename LIKE 'corporate_%' AND (qual = 'true' OR with_check = 'true')
 ),
