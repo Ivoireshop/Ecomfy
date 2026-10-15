@@ -134,7 +134,7 @@ Si les 401 reviennent (valeur Vault différente de `CRON_SECRET`) : `select vaul
 
 Pour faire cesser des 401 en attendant : `select cron.unschedule('app-health-monitor');` (le bloc `cron.schedule` de la migration le remet).
 
-Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vault, et donnent le droit de déclencher les fonctions cron tant que H3 n'est pas corrigé : ne pas les partager.
+Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vault, et donnent le droit de déclencher les fonctions cron (et resteront le seul moyen de les déclencher une fois H3 déployé) : ne pas les partager.
 
 ## 6. Intégration GitHub de Supabase et migrations
 
@@ -190,7 +190,7 @@ Avec un compte fondateur (jeton dans `localStorage`, clé `ecomfy-auth-token`) e
 ### Critiques non traités
 8. **C6** : recalcul serveur des montants et des crédits (`process-payment`, `ecomfy-pay-initiate`). Prérequis de la vague 2.
 9. **H1** : bucket privé pour la KYC, liens signés, migration des fichiers existants.
-10. **H3** : `isAuthorizedCron` accepte un JWT dont la signature n'est pas vérifiée.
+10. **H3** : `isAuthorizedCron` acceptait un JWT dont la signature n'est pas vérifiée. *Corrigé dans le code (15/10/2026), à déployer : redéployer les 7 fonctions cron et `seo-auto-index`, vérifier le secret Vault `email_queue_service_role_key`, puis faire tourner les secrets Vault.*
 11. **H7** : `ReferenceError` de `geniuspay-webhook` (`isConfirmedPayment` hors de portée, ligne 257), et attributions sans contrôle de l'événement.
 12. **H8** : en-têtes de sécurité dans `vercel.json` (HSTS, X-Frame-Options, CSP) ; `public/_headers` est ignoré par Vercel.
 

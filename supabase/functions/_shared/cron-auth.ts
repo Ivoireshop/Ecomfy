@@ -1,25 +1,28 @@
 // Shared authorization for internal cron/batch edge functions.
-// Accepts:
+// Accepts only (exact, constant-time comparison; no JWT payload is ever trusted):
 //   - Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY> (what pg_cron uses)
-//   - Any JWT whose payload role === "service_role"
 //   - Header x-cron-secret matching env CRON_SECRET (fallback for external schedulers)
+
+// Constant-time string comparison (no early exit on the first differing byte).
+function safeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const x = enc.encode(a);
+  const y = enc.encode(b);
+  let diff = x.length ^ y.length;
+  const len = Math.max(x.length, y.length);
+  for (let i = 0; i < len; i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
+
 export function isAuthorizedCron(req: Request): boolean {
   const auth = req.headers.get("Authorization") || req.headers.get("authorization") || "";
   const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  if (token && service && token === service) return true;
-  if (token) {
-    try {
-      const part = token.split(".")[1] || "";
-      const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
-      const pad = b64.length % 4 ? b64 + "=".repeat(4 - (b64.length % 4)) : b64;
-      const payload = JSON.parse(atob(pad));
-      if (payload?.role === "service_role") return true;
-    } catch { /* ignore */ }
-  }
+  if (token && service && safeEqual(token, service)) return true;
+
   const cronSecret = Deno.env.get("CRON_SECRET") || "";
   const provided = req.headers.get("x-cron-secret") || "";
-  if (cronSecret && provided && provided === cronSecret) return true;
+  if (cronSecret && provided && safeEqual(provided, cronSecret)) return true;
   return false;
 }
 

@@ -17,18 +17,21 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 
-function isAuthenticatedUser(req: Request): boolean {
+// The token signature is verified by Supabase Auth (a decoded payload is never trusted).
+async function isAuthenticatedUser(req: Request): Promise<boolean> {
   const auth = req.headers.get("Authorization") || req.headers.get("authorization") || "";
   const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
   if (!token) return false;
   try {
-    const part = token.split(".")[1] || "";
-    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
-    const pad = b64.length % 4 ? b64 + "=".repeat(4 - (b64.length % 4)) : b64;
-    const payload = JSON.parse(atob(pad));
-    return payload?.role === "authenticated" && !!payload?.sub;
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    const { data, error } = await sb.auth.getUser(token);
+    return !error && !!data?.user?.id;
   } catch {
     return false;
   }
@@ -72,7 +75,7 @@ async function pingPublicSitemap(sitemapUrl: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (!isAuthorizedCron(req) && !isAuthenticatedUser(req)) {
+  if (!isAuthorizedCron(req) && !(await isAuthenticatedUser(req))) {
     return cronUnauthorizedResponse(corsHeaders);
   }
 
