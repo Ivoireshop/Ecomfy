@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, CheckCircle2, Loader2, RefreshCw, Search, ShieldCheck, XCircle, RotateCcw } from "lucide-react";
 import type { KycStatus, MerchantKyc } from "@/types/ecomfyPay";
+import { getKycSignedUrls, isLegacyKycValue } from "@/lib/kycStorage";
 
 type Tab = "todo" | "VERIFIED" | "REJECTED" | "RESUBMISSION_REQUIRED" | "all";
 type Decision = "VERIFIED" | "REJECTED" | "RESUBMISSION_REQUIRED";
@@ -46,7 +47,7 @@ const DECISION_COPY: Record<Decision, { title: string; confirm: string; reasonRe
 
 const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—");
 
-function DocImage({ label, url }: { label: string; url?: string | null }) {
+function DocImage({ label, url, legacy }: { label: string; url?: string | null; legacy?: boolean }) {
   return (
     <div className="space-y-1.5">
       <div className="text-xs font-semibold text-muted-foreground">{label}</div>
@@ -56,7 +57,7 @@ function DocImage({ label, url }: { label: string; url?: string | null }) {
         </a>
       ) : (
         <div className="h-48 rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground">
-          Non fourni
+          {legacy ? "Ancienne pièce publique, à redemander" : "Non fourni"}
         </div>
       )}
     </div>
@@ -73,6 +74,12 @@ export default function KycReview() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  // Liens signés (5 min) des pièces du dossier ouvert : le bucket kyc-documents est privé (audit H1)
+  const [docUrls, setDocUrls] = useState<{ front: string | null; back: string | null; selfie: string | null }>({
+    front: null,
+    back: null,
+    selfie: null,
+  });
 
   const load = async () => {
     setLoading(true);
@@ -88,6 +95,20 @@ export default function KycReview() {
   };
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    setDocUrls({ front: null, back: null, selfie: null });
+    if (!selected) return;
+    let cancelled = false;
+    void getKycSignedUrls([selected.document_front_url, selected.document_back_url, selected.selfie_url]).then(
+      ([front, back, selfie]) => {
+        if (!cancelled) setDocUrls({ front, back, selfie });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   const counts = useMemo(() => {
     const todo = rows.filter((r) => r.verification_status === "PENDING" || r.verification_status === "UNDER_REVIEW").length;
@@ -236,11 +257,11 @@ export default function KycReview() {
               </Card>
 
               <div className="grid sm:grid-cols-3 gap-3">
-                <DocImage label="Recto" url={selected.document_front_url} />
-                <DocImage label="Verso" url={selected.document_back_url} />
-                <DocImage label="Selfie avec la pièce" url={selected.selfie_url} />
+                <DocImage label="Recto" url={docUrls.front} legacy={isLegacyKycValue(selected.document_front_url)} />
+                <DocImage label="Verso" url={docUrls.back} legacy={isLegacyKycValue(selected.document_back_url)} />
+                <DocImage label="Selfie avec la pièce" url={docUrls.selfie} legacy={isLegacyKycValue(selected.selfie_url)} />
               </div>
-              <p className="text-xs text-muted-foreground">Cliquez sur une image pour l'ouvrir en grand.</p>
+              <p className="text-xs text-muted-foreground">Cliquez sur une image pour l'ouvrir en grand. Les liens expirent après 5 minutes : rouvrez le dossier si une image ne s'affiche plus.</p>
 
               <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
                 <Button variant="outline" className="text-orange-700" onClick={() => openDecision("RESUBMISSION_REQUIRED")}>

@@ -38,3 +38,14 @@ GRANT EXECUTE ON FUNCTION public.prepare_shop_activation_payment(uuid, uuid) TO 
 -- DROP FUNCTION IF EXISTS public.get_or_create_merchant_wallet(uuid);
 -- DROP TABLE IF EXISTS public.withdrawal_requests, public.wallet_ledger, public.settlements, public.payment_events,
 --                      public.ecomfy_payments, public.wallets, public.merchant_kyc, public.ecomfy_pay_settings CASCADE;
+
+
+-- (5) Retirer H1 (05_h1_kyc_private_bucket.sql). Ne déplace aucun fichier : les pièces déjà déposées dans
+--     kyc-documents y restent, et les lignes merchant_kyc contiennent des chemins, pas des URL. À ne faire qu'avec un
+--     bucket kyc-documents vide (suppression des fichiers par l'API Storage ou le tableau de bord, pas par SQL).
+-- DROP TRIGGER IF EXISTS merchant_kyc_guard_document_paths ON public.merchant_kyc;
+-- DROP FUNCTION IF EXISTS public.merchant_kyc_guard_document_paths();
+-- DROP POLICY IF EXISTS "kyc_documents_owner_insert" ON storage.objects;
+-- DROP POLICY IF EXISTS "kyc_documents_owner_select" ON storage.objects;
+-- DROP POLICY IF EXISTS "kyc_documents_founders_select" ON storage.objects;
+-- DELETE FROM storage.buckets WHERE id = 'kyc-documents';  -- échoue tant que le bucket contient des fichiers

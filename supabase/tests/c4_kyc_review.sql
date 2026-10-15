@@ -45,7 +45,7 @@ select zz_c4_t('INSERT avec VERIFIED => PENDING', 'ok: PENDING', 'authenticated'
   $q$ with i as (
         insert into public.merchant_kyc(user_id, full_name, phone_number, document_type, document_number, document_front_url,
                                         verification_status, face_match_score, face_match_passed, doc_type_validated, verified_at)
-        values ('a0000000-0000-4000-8000-0000000000c4', 'Marchand Test', '+2250700000000', 'cni', 'C123', 'https://x/recto.jpg',
+        values ('a0000000-0000-4000-8000-0000000000c4', 'Marchand Test', '+2250700000000', 'cni', 'C123', 'a0000000-0000-4000-8000-0000000000c4/recto.jpg',
                 'VERIFIED', 95, true, true, now())
         returning verification_status)
       select verification_status from i $q$);
@@ -95,7 +95,7 @@ select zz_c4_t('retrait après revue manuelle', 'ok: true', 'authenticated', 'a0
 
 -- 10. Changer la pièce d'un dossier VERIFIED le repasse en PENDING
 select zz_c4_t('changement de pièce => PENDING', 'ok: PENDING', 'authenticated', 'a0000000-0000-4000-8000-0000000000c4',
-  $q$ with u as (update public.merchant_kyc set document_front_url = 'https://x/autre.jpg'
+  $q$ with u as (update public.merchant_kyc set document_front_url = 'a0000000-0000-4000-8000-0000000000c4/autre.jpg'
                  where user_id = 'a0000000-0000-4000-8000-0000000000c4' returning verification_status)
       select verification_status from u $q$);
 select zz_c4_t('retrait après changement de pièce', 'ok: false', 'authenticated', 'a0000000-0000-4000-8000-0000000000c4',

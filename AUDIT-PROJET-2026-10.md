@@ -268,6 +268,7 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 - **Où :** `src/components/ecomfy-pay/KycVerificationTab.tsx:114-117,154-157` ; les 18 appels `storage.from(...)` du client utilisent tous `shop-images` (public, listable selon l'audit de juin).
 - **Impact :** CNI, passeports et selfies des marchands et livreurs sont servis par URL publique `getPublicUrl`. C'est une fuite de données personnelles sensibles et une exposition légale.
 - **Correctif :** bucket privé `kyc-documents`, politiques RLS par `auth.uid()`, URL signées à durée courte, suppression des fichiers existants du bucket public.
+- **État (15/10/2026) :** corrigé dans le code (migration `20261015140000`, `src/lib/kycStorage.ts`, script `scripts/migrate-kyc-to-private-bucket.mjs`, test `supabase/tests/h1_kyc_private_bucket.sql` : 26 cas sur 26 en base jetable) ; non déployé.
 
 #### H2. Huit tables de gouvernance en lecture/écriture libre pour tout utilisateur connecté
 - **Où :** `20260901000000_corporate_governance_system.sql:278-307`. La migration `20260902140000_strict_multitenant_privacy.sql` ne supprime et ne remplace les politiques que de **6** tables.

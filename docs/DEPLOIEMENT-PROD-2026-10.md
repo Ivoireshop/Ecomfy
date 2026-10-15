@@ -151,7 +151,7 @@ Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vaul
 |---|---|
 | C6 non corrigé | `ecomfy-pay-initiate` accepte les montants du navigateur. À corriger avant d'ouvrir le portefeuille (C5 et C6 sont des prérequis de C4). |
 | Conflit `payment_links` | Une table de liens de cours porte déjà ce nom. Résolu dans `fix/migrations-fresh-database` (voir section 6), pas dans `jeanmarc`. |
-| H1 | Pièces d'identité dans le bucket public `shop-images`. À traiter avant tout vrai dossier KYC. |
+| H1 | Corrigé dans le code (15/10/2026) : bucket privé `kyc-documents`. À déployer : migration `20261015140000`, puis `scripts/migrate-kyc-to-private-bucket.mjs` pour les fichiers existants (`docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md`, sections 6 et 7 bis). |
 | C5 non testé | Vérifier `GENIUSPAY_WEBHOOK_SECRET`, l'URL appelée par GeniusPay, un paiement de test confirmé par `GET /payments/{ref}`. |
 | `getWallet()` | Appelle `get_or_create_merchant_wallet`, refusée au navigateur : un marchand sans portefeuille reçoit `null`. |
 
@@ -189,7 +189,7 @@ Avec un compte fondateur (jeton dans `localStorage`, clé `ecomfy-auth-token`) e
 
 ### Critiques non traités
 8. **C6** : recalcul serveur des montants et des crédits (`process-payment`, `ecomfy-pay-initiate`). Prérequis de la vague 2.
-9. **H1** : bucket privé pour la KYC, liens signés, migration des fichiers existants.
+9. **H1** : bucket privé pour la KYC, liens signés, migration des fichiers existants. *Corrigé dans le code (15/10/2026), à déployer : migration `20261015140000`, front, puis script de migration des fichiers.*
 10. **H3** : `isAuthorizedCron` acceptait un JWT dont la signature n'est pas vérifiée. *Corrigé dans le code (15/10/2026), à déployer : redéployer les 7 fonctions cron et `seo-auto-index`, vérifier le secret Vault `email_queue_service_role_key`, puis faire tourner les secrets Vault.*
 11. **H7** : `ReferenceError` de `geniuspay-webhook` (`isConfirmedPayment` hors de portée, ligne 257), et attributions sans contrôle de l'événement.
 12. **H8** : en-têtes de sécurité dans `vercel.json` (HSTS, X-Frame-Options, CSP) ; `public/_headers` est ignoré par Vercel.

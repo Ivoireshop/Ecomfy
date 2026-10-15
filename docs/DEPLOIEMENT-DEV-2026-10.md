@@ -30,6 +30,7 @@ Dev est à la version `20260901020000` plus le hotfix `20261012120000`. `supabas
 | [supabase/deploy-dev/01_c2_c3_security.sql](../supabase/deploy-dev/01_c2_c3_security.sql) | C2 : `130000` + `140000` + `150000` ; C3 : fonction `get_shop_orders_secure` seule | à appliquer |
 | [supabase/deploy-dev/04_user_roles_rls.sql](../supabase/deploy-dev/04_user_roles_rls.sql) | C7 côté RLS : corrige la récursion de `user_roles` qui bloque l'espace fondateur (section 5 bis) | à appliquer |
 | [supabase/deploy-dev/02_c1_wallet_dev.sql](../supabase/deploy-dev/02_c1_wallet_dev.sql) | C1 : système Ecomfy Pay (`20260914190000` + `200000`), adapté pour dev | **optionnel**, lire la section 5 |
+| [supabase/deploy-dev/05_h1_kyc_private_bucket.sql](../supabase/deploy-dev/05_h1_kyc_private_bucket.sql) | H1 : bucket privé `kyc-documents`, politiques de stockage, trigger de chemins ; **après `02`** (table `merchant_kyc`) et `04` | optionnel, avec `02` |
 | [supabase/deploy-dev/03_verify_read_only.sql](../supabase/deploy-dev/03_verify_read_only.sql) | vérification en lecture seule (19 contrôles) | à lancer après |
 | [supabase/deploy-dev/99_rollback.sql](../supabase/deploy-dev/99_rollback.sql) | retour arrière par sections | en cas de besoin |
 | [scripts/verify-dev-security.mjs](../scripts/verify-dev-security.mjs) | tests HTTP avec de vrais JWT (comptes jetables) | à lancer après |

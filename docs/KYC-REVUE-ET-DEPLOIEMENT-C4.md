@@ -24,7 +24,7 @@ Fichiers : `supabase/migrations/20260914190000_ecomfy_pay_system.sql` (politique
 - **Adresse :** `/founder/kyc-review`. Menu : Administration > « Revue KYC ».
 - **Contenu :** onglets À examiner (avec compteur), Validés, Rejetés, Pièces redemandées, Tous ; recherche par nom, téléphone, numéro de pièce ou identifiant ; fiche avec informations déclarées, recto, verso, selfie (clic pour agrandir) ; boutons Valider, Rejeter, Redemander des pièces. Le motif est obligatoire pour les deux derniers et il est montré au marchand.
 - **Accès :** la route est protégée par `FounderRoute`, qui laisse aussi entrer `shareholder` et `admin`. Le serveur, lui, n'accepte que `founder` et `co_founder` : un actionnaire voit l'écran, ses décisions sont refusées.
-- **Limites :** pas d'e-mail du marchand (absent de la table) ; les images sont affichées par leur URL publique actuelle (voir H1, section 6).
+- **Limites :** pas d'e-mail du marchand (absent de la table) ; les pièces sont affichées par des liens signés de 5 minutes (H1, section 6).
 
 ## 3. Ce qui a été testé
 
@@ -71,6 +71,7 @@ Tant que 4 et 5 ne sont pas faits, **C4 n'est pas déployable seul** : il vit da
 3. **Base** : dans l'éditeur SQL, **dans cet ordre, une fois chacun**, sans `supabase db push` :
    1. `supabase/migrations/20260914190000_ecomfy_pay_system.sql`
    2. `supabase/migrations/20260914200000_ecomfy_pay_enhanced.sql`
+   3. `supabase/migrations/20261015140000_h1_kyc_private_bucket.sql` (H1 ; idempotent ; **avant** de déployer le front qui dépose dans `kyc-documents`)
    Entourer chaque fichier de `begin;` … `commit;` : en cas d'erreur, `rollback;` et rien n'est appliqué (les migrations ne sont pas idempotentes, un rejeu partiel échouerait sur `CREATE POLICY`). Ne pas se fier à un comportement implicite de l'éditeur.
 4. **Vérifier** (section 7). **Laisser les retraits suspendus.**
 5. **Mettre en place la revue** : au moins un fondateur ou co-fondateur doit avoir le rôle dans `user_roles` et ouvrir `/founder/kyc-review`.
@@ -84,7 +85,13 @@ Tant que 4 et 5 ne sont pas faits, **C4 n'est pas déployable seul** : il vit da
 
 ## 6. Ce qui reste hors périmètre
 
-- **H1 : pièces d'identité dans un bucket public.** Les dossiers pointent sur `shop-images/kyc/...`, lisible par quiconque a l'URL. Le correctif propre : bucket privé dédié, politiques de stockage (marchand : dépôt de ses propres fichiers ; fondateur : lecture), liens signés temporaires dans l'écran de revue, migration des fichiers existants. **À faire avant d'accepter de vrais dossiers.**
+- **H1 : pièces d'identité (corrigé dans le code le 15/10/2026, non déployé).** Les pièces ne vont plus dans le bucket public `shop-images` mais dans le bucket privé `kyc-documents` (migration `20261015140000_h1_kyc_private_bucket.sql`, copie `deploy-dev/05_h1_kyc_private_bucket.sql`).
+  - **Stockage :** chemin imposé `<user_id>/<fichier>` ; le marchand dépose et relit uniquement son dossier ; fondateurs et co-fondateurs lisent tout ; aucun `UPDATE` ni `DELETE` pour les rôles API (une pièce ne se remplace pas, un nouveau fichier s'ajoute). Bucket limité aux images JPG / PNG / WEBP, 5 Mo.
+  - **Base :** `document_front_url`, `document_back_url` et `selfie_url` contiennent maintenant le **chemin** dans le bucket, plus une URL. Le trigger `merchant_kyc_guard_document_paths` refuse qu'un marchand écrive une URL externe ou le chemin d'un autre. Les valeurs inchangées d'un ancien dossier restent tolérées.
+  - **Interface :** formulaire et écran de revue demandent des liens signés de 5 minutes (`src/lib/kycStorage.ts`). Une ancienne URL publique n'est plus affichée : le marchand voit un message et renvoie ses pièces ; la revue indique « Ancienne pièce publique, à redemander ».
+  - **Fichiers existants :** `scripts/migrate-kyc-to-private-bucket.mjs` (simulation par défaut, `--apply` pour exécuter, `--purge-orphans` pour supprimer les fichiers non référencés de `shop-images/kyc/`). Clé `service_role` en variable d'environnement, jamais dans le dépôt.
+  - **Test :** `supabase/tests/h1_kyc_private_bucket.sql`, 26 cas sur base jetable (voir la section 7 bis).
+  - **Bug découvert au passage :** l'ancien code envoyait à Storage le *résultat* de `prepareImageForUpload` (un objet `{ ok, file }`) et non le fichier, et le chemin `kyc/...` était refusé par la politique d'`INSERT` de `shop-images` (premier dossier = identifiant de l'utilisateur) : le dépôt de pièces ne pouvait pas fonctionner tel quel.
 - **Prestataire KYC externe** : non choisi. Un prestataire appellerait `review_merchant_kyc` avec `service_role` (webhook), sans changement de schéma. Dans ce cas, `verified_by` reste vide pour ces décisions.
 - **Journal des décisions** : seuls `verified_by`, `verified_at` et `rejection_reason` sont conservés ; il n'y a pas d'historique. À ajouter si la conformité l'exige.
 - **Types TypeScript** : `src/integrations/supabase/types.ts` ne connaît pas `merchant_kyc`, `wallets` ni leurs RPC (erreurs `tsc` préexistantes sur `ecomfyPay.ts`) ; régénérer les types après déploiement.
@@ -116,9 +123,31 @@ Tests applicatifs (comptes jetables, jamais de vrais marchands) : déposer un do
 
 Le script `supabase/tests/c4_kyc_review.sql` s'exécute **uniquement sur une base jetable** (il crée des utilisateurs et écrit dans les tables). Mode d'emploi dans son en-tête.
 
+## 7 bis. Vérifications H1 (lecture seule, éditeur SQL)
+
+```sql
+-- 1. Bucket privé : attendu public = false, 5242880, {image/jpeg,image/png,image/webp}
+select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'kyc-documents';
+
+-- 2. Trois politiques de stockage : attendu kyc_documents_founders_select (SELECT), kyc_documents_owner_insert (INSERT), kyc_documents_owner_select (SELECT)
+select policyname, cmd from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'kyc_documents_%' order by policyname;
+
+-- 3. Trigger de chemins : attendu 1
+select count(*) from pg_trigger where tgname = 'merchant_kyc_guard_document_paths' and not tgisinternal;
+
+-- 4. Dossiers encore sur une URL publique : attendu 0 une fois le script de migration exécuté
+select count(*) from public.merchant_kyc
+where document_front_url ~* '^https?://' or document_back_url ~* '^https?://' or selfie_url ~* '^https?://';
+
+-- 5. Fichiers KYC restant dans le bucket public : attendu 0
+select count(*) from storage.objects where bucket_id = 'shop-images' and name like 'kyc/%';
+```
+
+Test applicatif (compte jetable) : déposer recto, verso et selfie depuis `/ecomfy-pay?tab=kyc` (les aperçus doivent s'afficher) ; ouvrir le dossier depuis `/founder/kyc-review` (images visibles) ; ouvrir l'adresse d'un fichier **sans** jeton (`.../storage/v1/object/public/kyc-documents/...`) : doit répondre 400/404, jamais l'image.
+
 ## 8. Ouvrir (et refermer) les retraits
 
-À faire seulement quand : la revue fonctionne (section 5.3), H1 est traité ou le risque est accepté par écrit, C5 et C6 sont en production.
+À faire seulement quand : la revue fonctionne (section 5.3), H1 est déployé et ses fichiers existants migrés (section 7 bis), C5 et C6 sont en production.
 
 ```sql
 -- Ouvrir
