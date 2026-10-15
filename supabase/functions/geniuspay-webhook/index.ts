@@ -97,6 +97,11 @@ serve(async (req) => {
       data?.id ||
       `${reference || "noref"}:${event || "noevt"}:${timestamp}`;
 
+    // Déclaré au niveau du handler : utilisé après le bloc d'upsert du paiement (H7)
+    const isConfirmedPayment = event === "payment.success" || status === "completed" || status === "paid";
+    // Vrai uniquement si un paiement local existe et a passé les contrôles anti-fraude
+    let localPaymentValidated = false;
+
     console.log("GeniusPay webhook:", { event, reference, status, environment: payload?.environment });
 
     const supabase = createClient(
@@ -161,7 +166,7 @@ serve(async (req) => {
           }
           // 2) Montant doit correspondre (tolérance 1 unité pour arrondi)
           if (
-            (event === "payment.success" || status === "completed" || status === "success") &&
+            (isConfirmedPayment || status === "success") &&
             paymentToUpdate.amount != null &&
             Math.abs(Number(paymentToUpdate.amount) - amountPaid) > 1
           ) {
@@ -197,9 +202,9 @@ serve(async (req) => {
             });
             return ack({ success: false, error: "User mismatch", reference }, true);
           }
+          localPaymentValidated = true;
         }
 
-        const isConfirmedPayment = event === "payment.success" || status === "completed" || status === "paid";
         const paymentRow = {
           user_id: metadata.user_id || null,
           payment_method: data?.payment_method || data?.provider || "geniuspay",
@@ -256,6 +261,16 @@ serve(async (req) => {
 
     if (isConfirmedPayment && (metadata?.order_id || metadata?.order_number) && metadata?.shop_id) {
       void triggerServerSidePurchaseCapi(metadata.order_id || metadata.order_number, metadata.shop_id);
+    }
+
+    // Attributions (activation, abonnement, crédits, commissions) : uniquement pour un succès avéré
+    // et un paiement local retrouvé dont montant, devise et utilisateur ont été vérifiés.
+    if (!isConfirmedPayment) {
+      return ack({ success: true, ignored: "not_a_success_event", event, status, reference }, true);
+    }
+    if (!localPaymentValidated) {
+      console.warn("Confirmed webhook without matching local payment, nothing credited", { reference });
+      return ack({ success: false, error: "no_matching_local_payment", reference }, true);
     }
 
     const userId = metadata?.user_id;
