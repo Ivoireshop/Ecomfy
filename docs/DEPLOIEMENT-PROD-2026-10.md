@@ -20,7 +20,7 @@
 | C3, `get_shop_orders_secure` | Oui | **Oui** | Rien |
 | C7, `manage-founder-roles` et RLS `user_roles` | Oui (14 tests Node) | **Oui** : fonction, RLS, front | Tester nomination et révocation ; décider de `Admins can manage all roles` |
 | C8, `tracking.ts` | Oui (6 tests Node) | **Oui** : `track-conversion` et front | Requête de détection des `google_analytics_code` piégés ; test d'une vitrine avec pixels |
-| H2, `corporate_*` | Oui | **Oui** | Rien |
+| H2, `corporate_*` | Oui (121 cas sur base jetable) | **Partiel** : hotfix `20261012120000` appliqué (14 tables fermées) | Appliquer `20261015150000` (journal d'audit et acceptations en ajout seul, insertion au nom de l'appelant) et déployer `CorporateOnboardingPage` |
 | C4, KYC | Oui (18 tests) | Non | Vague 2. L'écran `/founder/kyc-review`, présent dans le front, affiche « Could not find the table 'public.merchant_kyc' » : attendu, la table n'existe pas encore. |
 | C5, webhook HMAC | Oui (7 tests Node) | Non | Vague 2 ; jamais testé avec un vrai envoi GeniusPay |
 | C6, montants côté serveur | Version minimale (14 tests Node) ; commandes encore créées par le navigateur | Non | À déployer avec la vague 2 dans cet ordre : migration `20261015120000` (testée sur base jetable), puis `process-payment`, `ecomfy-pay-initiate`, `ecomfy-pay-webhook`, puis le front ; voir l'audit, C6 |
@@ -191,7 +191,7 @@ Avec un compte fondateur (jeton dans `localStorage`, clé `ecomfy-auth-token`) e
 8. **C6** : recalcul serveur des montants et des crédits (`process-payment`, `ecomfy-pay-initiate`). Prérequis de la vague 2.
 9. **H1** : bucket privé pour la KYC, liens signés, migration des fichiers existants. *Corrigé dans le code (15/10/2026), à déployer : migration `20261015140000`, front, puis script de migration des fichiers.*
 10. **H3** : `isAuthorizedCron` acceptait un JWT dont la signature n'est pas vérifiée. *Corrigé dans le code (15/10/2026), à déployer : redéployer les 7 fonctions cron et `seo-auto-index`, vérifier le secret Vault `email_queue_service_role_key`, puis faire tourner les secrets Vault.*
-11. **H7** : `ReferenceError` de `geniuspay-webhook` (`isConfirmedPayment` hors de portée, ligne 257), et attributions sans contrôle de l'événement.
+11. **H7** : `ReferenceError` de `geniuspay-webhook` (`isConfirmedPayment` hors de portée) et attributions sans contrôle de l'événement. *Corrigé dans le code (15/10/2026, commits `12cf254` et `054001c`), à déployer : `geniuspay-webhook`, `verify-payment`, `reconcile-pending-payments`, puis la migration `20261015130000` (verrous de `apply_shop_subscription` et `apply_commission_payment`). Ajoute la réservation atomique du paiement contre les doubles crédits.*
 12. **H8** : en-têtes de sécurité dans `vercel.json` (HSTS, X-Frame-Options, CSP) ; `public/_headers` est ignoré par Vercel.
 
 ### Élevés et autres
