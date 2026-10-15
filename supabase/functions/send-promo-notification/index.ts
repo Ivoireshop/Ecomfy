@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@4.0.0";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -128,9 +129,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email to all founders
     const emailResponse = await resend.emails.send({
-      from: "VisualPro <onboarding@resend.dev>",
-      to: founderEmails,
-      subject: `🎉 Code Promo Utilisé: ${promoCode}`,
+      from: senderFrom(),
+      ...guardEmail(founderEmails, `🎉 Code Promo Utilisé: ${promoCode}`),
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
           <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -187,13 +187,13 @@ const handler = async (req: Request): Promise<Response> => {
 
             <div style="margin-top: 20px; padding: 15px; background-color: #fef3c7; border-radius: 5px;">
               <p style="color: #92400e; margin: 0; font-size: 14px;">
-                ℹ️ Cette notification est envoyée automatiquement lors de chaque utilisation d'un code promo sur VisualPro.
+                ℹ️ Cette notification est envoyée automatiquement lors de chaque utilisation d'un code promo sur Ecomfy.
               </p>
             </div>
           </div>
 
           <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;">
-            <p>VisualPro - Plateforme de Création Publicitaire</p>
+            <p>Ecomfy - Plateforme de Création Publicitaire</p>
           </div>
         </div>
       `,

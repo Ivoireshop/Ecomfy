@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!profile?.email) continue;
 
-      const manageUrl = "https://visuelpro.cloud/shop-manager";
+      const manageUrl = `${APP_URL}/shop-manager`;
 
       const { error: emailErr } = await admin.functions.invoke("send-transactional-email", {
         body: {

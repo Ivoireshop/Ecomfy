@@ -3,8 +3,9 @@ import {
   Body, Button, Container, Head, Heading, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { APP_URL } from "../email-sender.ts";
 
-const SITE_NAME = 'VisualPro Cloud'
+const SITE_NAME = 'Ecomfy'
 
 interface Props {
   mode?: 'activated' | 'already_activated'
@@ -59,7 +60,7 @@ export const template = {
       ? 'Votre boutique est déjà activée — aucun nouveau prélèvement'
       : 'Votre boutique est activée 🎉',
   displayName: 'Activation de boutique',
-  previewData: { mode: 'activated', shopName: 'Ma Boutique', shopUrl: 'https://visuelpro.cloud' },
+  previewData: { mode: 'activated', shopName: 'Ma Boutique', shopUrl: APP_URL },
 } satisfies TemplateEntry
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }

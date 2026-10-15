@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 // Founder-only remediation actions. verify_jwt is false; we validate manually.
 
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
                 severity: "info",
                 description: "Ceci est un email de test envoyé depuis le centre de dépannage.",
               }],
-              dashboardUrl: "https://visuelpro.cloud/founder-troubleshooting",
+              dashboardUrl: `${APP_URL}/founder-troubleshooting`,
               detectedAt: new Date().toISOString(),
             },
           },

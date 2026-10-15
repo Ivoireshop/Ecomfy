@@ -3,6 +3,7 @@ import {
   Body, Container, Head, Heading, Html, Preview, Section, Text, Button,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { APP_URL } from "../email-sender.ts";
 
 interface Incident {
   title: string
@@ -26,7 +27,7 @@ const sevColor: Record<string, string> = {
 
 const AppIncidentAlertEmail = ({
   incidents = [],
-  dashboardUrl = 'https://visuelpro.cloud/founder-troubleshooting',
+  dashboardUrl = `${APP_URL}/founder-troubleshooting`,
   detectedAt,
 }: Props) => {
   const when = detectedAt ? new Date(detectedAt).toLocaleString('fr-FR') : new Date().toLocaleString('fr-FR')
@@ -34,10 +35,10 @@ const AppIncidentAlertEmail = ({
   return (
     <Html lang="fr" dir="ltr">
       <Head />
-      <Preview>VisualPro — {incidents.length} incident{incidents.length > 1 ? 's' : ''} détecté{incidents.length > 1 ? 's' : ''}</Preview>
+      <Preview>Ecomfy — {incidents.length} incident{incidents.length > 1 ? 's' : ''} détecté{incidents.length > 1 ? 's' : ''}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={h1}>🚨 Alerte santé VisualPro</Heading>
+          <Heading style={h1}>🚨 Alerte santé Ecomfy</Heading>
           <Text style={text}>
             Le monitoring automatique a détecté <b>{incidents.length} nouvel{incidents.length > 1 ? 's' : ''} incident{incidents.length > 1 ? 's' : ''}</b> sur l'application le {when}.
           </Text>
@@ -63,7 +64,7 @@ const AppIncidentAlertEmail = ({
             <Button href={dashboardUrl} style={button}>Ouvrir le centre de dépannage</Button>
           </Section>
           <Text style={footer}>
-            Vous recevez ce mail car vous êtes fondateur de VisualPro. Connectez-vous pour résoudre ou ignorer les incidents.
+            Vous recevez ce mail car vous êtes fondateur de Ecomfy. Connectez-vous pour résoudre ou ignorer les incidents.
           </Text>
         </Container>
       </Body>
@@ -77,12 +78,12 @@ export const template = {
     const n = Array.isArray(data?.incidents) ? data.incidents.length : 1
     const top = data?.incidents?.[0]
     const sev = top?.severity === 'critical' ? '🚨 CRITIQUE' : top?.severity === 'warning' ? '⚠️' : 'ℹ️'
-    return `${sev} VisualPro — ${n} incident${n > 1 ? 's' : ''} détecté${n > 1 ? 's' : ''}`
+    return `${sev} Ecomfy — ${n} incident${n > 1 ? 's' : ''} détecté${n > 1 ? 's' : ''}`
   },
   displayName: 'Alerte incident application',
   previewData: {
     detectedAt: new Date().toISOString(),
-    dashboardUrl: 'https://visuelpro.cloud/founder-troubleshooting',
+    dashboardUrl: `${APP_URL}/founder-troubleshooting`,
     incidents: [
       { title: 'Aucune commande payée depuis 24h', category: 'commerce', severity: 'warning', description: 'Le trafic publicitaire continue mais aucun paiement validé.', occurrence_count: 3 },
     ],

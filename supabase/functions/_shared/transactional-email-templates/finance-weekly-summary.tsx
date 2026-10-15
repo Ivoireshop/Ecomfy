@@ -3,8 +3,9 @@ import {
   Body, Container, Head, Heading, Html, Preview, Section, Text, Hr,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { APP_URL } from "../email-sender.ts";
 
-const SITE_NAME = 'VisualPro Cloud'
+const SITE_NAME = 'Ecomfy'
 
 interface Props {
   shopName?: string
@@ -68,7 +69,7 @@ const FinanceSummary = ({
           </>
         )}
 
-        <Heading as="h2" style={h2}>🏦 Frais plateforme VisualPro</Heading>
+        <Heading as="h2" style={h2}>🏦 Frais plateforme Ecomfy</Heading>
         <Text style={text}>Déjà payés : <b>{platformFees} FCFA</b></Text>
         <Text style={text}>Commission due : <b style={{ color: '#ea580c' }}>{commissionDue} FCFA</b></Text>
 
@@ -105,7 +106,7 @@ export const template = {
     expByCat: [{ label: 'Publicité', amount: '60 000' }, { label: 'Achat de stock', amount: '25 000' }],
     platformFees: '12 000', commissionDue: '6 000',
     profit: '143 000', profitPositive: true,
-    shopUrl: 'https://visuelpro.cloud',
+    shopUrl: APP_URL,
   },
 } satisfies TemplateEntry
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,9 +107,8 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "VisualPro Notifications <onboarding@resend.dev>",
-        to: [ownerEmail],
-        subject: `📧 Nouveau message sur ${site.business_name}`,
+        from: senderFrom("Ecomfy Notifications"),
+        ...guardEmail([ownerEmail], `📧 Nouveau message sur ${site.business_name}`),
         html: `
           <!DOCTYPE html>
           <html>
@@ -223,7 +223,7 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               
               <div class="footer">
-                <p>Cette notification a été envoyée par <strong>VisualPro</strong></p>
+                <p>Cette notification a été envoyée par <strong>Ecomfy</strong></p>
                 <p>Vous recevez cet email car vous êtes propriétaire du site <strong>${esc(site.business_name)}</strong></p>
               </div>
             </body>

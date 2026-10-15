@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -325,7 +326,7 @@ serve(async (req) => {
           .maybeSingle();
         if (profileRow?.email) {
           const shopUrl = shopRow?.slug
-            ? `https://ecomfy.cloud/shop/${shopRow.slug}`
+            ? `${APP_URL}/shop/${shopRow.slug}`
             : undefined;
           await supabase.functions.invoke("send-transactional-email", {
             body: {
@@ -369,7 +370,7 @@ serve(async (req) => {
               .from("profiles").select("email").eq("id", userId).maybeSingle();
             if (profileRow?.email) {
               const unlocked = !shopRow || shopRow.shop_payment_status === "active" || shopRow.shop_payment_status === "STORE_ACTIVE" || Number(shopRow.commission_balance_due || 0) <= 0;
-              const shopUrl = shopRow?.slug ? `https://ecomfy.cloud/shop/${shopRow.slug}` : undefined;
+              const shopUrl = shopRow?.slug ? `${APP_URL}/shop/${shopRow.slug}` : undefined;
               await supabase.functions.invoke("send-transactional-email", {
                 body: {
                   templateName: "commission-payment",

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Resend } from 'npm:resend@4.0.0';
-
+import { senderFrom, APP_URL, guardEmail } from "../_shared/email-sender.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -241,7 +241,7 @@ Deno.serve(async (req) => {
             <div class="footer">
               <p class="footer-text">
                 Cet email a été envoyé automatiquement par 
-                <a href="https://visualpro.cloud" class="footer-brand">VisualPro</a>
+                <a href="${APP_URL}" class="footer-brand">Ecomfy</a>
                 <br>
                 Création de visuels publicitaires propulsée par l'IA
               </p>
@@ -252,9 +252,8 @@ Deno.serve(async (req) => {
     `;
 
     const { data, error } = await resend.emails.send({
-      from: 'VisualPro <onboarding@resend.dev>',
-      to: [ownerEmail],
-      subject: `🎉 Votre domaine ${customDomain} est maintenant actif !`,
+      from: senderFrom(),
+      ...guardEmail([ownerEmail], `🎉 Votre domaine ${customDomain} est maintenant actif !`),
       html,
     });
 

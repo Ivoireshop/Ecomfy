@@ -6,6 +6,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
 import { checkAmount } from "../_shared/pricing.ts";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -352,7 +353,7 @@ serve(async (req) => {
             .maybeSingle();
           if (profileRow?.email) {
             const shopUrl = shopRow?.slug
-              ? `https://ecomfy.cloud/shop/${shopRow.slug}`
+              ? `${APP_URL}/shop/${shopRow.slug}`
               : undefined;
             await supabase.functions.invoke("send-transactional-email", {
               body: {

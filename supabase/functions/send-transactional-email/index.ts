@@ -3,6 +3,7 @@ import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
+import { guardEmail, isEmailSuppressed } from '../_shared/email-sender.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
@@ -295,6 +296,16 @@ Deno.serve(async (req) => {
   // 5. Enqueue the pre-rendered email for async processing by the dispatcher.
   // The dispatcher (process-email-queue) handles sending, retries, and rate-limit backoff.
 
+  // Garde-fou dev/recette : EMAIL_MODE=off n'enfile rien, EMAIL_MODE=redirect réécrit destinataire et sujet.
+  if (isEmailSuppressed()) {
+    console.warn('[email-guard] mail neutralisé, non enfilé', { templateName, effectiveRecipient })
+    return new Response(
+      JSON.stringify({ success: true, queued: false, suppressed: true }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+  const guarded = guardEmail(effectiveRecipient, resolvedSubject)
+
   // Log pending BEFORE enqueue so we have a record even if enqueue crashes
   await supabase.from('email_send_log').insert({
     message_id: messageId,
@@ -307,10 +318,10 @@ Deno.serve(async (req) => {
     queue_name: 'transactional_emails',
     payload: {
       message_id: messageId,
-      to: effectiveRecipient,
+      to: guarded.to[0],
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
-      subject: resolvedSubject,
+      subject: guarded.subject,
       html,
       text: plainText,
       purpose: 'transactional',

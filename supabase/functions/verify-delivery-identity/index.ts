@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.8";
+import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,7 +113,7 @@ serve(async (req) => {
             </p>
 
             <div style="text-align: center; margin-top: 32px; margin-bottom: 24px;">
-              <a href="https://ecomfy.cloud/delivery/dashboard" style="background-color: #0e7c66; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 30px; font-weight: bold; font-size: 14px; display: inline-block;">
+              <a href="${APP_URL}/delivery/dashboard" style="background-color: #0e7c66; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 30px; font-weight: bold; font-size: 14px; display: inline-block;">
                 Accéder à mon Espace Livraison →
               </a>
             </div>
@@ -165,7 +166,7 @@ serve(async (req) => {
             </p>
 
             <div style="text-align: center; margin-top: 32px; margin-bottom: 24px;">
-              <a href="https://ecomfy.cloud/delivery/register" style="background-color: #dc2626; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 30px; font-weight: bold; font-size: 14px; display: inline-block;">
+              <a href="${APP_URL}/delivery/register" style="background-color: #dc2626; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 30px; font-weight: bold; font-size: 14px; display: inline-block;">
                 Soumettre à nouveau mes documents →
               </a>
             </div>
@@ -190,8 +191,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             from: "Ecomfy Support <support@ecomfy.cloud>",
-            to: [userEmail],
-            subject: emailSubject,
+            ...guardEmail([userEmail], emailSubject),
             html: htmlBody,
           }),
         });

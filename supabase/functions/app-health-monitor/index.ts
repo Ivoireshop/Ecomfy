@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 // Public health monitor. Runs every 5 minutes via pg_cron.
 // - Probes critical surfaces of the app
@@ -9,7 +10,7 @@ import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth
 // - Auto-resolves checks that recover
 
 const FOUNDER_EMAILS = ["djateulrich@gmail.com", "regnis13@gmail.com"];
-const APP_BASE = "https://visuelpro.cloud";
+const APP_BASE = APP_URL;
 
 type Probe = {
   key: string;            // dedupe key
@@ -68,13 +69,13 @@ Deno.serve(async (req) => {
     probes.push({
       key: "frontend.public",
       category: "frontend",
-      title: "Site public visuelpro.cloud",
+      title: "Site public ecomfy.cloud",
       ok: r.ok || r.status === 304,
       severity: "critical",
       description: r.ok ? undefined : `HTTP ${r.status}`,
     });
   } catch (e) {
-    probes.push({ key: "frontend.public", category: "frontend", title: "Site public visuelpro.cloud", ok: false, severity: "critical", description: String(e) });
+    probes.push({ key: "frontend.public", category: "frontend", title: "Site public ecomfy.cloud", ok: false, severity: "critical", description: String(e) });
   }
 
   // 4) Payments flow — no completed payments in 24h while pending exists

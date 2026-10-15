@@ -2,6 +2,7 @@
 declare const Deno: any;
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const baseUrl = originUrl || "https://ecomfy.cloud";
+    const baseUrl = originUrl || APP_URL;
     const inviteUrl = `${baseUrl}/governance/invitation/${inviteToken || 'demo-token'}?email=${encodeURIComponent(email)}`;
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -113,8 +114,7 @@ serve(async (req: Request) => {
         },
         body: JSON.stringify({
           from: primaryFrom,
-          to: [email],
-          subject,
+          ...guardEmail([email], subject),
           html: emailHtml,
         }),
       });
@@ -136,8 +136,7 @@ serve(async (req: Request) => {
           },
           body: JSON.stringify({
             from: fallbackFrom,
-            to: [email],
-            subject,
+            ...guardEmail([email], subject),
             html: emailHtml,
           }),
         });

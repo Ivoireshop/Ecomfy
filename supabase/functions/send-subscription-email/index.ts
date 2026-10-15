@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "npm:resend@4.0.0";
+import { guardEmail } from "../_shared/email-sender.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -28,8 +29,7 @@ serve(async (req) => {
 
     const emailResponse = await resend.emails.send({
       from: "Ecomfy <support@ecomfy.cloud>",
-      to: [email],
-      subject: "Félicitations ! Votre abonnement Ecomfy est activé 🎉",
+      ...guardEmail([email], "Félicitations ! Votre abonnement Ecomfy est activé 🎉"),
       html: `
         <!DOCTYPE html>
         <html>
@@ -119,7 +119,7 @@ serve(async (req) => {
           <body>
             <div class="header">
               <h1>🎉 Félicitations ${full_name} !</h1>
-              <p style="margin: 10px 0 0 0; font-size: 16px;">Votre abonnement VisualPro est maintenant actif</p>
+              <p style="margin: 10px 0 0 0; font-size: 16px;">Votre abonnement Ecomfy est maintenant actif</p>
             </div>
             
             <div class="content">
@@ -182,13 +182,13 @@ serve(async (req) => {
               <p style="margin-top: 20px;">Bonne création ! 🎨</p>
               
               <p style="margin-top: 20px;">
-                <strong>L'équipe VisualPro</strong>
+                <strong>L'équipe Ecomfy</strong>
               </p>
             </div>
             
             <div class="footer">
-              <p>© ${new Date().getFullYear()} VisualPro - Tous droits réservés</p>
-              <p>Cet email confirme votre abonnement actif sur VisualPro</p>
+              <p>© ${new Date().getFullYear()} Ecomfy - Tous droits réservés</p>
+              <p>Cet email confirme votre abonnement actif sur Ecomfy</p>
             </div>
           </body>
         </html>

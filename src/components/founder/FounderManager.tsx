@@ -94,13 +94,14 @@ export const FounderManager = () => {
       try {
         await supabase.functions.invoke("send-transactional-email", {
           body: {
+            templateName: "founder-team-invite",
             recipientEmail: email.trim(),
-            subject: "Invitation à l'Équipe Dirigeante Ecomfy",
-            html: `
-              <h2>Félicitations !</h2>
-              <p>Ulrich DJATÉ (Fondateur Principal) vous a nommé en tant que <strong>${role}</strong> sur la plateforme Ecomfy.</p>
-              <p>Vous pouvez maintenant vous connecter à votre compte et consulter la Console de Pilotage Fondateur.</p>
-            `,
+            idempotencyKey: `founder-invite-${email.trim().toLowerCase()}-${role}-${Date.now()}`,
+            templateData: {
+              role,
+              inviterName: "Ulrich DJATÉ",
+              loginUrl: `${window.location.origin}/auth`,
+            },
           },
         });
       } catch (e) {

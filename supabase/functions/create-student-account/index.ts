@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -181,11 +182,10 @@ async function sendStudentEmail({
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "VisualPro <onboarding@resend.dev>",
-        to: [studentEmail],
-        subject: isNewAccount
+        from: senderFrom(),
+        ...guardEmail([studentEmail], isNewAccount
           ? (resend ? "Vos accès à votre formation" : "Vos identifiants d'accès à votre formation")
-          : "Accès à votre nouvelle formation",
+          : "Accès à votre nouvelle formation"),
         html: emailBody,
       }),
     });

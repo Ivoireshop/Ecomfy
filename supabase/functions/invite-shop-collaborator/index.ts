@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
+import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
 
 const ALLOWED_ROLES = new Set([
   'view_orders', 'edit_shop', 'manage_expenses', 'manage_delivered_orders',
@@ -67,7 +68,7 @@ Deno.serve(async (req) => {
 
     if (dbError) return json({ success: false, error: dbError.message })
 
-    const origin = req.headers.get('origin') || 'https://ecomfy.cloud'
+    const origin = req.headers.get('origin') || APP_URL
     const acceptUrl = `${origin}/accept-shop-invite?token=${encodeURIComponent(finalToken)}`
 
     const displayShop = shop.business_name || shopName
@@ -161,8 +162,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           from: fromAddress,
-          to: [emailRaw],
-          subject: `Invitation à rejoindre la boutique ${displayShop} — Ecomfy`,
+          ...guardEmail([emailRaw], `Invitation à rejoindre la boutique ${displayShop} — Ecomfy`),
           html,
         }),
       })
