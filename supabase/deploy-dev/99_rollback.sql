@@ -28,7 +28,7 @@ GRANT EXECUTE ON FUNCTION public.prepare_shop_activation_payment(uuid, uuid) TO 
 -- DROP FUNCTION IF EXISTS public.get_shop_orders_secure(uuid);
 
 -- (4) Retirer le système Ecomfy Pay déployé par 02_c1_wallet_dev.sql (DÉTRUIT les données de ces tables ;
---     elles n'existaient pas avant). Ne touche pas à payment_links (table de cours préexistante).
+--     elles n'existaient pas avant). Ne touche pas à payment_links (table de cours préexistante); la table ecomfy_payment_links est détruite avec le reste.
 -- DROP FUNCTION IF EXISTS public.request_wallet_withdrawal_atomic(numeric, text, text, text, text, text);
 -- DROP FUNCTION IF EXISTS public.save_merchant_payout_config(text, text, text);
 -- DROP FUNCTION IF EXISTS public.review_merchant_kyc(uuid, text, text);
@@ -37,7 +37,7 @@ GRANT EXECUTE ON FUNCTION public.prepare_shop_activation_payment(uuid, uuid) TO 
 -- DROP FUNCTION IF EXISTS public.credit_merchant_wallet_pending(uuid, uuid, numeric, numeric, text, int, text);
 -- DROP FUNCTION IF EXISTS public.get_or_create_merchant_wallet(uuid);
 -- DROP TABLE IF EXISTS public.withdrawal_requests, public.wallet_ledger, public.settlements, public.payment_events,
---                      public.ecomfy_payments, public.wallets, public.merchant_kyc, public.ecomfy_pay_settings CASCADE;
+--                      public.ecomfy_payments, public.ecomfy_payment_links, public.wallets, public.merchant_kyc, public.ecomfy_pay_settings CASCADE;
 
 
 -- (5) Retirer H1 (05_h1_kyc_private_bucket.sql). Ne déplace aucun fichier : les pièces déjà déposées dans

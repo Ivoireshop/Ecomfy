@@ -75,7 +75,7 @@ serve(async (req) => {
       expected = t.ok ? t.total : null;
     }
     const { data: link } = !order_id && payment_link_id
-      ? await supabase.from("payment_links").select("shop_id, amount, is_active, allow_custom_amount").eq("id", payment_link_id).maybeSingle()
+      ? await supabase.from("ecomfy_payment_links").select("shop_id, amount, is_active, allow_custom_amount").eq("id", payment_link_id).maybeSingle()
       : { data: null };
 
     const check = checkCustomerPayment({

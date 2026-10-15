@@ -141,7 +141,7 @@ Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vaul
 - **Les migrations passées dans l'éditeur SQL ne sont pas enregistrées dans `schema_migrations`.** Pour l'intégration GitHub, `20261011120000` à `20261012160000` restent donc « en attente ».
 - Si l'option **« Deploy to production »** de l'intégration GitHub est active, la fusion de la PR dans `main` appliquera automatiquement **toutes** les migrations postérieures à `20260901020000`, dont Ecomfy Pay (sans C6) et les migrations d'affiliation et de facturation par seuil qui contiennent encore des fonctions ouvertes. **À vérifier et à désactiver avant de fusionner** (Project Settings > Integrations > GitHub).
 - **Preview qui échoue :** la branche de preview rejoue toutes les migrations sur une base vierge et bute sur `INSERT INTO ad_templates` (colonne `created_by` NOT NULL, compte seed absent). C'est le constat M11 (migrations non reproductibles), indépendant des correctifs. Un correctif existe dans la branche **locale** `fix/migrations-fresh-database` (commit `7eb936e`, jamais poussé) : `created_by` nullable plus 16 autres migrations, dont le renommage `payment_links` en `ecomfy_payment_links`. Il fusionne sans conflit avec `jeanmarc`, mais :
-  - le renommage ne concerne que le SQL : `src/lib/ecomfyPay.ts`, `src/pages/EcomfyPay.tsx`, `src/pages/EcomfyPayCheckout.tsx`, `src/components/ecomfy-pay/OverviewTab.tsx` et `supabase/deploy-dev/02_c1_wallet_dev.sql` utilisent encore `payment_links` pour Ecomfy Pay (ne pas toucher `PaymentLinksManager` ni `EnrollmentCheckout`, qui concernent les liens de cours) ;
+  - le renommage `payment_links` en `ecomfy_payment_links` est désormais reporté dans `jeanmarc` sans fusion (15/10/2026) : migrations `20260914190000` et `20260914200000`, `deploy-dev/02` et `99`, Edge Function `ecomfy-pay-initiate`, `src/lib/ecomfyPay.ts` et `src/pages/EcomfyPayCheckout.tsx`. `PaymentLinksManager`, `EnrollmentCheckout` et `ShowcaseCourseDetail` (liens de cours) gardent `payment_links`. Les types générés `src/integrations/supabase/types.ts` ne contiennent pas les tables Ecomfy Pay et restent à régénérer ;
   - il ajoute `20261009120000_fix_user_roles_policy_recursion.sql`, redondante avec `20261012160000` (celle-ci passe après et la remplace) ;
   - le passage complet sur base vierge n'a pas été vérifié depuis `jeanmarc`.
 
@@ -150,7 +150,7 @@ Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vaul
 | Bloquant | Détail |
 |---|---|
 | C6 non corrigé | `ecomfy-pay-initiate` accepte les montants du navigateur. À corriger avant d'ouvrir le portefeuille (C5 et C6 sont des prérequis de C4). |
-| Conflit `payment_links` | Une table de liens de cours porte déjà ce nom. Résolu dans `fix/migrations-fresh-database` (voir section 6), pas dans `jeanmarc`. |
+| Conflit `payment_links` | Une table de liens de cours porte déjà ce nom. Résolu dans `jeanmarc` (15/10/2026) : la table Ecomfy Pay devient `ecomfy_payment_links` (voir section 6). Non déployé. |
 | H1 | Corrigé dans le code (15/10/2026) : bucket privé `kyc-documents`. À déployer : migration `20261015140000`, puis `scripts/migrate-kyc-to-private-bucket.mjs` pour les fichiers existants (`docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md`, sections 6 et 7 bis). |
 | C5 non testé | Vérifier `GENIUSPAY_WEBHOOK_SECRET`, l'URL appelée par GeniusPay, un paiement de test confirmé par `GET /payments/{ref}`. |
 | `getWallet()` | Appelle `get_or_create_merchant_wallet`, refusée au navigateur : un marchand sans portefeuille reçoit `null`. |

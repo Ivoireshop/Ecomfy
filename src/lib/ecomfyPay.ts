@@ -180,7 +180,7 @@ export const ecomfyPayApi = {
 
   // 5. PAYMENT LINKS (SANDBOX vs PRODUCTION)
   async getPaymentLinks(shopId?: string): Promise<PaymentLink[]> {
-    let query = supabase.from("payment_links").select("*, products(name)");
+    let query = supabase.from("ecomfy_payment_links").select("*, products(name)");
     if (shopId) {
       query = query.eq("shop_id", shopId);
     }
@@ -213,7 +213,7 @@ export const ecomfyPayApi = {
     };
 
     const { data, error } = await supabase
-      .from("payment_links")
+      .from("ecomfy_payment_links")
       .insert(payload)
       .select("*")
       .single();

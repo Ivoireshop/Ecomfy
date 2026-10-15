@@ -52,7 +52,7 @@ export default function EcomfyPayCheckout() {
       setLoading(true);
       try {
         const { data, error } = await supabase
-          .from("payment_links")
+          .from("ecomfy_payment_links")
           .select("*, products(name, image_url, price, bundle_pricing), shops(business_name, name)")
           .eq("link_key", linkKey)
           .maybeSingle();

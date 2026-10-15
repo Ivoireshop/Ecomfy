@@ -1,13 +1,11 @@
 -- ============================================================================
 -- Déploiement DEV (étape 2/2, OPTIONNELLE) : correctif C1, système Ecomfy Pay (portefeuille)
 -- Fichier généré à partir de 20260914190000_ecomfy_pay_system.sql puis 20260914200000_ecomfy_pay_enhanced.sql,
--- avec UNE adaptation : les index et politiques RLS de payment_links qui supposent les colonnes
--- shop_id / link_key / is_active sont retirés.
---   Raison : public.payment_links existe déjà sur dev (migration 20251120131345, liens de paiement de COURS :
---   course_id, provider, payment_url). Le CREATE TABLE IF NOT EXISTS de la migration Ecomfy Pay est donc ignoré et les
---   index sur shop_id / link_key échoueraient, annulant toute la transaction. Conflit de noms à résoudre avant la
---   production (voir docs/DEPLOIEMENT-DEV-2026-10.md). Les liens de paiement Ecomfy Pay ne fonctionnent pas
---   avec ce script ; le portefeuille, le KYC, les retraits et les fonctions C1 fonctionnent.
+-- sans autre adaptation que les correctifs ajoutés après coup.
+--   Conflit de noms résolu : public.payment_links existe déjà (migration 20251120131345, liens de paiement de COURS :
+--   course_id, provider, payment_url). La table des liens de paiement Ecomfy Pay s'appelle donc
+--   public.ecomfy_payment_links (shop_id, link_key), comme dans les migrations d'origine. Les liens de cours
+--   (payment_links) ne sont pas touchés.
 -- Non idempotent (CREATE POLICY) : ne l'exécuter qu'une fois. En cas d'échec, tout est annulé.
 -- ============================================================================
 
@@ -39,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.merchant_kyc (
 );
 
 -- 2. LIENS DE PAIEMENT ECOMFY PAY (PAYMENT LINKS)
-CREATE TABLE IF NOT EXISTS public.payment_links (
+CREATE TABLE IF NOT EXISTS public.ecomfy_payment_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     link_key TEXT NOT NULL UNIQUE,
     shop_id UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
@@ -64,7 +62,7 @@ CREATE TABLE IF NOT EXISTS public.ecomfy_payments (
     merchant_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     shop_id UUID REFERENCES public.shops(id) ON DELETE SET NULL,
     product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
-    payment_link_id UUID REFERENCES public.payment_links(id) ON DELETE SET NULL,
+    payment_link_id UUID REFERENCES public.ecomfy_payment_links(id) ON DELETE SET NULL,
     customer_name TEXT,
     customer_phone TEXT,
     customer_email TEXT,
@@ -163,6 +161,8 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
 
 -- INDEX DE PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_merchant_kyc_user ON public.merchant_kyc(user_id);
+CREATE INDEX IF NOT EXISTS idx_ecomfy_payment_links_shop ON public.ecomfy_payment_links(shop_id);
+CREATE INDEX IF NOT EXISTS idx_ecomfy_payment_links_key ON public.ecomfy_payment_links(link_key);
 CREATE INDEX IF NOT EXISTS idx_ecomfy_payments_ref ON public.ecomfy_payments(internal_reference);
 CREATE INDEX IF NOT EXISTS idx_ecomfy_payments_merchant ON public.ecomfy_payments(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_ecomfy_payments_status ON public.ecomfy_payments(status);
@@ -176,7 +176,7 @@ CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_merchant ON public.withdrawal
 -- SÉCURITÉ ET POLITIQUES RLS (ROW LEVEL SECURITY)
 -- ========================================================
 ALTER TABLE public.merchant_kyc ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payment_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ecomfy_payment_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ecomfy_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
@@ -230,6 +230,10 @@ INSERT INTO public.ecomfy_pay_settings (key, value) VALUES ('withdrawals_enabled
 ON CONFLICT (key) DO NOTHING;
 
 -- PAYMENT LINKS
+CREATE POLICY "Merchants manage own payment links" ON public.ecomfy_payment_links FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.shops WHERE shops.id = ecomfy_payment_links.shop_id AND shops.user_id = auth.uid())
+);
+CREATE POLICY "Public read active payment links" ON public.ecomfy_payment_links FOR SELECT USING (is_active = TRUE);
 
 -- PAYMENTS
 CREATE POLICY "Merchants view own payments" ON public.ecomfy_payments FOR SELECT USING (auth.uid() = merchant_id);
@@ -500,6 +504,8 @@ ADD COLUMN IF NOT EXISTS default_payout_name TEXT,
 ADD COLUMN IF NOT EXISTS default_payout_provider TEXT DEFAULT 'wave';
 
 -- 2. MODIFICATION PAYMENT_LINKS & PAYMENTS (MODE SANDBOX vs PRODUCTION)
+ALTER TABLE public.ecomfy_payment_links
+ADD COLUMN IF NOT EXISTS is_sandbox BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE public.ecomfy_payments
 ADD COLUMN IF NOT EXISTS is_sandbox BOOLEAN NOT NULL DEFAULT FALSE;

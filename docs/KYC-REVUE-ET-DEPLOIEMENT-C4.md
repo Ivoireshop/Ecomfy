@@ -15,7 +15,7 @@
 | Lecture des dossiers | Chacun voit le sien | Politique « Founders view all KYC » : fondateurs et co-fondateurs voient tout |
 | Interface | Appelait l'ancienne RPC, annonçait une « analyse automatique » | Dépose le dossier en `PENDING`, annonce un examen manuel ; écran de revue pour les fondateurs |
 
-Fichiers : `supabase/migrations/20260914190000_ecomfy_pay_system.sql` (politiques, interrupteur, retrait), `supabase/migrations/20260914200000_ecomfy_pay_enhanced.sql` (trigger, suppression de l'ancienne RPC, `review_merchant_kyc`), `supabase/deploy-dev/02_c1_wallet_dev.sql` (copie pour dev, avec l'adaptation `payment_links`), `src/pages/founder/KycReview.tsx`, `src/components/AppSidebar.tsx`, `src/App.tsx`.
+Fichiers : `supabase/migrations/20260914190000_ecomfy_pay_system.sql` (politiques, interrupteur, retrait), `supabase/migrations/20260914200000_ecomfy_pay_enhanced.sql` (trigger, suppression de l'ancienne RPC, `review_merchant_kyc`), `supabase/deploy-dev/02_c1_wallet_dev.sql` (copie pour dev, avec la table `ecomfy_payment_links`), `src/pages/founder/KycReview.tsx`, `src/components/AppSidebar.tsx`, `src/App.tsx`.
 
 `is_corporate_founder()` est redéfinie dans `20260914190000` (même corps que dans le hotfix `20261012120000`, `CREATE OR REPLACE`) : sans cela, un rejeu des migrations dans l'ordre des horodatages échouerait à la création de la politique.
 
@@ -49,7 +49,7 @@ Un seul fichier, `supabase/deploy-dev/02_c1_wallet_dev.sql`, déjà décrit à l
 
 ## 5. Déploiement en production
 
-**Ne pas appliquer `deploy-dev/02` en production** : il retire la gestion de `payment_links` pour dev. En production, ce sont les migrations d'origine qui s'appliquent, et seulement quand les prérequis ci-dessous sont remplis.
+**Ne pas appliquer `deploy-dev/02` en production** : c'est une copie pour dev. En production, ce sont les migrations d'origine qui s'appliquent, et seulement quand les prérequis ci-dessous sont remplis.
 
 ### 5.1 Prérequis (bloquants)
 
@@ -58,7 +58,7 @@ Un seul fichier, `supabase/deploy-dev/02_c1_wallet_dev.sql`, déjà décrit à l
 | 1 | Snapshot de la base (ou point de restauration) | Retour arrière | Tableau de bord Supabase |
 | 2 | Vérifier que le système n'est pas déjà en base : `select to_regclass('public.merchant_kyc'), to_regclass('public.wallets'), to_regclass('public.withdrawal_requests');` | Les migrations créent ces tables. Si l'une existe, ne rien lancer : il y a des données et un autre chemin (migration de correction à écrire) | Éditeur SQL |
 | 3 | Hotfix et compléments appliqués : `20261012120000`, `130000`, `140000`, `150000`, `160000` | `review_merchant_kyc` s'appuie sur `user_roles` et `is_corporate_founder()` ; sans `160000`, la lecture de `user_roles` échoue par récursion RLS | `docs/SECURITY-HOTFIX-2026-10.md` |
-| 4 | Conflit `payment_links` résolu | La production a probablement la table de liens de **cours** (`course_id`, `provider`, `payment_url`). Vérifier : `select column_name from information_schema.columns where table_name='payment_links';`. Les index et politiques Ecomfy Pay sur `shop_id` / `link_key` feraient échouer toute la migration | Audit C1 ; `DEPLOIEMENT-DEV` section 6 |
+| 4 | Conflit `payment_links` résolu | Corrigé dans le dépôt : la table Ecomfy Pay s'appelle `ecomfy_payment_links`. La production a la table de liens de **cours** (`course_id`, `provider`, `payment_url`), qui n'est plus touchée. Vérifier seulement que `ecomfy_payment_links` n'existe pas déjà : `select to_regclass('public.ecomfy_payment_links');` | Audit C1 ; `DEPLOIEMENT-DEV` section 6 |
 | 5 | C5 (signature du webhook `ecomfy-pay-webhook`) et C6 (montants recalculés côté serveur) corrigés et déployés | Sans eux, un paiement peut être falsifié et crédité sur le portefeuille, indépendamment du KYC | Audit C5, C6 |
 | 6 | Tâches planifiées et appels de RPC par clé `anon` vérifiés | Ils échouent en 42501 après le durcissement | `DEPLOIEMENT-DEV` section 9 |
 

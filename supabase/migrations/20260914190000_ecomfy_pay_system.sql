@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.merchant_kyc (
 );
 
 -- 2. LIENS DE PAIEMENT ECOMFY PAY (PAYMENT LINKS)
-CREATE TABLE IF NOT EXISTS public.payment_links (
+CREATE TABLE IF NOT EXISTS public.ecomfy_payment_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     link_key TEXT NOT NULL UNIQUE,
     shop_id UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.ecomfy_payments (
     merchant_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     shop_id UUID REFERENCES public.shops(id) ON DELETE SET NULL,
     product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
-    payment_link_id UUID REFERENCES public.payment_links(id) ON DELETE SET NULL,
+    payment_link_id UUID REFERENCES public.ecomfy_payment_links(id) ON DELETE SET NULL,
     customer_name TEXT,
     customer_phone TEXT,
     customer_email TEXT,
@@ -150,8 +150,8 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
 
 -- INDEX DE PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_merchant_kyc_user ON public.merchant_kyc(user_id);
-CREATE INDEX IF NOT EXISTS idx_payment_links_shop ON public.payment_links(shop_id);
-CREATE INDEX IF NOT EXISTS idx_payment_links_key ON public.payment_links(link_key);
+CREATE INDEX IF NOT EXISTS idx_ecomfy_payment_links_shop ON public.ecomfy_payment_links(shop_id);
+CREATE INDEX IF NOT EXISTS idx_ecomfy_payment_links_key ON public.ecomfy_payment_links(link_key);
 CREATE INDEX IF NOT EXISTS idx_ecomfy_payments_ref ON public.ecomfy_payments(internal_reference);
 CREATE INDEX IF NOT EXISTS idx_ecomfy_payments_merchant ON public.ecomfy_payments(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_ecomfy_payments_status ON public.ecomfy_payments(status);
@@ -165,7 +165,7 @@ CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_merchant ON public.withdrawal
 -- SÉCURITÉ ET POLITIQUES RLS (ROW LEVEL SECURITY)
 -- ========================================================
 ALTER TABLE public.merchant_kyc ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payment_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ecomfy_payment_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ecomfy_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
@@ -219,10 +219,10 @@ INSERT INTO public.ecomfy_pay_settings (key, value) VALUES ('withdrawals_enabled
 ON CONFLICT (key) DO NOTHING;
 
 -- PAYMENT LINKS
-CREATE POLICY "Merchants manage own payment links" ON public.payment_links FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.shops WHERE shops.id = payment_links.shop_id AND shops.user_id = auth.uid())
+CREATE POLICY "Merchants manage own payment links" ON public.ecomfy_payment_links FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.shops WHERE shops.id = ecomfy_payment_links.shop_id AND shops.user_id = auth.uid())
 );
-CREATE POLICY "Public read active payment links" ON public.payment_links FOR SELECT USING (is_active = TRUE);
+CREATE POLICY "Public read active payment links" ON public.ecomfy_payment_links FOR SELECT USING (is_active = TRUE);
 
 -- PAYMENTS
 CREATE POLICY "Merchants view own payments" ON public.ecomfy_payments FOR SELECT USING (auth.uid() = merchant_id);
