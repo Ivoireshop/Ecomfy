@@ -275,6 +275,7 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 - **Tables restées ouvertes (`USING (true)`) :** `corporate_vesting_milestones`, `corporate_document_versions`, `corporate_document_acceptances`, `corporate_proposal_approvals`, `corporate_cap_table_snapshots`, `corporate_intellectual_property`, `corporate_offboarding_cases`, `corporate_audit_logs`.
 - **Impact :** n'importe quel inscrit lit et modifie la table de capitalisation, la propriété intellectuelle, les cas de départ, et peut **effacer ou falsifier le journal d'audit**.
 - **Correctif :** supprimer ces politiques, appliquer `is_authorized_corporate_member()` en lecture et un rôle fondateur en écriture.
+- **État (15/10/2026) :** les 14 tables `corporate_*` sont fermées en production depuis le hotfix `20261012120000` (lecture `founder`, `co_founder`, `shareholder`, `admin` ; écriture `founder`, `co_founder`). Reste le résidu des deux politiques d'insertion libres (`corporate_audit_logs`, `corporate_document_acceptances`) : corrigé dans le code par `20261015150000_h2_corporate_audit_append_only.sql` (ajout seul, au nom de l'appelant) et `src/pages/CorporateOnboardingPage.tsx`, test `supabase/tests/h2_corporate_8_tables.sql` (121 cas sur 121 en base jetable) ; non déployé.
 
 #### H3. `isAuthorizedCron` accepte un JWT dont la signature n'est pas vérifiée
 - **Où :** `supabase/functions/_shared/cron-auth.ts:9-24`.
@@ -766,7 +767,7 @@ Procédure, résultats, incident ouvert et liste des points restants : [`docs/DE
 | C3 `get_shop_orders_secure` | **Appliqué** (`authenticated` + `service_role`, contrôle du propriétaire interne) |
 | C7 `manage-founder-roles` + RLS `user_roles` | **Appliqué** ; 401 sans JWT ; écriture directe retirée ; nomination et révocation non testées |
 | C8 | `track-conversion` et front déployés ; requête de détection non lancée |
-| H2 `corporate_*` | **Appliqué et vérifié** (2 politiques d'insertion voulues) |
+| H2 `corporate_*` | **Appliqué et vérifié** (2 politiques d'insertion ouvertes ; resserrées par `20261015150000`, non déployée) |
 | H11 | Migration et secret Vault appliqués ; push de commande OK ; health-monitor : 200 depuis le 14/10/2026 |
 | C1, C4, C5 (Ecomfy Pay) | **Non déployés** ; bloqués par C6, H1 et le conflit `payment_links` |
 | Front | **Déployé** (13/10/2026). Variables `VITE_*` à définir aussi pour Preview si les previews doivent builder. Tests applicatifs à confirmer. |
