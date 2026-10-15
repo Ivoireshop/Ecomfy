@@ -5,6 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
+import { checkAmount } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -213,7 +214,34 @@ serve(async (req) => {
       );
     }
 
-    const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id, plan } = validatedData;
+    const { amount, payment_method, user_id, provider, phone, promo_code, payment_type, credits_pack, shop_id, plan, billing_cycle } = validatedData;
+
+    // C6 : le montant et les crédits viennent des tarifs serveur (_shared/pricing.ts), jamais du navigateur.
+    let commissionBalanceDue: number | null = null;
+    if (payment_type === "commission_payment") {
+      const { data: commissionShop } = shop_id
+        ? await supabase.from("shops").select("commission_balance_due").eq("id", shop_id).eq("user_id", user_id).maybeSingle()
+        : { data: null };
+      if (!commissionShop) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      commissionBalanceDue = Number(commissionShop.commission_balance_due) || 0;
+    }
+
+    const priceCheck = checkAmount(
+      { paymentType: payment_type, plan, billingCycle: billing_cycle, creditsPack: credits_pack, commissionBalanceDue },
+      amount,
+    );
+    if (!priceCheck.ok) {
+      console.warn("Payment amount rejected (C6):", { user_id, payment_type, plan, billing_cycle, amount, credits_pack, error: priceCheck.error });
+      return new Response(
+        JSON.stringify({ success: false, error: priceCheck.error }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // === GeniusPay integration ===
     const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
@@ -486,7 +514,10 @@ serve(async (req) => {
       original_amount: amount,
     };
     if (credits_pack?.size) metadata.credits_size = credits_pack.size;
-    if (shop_id) metadata.shop_id = shop_id;
+    // C6 : jamais un shop_id du navigateur non vérifié. Abonnement : boutique du demandeur (targetShopId) ;
+    // commission : appartenance contrôlée plus haut ; activation : contrôlée par prepare_shop_activation_payment.
+    const verifiedShopId = payment_type === "shop_subscription" ? targetShopId : shop_id;
+    if (verifiedShopId) metadata.shop_id = verifiedShopId;
     if (plan) metadata.plan = plan;
     if (promoCodeId) metadata.promo_code_id = promoCodeId;
     if (discountPercentage) metadata.discount_percentage = discountPercentage;

@@ -1,3 +1,4 @@
+import { priceLine } from "@/lib/bundlePricing";
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -615,18 +616,15 @@ const ProductView = () => {
 
     if (cart.length === 0) {
       if (!product) return;
-      const pBundles = (product as any).bundles || (product as any).bundle_offers || [];
-      const basePrice = selectedBundleIdx !== null && pBundles[selectedBundleIdx] 
-         ? (pBundles[selectedBundleIdx].price / pBundles[selectedBundleIdx].quantity) 
-         : (product.price || 0);
-      const itemPrice = basePrice * quantity;
+      const line = priceLine(product as any, selectedBundleIdx, quantity);
       effectiveOrderCart = [{ 
         product, 
         quantity, 
         selectedVariants: selectedVariants, 
-        bundle: selectedBundleIdx !== null && pBundles ? pBundles[selectedBundleIdx] : undefined 
+        bundle: line.offer,
+        bundleIndex: line.bundleIndex,
       } as any];
-      effectiveOrderCartTotal = itemPrice;
+      effectiveOrderCartTotal = line.total;
     }
 
     if (isEnabled("first_name") && isRequired("first_name") && !customerInfo.name) {
@@ -697,10 +695,15 @@ const ProductView = () => {
         product_image_url: item.product.product_images?.[0]?.image_url || null,
         quantity: item.quantity, unit_price: item.product.price,
         total_price: item.product.price * item.quantity,
+        bundle_index: (item as any).bundleIndex ?? null,
         selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
       }));
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems) as any;
-      if (itemsError) console.error("[ProductView] order_items insert failed", itemsError);
+      if (itemsError) {
+        console.error("[ProductView] order_items insert failed", itemsError);
+        // Une commande sans article ne peut pas être payée en ligne ni traitée : ne pas annoncer un succès.
+        if (customerInfo.paymentMethod === "mobile_money") throw new Error("Impossible d'enregistrer les articles de la commande. Réessayez.");
+      }
       // Distinguer le tracking Meta: InitiateCheckout pour paiement en ligne, Purchase pour paiement à la livraison
       const trackingPayload = {
         value: effectiveOrderCartTotal,
@@ -732,6 +735,11 @@ const ProductView = () => {
           window.location.href = payRes.checkout_url;
           return;
         }
+        if (!payRes.success) {
+          // Ne pas afficher « commande confirmée » quand le paiement n'a pas pu démarrer : le panier est conservé.
+          toast({ title: "Paiement non démarré", description: payRes.error || "Réessayez ou choisissez le paiement à la livraison.", variant: "destructive" });
+          return;
+        }
       } else {
         if (typeof window !== "undefined" && order.order_number) {
           sessionStorage.setItem(`vp_tracked_purchase_${order.order_number}`, "1");
@@ -753,7 +761,7 @@ const ProductView = () => {
           advisorPhone: shop.delivery_advisor_phone || shop.phone_number,
           whatsappNumber: shop.whatsapp_number,
           orderNumber: order.order_number,
-          total: cartTotal,
+          total: effectiveOrderCartTotal,
         },
       });
     } catch (error: any) {
@@ -889,17 +897,15 @@ const ProductView = () => {
                     let effectiveCart = cart;
                     let effectiveTotal = cartTotal;
                     if (cart.length === 0 && product) {
-                      const pBundles = (product as any).bundles || (product as any).bundle_offers || [];
-                      const basePrice = selectedBundleIdx !== null && pBundles[selectedBundleIdx] 
-                        ? (pBundles[selectedBundleIdx].price / pBundles[selectedBundleIdx].quantity) 
-                        : (product.price || 0);
+                      const line = priceLine(product as any, selectedBundleIdx, quantity);
                       effectiveCart = [{ 
                         product, 
                         quantity, 
                         selectedVariants: selectedVariants, 
-                        bundle: selectedBundleIdx !== null && pBundles ? pBundles[selectedBundleIdx] : undefined 
+                        bundle: line.offer,
+                        lineTotal: line.total,
                       } as any];
-                      effectiveTotal = basePrice * quantity;
+                      effectiveTotal = line.total;
                     }
                     
                     return (
@@ -931,13 +937,13 @@ const ProductView = () => {
                       {/* Variants & Bundles */}
                       {(Object.keys(item.selectedVariants || item.variants || {}).length > 0 || item.bundle) && (
                         <div className="text-[12px] text-gray-500 mt-0.5 line-clamp-1">
-                          {item.bundle && <span className="font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mr-1">Offre : {item.bundle.name}</span>}
+                          {item.bundle && <span className="font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mr-1">Offre : {item.bundle.label || `Lot de ${item.bundle.quantity}`}</span>}
                           {Object.entries(item.selectedVariants || item.variants || {}).map(([k, v]) => `${v}`).join(", ")}
                         </div>
                       )}
                       
                       <div className="flex items-center justify-between mt-2">
-                        <span className="font-black text-[15px]" style={{ color: primaryColor }}>{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                        <span className="font-black text-[15px]" style={{ color: primaryColor }}>{formatPrice(item.lineTotal ?? item.product.price * item.quantity)} FCFA</span>
                         
                         {/* Quantity Selector */}
                         <div 

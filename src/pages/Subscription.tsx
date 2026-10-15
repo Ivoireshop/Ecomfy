@@ -227,6 +227,7 @@ const Subscription = () => {
       });
 
       if (error) throw error;
+      if (data?.success === false && data?.error) throw new Error(data.error);
 
       // Debug: log raw response for visibility
       console.log("process-payment response:", data);
@@ -271,8 +272,8 @@ const Subscription = () => {
   const creditPacks = [
     { size: 10, price: 1000, popular: false },
     { size: 20, price: 2000, popular: false },
-    { size: 30, price: 3000, popular: false },
-    { size: 40, price: 4000, popular: false },
+    { size: 30, price: 2500, popular: false },
+    { size: 40, price: 3000, popular: false },
     { size: 50, price: 5000, popular: true },
   ];
 

@@ -246,9 +246,14 @@ export const ecomfyPayApi = {
       });
 
       if (error || !data?.success) {
+        // Les refus du serveur (montant, commande, lien) arrivent en 4xx : le message est dans le corps de la réponse.
+        let serverMessage: string | undefined = data?.error;
+        if (!serverMessage && (error as any)?.context?.json) {
+          serverMessage = await (error as any).context.json().then((b: any) => b?.error).catch(() => undefined);
+        }
         return {
           success: false,
-          error: data?.error || error?.message || "Impossible d'initialiser le paiement.",
+          error: serverMessage || error?.message || "Impossible d'initialiser le paiement.",
         };
       }
 
