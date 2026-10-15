@@ -31,6 +31,8 @@ project_id = "ecomfy"
     verify_jwt = false
   [functions.generate-voiceover]
     verify_jwt = false
+  [functions.ecomfy-pay-webhook]
+    verify_jwt = false
   [functions.geniuspay-webhook]
     verify_jwt = false
   [functions.get-vapid-key]

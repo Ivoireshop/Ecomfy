@@ -36,10 +36,10 @@ serve(async (req) => {
   }
 
   // Always return 200 with JSON body to acknowledge receipt — GeniusPay won't retry on 4xx repeatedly
-  const ack = (body: Record<string, unknown>, log = false) => {
+  const ack = (body: Record<string, unknown>, log = false, status = 200) => {
     if (log) console.log("Webhook ack:", body);
     return new Response(JSON.stringify(body), {
-      status: 200,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   };
@@ -47,8 +47,10 @@ serve(async (req) => {
   try {
     const secret = Deno.env.get("GENIUSPAY_WEBHOOK_SECRET");
     if (!secret) {
+      // 500 (comme ecomfy-pay-webhook) : panne de configuration de notre côté, le fournisseur réessaiera
+      // une fois le secret défini au lieu de considérer l'événement livré.
       console.error("GENIUSPAY_WEBHOOK_SECRET not configured");
-      return ack({ success: false, error: "Webhook secret not configured" });
+      return ack({ success: false, error: "Webhook secret not configured" }, false, 500);
     }
 
     const rawBody = await req.text();

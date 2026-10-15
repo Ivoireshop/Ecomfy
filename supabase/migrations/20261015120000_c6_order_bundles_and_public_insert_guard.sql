@@ -9,6 +9,13 @@
 
 ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS bundle_index integer;
 
+-- guard_public_order_insert (plus bas) remet ces deux colonnes à NULL : si elles n'existent pas, TOUTE insertion publique
+-- de commande échoue (« record "new" has no field "internal_delivery_note" »). Elles viennent de 20260918120000, que
+-- dev (et peut-être la production) n'a pas reçue. Mêmes définitions, sans effet si elles existent déjà.
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS scheduled_delivery_date date,
+  ADD COLUMN IF NOT EXISTS internal_delivery_note text;
+
 CREATE OR REPLACE FUNCTION public.enforce_order_item_price()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
