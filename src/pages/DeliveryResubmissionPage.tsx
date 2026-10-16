@@ -85,13 +85,8 @@ export default function DeliveryResubmissionPage() {
     if (!company) return;
     setSubmitting(true);
     try {
-      await deliveryService.processIdentityVerification({
-        companyId: company.id,
-        userEmail: "gerant@ecomfy.cloud",
-        userName: company.manager_name,
-        verificationStatus: "pending_verification",
-        rejectionReason: undefined
-      });
+      // Remise en file d'attente ; la décision reste à l'administrateur (H5).
+      await deliveryService.resubmitForVerification(company.id);
 
       toast({
         title: "Dossier resoumis avec succès !",

@@ -264,13 +264,33 @@ export const deliveryService = {
   },
 
   /**
-   * Process identity verification result & trigger automated email notifications
+   * Owner: remet son dossier en file d'attente. Seule cette transition est autorisée à un non-admin
+   * (garde-fou SQL guard_delivery_company_verification) ; les autres champs de vérification restent intacts.
+   */
+  async resubmitForVerification(companyId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from("delivery_companies" as any)
+      .update({
+        verification_status: "pending_verification",
+        verification_requested_at: new Date().toISOString(),
+      })
+      .eq("id", companyId);
+    if (error) {
+      console.error("Error resubmitting delivery company:", error);
+      throw new Error(error.message);
+    }
+    return true;
+  },
+
+  /**
+   * Process identity verification result & trigger automated email notifications.
+   * Réservé aux administrateurs (la fonction Edge répond 403 sinon). Le destinataire est relu côté serveur.
    */
   async processIdentityVerification(payload: {
     companyId?: string;
     driverId?: string;
-    userEmail: string;
-    userName: string;
+    userEmail?: string;
+    userName?: string;
     verificationStatus: "approved" | "rejected";
     rejectionReason?: string;
     docType?: string;

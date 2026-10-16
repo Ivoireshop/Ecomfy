@@ -135,11 +135,12 @@ export function DeliveryOnboardingWizard() {
 
     setSubmitting(true);
     try {
-      const isApproved = idDocAnalysis?.valid && (profileType === 'manager' || licenseAnalysis?.passed) && faceMatchResult?.passed;
-      const finalStatus = isApproved ? 'approved' : 'rejected';
-      const rejectionReason = isApproved ? undefined : (idDocAnalysis?.rejection_reason || licenseAnalysis?.reason || "Vérification biométrique incomplète.");
+      // Les contrôles ci-dessus sont faits côté navigateur : ils orientent le message affiché mais ne valident
+      // jamais le compte. La décision (badge de confiance) est prise par un administrateur (H5).
+      const prechecksPassed = idDocAnalysis?.valid && (profileType === 'manager' || licenseAnalysis?.passed) && faceMatchResult?.passed;
+      const rejectionReason = prechecksPassed ? undefined : (idDocAnalysis?.rejection_reason || licenseAnalysis?.reason || "Vérification biométrique incomplète.");
 
-      const registered = await deliveryService.registerDeliveryCompany({
+      await deliveryService.registerDeliveryCompany({
         company_name: companyName || `${firstName} ${lastName} Express`,
         country: COUNTRIES_LIST.find(c => c.code === countryCode)?.name || "Côte d'Ivoire",
         country_code: countryCode,
@@ -166,25 +167,16 @@ export function DeliveryOnboardingWizard() {
         }] : []
       });
 
-      await deliveryService.processIdentityVerification({
-        companyId: registered.id,
-        userEmail: "demandeur@ecomfy.cloud",
-        userName: `${firstName} ${lastName}`,
-        verificationStatus: finalStatus,
-        rejectionReason: rejectionReason,
-        faceMatchScore: faceMatchResult?.score || 92
-      });
-
-      if (isApproved) {
+      if (prechecksPassed) {
         toast({
-          title: "Accès Ecomfy Livraison Activé ! 🎉",
-          description: "Votre compte est validé et prêt à recevoir des commandes de livraison."
+          title: "Dossier transmis ✅",
+          description: "Votre demande est en cours d'examen par l'équipe Ecomfy. Vous serez notifié de la décision."
         });
       } else {
         toast({
           variant: "destructive",
-          title: "Demande non validée ❌",
-          description: rejectionReason || "Certaines informations nécessitent une correction."
+          title: "Dossier transmis avec réserves",
+          description: `${rejectionReason || "Certaines informations nécessitent une correction."} L'équipe Ecomfy examinera votre dossier.`
         });
       }
 

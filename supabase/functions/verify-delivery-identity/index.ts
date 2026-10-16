@@ -11,13 +11,48 @@ const corsHeaders = {
 interface VerifyDeliveryIdentityPayload {
   companyId?: string;
   driverId?: string;
-  userEmail: string;
-  userName: string;
+  // Ignorés : le destinataire est toujours relu en base (propriétaire de la structure).
+  userEmail?: string;
+  userName?: string;
   verificationStatus: "approved" | "rejected";
   rejectionReason?: string;
   docType?: string;
   licenseCategory?: string;
   faceMatchScore?: number;
+}
+
+const json = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+// Seuls les rôles user_roles admin / founder / co_founder peuvent décider d'une vérification.
+// `supabase` doit être un client service_role.
+async function requireDeliveryAdmin(
+  req: Request,
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ userId: string } | { error: Response }> {
+  const token = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+  if (userError || !userData.user?.id) {
+    return { error: json(401, { error: "Session expirée ou invalide." }) };
+  }
+  const userId = userData.user.id;
+
+  const { data: roles, error: rolesError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["admin", "founder", "co_founder"]);
+  if (rolesError) {
+    console.error("[verify-delivery-identity] roles error:", rolesError);
+    return { error: json(500, { error: "Vérification des droits impossible." }) };
+  }
+  if (!roles?.length) {
+    return { error: json(403, { error: "Action réservée aux administrateurs." }) };
+  }
+  return { userId };
 }
 
 serve(async (req) => {
@@ -30,21 +65,58 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload: VerifyDeliveryIdentityPayload = await req.json();
-    const { companyId, driverId, userEmail, userName, verificationStatus, rejectionReason, faceMatchScore } = payload;
+    const auth = await requireDeliveryAdmin(req, supabase);
+    if ("error" in auth) return auth.error;
 
-    if (!userEmail) {
-      return new Response(
-        JSON.stringify({ error: "L'e-mail du destinataire est obligatoire." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const payload: VerifyDeliveryIdentityPayload = await req.json();
+    const { companyId, driverId, userName, verificationStatus, rejectionReason, faceMatchScore } = payload;
+
+    if (verificationStatus !== "approved" && verificationStatus !== "rejected") {
+      return json(400, { error: "Statut de vérification invalide." });
+    }
+    if (!companyId && !driverId) {
+      return json(400, { error: "companyId ou driverId est obligatoire." });
     }
 
-    console.log(`[verify-delivery-identity] Processing payload for ${userName} (${userEmail}): status = ${verificationStatus}`);
+    const isApproved = verificationStatus === "approved";
+
+    // Le chauffeur n'a pas de compte propre : on remonte à sa structure.
+    let resolvedCompanyId = companyId;
+    if (driverId) {
+      const { data: driver, error: driverError } = await supabase
+        .from("delivery_drivers")
+        .select("company_id")
+        .eq("id", driverId)
+        .maybeSingle();
+      if (driverError || !driver) {
+        return json(404, { error: "Chauffeur introuvable." });
+      }
+      if (companyId && driver.company_id !== companyId) {
+        return json(400, { error: "Ce chauffeur n'appartient pas à cette structure." });
+      }
+      resolvedCompanyId = driver.company_id;
+    }
+
+    const { data: company, error: companyError } = await supabase
+      .from("delivery_companies")
+      .select("id, user_id, manager_name")
+      .eq("id", resolvedCompanyId!)
+      .maybeSingle();
+    if (companyError || !company) {
+      return json(404, { error: "Structure de livraison introuvable." });
+    }
+
+    // Destinataire : e-mail du compte propriétaire, jamais une valeur fournie par l'appelant.
+    let userEmail: string | null = null;
+    if (company.user_id) {
+      const { data: owner } = await supabase.auth.admin.getUserById(company.user_id);
+      userEmail = owner?.user?.email ?? null;
+    }
+
+    console.log(`[verify-delivery-identity] ${auth.userId} → company ${company.id}: status = ${verificationStatus}`);
 
     // 1. Update Database Status
     if (companyId) {
-      const isApproved = verificationStatus === "approved";
       const { error: dbError } = await supabase
         .from("delivery_companies")
         .update({
@@ -52,24 +124,29 @@ serve(async (req) => {
           trust_badge_active: isApproved,
           rejection_reason: isApproved ? null : rejectionReason || "Document ou comparaison faciale non conforme.",
           verified_at: isApproved ? new Date().toISOString() : null,
+          verified_by: isApproved ? auth.userId : null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", companyId);
 
       if (dbError) {
         console.error("[verify-delivery-identity] Database error updating company:", dbError);
+        return json(500, { error: "Mise à jour du statut impossible." });
       }
     }
 
     if (driverId) {
-      const isApproved = verificationStatus === "approved";
-      await supabase
+      const { error: driverUpdateError } = await supabase
         .from("delivery_drivers")
         .update({
           is_active: isApproved,
           updated_at: new Date().toISOString(),
         })
         .eq("id", driverId);
+      if (driverUpdateError) {
+        console.error("[verify-delivery-identity] Database error updating driver:", driverUpdateError);
+        return json(500, { error: "Mise à jour du chauffeur impossible." });
+      }
     }
 
     // 2. Dispatch Transactional Support Email via RESEND API or Mail Hook
@@ -77,7 +154,7 @@ serve(async (req) => {
     let emailSent = false;
 
     // Valeurs libres de l'appelant : échappées avant insertion dans le HTML.
-    const safeUserName = escapeHtml(userName);
+    const safeUserName = escapeHtml(company.manager_name || userName || "");
     const safeRejectionReason = escapeHtml(
       rejectionReason || "Les pièces soumises ou le selfie de vérification ne répondent pas aux exigences de sécurité d'Ecomfy."
     );
@@ -191,7 +268,9 @@ serve(async (req) => {
         </html>
       `;
 
-    if (resendApiKey) {
+    if (!userEmail) {
+      console.warn(`[verify-delivery-identity] No owner e-mail for company ${company.id}: notification skipped`);
+    } else if (resendApiKey) {
       try {
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -221,22 +300,18 @@ serve(async (req) => {
       emailSent = true;
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        status: verificationStatus,
-        emailSent,
-        message: verificationStatus === "approved"
+    return json(200, {
+      success: true,
+      status: verificationStatus,
+      emailSent,
+      message: emailSent
+        ? (isApproved
           ? "Compte approuvé et e-mail de félicitations envoyé."
-          : "Compte rejeté et e-mail de notification avec motif envoyé."
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+          : "Compte rejeté et e-mail de notification avec motif envoyé.")
+        : (isApproved ? "Compte approuvé (e-mail non envoyé)." : "Compte rejeté (e-mail non envoyé)."),
+    });
   } catch (err: any) {
     console.error("[verify-delivery-identity] Error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message || "Erreur lors de la vérification d'identité." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json(500, { error: err.message || "Erreur lors de la vérification d'identité." });
   }
 });
