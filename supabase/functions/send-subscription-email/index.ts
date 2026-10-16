@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "npm:resend@4.0.0";
-import { guardEmail } from "../_shared/email-sender.ts";
+import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
+import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
+import { escapeHtml, isValidEmail } from "../_shared/email-safety.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -22,8 +24,31 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Fonction interne : appelée uniquement par geniuspay-webhook et payment-callback avec la clé de service.
+  if (!isAuthorizedCron(req)) {
+    return cronUnauthorizedResponse(corsHeaders);
+  }
+
   try {
     const { email, full_name, amount, start_date, end_date }: EmailRequest = await req.json();
+
+    const startDate = new Date(start_date);
+    const endDate = new Date(end_date);
+    const amountNumber = Number(amount);
+    if (
+      !isValidEmail(email) ||
+      !Number.isFinite(amountNumber) ||
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime())
+    ) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Paramètres invalides" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const safeName = escapeHtml(String(full_name ?? "").slice(0, 100) || "Cher utilisateur");
+    const formatDate = (d: Date) =>
+      d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
     console.log("Sending subscription confirmation email to:", email);
 
@@ -118,12 +143,12 @@ serve(async (req) => {
           </head>
           <body>
             <div class="header">
-              <h1>🎉 Félicitations ${full_name} !</h1>
+              <h1>🎉 Félicitations ${safeName} !</h1>
               <p style="margin: 10px 0 0 0; font-size: 16px;">Votre abonnement Ecomfy est maintenant actif</p>
             </div>
             
             <div class="content">
-              <p>Bonjour <strong>${full_name}</strong>,</p>
+              <p>Bonjour <strong>${safeName}</strong>,</p>
               
               <p>Nous sommes ravis de vous accueillir parmi nos membres Premium ! Votre paiement a été confirmé et votre compte est désormais actif.</p>
               
@@ -131,15 +156,15 @@ serve(async (req) => {
                 <h3 style="margin-top: 0; color: #667eea;">📋 Détails de votre abonnement</h3>
                 <div class="info-row">
                   <span class="label">Montant facturé :</span>
-                  <span class="value"><strong>${amount.toLocaleString()} FCFA</strong></span>
+                  <span class="value"><strong>${amountNumber.toLocaleString()} FCFA</strong></span>
                 </div>
                 <div class="info-row">
                   <span class="label">Date de début :</span>
-                  <span class="value">${new Date(start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  <span class="value">${formatDate(startDate)}</span>
                 </div>
                 <div class="info-row">
                   <span class="label">Date d'expiration :</span>
-                  <span class="value">${new Date(end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  <span class="value">${formatDate(endDate)}</span>
                 </div>
                 <div class="info-row">
                   <span class="label">Statut :</span>
@@ -172,7 +197,7 @@ serve(async (req) => {
               </div>
               
               <div style="text-align: center;">
-                <a href="${Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "lovableproject.com")}/generator" class="cta-button">
+                <a href="${APP_URL}/studio" class="cta-button">
                   Commencer à créer mes visuels →
                 </a>
               </div>

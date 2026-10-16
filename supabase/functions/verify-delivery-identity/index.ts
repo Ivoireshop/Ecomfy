@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.8";
 import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
+import { escapeHtml } from "../_shared/email-safety.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +76,15 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     let emailSent = false;
 
+    // Valeurs libres de l'appelant : échappées avant insertion dans le HTML.
+    const safeUserName = escapeHtml(userName);
+    const safeRejectionReason = escapeHtml(
+      rejectionReason || "Les pièces soumises ou le selfie de vérification ne répondent pas aux exigences de sécurité d'Ecomfy."
+    );
+    const safeFaceMatchScore = Number.isFinite(Number(faceMatchScore)) && Number(faceMatchScore) > 0
+      ? Math.min(100, Math.round(Number(faceMatchScore)))
+      : 94;
+
     const emailSubject = verificationStatus === "approved"
       ? "🎉 Votre compte Ecomfy Livraison a été approuvé !"
       : "⚠️ Information importante : Décision concernant votre demande Ecomfy Livraison";
@@ -93,7 +103,7 @@ serve(async (req) => {
             </div>
 
             <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 16px;">
-              Félicitations, ${userName} ! 🎉
+              Félicitations, ${safeUserName} ! 🎉
             </h1>
 
             <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">
@@ -104,7 +114,7 @@ serve(async (req) => {
               <p style="margin: 0; color: #e2e8f0; font-size: 14px;">
                 ✅ <strong>Pièce d'identité (CNI/Passeport) :</strong> Conforme<br/>
                 ✅ <strong>Permis de Conduire (Catégorie A/B) :</strong> Validé<br/>
-                ✅ <strong>Comparaison Faciale (Face Matching) :</strong> Réussie (${faceMatchScore || 94}%)
+                ✅ <strong>Comparaison Faciale (Face Matching) :</strong> Réussie (${safeFaceMatchScore}%)
               </p>
             </div>
 
@@ -144,7 +154,7 @@ serve(async (req) => {
             </h1>
 
             <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">
-              Bonjour ${userName},
+              Bonjour ${safeUserName},
             </p>
 
             <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">
@@ -156,7 +166,7 @@ serve(async (req) => {
                 Motif du refus :
               </p>
               <p style="margin: 4px 0 0 0; color: #ffffff; font-size: 14px;">
-                ${rejectionReason || "Les pièces soumises ou le selfie de vérification ne répondent pas aux exigences de sécurité d'Ecomfy."}
+                ${safeRejectionReason}
               </p>
             </div>
 
