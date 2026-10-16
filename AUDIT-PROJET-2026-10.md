@@ -293,7 +293,7 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
   - `send-subscription-email` : réservée à la clé de service (`isAuthorizedCron`) ; les deux appelants (`geniuspay-webhook`, `payment-callback`) utilisent déjà un client service_role. Champs validés, nom échappé. Le bouton pointe vers `APP_URL/studio` (l'ancien lien `…lovableproject.com/generator` était une URL fabriquée à partir de `SUPABASE_URL`).
   - `send-domain-ready-notification` : réservée à la clé de service ; seul `showcaseId` est lu dans le corps, domaine, nom et destinataire sont relus dans `showcase_sites` et `profiles` (et le domaine doit être `active` avec SSL `active`). `verify-domain-dns` envoie désormais la clé de service au lieu de la clé anon.
   - `send-corporate-invite` : `requireFounder` (JWT + rôle `founder`/`co_founder`), e-mail et jeton (`^[A-Za-z0-9_-]{8,128}$`) validés, plus de `demo-token`, rôle hors liste ramené à « Associé », `originUrl` limité à `APP_URL`, `https://ecomfy.cloud` et au secret optionnel `EMAIL_LINK_ORIGINS` (sinon repli sur `APP_URL`), tout est échappé.
-  - `verify-delivery-identity` : `userName`, `rejectionReason`, `faceMatchScore` échappés ou bornés. **L'autorisation (H5) et le destinataire libre restent à traiter.**
+  - `verify-delivery-identity` : `userName`, `rejectionReason`, `faceMatchScore` échappés ou bornés ; autorisation et destinataire traités avec H5 ci-dessous.
   - Limite connue : `send-corporate-invite` n'a pas de lecture en base du destinataire, car `corporate_invitations` est ouverte en écriture à `public` (annexe F) ; le verrou est le contrôle de rôle.
   - Prérequis au déploiement : redéployer `send-subscription-email`, `send-domain-ready-notification`, `verify-domain-dns`, `send-corporate-invite`, `verify-delivery-identity`. Si la gouvernance est utilisée depuis un autre domaine que `ecomfy.cloud`, renseigner `EMAIL_LINK_ORIGINS`.
 
@@ -301,6 +301,13 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 - **Où :** `supabase/functions/verify-delivery-identity/index.ts:40-69`.
 - **Constat :** la fonction n'exige que `verify_jwt` (comportement par défaut). Elle écrit `verification_status` et `trust_badge_active` avec la clé de service, à partir de `companyId`, `driverId` et `verificationStatus` fournis par l'appelant.
 - **Correctif :** réserver à un fondateur/admin (vérification de rôle dans la fonction), ou transformer en simple fonction d'envoi appelée après une décision prise côté serveur.
+- **Statut (16/10/2026) : corrigé dans le code, non déployé, non testé sur Deno.**
+  - `verify-delivery-identity` : JWT vérifié puis rôle `admin`, `founder` ou `co_founder` dans `user_roles` (401/403 sinon). `verificationStatus` limité à `approved`/`rejected`, `companyId` ou `driverId` obligatoire (un chauffeur remonte à sa structure). Le destinataire n'est plus lu dans le corps : c'est l'e-mail du compte propriétaire de la structure (`auth.admin.getUserById`), le nom vient de `manager_name`. `verified_by` est renseigné à l'approbation, une erreur de base renvoie 500 au lieu d'être ignorée.
+  - **Faille voisine corrigée :** la politique « Owners can update own delivery company » n'a aucune restriction de colonnes et la politique d'INSERT accepte tout utilisateur connecté, donc un propriétaire pouvait écrire `verification_status = 'approved'` directement et contourner la fonction. Migration `20261016120000_h5_delivery_verification_guard.sql` : trigger `BEFORE INSERT OR UPDATE` qui, pour un non-admin, force une nouvelle demande en `pending_verification` sans badge, et n'autorise à l'UPDATE que la transition vers `pending_verification` (jamais depuis `approved`) ; badge, `verified_*`, `rejection_reason`, `admin_notes` sont immuables. La clé de service et le SQL direct ne sont pas bridés.
+  - Client : `DeliveryOnboardingWizard` n'auto-approuve plus (les contrôles biométriques restent simulés côté navigateur, le dossier part toujours en attente) ; `DeliveryResubmissionPage` utilise `deliveryService.resubmitForVerification` ; `DeliveryAdminPage` n'envoie plus d'adresse fabriquée.
+  - **Effet produit :** l'approbation automatique à l'inscription disparaît, toute validation passe par `/delivery-admin`.
+  - Prérequis au déploiement : appliquer la migration, redéployer `verify-delivery-identity`, vérifier qu'au moins un compte admin/fondateur existe dans `user_roles`.
+  - Reste ouvert : la route `/delivery-admin` n'a qu'un `ProtectedRoute` (sans contrôle de rôle côté interface, la protection effective est celle de la fonction et du trigger) ; la politique « Admins full access » s'appuie sur `profiles.role` (absent des types générés) et `email LIKE '%foundation%'`, à revoir ; le propriétaire peut encore modifier `rating_score`, `successful_deliveries_count`, `user_id`.
 
 #### H6. Système d'affiliation (travail récent) : failles de politique RLS et de RPC
 - **Où :** `20261005160000_ecomfy_affiliate_system.sql:148,172,220-270`.
@@ -443,7 +450,7 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 9. Corriger `isAuthorizedCron`.
 10. Bucket privé pour la KYC, migration des fichiers, vraie vérification d'identité.
 11. En-têtes de sécurité dans `vercel.json`, CSP resserrée.
-12. Authentifier et escaper les fonctions d'e-mail (H4), `verify-delivery-identity`.
+12. Authentifier et escaper les fonctions d'e-mail (H4), `verify-delivery-identity` (H5, corrigé dans le code).
 13. Réactiver des quotas IA et authentifier `correct-text`.
 14. Retirer `.env` de Git, aligner les identifiants de projet Supabase.
 
@@ -471,7 +478,7 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 | `process-payment`, `verify-payment` | JWT utilisateur | Montants client (C6) |
 | `send-subscription-email`, `send-domain-ready-notification` | Clé de service (`isAuthorizedCron`) | H4 corrigé dans le code, non déployé |
 | `send-corporate-invite` | JWT + rôle fondateur (`requireFounder`) | H4 corrigé dans le code, non déployé |
-| `verify-delivery-identity` | JWT par défaut, aucun contrôle de rôle | H5 |
+| `verify-delivery-identity` | JWT + rôle `admin`/`founder`/`co_founder` | H5 corrigé dans le code, non déployé |
 | `send-push-notification` | Non | Faible |
 | `correct-text` | **Non** | H9 |
 | `translate-ui`, `shop-ai-assistant-chat`, `shop-ai-assistant-tts`, `shop-chatbot`, `showcase-chat` | Non (limites IP) | H9 / M5 |

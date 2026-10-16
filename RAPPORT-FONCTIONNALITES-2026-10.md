@@ -630,7 +630,7 @@ Un seul de ces quatre modules (Studio IA) a sa base ; Ecomfy Pay, Ecomfy Livrais
 | **F11 blocage par seuil** | Déployer `20260909100000` (C3 corrigé dans la migration d'origine sur `jeanmarc`) puis `20261012130000`, qui réserve `confirm_invoice_payment` à `service_role` ; corriger auparavant `check_and_trigger_billing_threshold` et `enforce_shop_billing_deadlines` (groupe B de l'audit, encore appelables par `anon`) ; vérifier `shops.commission_balance_due` | 2 |
 | **F21 gouvernance** | `20260906000000` (`corporate_invitations`) après correction de sa politique (H2 restant) | 2 |
 | **F19 SEO** | `20260902120000` + brancher la boutique réelle sur la route `/seo` | 3 |
-| **F10 Ecomfy Livraison** | `20260906010000` + `20260907140000` ; remplacer la vérification simulée par un prestataire ou la décision manuelle uniquement ; corriger H5 (`verify-delivery-identity` sans contrôle de rôle) | 3 |
+| **F10 Ecomfy Livraison** | `20260906010000` + `20260907140000` ; remplacer la vérification simulée par un prestataire ou la décision manuelle uniquement ; H5 (`verify-delivery-identity` sans contrôle de rôle) corrigé dans le code le 16/10/2026, à déployer avec la migration `20261016120000` | 3 |
 | **F17b ConnectUs** | `20260912150000` ; retirer les comptes fictifs ; masquer ou implémenter le « Live » | 3 |
 | **F20 Affiliation** | Corriger H6 et le groupe B **avant** `20261005160000` | 4 |
 | **F12 Ecomfy Pay** | Déployer le renommage `ecomfy_payment_links` (fait dans le dépôt), appliquer C6 (montants serveur), H1 (bucket KYC privé), choisir le prestataire KYC, tester GeniusPay en bac à sable, **puis** passer `withdrawals_enabled` à `true` | 5 (le plus risqué : de l'argent réel) |
