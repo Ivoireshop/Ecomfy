@@ -288,6 +288,14 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 - **Où :** `send-subscription-email/index.ts` (aucune authentification, destinataire et contenu libres, `${full_name}` non échappé) ; `send-domain-ready-notification/index.ts` (idem avec `ownerEmail`, `customDomain`) ; `send-corporate-invite/index.ts:18` (authentifié mais destinataire, rôle et `originUrl` libres) ; `verify-delivery-identity/index.ts` (`userName` non échappé).
 - **Impact :** envoi de courriels de phishing depuis `support@ecomfy.cloud` (domaine légitime, bonne réputation SPF/DKIM), avec liens contrôlés par l'attaquant. Risque de classement en spam du domaine.
 - **Correctif :** authentifier l'appelant, déduire le destinataire et le contenu depuis la base (comme le font correctement `send-contact-notification` et `send-booking-notification`), échapper toutes les variables, valider `originUrl` contre une liste blanche.
+- **Statut (16/10/2026) : corrigé dans le code, non déployé, non testé sur Deno (absent de la machine ; helpers purs vérifiés sous Node).**
+  - Nouveau `_shared/email-safety.ts` : `escapeHtml`, `isValidEmail`, `isValidHostname`, `pickAllowedOrigin`.
+  - `send-subscription-email` : réservée à la clé de service (`isAuthorizedCron`) ; les deux appelants (`geniuspay-webhook`, `payment-callback`) utilisent déjà un client service_role. Champs validés, nom échappé. Le bouton pointe vers `APP_URL/studio` (l'ancien lien `…lovableproject.com/generator` était une URL fabriquée à partir de `SUPABASE_URL`).
+  - `send-domain-ready-notification` : réservée à la clé de service ; seul `showcaseId` est lu dans le corps, domaine, nom et destinataire sont relus dans `showcase_sites` et `profiles` (et le domaine doit être `active` avec SSL `active`). `verify-domain-dns` envoie désormais la clé de service au lieu de la clé anon.
+  - `send-corporate-invite` : `requireFounder` (JWT + rôle `founder`/`co_founder`), e-mail et jeton (`^[A-Za-z0-9_-]{8,128}$`) validés, plus de `demo-token`, rôle hors liste ramené à « Associé », `originUrl` limité à `APP_URL`, `https://ecomfy.cloud` et au secret optionnel `EMAIL_LINK_ORIGINS` (sinon repli sur `APP_URL`), tout est échappé.
+  - `verify-delivery-identity` : `userName`, `rejectionReason`, `faceMatchScore` échappés ou bornés. **L'autorisation (H5) et le destinataire libre restent à traiter.**
+  - Limite connue : `send-corporate-invite` n'a pas de lecture en base du destinataire, car `corporate_invitations` est ouverte en écriture à `public` (annexe F) ; le verrou est le contrôle de rôle.
+  - Prérequis au déploiement : redéployer `send-subscription-email`, `send-domain-ready-notification`, `verify-domain-dns`, `send-corporate-invite`, `verify-delivery-identity`. Si la gouvernance est utilisée depuis un autre domaine que `ecomfy.cloud`, renseigner `EMAIL_LINK_ORIGINS`.
 
 #### H5. `verify-delivery-identity` : tout utilisateur connecté peut s'auto-approuver
 - **Où :** `supabase/functions/verify-delivery-identity/index.ts:40-69`.
@@ -461,8 +469,8 @@ where google_analytics_code ~* '(<script|<img|<svg|<iframe|onerror|onload|javasc
 | `geniuspay-webhook` | Signature HMAC | Bug de portée (H7) |
 | `payment-callback` | Signature HMAC (Lygos) | Héritage, `GET` sans effet de base : correct |
 | `process-payment`, `verify-payment` | JWT utilisateur | Montants client (C6) |
-| `send-subscription-email`, `send-domain-ready-notification` | **Non** | H4 |
-| `send-corporate-invite` | JWT par défaut, aucun contrôle de rôle | H4 |
+| `send-subscription-email`, `send-domain-ready-notification` | Clé de service (`isAuthorizedCron`) | H4 corrigé dans le code, non déployé |
+| `send-corporate-invite` | JWT + rôle fondateur (`requireFounder`) | H4 corrigé dans le code, non déployé |
 | `verify-delivery-identity` | JWT par défaut, aucun contrôle de rôle | H5 |
 | `send-push-notification` | Non | Faible |
 | `correct-text` | **Non** | H9 |
