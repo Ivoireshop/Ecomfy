@@ -493,7 +493,7 @@ Seul vestige actif : le tableau de bord fondateur lit `showcase_sites` pour ses 
 
 **Pourquoi 🚧 :** les 8 tables `affiliate_*` sont absentes de dev ; la page ne peut rien afficher. Chaque connexion déclenche un appel d'enregistrement qui échoue silencieusement.
 
-**Réserves de sécurité non corrigées (H6, groupe B)** : un utilisateur peut s'attribuer un taux de commission arbitraire et rattacher d'autres comptes à son code ; les RPC d'affiliation n'ont pas de contrôle de l'appelant ; la commission s'applique à tous les types de paiement et les remboursements ne sont pas annulés. **À corriger avant le déploiement de la migration.** Deux tests existent (`src/test/affiliateSystemTest.test.ts`, `profileCompletionTest.test.ts`) mais ne sont pas exécutables.
+**Sécurité (H6)** : corrigée dans le code le 17/10/2026, non déployée. Taux imposé par le serveur, parrainage limité au compte de l'appelant, RPC de commission réservées au serveur, commission limitée aux abonnements, remboursement géré (migration `20261017120000`, à appliquer après `20261005160000`). Reste : la RPC de commission n'est appelée que par `verify-payment`. Deux tests existent (`src/test/affiliateSystemTest.test.ts`, `profileCompletionTest.test.ts`) mais ne sont pas exécutables.
 
 L'**ancien système de parrainage** (`Referral.tsx`, table `referrals`, RPC `process_referral_signup`) reste dans le code et dans l'inscription ; il n'a aucun lien depuis l'interface.
 
@@ -632,7 +632,7 @@ Un seul de ces quatre modules (Studio IA) a sa base ; Ecomfy Pay, Ecomfy Livrais
 | **F19 SEO** | `20260902120000` + brancher la boutique réelle sur la route `/seo` | 3 |
 | **F10 Ecomfy Livraison** | `20260906010000` + `20260907140000` ; remplacer la vérification simulée par un prestataire ou la décision manuelle uniquement ; H5 (`verify-delivery-identity` sans contrôle de rôle) corrigé dans le code le 16/10/2026, à déployer avec la migration `20261016120000` | 3 |
 | **F17b ConnectUs** | `20260912150000` ; retirer les comptes fictifs ; masquer ou implémenter le « Live » | 3 |
-| **F20 Affiliation** | Corriger H6 et le groupe B **avant** `20261005160000` | 4 |
+| **F20 Affiliation** | H6 corrigé dans le code le 17/10/2026 : déployer `20261005160000` puis `20261017120000`, `geniuspay-webhook` et le front ; brancher la RPC de commission hors `verify-payment` | 4 |
 | **F12 Ecomfy Pay** | Déployer le renommage `ecomfy_payment_links` (fait dans le dépôt), appliquer C6 (montants serveur), H1 (bucket KYC privé), choisir le prestataire KYC, tester GeniusPay en bac à sable, **puis** passer `withdrawals_enabled` à `true` | 5 (le plus risqué : de l'argent réel) |
 | **F16 Sites vitrines** | Décider : rebrancher ou supprimer | À décider |
 | **F23 API REST** | Décider : la construire (Edge Function `api` validant `api_keys`) ou retirer la page et la promesse | À décider |
