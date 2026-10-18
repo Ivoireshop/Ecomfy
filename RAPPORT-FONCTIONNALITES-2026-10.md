@@ -263,7 +263,7 @@ Quatre tables sont référencées par le code mais **ne sont créées par aucune
 
 **Réserve majeure :** choisir « Mobile Money » **n'encaisse rien en ligne**. Dans `ShopView.tsx` (lignes 540-625), la commande est insérée avec `payment_method = "mobile_money"` puis le client est renvoyé vers la page de confirmation. **Aucun appel à `process-payment` ni à `ecomfy-pay-initiate`** n'est fait. Le règlement est convenu entre le marchand et son client (WhatsApp, numéro). Ecomfy Pay (F12) n'est pas branché sur cette étape de commande ; il fonctionne par **liens de paiement** distincts (`/pay/:linkKey`).
 
-Le prix, le total et la commission sont calculés **dans le navigateur** puis insérés (constat H10 de l'audit).
+Le prix, le total et la commission sont désormais décidés **par le serveur** : la commande est créée par la RPC `create_public_order` (H10, corrigé dans le code le 18/10/2026, non déployé ; migration `20261018120000` à appliquer juste avant le front). La commission continue de s'appliquer dès la création de la commande.
 
 ---
 
