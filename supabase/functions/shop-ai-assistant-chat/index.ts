@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { shopOwnerHasCredits } from "../_shared/credits-gate.ts";
+import { sanitizeChatMessages } from "../_shared/chat-sanitize.ts";
+import { getClientIp, takeRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,10 +29,27 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { shopId, messages } = await req.json();
-    if (!shopId || !Array.isArray(messages)) {
+    const body = await req.json();
+    const shopId = typeof body?.shopId === "string" ? body.shopId : "";
+    // Historique nettoyé (H9) : un rôle `system` fourni par le visiteur écraserait les consignes de la boutique.
+    const messages = sanitizeChatMessages(body?.messages);
+    if (!shopId || messages.length === 0) {
       return new Response(JSON.stringify({ error: "shopId and messages required" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Limites par IP, par boutique et globale (H9). Le widget affiche déjà un message pour le code 429.
+    const ip = getClientIp(req);
+    const allowed =
+      (await takeRateLimit("shop-ai-chat:ip:min", ip, 15, 60)) &&
+      (await takeRateLimit("shop-ai-chat:ip:hour", ip, 120, 3600)) &&
+      (await takeRateLimit("shop-ai-chat:shop", shopId, 600, 3600)) &&
+      (await takeRateLimit("shop-ai-chat:global", "all", 5000, 3600));
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "rate_limited" }), {
+        status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -123,6 +142,7 @@ ${contextSections.join("\n\n") || "Aucun contexte produit pour l'instant."}`;
         model: "google/gemini-3-flash-preview",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
+        max_tokens: 600,
       }),
     });
 

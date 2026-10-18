@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { getClientIp, takeRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,15 +10,14 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    // Rate limit per IP: 20 messages / 60s
-    const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(supabaseUrl, serviceKey);
-    const { data: rl } = await admin.rpc('check_rate_limit', {
-      _bucket: 'shop-chatbot', _key: ip, _max: 20, _window_seconds: 60,
-    });
-    if (rl && (rl as any).allowed === false) {
+    // Rate limit (H9) : 20 messages / minute / IP, 200 / heure / IP, 2000 / heure au total.
+    // Refus aussi si la vérification échoue (appel facturé au modèle à chaque message).
+    const ip = getClientIp(req);
+    const allowed =
+      (await takeRateLimit('shop-chatbot:ip:min', ip, 20, 60)) &&
+      (await takeRateLimit('shop-chatbot:ip:hour', ip, 200, 3600)) &&
+      (await takeRateLimit('shop-chatbot:global', 'all', 2000, 3600));
+    if (!allowed) {
       return new Response(JSON.stringify({ reply: "Trop de messages, merci de patienter un instant." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
       });
@@ -33,7 +32,12 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const productList = (products || []).map((p: any) => `- ${p.name}: ${p.price} FCFA${p.description ? ` (${p.description})` : ""}`).join("\n");
+    // Le catalogue vient du navigateur : on borne sa taille avant de le copier dans la consigne.
+    const clip = (v: unknown, n: number) => String(v ?? "").slice(0, n);
+    const productList = (Array.isArray(products) ? products : []).slice(0, 30)
+      .map((p: any) => `- ${clip(p?.name, 100)}: ${clip(p?.price, 20)} FCFA${p?.description ? ` (${clip(p.description, 200)})` : ""}`).join("\n");
+    const safeShopName = clip(shopName, 100);
+    const safeShopDescription = clip(shopDescription, 500);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -43,7 +47,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Tu es l'assistant de la boutique "${shopName}". ${shopDescription || ""}\n\nProduits disponibles:\n${productList}\n\nRègles:\n- Réponds en français, sois amical et utile\n- Aide les clients avec des questions sur les produits, prix, disponibilité\n- Recommande des produits pertinents\n- Sois concis (2-3 phrases max)\n- Si on te pose des questions hors sujet, redirige poliment vers les produits`
+            content: `Tu es l'assistant de la boutique "${safeShopName}". ${safeShopDescription}\n\nProduits disponibles:\n${productList}\n\nRègles:\n- Réponds en français, sois amical et utile\n- Aide les clients avec des questions sur les produits, prix, disponibilité\n- Recommande des produits pertinents\n- Sois concis (2-3 phrases max)\n- Si on te pose des questions hors sujet, redirige poliment vers les produits`
           },
           { role: "user", content: message }
         ],
