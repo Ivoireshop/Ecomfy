@@ -45,6 +45,7 @@ import {
 import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPublic";
 import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
+import { createPublicOrder } from "@/services/publicOrderService";
 
 // Non-critical, below-the-fold widgets. Loaded only after the LCP image and
 // the "Commander maintenant" button are interactive — keeps the initial JS
@@ -661,49 +662,26 @@ const ProductView = () => {
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
       const detectedCountry = parseFullPhone(normalizedPhone).country?.name || shop?.country || null;
-      const isSubscribedShop = shop?.commission_rate === 0 || 
-        ["STORE_ACTIVE", "PAYMENT_CONFIRMED", "STORE_REACTIVATED", "active"].includes(shop?.shop_payment_status) ||
-        Boolean(shop?.is_subscribed);
-      const commissionAmount = isSubscribedShop ? 0 : (effectiveOrderCartTotal * (shop?.commission_rate ?? 0.025));
-      const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
-      const orderId = (crypto as any).randomUUID();
-      const orderNumber = orderNumData || `VP-${Date.now()}`;
-      const productsSummary = effectiveOrderCart
-        .map(item => {
-          const v = item.selectedVariants && Object.keys(item.selectedVariants).length > 0
-            ? ` (${Object.entries(item.selectedVariants).map(([k, val]) => `${k}: ${val}`).join(", ")})`
-            : "";
-          return `${item.quantity}× ${item.product.name}${v}`;
-        })
-        .join(" ; ");
-      const { error } = await supabase.from("orders").insert({
-        id: orderId,
-        shop_id: shop.id, order_number: orderNumber,
-        customer_name: customerInfo.name, customer_email: customerInfo.email,
-        customer_phone: normalizedPhone, customer_address: customerInfo.address,
-        customer_city: customerInfo.city,
-        customer_country: detectedCountry,
-        subtotal: effectiveOrderCartTotal,
-        commission_amount: commissionAmount, total: effectiveOrderCartTotal,
-        payment_method: customerInfo.paymentMethod,
-        products_summary: productsSummary,
-      }) as any;
-      if (error) throw error;
-      const order = { id: orderId, order_number: orderNumber };
-      const orderItems = effectiveOrderCart.map(item => ({
-        order_id: order.id, product_id: item.product.id, product_name: item.product.name,
-        product_image_url: item.product.product_images?.[0]?.image_url || null,
-        quantity: item.quantity, unit_price: item.product.price,
-        total_price: item.product.price * item.quantity,
-        bundle_index: (item as any).bundleIndex ?? null,
-        selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
-      }));
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItems) as any;
-      if (itemsError) {
-        console.error("[ProductView] order_items insert failed", itemsError);
-        // Une commande sans article ne peut pas être payée en ligne ni traitée : ne pas annoncer un succès.
-        if (customerInfo.paymentMethod === "mobile_money") throw new Error("Impossible d'enregistrer les articles de la commande. Réessayez.");
-      }
+      // H10 : prix, total, commission, numéro et statuts sont décidés par le serveur (une seule transaction).
+      const created = await createPublicOrder({
+        shopId: shop.id,
+        customerName: customerInfo.name,
+        customerPhone: normalizedPhone,
+        customerEmail: customerInfo.email,
+        customerAddress: customerInfo.address,
+        customerCity: customerInfo.city,
+        customerCountry: detectedCountry,
+        paymentMethod: customerInfo.paymentMethod,
+        items: effectiveOrderCart.map(item => ({
+          product_id: item.product.id,
+          quantity: item.quantity,
+          bundle_index: (item as any).bundleIndex ?? null,
+          selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
+        })),
+      });
+      const orderId = created.orderId;
+      const order = { id: created.orderId, order_number: created.orderNumber };
+      effectiveOrderCartTotal = created.total;
       // Distinguer le tracking Meta: InitiateCheckout pour paiement en ligne, Purchase pour paiement à la livraison
       const trackingPayload = {
         value: effectiveOrderCartTotal,
