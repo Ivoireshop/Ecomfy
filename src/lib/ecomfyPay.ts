@@ -56,7 +56,7 @@ export const ecomfyPayApi = {
     if (!session?.user) return null;
 
     const { data, error } = await supabase
-      .rpc("get_or_create_merchant_wallet", { p_merchant_id: session.user.id });
+      .rpc("get_or_create_my_wallet");
 
     if (error) {
       console.warn("Error fetching wallet via RPC:", error);

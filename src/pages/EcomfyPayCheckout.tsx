@@ -53,7 +53,7 @@ export default function EcomfyPayCheckout() {
       try {
         const { data, error } = await supabase
           .from("ecomfy_payment_links")
-          .select("*, products(name, image_url, price, bundle_pricing), shops(business_name, name)")
+          .select("*, products(name, image_url, price, bundle_pricing), shops(business_name)")
           .eq("link_key", linkKey)
           .maybeSingle();
 
@@ -77,7 +77,7 @@ export default function EcomfyPayCheckout() {
           setLink(formatted);
           setCustomAmount(String(data.amount));
           if (data.shops) {
-            setShopName(data.shops.business_name || data.shops.name || "Boutique Ecomfy");
+            setShopName(data.shops.business_name || "Boutique Ecomfy");
           }
         }
       } catch (err) {
