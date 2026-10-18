@@ -137,6 +137,26 @@ serve(async (req) => {
       console.warn("Idempotence check failed (non-blocking):", e);
     }
 
+    // Remboursement : annule la commission d'affiliation non versée de ce paiement (H6).
+    // Fait avant les contrôles ci-dessous, qui renvoient tôt pour un paiement déjà « completed ».
+    if (event === "payment.refunded" && reference) {
+      try {
+        const { data: refundedPayment } = await supabase
+          .from("payments")
+          .select("id")
+          .eq("transaction_id", reference)
+          .maybeSingle();
+        if (refundedPayment?.id) {
+          const { error: reverseErr } = await supabase.rpc("reverse_affiliate_commission_for_payment", {
+            p_payment_id: refundedPayment.id,
+          });
+          if (reverseErr) console.warn("Affiliate commission reversal error (non-fatal):", reverseErr);
+        }
+      } catch (e) {
+        console.warn("Affiliate commission reversal failed (non-fatal):", e);
+      }
+    }
+
     // Always upsert/log the payment record by reference
     if (reference) {
       try {

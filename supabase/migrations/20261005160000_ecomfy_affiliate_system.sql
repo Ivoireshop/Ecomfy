@@ -136,6 +136,30 @@ ALTER TABLE public.affiliate_payouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.affiliate_audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.affiliate_settings ENABLE ROW LEVEL SECURITY;
 
+-- Prérequis des politiques ci-dessous. Aucune migration du dépôt ne définit cette fonction (elle
+-- n'existait que dans la base réelle) : sur une base neuve, CREATE POLICY échouait. Créée seulement
+-- si elle est absente, pour ne pas écraser une définition déjà présente en production.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'is_founder_or_cofounder'
+  ) THEN
+    EXECUTE $f$
+      CREATE FUNCTION public.is_founder_or_cofounder(_user_id UUID)
+      RETURNS BOOLEAN
+      LANGUAGE sql
+      STABLE
+      SECURITY DEFINER
+      SET search_path = public
+      AS $b$
+        SELECT public.has_role(_user_id, 'founder'::public.app_role)
+            OR public.has_role(_user_id, 'co_founder'::public.app_role)
+      $b$
+    $f$;
+  END IF;
+END $$;
+
 -- ====================================================================
 -- RLS POLICIES
 -- ====================================================================
