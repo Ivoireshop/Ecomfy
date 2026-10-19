@@ -56,7 +56,7 @@ export const ecomfyPayApi = {
     if (!session?.user) return null;
 
     const { data, error } = await supabase
-      .rpc("get_or_create_merchant_wallet", { p_merchant_id: session.user.id });
+      .rpc("get_or_create_my_wallet");
 
     if (error) {
       console.warn("Error fetching wallet via RPC:", error);
@@ -180,7 +180,7 @@ export const ecomfyPayApi = {
 
   // 5. PAYMENT LINKS (SANDBOX vs PRODUCTION)
   async getPaymentLinks(shopId?: string): Promise<PaymentLink[]> {
-    let query = supabase.from("payment_links").select("*, products(name)");
+    let query = supabase.from("ecomfy_payment_links").select("*, products(name)");
     if (shopId) {
       query = query.eq("shop_id", shopId);
     }
@@ -213,7 +213,7 @@ export const ecomfyPayApi = {
     };
 
     const { data, error } = await supabase
-      .from("payment_links")
+      .from("ecomfy_payment_links")
       .insert(payload)
       .select("*")
       .single();
@@ -246,9 +246,14 @@ export const ecomfyPayApi = {
       });
 
       if (error || !data?.success) {
+        // Les refus du serveur (montant, commande, lien) arrivent en 4xx : le message est dans le corps de la réponse.
+        let serverMessage: string | undefined = data?.error;
+        if (!serverMessage && (error as any)?.context?.json) {
+          serverMessage = await (error as any).context.json().then((b: any) => b?.error).catch(() => undefined);
+        }
         return {
           success: false,
-          error: data?.error || error?.message || "Impossible d'initialiser le paiement.",
+          error: serverMessage || error?.message || "Impossible d'initialiser le paiement.",
         };
       }
 

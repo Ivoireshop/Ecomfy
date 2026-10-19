@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@4.0.0";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -218,7 +219,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             
             <div class="footer">
-              <p>Cet email a été envoyé automatiquement par votre système de réservation VisualPro</p>
+              <p>Cet email a été envoyé automatiquement par votre système de réservation Ecomfy</p>
             </div>
           </div>
         </body>
@@ -227,9 +228,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Envoyer l'email
     const emailResponse = await resend.emails.send({
-      from: "VisualPro Réservations <onboarding@resend.dev>",
-      to: [ownerEmail],
-      subject: `🎉 Nouvelle réservation - ${bookingDetails.service_name}`,
+      from: senderFrom("Ecomfy Réservations"),
+      ...guardEmail([ownerEmail], `🎉 Nouvelle réservation - ${bookingDetails.service_name}`),
       html: emailHtml,
     });
 

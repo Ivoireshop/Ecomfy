@@ -143,118 +143,15 @@ export const affiliateService = {
   },
 
   /**
-   * Helper to generate a clean, unique affiliate code from a person's name with an alphanumeric user-specific suffix
-   * Example: "Ulrich DJATÉ" -> "ULRICH-DJATE-3A8F"
-   * Guaranteed 100% unique even for 2 users with the exact same name!
-   */
-  async generateUniqueAffiliateCode(rawName: string, userId: string): Promise<string> {
-    // Clean name: remove accents, uppercase, convert spaces & special characters to single hyphens
-    let cleanName = rawName
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // strip accents
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "-") // replace non-alphanumeric with hyphen
-      .replace(/^-+|-+$/g, ""); // trim leading/trailing hyphens
-
-    if (!cleanName || cleanName.length < 2 || cleanName.startsWith("ECOMFY-USER") || cleanName.startsWith("UTILISATEUR")) {
-      cleanName = "USER";
-    }
-
-    // Limit length of base code to max 18 chars to leave room for unique alphanumeric suffix
-    cleanName = cleanName.substring(0, 18);
-
-    // Derive a unique 4-character alphanumeric suffix based on the user's ID
-    const userSuffix = userId.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
-
-    let candidateCode = `${cleanName}-${userSuffix}`;
-    let counter = 1;
-    let isUnique = false;
-
-    while (!isUnique && counter <= 100) {
-      const testCode = counter === 1 ? candidateCode : `${cleanName}-${userSuffix}${counter}`;
-      const { data: match } = await supabase
-        .from("affiliates")
-        .select("id, user_id")
-        .eq("affiliate_code", testCode)
-        .maybeSingle();
-
-      if (!match || match.user_id === userId) {
-        candidateCode = testCode;
-        isUnique = true;
-      } else {
-        counter++;
-      }
-    }
-
-    return candidateCode;
-  },
-
-  /**
-   * Fetch or create affiliate profile for current logged-in user with deterministic user-name based code generation
+   * Fetch or create the affiliate profile of the current logged-in user (server-side RPC, code derived from the user name)
    */
   async getOrCreateProfile(userId: string): Promise<AffiliateProfile | null> {
     try {
+      // Created server-side (H6): rate, status and code uniqueness are not decided by the browser.
       const realName = await this.getUserPersonalName(userId);
-
-      // 1. Fetch existing affiliate row
-      const { data: existing } = await supabase
-        .from("affiliates")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (existing) {
-        // Check if existing code is generic placeholder (e.g. ECOMFY-USER or ECOMFY-USER-1)
-        const isGenericPlaceholder = 
-          existing.affiliate_code.startsWith("ECOMFY-USER") || 
-          existing.affiliate_code.startsWith("ECOMFY-") ||
-          existing.affiliate_code.startsWith("UTILISATEUR-");
-
-        if (!isGenericPlaceholder) {
-          return existing as AffiliateProfile;
-        }
-
-        // Upgrade generic placeholder to actual user name + alphanumeric suffix code
-        const upgradedCode = await this.generateUniqueAffiliateCode(realName, userId);
-        
-        const { data: updated } = await supabase
-          .from("affiliates")
-          .update({ affiliate_code: upgradedCode, updated_at: new Date().toISOString() })
-          .eq("id", existing.id)
-          .select()
-          .single();
-
-        return (updated || { ...existing, affiliate_code: upgradedCode }) as AffiliateProfile;
-      }
-
-      // 2. Create new profile with user's name + unique alphanumeric suffix
-      const candidateCode = await this.generateUniqueAffiliateCode(realName, userId);
-
-      const { data: newProfile, error: insertErr } = await supabase
-        .from("affiliates")
-        .insert({
-          user_id: userId,
-          affiliate_code: candidateCode,
-          commission_rate: 0.20,
-          status: "active",
-        })
-        .select()
-        .single();
-
-      if (insertErr) {
-        console.error("Error inserting affiliate profile fallback:", insertErr);
-        return {
-          id: userId,
-          user_id: userId,
-          affiliate_code: candidateCode,
-          commission_rate: 0.20,
-          status: "active",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-      }
-
-      return newProfile as AffiliateProfile;
+      const { data, error } = await supabase.rpc("get_or_create_my_affiliate", { p_name_hint: realName });
+      if (error) throw error;
+      return data as unknown as AffiliateProfile;
     } catch (err) {
       console.error("Error in getOrCreateProfile:", err);
       const fallbackSuffix = userId.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
@@ -509,67 +406,22 @@ export const affiliateService = {
   },
 
   /**
-   * Record referral code when user registers (with direct DB fallback)
+   * Record the referral code for the logged-in user (the server attaches the caller, never another account)
    */
-  async recordReferral(referredUserId: string, affiliateCode: string): Promise<boolean> {
+  async recordReferral(affiliateCode: string): Promise<boolean> {
     const cleanCode = (affiliateCode || "").trim().toUpperCase();
-    if (!cleanCode || !referredUserId) return false;
+    if (!cleanCode) return false;
 
     try {
-      // 1. Try RPC
       const { data, error } = await supabase.rpc("record_affiliate_referral", {
-        p_referred_user_id: referredUserId,
         p_affiliate_code: cleanCode,
       });
 
-      if (!error && (data as any)?.success === true) {
-        return true;
-      }
-
-      // 2. Direct DB fallback if RPC fails or doesn't exist
-      const { data: affiliate } = await supabase
-        .from("affiliates")
-        .select("id, user_id")
-        .eq("affiliate_code", cleanCode)
-        .maybeSingle();
-
-      if (!affiliate) {
-        console.warn(`No affiliate found with code: ${cleanCode}`);
+      if (error) {
+        console.error("Error recording affiliate referral:", error);
         return false;
       }
-
-      // Do not allow self-referral
-      if (affiliate.user_id === referredUserId) {
-        console.warn("Self referral ignored");
-        return false;
-      }
-
-      // Check if referral already recorded for this user
-      const { data: existingRef } = await supabase
-        .from("affiliate_referrals")
-        .select("id")
-        .eq("referred_user_id", referredUserId)
-        .maybeSingle();
-
-      if (existingRef) {
-        return true; // Already recorded
-      }
-
-      const { error: insertErr } = await supabase
-        .from("affiliate_referrals")
-        .insert({
-          affiliate_id: affiliate.id,
-          referred_user_id: referredUserId,
-          referral_code_used: cleanCode,
-        });
-
-      if (insertErr) {
-        if (insertErr.code === "23505") return true; // Unique constraint hit
-        console.error("Error inserting affiliate referral fallback:", insertErr);
-        return false;
-      }
-
-      return true;
+      return (data as any)?.success === true;
     } catch (err) {
       console.error("Error in recordReferral:", err);
       return false;
@@ -592,7 +444,7 @@ export const affiliateService = {
       const cleanCode = storedRefCode.trim().toUpperCase();
       console.log(`Processing pending referral for user ${userId} with code ${cleanCode}`);
 
-      const success = await this.recordReferral(userId, cleanCode);
+      const success = await this.recordReferral(cleanCode);
 
       if (success) {
         localStorage.removeItem("ecomfy_affiliate_ref");
@@ -605,27 +457,6 @@ export const affiliateService = {
     } catch (err) {
       console.error("Error in checkAndRecordPendingReferral:", err);
       return false;
-    }
-  },
-
-  /**
-   * Process commission for payment
-   */
-  async processCommissionForPayment(paymentId: string) {
-    try {
-      const { data, error } = await supabase.rpc(
-        "process_affiliate_commission_for_payment",
-        { p_payment_id: paymentId }
-      );
-
-      if (error) {
-        console.error("Error processing affiliate commission for payment:", error);
-        return null;
-      }
-      return data;
-    } catch (err) {
-      console.error("Error in processCommissionForPayment:", err);
-      return null;
     }
   },
 

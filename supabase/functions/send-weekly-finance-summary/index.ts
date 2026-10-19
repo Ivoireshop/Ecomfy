@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
         profit: fmt(profit),
         profitPositive: profit >= 0,
         expByCat: Object.entries(expByCat).map(([k, v]) => ({ label: CAT_LABELS[k] || k, amount: fmt(v) })),
-        shopUrl: `https://visuelpro.cloud/shop-editor/${shop.id}`,
+        shopUrl: `${APP_URL}/shop-editor/${shop.id}`,
       };
 
       const idempotencyKey = `finance-${shop.id}-${new Date().toISOString().slice(0, 10)}`;

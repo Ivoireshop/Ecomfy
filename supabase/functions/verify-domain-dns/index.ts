@@ -232,15 +232,10 @@ Deno.serve(async (req) => {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+                // Fonction interne : exige la clé de service ; destinataire et domaine sont relus en base.
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
               },
-              body: JSON.stringify({
-                showcaseId,
-                customDomain: domain,
-                businessName: currentSite.business_name,
-                ownerEmail: profile.email,
-                ownerName: profile.full_name || currentSite.owner_name,
-              }),
+              body: JSON.stringify({ showcaseId }),
             }
           );
 

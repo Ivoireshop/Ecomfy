@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { createPublicOrder } from "@/services/publicOrderService";
 import { thumbUrl } from "@/lib/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,7 +22,7 @@ import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164, parseFullPhone } from "@/lib/phoneCountries";
 import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
-import { cacheGet, cacheSet, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
+import { cacheGet, cacheSet, cacheInvalidate, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
 import { useDeferredMount } from "@/lib/useDeferredMount";
 import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
 import { HomepageRenderer } from "@/components/shop/HomepageBuilder/HomepageRenderer";
@@ -537,44 +538,24 @@ const ShopView = () => {
     try {
       const normalizedPhone = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
       const detectedCountry = parseFullPhone(normalizedPhone).country?.name || shop?.country || null;
-      const isSubscribedShop = shop?.commission_rate === 0 || 
-        ["STORE_ACTIVE", "PAYMENT_CONFIRMED", "STORE_REACTIVATED", "active"].includes(shop?.shop_payment_status) ||
-        Boolean(shop?.is_subscribed);
-      const commissionAmount = isSubscribedShop ? 0 : (cartTotal * (shop?.commission_rate ?? 0.025));
-      const { data: orderNumData } = await supabase.rpc("generate_order_number") as any;
-      const orderId = (crypto as any).randomUUID();
-      const orderNumber = orderNumData || `VP-${Date.now()}`;
-      const productsSummary = cart
-        .map(item => {
-          const v = item.selectedVariants && Object.keys(item.selectedVariants).length > 0
-            ? ` (${Object.entries(item.selectedVariants).map(([k, val]) => `${k}: ${val}`).join(", ")})`
-            : "";
-          return `${item.quantity}× ${item.product.name}${v}`;
-        })
-        .join(" ; ");
-      const { error } = await supabase.from("orders").insert({
-        id: orderId,
-        shop_id: shop.id, order_number: orderNumber,
-        customer_name: customerInfo.name, customer_email: customerInfo.email,
-        customer_phone: normalizedPhone, customer_address: customerInfo.address,
-        customer_city: customerInfo.city,
-        customer_country: detectedCountry,
-        subtotal: cartTotal,
-        commission_amount: commissionAmount, total: cartTotal,
-        payment_method: customerInfo.paymentMethod,
-        products_summary: productsSummary,
-      }) as any;
-      if (error) throw error;
-      const order = { id: orderId, order_number: orderNumber };
-      const orderItems = cart.map(item => ({
-        order_id: order.id, product_id: item.product.id, product_name: item.product.name,
-        product_image_url: item.product.product_images?.[0]?.image_url || null,
-        quantity: item.quantity, unit_price: item.product.price,
-        total_price: item.product.price * item.quantity,
-        selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
-      }));
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItems) as any;
-      if (itemsError) console.error("[ShopView] order_items insert failed", itemsError);
+      // H10 : prix, total, commission, numéro et statuts sont décidés par le serveur (une seule transaction).
+      const created = await createPublicOrder({
+        shopId: shop.id,
+        customerName: customerInfo.name,
+        customerPhone: normalizedPhone,
+        customerEmail: customerInfo.email,
+        customerAddress: customerInfo.address,
+        customerCity: customerInfo.city,
+        customerCountry: detectedCountry,
+        paymentMethod: customerInfo.paymentMethod,
+        items: cart.map(item => ({
+          product_id: item.product.id,
+          quantity: item.quantity,
+          selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
+        })),
+      });
+      const order = { id: created.orderId, order_number: created.orderNumber };
+      const orderTotal = created.total;
       // Mark abandoned cart as converted (if any was tracked)
       if (sessionIdRef.current && shop?.id) {
         try {
@@ -585,7 +566,7 @@ const ShopView = () => {
         } catch (_) {}
       }
       const trackingPayload = {
-        value: cartTotal,
+        value: orderTotal,
         order_id: order.order_number,
         content_ids: cart.map((c) => c.product.id),
         contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
@@ -617,7 +598,7 @@ const ShopView = () => {
           advisorPhone: shop.delivery_advisor_phone || shop.phone_number,
           whatsappNumber: shop.whatsapp_number,
           orderNumber: order.order_number,
-          total: cartTotal,
+          total: orderTotal,
         },
       });
     } catch (error: any) {
@@ -694,35 +675,16 @@ const ShopView = () => {
     customer_address?: string;
   }) => {
     const { product, quantity, customer_name, customer_phone, customer_address } = orderData;
-    const unitPrice = Number(product.price || 0);
-    const total = unitPrice * quantity;
-
-    const orderNumber = `EC-${Date.now().toString().slice(-6)}`;
-    const { data: newOrder, error: orderErr } = await supabase.from("orders").insert({
-      shop_id: shop.id,
-      order_number: orderNumber,
-      customer_name,
-      customer_phone,
-      customer_address: customer_address || "Livraison à domicile",
-      total,
-      payment_method: "cod",
-      payment_status: "pending",
-      order_status: "pending",
-    }).select("id").single();
-
-    if (orderErr) throw orderErr;
-
-    if (newOrder?.id) {
-      await supabase.from("order_items").insert({
-        order_id: newOrder.id,
-        product_id: product.id,
-        product_name: product.name,
-        quantity,
-        unit_price: unitPrice,
-        total_price: total,
-        product_image_url: product.product_images?.[0]?.image_url || null,
-      });
-    }
+    // H10 : le prix vient de la base ; seuls le produit et la quantité sont envoyés.
+    await createPublicOrder({
+      shopId: shop.id,
+      customerName: customer_name,
+      customerPhone: customer_phone,
+      customerAddress: customer_address || "Livraison à domicile",
+      paymentMethod: "cod",
+      orderStatus: "pending",
+      items: [{ product_id: product.id, quantity }],
+    });
 
     cacheInvalidate(`orders:${shop.id}`);
   };

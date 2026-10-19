@@ -1,6 +1,8 @@
+import { getClientIp, takeRateLimit } from "../_shared/rate-limit.ts";
+
 // Public UI translation endpoint.
 // - No JWT required (used on public shop/product/landing pages and pre-login screens).
-// - No per-user quota; capped via payload-size and lightweight in-memory IP throttling.
+// - No per-user quota; capped via payload size and database-backed throttling (per IP + global, H9).
 // - Calls the Lovable AI Gateway (Gemini Flash) and returns a {key: translation} map.
 
 const corsHeaders = {
@@ -44,21 +46,12 @@ const json = (body: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-// Simple in-memory IP throttle (per instance, best-effort).
-const ipHits = new Map<string, { count: number; resetAt: number }>();
-const WINDOW_MS = 60_000;
-const MAX_PER_MIN = 60;
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const slot = ipHits.get(ip);
-  if (!slot || slot.resetAt < now) {
-    ipHits.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  slot.count += 1;
-  return slot.count > MAX_PER_MIN;
-}
+// Plafonds (H9) : endpoint public sans authentification, chaque appel coûte un appel de modèle.
+// Le compteur global borne le coût total même si l'attaquant change d'adresse IP.
+const IP_PER_MINUTE = 20;
+const IP_PER_HOUR = 200;
+const GLOBAL_PER_HOUR = 3000;
+const MAX_TOTAL_CHARS = 30_000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -66,17 +59,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || req.headers.get("cf-connecting-ip")
-      || "unknown";
-    if (rateLimited(ip)) {
+    const ip = getClientIp(req);
+    const allowed =
+      (await takeRateLimit("translate-ui:ip:min", ip, IP_PER_MINUTE, 60)) &&
+      (await takeRateLimit("translate-ui:ip:hour", ip, IP_PER_HOUR, 3600)) &&
+      (await takeRateLimit("translate-ui:global", "all", GLOBAL_PER_HOUR, 3600));
+    if (!allowed) {
       return json({ success: false, error: "rate_limited", translations: {} });
     }
 
     const body = (await req.json()) as Body;
     const { texts, target_lang, source_lang = "fr" } = body ?? {};
 
-    if (!texts || typeof texts !== "object" || !target_lang) {
+    if (!texts || typeof texts !== "object" || Array.isArray(texts)) {
+      return json({ success: false, error: "invalid_params" });
+    }
+    // Langues connues uniquement : ces valeurs sont recopiées dans la consigne envoyée au modèle.
+    if (!Object.hasOwn(LANG_NAMES, target_lang) || !Object.hasOwn(LANG_NAMES, source_lang)) {
       return json({ success: false, error: "invalid_params" });
     }
 
@@ -87,6 +86,9 @@ Deno.serve(async (req) => {
       return json({ success: true, translations: {} });
     }
     if (entries.length > 120) entries.length = 120;
+    if (entries.reduce((n, [, v]) => n + v.length, 0) > MAX_TOTAL_CHARS) {
+      return json({ success: false, error: "payload_too_large" });
+    }
 
     if (target_lang === source_lang) {
       return json({ success: true, translations: Object.fromEntries(entries) });
@@ -97,8 +99,8 @@ Deno.serve(async (req) => {
       return json({ success: false, error: "missing_api_key" });
     }
 
-    const targetName = LANG_NAMES[target_lang] ?? target_lang;
-    const sourceName = LANG_NAMES[source_lang] ?? source_lang;
+    const targetName = LANG_NAMES[target_lang];
+    const sourceName = LANG_NAMES[source_lang];
 
     const payload = Object.fromEntries(entries);
     const systemPrompt =

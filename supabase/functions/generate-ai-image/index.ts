@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { enforceAiQuota } from "../_shared/ai-quota.ts";
+import { enforceUserAiQuota, getAuthenticatedUserId } from "../_shared/ai-quota.ts";
 import { OPENAI_CONFIG, getOpenAiApiKey } from "../_shared/openai-config.ts";
 import { analyzeImageWithGpt4oMini } from "../_shared/openai-key.ts";
 import { PromptEngine } from "../_shared/prompt-engine.ts";
@@ -40,24 +40,19 @@ serve(async (req: Request) => {
       niche
     } = body;
 
-    // Extract userId from Auth Header if not provided or guest
-    const authHeader = req.headers.get("Authorization");
-    let resolvedUserId = body.userId;
-    if ((!resolvedUserId || resolvedUserId === "guest-user" || resolvedUserId.startsWith("guest-")) && authHeader) {
-      try {
-        const token = authHeader.replace("Bearer ", "");
-        const { data: { user } } = await supabaseClient.auth.getUser(token);
-        if (user) {
-          resolvedUserId = user.id;
-        }
-      } catch (authErr) {
-        console.warn("[Engine Auth Audit] Could not resolve user from token:", authErr);
-      }
+    // Authentification obligatoire (H9). L'identifiant vient uniquement du JWT : le champ userId du corps
+    // était accepté tel quel, ce qui permettait d'usurper un fondateur ou de débiter un autre compte.
+    const userId = await getAuthenticatedUserId(req);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "not_authenticated", message: "Connectez-vous pour générer une image." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-    if (!resolvedUserId) {
-      resolvedUserId = "guest-user";
-    }
-    const userId = resolvedUserId;
+
+    // Plafond horaire pour tous les profils, fondateurs et abonnés compris.
+    const quota = await enforceUserAiQuota(userId, "generate-ai-image", 40);
+    if (!quota.allowed) return quota.response;
 
     const OPENAI_API_KEY = getOpenAiApiKey();
     if (!OPENAI_API_KEY) {
@@ -71,7 +66,7 @@ serve(async (req: Request) => {
     const sacredPrompt = (prompt || userPrompt || "").trim();
     const imageToAnalyze = sourceImage || bannerImage || replacementPhoto;
 
-    // 1. Quota Verification
+    // 1. Profil (fondateur / abonné) pour la gestion des crédits en fin de traitement
     let isFounder = false;
     let hasActiveSubscription = false;
 
@@ -85,20 +80,6 @@ serve(async (req: Request) => {
       if (profile) {
         isFounder = profile.is_founder === true;
         hasActiveSubscription = profile.subscription_status === "active";
-      }
-
-      if (!isFounder && !hasActiveSubscription) {
-        const quotaResult = await enforceAiQuota(supabaseClient, userId, "generate_image");
-        if (!quotaResult.allowed) {
-          return new Response(
-            JSON.stringify({ 
-              error: quotaResult.message || "Quota de générations d'images d'essai atteint.",
-              quotaExceeded: true,
-              success: false 
-            }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
       }
     }
 

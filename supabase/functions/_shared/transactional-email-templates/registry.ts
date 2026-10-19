@@ -15,6 +15,8 @@ import { template as adTokenExpiring } from './ad-token-expiring.tsx'
 import { template as shopCollaboratorInvite } from './shop-collaborator-invite.tsx'
 import { template as appIncidentAlert } from './app-incident-alert.tsx'
 import { template as commissionPayment } from './commission-payment.tsx'
+import { template as orderPaymentSuccess } from './order-payment-success.tsx'
+import { template as founderTeamInvite } from './founder-team-invite.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'finance-weekly-summary': financeWeeklySummary,
@@ -23,4 +25,6 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'shop-collaborator-invite': shopCollaboratorInvite,
   'app-incident-alert': appIncidentAlert,
   'commission-payment': commissionPayment,
+  'order-payment-success': orderPaymentSuccess,
+  'founder-team-invite': founderTeamInvite,
 }

@@ -1,5 +1,6 @@
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { Resend } from 'npm:resend@4.0.0'
+import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') as string
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
               Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
             </p>
             <p class="footer">
-              VisualPro — Création de visuels publicitaires propulsée par l'IA
+              Ecomfy — Création de visuels publicitaires propulsée par l'IA
             </p>
           </div>
         </body>
@@ -68,13 +69,12 @@ Deno.serve(async (req) => {
 
     const subject =
       email_action_type === 'recovery'
-        ? 'Réinitialisez votre mot de passe - VisualPro'
-        : 'Connexion via lien magique - VisualPro'
+        ? 'Réinitialisez votre mot de passe - Ecomfy'
+        : 'Connexion via lien magique - Ecomfy'
 
     const { error } = await resend.emails.send({
-      from: 'VisualPro <onboarding@resend.dev>',
-      to: [user.email],
-      subject,
+      from: senderFrom(),
+      ...guardEmail([user.email], subject),
       html,
     })
 

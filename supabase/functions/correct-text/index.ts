@@ -9,16 +9,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_TEXT_CHARS = 4000;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-  const __quota = await enforceAiQuota(req, "correct-text");
+  const __quota = await enforceAiQuota(req, "correct-text", 30);
   if (!__quota.allowed) return __quota.response;
 
   try {
     const { text } = await req.json();
-    
+
+    if (typeof text === 'string' && text.length > MAX_TEXT_CHARS) {
+      return new Response(
+        JSON.stringify({ error: `Texte trop long (${MAX_TEXT_CHARS} caractères maximum)` }),
+        { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!text || typeof text !== 'string') {
       return new Response(
         JSON.stringify({ correctedText: text || "" }),
@@ -54,6 +63,36 @@ RÈGLES IMPORTANTES :
 6. Retourne UNIQUEMENT le texte corrigé, sans explications ni commentaires
 
 Le texte corrigé doit être prêt à être utilisé directement dans un contexte professionnel.`;
+
+    // L'appel au modèle avait été supprimé par erreur le 29/08/2026 (commit 0595507) : `response`
+    // n'était plus défini et la fonction échouait systématiquement.
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text },
+        ],
+        max_tokens: 1200,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Limite de requêtes atteinte. Veuillez réessayer dans quelques instants." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const errorText = await response.text();
+      console.error("Erreur OpenAI:", response.status, errorText);
+      throw new Error("Erreur lors de la correction du texte");
+    }
 
     const data = await response.json();
     const correctedText = data.choices?.[0]?.message?.content;

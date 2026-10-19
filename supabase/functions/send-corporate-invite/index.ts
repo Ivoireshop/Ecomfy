@@ -2,6 +2,10 @@
 declare const Deno: any;
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
+import { requireFounder } from "../_shared/founderAuth.ts";
+import { escapeHtml, isValidEmail, pickAllowedOrigin } from "../_shared/email-safety.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,23 +13,45 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{8,128}$/;
+
+// Origines autorisées pour le lien d'invitation : APP_URL, le domaine public, et EMAIL_LINK_ORIGINS (liste séparée par des virgules).
+const ALLOWED_LINK_ORIGINS = [
+  APP_URL,
+  "https://ecomfy.cloud",
+  ...(Deno.env.get("EMAIL_LINK_ORIGINS") || "").split(","),
+];
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Seuls les fondateurs / cofondateurs peuvent envoyer une invitation de gouvernance.
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const auth = await requireFounder(req, supabase, "send-corporate-invite");
+    if ("error" in auth) return auth.error;
+
     const { email, fullName, role, inviteToken, originUrl } = await req.json();
 
-    if (!email || !fullName) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Email et Nom complet requis" }),
+    const badRequest = (error: string) =>
+      new Response(
+        JSON.stringify({ success: false, error }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    if (!isValidEmail(email) || typeof fullName !== "string" || !fullName.trim() || fullName.length > 100) {
+      return badRequest("Email et Nom complet requis");
+    }
+    if (typeof inviteToken !== "string" || !INVITE_TOKEN_RE.test(inviteToken)) {
+      return badRequest("Jeton d'invitation invalide");
     }
 
-    const baseUrl = originUrl || "https://ecomfy.cloud";
-    const inviteUrl = `${baseUrl}/governance/invitation/${inviteToken || 'demo-token'}?email=${encodeURIComponent(email)}`;
+    const baseUrl = pickAllowedOrigin(originUrl, ALLOWED_LINK_ORIGINS, APP_URL);
+    const inviteUrl = `${baseUrl}/governance/invitation/${inviteToken}?email=${encodeURIComponent(email)}`;
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
@@ -41,7 +67,8 @@ serve(async (req: Request) => {
       corporate_admin: "Administrateur Autorisé",
       founder: "Fondateur",
     };
-    const displayRole = roleLabels[role] || role || "Associé";
+    // Rôle hors liste → libellé neutre : on ne recopie jamais une valeur libre dans l'e-mail.
+    const displayRole = Object.hasOwn(roleLabels, role) ? roleLabels[role] : "Associé";
 
     if (resendApiKey) {
       const emailHtml = `
@@ -69,23 +96,23 @@ serve(async (req: Request) => {
           <div class="container">
             <div class="logo">ECOMFY</div>
             <div class="badge">INVITATION OFFICIELLE</div>
-            <h1>Bonjour ${fullName},</h1>
+            <h1>Bonjour ${escapeHtml(fullName)},</h1>
             <p>Vous avez été invité(e) par le fondateur d'Ecomfy à rejoindre la gouvernance de la plateforme en qualité de :</p>
             
             <div class="role-card">
               <div class="role-label">Rôle Proposé</div>
-              <div class="role-value">${displayRole}</div>
+              <div class="role-value">${escapeHtml(displayRole)}</div>
             </div>
 
             <p>Avant l'activation de votre statut, vous devez consulter les informations et documents qui vous sont destinés, en prendre connaissance et confirmer votre acceptation.</p>
 
             <div class="btn-container">
-              <a href="${inviteUrl}" class="btn">CONSULTER MON INVITATION</a>
+              <a href="${escapeHtml(inviteUrl)}" class="btn">CONSULTER MON INVITATION</a>
             </div>
 
             <p class="link-fallback">
               Si le bouton ne s'affiche pas correctement, copiez ce lien sécurisé dans votre navigateur :<br/>
-              <a href="${inviteUrl}" style="color: #38BDF8;">${inviteUrl}</a>
+              <a href="${escapeHtml(inviteUrl)}" style="color: #38BDF8;">${escapeHtml(inviteUrl)}</a>
             </p>
 
             <p style="font-size: 12px; color: #64748B; margin-top: 24px;">
@@ -113,8 +140,7 @@ serve(async (req: Request) => {
         },
         body: JSON.stringify({
           from: primaryFrom,
-          to: [email],
-          subject,
+          ...guardEmail([email], subject),
           html: emailHtml,
         }),
       });
@@ -136,8 +162,7 @@ serve(async (req: Request) => {
           },
           body: JSON.stringify({
             from: fallbackFrom,
-            to: [email],
-            subject,
+            ...guardEmail([email], subject),
             html: emailHtml,
           }),
         });

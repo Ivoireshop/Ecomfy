@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,10 +36,10 @@ serve(async (req) => {
   }
 
   // Always return 200 with JSON body to acknowledge receipt — GeniusPay won't retry on 4xx repeatedly
-  const ack = (body: Record<string, unknown>, log = false) => {
+  const ack = (body: Record<string, unknown>, log = false, status = 200) => {
     if (log) console.log("Webhook ack:", body);
     return new Response(JSON.stringify(body), {
-      status: 200,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   };
@@ -46,8 +47,10 @@ serve(async (req) => {
   try {
     const secret = Deno.env.get("GENIUSPAY_WEBHOOK_SECRET");
     if (!secret) {
+      // 500 (comme ecomfy-pay-webhook) : panne de configuration de notre côté, le fournisseur réessaiera
+      // une fois le secret défini au lieu de considérer l'événement livré.
       console.error("GENIUSPAY_WEBHOOK_SECRET not configured");
-      return ack({ success: false, error: "Webhook secret not configured" });
+      return ack({ success: false, error: "Webhook secret not configured" }, false, 500);
     }
 
     const rawBody = await req.text();
@@ -97,6 +100,13 @@ serve(async (req) => {
       data?.id ||
       `${reference || "noref"}:${event || "noevt"}:${timestamp}`;
 
+    // Déclaré au niveau du handler : utilisé après le bloc d'upsert du paiement (H7)
+    const isConfirmedPayment = event === "payment.success" || status === "completed" || status === "paid";
+    // Vrai uniquement si un paiement local existe et a passé les contrôles anti-fraude
+    let localPaymentValidated = false;
+    // Vrai si CET appel a fait passer le paiement à « completed » (premier à le confirmer)
+    let paymentClaimed = false;
+
     console.log("GeniusPay webhook:", { event, reference, status, environment: payload?.environment });
 
     const supabase = createClient(
@@ -125,6 +135,26 @@ serve(async (req) => {
       }
     } catch (e) {
       console.warn("Idempotence check failed (non-blocking):", e);
+    }
+
+    // Remboursement : annule la commission d'affiliation non versée de ce paiement (H6).
+    // Fait avant les contrôles ci-dessous, qui renvoient tôt pour un paiement déjà « completed ».
+    if (event === "payment.refunded" && reference) {
+      try {
+        const { data: refundedPayment } = await supabase
+          .from("payments")
+          .select("id")
+          .eq("transaction_id", reference)
+          .maybeSingle();
+        if (refundedPayment?.id) {
+          const { error: reverseErr } = await supabase.rpc("reverse_affiliate_commission_for_payment", {
+            p_payment_id: refundedPayment.id,
+          });
+          if (reverseErr) console.warn("Affiliate commission reversal error (non-fatal):", reverseErr);
+        }
+      } catch (e) {
+        console.warn("Affiliate commission reversal failed (non-fatal):", e);
+      }
     }
 
     // Always upsert/log the payment record by reference
@@ -161,7 +191,7 @@ serve(async (req) => {
           }
           // 2) Montant doit correspondre (tolérance 1 unité pour arrondi)
           if (
-            (event === "payment.success" || status === "completed" || status === "success") &&
+            (isConfirmedPayment || status === "success") &&
             paymentToUpdate.amount != null &&
             Math.abs(Number(paymentToUpdate.amount) - amountPaid) > 1
           ) {
@@ -197,9 +227,9 @@ serve(async (req) => {
             });
             return ack({ success: false, error: "User mismatch", reference }, true);
           }
+          localPaymentValidated = true;
         }
 
-        const isConfirmedPayment = event === "payment.success" || status === "completed" || status === "paid";
         const paymentRow = {
           user_id: metadata.user_id || null,
           payment_method: data?.payment_method || data?.provider || "geniuspay",
@@ -215,7 +245,14 @@ serve(async (req) => {
         };
 
         if (paymentToUpdate) {
-          await supabase.from("payments").update(paymentRow).eq("id", paymentToUpdate.id);
+          // Réservation atomique : seul l'appel qui fait passer le paiement à « completed »
+          // peut créditer les packs et activer l'abonnement utilisateur (verify-payment et
+          // reconcile-pending-payments appliquent la même règle).
+          let paymentUpdate = supabase.from("payments").update(paymentRow).eq("id", paymentToUpdate.id);
+          if (isConfirmedPayment) paymentUpdate = paymentUpdate.neq("status", "completed");
+          const { data: updatedRows, error: updateErr } = await paymentUpdate.select("id");
+          if (updateErr) console.error("Failed to update payment row:", updateErr);
+          paymentClaimed = isConfirmedPayment && (updatedRows?.length ?? 0) > 0;
         } else if (paymentRow.user_id) {
           await supabase.from("payments").insert(paymentRow);
         }
@@ -256,6 +293,16 @@ serve(async (req) => {
 
     if (isConfirmedPayment && (metadata?.order_id || metadata?.order_number) && metadata?.shop_id) {
       void triggerServerSidePurchaseCapi(metadata.order_id || metadata.order_number, metadata.shop_id);
+    }
+
+    // Attributions (activation, abonnement, crédits, commissions) : uniquement pour un succès avéré
+    // et un paiement local retrouvé dont montant, devise et utilisateur ont été vérifiés.
+    if (!isConfirmedPayment) {
+      return ack({ success: true, ignored: "not_a_success_event", event, status, reference }, true);
+    }
+    if (!localPaymentValidated) {
+      console.warn("Confirmed webhook without matching local payment, nothing credited", { reference });
+      return ack({ success: false, error: "no_matching_local_payment", reference }, true);
     }
 
     const userId = metadata?.user_id;
@@ -301,7 +348,7 @@ serve(async (req) => {
           .maybeSingle();
         if (profileRow?.email) {
           const shopUrl = shopRow?.slug
-            ? `https://ecomfy.cloud/shop/${shopRow.slug}`
+            ? `${APP_URL}/shop/${shopRow.slug}`
             : undefined;
           await supabase.functions.invoke("send-transactional-email", {
             body: {
@@ -345,7 +392,7 @@ serve(async (req) => {
               .from("profiles").select("email").eq("id", userId).maybeSingle();
             if (profileRow?.email) {
               const unlocked = !shopRow || shopRow.shop_payment_status === "active" || shopRow.shop_payment_status === "STORE_ACTIVE" || Number(shopRow.commission_balance_due || 0) <= 0;
-              const shopUrl = shopRow?.slug ? `https://ecomfy.cloud/shop/${shopRow.slug}` : undefined;
+              const shopUrl = shopRow?.slug ? `${APP_URL}/shop/${shopRow.slug}` : undefined;
               await supabase.functions.invoke("send-transactional-email", {
                 body: {
                   templateName: "commission-payment",
@@ -388,6 +435,10 @@ serve(async (req) => {
       }
       console.log(`Shop subscription ${plan} activated for shop ${shopId}`, subResult);
     } else if (paymentType === "credits" && creditsSize > 0) {
+      if (!paymentClaimed) {
+        console.log("Credits already applied by another handler, skipping:", reference);
+        return ack({ success: true, alreadyCompleted: true, reference }, true);
+      }
       const { data: profile } = await supabase
         .from("profiles")
         .select("purchased_credits, has_showcase_access")
@@ -410,6 +461,10 @@ serve(async (req) => {
       });
       console.log(`Credited ${creditsSize} credits to`, userId, "total:", newTotal);
     } else {
+      if (!paymentClaimed) {
+        console.log("Subscription already applied by another handler, skipping:", reference);
+        return ack({ success: true, alreadyCompleted: true, reference }, true);
+      }
       // Subscription
       const startDate = new Date();
       const endDate = new Date();

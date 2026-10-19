@@ -2165,6 +2165,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          bundle_index: number | null
           created_at: string | null
           id: string
           order_id: string
@@ -2177,6 +2178,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          bundle_index?: number | null
           created_at?: string | null
           id?: string
           order_id: string
@@ -2189,6 +2191,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          bundle_index?: number | null
           created_at?: string | null
           id?: string
           order_id?: string

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { enforceAiQuota } from "../_shared/ai-quota.ts";
+import { enforceUserAiQuota, getAuthenticatedUserId } from "../_shared/ai-quota.ts";
 import { OPENAI_CONFIG, getOpenAiApiKey } from "../_shared/openai-config.ts";
 import { analyzeImageWithGpt4oMini } from "../_shared/openai-key.ts";
 import { PromptEngine } from "../_shared/prompt-engine.ts";
@@ -24,45 +24,18 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    // Verify authentication
-    const authHeader = req.headers.get("Authorization");
-    let userId = "guest-user";
-    let isFounder = false;
-    let hasActiveSubscription = false;
-
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user } } = await supabaseClient.auth.getUser(token);
-      if (user) {
-        userId = user.id;
-
-        const { data: profile } = await supabaseClient
-          .from("profiles")
-          .select("is_founder, subscription_status")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (profile) {
-          isFounder = profile.is_founder === true;
-          hasActiveSubscription = profile.subscription_status === "active";
-        }
-      }
+    // Authentification obligatoire (H9) : plus de mode invité, chaque appel coûte une image OpenAI.
+    const userId = await getAuthenticatedUserId(req);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "not_authenticated", message: "Connectez-vous pour générer un visuel." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Quota Enforcement
-    if (!isFounder && !hasActiveSubscription && userId !== "guest-user") {
-      const quotaResult = await enforceAiQuota(supabaseClient, userId, "generate_ad_visual");
-      if (!quotaResult.allowed) {
-        return new Response(
-          JSON.stringify({ 
-            error: quotaResult.message || "Quota de visuels publicitaires atteint.",
-            quotaExceeded: true,
-            success: false 
-          }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
+    // Plafond horaire pour tous les profils, fondateurs et abonnés compris.
+    const quota = await enforceUserAiQuota(userId, "generate-ad-visual", 40);
+    if (!quota.allowed) return quota.response;
 
     const reqBody = await req.json();
     const { 

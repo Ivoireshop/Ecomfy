@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
 import { verifyWebhookSignature } from "../_shared/webhookSignature.ts";
+import { remoteAmountMatches } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,6 +66,9 @@ serve(async (req) => {
 
     // Confirmation auprès de l'API GeniusPay avant de traiter un succès. Placée avant l'insertion
     // d'idempotence : en cas d'échec (503), la nouvelle tentative du fournisseur n'est pas ignorée.
+    // `remoteAmount` / `remoteCurrency` : montant réellement encaissé, comparé plus bas à ecomfy_payments.amount (C6).
+    let remoteAmount: unknown = undefined;
+    let remoteCurrency: unknown = undefined;
     if (event === "payment.success" || data?.status === "completed" || data?.status === "success") {
       const apiKey = Deno.env.get("GENIUSPAY_API_KEY");
       const apiSecret = Deno.env.get("GENIUSPAY_API_SECRET");
@@ -77,7 +81,10 @@ serve(async (req) => {
         headers: { "X-API-Key": apiKey, "X-API-Secret": apiSecret },
       }).catch(() => null);
       const json: any = resp ? await resp.json().catch(() => ({})) : {};
-      const remoteStatus = (json?.data || json)?.status;
+      const remote = json?.data || json;
+      const remoteStatus = remote?.status;
+      remoteAmount = remote?.amount;
+      remoteCurrency = remote?.currency;
       if (!resp?.ok) {
         console.error("[ecomfy-pay-webhook] Provider confirmation failed:", resp?.status);
         return ack({ success: false, error: "Cannot confirm payment" }, 503);
@@ -85,6 +92,11 @@ serve(async (req) => {
       if (remoteStatus !== "completed" && remoteStatus !== "paid" && remoteStatus !== "success") {
         console.warn("[ecomfy-pay-webhook] Provider does not confirm success:", { providerRef, remoteStatus });
         return ack({ success: false, error: "Payment not confirmed by provider" });
+      }
+      if (remoteAmount === undefined || remoteAmount === null || remoteAmount === "") {
+        // Sans montant encaissé, on ne peut pas comparer : refus avec nouvelle tentative (503), jamais de crédit.
+        console.error("[ecomfy-pay-webhook] Provider response has no amount", { providerRef });
+        return ack({ success: false, error: "Cannot confirm payment amount" }, 503);
       }
     }
 
@@ -124,6 +136,23 @@ serve(async (req) => {
 
     // 3. Traiter le statut du paiement
     const isSuccess = event === "payment.success" || data?.status === "completed" || data?.status === "success";
+
+    // C6 : le montant encaissé chez GeniusPay doit être celui enregistré à l'initialisation (et la même devise).
+    // Sinon : ni crédit du portefeuille ni commande marquée payée ; réponse 200 pour ne pas relancer en boucle.
+    if (isSuccess) {
+      const currencyOk = remoteCurrency === undefined || remoteCurrency === null
+        || String(remoteCurrency).toUpperCase() === String(payment.currency || "XOF").toUpperCase();
+      if (!remoteAmountMatches(remoteAmount, payment.amount) || !currencyOk) {
+        console.error("[ecomfy-pay-webhook] Amount mismatch, payment not credited:", {
+          internalRef: payment.internal_reference,
+          expected: payment.amount,
+          received: remoteAmount,
+          expectedCurrency: payment.currency,
+          receivedCurrency: remoteCurrency,
+        });
+        return ack({ success: false, error: "Amount mismatch", reference: payment.internal_reference });
+      }
+    }
 
     if (isSuccess) {
       // Mettre à jour la transaction

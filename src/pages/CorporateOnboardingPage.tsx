@@ -58,6 +58,34 @@ export default function CorporateOnboardingPage() {
     }
   };
 
+  // Le journal d'audit et les acceptations sont en ajout seul, au nom de l'utilisateur connecté (RLS, H2) :
+  // sans session il n'y a rien à écrire, et l'e-mail de l'invitation est conservé dans new_values.
+  const getSessionActor = async () => {
+    const { data } = await supabase.auth.getSession();
+    const user = data?.session?.user;
+    return user ? { id: user.id, email: user.email ?? null } : null;
+  };
+
+  const recordAudit = async (entry: {
+    action: string;
+    target_entity: string;
+    entity_id?: string | null;
+    new_values?: Record<string, unknown>;
+    timestamp: string;
+  }) => {
+    const actor = await getSessionActor();
+    if (!actor) return;
+    await supabase.from("corporate_audit_logs" as any).insert({
+      user_id: actor.id,
+      user_email: actor.email,
+      action: entry.action,
+      target_entity: entry.target_entity,
+      entity_id: entry.entity_id ?? null,
+      new_values: { invitation_email: invitation?.email || emailParam || null, ...entry.new_values },
+      timestamp: entry.timestamp,
+    });
+  };
+
   const fetchInviteDetails = async () => {
     setLoading(true);
     try {
@@ -130,11 +158,11 @@ export default function CorporateOnboardingPage() {
 
         // Audit Log
         try {
-          await supabase.from("corporate_audit_logs" as any).insert({
-            user_email: invData.email,
+          await recordAudit({
             action: "INVITATION_OPENED",
             target_entity: "corporate_invitations",
             entity_id: invData.id,
+            new_values: { invitation_email: invData.email },
             timestamp: openedAt,
           });
         } catch {}
@@ -152,8 +180,7 @@ export default function CorporateOnboardingPage() {
 
     // Log document reading in audit log
     try {
-      await supabase.from("corporate_audit_logs" as any).insert({
-        user_email: invitation?.email,
+      await recordAudit({
         action: "DOCUMENT_VIEWED",
         target_entity: "corporate_documents",
         entity_id: docId,
@@ -178,8 +205,7 @@ export default function CorporateOnboardingPage() {
         .eq("id", invitation.id);
 
       // Log in audit log
-      await supabase.from("corporate_audit_logs" as any).insert({
-        user_email: invitation.email,
+      await recordAudit({
         action: "NOMINATION_DECLINED",
         target_entity: "corporate_invitations",
         entity_id: invitation.id,
@@ -213,13 +239,15 @@ export default function CorporateOnboardingPage() {
         readVersionsObj[d.id] = readDocs.get(d.id) || d.current_version;
       });
 
-      // 1. Record document acceptances in database
-      for (const doc of mandatoryDocs) {
+      // 1. Record document acceptances in database (au nom de l'utilisateur connecté, sinon rien à écrire)
+      const actor = await getSessionActor();
+      for (const doc of actor ? mandatoryDocs : []) {
         try {
           await supabase.from("corporate_document_acceptances" as any).insert({
             document_id: doc.id,
             version: doc.current_version,
-            email: invitation?.email || emailParam,
+            user_id: actor!.id,
+            email: actor!.email,
             action: "approved",
             legal_statement: `Signature électronique par ${signerFullName} le ${new Date().toLocaleDateString('fr-FR')}`,
             ip_address: "127.0.0.1",
@@ -247,8 +275,7 @@ export default function CorporateOnboardingPage() {
 
       // 3. Log NOMINATION_ACCEPTED in audit logs
       try {
-        await supabase.from("corporate_audit_logs" as any).insert({
-          user_email: invitation?.email || emailParam,
+        await recordAudit({
           action: "NOMINATION_ACCEPTED",
           target_entity: "corporate_invitations",
           entity_id: invitation?.id || "demo",

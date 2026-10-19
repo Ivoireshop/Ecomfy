@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -146,9 +147,8 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "AdGenius AI <onboarding@resend.dev>",
-        to: [userEmail],
-        subject,
+        from: senderFrom(),
+        ...guardEmail([userEmail], subject),
         html,
       }),
     });

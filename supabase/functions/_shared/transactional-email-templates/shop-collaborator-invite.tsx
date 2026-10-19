@@ -3,6 +3,7 @@ import {
   Body, Button, Container, Head, Heading, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { APP_URL } from "../email-sender.ts";
 
 const ROLE_LABELS: Record<string, string> = {
   view_orders: 'Voir les commandes',
@@ -19,7 +20,7 @@ interface Props {
 
 const ShopCollaboratorInviteEmail = ({
   shopName = 'une boutique',
-  acceptUrl = 'https://visuelpro.cloud',
+  acceptUrl = APP_URL,
   roles = [],
 }: Props) => {
   return (
@@ -30,7 +31,7 @@ const ShopCollaboratorInviteEmail = ({
         <Container style={container}>
           <Heading style={h1}>Invitation à collaborer 🤝</Heading>
           <Text style={text}>
-            Vous avez été invité(e) à rejoindre la boutique <strong>{shopName}</strong> sur VisualPro Cloud.
+            Vous avez été invité(e) à rejoindre la boutique <strong>{shopName}</strong> sur Ecomfy.
           </Text>
           {roles.length > 0 && (
             <Section style={{ margin: '12px 0 20px' }}>
@@ -63,7 +64,7 @@ export const template = {
   displayName: 'Invitation collaborateur boutique',
   previewData: {
     shopName: 'Yama Store',
-    acceptUrl: 'https://visuelpro.cloud/accept-shop-invite?token=demo',
+    acceptUrl: `${APP_URL}/accept-shop-invite?token=demo`,
     roles: ['view_orders', 'manage_delivered_orders'],
   },
 } satisfies TemplateEntry

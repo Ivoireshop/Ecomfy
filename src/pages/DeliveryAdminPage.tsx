@@ -129,8 +129,6 @@ export default function DeliveryAdminPage() {
       
       await deliveryService.processIdentityVerification({
         companyId: selectedApp.id,
-        userEmail: selectedApp.manager_whatsapp + "@ecomfy.cloud",
-        userName: selectedApp.manager_name,
         verificationStatus: status === "approved" ? "approved" : "rejected",
         rejectionReason: finalReasonText
       });

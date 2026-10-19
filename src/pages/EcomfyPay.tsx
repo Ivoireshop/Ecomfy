@@ -70,13 +70,13 @@ export default function EcomfyPay() {
       // Load user shops
       const { data: shopData } = await supabase
         .from("shops")
-        .select("id, name, business_name")
+        .select("id, business_name")
         .eq("user_id", session.user.id);
 
       if (shopData && shopData.length > 0) {
         const formatted = shopData.map((s) => ({
           id: s.id,
-          name: s.business_name || s.name || "Ma boutique",
+          name: s.business_name || "Ma boutique",
         }));
         setShops(formatted);
         if (!selectedShopId) setSelectedShopId(formatted[0].id);

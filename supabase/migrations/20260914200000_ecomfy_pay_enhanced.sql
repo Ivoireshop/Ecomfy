@@ -9,7 +9,7 @@ ADD COLUMN IF NOT EXISTS default_payout_name TEXT,
 ADD COLUMN IF NOT EXISTS default_payout_provider TEXT DEFAULT 'wave';
 
 -- 2. MODIFICATION PAYMENT_LINKS & PAYMENTS (MODE SANDBOX vs PRODUCTION)
-ALTER TABLE public.payment_links
+ALTER TABLE public.ecomfy_payment_links
 ADD COLUMN IF NOT EXISTS is_sandbox BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE public.ecomfy_payments

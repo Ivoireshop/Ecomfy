@@ -7,8 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { prepareImageForUpload } from "@/lib/imageCompress";
+import { getKycSignedUrls, isLegacyKycValue, uploadKycFile, type KycDocField } from "@/lib/kycStorage";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
 import {
   ShieldCheck,
@@ -43,9 +43,29 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
     kyc?.document_type || "cni"
   );
   const [docNumber, setDocNumber] = useState(kyc?.document_number || "");
-  const [docFrontUrl, setDocFrontUrl] = useState(kyc?.document_front_url || "");
-  const [docBackUrl, setDocBackUrl] = useState(kyc?.document_back_url || "");
-  const [selfieUrl, setSelfieUrl] = useState(kyc?.selfie_url || "");
+  // Ces trois champs contiennent des chemins du bucket privé kyc-documents (audit H1). Une URL publique héritée n'est
+  // plus affichée : le marchand renvoie la pièce.
+  const initialPath = (v?: string | null) => (v && !isLegacyKycValue(v) ? v : "");
+  const [docFrontUrl, setDocFrontUrl] = useState(initialPath(kyc?.document_front_url));
+  const [docBackUrl, setDocBackUrl] = useState(initialPath(kyc?.document_back_url));
+  const [selfieUrl, setSelfieUrl] = useState(initialPath(kyc?.selfie_url));
+  const [previews, setPreviews] = useState<{ front: string | null; back: string | null; selfie: string | null }>({
+    front: null,
+    back: null,
+    selfie: null,
+  });
+  const hasLegacyDocs = [kyc?.document_front_url, kyc?.document_back_url, kyc?.selfie_url].some(isLegacyKycValue);
+
+  // Liens signés de courte durée pour l'aperçu des pièces déjà déposées
+  useEffect(() => {
+    let cancelled = false;
+    void getKycSignedUrls([docFrontUrl, docBackUrl, selfieUrl]).then(([front, back, selfie]) => {
+      if (!cancelled) setPreviews({ front, back, selfie });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docFrontUrl, docBackUrl, selfieUrl]);
 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -108,17 +128,11 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
       setUploading(true);
       try {
         const file = new File([blob], `selfie_kyc_${Date.now()}.jpg`, { type: "image/jpeg" });
-        const compressed = await prepareImageForUpload(file);
-        const path = `kyc/selfie_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`;
+        const prepared = await prepareImageForUpload(file);
+        if (!prepared.ok) throw new Error(prepared.reason);
 
-        const { error } = await supabase.storage.from("shop-images").upload(path, compressed, { upsert: true });
-        if (error) throw error;
-
-        const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
-        if (data?.publicUrl) {
-          setSelfieUrl(data.publicUrl);
-          toast({ title: "Selfie capturé ✓", description: "Le selfie en direct avec votre pièce d'identité a été validé." });
-        }
+        setSelfieUrl(await uploadKycFile("selfie", prepared.file));
+        toast({ title: "Selfie capturé ✓", description: "Le selfie en direct avec votre pièce d'identité a été enregistré." });
       } catch (err: any) {
         toast({ title: "Erreur selfie", description: err.message, variant: "destructive" });
       } finally {
@@ -130,7 +144,7 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (url: string) => void,
-    docField: "front" | "back" | "selfie"
+    docField: KycDocField
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -147,21 +161,14 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
 
     setUploading(true);
     try {
-      const compressed = await prepareImageForUpload(file);
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `kyc/${docField}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+      const prepared = await prepareImageForUpload(file);
+      if (!prepared.ok) throw new Error(prepared.reason);
 
-      const { error } = await supabase.storage.from("shop-images").upload(path, compressed, { upsert: true });
-      if (error) throw error;
-
-      const { data } = supabase.storage.from("shop-images").getPublicUrl(path);
-      if (data?.publicUrl) {
-        setter(data.publicUrl);
-        toast({
-          title: "Document téléversé ✓",
-          description: `Document (${docField.toUpperCase()}) importé avec succès.`,
-        });
-      }
+      setter(await uploadKycFile(docField, prepared.file));
+      toast({
+        title: "Document téléversé ✓",
+        description: `Document (${docField.toUpperCase()}) importé avec succès.`,
+      });
     } catch (err: any) {
       toast({ title: "Erreur d'importation", description: err.message, variant: "destructive" });
     } finally {
@@ -277,6 +284,13 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
             <XCircle className="w-4 h-4 text-rose-600" /> Motif du rejet :
           </div>
           <p className="font-medium pl-6">{kyc.rejection_reason}</p>
+        </div>
+      )}
+
+      {hasLegacyDocs && status !== "VERIFIED" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900">
+          Vos anciennes pièces ne sont plus affichées pour protéger vos données. Téléversez-les de nouveau avant de
+          soumettre votre dossier.
         </div>
       )}
 
@@ -420,7 +434,7 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
                 </Label>
                 {docFrontUrl ? (
                   <div className="relative rounded-2xl overflow-hidden border border-emerald-300 h-36 bg-slate-100 group shadow-sm">
-                    <img src={docFrontUrl} alt="Recto" className="w-full h-full object-cover" />
+                    <img src={previews.front ?? undefined} alt="Recto" className="w-full h-full object-cover" />
                     {status !== "VERIFIED" && (
                       <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <label className="bg-white text-slate-900 text-[11px] font-bold px-3 py-1.5 rounded-xl cursor-pointer">
@@ -448,7 +462,7 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
                 </Label>
                 {docBackUrl ? (
                   <div className="relative rounded-2xl overflow-hidden border border-emerald-300 h-36 bg-slate-100 group shadow-sm">
-                    <img src={docBackUrl} alt="Verso" className="w-full h-full object-cover" />
+                    <img src={previews.back ?? undefined} alt="Verso" className="w-full h-full object-cover" />
                     {status !== "VERIFIED" && (
                       <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <label className="bg-white text-slate-900 text-[11px] font-bold px-3 py-1.5 rounded-xl cursor-pointer">
@@ -476,7 +490,7 @@ export const KycVerificationTab: React.FC<KycVerificationTabProps> = ({
                 </Label>
                 {selfieUrl ? (
                   <div className="relative rounded-2xl overflow-hidden border border-emerald-300 h-36 bg-slate-100 group shadow-sm">
-                    <img src={selfieUrl} alt="Selfie" className="w-full h-full object-cover" />
+                    <img src={previews.selfie ?? undefined} alt="Selfie" className="w-full h-full object-cover" />
                     {status !== "VERIFIED" && (
                       <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <Button type="button" onClick={startCamera} size="sm" className="bg-white text-slate-900 hover:bg-slate-100 text-[10px] font-bold h-8 rounded-lg">

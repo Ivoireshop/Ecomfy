@@ -7,6 +7,7 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
+import { senderFrom, REPLY_TO_ADDRESS, guardEmail } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,10 +16,10 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirmez votre email VisualPro',
-  invite: 'Vous êtes invité(e) sur VisualPro',
-  magiclink: 'Votre lien de connexion VisualPro',
-  recovery: 'Réinitialisez votre mot de passe VisualPro',
+  signup: 'Confirmez votre email Ecomfy',
+  invite: 'Vous êtes invité(e) sur Ecomfy',
+  magiclink: 'Votre lien de connexion Ecomfy',
+  recovery: 'Réinitialisez votre mot de passe Ecomfy',
   email_change: 'Confirmez votre nouvelle adresse email',
   reauthentication: 'Votre code de vérification',
 }
@@ -34,11 +35,11 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "visualpro-african-ai-creations"
+const SITE_NAME = "Ecomfy"
 const SENDER_DOMAIN = "notify.visuelpro.cloud"
-const ROOT_DOMAIN = "visuelpro.cloud"
-const FROM_ADDRESS = 'VisualPro <noreply@visuelpro.cloud>'
-const REPLY_TO = 'contact@visuelpro.cloud'
+const ROOT_DOMAIN = "ecomfy.cloud"
+const FROM_ADDRESS = senderFrom()
+const REPLY_TO = REPLY_TO_ADDRESS
 
 // Sample data for preview mode ONLY (not used in actual email sending).
 // URLs are baked in at scaffold time from the project's real data.
@@ -192,7 +193,7 @@ async function handleWebhook(req: Request): Promise<Response> {
 
   const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
 
-  // Send directly via Resend (visuelpro.cloud is already verified)
+  // Send directly via Resend (ecomfy.cloud must be verified in Resend)
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -201,9 +202,8 @@ async function handleWebhook(req: Request): Promise<Response> {
     },
     body: JSON.stringify({
       from: FROM_ADDRESS,
-      to: [recipient],
+      ...guardEmail([recipient], EMAIL_SUBJECTS[emailType] || 'Notification Ecomfy'),
       reply_to: REPLY_TO,
-      subject: EMAIL_SUBJECTS[emailType] || 'Notification VisualPro',
       html,
     }),
   })

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
+import { checkCustomerPayment, orderExpectedTotal } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +23,7 @@ serve(async (req) => {
       shop_id,
       product_id,
       payment_link_id,
-      amount,
+      amount: requestedAmount,
       currency = "XOF",
       payment_method,
       customer_name,
@@ -33,7 +34,7 @@ serve(async (req) => {
       order_id,
     } = body;
 
-    if (!shop_id || !amount || amount <= 0 || !payment_method) {
+    if (!shop_id || typeof requestedAmount !== "number" || !(requestedAmount > 0) || !payment_method) {
       return new Response(
         JSON.stringify({ success: false, error: "Informations de paiement incomplètes." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -56,6 +57,45 @@ serve(async (req) => {
 
     const merchantId = shop.user_id;
 
+    // C6 : le montant est celui de la commande ou du lien de paiement lus en base, pas celui du navigateur.
+    const { data: order } = order_id
+      ? await supabase.from("orders").select("shop_id, total, payment_status").eq("id", order_id).maybeSingle()
+      : { data: null };
+    // Total de la commande recalculé depuis les lignes et les prix produits (lots compris), indépendant du total stocké.
+    let expected: number | null = null;
+    if (order) {
+      const { data: items } = await supabase.from("order_items").select("product_id, quantity, bundle_index").eq("order_id", order_id);
+      const productIds = [...new Set((items || []).map((i: any) => i.product_id))];
+      const { data: prods } = productIds.length
+        ? await supabase.from("products").select("id, shop_id, price, bundle_offers").in("id", productIds)
+        : { data: [] };
+      const byId: Record<string, any> = {};
+      for (const p of prods || []) byId[p.id] = p;
+      const t = orderExpectedTotal(shop_id, items || [], byId);
+      expected = t.ok ? t.total : null;
+    }
+    const { data: link } = !order_id && payment_link_id
+      ? await supabase.from("ecomfy_payment_links").select("shop_id, amount, is_active, allow_custom_amount").eq("id", payment_link_id).maybeSingle()
+      : { data: null };
+
+    const check = checkCustomerPayment({
+      amount: requestedAmount,
+      shopId: shop_id,
+      order,
+      orderExpected: expected,
+      link,
+      orderId: order_id,
+      paymentLinkId: payment_link_id,
+    });
+    if (!check.ok) {
+      console.warn("[ecomfy-pay-initiate] Amount rejected (C6):", { shop_id, order_id, payment_link_id, requestedAmount, error: check.error });
+      return new Response(
+        JSON.stringify({ success: false, error: check.error }),
+        { status: check.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const amount = check.amount;
+
     // Calcul des frais (par exemple 2.5% de frais Ecomfy)
     const feeRate = 0.025;
     const feeEcomfy = Math.round(amount * feeRate);
@@ -63,7 +103,8 @@ serve(async (req) => {
     const netMerchantAmount = amount - feeEcomfy - feeProvider;
 
     // Générer référence interne unique ECM-PAY-XXXXXXXX
-    const internalReference = `ECM-PAY-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    const refBytes = crypto.getRandomValues(new Uint8Array(6));
+    const internalReference = `ECM-PAY-${Array.from(refBytes, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 10).toUpperCase()}`;
 
     // Insérer la transaction initiale en statut CREATED / PENDING
     const { data: paymentRecord, error: insertError } = await supabase
@@ -175,14 +216,29 @@ serve(async (req) => {
       );
     }
 
+    if (resp.ok && json?.checkout_url) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          internal_reference: internalReference,
+          payment_id: paymentRecord.id,
+          checkout_url: json.checkout_url,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // GeniusPay n'a pas fourni de lien de paiement : ne pas annoncer un succès (le client croirait sa commande payée).
+    console.error("[ecomfy-pay-initiate] Provider did not return a checkout URL:", resp.status, json);
+    await supabase.from("ecomfy_payments").update({ status: "FAILED", updated_at: new Date().toISOString() }).eq("id", paymentRecord.id);
+    if (order_id) {
+      // Commande en paiement en ligne jamais payable : l'annuler évite une commande fantôme chez le marchand.
+      await supabase.from("orders").update({ order_status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("id", order_id).neq("payment_status", "PAID");
+    }
     return new Response(
-      JSON.stringify({
-        success: true,
-        internal_reference: internalReference,
-        payment_id: paymentRecord.id,
-        checkout_url: json?.checkout_url || null,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: "Le service de paiement est momentanément indisponible. Réessayez dans un instant." }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("[ecomfy-pay-initiate] Error:", error);

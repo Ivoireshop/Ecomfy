@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { getClientIp, takeRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,25 +10,18 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Rate limit per IP: 20 req / 60s
-    const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (supabaseUrl && serviceKey) {
-      try {
-        const admin = createClient(supabaseUrl, serviceKey);
-        const { data: rl } = await admin.rpc("check_rate_limit", {
-          _bucket: "showcase-chat", _key: ip, _max: 20, _window_seconds: 60,
-        });
-        if (rl && (rl as any).allowed === false) {
-          return new Response(
-            JSON.stringify({ error: "Trop de requêtes, merci de patienter un instant." }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-      } catch (rlErr) {
-        console.error("rate limit check failed:", rlErr);
-      }
+    // Rate limit (H9) : 20 req / minute / IP, 150 / heure / IP, 3000 / heure au total.
+    // Refus aussi si la vérification échoue (appel facturé au modèle à chaque message).
+    const ip = getClientIp(req);
+    const allowed =
+      (await takeRateLimit("showcase-chat:ip:min", ip, 20, 60)) &&
+      (await takeRateLimit("showcase-chat:ip:hour", ip, 150, 3600)) &&
+      (await takeRateLimit("showcase-chat:global", "all", 3000, 3600));
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: "Trop de requêtes, merci de patienter un instant." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const body = await req.json();
@@ -46,7 +39,8 @@ serve(async (req) => {
       if (!m || typeof m !== "object") continue;
       const role = m.role;
       const content = m.content;
-      if (role !== "user" && role !== "assistant" && role !== "system") continue;
+      // Pas de rôle `system` venant du visiteur : il écraserait les consignes du site.
+      if (role !== "user" && role !== "assistant") continue;
       if (typeof content !== "string") continue;
       if (content.length === 0 || content.length > 2000) {
         return new Response(
@@ -97,7 +91,7 @@ Informations sur l'entreprise:
 - Description: ${safeCtx.businessDescription || "Non disponible"}
 - Propriétaire: ${safeCtx.ownerName}
 - À propos: ${safeCtx.aboutDescription || "Non disponible"}
-${safeCtx.features ? `- Services/Caractéristiques: ${safeCtx.features.map((f) => `${f.title}: ${f.description}`).join(', ')}` : ''}
+${safeCtx.features ? `- Services/Caractéristiques: ${safeCtx.features.map((f: { title: string; description: string }) => `${f.title}: ${f.description}`).join(', ')}` : ''}
 ${safeCtx.formationTitle ? `- Formation: ${safeCtx.formationTitle} - ${safeCtx.formationDescription} (${safeCtx.formationPrice})` : ''}
 
 Contacts:

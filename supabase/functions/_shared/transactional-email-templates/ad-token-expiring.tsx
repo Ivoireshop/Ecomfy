@@ -31,20 +31,20 @@ const AdTokenExpiringEmail = ({
             Le token d'accès du compte publicitaire <b>{accountLabel}</b> connecté à votre boutique <b>{shopName}</b> expire {daysRemaining > 0 ? `dans ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}` : "aujourd'hui"}{expDate ? ` (le ${expDate})` : ''}.
           </Text>
           <Text style={text}>
-            Sans token valide, vos dépenses publicitaires ne pourront plus être synchronisées automatiquement dans la partie Finance de VisualPro.
+            Sans token valide, vos dépenses publicitaires ne pourront plus être synchronisées automatiquement dans la partie Finance de Ecomfy.
           </Text>
           <Text style={text}>
             <b>Comment renouveler :</b><br />
             1. Allez sur <a href="https://developers.facebook.com/tools/explorer/">Graph API Explorer</a> et générez un nouveau token avec la permission <code>ads_read</code>.<br />
             2. Ouvrez <a href="https://developers.facebook.com/tools/debug/accesstoken/">Access Token Debugger</a> et cliquez sur <b>« Extend Access Token »</b> pour obtenir un token de 60 jours.<br />
-            3. Collez-le dans VisualPro &gt; Finance &gt; Comptes publicitaires.
+            3. Collez-le dans Ecomfy &gt; Finance &gt; Comptes publicitaires.
           </Text>
           {manageUrl && (
             <Section style={{ textAlign: 'center', margin: '28px 0' }}>
               <Button href={manageUrl} style={button}>Mettre à jour mon token</Button>
             </Section>
           )}
-          <Text style={footer}>VisualPro Cloud — Suivi automatique de vos dépenses publicitaires.</Text>
+          <Text style={footer}>Ecomfy — Suivi automatique de vos dépenses publicitaires.</Text>
         </Container>
       </Body>
     </Html>
@@ -60,7 +60,7 @@ export const template = {
       : `⚠️ Votre token Meta Ads expire dans ${d} jour${d > 1 ? 's' : ''}`
   },
   displayName: 'Token publicitaire expirant',
-  previewData: { shopName: 'Ma Boutique', accountLabel: 'Compte principal', daysRemaining: 7, expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(), manageUrl: 'https://visuelpro.cloud/shop-manager' },
+  previewData: { shopName: 'Ma Boutique', accountLabel: 'Compte principal', daysRemaining: 7, expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(), manageUrl: 'https://ecomfy.cloud/shop-manager' },
 } satisfies TemplateEntry
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }

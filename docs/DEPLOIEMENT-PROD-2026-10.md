@@ -12,18 +12,18 @@
 
 | Point | Terminé | En prod | Reste à faire |
 |---|---|---|---|
-| Annexe B sur la base réelle | Dev : oui | **Partiel** : deux requêtes clés avant correctifs, vérifications après correctifs | Lancer l'annexe B complète, consigner les résultats |
-| Export des journaux Supabase | Non | Non | Exporter (rétention limitée), chercher les appels `anon` suspects |
+| Annexe B sur la base réelle | Dev : oui | **Oui** (14/10/2026, section 3 bis) : toutes les requêtes applicables lancées, aucun écart | Relire les fonctions du groupe E (section 3 bis) |
+| Journaux Supabase (appels anonymes suspects) | **Partiel** (19/10/2026, section 3 ter) : 7 jours consultés dans l'explorateur de journaux, aucun appel suspect | Non applicable | Période d'avant le 12/10 non vérifiable (rétention Pro de 7 jours). Rien n'a été exporté dans un fichier. Reste `check_rate_limit` côté `anon`, et décider de `enforce_shop_billing_deadlines` et `check_and_trigger_billing_threshold` (appelées sans clé secrète) |
 | H11, projets Supabase | Oui | **Partiel** : migration, secret Vault, push de commande, variables Vercel Production | **Clos le 14/10/2026** : le health-monitor répond 200 avec ses sondes (section 5). Reste les variables Vercel Preview ; variables Vercel Preview |
 | C1, portefeuille | Oui (13 tests sur base jetable) | Non | Vague 2 (section 7) |
 | C2, facturation et activation | Oui | **Oui** : SQL, Edge Functions `founder-*`, front | Tests des écrans fondateur : confirmés fonctionnels le 13/10/2026 (détail des cas non consigné) |
 | C3, `get_shop_orders_secure` | Oui | **Oui** | Rien |
 | C7, `manage-founder-roles` et RLS `user_roles` | Oui (14 tests Node) | **Oui** : fonction, RLS, front | Tester nomination et révocation ; décider de `Admins can manage all roles` |
 | C8, `tracking.ts` | Oui (6 tests Node) | **Oui** : `track-conversion` et front | Requête de détection des `google_analytics_code` piégés ; test d'une vitrine avec pixels |
-| H2, `corporate_*` | Oui | **Oui** | Rien |
+| H2, `corporate_*` | Oui (121 cas sur base jetable) | **Partiel** : hotfix `20261012120000` appliqué (14 tables fermées) | Appliquer `20261015150000` (journal d'audit et acceptations en ajout seul, insertion au nom de l'appelant) et déployer `CorporateOnboardingPage` |
 | C4, KYC | Oui (18 tests) | Non | Vague 2. L'écran `/founder/kyc-review`, présent dans le front, affiche « Could not find the table 'public.merchant_kyc' » : attendu, la table n'existe pas encore. |
 | C5, webhook HMAC | Oui (7 tests Node) | Non | Vague 2 ; jamais testé avec un vrai envoi GeniusPay |
-| C6, montants côté serveur | **Non** | Non | À faire avant la vague 2 |
+| C6, montants côté serveur | Version minimale (14 tests Node) ; commandes encore créées par le navigateur | Non | À déployer avec la vague 2 dans cet ordre : migration `20261015120000` (testée sur base jetable), puis `process-payment`, `ecomfy-pay-initiate`, `ecomfy-pay-webhook`, puis le front ; voir l'audit, C6 |
 | Front | Oui | **Oui** (déploiement signalé le 13/10/2026) | Tests de la section 8 ; confirmer que « Deploy to production » de l'intégration Supabase est désactivé |
 
 ## 1. État au 13 octobre 2026
@@ -36,7 +36,7 @@
 | `20261012160000` (RLS `user_roles`) | **Appliqué à la main** |
 | `20261011120000` (H11, URL Vault) | **Appliquée à la main**, secret Vault `supabase_project_url` créé. Le health-monitor a répondu 401 jusqu'au 14/10/2026, puis 200 (section 5). |
 | Front (branche `jeanmarc`) | **Déployé** (signalé le 13/10/2026). Le build contient l'écran de revue KYC, qui affiche une erreur de chargement tant que la vague 2 n'est pas déployée (attendu). Tests applicatifs des écrans fondateur : confirmés fonctionnels par le responsable le 13/10/2026. |
-| Annexe B sur la production | Requêtes de vérification de la section 3 exécutées après correctif. Les résultats d'avant correctif ne sont pas consignés ici. |
+| Annexe B sur la production | Requêtes de la section 3 puis annexe B complète exécutées après correctif (section 3 bis). Les résultats d'avant correctif ne sont pas consignés ici. |
 
 **Fenêtre de dysfonctionnement (12 octobre, base migrée avant le front) :** entre l'application du SQL et le déploiement du nouveau front, les écrans fondateur de paiement manuel, d'activation manuelle et de gestion des fondateurs échouaient (l'ancien front appelait directement des RPC désormais réservées à `service_role`). Le front étant déployé, elle est refermée. Aucune dérogation (`GRANT … TO authenticated` sur `apply_commission_payment`) n'a été utilisée : confirmé par le responsable le 13/10/2026.
 
@@ -72,6 +72,43 @@ L'ordre prévu était Edge Functions, **front**, puis base. Le front a été ret
 Réserve connue : la politique `Admins can manage all roles` subsiste (elle date de novembre 2025 et n'est pas supprimée par `160000`). Les écritures sont bloquées par le `REVOKE`, mais un `admin` peut **lire** toute la table. Mineur ; à supprimer ou à restreindre.
 
 **Non testé en production (à la date de ce document) :** les parcours applicatifs avec un vrai JWT fondateur ou marchand (`/corporate-governance`, paiement manuel, activation manuelle, nomination et révocation de fondateur, saisie GA4), la vitrine publique avec pixels, un paiement GeniusPay de bout en bout. Ils sont à jouer maintenant que le front est en ligne (section 8).
+
+## 3 bis. Annexe B sur la production (14 octobre 2026)
+
+| Requête | Résultat |
+|---|---|
+| 1. Fonctions exposées à `anon` / `PUBLIC` / `authenticated` (liste de l'annexe B) | Seule ligne : `get_shop_orders_secure` / `authenticated` (contrôle du propriétaire interne). Les fonctions de portefeuille, KYC et affiliation n'existent pas encore en base. |
+| 2. Politiques permissives `corporate_*` | 2 lignes, voulues : insertion seule sur `corporate_audit_logs` et `corporate_document_acceptances` |
+| 3. `is_founder_or_cofounder` | Absente |
+| 4. Rôles privilégiés | `founder` : djateulrich@gmail.com seul. Le co-fondateur (djateulrich11@gmail.com) a été révoqué volontairement. |
+| 5. Portefeuilles créditées sans paiement | Non lancée : `wallets` et `ecomfy_payments` n'existent pas (vague 2) |
+| 6. Version de migration | `20260901020000` (les migrations passées à la main ne sont pas enregistrées) |
+| 7. Fonctions exposées, sans filtre | Voir ci-dessous |
+| 8. `google_analytics_code` piégés (C8) | Aucune ligne |
+| 9. `commission_payments` | Les 44 commissions non manuelles ont toutes un paiement `completed` du même montant ; les 3 règlements manuels sont de `e024db6b…` (le fondateur). Aucune trace d'exploitation de C2 dans les données. |
+
+**Requête 7.** Les triggers (renvoyant `trigger`) ne sont pas appelables par l'API. Les fonctions publiques par conception et les aides RLS sont attendues. Constats :
+- `assign_founder_role` (trigger sur `auth.users`) donne `founder` à `djateulrich@gmail.com` et `co_founder` à `regnis13@gmail.com`, e-mails codés en dur (M7). **Non exploitable aujourd'hui** : les deux comptes existent et leur e-mail est confirmé. Le deviendrait si l'un des comptes était supprimé (l'adresse redevient inscriptible). À supprimer ou à limiter.
+- `consume_ai_credit(_user_id, _feature, _amount)` est exécutable par `anon` et `authenticated` et prend `_user_id` du client sans le comparer à `auth.uid()` : un utilisateur peut débiter les crédits IA d'un autre. À corriger (contrôle `auth.uid()` ou réservation à `service_role`).
+- **Non relues** : `founder_grant_extra_deadline`, `founder_reset_shop_payment` (`authenticated` seul), `enforce_shop_payment_state_for`, `process_referral_signup`, `push_order_to_delivery_provider`, `accept_shop_invitation`, `get_locked_orders_summary`, `get_my_subscription_status`, `increment_shop_gif_count`, `create_user_referral_code`, `recompute_order_totals`. Groupes B et E de l'annexe F.3.
+
+Limites : l'existence d'un paiement (`payments.transaction_id`) a été complétée par un contrôle du statut et du montant (aucun écart). La requête portait sur les 50 dernières lignes ; les journaux de l'API ont été consultés le 19/10/2026 pour les appels anonymes sans effet en base (section 3 ter).
+
+## 3 ter. Journaux de l'API en production (19 octobre 2026)
+
+Source : explorateur de journaux Supabase (`edge_logs`), projet de production, période du 12/10 03:00 au 19/10 02:00. Requêtes en lecture seule, lancées jour par jour (une requête sur 7 jours échoue ou ne répond pas). Les appels portant une clé `sb_secret` (Edge Functions) sont exclus.
+
+| Contrôle | Résultat |
+|---|---|
+| Appels RPC hors clé secrète vers `get_shop_orders_secure`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `apply_shop_activation`, `prepare_shop_activation_payment`, `enqueue_email`, `read_email_batch`, `consume_ai_credit` | **Aucun**, sur chacun des 7 jours |
+| Écritures REST (POST, PATCH, PUT, DELETE) hors clé secrète sur `user_roles` et `corporate_*` | **Une seule** : `POST /rest/v1/corporate_audit_logs`, 201, rôle `authenticated`, 13/10 à 23:43:52. Insertion dans le journal d'audit par un utilisateur connecté, conforme au hotfix `20261012120000`. Aucune écriture sur `user_roles`, aucune écriture `anon` sur `corporate_*`. |
+| Appels RPC hors clé secrète, tous noms, sur les dernières 24 h (18→19/10) | Seulement des lectures publiques et des appels de la boutique : `get_public_shop_by_slug` (5 071), `get_shop_social_proof_orders` (4 259), `get_public_product_page` (2 604), `get_my_subscription_status` (307), `generate_order_number` (196), `enforce_shop_billing_deadlines` (184), `check_and_trigger_billing_threshold` (143), `get_top_sellers` (45), `record_affiliate_referral` (6) |
+
+**Limites :**
+- La formule Pro conserve les journaux 7 jours : **rien n'est vérifiable avant le 12/10**, c'est-à-dire sur la période où les failles étaient ouvertes. Ce contrôle ne prouve donc l'absence d'exploitation qu'après le 12/10.
+- Les résultats ont été lus dans l'explorateur, sans export de fichier.
+- Non faits : `check_rate_limit` côté `anon` ; liste complète des fonctions RPC sur les 6 jours avant le 18/10.
+- `enforce_shop_billing_deadlines` et `check_and_trigger_billing_threshold` sont appelées sans clé secrète (184 et 143 appels en 24 h). À confirmer : appel voulu depuis l'interface, ou exposition à fermer.
 
 ## 4. Front : déploiement
 
@@ -113,14 +150,14 @@ Si les 401 reviennent (valeur Vault différente de `CRON_SECRET`) : `select vaul
 
 Pour faire cesser des 401 en attendant : `select cron.unschedule('app-health-monitor');` (le bloc `cron.schedule` de la migration le remet).
 
-Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vault, et donnent le droit de déclencher les fonctions cron tant que H3 n'est pas corrigé : ne pas les partager.
+Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vault, et donnent le droit de déclencher les fonctions cron (et resteront le seul moyen de les déclencher une fois H3 déployé) : ne pas les partager.
 
 ## 6. Intégration GitHub de Supabase et migrations
 
 - **Les migrations passées dans l'éditeur SQL ne sont pas enregistrées dans `schema_migrations`.** Pour l'intégration GitHub, `20261011120000` à `20261012160000` restent donc « en attente ».
 - Si l'option **« Deploy to production »** de l'intégration GitHub est active, la fusion de la PR dans `main` appliquera automatiquement **toutes** les migrations postérieures à `20260901020000`, dont Ecomfy Pay (sans C6) et les migrations d'affiliation et de facturation par seuil qui contiennent encore des fonctions ouvertes. **À vérifier et à désactiver avant de fusionner** (Project Settings > Integrations > GitHub).
 - **Preview qui échoue :** la branche de preview rejoue toutes les migrations sur une base vierge et bute sur `INSERT INTO ad_templates` (colonne `created_by` NOT NULL, compte seed absent). C'est le constat M11 (migrations non reproductibles), indépendant des correctifs. Un correctif existe dans la branche **locale** `fix/migrations-fresh-database` (commit `7eb936e`, jamais poussé) : `created_by` nullable plus 16 autres migrations, dont le renommage `payment_links` en `ecomfy_payment_links`. Il fusionne sans conflit avec `jeanmarc`, mais :
-  - le renommage ne concerne que le SQL : `src/lib/ecomfyPay.ts`, `src/pages/EcomfyPay.tsx`, `src/pages/EcomfyPayCheckout.tsx`, `src/components/ecomfy-pay/OverviewTab.tsx` et `supabase/deploy-dev/02_c1_wallet_dev.sql` utilisent encore `payment_links` pour Ecomfy Pay (ne pas toucher `PaymentLinksManager` ni `EnrollmentCheckout`, qui concernent les liens de cours) ;
+  - le renommage `payment_links` en `ecomfy_payment_links` est désormais reporté dans `jeanmarc` sans fusion (15/10/2026) : migrations `20260914190000` et `20260914200000`, `deploy-dev/02` et `99`, Edge Function `ecomfy-pay-initiate`, `src/lib/ecomfyPay.ts` et `src/pages/EcomfyPayCheckout.tsx`. `PaymentLinksManager`, `EnrollmentCheckout` et `ShowcaseCourseDetail` (liens de cours) gardent `payment_links`. Les types générés `src/integrations/supabase/types.ts` ne contiennent pas les tables Ecomfy Pay et restent à régénérer ;
   - il ajoute `20261009120000_fix_user_roles_policy_recursion.sql`, redondante avec `20261012160000` (celle-ci passe après et la remplace) ;
   - le passage complet sur base vierge n'a pas été vérifié depuis `jeanmarc`.
 
@@ -129,8 +166,8 @@ Les valeurs Vault sont lisibles par les membres du projet qui ont accès à Vaul
 | Bloquant | Détail |
 |---|---|
 | C6 non corrigé | `ecomfy-pay-initiate` accepte les montants du navigateur. À corriger avant d'ouvrir le portefeuille (C5 et C6 sont des prérequis de C4). |
-| Conflit `payment_links` | Une table de liens de cours porte déjà ce nom. Résolu dans `fix/migrations-fresh-database` (voir section 6), pas dans `jeanmarc`. |
-| H1 | Pièces d'identité dans le bucket public `shop-images`. À traiter avant tout vrai dossier KYC. |
+| Conflit `payment_links` | Une table de liens de cours porte déjà ce nom. Résolu dans `jeanmarc` (15/10/2026) : la table Ecomfy Pay devient `ecomfy_payment_links` (voir section 6). Non déployé. |
+| H1 | Corrigé dans le code (15/10/2026) : bucket privé `kyc-documents`. À déployer : migration `20261015140000`, puis `scripts/migrate-kyc-to-private-bucket.mjs` pour les fichiers existants (`docs/KYC-REVUE-ET-DEPLOIEMENT-C4.md`, sections 6 et 7 bis). |
 | C5 non testé | Vérifier `GENIUSPAY_WEBHOOK_SECRET`, l'URL appelée par GeniusPay, un paiement de test confirmé par `GET /payments/{ref}`. |
 | `getWallet()` | Appelle `get_or_create_merchant_wallet`, refusée au navigateur : un marchand sans portefeuille reçoit `null`. |
 
@@ -168,14 +205,15 @@ Avec un compte fondateur (jeton dans `localStorage`, clé `ecomfy-auth-token`) e
 
 ### Critiques non traités
 8. **C6** : recalcul serveur des montants et des crédits (`process-payment`, `ecomfy-pay-initiate`). Prérequis de la vague 2.
-9. **H1** : bucket privé pour la KYC, liens signés, migration des fichiers existants.
-10. **H3** : `isAuthorizedCron` accepte un JWT dont la signature n'est pas vérifiée.
-11. **H7** : `ReferenceError` de `geniuspay-webhook` (`isConfirmedPayment` hors de portée, ligne 257), et attributions sans contrôle de l'événement.
-12. **H8** : en-têtes de sécurité dans `vercel.json` (HSTS, X-Frame-Options, CSP) ; `public/_headers` est ignoré par Vercel.
+9. **H1** : bucket privé pour la KYC, liens signés, migration des fichiers existants. *Corrigé dans le code (15/10/2026), à déployer : migration `20261015140000`, front, puis script de migration des fichiers.*
+10. **H3** : `isAuthorizedCron` acceptait un JWT dont la signature n'est pas vérifiée. *Corrigé dans le code (15/10/2026), à déployer : redéployer les 7 fonctions cron et `seo-auto-index`, vérifier le secret Vault `email_queue_service_role_key`, puis faire tourner les secrets Vault.*
+11. **H7** : `ReferenceError` de `geniuspay-webhook` (`isConfirmedPayment` hors de portée) et attributions sans contrôle de l'événement. *Corrigé dans le code (15/10/2026, commits `12cf254` et `054001c`), à déployer : `geniuspay-webhook`, `verify-payment`, `reconcile-pending-payments`, puis la migration `20261015130000` (verrous de `apply_shop_subscription` et `apply_commission_payment`). Ajoute la réservation atomique du paiement contre les doubles crédits.*
+12. **H8** : en-têtes de sécurité dans `vercel.json` (HSTS, X-Frame-Options, CSP) ; `public/_headers` est ignoré par Vercel. *Corrigé dans le code le 18/10/2026, à déployer : redéployer le front sur Vercel, puis parcourir les pages principales avec la console ouverte pour repérer toute violation de CSP (voir H8 dans l'audit). `'unsafe-inline'` reste dans `script-src`.*
 
 ### Élevés et autres
-13. **H4** relais d'e-mails ouverts ; **H5** `verify-delivery-identity` ; **H6** affiliation (politiques RLS et RPC) ; **H9** quotas IA et `correct-text` sans authentification ; **H10** création libre de commandes.
-14. **Groupe B de l'annexe F.3** (6 RPC appelées par le navigateur, dont `record_affiliate_referral` et `process_affiliate_commission_for_payment`) et groupe E à relire (`mark_affiliate_payout_paid`, `consume_ai_credit`, `record_stock_movement`). À corriger avant de déployer l'affiliation et la facturation par seuil.
+13. **H4** relais d'e-mails ouverts *(corrigé dans le code le 16/10/2026, à déployer : `send-subscription-email`, `send-domain-ready-notification`, `verify-domain-dns`, `send-corporate-invite`, `verify-delivery-identity` ; secret optionnel `EMAIL_LINK_ORIGINS`)* ; **H5** `verify-delivery-identity` *(corrigé dans le code le 16/10/2026, à déployer : fonction + migration `20261016120000_h5_delivery_verification_guard.sql` ; l'approbation automatique à l'inscription disparaît)* ; **H6** affiliation (politiques RLS et RPC) *(corrigé dans le code le 17/10/2026, à déployer : migration `20261005160000` puis `20261017120000_h6_affiliate_rls_rpc_hardening.sql`, `geniuspay-webhook`, front ; reste à brancher la RPC de commission hors `verify-payment`)* ; **H9** quotas IA et `correct-text` sans authentification *(corrigé dans le code le 18/10/2026, à déployer : les 14 fonctions qui importent `_shared/ai-quota.ts`, `translate-ui`, `shop-ai-assistant-chat`, `shop-chatbot`, `showcase-chat`, sans migration ; vérifier d'abord que la RPC `check_rate_limit` existe en prod, sinon toutes ces fonctions refusent les appels ; `generate-ai-image` et `generate-ad-visual` exigent désormais un compte)* ; **H10** création libre de commandes *(corrigé dans le code le 18/10/2026, à déployer : migration `20261018120000_h10_create_public_order_rpc.sql` puis le front dans la foulée, l'ancien front ne peut plus insérer ; la commission reste facturée dès la création, décision ouverte)*.
+14. **Groupe B de l'annexe F.3** (6 RPC appelées par le navigateur, dont `record_affiliate_referral` et `process_affiliate_commission_for_payment`, ces deux-là traitées par H6) et groupe E à relire (`mark_affiliate_payout_paid` traitée par H6, `consume_ai_credit`, `record_stock_movement`). À corriger avant de déployer la facturation par seuil.
+14 bis. **`consume_ai_credit`** (débit des crédits d'un autre utilisateur) et relecture des fonctions du groupe E listées en section 3 bis.
 15. **`corporate_invitations`** reste ouverte à `public` ; `strict_multitenant_privacy` (`20260902140000`) à corriger avant déploiement.
 16. **E-mails en dur côté interface** (`FounderRoute.tsx`, `AppSidebar.tsx`, `AssociateSpace.tsx`, `CorporateGovernance.tsx`, `FounderDashboard.tsx`, `FounderTroubleshooting.tsx`, `app-health-monitor/index.ts`) : contrôle d'accès contournable par un e-mail contenant « djateulrich ».
 17. **Régression `getWallet()`** et types TypeScript périmés (`types.ts` à régénérer après réconciliation avec la base réelle).

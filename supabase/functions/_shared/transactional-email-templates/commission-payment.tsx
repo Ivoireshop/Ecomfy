@@ -3,8 +3,9 @@ import {
   Body, Button, Container, Head, Heading, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { APP_URL } from "../email-sender.ts";
 
-const SITE_NAME = 'VisualPro'
+const SITE_NAME = 'Ecomfy'
 
 interface Props {
   shopName?: string
@@ -67,10 +68,10 @@ export const template = {
   component: CommissionPaymentEmail,
   subject: (data: Record<string, any>) =>
     data?.unlocked
-      ? 'Votre boutique VisualPro est déverrouillée'
+      ? 'Votre boutique Ecomfy est déverrouillée'
       : 'Paiement de commission bien reçu',
   displayName: 'Paiement de commission / déverrouillage',
-  previewData: { shopName: 'Ma Boutique', amount: 12000, shopUrl: 'https://visuelpro.cloud', unlocked: true },
+  previewData: { shopName: 'Ma Boutique', amount: 12000, shopUrl: APP_URL, unlocked: true },
 } satisfies TemplateEntry
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }

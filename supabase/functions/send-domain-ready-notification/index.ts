@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Resend } from 'npm:resend@4.0.0';
-
+import { senderFrom, APP_URL, guardEmail } from "../_shared/email-sender.ts";
+import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
+import { escapeHtml, isValidEmail, isValidHostname } from "../_shared/email-safety.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -10,11 +12,13 @@ const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
 
 interface NotificationRequest {
   showcaseId: string;
-  customDomain: string;
-  businessName: string;
-  ownerEmail: string;
-  ownerName: string;
 }
+
+const jsonError = (status: number, error: string) =>
+  new Response(JSON.stringify({ error }), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -22,18 +26,47 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { showcaseId, customDomain, businessName, ownerEmail, ownerName }: NotificationRequest = await req.json();
+  // Fonction interne : appelée uniquement par verify-domain-dns avec la clé de service.
+  if (!isAuthorizedCron(req)) {
+    return cronUnauthorizedResponse(corsHeaders);
+  }
 
-    if (!showcaseId || !customDomain || !ownerEmail) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+  try {
+    const { showcaseId }: NotificationRequest = await req.json();
+
+    if (!showcaseId || typeof showcaseId !== 'string') {
+      return jsonError(400, 'Missing required parameters');
     }
+
+    // Destinataire, domaine et noms viennent de la base, jamais du corps de la requête.
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } },
+    );
+    const { data: site } = await supabase
+      .from('showcase_sites')
+      .select('business_name, owner_name, user_id, custom_domain, domain_status, ssl_status')
+      .eq('id', showcaseId)
+      .single();
+    if (!site) return jsonError(404, 'Showcase site not found');
+
+    const customDomain = site.custom_domain;
+    if (!isValidHostname(customDomain)) return jsonError(400, 'Invalid custom domain');
+    if (site.domain_status !== 'active' || site.ssl_status !== 'active') {
+      return jsonError(409, 'Domain is not active yet');
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', site.user_id)
+      .single();
+    const ownerEmail = profile?.email;
+    if (!isValidEmail(ownerEmail)) return jsonError(400, 'Owner email not found');
+
+    const ownerName = escapeHtml(profile?.full_name || site.owner_name || 'cher utilisateur');
+    const businessName = escapeHtml(site.business_name || 'votre site vitrine');
 
     console.log(`Sending domain ready notification to ${ownerEmail} for domain ${customDomain}`);
 
@@ -189,11 +222,11 @@ Deno.serve(async (req) => {
             </div>
             
             <div class="content">
-              <p class="greeting">Bonjour ${ownerName || 'cher utilisateur'},</p>
+              <p class="greeting">Bonjour ${ownerName},</p>
               
               <p class="message">
                 Excellente nouvelle ! La configuration DNS de votre domaine personnalisé pour 
-                <strong>${businessName || 'votre site vitrine'}</strong> est maintenant terminée et votre 
+                <strong>${businessName}</strong> est maintenant terminée et votre 
                 certificat SSL a été provisionné avec succès.
               </p>
               
@@ -241,7 +274,7 @@ Deno.serve(async (req) => {
             <div class="footer">
               <p class="footer-text">
                 Cet email a été envoyé automatiquement par 
-                <a href="https://visualpro.cloud" class="footer-brand">VisualPro</a>
+                <a href="${APP_URL}" class="footer-brand">Ecomfy</a>
                 <br>
                 Création de visuels publicitaires propulsée par l'IA
               </p>
@@ -252,9 +285,8 @@ Deno.serve(async (req) => {
     `;
 
     const { data, error } = await resend.emails.send({
-      from: 'VisualPro <onboarding@resend.dev>',
-      to: [ownerEmail],
-      subject: `🎉 Votre domaine ${customDomain} est maintenant actif !`,
+      from: senderFrom(),
+      ...guardEmail([ownerEmail], `🎉 Votre domaine ${customDomain} est maintenant actif !`),
       html,
     });
 
