@@ -13,7 +13,7 @@
 | Point | Terminé | En prod | Reste à faire |
 |---|---|---|---|
 | Annexe B sur la base réelle | Dev : oui | **Oui** (14/10/2026, section 3 bis) : toutes les requêtes applicables lancées, aucun écart | Relire les fonctions du groupe E (section 3 bis) |
-| Export des journaux Supabase | Non | Non | Exporter (rétention limitée), chercher les appels `anon` suspects |
+| Journaux Supabase (appels anonymes suspects) | **Partiel** (19/10/2026, section 3 ter) : 7 jours consultés dans l'explorateur de journaux, aucun appel suspect | Non applicable | Période d'avant le 12/10 non vérifiable (rétention Pro de 7 jours). Rien n'a été exporté dans un fichier. Reste `check_rate_limit` côté `anon`, et décider de `enforce_shop_billing_deadlines` et `check_and_trigger_billing_threshold` (appelées sans clé secrète) |
 | H11, projets Supabase | Oui | **Partiel** : migration, secret Vault, push de commande, variables Vercel Production | **Clos le 14/10/2026** : le health-monitor répond 200 avec ses sondes (section 5). Reste les variables Vercel Preview ; variables Vercel Preview |
 | C1, portefeuille | Oui (13 tests sur base jetable) | Non | Vague 2 (section 7) |
 | C2, facturation et activation | Oui | **Oui** : SQL, Edge Functions `founder-*`, front | Tests des écrans fondateur : confirmés fonctionnels le 13/10/2026 (détail des cas non consigné) |
@@ -92,7 +92,23 @@ Réserve connue : la politique `Admins can manage all roles` subsiste (elle date
 - `consume_ai_credit(_user_id, _feature, _amount)` est exécutable par `anon` et `authenticated` et prend `_user_id` du client sans le comparer à `auth.uid()` : un utilisateur peut débiter les crédits IA d'un autre. À corriger (contrôle `auth.uid()` ou réservation à `service_role`).
 - **Non relues** : `founder_grant_extra_deadline`, `founder_reset_shop_payment` (`authenticated` seul), `enforce_shop_payment_state_for`, `process_referral_signup`, `push_order_to_delivery_provider`, `accept_shop_invitation`, `get_locked_orders_summary`, `get_my_subscription_status`, `increment_shop_gif_count`, `create_user_referral_code`, `recompute_order_totals`. Groupes B et E de l'annexe F.3.
 
-Limites : l'existence d'un paiement (`payments.transaction_id`) a été complétée par un contrôle du statut et du montant (aucun écart). La requête portait sur les 50 dernières lignes ; les journaux de l'API restent à exporter pour les appels anonymes sans effet en base.
+Limites : l'existence d'un paiement (`payments.transaction_id`) a été complétée par un contrôle du statut et du montant (aucun écart). La requête portait sur les 50 dernières lignes ; les journaux de l'API ont été consultés le 19/10/2026 pour les appels anonymes sans effet en base (section 3 ter).
+
+## 3 ter. Journaux de l'API en production (19 octobre 2026)
+
+Source : explorateur de journaux Supabase (`edge_logs`), projet de production, période du 12/10 03:00 au 19/10 02:00. Requêtes en lecture seule, lancées jour par jour (une requête sur 7 jours échoue ou ne répond pas). Les appels portant une clé `sb_secret` (Edge Functions) sont exclus.
+
+| Contrôle | Résultat |
+|---|---|
+| Appels RPC hors clé secrète vers `get_shop_orders_secure`, `confirm_invoice_payment`, `apply_commission_payment`, `apply_shop_subscription`, `apply_shop_activation`, `prepare_shop_activation_payment`, `enqueue_email`, `read_email_batch`, `consume_ai_credit` | **Aucun**, sur chacun des 7 jours |
+| Écritures REST (POST, PATCH, PUT, DELETE) hors clé secrète sur `user_roles` et `corporate_*` | **Une seule** : `POST /rest/v1/corporate_audit_logs`, 201, rôle `authenticated`, 13/10 à 23:43:52. Insertion dans le journal d'audit par un utilisateur connecté, conforme au hotfix `20261012120000`. Aucune écriture sur `user_roles`, aucune écriture `anon` sur `corporate_*`. |
+| Appels RPC hors clé secrète, tous noms, sur les dernières 24 h (18→19/10) | Seulement des lectures publiques et des appels de la boutique : `get_public_shop_by_slug` (5 071), `get_shop_social_proof_orders` (4 259), `get_public_product_page` (2 604), `get_my_subscription_status` (307), `generate_order_number` (196), `enforce_shop_billing_deadlines` (184), `check_and_trigger_billing_threshold` (143), `get_top_sellers` (45), `record_affiliate_referral` (6) |
+
+**Limites :**
+- La formule Pro conserve les journaux 7 jours : **rien n'est vérifiable avant le 12/10**, c'est-à-dire sur la période où les failles étaient ouvertes. Ce contrôle ne prouve donc l'absence d'exploitation qu'après le 12/10.
+- Les résultats ont été lus dans l'explorateur, sans export de fichier.
+- Non faits : `check_rate_limit` côté `anon` ; liste complète des fonctions RPC sur les 6 jours avant le 18/10.
+- `enforce_shop_billing_deadlines` et `check_and_trigger_billing_threshold` sont appelées sans clé secrète (184 et 143 appels en 24 h). À confirmer : appel voulu depuis l'interface, ou exposition à fermer.
 
 ## 4. Front : déploiement
 
