@@ -127,6 +127,7 @@ export function LandingVideoShowcase() {
                   ref={iframeRef}
                   src={embedUrl}
                   title="Présentation Ecomfy"
+                  loading="lazy"
                   className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10 scale-105 pointer-events-auto"
                   allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
                   allowFullScreen
