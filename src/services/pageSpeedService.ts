@@ -17,7 +17,13 @@ export class PageSpeedService {
 
       const response = await fetch(apiUrl, { method: "GET" });
       if (!response.ok) {
-        throw new Error(`PageSpeed API returned status ${response.status}`);
+        throw new Error(
+          response.status === 429
+            ? "Quota PageSpeed Insights dépassé, réessayez dans quelques minutes."
+            : response.status >= 500 || response.status === 400
+              ? "Google n'a pas pu analyser cette URL (page inaccessible ou analyse trop longue)."
+              : `PageSpeed Insights a répondu avec le statut ${response.status}.`
+        );
       }
 
       const json = await response.json();
@@ -33,7 +39,9 @@ export class PageSpeedService {
       const lcp = audits?.['largest-contentful-paint']?.numericValue != null ? Math.round(audits['largest-contentful-paint'].numericValue) : null;
       const fcp = audits?.['first-contentful-paint']?.numericValue != null ? Math.round(audits['first-contentful-paint'].numericValue) : null;
       const cls = audits?.['cumulative-layout-shift']?.numericValue != null ? Number(audits['cumulative-layout-shift'].numericValue.toFixed(3)) : null;
-      const inp = audits?.['interactive']?.numericValue != null ? Math.round(audits['interactive'].numericValue) : null;
+      // L'INP n'existe pas en test Lighthouse : on lit la mesure terrain (CrUX) quand Google la fournit.
+      const fieldInp = json?.loadingExperience?.metrics?.INTERACTION_TO_NEXT_PAINT?.percentile;
+      const inp = typeof fieldInp === "number" ? Math.round(fieldInp) : null;
       const ttfb = audits?.['server-response-time']?.numericValue != null ? Math.round(audits['server-response-time'].numericValue) : null;
 
       return {
@@ -45,8 +53,9 @@ export class PageSpeedService {
         webVitals: { lcp, fcp, cls, inp, ttfb },
         source: 'PageSpeed Insights',
         analyzedAt: new Date().toISOString(),
+        error: null,
       };
-    } catch {
+    } catch (e) {
       return {
         device,
         performanceScore: null,
@@ -56,6 +65,7 @@ export class PageSpeedService {
         webVitals: { lcp: null, fcp: null, cls: null, inp: null, ttfb: null },
         source: 'PageSpeed Insights',
         analyzedAt: null,
+        error: e instanceof Error ? e.message : "Analyse PageSpeed impossible.",
       };
     }
   }

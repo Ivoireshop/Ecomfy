@@ -341,7 +341,7 @@ const ShopManager = () => {
                         Gérer
                       </button>
                       <button 
-                        onClick={() => navigate(`/seo`)}
+                        onClick={() => navigate(`/seo?shop=${shop.id}`)}
                         className="w-[40px] border border-[#0E7C66]/30 bg-[#0E7C66]/10 text-[#0E7C66] rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-[#0E7C66] hover:text-white transition-colors shrink-0"
                         title="SEO Intelligence (Référencement Google)"
                       >

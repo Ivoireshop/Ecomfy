@@ -2,48 +2,144 @@
 // Module ECOMFY SEO INTELLIGENCE v2.0 — Multi-tab SEO Analysis, Google Search Console, PageSpeed Insights & Technical Auto-fixes.
 // Design clean, responsive font scaling, green glowing pulse dots, and 100% real-time data integrity.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Search, Shield, CheckCircle2, AlertTriangle, AlertCircle, RefreshCw, 
-  Globe, BarChart3, TrendingUp, FileText, Download, Settings, Zap, Key, 
-  Eye, Code, Smartphone, Monitor, Info, ChevronLeft, ChevronRight
+import {
+  Search, Shield, CheckCircle2, AlertTriangle, AlertCircle, RefreshCw,
+  Globe, BarChart3, TrendingUp, FileText, Download, Settings, Zap, Key,
+  Eye, Code, Smartphone, Monitor, Info, ChevronLeft, ChevronRight, Loader2, Store
 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSeoIntelligence } from "@/hooks/useSeoIntelligence";
-import { SeoAuditService } from "@/services/seoAuditService";
+import { useSeoShop, SeoShopOption } from "@/hooks/useSeoShop";
+import { SeoAuditService, DEFAULT_SEO_WEIGHTS } from "@/services/seoAuditService";
 import { GscService } from "@/services/gscService";
+import { SEO_LIMITS, getEffectiveShopDescription, getEffectiveShopTitle, getProductUrl, getShopDomain, getShopHomeUrl, getShopName } from "@/lib/seoShop";
+import { GscProperty, SeoIssue, UrlInspectionResult, PageSpeedResult } from "@/types/seoIntelligence";
 import { toast } from "sonner";
 
-interface SeoIntelligencePageProps {
-  shop?: any;
-  products?: any[];
+const PERIODS: { id: "7d" | "28d" | "3m" | "6m" | "12m"; label: string }[] = [
+  { id: "7d", label: "7 jours" },
+  { id: "28d", label: "28 jours" },
+  { id: "3m", label: "3 mois" },
+  { id: "6m", label: "6 mois" },
+  { id: "12m", label: "12 mois" },
+];
+
+const formatDate = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+
+export default function SeoIntelligencePage() {
+  const navigate = useNavigate();
+  const { shops, shop, products, loading, error, reload, selectShop } = useSeoShop();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [pendingGsc, setPendingGsc] = useState<{ shopId: string; sites: GscProperty[] } | null>(null);
+  const oauthHandled = useRef(false);
+
+  // Retour de Google : ?code=...&state=... (le code n'est utilisable qu'une fois)
+  useEffect(() => {
+    if (oauthHandled.current) return;
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+    const googleError = searchParams.get("error");
+
+    if (googleError) {
+      oauthHandled.current = true;
+      toast.error("Autorisation Google refusée.");
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    if (!code || !state) return;
+
+    oauthHandled.current = true;
+    (async () => {
+      try {
+        const res = await GscService.exchangeCode(code, state);
+        setPendingGsc(res);
+        setSearchParams({ shop: res.shopId }, { replace: true });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Connexion Google impossible.");
+        setSearchParams({}, { replace: true });
+      }
+    })();
+  }, [searchParams, setSearchParams]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#090D16] text-slate-100">
+        <Header />
+        <div className="flex items-center justify-center py-32 gap-3 text-slate-400 text-sm">
+          <Loader2 className="w-5 h-5 animate-spin" /> Chargement de votre boutique...
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !shop) {
+    return (
+      <div className="min-h-screen bg-[#090D16] text-slate-100">
+        <Header />
+        <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-4">
+          <Store className="w-10 h-10 mx-auto text-slate-500" />
+          <h1 className="text-xl font-space font-bold text-white">
+            {error ? "Impossible de charger votre boutique" : "Aucune boutique à analyser"}
+          </h1>
+          <p className="text-sm text-slate-400">
+            {error || "Créez votre première boutique pour accéder à l'analyse SEO et à la visibilité Google."}
+          </p>
+          <Button onClick={() => navigate("/shop-manager")} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">
+            Aller à mes boutiques
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <SeoDashboard
+      key={shop.id}
+      shop={shop}
+      products={products}
+      shops={shops}
+      onSelectShop={selectShop}
+      onReload={reload}
+      pendingGsc={pendingGsc?.shopId === shop.id ? pendingGsc : null}
+      onPendingGscDone={() => setPendingGsc(null)}
+    />
+  );
 }
 
-export default function SeoIntelligencePage({ shop, products = [] }: SeoIntelligencePageProps) {
-  const currentShop = shop || {
-    id: "demo-shop",
-    name: "Boutique Démo",
-    slug: "ma-boutique",
-    custom_domain: "maboutique.ecomfy.cloud",
-    primary_color: "#0E7C66",
-    theme_config: {
-      seo_title: "",
-      seo_description: "",
-    }
-  };
+interface SeoDashboardProps {
+  shop: any;
+  products: any[];
+  shops: SeoShopOption[];
+  onSelectShop: (id: string) => void;
+  onReload: ReturnType<typeof useSeoShop>["reload"];
+  /** Propriétés Search Console à choisir après l'autorisation Google. */
+  pendingGsc: { shopId: string; sites: GscProperty[] } | null;
+  onPendingGscDone: () => void;
+}
 
+function SeoDashboard({ shop: currentShop, products, shops, onSelectShop, onReload, pendingGsc, onPendingGscDone }: SeoDashboardProps) {
   const {
+    loading,
     isAuditing,
     isAnalyzingPageSpeed,
+    isApplyingFix,
+    isSyncingGsc,
+    storageError,
     currentAudit,
+    auditHistory,
     gscMetrics,
     queries,
+    pages,
     opportunities,
     mobilePageSpeed,
     desktopPageSpeed,
@@ -52,81 +148,127 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
     gscConnection,
     runAudit,
     runPageSpeedAnalysis,
+    applyFix,
+    saveMeta,
+    syncGsc,
+    connectGsc,
+    disconnectGsc,
+    selectGscProperty,
     exportPdfReport,
     exportCsvQueries,
-  } = useSeoIntelligence(currentShop, products);
+  } = useSeoIntelligence(currentShop, products, onReload);
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(pendingGsc ? "gsc" : "overview");
+  const [isSelectingProperty, setIsSelectingProperty] = useState(false);
   const [searchQueryFilter, setSearchQueryFilter] = useState("");
   const [inspectUrlInput, setInspectUrlInput] = useState("");
-  const [inspectionResult, setInspectionResult] = useState<any>(null);
+  const [inspectionResult, setInspectionResult] = useState<UrlInspectionResult | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
 
   // Pagination state for keywords
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Technical Meta Editor state
-  const [customMetaTitle, setCustomMetaTitle] = useState(
-    currentShop.theme_config?.seo_title || currentShop.name || ""
-  );
-  const [customMetaDesc, setCustomMetaDesc] = useState(
-    currentShop.theme_config?.seo_description || currentShop.description || ""
-  );
+  // Technical Meta Editor state (valeurs réellement servies par la boutique)
+  const [customMetaTitle, setCustomMetaTitle] = useState(getEffectiveShopTitle(currentShop));
+  const [customMetaDesc, setCustomMetaDesc] = useState(getEffectiveShopDescription(currentShop));
+
+  // Re-synchronise l'éditeur quand la boutique est rechargée (après une correction automatique)
+  useEffect(() => {
+    setCustomMetaTitle(getEffectiveShopTitle(currentShop));
+    setCustomMetaDesc(getEffectiveShopDescription(currentShop));
+  }, [currentShop.seo_title, currentShop.seo_description, currentShop.business_name, currentShop.business_description]);
 
   // Auto-Fix preview modal state
-  const [previewFixIssue, setPreviewFixIssue] = useState<any>(null);
+  const [previewFixIssue, setPreviewFixIssue] = useState<SeoIssue | null>(null);
 
-  const domainName = currentShop.custom_domain || `${currentShop.slug || 'boutique'}.ecomfy.cloud`;
+  const domainName = getShopDomain(currentShop);
+  const shopName = getShopName(currentShop);
 
   const handleInspectUrl = async () => {
-    if (!inspectUrlInput.trim()) {
+    const target = inspectUrlInput.trim();
+    if (!target) {
       toast.error("Veuillez saisir une URL à inspecter");
       return;
     }
+    if (/^https?:\/\//i.test(target)) {
+      try {
+        const host = new URL(target).hostname.replace(/^www\./, "");
+        const allowed = [getShopDomain(currentShop), "ecomfy.cloud"];
+        if (currentShop.custom_domain) allowed.push(currentShop.custom_domain);
+        if (!allowed.some((d) => host === d || host.endsWith("." + d))) {
+          toast.error("Cette URL n'appartient pas à votre boutique.");
+          return;
+        }
+      } catch {
+        toast.error("URL invalide.");
+        return;
+      }
+    }
     setIsInspecting(true);
-    toast.info("Inspection d'URL en cours auprès des serveurs Google...");
-    const res = await GscService.inspectUrl(domainName, inspectUrlInput);
-    setInspectionResult(res);
-    setIsInspecting(false);
-    toast.success("Inspection d'URL effectuée avec succès");
+    try {
+      const res = await GscService.inspectUrl(domainName, target);
+      setInspectionResult(res);
+      if (res.verdict === "UNAVAILABLE") {
+        toast.info("Inspection indisponible pour le moment.");
+      } else {
+        toast.success("Inspection d'URL effectuée avec succès");
+      }
+    } catch {
+      toast.error("L'inspection d'URL a échoué.");
+    } finally {
+      setIsInspecting(false);
+    }
   };
 
-  const filteredQueries = queries.filter(q => 
+  const filteredQueries = queries.filter(q =>
     q.query.toLowerCase().includes(searchQueryFilter.toLowerCase())
   );
 
   const totalPagesCount = Math.ceil(filteredQueries.length / itemsPerPage) || 1;
+  const safePage = Math.min(currentPage, totalPagesCount);
   const paginatedQueries = filteredQueries.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    (safePage - 1) * itemsPerPage,
+    safePage * itemsPerPage
   );
 
-  // Generate Page Audit list for "Pages" tab
+  // Liste des pages : données Search Console uniquement si elles ont été synchronisées
+  const gscPageStats = (url: string) => {
+    const row = pages.find((r) => r.url.replace(/\/$/, "") === url.replace(/\/$/, ""));
+    return row ? { clicks: row.clicks, impressions: row.impressions } : null;
+  };
+
+  const homeUrl = getShopHomeUrl(currentShop);
+  const homeStats = gscPageStats(homeUrl);
   const pagesList = [
     {
-      url: `https://${domainName}/`,
+      url: homeUrl,
       name: "Page d'accueil",
       type: "Accueil",
-      hasMetaTitle: !!(currentShop.theme_config?.seo_title || currentShop.name),
-      hasMetaDesc: !!(currentShop.theme_config?.seo_description || currentShop.description),
-      hasH1: true,
-      hasCanonical: true,
-      clicks: gscMetrics.clicks !== null ? Math.round(gscMetrics.clicks * 0.45) : null,
-      impressions: gscMetrics.impressions !== null ? Math.round(gscMetrics.impressions * 0.5) : null,
+      hasMetaTitle: !!getEffectiveShopTitle(currentShop),
+      hasMetaDesc: getEffectiveShopDescription(currentShop).length >= SEO_LIMITS.descMin,
+      clicks: homeStats ? homeStats.clicks : null,
+      impressions: homeStats ? homeStats.impressions : null,
     },
-    ...products.map(p => ({
-      url: `https://${domainName}/product/${p.slug || p.id}`,
-      name: p.name,
-      type: "Fiche Produit",
-      hasMetaTitle: !!(p.name && p.name.length >= 10),
-      hasMetaDesc: !!(p.description && p.description.length >= 40),
-      hasH1: true,
-      hasCanonical: true,
-      clicks: gscMetrics.clicks !== null ? Math.round((gscMetrics.clicks * 0.55) / (products.length || 1)) : null,
-      impressions: gscMetrics.impressions !== null ? Math.round((gscMetrics.impressions * 0.5) / (products.length || 1)) : null,
-    }))
+    ...products
+      .filter((p) => p.is_published !== false)
+      .map(p => {
+        const url = getProductUrl(currentShop, p);
+        const stats = gscPageStats(url);
+        return {
+          url,
+          name: p.name,
+          type: "Fiche Produit",
+          hasMetaTitle: !!(p.name && p.name.length >= 10),
+          hasMetaDesc: String(p.short_description || p.description || "").trim().length >= SEO_LIMITS.productDescMin,
+          clicks: stats ? stats.clicks : null,
+          impressions: stats ? stats.impressions : null,
+        };
+      })
   ];
+
+  const metaTitleDirty = customMetaTitle.trim() !== getEffectiveShopTitle(currentShop);
+  const metaDescDirty = customMetaDesc.trim() !== getEffectiveShopDescription(currentShop);
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white">
@@ -160,12 +302,24 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-space font-extrabold text-white tracking-tight leading-tight">
-                {currentShop.name} — Visibilité & SEO Google
+                {shopName} — Visibilité & SEO Google
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 flex items-center gap-2">
                 <Globe className="w-4 h-4 text-emerald-400" />
                 <span className="font-mono text-slate-300 font-medium">{domainName}</span>
               </p>
+              {shops.length > 1 && (
+                <select
+                  value={currentShop.id}
+                  onChange={(e) => onSelectShop(e.target.value)}
+                  aria-label="Boutique analysée"
+                  className="mt-1 bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded-xl h-9 px-3"
+                >
+                  {shops.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -189,6 +343,17 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
             </div>
           </div>
         </div>
+
+        {storageError && (
+          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-xs text-red-200 flex items-start gap-3">
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold block">L'historique des audits et les données Google ne sont pas accessibles.</span>
+              <span className="text-red-200/80 font-mono break-words">{storageError}</span>
+              <span className="block text-red-200/80">Vous pouvez lancer un audit, mais il ne sera pas enregistré tant que le problème persiste.</span>
+            </div>
+          </div>
+        )}
 
         {/* Sub-Navigation Tabs Header */}
         <div className="overflow-x-auto pb-2 scrollbar-thin">
@@ -230,6 +395,38 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
         {activeTab === "overview" && (
           <div className="space-y-8 animate-in fade-in duration-300">
 
+            {/* Période des données Google */}
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Période des données Google">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Période Google</span>
+              {PERIODS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPeriod(p.id)}
+                  aria-pressed={selectedPeriod === p.id}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    selectedPeriod === p.id
+                      ? "bg-[#0E7C66] text-white"
+                      : "bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+              {loading && <Loader2 className="w-4 h-4 animate-spin text-slate-500 ml-2" />}
+              {gscConnection.isConnected && (
+                <Button
+                  onClick={syncGsc}
+                  disabled={isSyncingGsc}
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs rounded-xl gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingGsc ? 'animate-spin' : ''}`} />
+                  {isSyncingGsc ? "Synchronisation..." : "Synchroniser Google"}
+                </Button>
+              )}
+            </div>
+
             {/* Top Metrics Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               
@@ -247,7 +444,9 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                 </div>
                 <div className="space-y-1">
                   <Progress value={currentAudit?.overallScore || 0} className="h-2 bg-slate-800 text-emerald-500" />
-                  <span className="text-[10px] text-slate-400 block font-mono">Source : Algorithme Ecomfy</span>
+                  <span className="text-[10px] text-slate-400 block font-mono">
+                    Source : Algorithme Ecomfy{currentAudit ? ` · ${formatDate(currentAudit.auditedAt)}` : " · aucun audit"}
+                  </span>
                 </div>
               </Card>
 
@@ -325,7 +524,7 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" /> Connectez Google Search Console pour afficher vos vraies métriques de visibilité
                   </h3>
                   <p className="text-xs text-amber-200/80 leading-relaxed">
-                    Ecomfy n'utilise **aucune donnée fictive**. Connectez votre compte Google en 1-clic pour suivre vos vrais clics, impressions et mots-clés.
+                    Ecomfy n'affiche aucune donnée fictive. Connectez votre compte Google en 1-clic pour suivre vos vrais clics, impressions et mots-clés.
                   </p>
                 </div>
                 <Button 
@@ -352,7 +551,10 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                       <p className="text-[11px] text-slate-300 leading-tight">{issue.description}</p>
                     </div>
                   ))}
-                  {(!currentAudit || currentAudit.issuesCriticalCount === 0) && (
+                  {!currentAudit && (
+                    <div className="p-4 text-center text-xs text-slate-500 font-medium">Lancez un audit pour détecter les problèmes.</div>
+                  )}
+                  {currentAudit && currentAudit.issuesCriticalCount === 0 && (
                     <div className="p-4 text-center text-xs text-slate-500 font-medium">Aucun problème critique détecté</div>
                   )}
                 </div>
@@ -370,7 +572,10 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                       <p className="text-[11px] text-slate-300 leading-tight">{issue.description}</p>
                     </div>
                   ))}
-                  {(!currentAudit || currentAudit.issuesImportantCount === 0) && (
+                  {!currentAudit && (
+                    <div className="p-4 text-center text-xs text-slate-500 font-medium">Lancez un audit pour détecter les problèmes.</div>
+                  )}
+                  {currentAudit && currentAudit.issuesImportantCount === 0 && (
                     <div className="p-4 text-center text-xs text-slate-500 font-medium">Aucun problème important détecté.</div>
                   )}
                 </div>
@@ -388,7 +593,10 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                       <p className="text-[11px] text-slate-300 leading-tight">{issue.description}</p>
                     </div>
                   ))}
-                  {(!currentAudit || currentAudit.issuesOptimizationCount === 0) && (
+                  {!currentAudit && (
+                    <div className="p-4 text-center text-xs text-slate-500 font-medium">Lancez un audit pour détecter les problèmes.</div>
+                  )}
+                  {currentAudit && currentAudit.issuesOptimizationCount === 0 && (
                     <div className="p-4 text-center text-xs text-slate-500 font-medium">Toutes les optimisations sont valides !</div>
                   )}
                 </div>
@@ -416,21 +624,35 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                 </Button>
               </div>
 
+              {!currentAudit && (
+                <div className="p-10 text-center text-xs text-slate-500">
+                  Aucun audit enregistré pour cette boutique. Cliquez sur « Re-lancer l'audit » pour analyser vos balises, vos produits et vos images.
+                </div>
+              )}
+
               {currentAudit && (
                 <div className="space-y-6">
                   {/* Detailed Scores Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <ScoreBox title="Technique" score={currentAudit.technicalScore} weight="25%" />
-                    <ScoreBox title="Performance" score={currentAudit.performanceScore} weight="20%" />
-                    <ScoreBox title="Contenu" score={currentAudit.contentScore} weight="20%" />
-                    <ScoreBox title="Indexabilité" score={currentAudit.indexabilityScore} weight="15%" />
-                    <ScoreBox title="Métadonnées" score={currentAudit.metadataScore} weight="10%" />
-                    <ScoreBox title="Mobile" score={currentAudit.mobileScore} weight="10%" />
+                    <ScoreBox title="Technique" score={currentAudit.technicalScore} weight={`${DEFAULT_SEO_WEIGHTS.technical}%`} />
+                    <ScoreBox title="Performance" score={currentAudit.performanceScore} weight={`${DEFAULT_SEO_WEIGHTS.performance}%`} />
+                    <ScoreBox title="Contenu" score={currentAudit.contentScore} weight={`${DEFAULT_SEO_WEIGHTS.content}%`} />
+                    <ScoreBox title="Indexabilité" score={currentAudit.indexabilityScore} weight={`${DEFAULT_SEO_WEIGHTS.indexability}%`} />
+                    <ScoreBox title="Métadonnées" score={currentAudit.metadataScore} weight={`${DEFAULT_SEO_WEIGHTS.metadata}%`} />
+                    <ScoreBox title="Mobile" score={currentAudit.mobileScore} weight={`${DEFAULT_SEO_WEIGHTS.mobile}%`} />
                   </div>
+                  {(currentAudit.performanceScore === null || currentAudit.mobileScore === null) && (
+                    <p className="text-[11px] text-slate-500">
+                      « Non mesuré » : lancez l'analyse PageSpeed (onglet Performance) puis relancez l'audit pour intégrer ces catégories au score.
+                    </p>
+                  )}
 
                   {/* Issues List with Action Buttons */}
                   <div className="space-y-3 pt-4">
                     <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Toutes les anomalies détectées ({currentAudit.issues.length})</h3>
+                    {currentAudit.issues.length === 0 && (
+                      <div className="p-6 text-center text-xs text-slate-500">Aucune anomalie détectée. Bravo !</div>
+                    )}
                     {currentAudit.issues.map((issue) => (
                       <div key={issue.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="space-y-1">
@@ -497,20 +719,84 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                     </span>
                   </div>
 
-                  <Button
-                    onClick={() => toast.info("Redirection vers la page d'autorisation Google OAuth 2.0...")}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs px-5 py-2.5 gap-2"
-                  >
-                    <Key className="w-4 h-4" />
-                    <span>{gscConnection.isConnected ? "Re-connecter Google GSC" : "Connecter Google Search Console"}</span>
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    {gscConnection.isConnected && (
+                      <>
+                        <Button
+                          onClick={syncGsc}
+                          disabled={isSyncingGsc}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs px-4 py-2.5 gap-2"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${isSyncingGsc ? 'animate-spin' : ''}`} />
+                          <span>{isSyncingGsc ? "Synchronisation..." : "Synchroniser maintenant"}</span>
+                        </Button>
+                        <Button
+                          onClick={disconnectGsc}
+                          variant="outline"
+                          className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl text-xs px-4 py-2.5"
+                        >
+                          Déconnecter
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      onClick={connectGsc}
+                      variant={gscConnection.isConnected ? "outline" : "default"}
+                      className={gscConnection.isConnected
+                        ? "border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl text-xs px-4 py-2.5 gap-2"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs px-5 py-2.5 gap-2"}
+                    >
+                      <Key className="w-4 h-4" />
+                      <span>{gscConnection.isConnected ? "Re-connecter Google" : "Connecter Google Search Console"}</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
+
+              {gscConnection.isConnected && (
+                <p className="text-xs text-slate-400">Dernière synchronisation : {formatDate(gscConnection.lastSyncedAt)}</p>
+              )}
+
+              {pendingGsc && (
+                <div className="p-5 rounded-2xl bg-slate-950/80 border border-emerald-500/30 space-y-3">
+                  <h3 className="text-sm font-bold text-white">Choisissez la propriété Search Console de cette boutique</h3>
+                  {pendingGsc.sites.length === 0 ? (
+                    <p className="text-xs text-amber-300">
+                      Aucune propriété trouvée sur ce compte Google. Ajoutez et vérifiez votre site dans Search Console, puis reconnectez-vous.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {pendingGsc.sites.map((site) => {
+                        const matches = GscService.verifyDomainMatch(domainName, site.siteUrl);
+                        return (
+                          <button
+                            key={site.siteUrl}
+                            disabled={!site.isCompatible || isSelectingProperty}
+                            onClick={async () => {
+                              setIsSelectingProperty(true);
+                              const ok = await selectGscProperty(site.siteUrl);
+                              setIsSelectingProperty(false);
+                              if (ok) onPendingGscDone();
+                            }}
+                            className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 disabled:opacity-50 text-left"
+                          >
+                            <span className="font-mono text-xs text-slate-200 break-all">{site.siteUrl}</span>
+                            <span className="flex items-center gap-2 shrink-0">
+                              {matches && <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px]">Recommandé</Badge>}
+                              {!site.isCompatible && <Badge className="bg-red-500/20 text-red-300 border border-red-500/40 text-[10px]">Non vérifiée</Badge>}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Scope info */}
               <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800/80 text-xs text-slate-400 space-y-1">
                 <span className="font-bold text-slate-300 block">🔒 Sécurité & Scope de Lecture Seule :</span>
-                <p>Ecomfy utilise exclusivement le scope officiel <code className="text-emerald-400">webmasters.readonly</code>. Vos identifiants ne sont jamais stockés dans le navigateur client.</p>
+                <p>Ecomfy utilise exclusivement le scope officiel <code className="text-emerald-400">webmasters.readonly</code>. Les jetons Google restent côté serveur et ne sont jamais envoyés au navigateur.</p>
               </div>
             </Card>
           </div>
@@ -538,7 +824,7 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                     }}
                     className="bg-slate-950 border-slate-800 text-xs h-9 w-48 rounded-xl"
                   />
-                  <Button onClick={exportCsvQueries} variant="outline" size="sm" className="border-slate-700 text-xs rounded-xl gap-1.5">
+                  <Button onClick={exportCsvQueries} variant="outline" size="sm" className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs rounded-xl gap-1.5">
                     <Download className="w-3.5 h-3.5" /> Exporter CSV
                   </Button>
                 </div>
@@ -558,8 +844,8 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/60 font-mono">
-                        {paginatedQueries.map((q, idx) => (
-                          <tr key={idx} className="hover:bg-slate-900/50">
+                        {paginatedQueries.map((q) => (
+                          <tr key={q.query} className="hover:bg-slate-900/50">
                             <td className="p-3.5 font-sans font-bold text-white">{q.query}</td>
                             <td className="p-3.5 text-emerald-400 font-bold">{q.clicks}</td>
                             <td className="p-3.5 text-slate-300">{q.impressions.toLocaleString()}</td>
@@ -573,23 +859,25 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
 
                   {/* Pagination Control */}
                   <div className="flex items-center justify-between pt-2 text-xs text-slate-400">
-                    <span>Page {currentPage} sur {totalPagesCount} ({filteredQueries.length} mots-clés au total)</span>
+                    <span>Page {safePage} sur {totalPagesCount} ({filteredQueries.length} mots-clés au total)</span>
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        className="h-8 w-8 p-0 border-slate-800 text-slate-300"
+                        disabled={safePage === 1}
+                        aria-label="Page précédente"
+                        onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+                        className="h-8 w-8 p-0 border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={currentPage >= totalPagesCount}
-                        onClick={() => setCurrentPage(prev => Math.min(totalPagesCount, prev + 1))}
-                        className="h-8 w-8 p-0 border-slate-800 text-slate-300"
+                        disabled={safePage >= totalPagesCount}
+                        aria-label="Page suivante"
+                        onClick={() => setCurrentPage(Math.min(totalPagesCount, safePage + 1))}
+                        className="h-8 w-8 p-0 border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
@@ -599,7 +887,13 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
               ) : (
                 <div className="p-12 text-center text-xs text-slate-500 space-y-2">
                   <Search className="w-8 h-8 mx-auto text-slate-600" />
-                  <p>Aucune requête trouvée. Connectez Google Search Console pour charger vos vrais mots-clés.</p>
+                  <p>
+                    {!gscConnection.isConnected
+                      ? "Aucune requête trouvée. Connectez Google Search Console pour charger vos vrais mots-clés."
+                      : searchQueryFilter
+                        ? "Aucun mot-clé ne correspond à ce filtre."
+                        : "Aucune donnée Google synchronisée pour cette période."}
+                  </p>
                 </div>
               )}
             </Card>
@@ -630,8 +924,8 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
-                    {pagesList.map((p, idx) => (
-                      <tr key={idx} className="hover:bg-slate-900/50">
+                    {pagesList.map((p) => (
+                      <tr key={p.url} className="hover:bg-slate-900/50">
                         <td className="p-3.5 font-bold text-white max-w-xs truncate">{p.name}</td>
                         <td className="p-3.5"><Badge variant="outline" className="text-[10px] border-slate-700 text-slate-300">{p.type}</Badge></td>
                         <td className="p-3.5">
@@ -645,7 +939,7 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                           {p.hasMetaDesc ? (
                             <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Présent</span>
                           ) : (
-                            <span className="text-amber-400 font-bold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> À optimiser</span>
+                            <span className="text-amber-400 font-bold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Trop courte</span>
                           )}
                         </td>
                         <td className="p-3.5 font-mono text-slate-300">
@@ -655,7 +949,7 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => window.open(p.url, "_blank")}
+                            onClick={() => window.open(p.url, "_blank", "noopener,noreferrer")}
                             className="h-7 text-[11px] text-emerald-400 hover:text-white hover:bg-emerald-600/20 px-2 rounded-lg gap-1"
                           >
                             <span>Voir l'URL</span>
@@ -676,14 +970,14 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
             <Card className="bg-slate-900/90 border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6">
               <div className="space-y-1 border-b border-slate-800 pb-4">
                 <h2 className="text-xl font-space font-bold text-white flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-emerald-400 shrink-0" /> Inspection d'URL Google (En direct)
+                  <Eye className="w-5 h-5 text-emerald-400 shrink-0" /> Inspection d'URL Google
                 </h2>
-                <p className="text-xs text-slate-400">Inspectez l'état réel d'indexation d'une URL spécifique sur Google.</p>
+                <p className="text-xs text-slate-400">Vérifiez l'état d'indexation d'une URL de votre boutique sur Google.</p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input
-                  placeholder="https://ma-boutique.ecomfy.cloud/product/mon-produit"
+                  placeholder={`${getShopHomeUrl(currentShop)}`}
                   value={inspectUrlInput}
                   onChange={(e) => setInspectUrlInput(e.target.value)}
                   className="bg-slate-950 border-slate-800 text-xs h-10 rounded-xl font-mono flex-1 text-slate-100"
@@ -698,15 +992,24 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                 <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Résultat d'Inspection</span>
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px]">
-                      {inspectionResult.verdict}
+                    <Badge className={
+                      inspectionResult.verdict === "INDEXED" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px]" :
+                      inspectionResult.verdict === "NOT_INDEXED" ? "bg-red-500/20 text-red-400 border border-red-500/40 text-[10px]" :
+                      "bg-slate-500/20 text-slate-300 border border-slate-500/40 text-[10px]"
+                    }>
+                      {inspectionResult.verdict === "UNAVAILABLE" ? "INDISPONIBLE" : inspectionResult.verdict}
                     </Badge>
                   </div>
                   <div className="text-xs space-y-1 font-mono text-slate-300">
-                    <div>URL inspectée : <span className="text-white">{inspectionResult.inspectUrl}</span></div>
+                    <div>URL inspectée : <span className="text-white break-all">{inspectionResult.inspectUrl}</span></div>
                     <div>État d'indexation : <span className="text-emerald-400">{inspectionResult.coverageState}</span></div>
-                    <div>Canonique Google : <span className="text-blue-400">{inspectionResult.googleCanonicalUrl}</span></div>
+                    {inspectionResult.googleCanonicalUrl && (
+                      <div>Canonique Google : <span className="text-blue-400 break-all">{inspectionResult.googleCanonicalUrl}</span></div>
+                    )}
                   </div>
+                  {inspectionResult.message && (
+                    <p className="text-xs text-amber-200/90 leading-relaxed">{inspectionResult.message}</p>
+                  )}
                   <span className="text-[10px] text-slate-500 block font-mono">Source : {inspectionResult.source}</span>
                 </div>
               )}
@@ -733,35 +1036,8 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* Mobile Card */}
-                <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-emerald-400 shrink-0" /> Performance Mobile
-                  </h3>
-                  <div className="text-2xl sm:text-3xl font-space font-bold text-emerald-400 whitespace-nowrap">
-                    {mobilePageSpeed?.performanceScore !== null && mobilePageSpeed?.performanceScore !== undefined ? (
-                      `${mobilePageSpeed.performanceScore} / 100`
-                    ) : (
-                      <span className="text-xs sm:text-sm font-semibold text-slate-400 font-sans tracking-tight leading-none inline-block whitespace-nowrap">Données indisponibles</span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-slate-400 block font-mono">Source : PageSpeed Insights API</span>
-                </div>
-
-                {/* Desktop Card */}
-                <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                    <Monitor className="w-4 h-4 text-blue-400 shrink-0" /> Performance Desktop
-                  </h3>
-                  <div className="text-2xl sm:text-3xl font-space font-bold text-blue-400 whitespace-nowrap">
-                    {desktopPageSpeed?.performanceScore !== null && desktopPageSpeed?.performanceScore !== undefined ? (
-                      `${desktopPageSpeed.performanceScore} / 100`
-                    ) : (
-                      <span className="text-xs sm:text-sm font-semibold text-slate-400 font-sans tracking-tight leading-none inline-block whitespace-nowrap">Données indisponibles</span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-slate-400 block font-mono">Source : PageSpeed Insights API</span>
-                </div>
+                <SpeedCard title="Performance Mobile" icon={<Smartphone className="w-4 h-4 text-emerald-400 shrink-0" />} valueClass="text-emerald-400" result={mobilePageSpeed} />
+                <SpeedCard title="Performance Desktop" icon={<Monitor className="w-4 h-4 text-blue-400 shrink-0" />} valueClass="text-blue-400" result={desktopPageSpeed} />
 
               </div>
             </Card>
@@ -784,8 +1060,8 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <label className="font-bold text-white">Titre SEO Principal (Meta Title)</label>
-                    <span className={`font-mono text-[11px] ${customMetaTitle.length >= 35 && customMetaTitle.length <= 65 ? 'text-emerald-400 font-bold' : 'text-amber-400'}`}>
-                      {customMetaTitle.length} / 60 caractères recommandés
+                    <span className={`font-mono text-[11px] ${customMetaTitle.trim().length >= SEO_LIMITS.titleMin && customMetaTitle.trim().length <= SEO_LIMITS.titleMax ? 'text-emerald-400 font-bold' : 'text-amber-400'}`}>
+                      {customMetaTitle.trim().length} caractères (recommandé : {SEO_LIMITS.titleMin}-{SEO_LIMITS.titleMax})
                     </span>
                   </div>
                   <Input
@@ -799,8 +1075,8 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <label className="font-bold text-white">Description SEO Principale (Meta Description)</label>
-                    <span className={`font-mono text-[11px] ${customMetaDesc.length >= 120 && customMetaDesc.length <= 160 ? 'text-emerald-400 font-bold' : 'text-amber-400'}`}>
-                      {customMetaDesc.length} / 155 caractères recommandés
+                    <span className={`font-mono text-[11px] ${customMetaDesc.trim().length >= SEO_LIMITS.descMin && customMetaDesc.trim().length <= SEO_LIMITS.descMax ? 'text-emerald-400 font-bold' : 'text-amber-400'}`}>
+                      {customMetaDesc.trim().length} caractères (recommandé : {SEO_LIMITS.descMin}-{SEO_LIMITS.descMax})
                     </span>
                   </div>
                   <Textarea
@@ -812,20 +1088,31 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                 </div>
 
                 <Button
-                  onClick={() => toast.success("Configuration SEO enregistrée avec succès !")}
+                  onClick={() => saveMeta(customMetaTitle, customMetaDesc)}
+                  disabled={isApplyingFix || (!metaTitleDirty && !metaDescDirty)}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl px-5 py-2"
                 >
-                  Enregistrer mes balises SEO
+                  {isApplyingFix ? "Enregistrement..." : "Enregistrer mes balises SEO"}
                 </Button>
               </div>
 
               {/* JSON-LD Schema Code Preview */}
               {products.length > 0 && (
                 <div className="space-y-4">
-                  <Label className="text-xs font-semibold text-slate-300">Schéma JSON-LD Product auto-généré pour : <span className="text-emerald-400 font-bold">{products[0]?.name}</span></Label>
-                  <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-300 overflow-x-auto">
-                    {SeoAuditService.generateProductJsonLd(products[0], currentShop).jsonLdSnippet}
-                  </pre>
+                  <Label className="text-xs font-semibold text-slate-300">Schéma JSON-LD Product généré pour : <span className="text-emerald-400 font-bold">{products[0]?.name}</span></Label>
+                  {(() => {
+                    const preview = SeoAuditService.generateProductJsonLd(products[0], currentShop);
+                    return (
+                      <>
+                        <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-300 overflow-x-auto">
+                          {preview.jsonLdSnippet}
+                        </pre>
+                        {preview.missingFields.length > 0 && (
+                          <p className="text-[11px] text-amber-300">Champs recommandés manquants : {preview.missingFields.join(", ")}</p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </Card>
@@ -883,10 +1170,42 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                   <Button onClick={exportPdfReport} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs gap-2">
                     <Download className="w-4 h-4" /> Export PDF
                   </Button>
-                  <Button onClick={exportCsvQueries} variant="outline" className="border-slate-700 text-xs rounded-xl gap-2">
+                  <Button onClick={exportCsvQueries} variant="outline" className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs rounded-xl gap-2">
                     <Download className="w-4 h-4" /> Export Mots-clés CSV
                   </Button>
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Historique des audits ({auditHistory.length})</h3>
+                {auditHistory.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-500">Aucun audit enregistré pour le moment.</div>
+                ) : (
+                  <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-900 text-slate-300 font-bold border-b border-slate-800">
+                        <tr>
+                          <th className="p-3.5">Date</th>
+                          <th className="p-3.5">Score</th>
+                          <th className="p-3.5">Critiques</th>
+                          <th className="p-3.5">Importants</th>
+                          <th className="p-3.5">Optimisations</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 font-mono">
+                        {auditHistory.map((a, idx) => (
+                          <tr key={a.id || `${a.auditedAt}-${idx}`} className="hover:bg-slate-900/50">
+                            <td className="p-3.5 text-slate-300">{formatDate(a.auditedAt)}</td>
+                            <td className="p-3.5 text-emerald-400 font-bold">{a.overallScore} / 100</td>
+                            <td className="p-3.5 text-red-300">{a.issuesCriticalCount}</td>
+                            <td className="p-3.5 text-amber-300">{a.issuesImportantCount}</td>
+                            <td className="p-3.5 text-blue-300">{a.issuesOptimizationCount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -900,34 +1219,23 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
                 <h2 className="text-xl font-space font-bold text-white flex items-center gap-2">
                   <Settings className="w-5 h-5 text-emerald-400 shrink-0" /> Pondérations du Score Ecomfy
                 </h2>
-                <p className="text-xs text-slate-400">Ajustez la répartition des facteurs dans l'algorithme d'audit technique Ecomfy.</p>
+                <p className="text-xs text-slate-400">Répartition des facteurs dans l'algorithme d'audit technique Ecomfy. Les catégories non mesurées (performance, mobile) sont exclues du calcul.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                  <span>SEO Technique</span>
-                  <span className="font-bold font-mono text-emerald-400">25 %</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                  <span>Performance (Vitesse)</span>
-                  <span className="font-bold font-mono text-emerald-400">20 %</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                  <span>Contenu & Images</span>
-                  <span className="font-bold font-mono text-emerald-400">20 %</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                  <span>Indexabilité & Sitemap</span>
-                  <span className="font-bold font-mono text-emerald-400">15 %</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                  <span>Métadonnées</span>
-                  <span className="font-bold font-mono text-emerald-400">10 %</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                  <span>Optimisation Mobile</span>
-                  <span className="font-bold font-mono text-emerald-400">10 %</span>
-                </div>
+                {[
+                  { label: "SEO Technique", weight: DEFAULT_SEO_WEIGHTS.technical },
+                  { label: "Performance (Vitesse)", weight: DEFAULT_SEO_WEIGHTS.performance },
+                  { label: "Contenu & Images", weight: DEFAULT_SEO_WEIGHTS.content },
+                  { label: "Indexabilité & Sitemap", weight: DEFAULT_SEO_WEIGHTS.indexability },
+                  { label: "Métadonnées", weight: DEFAULT_SEO_WEIGHTS.metadata },
+                  { label: "Optimisation Mobile", weight: DEFAULT_SEO_WEIGHTS.mobile },
+                ].map((w) => (
+                  <div key={w.label} className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                    <span>{w.label}</span>
+                    <span className="font-bold font-mono text-emerald-400">{w.weight} %</span>
+                  </div>
+                ))}
               </div>
             </Card>
           </div>
@@ -943,7 +1251,7 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
               <h3 className="font-bold text-base text-white flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" /> Prévisualisation de la Correction Automatique
               </h3>
-              <Button size="icon" variant="ghost" onClick={() => setPreviewFixIssue(null)} className="h-8 w-8 text-slate-400">✕</Button>
+              <Button size="icon" variant="ghost" onClick={() => setPreviewFixIssue(null)} aria-label="Fermer" className="h-8 w-8 text-slate-400">✕</Button>
             </div>
 
             <p className="text-xs text-slate-300">{previewFixIssue.title}</p>
@@ -951,7 +1259,7 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
             {previewFixIssue.beforeSnippet && (
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">AVANT :</span>
-                <pre className="p-3 rounded-xl bg-red-950/40 border border-red-900/50 text-[11px] font-mono text-red-300">
+                <pre className="p-3 rounded-xl bg-red-950/40 border border-red-900/50 text-[11px] font-mono text-red-300 whitespace-pre-wrap break-words">
                   {previewFixIssue.beforeSnippet}
                 </pre>
               </div>
@@ -959,23 +1267,24 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
 
             {previewFixIssue.afterSnippet && (
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">APRÈS (APPLIQUÉ) :</span>
-                <pre className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-900/50 text-[11px] font-mono text-emerald-300">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">APRÈS :</span>
+                <pre className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-900/50 text-[11px] font-mono text-emerald-300 whitespace-pre-wrap break-words">
                   {previewFixIssue.afterSnippet}
                 </pre>
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" onClick={() => setPreviewFixIssue(null)} className="text-xs text-slate-400">Annuler</Button>
+              <Button variant="ghost" onClick={() => setPreviewFixIssue(null)} disabled={isApplyingFix} className="text-xs text-slate-400">Annuler</Button>
               <Button
-                onClick={() => {
-                  toast.success("Correction appliquée avec succès !");
-                  setPreviewFixIssue(null);
+                disabled={isApplyingFix}
+                onClick={async () => {
+                  const ok = await applyFix(previewFixIssue);
+                  if (ok) setPreviewFixIssue(null);
                 }}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl px-4"
               >
-                APPLIQUER LA CORRECTION
+                {isApplyingFix ? "APPLICATION..." : "APPLIQUER LA CORRECTION"}
               </Button>
             </div>
           </div>
@@ -986,11 +1295,55 @@ export default function SeoIntelligencePage({ shop, products = [] }: SeoIntellig
 }
 
 // Subcomponents
-function ScoreBox({ title, score, weight }: { title: string; score: number; weight: string }) {
+function ScoreBox({ title, score, weight }: { title: string; score: number | null; weight: string }) {
   return (
     <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1">
       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{title} ({weight})</span>
-      <div className="text-2xl font-space font-bold text-emerald-400">{score} <span className="text-xs text-slate-500">/ 100</span></div>
+      {score === null ? (
+        <div className="text-sm font-semibold text-slate-500 pt-1.5">Non mesuré</div>
+      ) : (
+        <div className="text-2xl font-space font-bold text-emerald-400">{score} <span className="text-xs text-slate-500">/ 100</span></div>
+      )}
+    </div>
+  );
+}
+
+function SpeedCard({ title, icon, valueClass, result }: { title: string; icon: React.ReactNode; valueClass: string; result: PageSpeedResult | null }) {
+  const vitals = result?.webVitals;
+  const items: { label: string; value: string | null }[] = [
+    { label: "LCP", value: vitals?.lcp != null ? `${(vitals.lcp / 1000).toFixed(1)} s` : null },
+    { label: "FCP", value: vitals?.fcp != null ? `${(vitals.fcp / 1000).toFixed(1)} s` : null },
+    { label: "CLS", value: vitals?.cls != null ? String(vitals.cls) : null },
+    { label: "TTFB", value: vitals?.ttfb != null ? `${vitals.ttfb} ms` : null },
+    { label: "INP", value: vitals?.inp != null ? `${vitals.inp} ms` : null },
+  ];
+
+  return (
+    <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+      <h3 className="font-bold text-sm text-white flex items-center gap-2">{icon} {title}</h3>
+      <div className={`text-2xl sm:text-3xl font-space font-bold whitespace-nowrap ${valueClass}`}>
+        {result?.performanceScore != null ? (
+          `${result.performanceScore} / 100`
+        ) : (
+          <span className="text-xs sm:text-sm font-semibold text-slate-400 font-sans tracking-tight leading-none inline-block whitespace-nowrap">
+            {result?.error ? "Analyse échouée" : "Données indisponibles"}
+          </span>
+        )}
+      </div>
+      {result?.error && <p className="text-[11px] text-amber-300">{result.error}</p>}
+      {result?.performanceScore != null && (
+        <div className="grid grid-cols-5 gap-2 text-center">
+          {items.map((i) => (
+            <div key={i.label} className="rounded-lg bg-slate-900 border border-slate-800 py-2">
+              <div className="text-[10px] text-slate-500 font-bold">{i.label}</div>
+              <div className="text-[11px] text-slate-200 font-mono">{i.value ?? "—"}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <span className="text-[10px] text-slate-400 block font-mono">
+        Source : PageSpeed Insights API{result?.analyzedAt ? ` · ${formatDate(result.analyzedAt)}` : ""}
+      </span>
     </div>
   );
 }

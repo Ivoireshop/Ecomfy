@@ -694,7 +694,7 @@ const ShopView = () => {
       <>
         <Helmet>
           <title>{shop.seo_title || shop.business_name || "Boutique"}</title>
-          <meta name="description" content={shop.business_description || `Boutique ${shop.business_name}`} />
+          <meta name="description" content={shop.seo_description || shop.business_description || `Boutique ${shop.business_name}`} />
           <link rel="canonical" href={window.location.href} />
         </Helmet>
         <HomepageRenderer
@@ -728,7 +728,7 @@ const ShopView = () => {
       <>
         <Helmet>
           <title>{shop.seo_title || shop.business_name || "Boutique"}</title>
-          <meta name="description" content={shop.business_description || `Boutique ${shop.business_name}`} />
+          <meta name="description" content={shop.seo_description || shop.business_description || `Boutique ${shop.business_name}`} />
           <link rel="canonical" href={window.location.href} />
         </Helmet>
         <ShopThemeRenderer
@@ -744,7 +744,7 @@ const ShopView = () => {
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   const shopTitle = shop.seo_title || shop.business_name || "Boutique";
-  const shopDescription = shop.business_description || `Boutique ${shop.business_name} sur Ecomfy`;
+  const shopDescription = shop.seo_description || shop.business_description || `Boutique ${shop.business_name} sur Ecomfy`;
   const shopImage = shop.logo_url || shop.favicon_url || "https://storage.googleapis.com/gpt-engineer-file-uploads/YasR3rLLCfTPxhyVC44DaAaelxo2/social-images/social-1766315146557-T%C3%A9moignage%20(3).jpg";
 
   return (
