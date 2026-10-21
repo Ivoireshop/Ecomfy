@@ -71,7 +71,13 @@ export default function AffiliateSpace() {
       const affProfile = await affiliateService.getOrCreateProfile(userId);
       setProfile(affProfile);
 
-      if (affProfile) {
+      if (!affProfile) {
+        toast({
+          title: "Espace affilié indisponible",
+          description: "Votre profil d'affilié n'a pas pu être chargé. Réessayez dans un instant.",
+          variant: "destructive",
+        });
+      } else {
         // 2. Fetch stats, payout method, commissions, payouts, referrals
         const [statsData, methodData, commsData, payoutsData, refsData] = await Promise.all([
           affiliateService.getStats(affProfile.id),
@@ -109,7 +115,7 @@ export default function AffiliateSpace() {
 
   const referralLink = profile?.affiliate_code
     ? `${window.location.origin}/auth?ref=${profile.affiliate_code}`
-    : (user?.id ? `${window.location.origin}/auth?ref=ECOMFY-${user.id.substring(0, 6).toUpperCase()}` : "");
+    : "";
 
   const handleCopyLink = () => {
     if (!referralLink) return;

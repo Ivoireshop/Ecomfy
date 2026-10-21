@@ -13,6 +13,7 @@ import { useCommunityNotifications } from "@/hooks/useCommunityNotifications";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useNativePush } from "@/hooks/useNativePush";
 import { useWebPush } from "@/hooks/useWebPush";
+import { useAffiliateReferralSync } from "@/hooks/useAffiliateReferralSync";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -651,6 +652,11 @@ const AuthCallbackHandler = () => {
   return null;
 };
 
+const AffiliateReferralSync = () => {
+  useAffiliateReferralSync();
+  return null;
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -660,6 +666,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <AuthCallbackHandler />
+            <AffiliateReferralSync />
             <IdlePrefetcher />
             <AppWithSidebar />
           </BrowserRouter>

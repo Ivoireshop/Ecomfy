@@ -145,6 +145,13 @@ Deno.serve(async (req) => {
           console.error("reconcile apply error:", e);
         }
 
+        // Commission d'affiliation (H6) : idempotente, le paiement est désormais « completed »
+        try {
+          await supabase.rpc("process_affiliate_commission_for_payment", { p_payment_id: p.id });
+        } catch (e) {
+          console.warn("reconcile affiliate commission error (non-fatal):", e);
+        }
+
         confirmed++;
       } else if (ageMin >= FAIL_AFTER) {
         await markFailed(supabase, p.id, meta, `pending_timeout_${FAIL_AFTER}min_remote_${remoteStatus || "unknown"}`);

@@ -107,7 +107,12 @@ const Auth = () => {
 
     // Always attempt to record any pending referral stored in localStorage for the newly authenticated user
     try {
-      await affiliateService.checkAndRecordPendingReferral(currentSession.user.id, currentSession.user.email);
+      const metaCode = currentSession.user.user_metadata?.referral_code;
+      await affiliateService.checkAndRecordPendingReferral(
+        currentSession.user.id,
+        currentSession.user.email,
+        typeof metaCode === "string" ? metaCode : null
+      );
     } catch (err) {
       console.error("Error processing pending affiliate referral:", err);
     }
@@ -401,8 +406,11 @@ const Auth = () => {
 
       const redirectUrl = `${window.location.origin}/auth?type=signup&confirmed=true`;
 
-      if (referralCode && referralCode.trim()) {
-        localStorage.setItem(`referral_${trimmedEmail}`, referralCode.trim().toUpperCase());
+      const typedReferralCode = referralCode.trim().toUpperCase();
+      if (typedReferralCode) {
+        localStorage.setItem(`referral_${trimmedEmail}`, typedReferralCode);
+        // The code typed in the form wins over the one of an older link kept in this browser.
+        localStorage.setItem("ecomfy_affiliate_ref", typedReferralCode);
       }
 
       const { error } = await supabase.auth.signUp({
@@ -414,6 +422,8 @@ const Auth = () => {
             full_name: signUpFullName,
             phone: signUpPhone,
             country: signUpCountry,
+            // Lets the referral survive a confirmation link opened on another device or browser.
+            ...(typedReferralCode ? { referral_code: typedReferralCode } : {}),
           },
         },
       });

@@ -106,6 +106,22 @@ serve(async (req) => {
     let localPaymentValidated = false;
     // Vrai si CET appel a fait passer le paiement à « completed » (premier à le confirmer)
     let paymentClaimed = false;
+    // Id du paiement local retrouvé et contrôlé : sert à générer la commission d'affiliation (H6)
+    let validatedPaymentId: string | null = null;
+
+    // Commission d'affiliation : idempotente et réservée au serveur. Appelée ici et non seulement
+    // depuis verify-payment, qui n'est joué que si le client revient sur le site.
+    const awardAffiliateCommission = async () => {
+      if (!validatedPaymentId) return;
+      try {
+        const { error: affErr } = await supabase.rpc("process_affiliate_commission_for_payment", {
+          p_payment_id: validatedPaymentId,
+        });
+        if (affErr) console.warn("Affiliate commission error (non-fatal):", affErr);
+      } catch (e) {
+        console.warn("Affiliate commission failed (non-fatal):", e);
+      }
+    };
 
     console.log("GeniusPay webhook:", { event, reference, status, environment: payload?.environment });
 
@@ -186,6 +202,11 @@ serve(async (req) => {
               || existingMeta.payment_type === "shop_subscription";
             if (!exemptType) {
               console.log("Payment already completed, skipping re-credit:", reference);
+              // Rattrape une commission manquée lors d'un passage précédent (idempotent)
+              if (isConfirmedPayment) {
+                validatedPaymentId = paymentToUpdate.id;
+                await awardAffiliateCommission();
+              }
               return ack({ success: true, alreadyCompleted: true, reference }, true);
             }
           }
@@ -228,6 +249,7 @@ serve(async (req) => {
             return ack({ success: false, error: "User mismatch", reference }, true);
           }
           localPaymentValidated = true;
+          validatedPaymentId = paymentToUpdate.id;
         }
 
         const paymentRow = {
@@ -463,6 +485,7 @@ serve(async (req) => {
     } else {
       if (!paymentClaimed) {
         console.log("Subscription already applied by another handler, skipping:", reference);
+        await awardAffiliateCommission();
         return ack({ success: true, alreadyCompleted: true, reference }, true);
       }
       // Subscription
@@ -526,6 +549,8 @@ serve(async (req) => {
         console.warn("Promo increment failed:", e);
       }
     }
+
+    await awardAffiliateCommission();
 
     return ack({ success: true, event, reference }, true);
   } catch (err) {

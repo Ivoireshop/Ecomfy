@@ -78,7 +78,19 @@ serve(async (req) => {
     const paymentType = (meta.payment_type as string) || "subscription";
     const shopId = typeof meta.shop_id === "string" ? meta.shop_id : null;
 
+    // Commission d'affiliation (H6) : idempotente, aussi rattrapée quand le webhook a déjà validé le paiement.
+    const awardAffiliateCommission = async () => {
+      try {
+        if (payment?.id) {
+          await supabase.rpc("process_affiliate_commission_for_payment", { p_payment_id: payment.id });
+        }
+      } catch (affErr) {
+        console.warn("Affiliate commission process error (non-fatal):", affErr);
+      }
+    };
+
     if (payment.status === "completed" && paymentType !== "shop_activation" && paymentType !== "commission_payment" && paymentType !== "shop_subscription") {
+      await awardAffiliateCommission();
       return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -121,6 +133,7 @@ serve(async (req) => {
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: payment.payment_method || "geniuspay",
       });
+      await awardAffiliateCommission();
       return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -273,6 +286,7 @@ serve(async (req) => {
       });
     } else {
       if (!paymentClaimed) {
+        await awardAffiliateCommission();
         return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -299,14 +313,7 @@ serve(async (req) => {
       });
     }
 
-    // Trigger affiliate commission processing non-destructively
-    try {
-      if (payment?.id) {
-        await supabase.rpc("process_affiliate_commission_for_payment", { p_payment_id: payment.id });
-      }
-    } catch (affErr) {
-      console.warn("Affiliate commission process error (non-fatal):", affErr);
-    }
+    await awardAffiliateCommission();
 
     return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
