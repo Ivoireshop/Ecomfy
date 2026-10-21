@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Award, Download, ExternalLink } from "lucide-react";
+import { Loader2, Award, ShieldCheck, ExternalLink } from "lucide-react";
 
 interface Certificate {
   id: string;
+  course_id: string;
   course_title: string;
   student_name: string;
   completion_date: string;
@@ -79,6 +80,10 @@ export default function StudentCertificates() {
     }
   };
 
+  const pendingCourses = courses.filter(
+    (access) => access.course && !certificates.some((cert) => cert.course_id === access.course_id)
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -144,17 +149,17 @@ export default function StudentCertificates() {
                     <Button
                       className="flex-1"
                       variant="outline"
-                      onClick={() => window.open(cert.certificate_url, "_blank")}
+                      onClick={() => navigate(`/certificate/${cert.certificate_number}`)}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Voir
                     </Button>
                     <Button
                       className="flex-1"
-                      onClick={() => window.open(cert.certificate_url, "_blank")}
+                      onClick={() => navigate(`/verify-certificate/${cert.certificate_number}`)}
                     >
-                      <Download className="h-4 w-4 mr-2" />
-                      Télécharger
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                      Vérifier
                     </Button>
                   </div>
                 </CardContent>
@@ -163,12 +168,11 @@ export default function StudentCertificates() {
           </div>
         )}
 
-        {courses.length > 0 && certificates.length > 0 && (
+        {pendingCourses.length > 0 && (
           <div className="mt-12">
             <h2 className="text-2xl font-bold mb-6">Formations en cours</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses
-                .filter((course) => !certificates.find((cert) => cert.course_title === course.course.title))
+              {pendingCourses
                 .map((course) => (
                   <Card key={course.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
                     onClick={() => navigate(`/student/course/${course.course_id}`)}>

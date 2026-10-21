@@ -55,18 +55,23 @@ export default function PaymentSuccess() {
 
   const loadEnrollmentDetails = async () => {
     try {
-      const { data: enrollment, error: enrollmentError } = await supabase
-        .from("enrollments")
-        .select("course_id, student_email")
-        .eq("id", enrollmentId)
-        .single();
+      // Un étudiant anonyme ne peut pas relire son inscription : le cours est transmis dans l'URL
+      let targetCourseId = searchParams.get("course_id");
+      if (!targetCourseId) {
+        const { data: enrollment, error: enrollmentError } = await supabase
+          .from("enrollments")
+          .select("course_id")
+          .eq("id", enrollmentId)
+          .single();
 
-      if (enrollmentError) throw enrollmentError;
+        if (enrollmentError) throw enrollmentError;
+        targetCourseId = enrollment.course_id;
+      }
 
       const { data: course, error: courseError } = await supabase
         .from("courses")
         .select("title, whatsapp_group_link")
-        .eq("id", enrollment.course_id)
+        .eq("id", targetCourseId)
         .single();
 
       if (courseError) throw courseError;
@@ -96,18 +101,22 @@ export default function PaymentSuccess() {
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="h-10 w-10 text-green-600" />
           </div>
-          <CardTitle className="text-3xl">Paiement confirmé avec succès !</CardTitle>
+          <CardTitle className="text-3xl">
+            {enrollmentId ? "Inscription enregistrée !" : "Paiement confirmé avec succès !"}
+          </CardTitle>
           <p className="text-muted-foreground mt-2">
-            {courseName ? `Merci pour votre inscription à "${courseName}"` : "Merci, votre paiement a été traité."}
+            {courseName
+              ? `Merci pour votre inscription à "${courseName}". Votre paiement sera validé sous 24h.`
+              : "Merci, votre paiement a été traité."}
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="bg-muted/50 p-6 rounded-lg space-y-4">
             <h3 className="font-semibold text-lg">Étapes suivantes :</h3>
             <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-              <li>Vérifiez votre email pour les détails de connexion</li>
-              <li>Un compte utilisateur a été créé automatiquement</li>
-              <li>Vous recevrez vos identifiants par email sous peu</li>
+              <li>Votre paiement est vérifié par le formateur (sous 24h)</li>
+              <li>Une fois validé, un compte utilisateur est créé automatiquement avec votre email</li>
+              <li>Vous recevrez vos identifiants par email pour accéder à votre espace étudiant</li>
               <li>Rejoignez le groupe WhatsApp d'accompagnement ci-dessous</li>
             </ol>
           </div>

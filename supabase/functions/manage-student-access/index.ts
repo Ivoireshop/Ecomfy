@@ -118,6 +118,15 @@ serve(async (req) => {
 
       if (enrollmentUpdateError) {
         console.error("Restore enrollment error:", enrollmentUpdateError.message);
+
+        // Le trigger grant_student_access échoue (NOT NULL sur user_id) tant que l'étudiant n'a pas de compte
+        if (enrollmentUpdateError.code === "23502") {
+          return jsonResponse({
+            success: false,
+            error:
+              "Cet étudiant n'a pas encore de compte. Utilisez « Renvoyer » pour créer son compte et lui envoyer ses accès.",
+          });
+        }
         throw enrollmentUpdateError;
       }
 

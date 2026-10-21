@@ -79,6 +79,7 @@ const StudentCertificates = lazyWithRetry(() => import("./pages/StudentCertifica
 const EnrollmentCheckout = lazyWithRetry(() => import("./pages/EnrollmentCheckout"));
 const PaymentSuccess = lazyWithRetry(() => import("./pages/PaymentSuccess"));
 const VerifyCertificate = lazyWithRetry(() => import("./pages/VerifyCertificate"));
+const CertificateView = lazyWithRetry(() => import("./pages/CertificateView"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const CookiesPolicy = lazyWithRetry(() => import("./pages/CookiesPolicy"));
@@ -452,6 +453,7 @@ const AppContent = () => {
             } 
           />
           <Route path="/verify-certificate/:certificateNumber?" element={<VerifyCertificate />} />
+          <Route path="/certificate/:certificateNumber" element={<CertificateView />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/cookies-policy" element={<CookiesPolicy />} />
@@ -550,9 +552,11 @@ const AppWithSidebar = () => {
   const isConnectUs = location.pathname.startsWith("/connectus");
   const isPayCheckout = location.pathname.startsWith("/pay/");
   const isCompleteProfile = location.pathname === "/complete-profile";
+  // Le certificat est un document autonome (imprimable, consulté aussi par des tiers) : pas de barre latérale
+  const isCertificate = location.pathname.startsWith("/certificate/");
 
   // Showcase/shop/public pages, complete-profile and ConnectUs dedicated layout: no sidebar at all
-  if (isShopView || isPublicPage || isShopManagement || isDriverApp || isConnectUs || isPayCheckout || isCompleteProfile) {
+  if (isShopView || isPublicPage || isShopManagement || isDriverApp || isConnectUs || isPayCheckout || isCompleteProfile || isCertificate) {
     return (
       <main className="w-full">
         <AppContent />
