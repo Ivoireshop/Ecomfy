@@ -721,6 +721,7 @@ export type Database = {
           created_at: string
           id: string
           is_pinned: boolean
+          kind: string | null
           reply_to_id: string | null
           updated_at: string
           user_id: string
@@ -5196,6 +5197,7 @@ export type Database = {
           avatar_url: string
           full_name: string
           id: string
+          is_founder: boolean
         }[]
       }
       get_invite_email_by_token: { Args: { _token: string }; Returns: string }
