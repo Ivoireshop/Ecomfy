@@ -112,6 +112,7 @@ serve(async (req: Request) => {
 
     // 5. Upload image to permanent Supabase Storage (generated-images bucket)
     let permanentImageUrl = imageUrl;
+    let persistedInStorage = false;
     try {
       let imageBytes: Uint8Array | null = null;
       let contentType = "image/png";
@@ -150,6 +151,7 @@ serve(async (req: Request) => {
             .getPublicUrl(storagePath);
           if (publicUrlData?.publicUrl) {
             permanentImageUrl = publicUrlData.publicUrl;
+            persistedInStorage = true;
           }
         } else {
           console.warn("[Engine Storage Upload Warning]:", uploadError);
@@ -159,8 +161,11 @@ serve(async (req: Request) => {
       console.warn("[Engine Storage Exception]:", storageErr);
     }
 
-    // 6. Save to DB for Library (retained 30 days)
-    if (userId && !userId.startsWith("guest-")) {
+    // 6. Save to DB for Library (retained 30 days).
+    // Sans copie dans le stockage, image_url serait une data-URL de plusieurs Mo (qui alourdit toute la
+    // Bibliothèque) ou une URL OpenAI qui expire en ~1 h : on n'enregistre alors rien et on le signale au client.
+    let savedToLibrary = false;
+    if (userId && !userId.startsWith("guest-") && persistedInStorage) {
       const { data: insertedRecord, error: dbError } = await supabaseClient.from("generated_images").insert({
         user_id: userId,
         image_url: permanentImageUrl,
@@ -180,6 +185,7 @@ serve(async (req: Request) => {
       if (dbError) {
         console.error("[Engine DB Error] Failed to insert generated_images:", dbError);
       } else {
+        savedToLibrary = true;
         console.log(`[Engine DB Audit] Saved generated image ID ${insertedRecord?.id} to Library for user ${userId}`);
       }
     }
@@ -212,6 +218,7 @@ serve(async (req: Request) => {
         imageUrl: permanentImageUrl, 
         prompt: finalExpandedPrompt,
         success: true,
+        savedToLibrary,
         durationMs
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

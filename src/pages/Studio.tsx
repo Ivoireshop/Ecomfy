@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { ModeSwitcher } from "@/components/studio/ModeSwitcher";
 import { PromptComposer } from "@/components/studio/PromptComposer";
 import { MediaFile } from "@/components/studio/MediaUploader";
@@ -10,6 +9,20 @@ import { EmptyState } from "@/components/studio/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
+
+// Au-delà, on arrête d'attendre : la vidéo reste consultable dans la Bibliothèque.
+const VIDEO_WATCH_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** Message d'erreur renvoyé par une Edge Function (corps JSON de la réponse non-2xx). */
+async function readFunctionError(error: any): Promise<string> {
+  try {
+    if (error?.context && typeof error.context.json === "function") {
+      const errJson = await error.context.json();
+      if (errJson?.error) return errJson.error;
+    }
+  } catch (_) {}
+  return "";
+}
 
 export default function Studio() {
   const [mode, setMode] = useState<"image" | "video">("image");
@@ -24,14 +37,74 @@ export default function Studio() {
     videoDuration: "10",
   });
 
+  const videoChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const videoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopWatchingVideo = () => {
+    if (videoChannelRef.current) {
+      supabase.removeChannel(videoChannelRef.current);
+      videoChannelRef.current = null;
+    }
+    if (videoTimeoutRef.current) {
+      clearTimeout(videoTimeoutRef.current);
+      videoTimeoutRef.current = null;
+    }
+  };
+
+  // Ne pas laisser un canal temps réel ouvert si l'utilisateur quitte le Studio.
+  useEffect(() => stopWatchingVideo, []);
+
+  const watchVideo = (videoId: string) => {
+    const handleRow = (row: any) => {
+      if (row.status === "completed" && row.video_url && row.video_url !== "processing") {
+        stopWatchingVideo();
+        setGeneratedResult(row.video_url);
+        setIsGenerating(false);
+        toast.success("Vidéo générée avec succès !");
+      } else if (row.status === "failed" || row.status === "error") {
+        // Le serveur écrit « failed » : attendre « error » laissait le chargement tourner indéfiniment.
+        stopWatchingVideo();
+        setIsGenerating(false);
+        toast.error("La génération de la vidéo a échoué. Réessayez dans quelques instants.");
+      }
+    };
+
+    videoChannelRef.current = supabase
+      .channel(`video-progress-${videoId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "generated_videos", filter: `id=eq.${videoId}` },
+        (payload: any) => handleRow(payload.new),
+      )
+      .subscribe((status) => {
+        // Une mise à jour peut survenir avant que l'abonnement soit actif : on relit l'état courant.
+        if (status === "SUBSCRIBED") {
+          supabase
+            .from("generated_videos")
+            .select("status, video_url")
+            .eq("id", videoId)
+            .maybeSingle()
+            .then(({ data }) => data && handleRow(data));
+        }
+      });
+
+    videoTimeoutRef.current = setTimeout(() => {
+      stopWatchingVideo();
+      setIsGenerating(false);
+      toast.info("La vidéo est toujours en préparation. Retrouvez-la dans votre bibliothèque dès qu'elle est prête.");
+    }, VIDEO_WATCH_TIMEOUT_MS);
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim() && media.length === 0) {
       toast.error("Veuillez entrer une description ou ajouter une image.");
       return;
     }
 
+    stopWatchingVideo();
     setIsGenerating(true);
     setGeneratedResult(null);
+    let keepGenerating = false;
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -59,19 +132,17 @@ export default function Studio() {
             window.dispatchEvent(new Event("open-credits-dialog"));
             throw new Error("Vous avez utilisé vos 3 générations gratuites. Veuillez recharger vos crédits IA ou souscrire à un abonnement.");
           }
-          let serverMsg = "";
-          try {
-            if ((error as any).context && typeof (error as any).context.json === "function") {
-              const errJson = await (error as any).context.json();
-              if (errJson?.error) serverMsg = errJson.error;
-            }
-          } catch (_) {}
+          const serverMsg = await readFunctionError(error);
           throw new Error(serverMsg || "Le service de génération d'images rencontre une petite pause. Veuillez réessayer dans un instant.");
         }
         if (data?.error) throw new Error(data.error);
 
         setGeneratedResult(data.imageUrl);
-        toast.success("Image générée et enregistrée dans votre bibliothèque !");
+        if (data.savedToLibrary === false) {
+          toast.warning("Image générée, mais elle n'a pas pu être enregistrée dans votre bibliothèque. Téléchargez-la maintenant.");
+        } else {
+          toast.success("Image générée et enregistrée dans votre bibliothèque !");
+        }
         
       } else {
         const { data, error } = await supabase.functions.invoke("generate-video", {
@@ -88,37 +159,17 @@ export default function Studio() {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          const serverMsg = await readFunctionError(error);
+          throw new Error(serverMsg || "Le service de génération vidéo rencontre une petite pause. Veuillez réessayer dans un instant.");
+        }
         if (data?.error) throw new Error(data.error);
 
         if (data.videoId) {
           toast.info("Vidéo en cours de préparation, cela peut prendre quelques minutes...");
-          
-          const channel = supabase
-            .channel(`video-progress-${data.videoId}`)
-            .on(
-              'postgres_changes',
-              {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'generated_videos',
-                filter: `id=eq.${data.videoId}`,
-              },
-              (payload: any) => {
-                if (payload.new.status === 'completed' && payload.new.video_url) {
-                  setGeneratedResult(payload.new.video_url);
-                  setIsGenerating(false);
-                  toast.success("Vidéo générée avec succès !");
-                  supabase.removeChannel(channel);
-                } else if (payload.new.status === 'error') {
-                  setIsGenerating(false);
-                  toast.error("Erreur lors de la génération de la vidéo.");
-                  supabase.removeChannel(channel);
-                }
-              }
-            )
-            .subscribe();
-            
+          watchVideo(data.videoId);
+          // La génération continue en arrière-plan : le chargement reste affiché jusqu'au résultat.
+          keepGenerating = true;
           return;
         } else if (data.videoUrl) {
           setGeneratedResult(data.videoUrl);
@@ -128,10 +179,8 @@ export default function Studio() {
     } catch (error: any) {
       console.error("Generation error:", error);
       toast.error(error.message || "La génération n'a pas pu être terminée. Réessayez dans quelques instants.");
-    }
-    
-    if (mode === "image" || !isGenerating) {
-      setIsGenerating(false);
+    } finally {
+      if (!keepGenerating) setIsGenerating(false);
     }
   };
 
@@ -158,12 +207,26 @@ export default function Studio() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!generatedResult) return;
-    const link = document.createElement("a");
-    link.href = generatedResult;
-    link.download = `ecomfy-${mode}-${Date.now()}.${mode === "video" ? "mp4" : "png"}`;
-    link.click();
+    const filename = `ecomfy-${mode}-${Date.now()}.${mode === "video" ? "mp4" : "png"}`;
+    try {
+      // L'attribut `download` est ignoré pour une URL d'un autre domaine (stockage) :
+      // on passe par un blob pour forcer le téléchargement au lieu d'ouvrir le fichier.
+      const response = await fetch(generatedResult);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blobUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Impossible de télécharger le fichier.");
+    }
   };
 
   return (
@@ -232,8 +295,6 @@ export default function Studio() {
           </div>
         </div>
       </main>
-      
-      <Footer />
     </div>
   );
 }
