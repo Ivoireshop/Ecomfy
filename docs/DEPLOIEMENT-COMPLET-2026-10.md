@@ -186,6 +186,7 @@ Ces migrations ferment des écritures que l'**ancien** front utilise encore (ins
 |---|---|---|---|
 | B1 | `supabase/migrations/20261015150000_h2_corporate_audit_append_only.sql` | H2 : journal d'audit en ajout seul | hotfix `20261012120000` |
 | B2 | **`20261005160000_ecomfy_affiliate_system.sql` + `20261017120000_h6_affiliate_rls_rpc_hardening.sql` collés dans une seule transaction** | H6 | `profiles`, `payments` ; **ne jamais appliquer la première seule** (elle crée des politiques d'insertion ouvertes) |
+| B2 bis | `20261020120000_affiliate_payout_and_legacy_referral_hardening.sql` (à coller **dans la même transaction que B2**, après `20261017120000`) | H6 : versement manuel et ancien parrainage ; voir [`DEPLOIEMENT-AFFILIATION-2026-10.md`](DEPLOIEMENT-AFFILIATION-2026-10.md) | B2 |
 | B3 | `supabase/migrations/20261018120000_h10_create_public_order_rpc.sql` | H10 | A1 et A2 |
 | B4 | `supabase/migrations/20261016120000_h5_delivery_verification_guard.sql` | H5 | **seulement si** `delivery_companies` existe (section 3.1) ; sinon ignorer |
 
@@ -223,7 +224,7 @@ select tablename, policyname, cmd from pg_policies where tablename in ('corporat
 ### 8.1 Lot 2 (après B2 : `geniuspay-webhook` appelle `reverse_affiliate_commission_for_payment`, `verify-payment` appelle `process_affiliate_commission_for_payment`)
 
 ```powershell
-foreach ($f in "geniuspay-webhook","verify-payment") {
+foreach ($f in "geniuspay-webhook","verify-payment","reconcile-pending-payments") {
   Write-Host "### $f"
   npx supabase@latest functions deploy $f --project-ref $P --use-api
 }
