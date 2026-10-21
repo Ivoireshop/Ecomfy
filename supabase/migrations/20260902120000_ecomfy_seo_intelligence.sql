@@ -104,41 +104,42 @@ ALTER TABLE public.shop_seo_queries_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shop_seo_pages_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shop_seo_history ENABLE ROW LEVEL SECURITY;
 
--- Helper policies (Access limited to shop owners / admins)
+-- Helper policies (Access limited to shop owners / admins). Admin = has_role(uid,'admin') (table user_roles) :
+-- profiles n'a pas de colonnes role / is_admin.
 CREATE POLICY "Shop owners can manage their SEO settings" ON public.shop_seo_settings
     FOR ALL USING (
         auth.uid() IN (SELECT user_id FROM public.shops WHERE id = shop_id)
-        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+        OR public.has_role(auth.uid(), 'admin')
     );
 
 CREATE POLICY "Shop owners can manage their SEO connections" ON public.shop_seo_connections
     FOR ALL USING (
         auth.uid() IN (SELECT user_id FROM public.shops WHERE id = shop_id)
-        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+        OR public.has_role(auth.uid(), 'admin')
     );
 
 CREATE POLICY "Shop owners can read and create their SEO audits" ON public.shop_seo_audits
     FOR ALL USING (
         auth.uid() IN (SELECT user_id FROM public.shops WHERE id = shop_id)
-        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+        OR public.has_role(auth.uid(), 'admin')
     );
 
 CREATE POLICY "Shop owners can manage their queries cache" ON public.shop_seo_queries_cache
     FOR ALL USING (
         auth.uid() IN (SELECT user_id FROM public.shops WHERE id = shop_id)
-        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+        OR public.has_role(auth.uid(), 'admin')
     );
 
 CREATE POLICY "Shop owners can manage their pages cache" ON public.shop_seo_pages_cache
     FOR ALL USING (
         auth.uid() IN (SELECT user_id FROM public.shops WHERE id = shop_id)
-        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+        OR public.has_role(auth.uid(), 'admin')
     );
 
 CREATE POLICY "Shop owners can view their SEO history" ON public.shop_seo_history
     FOR ALL USING (
         auth.uid() IN (SELECT user_id FROM public.shops WHERE id = shop_id)
-        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+        OR public.has_role(auth.uid(), 'admin')
     );
 
 -- Indexation
