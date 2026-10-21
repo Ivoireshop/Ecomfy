@@ -493,7 +493,7 @@ Seul vestige actif : le tableau de bord fondateur lit `showcase_sites` pour ses 
 
 **Pourquoi 🚧 :** les 8 tables `affiliate_*` sont absentes de dev ; la page ne peut rien afficher. Chaque connexion déclenche un appel d'enregistrement qui échoue silencieusement.
 
-**Sécurité (H6)** : corrigée dans le code le 17/10/2026, non déployée. Taux imposé par le serveur, parrainage limité au compte de l'appelant, RPC de commission réservées au serveur, commission limitée aux abonnements, remboursement géré (migration `20261017120000`, à appliquer après `20261005160000`). Reste : la RPC de commission n'est appelée que par `verify-payment`. Deux tests existent (`src/test/affiliateSystemTest.test.ts`, `profileCompletionTest.test.ts`) mais ne sont pas exécutables.
+**Sécurité (H6)** : corrigée dans le code le 17/10/2026, non déployée. Taux imposé par le serveur, parrainage limité au compte de l'appelant, RPC de commission réservées au serveur, commission limitée aux abonnements, remboursement géré (migration `20261017120000`, à appliquer après `20261005160000`). Reste : la RPC de commission n'est appelée que par `verify-payment` *(corrigé dans le code le 21/10/2026, commit `e885340` : appel aussi dans `geniuspay-webhook` et `reconcile-pending-payments`, non déployé ; voir `docs/DEPLOIEMENT-AFFILIATION-2026-10.md`)*. Deux tests existent (`src/test/affiliateSystemTest.test.ts`, `profileCompletionTest.test.ts`) mais ne sont pas exécutables.
 
 L'**ancien système de parrainage** (`Referral.tsx`, table `referrals`, RPC `process_referral_signup`) reste dans le code et dans l'inscription ; il n'a aucun lien depuis l'interface.
 

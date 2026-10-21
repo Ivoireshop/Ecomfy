@@ -35,13 +35,24 @@ Le seuil de 10 000 FCFA reste **indicatif** (badge dans l'écran fondateur) : il
 |---|---|---|
 | 1 | Déployer `geniuspay-webhook`, `verify-payment`, `reconcile-pending-payments` sur **dev**, envoyer un webhook GeniusPay signé de test pour un abonnement du filleul, vérifier qu'une commission de 20 % apparaît dans `/affiliate` **sans** passer par `verify-payment` | **Oui** : c'est le correctif n° 1, jamais exécuté de bout en bout |
 | 2 | Tester la connexion Google avec un vrai compte Google (même hook que le mot de passe, mais chemin non vérifié) | Non, mais à faire |
-| 3 | **Production : vérifier que le trigger `handle_new_user` existe sur `auth.users`.** Sur dev il n'y a aucun trigger sur `auth.users` : une inscription ne crée ni profil, ni rôle, ni abonnement, ni ligne de parrainage (3 comptes dev sans profil) | **Oui** (voir la requête en 4.1) |
+| 3 | **Production : vérifier que le trigger `handle_new_user` existe sur `auth.users`** (les docs n'en parlent pas ; les inscrits de la production ont un profil, sans quoi l'application ne fonctionnerait pas, mais la présence du trigger n'est pas consignée). Sur dev il n'y a aucun trigger sur `auth.users` : une inscription ne crée ni profil, ni rôle, ni abonnement, ni ligne de parrainage (3 comptes dev sans profil) | **Oui** (voir la requête en 4.1) |
 | 4 | Nettoyer les comptes de test sur dev (requête en 6) | Non |
 | 5 | Imposer le seuil de 10 000 FCFA en base si on le souhaite | Non (décision) |
 | 6 | Écrire de vrais tests automatisés : `src/test/affiliateSystemTest.test.ts` ne contient aucune suite exécutable | Non |
 | 7 | Le formulaire d'inscription de dev est limité par le SMTP intégré de Supabase (`email rate limit exceeded`) : pour tester, créer l'utilisateur dans Authentication > Users > Add user (auto-confirmé) | Non |
 
 ## 4. Déploiement en production
+
+**État de la production d'après les docs (à confirmer par le pré-contrôle 4.1) :**
+
+| Élément | État | Source |
+|---|---|---|
+| H6 base : `20261005160000` + `20261017120000` | **Vraisemblablement déjà appliquées** avec la vague 2 (ligne B2 du plan) | `RAPPORT-EXPLOITATION-C1-C8-2026-10.md` : « vague 2 déployée » le 19/10/2026 ; `DEPLOIEMENT-COMPLET-2026-10.md`, phase 4 ligne B2. Aucun document ne détaille ce qui a réellement été passé : au 19/10 au matin les tables d'affiliation étaient encore absentes (`DEPLOIEMENT-PROD-2026-10.md`, section 3 bis) |
+| `geniuspay-webhook` (appel de `reverse_affiliate_commission_for_payment`) et `verify-payment` (appel de `process_affiliate_commission_for_payment`) | **Vraisemblablement déjà déployées** avec le lot 2 (section 8.1 du plan), **dans leur version d'avant les correctifs de ce guide** | idem |
+| `reconcile-pending-payments` | Déployée avec le lot de H7, **sans** l'appel de commission | `DEPLOIEMENT-COMPLET-2026-10.md`, liste de la phase 5 |
+| `20261020120000`, les trois fonctions modifiées, le hook et le `signUp` avec `referral_code` | **Pas déployés** : commits `e885340` (code) et `320d41a` (docs) du 21/10/2026 | ce guide |
+
+Conséquence : en production, il reste normalement à appliquer **`20261020120000` seule**, puis à **redéployer** les trois fonctions (elles contiennent du code nouveau) et le front. Les trois migrations dans une seule transaction (4.2) ne servent que si le pré-contrôle montre que H6 n'est pas appliquée.
 
 > **À jouer par vous, jamais automatiquement.** « Deploy to production » de l'intégration GitHub de Supabase doit rester **désactivé** (Project Settings > Integrations > GitHub) : un push n'applique rien.
 > Ne pas utiliser `supabase db push` (il pousserait d'autres migrations en attente). Utiliser l'éditeur SQL de la production, ou `npx supabase db query --linked -f <fichier>` après avoir vérifié que le projet lié est bien `yfggrceynzcwklbxhgix`.
@@ -59,13 +70,16 @@ select tgname, tgenabled from pg_trigger where tgrelid = 'auth.users'::regclass 
 select count(*) as comptes_sans_profil from auth.users u where not exists (select 1 from public.profiles p where p.id = u.id);
 ```
 
-- Si `affiliates` est `NULL` (cas attendu : en prod, les tables d'affiliation n'existaient pas au 19/10/2026), appliquer **les trois migrations** dans l'ordre, dans une seule transaction (4.2).
-- Si H6 est déjà appliqué, n'appliquer que `20261020120000`.
+- Cas attendu d'après les docs : `affiliates` et `rpc_profil` non `NULL` (H6 appliquée avec la vague 2) et `migration_20261020_appliquee` à `false` : n'appliquer que `20261020120000` (4.2, cas A).
+- Si `affiliates` ou `rpc_profil` est `NULL` (les tables étaient absentes au 19/10 au matin), H6 n'est pas en place : appliquer **les trois migrations** dans l'ordre, dans une seule transaction (4.2, cas B).
+- Si `migration_20261020_appliquee` est déjà `true`, ne rien appliquer côté base.
 - Si la requête des triggers ne renvoie rien ou si `comptes_sans_profil` n'est pas 0, **s'arrêter et traiter ce point d'abord** : les nouveaux inscrits n'auraient pas de profil.
 
 ### 4.2 Base : migrations
 
-Une seule transaction, sinon `20261005160000` seule crée des politiques d'insertion ouvertes (voir B2 de `DEPLOIEMENT-COMPLET-2026-10.md`). PowerShell, depuis `C:\dev\Ecomfy` :
+**Cas A (attendu, H6 déjà en place) :** coller seulement `supabase/migrations/20261020120000_affiliate_payout_and_legacy_referral_hardening.sql` dans l'éditeur SQL, entouré de `begin; … commit;`. Elle est idempotente (`CREATE OR REPLACE`).
+
+**Cas B (H6 absente) :** les trois migrations dans une seule transaction, sinon `20261005160000` seule crée des politiques d'insertion ouvertes (voir B2 de `DEPLOIEMENT-COMPLET-2026-10.md`). PowerShell, depuis `C:\dev\Ecomfy` :
 
 ```powershell
 Get-Content supabase\migrations\20261005160000_ecomfy_affiliate_system.sql,
@@ -75,9 +89,7 @@ Get-Content supabase\migrations\20261005160000_ecomfy_affiliate_system.sql,
 # coller le contenu de $env:TEMP\affiliate_prod.sql dans l'éditeur SQL, entouré de begin; ... commit;
 ```
 
-Si H6 est déjà en place, coller seulement `20261020120000_affiliate_payout_and_legacy_referral_hardening.sql` (idempotente : `CREATE OR REPLACE`).
-
-Les anciens fronts appellent encore l'insertion directe du profil d'affilié et `record_affiliate_referral(uuid, text)` : **enchaîner avec le front** (4.4) dans la foulée.
+Cas B seulement : les anciens fronts appellent encore l'insertion directe du profil d'affilié et `record_affiliate_referral(uuid, text)` : **enchaîner avec le front** (4.4) dans la foulée. Cas A : la migration ne change aucune signature appelée par le front (`mark_affiliate_payout_paid` et `process_referral_signup` gardent la leur), l'ordre base puis fonctions puis front est sans urgence.
 
 Vérification après la base :
 
@@ -94,6 +106,8 @@ select tablename, policyname, cmd from pg_policies where tablename in ('affiliat
 ```
 
 ### 4.3 Edge Functions (après la base)
+
+Ces trois fonctions sont probablement déjà déployées en production dans leur version d'avant ce guide (tableau en tête de section 4) : **il faut quand même les redéployer**, c'est le correctif n° 1 (appel de la commission dans le webhook, la réconciliation et les sorties anticipées de `verify-payment`).
 
 ```powershell
 npx supabase@latest login
