@@ -13,7 +13,7 @@ Fichiers : `src/components/shop/ShopFinances.tsx`, `src/components/shop/AdAccoun
 | F1 | **Le résumé hebdomadaire n'était planifié nulle part.** Aucun `cron.schedule` ne l'appelait : l'interrupteur « Rapport auto (Lundi 8h) » ne déclenchait jamais rien. | Migration `20261023110000` : job `weekly-finance-summary`, lundi 8 h UTC, via `invoke_edge_function`. |
 | F2 | **« Tester l'envoi » échouait toujours (401).** Le bouton appelle la fonction avec le jeton de l'utilisateur, mais la fonction n'accepte que le planificateur (`isAuthorizedCron`). | La fonction accepte aussi le propriétaire de la boutique pour un envoi de **test** sur sa propre boutique (jeton vérifié, propriété contrôlée). Un test par adresse toutes les 5 minutes. |
 | F3 | Le courriel hebdomadaire **ignorait les dépenses publicitaires synchronisées** : bénéfice annoncé trop haut, différent de la page. | Dépenses de `ad_spend_daily` ajoutées (converties en FCFA) ; commandes remboursées exclues ; même fenêtre de 7 jours calendaires que la page. |
-| F4 | Le courriel et le test comptaient « envoyé » même quand rien n'était parti (adresse désinscrite, envoi neutralisé hors production : `send-transactional-email` répond 200 dans ces cas). Un test répété le même jour était avalé par la clé d'idempotence tout en affichant « envoyé ». | La réponse est lue : refus et envoi neutralisé sont remontés comme erreurs. Clé d'idempotence horodatée pour un test. |
+| F4 | Le courriel et le test comptaient « envoyé » même quand rien n'était parti (adresse désinscrite, envoi neutralisé hors production : `send-transactional-email` répond 200 dans ces cas). La clé d'idempotence n'empêche pas les doublons (la file ne déduplique que sur `message_id`) : deux jobs ou deux appels rapprochés auraient envoyé deux courriels. | La réponse est lue : refus et envoi neutralisé sont remontés comme erreurs. Anti-doublon dans la fonction : un résumé par adresse et par heure (planificateur), un toutes les 5 minutes (test manuel). |
 | F5 | **Synchronisation Meta tronquée.** Meta pagine à 500 jours ; l'historique maximum (37 mois, plus de 1 000 jours) tient sur plusieurs pages et seule la première était lue : dépenses publicitaires et « dépense totale » du compte sous-estimées sans erreur. | Pagination suivie (`paging.next`, 10 pages au plus) ; écriture par lots de 500 ; erreur d'écriture enregistrée sur le compte. |
 | F6 | **Lecture limitée à 1 000 lignes** : `ad_spend_daily` (une ligne par jour et par compte) et `shop_expenses` étaient lues d'un bloc, donc tronquées au-delà de 1 000 sans message. | Lecture par pages (`fetchAllPages`). |
 | F7 | **Devises mélangées.** Meta renvoie les dépenses dans la devise du compte (USD, EUR...) ; la page les additionnait comme des FCFA. | Conversion par ligne : XOF/XAF à 1, EUR à la parité fixe 655,957. Une devise sans parité fixe (USD...) est **exclue** des totaux avec un bandeau d'avertissement (page, export CSV, courriel) : on ne devine pas de taux. |
@@ -44,18 +44,33 @@ Fichiers : `src/components/shop/ShopFinances.tsx`, `src/components/shop/AdAccoun
 | S7 | Une lecture en échec s'affichait comme « 0 FCFA ». | Bandeau rouge « données incomplètes » avec bouton Réessayer. |
 | S8 | Bilan IA : toute la structure `stats` du client était injectée dans l'invite. | Le client n'envoie que des champs connus ; la fonction les revalide (nombres, catégories connues, nom à 80 caractères). |
 
-## 2. Vérification (23/10/2026)
+## 2. Vérification (22/10/2026, dev `xfpbpxncserliskrbaim`, navigateur)
 
-Faite **sans navigateur** : la page demande un compte propriétaire et des données que je n'ai pas créés sur dev.
+Compte marchand, boutique, 7 commandes, 4 dépenses, 2 comptes publicitaires (XOF et USD), 3 jours de dépense publicitaire (XOF, EUR, USD) et 1 paiement de frais Ecomfy jetables, **supprimés après le test** (dev revenu à 53 boutiques, 0 compte de test, clés locales effacées). Les valeurs attendues ont été calculées avant de regarder l'écran.
 
 | Contrôle | Résultat |
 |---|---|
-| Règles de calcul (`shopFinance.ts`) : bornes de période (16/10 inclus, 15/10 exclu pour « 7 jours » au 22/10), conversions (100 EUR = 65 595,7 ; USD = refusé), encaissé (livré remboursé exclu), CSV (guillemets, `=`, `-`), e-mail, numéro WhatsApp | assertions Node, toutes passent |
-| `tsc` sur `ShopFinances`, `AdAccountsManager`, `shopFinance` | Aucune erreur (les erreurs restantes du projet sont antérieures et dans d'autres fichiers) |
-| `deno check` des 3 Edge Functions | Passe |
-| Migration, Edge Functions, e-mail réel, synchronisation Meta | **Non exécutés** : rien n'a été appliqué ni déployé sur dev ni sur prod |
+| « Ce Mois » : encaissé 60 000 (commande remboursée exclue, commande livrée à paiement en attente incluse), ventes validées 72 000, dépenses 26 060 dont 1 500 de frais Ecomfy, bénéfice 33 940 (56,6 %), CAC 2 912, ROAS 4,12 ; 100 EUR convertis à 655,957 ; USD exclu avec bandeau jaune | Conforme |
+| « 7 Jours » : encaissé 30 000, dépenses 24 060, bénéfice 5 940 ; la dépense du 16/10 (limite incluse) présente, celle du 15/10 absente ; 7 points au graphique | Conforme |
+| « Tout » : encaissé 100 000, dépenses 32 060, bénéfice 67 940 ; graphique par mois (sept., oct.) | Conforme |
+| Graphique « Ce Mois » : du 1er au 22, entrées et sorties aux bons jours, sorties avec frais Ecomfy ; répartition avec ligne « Frais Ecomfy » | Conforme |
+| Export .csv (octets capturés) : BOM UTF-8, séparateur `;`, guillemets doublés, formule `=HYPERLINK` préfixée d'une apostrophe, TOTAL (60 000 / 26 060) sous « Entrées » et « Sorties », mention USD, nom de fichier avec période | Conforme |
+| Dépense : montant vide et 5 000 000 000 refusés ; 1 500,7 enregistré à 1 501, description nettoyée, date antérieure triée au bon rang ; suppression effective en base | Conforme |
+| Rapport auto : interrupteur enregistré en base ; adresse invalide refusée ; adresse enregistrée avant l'envoi de test ; e-mail en file avec les chiffres de la page (30 000 / 42 000 / 24 060 / 5 940, publicité 19 560, avertissement USD), redirigé par le garde-fou de dev vers l'adresse de redirection ; second test immédiat refusé (5 minutes) | Conforme |
+| Fonction d'envoi, accès : sans jeton 401 ; jeton anonyme « Non authentifié » ; jeton d'un autre compte « Accès refusé » ; jeton valide sans `test` 401 | Conforme |
+| Planificateur (`x-cron-secret`, `CRON_SECRET` posé puis retiré sur dev) : envoi réussi ; mauvais secret 401 ; 2 appels rapprochés : 0 envoyé, 1 ignoré | Conforme |
+| Compte publicitaire : ID « abc » refusé ; `act_9999999999` avec faux jeton : erreur Meta affichée, formulaire conservé, compte créé puis supprimé (vérifié en base) | Conforme |
+| Lien WhatsApp : numéro `+225 07…` ramené à `2250700000000`, mêmes chiffres que l'écran | Conforme |
+| Règles de calcul (`shopFinance.ts`) : assertions Node ; `tsc` sans erreur sur les fichiers modifiés ; `deno check` des 3 fonctions | Conforme |
 
-À vérifier à la main après déploiement : voir § 3, étape 6.
+**Non vérifié :**
+- **Bilan IA** : dev n'a aucune clé d'IA (`OPENROUTER_API_KEY`, `LOVABLE_API_KEY` absentes) : la fonction répond « Service IA momentanément indisponible ». Le filtrage des champs envoyés n'a donc pas été vu de bout en bout.
+- **Synchronisation Meta paginée** : pas de vrai compte publicitaire ; seule la branche d'échec (faux jeton) a été jouée.
+- **Cron lui-même** : sur dev, `invoke_edge_function` (migration `20261011120000`) et le secret Vault `cron_secret` sont absents ; la migration a donc seulement posé la contrainte de montant (le job n'a pas été créé). Le chemin appelé par le cron a été testé à la main avec `x-cron-secret`. Sur dev, le jeton `service_role` donné par la CLI est refusé par la fonction (401) : la clé de l'environnement des fonctions n'est pas celle-là. À contrôler sur prod, où le planificateur s'authentifie par `cron_secret`.
+- Bandeau « données incomplètes » (lecture en échec) non provoqué.
+- Les erreurs de console vues viennent de l'absence de profil du compte jetable (créé par l'API d'administration), pas de la page Finance.
+
+**État de dev :** migration appliquée, `send-weekly-finance-summary`, `sync-ad-spend`, `finance-advisor` et `send-transactional-email` déployées. Prod : rien.
 
 ## 3. Déploiement
 

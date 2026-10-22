@@ -7,7 +7,8 @@
 -- l'appel est ignoré ou refusé en 401 (voir docs/DEPLOIEMENT-FINANCE-2026-10.md).
 --
 -- Idempotent : le job est remplacé s'il existe déjà. Si un job équivalent a été créé à la main sous un autre nom, le
--- doublon est sans effet (la clé d'idempotence `finance-<boutique>-<jour>` n'envoie qu'un courriel par jour et par boutique).
+-- doublon est sans effet : la fonction n'envoie qu'un résumé par adresse et par heure (la clé d'idempotence ne suffit pas,
+-- la file d'envoi ne déduplique que sur `message_id`).
 
 DO $$
 DECLARE

@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
   if (error) return reply({ success: false, error: error.message });
 
   let sent = 0;
+  let alreadySent = 0;
   const errors: string[] = [];
 
   for (const shop of shops || []) {
@@ -113,12 +114,19 @@ Deno.serve(async (req) => {
       }
       if (!recipient) { errors.push(`${shop.id}: aucune adresse de réception`); continue; }
 
-      // Un test manuel ne doit pas servir à inonder une adresse : un seul résumé toutes les 5 minutes.
-      if (isTest) {
-        const recent = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      // Anti-doublon. La clé d'idempotence ne dédoublonne rien : la file d'envoi ne contrôle que `message_id` (unique par envoi)
+      // et la transmet au prestataire. Deux jobs planifiés ou deux appels rapprochés enverraient donc deux courriels.
+      // Test manuel : un résumé toutes les 5 minutes (sinon on inonde une adresse) ; planificateur : un par heure.
+      {
+        const windowMs = isTest ? 5 * 60 * 1000 : 60 * 60 * 1000;
+        const recent = new Date(Date.now() - windowMs).toISOString();
         const { count } = await supabase.from("email_send_log").select("id", { count: "exact", head: true })
           .eq("template_name", "finance-weekly-summary").eq("recipient_email", recipient).gte("created_at", recent);
-        if ((count || 0) > 0) { errors.push("Un résumé vient d'être envoyé : patientez quelques minutes avant un nouveau test."); continue; }
+        if ((count || 0) > 0) {
+          if (isTest) errors.push("Un résumé vient d'être envoyé : patientez quelques minutes avant un nouveau test.");
+          else alreadySent++;
+          continue;
+        }
       }
 
       const [orders, expenses, payments, adRows] = await Promise.all([
@@ -194,5 +202,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return reply({ success: true, sent, errors });
+  return reply({ success: true, sent, skipped: alreadySent, errors });
 });
