@@ -45,6 +45,7 @@ export type Database = {
           created_at: string
           customer_address: string | null
           customer_city: string | null
+          customer_country: string | null
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
@@ -62,6 +63,7 @@ export type Database = {
           created_at?: string
           customer_address?: string | null
           customer_city?: string | null
+          customer_country?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -79,6 +81,7 @@ export type Database = {
           created_at?: string
           customer_address?: string | null
           customer_city?: string | null
+          customer_country?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -5341,6 +5344,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      discard_abandoned_cart: {
+        Args: { _session_id: string; _shop_id: string }
+        Returns: undefined
       }
       increment_promo_usage: { Args: { promo_code: string }; Returns: boolean }
       increment_shop_gif_count: { Args: { _shop_id: string }; Returns: number }

@@ -133,13 +133,16 @@ const ShopView = () => {
   const abandonedSavedRef = useRef<boolean>(false);
   // Prevent duplicate order submissions from double-tap / double-click.
   const submittingOrderRef = useRef(false);
+  const newAbandonSessionId = () =>
+    (crypto as any).randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random()}`;
   useEffect(() => {
     if (!shop?.id) return;
     const key = `vp_abandon_session_${shop.id}`;
-    let sid = localStorage.getItem(key);
+    let sid: string | null = null;
+    try { sid = localStorage.getItem(key); } catch {}
     if (!sid) {
-      sid = (crypto as any).randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random()}`;
-      localStorage.setItem(key, sid);
+      sid = newAbandonSessionId();
+      try { localStorage.setItem(key, sid); } catch {}
     }
     sessionIdRef.current = sid;
   }, [shop?.id]);
@@ -148,17 +151,29 @@ const ShopView = () => {
   useEffect(() => {
     if (!shop?.id || shop?._isPreview) return;
     if (!sessionIdRef.current) return;
-    // Only track when there is at least a phone OR a name AND items in cart
-    if (cart.length === 0) return;
-    if (!customerInfo.phone && !customerInfo.name) return;
+    if (cart.length === 0) {
+      // Panier vidé : on retire le panier abandonné déjà enregistré pour cette session.
+      if (abandonedSavedRef.current) {
+        abandonedSavedRef.current = false;
+        (supabase as any)
+          .rpc("discard_abandoned_cart", { _shop_id: shop.id, _session_id: sessionIdRef.current })
+          .then(() => {}, () => {});
+      }
+      return;
+    }
+    // Ne suivre que des coordonnées exploitables : téléphone valide ou e-mail plausible
+    // (évite d'enregistrer "0" ou "+22" saisis à moitié).
+    const phoneOk = !!customerInfo.phone && isValidFullPhone(customerInfo.phone);
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerInfo.email || "");
+    if (!phoneOk && !emailOk) return;
 
     const t = setTimeout(async () => {
       try {
+        // Prix, noms et totaux sont recalculés par le serveur ; on n'envoie que l'identité des lignes.
         const items = cart.map(i => ({
           product_id: i.product.id,
-          name: i.product.name,
           quantity: i.quantity,
-          price: i.product.price,
+          selected_variants: i.selectedVariants && Object.keys(i.selectedVariants).length > 0 ? i.selectedVariants : null,
         }));
         const itemsCount = cart.reduce((s, i) => s + i.quantity, 0);
         const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -167,7 +182,7 @@ const ShopView = () => {
           const n = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
           return parseFullPhone(n).country?.name || null;
         })();
-        await (supabase as any).rpc("upsert_abandoned_cart", {
+        const { error: rpcError } = await (supabase as any).rpc("upsert_abandoned_cart", {
           _shop_id: shop.id,
           _session_id: sessionIdRef.current,
           _customer_name: customerInfo.name || null,
@@ -181,7 +196,7 @@ const ShopView = () => {
           _items_count: itemsCount,
           _total: total,
         });
-        abandonedSavedRef.current = true;
+        if (!rpcError) abandonedSavedRef.current = true;
       } catch (_) { /* silent */ }
     }, 1200);
     return () => clearTimeout(t);
@@ -564,6 +579,11 @@ const ShopView = () => {
             _session_id: sessionIdRef.current,
           });
         } catch (_) {}
+        // Nouvelle session pour le prochain panier : l'ancienne est close côté serveur.
+        abandonedSavedRef.current = false;
+        const nextSid = newAbandonSessionId();
+        sessionIdRef.current = nextSid;
+        try { localStorage.setItem(`vp_abandon_session_${shop.id}`, nextSid); } catch {}
       }
       const trackingPayload = {
         value: orderTotal,

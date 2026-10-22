@@ -1339,7 +1339,7 @@ const ShopEditor = () => {
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked || isRestricted
               ? <StoreRestrictedLockScreen shopId={shop.id} isRestricted={true}><div /></StoreRestrictedLockScreen>
-              : <AbandonedCartsList shopId={shop.id} />;
+              : <AbandonedCartsList shopId={shop.id} shopName={shop.business_name} />;
           })()}
 
           {activeSection === "loyal-customers" && shop?.id && (() => {
