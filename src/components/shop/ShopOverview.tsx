@@ -37,13 +37,34 @@ interface ShopOverviewProps {
   orders: Order[];
   productCount: number;
   totalRevenue: number;
-  newOrders: number;
+  unreadOrders: number;
   onViewAllOrders: () => void;
   isRestricted?: boolean;
 }
 
-export function ShopOverview({ orders, productCount, totalRevenue, newOrders, onViewAllOrders, isRestricted = false }: ShopOverviewProps) {
-  const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+const fmtCompact = (n: number) => new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 2 }).format(n);
+
+// Défini hors du composant : sinon il serait remonté à chaque rendu (nouvelle commande en temps réel, etc.).
+const PeriodCard = ({ label, count, total, accentClass, bgIconClass, Icon }: { label: string; count: number; total: number; accentClass: string; bgIconClass: string; Icon: any }) => (
+  <Card className="p-5 bg-white border border-slate-100 shadow-sm rounded-2xl hover:shadow-md transition-shadow relative overflow-hidden group">
+    <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-20 -mr-10 -mt-10 transition-opacity group-hover:opacity-40 ${bgIconClass}`} />
+
+    <div className="flex justify-between items-start mb-4 relative z-10">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bgIconClass}`}>
+        <Icon className={`w-4 h-4 ${accentClass}`} />
+      </div>
+    </div>
+
+    <div className="relative z-10">
+      <h3 className="text-2xl font-bold text-slate-900 mb-1">{count} <span className="text-sm font-medium text-slate-400">{count > 1 ? "cmds" : "cmd"}</span></h3>
+      <p className={`text-sm font-semibold ${accentClass}`}>{fmt(total)} FCFA</p>
+    </div>
+  </Card>
+);
+
+export function ShopOverview({ orders, productCount, totalRevenue, unreadOrders, onViewAllOrders, isRestricted = false }: ShopOverviewProps) {
 
   const periods = useMemo(() => {
     const now = new Date();
@@ -94,23 +115,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
     return data;
   }, [orders]);
 
-  const PeriodCard = ({ label, count, total, accentClass, bgIconClass, Icon }: { label: string; count: number; total: number; accentClass: string; bgIconClass: string; Icon: any }) => (
-    <Card className="p-5 bg-white border border-slate-100 shadow-sm rounded-2xl hover:shadow-md transition-shadow relative overflow-hidden group">
-      <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-20 -mr-10 -mt-10 transition-opacity group-hover:opacity-40 ${bgIconClass}`} />
-      
-      <div className="flex justify-between items-start mb-4 relative z-10">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bgIconClass}`}>
-          <Icon className={`w-4 h-4 ${accentClass}`} />
-        </div>
-      </div>
-      
-      <div className="relative z-10">
-        <h3 className="text-2xl font-bold text-slate-900 mb-1">{count} <span className="text-sm font-medium text-slate-400">cmd</span></h3>
-        <p className={`text-sm font-semibold ${accentClass}`}>{fmt(total)} FCFA</p>
-      </div>
-    </Card>
-  );
+  const weekTotal = useMemo(() => chartData.reduce((s, d) => s + d.total, 0), [chartData]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -139,7 +144,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
             </div>
             <div>
               <p className="text-[10px] text-slate-500 uppercase font-semibold">Nouvelles</p>
-              <p className="font-bold text-slate-900 leading-none">{newOrders}</p>
+              <p className="font-bold text-slate-900 leading-none">{unreadOrders}</p>
             </div>
           </div>
         </div>
@@ -164,8 +169,9 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
                 <p className="text-sm text-slate-500">Aperçu de vos ventes récentes</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-slate-500 uppercase font-semibold">Total Généré</p>
-                <p className="text-xl font-bold text-[#0E7C66]">{fmt(totalRevenue)} FCFA</p>
+                <p className="text-xs text-slate-500 uppercase font-semibold">Total sur 7 jours</p>
+                <p className="text-xl font-bold text-[#0E7C66]">{fmt(weekTotal)} FCFA</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Cumul depuis le début : {fmt(totalRevenue)} FCFA</p>
               </div>
             </div>
             
@@ -190,7 +196,9 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fill: '#94a3b8', fontSize: 12 }}
-                    width={80}
+                    width={56}
+                    allowDecimals={false}
+                    tickFormatter={fmtCompact}
                   />
                   <RechartsTooltip 
                     contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}

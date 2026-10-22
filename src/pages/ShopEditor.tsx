@@ -1031,7 +1031,6 @@ const ShopEditor = () => {
   const primaryColor = shop.primary_color || "#2563eb";
   // Les commandes annulées ou retournées ne sont pas du chiffre d'affaires.
   const totalRevenue = orders.reduce((sum, o) => sum + (EXCLUDED_FROM_REVENUE.has(o.order_status) ? 0 : o.total), 0);
-  const newOrders = orders.filter(o => o.order_status === "new").length;
 
   const openPreview = () => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank");
 
@@ -1268,7 +1267,7 @@ const ShopEditor = () => {
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
-            <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
+            <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} unreadOrders={unreadOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
           )}
 
           {activeSection === "statistics" && (
