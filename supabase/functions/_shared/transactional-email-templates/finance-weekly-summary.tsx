@@ -20,6 +20,7 @@ interface Props {
   commissionDue?: string
   profit?: string
   profitPositive?: boolean
+  warning?: string
   shopUrl?: string
 }
 
@@ -36,6 +37,7 @@ const FinanceSummary = ({
   commissionDue = '0',
   profit = '0',
   profitPositive = true,
+  warning,
   shopUrl,
 }: Props) => (
   <Html lang="fr" dir="ltr">
@@ -51,9 +53,11 @@ const FinanceSummary = ({
           <Kpi label="CA confirmé" value={`${revenue} FCFA`} accent="#3b82f6" />
         </Section>
         <Section style={kpiRow}>
-          <Kpi label="Dépenses" value={`${totalExpenses} FCFA`} accent="#ec4899" />
+          <Kpi label="Dépenses (frais Ecomfy inclus)" value={`${totalExpenses} FCFA`} accent="#ec4899" />
           <Kpi label="Bénéfice net" value={`${profit} FCFA`} accent={profitPositive ? '#16a34a' : '#dc2626'} />
         </Section>
+
+        {warning && <Text style={warn}>⚠️ {warning}</Text>}
 
         <Hr style={hr} />
 
@@ -70,7 +74,7 @@ const FinanceSummary = ({
         )}
 
         <Heading as="h2" style={h2}>🏦 Frais plateforme Ecomfy</Heading>
-        <Text style={text}>Déjà payés : <b>{platformFees} FCFA</b></Text>
+        <Text style={text}>Payés sur la période : <b>{platformFees} FCFA</b></Text>
         <Text style={text}>Commission due : <b style={{ color: '#ea580c' }}>{commissionDue} FCFA</b></Text>
 
         {shopUrl && (
@@ -118,6 +122,7 @@ const h2 = { fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: '18px 
 const text = { fontSize: '14px', color: '#334155', lineHeight: '1.6', margin: '0 0 6px' }
 const lineItem = { fontSize: '13px', color: '#334155', margin: '2px 0' }
 const kpiRow = { margin: '0 0 6px', display: 'block' }
+const warn = { fontSize: '12px', color: '#9a3412', background: '#fff7ed', padding: '8px 12px', borderRadius: '6px', margin: '8px 0 0' }
 const hr = { borderColor: '#e2e8f0', margin: '20px 0' }
 const link = { color: '#2563eb', textDecoration: 'none', fontWeight: 600 }
 const footer = { fontSize: '11px', color: '#94a3b8', textAlign: 'center' as const, margin: '20px 0 0' }
