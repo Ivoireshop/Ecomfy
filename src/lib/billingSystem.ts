@@ -45,6 +45,18 @@ export interface BillingStatusInfo {
   hasInvoice: boolean;
 }
 
+/**
+ * Même définition que public.is_shop_restricted() côté base : boutique suspendue OU statut restreint.
+ * Le serveur reste l'autorité (la lecture directe de `orders` est refusée à une boutique restreinte) ;
+ * ceci ne sert qu'à choisir la bonne voie de lecture.
+ */
+export const RESTRICTED_SHOP_STATUSES = ["STORE_RESTRICTED", "locked", "PAYMENT_OVERDUE", "final_suspension"];
+
+export function isShopRowRestricted(shop: { is_suspended?: boolean | null; shop_payment_status?: string | null } | null | undefined): boolean {
+  if (!shop) return false;
+  return !!shop.is_suspended || RESTRICTED_SHOP_STATUSES.includes(shop.shop_payment_status || "");
+}
+
 export const BILLING_CONFIG = {
   THRESHOLD_ORDERS: 240,
   BILLING_AMOUNT: 12000,

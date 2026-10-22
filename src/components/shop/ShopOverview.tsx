@@ -21,12 +21,17 @@ interface Order {
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-50 text-blue-600 border border-blue-200" },
+  pending: { label: "En attente", color: "bg-slate-50 text-slate-600 border border-slate-200" },
   confirmed: { label: "Confirmé", color: "bg-[#0E7C66]/10 text-[#0E7C66] border border-[#0E7C66]/20" },
   processing: { label: "En traitement", color: "bg-[#F7C04A]/10 text-[#d99f2b] border border-[#F7C04A]/20" },
   shipped: { label: "Expédié", color: "bg-purple-50 text-purple-600 border border-purple-200" },
   delivered: { label: "Livré", color: "bg-emerald-50 text-emerald-600 border border-emerald-200" },
   cancelled: { label: "Annulé", color: "bg-red-50 text-red-600 border border-red-200" },
+  returned: { label: "Retourné", color: "bg-orange-50 text-orange-600 border border-orange-200" },
 };
+
+// Annulées et retournées ne comptent ni dans les ventes ni dans le chiffre d'affaires.
+const isSale = (o: { order_status: string }) => o.order_status !== "cancelled" && o.order_status !== "returned";
 
 interface ShopOverviewProps {
   orders: Order[];
@@ -52,6 +57,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
 
     const sum = (from: Date, to?: Date) => {
       const list = orders.filter(o => {
+        if (!isSale(o)) return false;
         const t = new Date(o.created_at).getTime();
         return t >= from.getTime() && (!to || t < to.getTime());
       });
@@ -75,6 +81,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, newOrders, on
       const end = new Date(date); end.setHours(23,59,59,999);
       
       const dayOrders = orders.filter(o => {
+        if (!isSale(o)) return false;
         const t = new Date(o.created_at).getTime();
         return t >= start.getTime() && t <= end.getTime();
       });

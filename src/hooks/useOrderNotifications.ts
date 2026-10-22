@@ -144,10 +144,23 @@ export function useOrderNotifications(shopId?: string) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", ...(filter ? { filter } : {}) },
         async (payload) => {
-          const order: any = payload.new;
+          let order: any = payload.new;
           playNotificationSound();
+
+          // L'insertion arrive avec un total à 0 et sans articles : les triggers les calculent juste après.
+          // On relit la commande complète (repli sur l'événement brut si la lecture échoue).
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            const { data } = await supabase
+              .from("orders")
+              .select("*, order_items(product_name, quantity)")
+              .eq("id", order.id)
+              .maybeSingle();
+            if (data) order = { ...order, ...data };
+          } catch {}
+
           speakOrderNotification(order);
-          
+
           const title = "🛍️ Nouvelle Commande !";
           const body = getOrderNotificationBody(order) || getOrderAnnouncement(order);
 

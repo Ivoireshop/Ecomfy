@@ -89,13 +89,11 @@ export function ScheduleDeliveryModal({
         updated_at: new Date().toISOString(),
       };
 
-      // Also compose a notes summary if note or date is provided
-      let composedNotes: string | null = null;
-      if (dateValue || noteValue) {
-        const dateTag = dateValue ? `[LIVRAISON PRÉVUE: ${dateValue}]` : "";
-        composedNotes = [dateTag, noteValue].filter(Boolean).join(" ");
-        primaryPayload.notes = composedNotes;
-      }
+      // Toujours réécrire `notes` (null si date et note sont vides) : sinon l'ancienne balise
+      // [LIVRAISON PRÉVUE: …] survit et getOrderScheduleInfo ressuscite la date effacée.
+      const dateTag = dateValue ? `[LIVRAISON PRÉVUE: ${dateValue}]` : "";
+      const composedNotes: string | null = [dateTag, noteValue].filter(Boolean).join(" ") || null;
+      primaryPayload.notes = composedNotes;
 
       let { error } = await supabase
         .from("orders")
@@ -108,9 +106,7 @@ export function ScheduleDeliveryModal({
         const fallbackPayload: Record<string, any> = {
           updated_at: new Date().toISOString(),
         };
-        if (composedNotes !== null) {
-          fallbackPayload.notes = composedNotes;
-        }
+        fallbackPayload.notes = composedNotes;
         const fallbackRes = await supabase
           .from("orders")
           .update(fallbackPayload as any)

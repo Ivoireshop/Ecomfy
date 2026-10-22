@@ -13,12 +13,19 @@ import { ScheduleDeliveryModal } from "./ScheduleDeliveryModal";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+  pending: { label: "En attente", color: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300" },
   confirmed: { label: "Confirmé", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
   processing: { label: "En traitement", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
   shipped: { label: "Expédié", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
   delivered: { label: "Livré", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" },
   cancelled: { label: "Annulé", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
+  returned: { label: "Retourné", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
 };
+
+// Une commande terminée ou annulée ne peut plus être confiée à un livreur.
+const NOT_SHIPPABLE = new Set(["delivered", "cancelled", "returned"]);
+// Une livraison déjà récupérée, en route ou terminée ne se relance pas (refusé par le serveur).
+const DELIVERY_IN_PROGRESS = new Set(["picked_up", "in_transit", "delivered"]);
 
 import { getOrderScheduleInfo } from "@/lib/utils";
 
@@ -63,9 +70,6 @@ interface OrdersListProps {
 }
 
 export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrderUpdated, isRestricted = false }: OrdersListProps) {
-  if (isRestricted) {
-    return <StoreRestrictedLockScreen shopId={shopId} isRestricted={true} />;
-  }
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -102,17 +106,22 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
     return `${year}-${month}-${day}`;
   };
 
-  const todayISO = useMemo(() => formatISODate(new Date()), []);
-  const tomorrowISO = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return formatISODate(d);
+  // La date du jour est réévaluée chaque minute : un onglet laissé ouvert après minuit
+  // ne doit pas continuer à afficher « aujourd'hui » pour la veille.
+  const [todayISO, setTodayISO] = useState(() => formatISODate(new Date()));
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = formatISODate(new Date());
+      setTodayISO((prev) => (prev === now ? prev : now));
+    }, 60000);
+    return () => window.clearInterval(timer);
   }, []);
-  const afterTomorrowISO = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    return formatISODate(d);
-  }, []);
+  const addDaysISO = (iso: string, days: number) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return formatISODate(new Date(y, m - 1, d + days));
+  };
+  const tomorrowISO = addDaysISO(todayISO, 1);
+  const afterTomorrowISO = addDaysISO(todayISO, 2);
 
   const getDeliveryBadge = (scheduledDate?: string | null) => {
     if (!scheduledDate) {
@@ -283,12 +292,15 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
     }
   };
 
-  // Sequential numbering: oldest = #1, newest = #N (orders are passed in desc order)
-  const sortedAsc = [...filteredOrders].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
-  const sequenceById: Record<string, number> = {};
-  sortedAsc.forEach((o, i) => { sequenceById[o.id] = i + 1; });
+  // Numérotation séquentielle : la plus ancienne = #1. Calculée sur TOUTES les commandes
+  // (pas sur la liste filtrée) pour qu'un numéro ne change pas avec la recherche ou le filtre.
+  const sequenceById = useMemo(() => {
+    const map: Record<string, number> = {};
+    [...orders]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .forEach((o, i) => { map[o.id] = i + 1; });
+    return map;
+  }, [orders]);
 
   const buildExportRows = () => {
     return filteredOrders.map((o) => {
@@ -350,7 +362,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
       <h1>Fiche des commandes</h1>
       <div class="meta">${filteredOrders.length} commande(s) · Généré le ${now}</div>
       <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${headers.map(h => `<td>${String((r as any)[h] ?? "").replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] as string))}</td>`).join("")}</tr>`).join("")}</tbody>
+      <tbody>${rows.map(r => `<tr>${headers.map(h => `<td>${String((r as any)[h] ?? "").replace(/[<>&"']/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c] as string))}</td>`).join("")}</tr>`).join("")}</tbody>
       </table>
       <script>window.onload=()=>{setTimeout(()=>{window.print();},300)}<\/script>
       </body></html>`;
@@ -359,6 +371,10 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
     w.document.write(html);
     w.document.close();
   };
+
+  if (isRestricted) {
+    return <StoreRestrictedLockScreen shopId={shopId} isRestricted={true} />;
+  }
 
   return (
     <div className="space-y-4">
@@ -582,11 +598,15 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                             <div className="flex items-center gap-2 text-xs font-medium bg-white dark:bg-background px-3 py-1.5 rounded-lg border shadow-sm w-fit">
                               <User className="h-3.5 w-3.5 text-muted-foreground" />
                               <span>{delivery.driver.name}</span>
-                              <span className="text-muted-foreground">•</span>
-                              <a href={`tel:${delivery.driver.phone}`} className="text-primary hover:underline flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                <Phone className="h-3 w-3" />
-                                {delivery.driver.phone}
-                              </a>
+                              {delivery.driver.phone && (
+                                <>
+                                  <span className="text-muted-foreground">•</span>
+                                  <a href={`tel:${delivery.driver.phone}`} className="text-primary hover:underline flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                    <Phone className="h-3 w-3" />
+                                    {delivery.driver.phone}
+                                  </a>
+                                </>
+                              )}
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground italic">Aucun livreur assigné</span>
@@ -632,6 +652,9 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                         {Object.entries(STATUS_MAP).map(([key, val]) => (
                           <SelectItem key={key} value={key}>{val.label}</SelectItem>
                         ))}
+                        {!STATUS_MAP[order.order_status] && (
+                          <SelectItem value={order.order_status}>{order.order_status}</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <Badge variant={order.payment_method === "mobile_money" ? "default" : "outline"} className="text-xs">
@@ -651,18 +674,20 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                     </Button>
                     {order.customer_phone && (
                       <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="h-10 min-h-10 flex-1 sm:flex-none"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOrderToPush(order.id);
-                            setPushModalOpen(true);
-                          }}
-                        >
-                          <Send className="h-4 w-4 mr-1" /> Expédier
-                        </Button>
+                        {!NOT_SHIPPABLE.has(order.order_status) && !order.order_deliveries?.some((d) => DELIVERY_IN_PROGRESS.has(d.status)) && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-10 min-h-10 flex-1 sm:flex-none"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOrderToPush(order.id);
+                              setPushModalOpen(true);
+                            }}
+                          >
+                            <Send className="h-4 w-4 mr-1" /> Expédier
+                          </Button>
+                        )}
                         <Button asChild size="sm" variant="outline" className="h-10 min-h-10 flex-1 sm:flex-none">
                           <a href={`tel:${order.customer_phone.replace(/[^0-9+]/g, "")}`} onClick={(e) => e.stopPropagation()}>
                             <Phone className="h-4 w-4 mr-1" /> Appeler

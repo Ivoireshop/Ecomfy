@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -23,6 +23,7 @@ import { BillingBanner } from "@/components/shop/BillingBanner";
 import { BillingAlertBanner } from "@/components/shop/BillingAlertBanner";
 import { StoreRestrictedLockScreen } from "@/components/shop/StoreRestrictedLockScreen";
 import { useBillingSystem } from "@/hooks/useBillingSystem";
+import { isShopRowRestricted } from "@/lib/billingSystem";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
@@ -103,6 +104,8 @@ interface Order {
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; product_id: string }[];
 }
 
+const EXCLUDED_FROM_REVENUE = new Set(["cancelled", "returned"]);
+
 const CATEGORIES = [
   "Mode & Vêtements", "Électronique", "Beauté & Soins", "Maison & Déco",
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
@@ -152,23 +155,35 @@ const ShopEditor = () => {
   });
   const [productImages, setProductImages] = useState<File[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [unreadOrders, setUnreadOrders] = useState(0);
   const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null }[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [collabRoles, setCollabRoles] = useState<string[] | null>(null);
   const lastPassiveRefreshRef = useRef(0);
+  // Dérivé de la liste : reste exact quand une commande est lue depuis un autre appareil ou onglet.
+  const unreadOrders = useMemo(() => orders.filter(o => !o.is_read).length, [orders]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
     const visitsStartDate = new Date();
     visitsStartDate.setDate(visitsStartDate.getDate() - 30);
-    const [shopRes, secretsRes, productsRes, ordersRes, visitsRes] = await Promise.all([
+    const [shopRes, secretsRes, productsRes, visitsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
-      supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any,
       supabase.from("shop_visits" as any).select("visited_at, product_id, session_id, visitor_country, referrer, device_type").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(5000) as any,
     ]);
+    // Boutique restreinte : la base refuse la lecture directe de `orders` et ne livre que des commandes masquées
+    // (noms, téléphones, adresses, notes), via get_shop_orders_secure. Pas d'articles ni de livraisons dans ce cas.
+    let ordersRes: { data: any[] | null; error: any };
+    if (isShopRowRestricted(shopRes.data)) {
+      const rpcRes = await (supabase as any).rpc("get_shop_orders_secure", { _shop_id: id });
+      ordersRes = {
+        data: rpcRes.data ? (rpcRes.data as any[]).slice(0, 5000).map(o => ({ ...o, order_items: [] })) : null,
+        error: rpcRes.error,
+      };
+    } else {
+      ordersRes = await (supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any);
+    }
     if (ordersRes.error) {
       console.error("FAILED TO FETCH ORDERS:", ordersRes.error);
     }
@@ -194,26 +209,56 @@ const ShopEditor = () => {
     }
     if (ordersRes.data) {
       let finalOrders = ordersRes.data;
-      if (finalOrders.length > 0) {
+      if (finalOrders.length > 0 && !isShopRowRestricted(shopRes.data)) {
         try {
-          const orderIds = finalOrders.map((o: any) => o.id);
-          const deliveriesRes = await supabase
-            .from("order_deliveries")
-            .select("*, driver:delivery_company_members(*), provider:delivery_providers(*)")
-            .in("order_id", orderIds);
-          
-          if (deliveriesRes.data) {
-            finalOrders = finalOrders.map((o: any) => ({
-              ...o,
-              order_deliveries: deliveriesRes.data.filter((d: any) => d.order_id === o.id)
-            }));
+          // Par lots : avec jusqu'à 5000 commandes, un seul .in() dépasse la longueur d'URL
+          // autorisée, la requête échoue et le suivi de livraison disparaît silencieusement.
+          const orderIds: string[] = finalOrders.map((o: any) => o.id);
+          const chunks: string[][] = [];
+          for (let i = 0; i < orderIds.length; i += 100) chunks.push(orderIds.slice(i, i + 100));
+          const results = await Promise.all(chunks.map(chunk =>
+            supabase
+              .from("order_deliveries")
+              .select("*")
+              .in("order_id", chunk)
+          ));
+          const failed = results.find(r => r.error);
+          if (failed?.error) console.error("Failed to fetch order deliveries", failed.error);
+          // Le nom du prestataire vient de la vue publique : `delivery_providers` n'est lisible que par son propriétaire.
+          const providerIds = Array.from(new Set(results.flatMap(r => (r.data || []).map((d: any) => d.provider_id)).filter(Boolean)));
+          const providerNames = new Map<string, any>();
+          if (providerIds.length > 0) {
+            const { data: providers } = await (supabase as any).from("delivery_providers_public").select("id, company_name").in("id", providerIds);
+            (providers || []).forEach((p: any) => providerNames.set(p.id, p));
           }
+          // Nom et téléphone du livreur : absents de delivery_company_members, lus dans le profil via une fonction
+          // qui ne répond que pour les livreurs affectés aux commandes de l'appelant.
+          const driverIds = Array.from(new Set(results.flatMap(r => (r.data || []).map((d: any) => d.driver_id)).filter(Boolean)));
+          const driverContacts = new Map<string, any>();
+          for (let i = 0; i < driverIds.length; i += 500) {
+            const { data: contacts } = await (supabase as any).rpc("get_delivery_driver_contacts", { _member_ids: driverIds.slice(i, i + 500) });
+            (contacts || []).forEach((c: any) => driverContacts.set(c.member_id, c));
+          }
+          const deliveriesByOrder = new Map<string, any[]>();
+          results.forEach(r => (r.data || []).forEach((d: any) => {
+            const list = deliveriesByOrder.get(d.order_id) || [];
+            const contact = d.driver_id ? driverContacts.get(d.driver_id) : null;
+            list.push({
+              ...d,
+              provider: providerNames.get(d.provider_id) || null,
+              driver: d.driver_id ? { id: d.driver_id, name: contact?.full_name || "Livreur", phone: contact?.phone || "" } : null,
+            });
+            deliveriesByOrder.set(d.order_id, list);
+          }));
+          finalOrders = finalOrders.map((o: any) => ({
+            ...o,
+            order_deliveries: deliveriesByOrder.get(o.id) || [],
+          }));
         } catch (e) {
           console.error("Failed to fetch order deliveries", e);
         }
       }
       setOrders(finalOrders);
-      setUnreadOrders(finalOrders.filter((o: Order) => !o.is_read).length);
     }
     if (visitsRes?.data) setVisits(visitsRes.data as any);
     setLoading(false);
@@ -237,9 +282,19 @@ const ShopEditor = () => {
     const channel = supabase.channel(`shop-orders-${id}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
         const newOrder = payload.new as Order;
-        setOrders(prev => [newOrder, ...prev]);
-        setUnreadOrders(prev => prev + 1);
-        toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
+        let isDuplicate = false;
+        setOrders(prev => {
+          isDuplicate = prev.some(o => o.id === newOrder.id);
+          return isDuplicate ? prev : [newOrder, ...prev];
+        });
+        if (!isDuplicate) {
+          toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
+        }
+        // L'événement n'embarque ni les articles ni le total final (calculés par triggers juste après l'insertion).
+        (async () => {
+          const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", newOrder.id).maybeSingle();
+          if (data) setOrders(prev => prev.map(o => o.id === newOrder.id ? { ...o, ...(data as any) } : o));
+        })();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
         const updatedOrder = payload.new as Order;
@@ -947,22 +1002,35 @@ const ShopEditor = () => {
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
-    await supabase.from("orders").update({ order_status: status, is_read: true }).eq("id", orderId) as any;
+    const previous = orders.find(o => o.id === orderId);
+    // Mise à jour immédiate de l'écran, annulée si le serveur refuse.
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: status, is_read: true } : o));
+    const { error } = await supabase.from("orders").update({ order_status: status, is_read: true }).eq("id", orderId);
+    if (error) {
+      if (previous) setOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: previous.order_status, is_read: previous.is_read } : o));
+      toast({ title: "Statut non modifié", description: error.message || "Vous n'avez peut-être pas les droits sur cette commande.", variant: "destructive" });
+      return;
+    }
     toast({ title: "Statut mis à jour" });
+    // Le serveur peut réagir au changement (transfert automatique au livreur) : on recharge.
     fetchData();
   };
 
   const markOrderRead = async (orderId: string) => {
-    await supabase.from("orders").update({ is_read: true }).eq("id", orderId) as any;
-    setUnreadOrders(prev => Math.max(0, prev - 1));
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, is_read: true } : o));
+    const { error } = await supabase.from("orders").update({ is_read: true }).eq("id", orderId);
+    if (error) {
+      console.error("Failed to mark order as read", error);
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, is_read: false } : o));
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!shop) return <div className="min-h-screen flex items-center justify-center"><p>Boutique introuvable</p></div>;
 
   const primaryColor = shop.primary_color || "#2563eb";
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
+  // Les commandes annulées ou retournées ne sont pas du chiffre d'affaires.
+  const totalRevenue = orders.reduce((sum, o) => sum + (EXCLUDED_FROM_REVENUE.has(o.order_status) ? 0 : o.total), 0);
   const newOrders = orders.filter(o => o.order_status === "new").length;
 
   const openPreview = () => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank");
