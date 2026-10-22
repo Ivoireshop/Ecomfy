@@ -26,9 +26,10 @@ Les prérequis de la vague 2 (C5 secret du webhook, C6 montants serveur, revue K
 
 ## 2. Ordre de déploiement
 
-1. **Migration** (section 3).
-2. **Edge Functions** `ecomfy-pay-withdraw` puis `ecomfy-pay-webhook` (section 4).
-3. **Front** (branche `jeanmarc`).
+1. **Migration** `20261022140000` (section 3).
+2. **Migration** `20261022150000` (section 9, audit M4), si le système de facturation est déjà en production.
+3. **Edge Functions** `ecomfy-pay-withdraw`, `ecomfy-pay-webhook`, puis `ecomfy-pay-initiate` (sections 4 et 9).
+4. **Front** (branche `jeanmarc`).
 
 Pourquoi migration d'abord : le nouveau front trie le ledger par `entry_seq` et la fenêtre de retrait envoie `p_payout_operator`. Avec l'ancienne base, la liste du portefeuille serait vide (colonne inconnue) et les retraits échoueraient (paramètre inconnu). **L'ancien front et les anciennes fonctions restent compatibles avec la nouvelle base** : le paramètre ajouté est facultatif et les nouvelles colonnes sont nullables ou ont une valeur par défaut.
 
@@ -91,12 +92,13 @@ Un retrait `REQUESTED` / `PROCESSING` créé avant la migration n'a pas d'opéra
 $P = "yfggrceynzcwklbxhgix"
 npx supabase@latest functions deploy ecomfy-pay-withdraw --project-ref $P --use-api
 npx supabase@latest functions deploy ecomfy-pay-webhook  --project-ref $P --use-api
+npx supabase@latest functions deploy ecomfy-pay-initiate --project-ref $P --use-api   # audit M4, section 9
 ```
 
 `--use-api` est nécessaire sous Windows (le bundling Docker échoue). Vérification sans JWT (attendu 401 pour `ecomfy-pay-withdraw`, 401 pour le webhook sans signature) :
 
 ```powershell
-foreach ($f in "ecomfy-pay-withdraw","ecomfy-pay-webhook") {
+foreach ($f in "ecomfy-pay-withdraw","ecomfy-pay-webhook") {   # ecomfy-pay-initiate : voir section 9
   try { Invoke-WebRequest -Method Post -Uri "https://$P.supabase.co/functions/v1/$f" -ContentType "application/json" -Body "{}" -UseBasicParsing | Out-Null; "$f -> 200" }
   catch { "$f -> $($_.Exception.Response.StatusCode.value__)" }
 }
@@ -155,5 +157,79 @@ Les colonnes ajoutées peuvent rester : elles sont inoffensives pour l'ancien co
 
 | Environnement | Migration | Edge Functions | Front |
 |---|---|---|---|
-| Dev | Appliquée le 22/10 | Déployées le 22/10 | Local seulement ; test navigateur du ledger non fait (connexion à fournir) |
+| Dev | Appliquée le 22/10 (+ partie retrait de `20261022150000`) | Déployées le 22/10 (`ecomfy-pay-initiate` redéployée) | Local seulement ; checkout et liens testés dans le navigateur (section 9) |
 | Production | **Non** (Ecomfy Pay absent, section 0) | Non | Non |
+
+## 9. Références non devinables et checkout réel (audit M4, 22/10/2026)
+
+**Fichier :** `supabase/migrations/20261022150000_references_non_devinables.sql`, à appliquer **après** `20261022140000`. Ne pas utiliser `db push`.
+
+| Changement | Détail |
+|---|---|
+| Références générées par le serveur | `ECM-PAY-`, `ECM-WDR-`, `BILL-ECOMFY-`, `PAY-ECOMFY-` : 12 caractères hexadécimaux issus de `crypto.randomUUID()` / `gen_random_uuid()` (avant : `Math.random()`, `random()` ou MD5 de `random()`, 8 caractères ou 900 000 valeurs). |
+| Fonctions recréées | `request_wallet_withdrawal_atomic`, `check_and_trigger_billing_threshold`, `confirm_invoice_payment` (corps identiques, seule la référence change ; droits conservés). |
+| Edge Function | `ecomfy-pay-initiate` à redéployer. |
+| Front | `EcomfyPayCheckout` n'écrit plus de paiement `SUCCEEDED` depuis le navigateur : il appelle `ecomfy-pay-initiate` (montant relu en base), redirige vers la page de l'opérateur ou affiche « paiement en cours de traitement ». Plus de quantité ni de remise simulée : le serveur n'accepte que le montant du lien (ou plus, si la saisie libre est activée). `PaymentLinksTab` ne crée plus de boutique incomplète : sans boutique, il renvoie vers « Boutique ». |
+
+### 9.1 Appliquer (production)
+
+**Projet :** `yfggrceynzcwklbxhgix`. **Ne jamais utiliser `supabase db push`** (il pousserait aussi les autres migrations en attente). Prérequis : `20261022140000` déjà appliquée (la migration recrée `request_wallet_withdrawal_atomic` dans sa version à `p_payout_operator`).
+
+**Les trois fonctions de facturation n'existent que si le système de facturation est déployé** (table `shop_invoices`, migration `20260909100000`). Sur une base sans ce système (c'est le cas de dev), `CREATE OR REPLACE` créerait deux fonctions orphelines : n'y appliquer que la partie « 3. Demande de retrait » (à partir de la ligne du commentaire `-- 3.`).
+
+Avant, en lecture seule, pour savoir quel cas s'applique :
+
+```sql
+select to_regclass('public.shop_invoices') as facturation,   -- null = absent : appliquer la partie 3 seulement
+       to_regprocedure('public.request_wallet_withdrawal_atomic(numeric,text,text,text,text,text,text)') as retrait;  -- doit exister
+```
+
+Base complète (facturation + ledger) :
+
+```powershell
+npx supabase db query --linked -f supabase/migrations/20261022150000_references_non_devinables.sql
+```
+
+(vérifier avant que le projet lié est bien `yfggrceynzcwklbxhgix` : `npx supabase projects list`, colonne « linked »).
+
+Base sans facturation :
+
+```powershell
+$sql = Get-Content -Encoding UTF8 supabase/migrations/20261022150000_references_non_devinables.sql
+$i = ($sql | Select-String -Pattern '^-- 3\.').LineNumber - 1
+$sql[$i..($sql.Count-1)] | Set-Content $env:TEMP\m4_retrait.sql -Encoding utf8
+npx supabase db query --linked -f $env:TEMP\m4_retrait.sql
+```
+
+Puis l'Edge Function et le front :
+
+```powershell
+npx supabase@latest functions deploy ecomfy-pay-initiate --project-ref yfggrceynzcwklbxhgix --use-api
+```
+
+Front : déployer la branche `jeanmarc` (Vercel). Le nouveau front appelle `ecomfy-pay-initiate` : **déployer la fonction avant le front**, sinon le checkout d'un lien de paiement échouera (l'ancienne fonction convient aussi, elle ne diffère que par la référence).
+
+### 9.2 Vérifier (lecture seule)
+
+```sql
+select p.proname, pg_get_functiondef(p.oid) ~ 'gen_random_uuid' as uuid_ok, pg_get_functiondef(p.oid) ~* 'random\(\)' as random_restant
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname in ('request_wallet_withdrawal_atomic','check_and_trigger_billing_threshold','confirm_invoice_payment');
+-- attendu : uuid_ok = true et random_restant = false pour chaque fonction présente
+```
+
+Dans le navigateur : ouvrir un lien `/pay/<clé>` d'une boutique ; payer le montant du lien. Attendu : redirection vers l'opérateur (clés GeniusPay présentes) et une ligne `ecomfy_payments` en `PENDING` avec une référence `ECM-PAY-` suivie de 12 caractères hexadécimaux. Un montant différent du lien, appelé directement sur la fonction, doit renvoyer 400 « Le montant ne correspond pas au lien ».
+
+### 9.3 Retour arrière
+
+- Front : redéployer la version précédente.
+- Fonctions SQL : rejouer les versions précédentes (`20260912000000` pour `check_and_trigger_billing_threshold`, `20260911120000` pour `confirm_invoice_payment`, bloc `request_wallet_withdrawal_atomic` de `20261022140000`). Les références déjà émises restent valides : le format change, pas les colonnes.
+- Edge Function : redéployer l'ancienne version de `ecomfy-pay-initiate`.
+
+**Tests faits sur dev le 22/10 :**
+- `supabase/tests/ecomfy_pay_ledger.sql` : 0 échec (référence de retrait à 12 caractères) ;
+- fonctions de facturation, dans une transaction annulée (tables absentes créées dans la transaction, 240 commandes) : 10 contrôles, 0 échec ;
+- `ecomfy-pay-initiate` déployée : `ECM-PAY-…` de 12 caractères, montant falsifié refusé (400) ;
+- navigateur (Chrome, utilisateur et boutique de test créés puis supprimés) : création de lien, paiement sur lien à montant fixe enregistré en `PENDING`, cas sans boutique (message clair, aucune création).
+
+**Reste à brancher :** sans clés `GENIUSPAY_API_KEY` / `GENIUSPAY_API_SECRET` (cas de dev), `ecomfy-pay-initiate` renvoie un succès sans `checkout_url` et le paiement reste `PENDING` ; en production, le client est redirigé vers l'opérateur.

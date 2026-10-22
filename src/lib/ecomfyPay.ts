@@ -202,9 +202,10 @@ export const ecomfyPayApi = {
     amount: number;
     currency?: string;
     is_sandbox?: boolean;
+    allow_custom_amount?: boolean;
   }): Promise<{ success: boolean; paymentLink?: PaymentLink; error?: string }> {
     const prefix = params.is_sandbox ? "test_pay_" : "pay_";
-    const linkKey = `${prefix}${Math.random().toString(36).substring(2, 12)}`;
+    const linkKey = `${prefix}${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     const payload = {
       ...params,
       link_key: linkKey,

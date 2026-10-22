@@ -370,7 +370,7 @@ Tant que ce n'est pas remplacé, une approbation « automatique » ne prouve rie
 
 **Pourquoi 🛠️ :** `jeanmarc` apporte, pour ce module, la fin de l'auto-validation KYC (`evaluate_merchant_kyc_security` supprimée, remplacée par `review_merchant_kyc`), le gel des retraits par défaut (`ecomfy_pay_settings.withdrawals_enabled = false`), l'écran de revue `/founder/kyc-review`, le verrouillage des fonctions de portefeuille, la vérification HMAC du webhook et le rappel API GeniusPay. 18 tests SQL sur base jetable pour le KYC, 13 pour le portefeuille, 7 tests Node pour le webhook. **Non testé :** déploiement sur une vraie base Supabase, paiement de bout en bout avec GeniusPay.
 
-**Reste ouvert avant toute ouverture aux marchands :** montants décidés par le client (C6) dans `ecomfy-pay-initiate`, pièces d'identité dans un bucket public (H1), prestataire KYC non choisi, échec de crédit acquitté sans rejeu (M6), `ecomfy-pay-settlement` appelable sans authentification, référence de paiement prévisible (M4), `getWallet()` appelle encore une fonction réservée à `service_role`.
+**Reste ouvert avant toute ouverture aux marchands :** montants décidés par le client (C6) dans `ecomfy-pay-initiate`, pièces d'identité dans un bucket public (H1), prestataire KYC non choisi, échec de crédit acquitté sans rejeu (M6), `ecomfy-pay-settlement` appelable sans authentification, `getWallet()` appelle encore une fonction réservée à `service_role`.
 
 ---
 

@@ -103,8 +103,7 @@ serve(async (req) => {
     const netMerchantAmount = amount - feeEcomfy - feeProvider;
 
     // Générer référence interne unique ECM-PAY-XXXXXXXX
-    const refBytes = crypto.getRandomValues(new Uint8Array(6));
-    const internalReference = `ECM-PAY-${Array.from(refBytes, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 10).toUpperCase()}`;
+    const internalReference = `ECM-PAY-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
 
     // Insérer la transaction initiale en statut CREATED / PENDING
     const { data: paymentRecord, error: insertError } = await supabase
