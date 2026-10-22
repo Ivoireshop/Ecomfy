@@ -2905,6 +2905,8 @@ export type Database = {
           name: string
           price: number
           section_order: Json | null
+          seo_description: string | null
+          seo_title: string | null
           shop_id: string
           short_description: string | null
           sku: string | null
@@ -2931,6 +2933,8 @@ export type Database = {
           name: string
           price?: number
           section_order?: Json | null
+          seo_description?: string | null
+          seo_title?: string | null
           shop_id: string
           short_description?: string | null
           sku?: string | null
@@ -2957,6 +2961,8 @@ export type Database = {
           name?: string
           price?: number
           section_order?: Json | null
+          seo_description?: string | null
+          seo_title?: string | null
           shop_id?: string
           short_description?: string | null
           sku?: string | null

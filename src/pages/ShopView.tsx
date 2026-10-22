@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
+import { cleanSelectedVariants, missingVariantGroups, usableVariantGroups } from "@/lib/productVariants";
+import { htmlToPlainText } from "@/lib/sanitizeProductHtml";
 import { createPublicOrder } from "@/services/publicOrderService";
 import { PromoCodeField, type AppliedPromo } from "@/components/shop/PromoCodeField";
 import { thumbUrl } from "@/lib/imageUrl";
@@ -82,6 +85,9 @@ const ShopView = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [variantChoice, setVariantChoice] = useState<Record<string, string>>({});
+  // Produits à stock 0 dont le marchand a désactivé « Autoriser les commandes au-delà du stock » (réglage lu dans
+  // product_theme_settings). Sans cela, l'ajout rapide depuis la grille contournait le blocage de la fiche produit.
+  const [soldOutIds, setSoldOutIds] = useState<Set<string>>(new Set());
   const [orderSuccess, setOrderSuccess] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   // Progressive rendering: only render a window of products to keep first paint fast.
@@ -454,7 +460,7 @@ const ShopView = () => {
   const tShop = shop ? mergeShop(shop) : shop;
   const tProducts = products.map((p) => mergeProduct(p as any));
 
-  const categories = ["all", ...new Set(tProducts.map(p => p.category))];
+  const categories = ["all", ...new Set(tProducts.map(p => p.category).filter(Boolean))];
   const filteredProducts = tProducts.filter(p => {
     const matchCat = selectedCategory === "all" || p.category === selectedCategory;
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -464,6 +470,31 @@ const ShopView = () => {
   const effectiveFeaturedProducts = featuredProducts.length > 0 ? featuredProducts : tProducts.slice(0, 4);
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const hasMore = filteredProducts.length > visibleCount;
+
+  useEffect(() => {
+    const candidates = products
+      .filter(p => p.stock_quantity !== null && p.stock_quantity !== undefined && Number(p.stock_quantity) <= 0)
+      .map(p => p.id);
+    if (candidates.length === 0) {
+      setSoldOutIds(prev => (prev.size === 0 ? prev : new Set()));
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const blocked = new Set<string>();
+      for (let i = 0; i < candidates.length; i += 80) {
+        const { data } = await (supabase as any)
+          .from("product_theme_settings")
+          .select("product_id, custom_css_settings")
+          .in("product_id", candidates.slice(i, i + 80));
+        (data || []).forEach((row: any) => {
+          if (row?.custom_css_settings?.allow_out_of_stock_orders === false) blocked.add(row.product_id);
+        });
+      }
+      if (!cancelled) setSoldOutIds(blocked);
+    })();
+    return () => { cancelled = true; };
+  }, [products]);
 
   // Reset window whenever the active filter / search changes.
   useEffect(() => {
@@ -492,17 +523,17 @@ const ShopView = () => {
       toast({ title: "🔒 Aperçu", description: "Activez la boutique pour recevoir des commandes." });
       return;
     }
-    const variantGroups = Array.isArray(product.variants) ? product.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0) : [];
-    if (variantGroups.length > 0) {
-      const sv = selectedVariants || {};
-      const missing = variantGroups.filter((g: any) => !sv[g.name]);
-      if (missing.length > 0) {
-        setVariantChoice({});
-        setSelectedProduct(product);
-        return;
-      }
+    if (soldOutIds.has(product.id)) {
+      toast({ title: "Rupture de stock", description: "Ce produit n'est plus disponible à la commande.", variant: "destructive" });
+      return;
     }
-    const sv = selectedVariants && Object.keys(selectedVariants).length > 0 ? selectedVariants : null;
+    if (missingVariantGroups(product.variants, selectedVariants).length > 0) {
+      setVariantChoice({});
+      setSelectedProduct(product);
+      return;
+    }
+    // Les clés techniques du sélecteur (« Couleur_main », « Couleur_sub ») ne vont ni dans le panier ni dans la commande.
+    const sv = cleanSelectedVariants(selectedVariants);
     const key = cartKey(product.id, sv);
     setCart(prev => {
       const existing = prev.find(item => cartKey(item.product.id, item.selectedVariants) === key);
@@ -572,7 +603,7 @@ const ShopView = () => {
         items: cart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
-          selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
+          selected_variants: cleanSelectedVariants(item.selectedVariants),
         })),
       });
       const order = { id: created.orderId, order_number: created.orderNumber };
@@ -1079,7 +1110,7 @@ const ShopView = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             {effectiveFeaturedProducts.slice(0, 4).map((product, idx) => (
-              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
+              <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
                 const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
                 navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
               }} formatPrice={formatPrice} />
@@ -1125,7 +1156,7 @@ const ShopView = () => {
 
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {visibleProducts.map((product, idx) => (
-            <ProductCard key={product.id} product={product} primaryColor={primaryColor} eager={idx < 4 && featuredProducts.length === 0} onAddToCart={addToCart} onView={(p) => {
+            <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} eager={idx < 4 && featuredProducts.length === 0} onAddToCart={addToCart} onView={(p) => {
               const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
               navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
             }} formatPrice={formatPrice} />
@@ -1260,35 +1291,23 @@ const ShopView = () => {
                     )}
                   </div>
                 </div>
-                {selectedProduct.description && <p className="text-muted-foreground leading-relaxed">{selectedProduct.description}</p>}
-                {selectedProduct.short_description && !selectedProduct.description && <p className="text-muted-foreground">{selectedProduct.short_description}</p>}
-                {Array.isArray(selectedProduct.variants) && selectedProduct.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0).length > 0 && (
-                  <div className="space-y-3 pt-1">
-                    {selectedProduct.variants
-                      .filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0)
-                      .map((group: any, gi: number) => (
-                        <div key={gi} className="space-y-1.5">
-                          <Label className="text-xs font-semibold">
-                            {group.name} <span className="text-destructive">*</span>
-                          </Label>
-                          <div className="flex flex-wrap gap-2">
-                            {group.options.map((opt: string) => {
-                              const active = variantChoice[group.name] === opt;
-                              return (
-                                <button
-                                  key={opt}
-                                  type="button"
-                                  onClick={() => setVariantChoice({ ...variantChoice, [group.name]: opt })}
-                                  className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${active ? "text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                                  style={active ? { backgroundColor: primaryColor, borderColor: primaryColor } : { borderColor: "hsl(var(--border))" }}
-                                >
-                                  {opt}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                {/* La description complète est du HTML riche : l'afficher telle quelle montrait les balises <p>, <strong>… */}
+                {(selectedProduct.short_description || selectedProduct.description) && (
+                  <p className="text-muted-foreground leading-relaxed">
+                    {selectedProduct.short_description || htmlToPlainText(selectedProduct.description, 280)}
+                  </p>
+                )}
+                {usableVariantGroups(selectedProduct.variants).length > 0 && (
+                  <div className="pt-1">
+                    {/* Même sélecteur que la fiche produit : les options « Blanc (S, M, L) » y sont séparées en couleur + taille.
+                        Avant, le client voyait un seul bouton « Blanc (S, M, L) » sans pouvoir choisir la taille. */}
+                    <SmartVariantSelector
+                      variants={selectedProduct.variants as any}
+                      selectedVariants={variantChoice}
+                      onChange={(key, value) => setVariantChoice(prev => ({ ...prev, [key]: value }))}
+                      primaryColor={primaryColor}
+                      preselect={false}
+                    />
                   </div>
                 )}
                 <div className="flex gap-3 pt-2">
@@ -1298,8 +1317,8 @@ const ShopView = () => {
                     </div>
                   ) : (
                     (() => {
-                      const groups = Array.isArray(selectedProduct.variants) ? selectedProduct.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0) : [];
-                      const missing = groups.filter((g: any) => !variantChoice[g.name]);
+                      const groups = usableVariantGroups(selectedProduct.variants);
+                      const missing = missingVariantGroups(selectedProduct.variants, variantChoice);
                       const ready = missing.length === 0;
                       return (
                         <Button
@@ -1309,7 +1328,7 @@ const ShopView = () => {
                           onClick={() => { addToCart(selectedProduct, groups.length > 0 ? variantChoice : null); setSelectedProduct(null); setVariantChoice({}); }}
                         >
                           <ShoppingCart className="h-5 w-5" />
-                          {ready ? "Ajouter au panier" : `Choisir : ${missing.map((m: any) => m.name).join(", ")}`}
+                          {ready ? "Ajouter au panier" : `Choisir : ${missing.join(", ")}`}
                         </Button>
                       );
                     })()
@@ -1388,7 +1407,7 @@ const ShopView = () => {
                             <p className="text-sm font-semibold truncate">{item.product.name}</p>
                             {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
                               <p className="text-[11px] text-muted-foreground truncate">
-                                {Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                                {Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(" · ")}
                               </p>
                             )}
                             <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
@@ -1447,7 +1466,7 @@ const ShopView = () => {
                         <span className="text-muted-foreground truncate">
                           {item.product.name}
                           {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
-                            <span className="opacity-70"> ({Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
+                            <span className="opacity-70"> ({Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
                           )}
                           {" × "}{item.quantity}
                         </span>
@@ -1605,8 +1624,8 @@ const ShopView = () => {
 };
 
 // Product Card Component
-function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, eager }: {
-  product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string; eager?: boolean;
+function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, eager, soldOut }: {
+  product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string; eager?: boolean; soldOut?: boolean;
 }) {
   // Warm up the ProductView chunk and its images on hover/touch so navigation
   // feels instant. Idempotent — repeated calls are cheap.
@@ -1650,6 +1669,11 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
           </Badge>
         )}
         {product.is_digital && <Badge className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-purple-600 rounded-lg text-[10px] sm:text-xs">Digital</Badge>}
+        {soldOut && (
+          <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+            <Badge className="bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs">Rupture de stock</Badge>
+          </div>
+        )}
       </div>
       <div className="p-2.5 sm:p-3 md:p-4">
         <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 mb-0.5 sm:mb-1">{product.name}</h3>
@@ -1662,10 +1686,12 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
               <span className="text-[10px] sm:text-xs text-muted-foreground line-through ml-1 hidden sm:inline">{formatPrice(product.compare_at_price)}</span>
             )}
           </div>
-          <Button 
-            size="icon" 
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0" 
+          <Button
+            size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0"
             style={{ backgroundColor: primaryColor }}
+            disabled={soldOut}
+            aria-label={soldOut ? "Rupture de stock" : "Ajouter au panier"}
             onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
           >
             <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />

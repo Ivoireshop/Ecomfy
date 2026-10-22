@@ -7,6 +7,7 @@ import { ShoppingBag, Phone, Mail, MapPin, Trash2, MessageCircle, Loader2 } from
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { cleanSelectedVariants } from "@/lib/productVariants";
 
 interface AbandonedCart {
   id: string;
@@ -137,7 +138,7 @@ export function AbandonedCartsList({ shopId, shopName }: { shopId: string; shopN
                           <span>
                             {it.name} × {it.quantity}
                             {it.selected_variants && Object.keys(it.selected_variants).length > 0 && (
-                              <span className="ml-1">({Object.entries(it.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
+                              <span className="ml-1">({Object.entries(cleanSelectedVariants(it.selected_variants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
                             )}
                           </span>
                           <span>{Number(it.price * it.quantity).toLocaleString()} FCFA</span>

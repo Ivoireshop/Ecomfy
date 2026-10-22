@@ -28,7 +28,7 @@ import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
-import { saveProductVideos, fetchProductVideos } from "@/lib/productAppearance";
+import { saveProductVideos, fetchProductVideos, fetchProductThemeSettings, upsertProductThemeSettings } from "@/lib/productAppearance";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
 // Keeps the editor's initial JS small without changing UI or behavior.
@@ -119,6 +119,27 @@ const toSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
+
+// Offres en lot : quantité entière (le panier ne compte que des unités) et prix renseignés ; le reste est écarté.
+const cleanBundleOffers = (offers: any) => Array.isArray(offers)
+  ? offers
+      .map((o: any) => ({ quantity: Math.floor(Number(o?.quantity)), price: Number(o?.price), label: String(o?.label ?? "").trim() }))
+      .filter((o) => o.quantity > 0 && o.price > 0)
+      .map((o) => (o.label ? o : { quantity: o.quantity, price: o.price }))
+  : [];
+
+// Le nom d'un groupe est la clé du choix du client : on le rogne, sans quoi « Taille » et « Taille  » divergent.
+const cleanVariants = (variants: any) => Array.isArray(variants)
+  ? variants
+      .map((g: any) => ({
+        name: String(g?.name ?? "").trim(),
+        options: Array.isArray(g?.options) ? g.options.map((o: any) => String(o ?? "").trim()).filter(Boolean) : [],
+      }))
+      .filter((g) => g.name && g.options.length > 0)
+  : [];
+
+// Un produit visible à 0 FCFA est presque toujours un oubli : la commande part gratuite chez le client.
+const PUBLISHED_PRICE_ERROR = "Un produit visible doit avoir un prix supérieur à 0. Saisissez le prix ou passez-le en brouillon.";
 
 const productValidationSchema = z.object({
   name: z.string().min(1, "Le nom du produit est requis").max(200, "Le nom est trop long"),
@@ -526,6 +547,14 @@ const ShopEditor = () => {
     setSaving(false);
   };
 
+  // Vide les copies en mémoire de la boutique / des produits publics (onglet courant : aperçu du marchand).
+  const invalidatePublicCaches = () => {
+    if (!id || !shop?.slug) return;
+    cacheInvalidate(`shop:slug:${shop.slug}`);
+    cacheInvalidate(`shop-products:${id}`);
+    cacheInvalidate(`product:${id}:`);
+  };
+
   const resetProductForm = () => {
     setNewProduct({ name: "", description: "", short_description: "", price: 0, compare_at_price: 0, category: "Autre", stock_quantity: 10, is_digital: false, is_published: true, sku: "", weight: 0, is_featured: false });
     setProductImages([]);
@@ -595,6 +624,17 @@ const ShopEditor = () => {
     }
   };
 
+  // Méta titre / description : envoyés seulement s'ils sont renseignés ou si la colonne existe déjà sur la ligne lue.
+  // Ainsi une base où la migration SEO n'est pas encore passée continue d'enregistrer les produits normalement.
+  const seoFields = (data: any, existing: any) => {
+    const out: Record<string, string | null> = {};
+    const title = String(data.seo_title ?? "").trim();
+    const description = String(data.seo_description ?? "").trim();
+    if (title || (existing && "seo_title" in existing)) out.seo_title = title || null;
+    if (description || (existing && "seo_description" in existing)) out.seo_description = description || null;
+    return out;
+  };
+
   const handleProductEditorSave = async (data: any, newImgs: File[]): Promise<boolean> => {
     if (!id) return false;
     
@@ -614,9 +654,24 @@ const ShopEditor = () => {
       }
     }
     
+    if (data.is_published && !(Number(data.price) > 0)) {
+      toast({ title: "Prix manquant", description: PUBLISHED_PRICE_ERROR, variant: "destructive" });
+      return false;
+    }
+
     setSaving(true);
     try {
-      const productSlug = editingProduct?.slug || await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
+      // L'adresse saisie dans « URL slug » est enregistrée (avant, elle était ignorée dès que le produit avait un slug).
+      const wantedSlug = toSlug(data.slug || "");
+      let productSlug: string;
+      if (editingProduct?.slug && (!wantedSlug || wantedSlug === editingProduct.slug)) {
+        productSlug = editingProduct.slug;
+      } else {
+        productSlug = await getUniqueProductSlug(wantedSlug || data.name, editingProduct?.id);
+        if (wantedSlug && productSlug !== wantedSlug) {
+          toast({ title: "Adresse déjà utilisée", description: `Un autre produit utilise « ${wantedSlug} » : l'adresse enregistrée est « ${productSlug} ».` });
+        }
+      }
       const rawSectionOrder = typeof data.section_order === "object" && data.section_order !== null ? data.section_order : {};
       const sectionOrderWithTitle = {
         ...rawSectionOrder,
@@ -629,14 +684,11 @@ const ShopEditor = () => {
         stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
         is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
         slug: productSlug,
-        bundle_offers: Array.isArray(data.bundle_offers)
-          ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
-          : [],
+        bundle_offers: cleanBundleOffers(data.bundle_offers),
         bundle_position: data.bundle_position || "after_countdown",
-        variants: Array.isArray(data.variants)
-          ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
-          : [],
+        variants: cleanVariants(data.variants),
         section_order: sectionOrderWithTitle,
+        ...seoFields(data, editingProduct),
       };
       let prodId = editingProduct?.id;
 
@@ -658,6 +710,20 @@ const ShopEditor = () => {
         await saveProductVideos(prodId, id, data.videos);
         if (editingProduct) {
           setEditingProduct((prev) => prev ? { ...prev, ...productData, videos: data.videos } : null);
+        }
+      }
+
+      // « Autoriser les commandes au-delà du stock » choisi avant la création : le produit n'existait pas encore.
+      if (prodId && !editingProduct && data.allow_out_of_stock_orders === false) {
+        const existing = await fetchProductThemeSettings(prodId);
+        const result = await upsertProductThemeSettings({
+          product_id: prodId,
+          shop_id: id,
+          ...existing,
+          custom_css_settings: { ...(existing?.custom_css_settings || {}), allow_out_of_stock_orders: false },
+        });
+        if (!result.success) {
+          toast({ title: "Réglage de stock non enregistré", description: "Rouvrez le produit et réactivez l'option « Autoriser les commandes au-delà du stock ».", variant: "destructive" });
         }
       }
 
@@ -717,11 +783,7 @@ const ShopEditor = () => {
       await fetchData();
       // Invalidate public-facing caches so the new product + images appear
       // immediately for visitors arriving from ads/links.
-      if (shop?.slug) {
-        cacheInvalidate(`shop:slug:${shop.slug}`);
-        cacheInvalidate(`shop-products:${id}`);
-        cacheInvalidate(`product:${id}:`);
-      }
+      invalidatePublicCaches();
       if (data.is_published && shop?.slug) {
         triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${shop.slug}/p/${productSlug}`);
       }
@@ -737,6 +799,21 @@ const ShopEditor = () => {
   // Silent auto-save: updates the product fields in DB without closing the editor and without re-uploading images.
   const handleProductAutoSave = async (data: any): Promise<boolean> => {
     if (!id || !editingProduct?.id) return false;
+    // Mêmes règles que l'enregistrement complet : sans elles, une frappe en cours (nom vidé, prix négatif ou à 0 sur un
+    // produit visible) était écrite en base au bout d'une seconde et demie.
+    try {
+      productValidationSchema.parse({
+        name: data.name,
+        price: Number(data.price),
+        compare_at_price: data.compare_at_price ? Number(data.compare_at_price) : null,
+        stock_quantity: Number(data.stock_quantity),
+        category: data.category,
+        weight: data.weight ? Number(data.weight) : null,
+      });
+    } catch {
+      return false;
+    }
+    if (data.is_published && !(Number(data.price) > 0)) return false;
     const rawSectionOrder = typeof data.section_order === "object" && data.section_order !== null ? data.section_order : {};
     const sectionOrderWithTitle = {
       ...rawSectionOrder,
@@ -748,40 +825,42 @@ const ShopEditor = () => {
       price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
       stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
       is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null,
-      bundle_offers: Array.isArray(data.bundle_offers)
-        ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
-        : [],
+      bundle_offers: cleanBundleOffers(data.bundle_offers),
       bundle_position: data.bundle_position || "after_countdown",
-      variants: Array.isArray(data.variants)
-        ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
-        : [],
+      variants: cleanVariants(data.variants),
       section_order: sectionOrderWithTitle,
+      ...seoFields(data, editingProduct),
     };
     const { error } = await supabase
       .from("products")
       .update(productData)
       .eq("id", editingProduct.id) as any;
     if (error) return false;
+    invalidatePublicCaches();
     return true;
   };
 
   const deleteProductImage = async (imageId: string) => {
     const productId = editingProduct?.id;
     const imageToDelete = editingProduct?.product_images?.find(img => img.id === imageId);
-    
-    if (imageToDelete?.image_url) {
-      try {
-        const path = imageToDelete.image_url.split('/shop-images/').pop();
-        if (path) await supabase.storage.from("shop-images").remove([path]);
-      } catch (e) {
-        console.error("Failed to delete image from storage", e);
-      }
-    }
 
+    // La ligne en base part d'abord : si elle ne peut pas être supprimée, le fichier reste en place. Avant, le fichier
+    // était effacé en premier et la fiche gardait une image cassée quand la suppression échouait.
     const { error } = await supabase.from("product_images").delete().eq("id", imageId) as any;
     if (error) {
       toast({ title: "Image non supprimée", description: error.message, variant: "destructive" });
       return;
+    }
+
+    if (imageToDelete?.image_url) {
+      try {
+        // Un même fichier peut encore servir à une autre ligne : on ne l'efface que s'il n'est plus référencé.
+        const { count } = await supabase.from("product_images").select("id", { count: "exact", head: true }).eq("image_url", imageToDelete.image_url);
+        const path = imageToDelete.image_url.split('/shop-images/').pop()?.split('?')[0];
+        if (!count && path) await supabase.storage.from("shop-images").remove([path]);
+      } catch (e) {
+        console.error("Failed to delete image from storage", e);
+      }
     }
 
     if (productId && imageToDelete?.is_primary) {
@@ -811,6 +890,32 @@ const ShopEditor = () => {
     fetchData();
   };
 
+  // La première image de l'ordre devient l'image principale : c'est ce que l'éditeur annonce, et la boutique place
+  // l'image principale en tête quel que soit l'ordre. L'éditeur lit editingProduct, qui n'était pas mis à jour ici :
+  // le changement n'apparaissait qu'après réouverture du produit.
+  const reorderProductImages = async (orderedIds: string[]) => {
+    const productId = editingProduct?.id;
+    if (!productId || orderedIds.length === 0) return;
+    const results = await Promise.all(
+      orderedIds.map((imgId, idx) =>
+        supabase.from("product_images").update({ display_order: idx, is_primary: idx === 0 }).eq("id", imgId) as any
+      )
+    );
+    const failed = results.find((r: any) => r.error);
+    if (failed?.error) {
+      toast({ title: "Ordre des images non enregistré", description: failed.error.message, variant: "destructive" });
+      await fetchData();
+      return;
+    }
+    const apply = (images?: ProductImageRow[] | null) => sortProductImages((images || []).map(img => {
+      const idx = orderedIds.indexOf(img.id);
+      return idx < 0 ? img : { ...img, display_order: idx, is_primary: idx === 0 };
+    }));
+    setEditingProduct(prev => prev?.id === productId ? { ...prev, product_images: apply(prev.product_images) } : prev);
+    setProducts(prev => prev.map(product => product.id === productId ? { ...product, product_images: apply(product.product_images) } : product));
+    invalidatePublicCaches();
+  };
+
   const setPrimaryProductImage = async (imageId: string) => {
     if (!editingProduct?.id) return;
     const productId = editingProduct.id;
@@ -838,39 +943,41 @@ const ShopEditor = () => {
       ? { ...product, product_images: sortProductImages((product.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
       : product
     ));
+    invalidatePublicCaches();
     toast({ title: "Image principale mise à jour" });
     fetchData();
   };
 
   const deleteProduct = async (productId: string) => {
+    const productToDelete = products.find(p => p.id === productId);
+
+    // Une commande garde la référence du produit : la base refuse de le supprimer. Avant, ce refus n'arrivait
+    // qu'après la suppression de ses images, avis et réglages (la fiche restait, vidée). On vérifie donc d'abord.
+    const { count: orderCount, error: countError } = await supabase
+      .from("order_items")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", productId);
+    if (countError) {
+      toast({ title: "Suppression impossible", description: countError.message, variant: "destructive" });
+      return;
+    }
+    if ((orderCount ?? 0) > 0) {
+      const hide = productToDelete?.is_published
+        ? confirm(`Ce produit figure dans ${orderCount} commande(s) : il ne peut pas être supprimé sans effacer votre historique.\n\nLe masquer de la boutique à la place ?`)
+        : (alert(`Ce produit figure dans ${orderCount} commande(s) : il ne peut pas être supprimé. Il est déjà masqué de la boutique.`), false);
+      if (hide) await toggleProductStatus(productId, true);
+      return;
+    }
+
     if (!confirm("Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.")) return;
 
     // Optimistic removal from UI state
     const previousProducts = [...products];
     setProducts(prev => prev.filter(p => p.id !== productId));
-    
+
     try {
-      // 1. Purge product images from storage bucket
-      const productToDelete = previousProducts.find(p => p.id === productId);
-      if (productToDelete?.product_images?.length) {
-        const paths = productToDelete.product_images
-          .map(img => img.image_url?.split('/shop-images/').pop())
-          .filter(Boolean) as string[];
-        if (paths.length > 0) {
-          await supabase.storage.from("shop-images").remove(paths);
-        }
-      }
-
-      // 2. Delete child SQL records to prevent Foreign Key constraints error
-      await Promise.allSettled([
-        supabase.from("product_images").delete().eq("product_id", productId),
-        (supabase as any).from("product_bundles").delete().eq("product_id", productId),
-        supabase.from("product_reviews").delete().eq("product_id", productId),
-        (supabase as any).from("product_variants").delete().eq("product_id", productId),
-        (supabase as any).from("cart_items").delete().eq("product_id", productId),
-      ]);
-
-      // 3. Delete product main record
+      // Le produit d'abord : images, avis, thème, vidéos… partent avec lui (ON DELETE CASCADE). Rien d'autre n'est
+      // touché si la base refuse.
       const { error } = await supabase.from("products").delete().eq("id", productId);
 
       if (error) {
@@ -878,12 +985,23 @@ const ShopEditor = () => {
         setProducts(previousProducts); // Restore state on error
         toast({
           title: "Erreur lors de la suppression",
-          description: error.message || "Impossible de supprimer ce produit.",
+          description: error.code === "23503"
+            ? "Ce produit est encore utilisé (commandes, paiements). Masquez-le plutôt que de le supprimer."
+            : (error.message || "Impossible de supprimer ce produit."),
           variant: "destructive"
         });
         return;
       }
 
+      // Fichiers d'images : seulement une fois le produit réellement supprimé (nettoyage sans conséquence si une étape échoue).
+      const paths = (productToDelete?.product_images || [])
+        .map(img => img.image_url?.split('/shop-images/').pop()?.split('?')[0])
+        .filter(Boolean) as string[];
+      if (paths.length > 0) {
+        try { await supabase.storage.from("shop-images").remove(paths); } catch (e) { console.error("Failed to purge product images", e); }
+      }
+
+      invalidatePublicCaches();
       toast({ title: "Produit supprimé avec succès ✓" });
     } catch (e: any) {
       console.error("Product deletion exception:", e);
@@ -900,6 +1018,11 @@ const ShopEditor = () => {
 
   const toggleProductStatus = async (productId: string, currentPublishedState: boolean) => {
     const nextPublishedState = !currentPublishedState;
+    const target = products.find(p => p.id === productId);
+    if (nextPublishedState && target && !(Number(target.price) > 0)) {
+      toast({ title: "Prix manquant", description: PUBLISHED_PRICE_ERROR, variant: "destructive" });
+      return;
+    }
     // Optimistic UI state update
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, is_published: nextPublishedState } : p));
 
@@ -920,6 +1043,7 @@ const ShopEditor = () => {
       return;
     }
 
+    invalidatePublicCaches();
     toast({
       title: nextPublishedState ? "Produit activé & visible sur la boutique" : "Produit désactivé (masqué)",
     });
@@ -1237,6 +1361,8 @@ const ShopEditor = () => {
                 is_digital: editingProduct.is_digital, is_published: editingProduct.is_published,
                 is_featured: editingProduct.is_featured, sku: editingProduct.sku || "", weight: editingProduct.weight || 0,
                 slug: (editingProduct as any).slug || "",
+                seo_title: (editingProduct as any).seo_title || "",
+                seo_description: (editingProduct as any).seo_description || "",
                 bundle_offers: (editingProduct as any).bundle_offers || [],
                 bundle_position: (editingProduct as any).bundle_position || "after_countdown",
                 bundle_title: (editingProduct as any).bundle_title || (editingProduct as any).section_order?.bundle_title || "",
@@ -1253,18 +1379,11 @@ const ShopEditor = () => {
               isEditing={!!editingProduct}
               onSave={handleProductEditorSave}
               onAutoSave={handleProductAutoSave}
-              onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
+              onCancel={() => { setShowProductEditor(false); setEditingProduct(null); fetchData(); }}
               onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file, false) : undefined}
               onDeleteImage={deleteProductImage}
               onSetPrimaryImage={setPrimaryProductImage}
-              onReorderImages={async (orderedIds) => {
-                await Promise.all(
-                  orderedIds.map((imgId, idx) =>
-                    supabase.from("product_images").update({ display_order: idx }).eq("id", imgId) as any
-                  )
-                );
-                fetchData();
-              }}
+              onReorderImages={reorderProductImages}
               saving={saving}
             />
             </Suspense>
@@ -1310,7 +1429,7 @@ const ShopEditor = () => {
                 onSearchChange={setSearchQuery}
                 onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
                 onEditProduct={async (product) => {
-                  const loadedVideos = await fetchProductVideos(product.id);
+                  const loadedVideos = await fetchProductVideos(product.id).catch(() => [] as any[]);
                   setEditingProduct({
                     ...product,
                     videos: loadedVideos.length > 0 ? loadedVideos : (Array.isArray((product as any).videos) ? (product as any).videos : [])

@@ -28,6 +28,7 @@ const NOT_SHIPPABLE = new Set(["delivered", "cancelled", "returned"]);
 const DELIVERY_IN_PROGRESS = new Set(["picked_up", "in_transit", "delivered"]);
 
 import { getOrderScheduleInfo } from "@/lib/utils";
+import { cleanSelectedVariants } from "@/lib/productVariants";
 
 interface Order {
   id: string;
@@ -256,7 +257,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
       order.order_items.forEach((item) => {
         let line = `• ${item.quantity}x ${item.product_name}`;
         if (item.selected_variants && Object.keys(item.selected_variants).length > 0) {
-          const variants = Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ");
+          const variants = Object.entries(cleanSelectedVariants(item.selected_variants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ");
           line += ` (${variants})`;
         }
         line += ` — ${fmt(item.total_price)} FCFA`;
@@ -312,7 +313,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
       const items = o.order_items && o.order_items.length > 0
         ? o.order_items.map((it) => {
             const variants = it.selected_variants && Object.keys(it.selected_variants).length > 0
-              ? ` (${Object.entries(it.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ")})`
+              ? ` (${Object.entries(cleanSelectedVariants(it.selected_variants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})`
               : "";
             return `${it.quantity}x ${it.product_name}${variants}`;
           }).join(" ; ")
@@ -565,7 +566,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                           <span>{item.quantity}x {item.product_name}</span>
                           {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
                             <span className="text-primary font-medium">
-                              ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(", ")})
+                              ({Object.entries(cleanSelectedVariants(item.selected_variants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})
                             </span>
                           )}
                           <span className="text-muted-foreground">{fmt(item.total_price)}</span>

@@ -17,7 +17,6 @@ import {
   CreditCard, User, ArrowRight, Trash2, Send, X, Lock, Volume2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { LiveVisitorCounter } from "@/components/shop/LiveVisitorCounter";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
@@ -43,7 +42,9 @@ import {
   type ProductVideo,
 } from "@/lib/productAppearance";
 import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPublic";
-import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
+import { SmartVariantSelector, getDefaultVariantSelection } from "@/components/shop/SmartVariantSelector";
+import { cleanSelectedVariants, missingVariantGroups } from "@/lib/productVariants";
+import { sanitizeProductHtml, htmlToPlainText } from "@/lib/sanitizeProductHtml";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
 import { createPublicOrder } from "@/services/publicOrderService";
 import { PromoCodeField, type AppliedPromo } from "@/components/shop/PromoCodeField";
@@ -144,10 +145,15 @@ interface Product {
   bundle_title?: string | null;
   variants?: { name: string; options: string[] }[] | null;
   section_order?: any;
+  sku?: string | null;
+  seo_title?: string | null;
+  seo_description?: string | null;
   product_images: { id: string; image_url: string; is_primary: boolean; display_order: number | null }[];
 }
 
-interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string>; }
+// bundleIndex : offre en lot choisie (index dans product.bundle_offers). Elle doit suivre l'article dans le panier,
+// sinon le bouton « Commander » (qui ajoute l'article au panier) faisait perdre le prix du lot.
+interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string>; bundleIndex?: number | null; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const sortProductImages = (images?: Product["product_images"] | null) =>
@@ -210,18 +216,24 @@ const ProductView = () => {
     return () => observer.disconnect();
   }, [showInlineCheckout, deferredReady, cart.length]);
 
-  // Sync cart with current quantity when user changes quantity while inline checkout is open
+  // Garde la ligne du panier alignée sur la quantité et l'offre en lot choisies sur la fiche
+  // (avant, seule la quantité était suivie, et seulement quand le formulaire modal était ouvert).
   useEffect(() => {
-    if (showInlineCheckout && product) {
-      setCart(prev => {
-        const existing = prev.find(item => item.product.id === product.id);
-        if (existing && existing.quantity !== quantity) {
-          return prev.map(item => item.product.id === product.id ? { ...item, quantity } : item);
-        }
-        return prev;
-      });
-    }
-  }, [quantity, showInlineCheckout, product]);
+    if (!product) return;
+    setCart(prev => {
+      const existing = prev.find(item => item.product.id === product.id);
+      if (!existing || (existing.quantity === quantity && (existing.bundleIndex ?? null) === selectedBundleIdx)) return prev;
+      return prev.map(item => item.product.id === product.id ? { ...item, quantity, bundleIndex: selectedBundleIdx } : item);
+    });
+  }, [quantity, selectedBundleIdx, product]);
+
+  // L'option mise en avant par le sélecteur (« S » coché) doit aussi être celle de la commande.
+  useEffect(() => {
+    if (!product?.id) return;
+    const defaults = getDefaultVariantSelection(product.variants);
+    if (Object.keys(defaults).length === 0) return;
+    setSelectedVariants(prev => ({ ...defaults, ...prev }));
+  }, [product?.id]);
 
   useEffect(() => { fetchData(); }, [slug, id, productId, productSlug]);
 
@@ -450,13 +462,16 @@ const ProductView = () => {
       };
 
       let productData: any = null;
+      let lookupFailed = false;
       if (productSlug) {
         const bySlug = await fetchWithRetry(() => loadProduct("slug", productSlug));
         productData = bySlug.data;
+        if (bySlug.error) lookupFailed = true;
       }
       if (!productData && productId) {
         const byId = await fetchWithRetry(() => loadProduct("id", productId));
         productData = byId.data;
+        if (byId.error) lookupFailed = true;
       }
 
       if (productData) {
@@ -477,13 +492,12 @@ const ProductView = () => {
           .limit(4)).then((res: any) => {
             setRelatedProducts(res?.data || []);
           }, () => {});
-      } else if (!hydrated) {
-        // Distinguish a real "not found" from a slow-network timeout so the
-        // user sees the retry button instead of a misleading "Ce produit
-        // n'existe pas" — the #1 source of bogus "ma boutique ne marche pas"
-        // reports.
+      } else if (!hydrated && lookupFailed) {
+        // Une vraie absence (produit supprimé, masqué ou lien erroné) donne « Produit introuvable » ; seule une requête
+        // en échec (réseau lent, délai dépassé) affiche le bouton Réessayer. Avant, tout produit absent était présenté
+        // comme « Connexion lente — votre produit existe bien ».
         setFetchError(
-          "Connexion lente détectée. Réessayez — votre produit existe bien."
+          "Connexion lente détectée. Réessayez dans un instant."
         );
       }
 
@@ -541,7 +555,9 @@ const ProductView = () => {
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // Prix d'une ligne du panier avec son offre en lot (même règle que le trigger SQL enforce_order_item_price).
+  const lineFor = (item: CartItem) => priceLine(item.product as any, item.bundleIndex ?? null, item.quantity);
+  const cartTotal = cart.reduce((sum, item) => sum + lineFor(item).total, 0);
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   // Remise de l'aperçu, répercutée sur les montants des boutons « Commander » (le serveur recalcule à la commande).
   const promoOff = promo?.discount ?? 0;
@@ -567,18 +583,18 @@ const ProductView = () => {
 
   const addToCart = (prod: Product, qty: number = 1, replace: boolean = false, silent: boolean = false) => {
     // Validate variants
-    const variantGroups = Array.isArray(prod.variants) ? prod.variants : [];
     const isCurrent = product && prod.id === product.id;
     const chosen = isCurrent ? selectedVariants : {};
-    const missing = variantGroups.filter(g => g?.name && Array.isArray(g?.options) && g.options.length > 0 && !chosen[g.name]);
+    const missing = missingVariantGroups(prod.variants, chosen);
     if (missing.length > 0) {
-      toast({ title: "Sélection requise", description: `Choisissez : ${missing.map(m => m.name).join(", ")}`, variant: "destructive" });
+      toast({ title: "Sélection requise", description: `Choisissez : ${missing.join(", ")}`, variant: "destructive" });
       return;
     }
+    const bundleIndex = isCurrent ? selectedBundleIdx : null;
     setCart(prev => {
       const existing = prev.find(item => item.product.id === prod.id);
-      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty, selectedVariants: isCurrent ? chosen : item.selectedVariants } : item);
-      return [...prev, { product: prod, quantity: qty, selectedVariants: isCurrent ? chosen : undefined }];
+      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty, selectedVariants: isCurrent ? chosen : item.selectedVariants, bundleIndex: isCurrent ? bundleIndex : item.bundleIndex } : item);
+      return [...prev, { product: prod, quantity: qty, selectedVariants: isCurrent ? chosen : undefined, bundleIndex }];
     });
     if (!silent) toast({ title: "✓ Ajouté au panier", description: prod.name });
     trackEvent(shop, "AddToCart", {
@@ -616,20 +632,28 @@ const ProductView = () => {
       return f ? !!f.required : ["first_name","phone","city"].includes(id);
     };
 
-    let effectiveOrderCart = cart;
+    // Chaque ligne porte l'offre en lot réellement applicable (aucune si la quantité n'atteint pas celle du lot).
+    let effectiveOrderCart: any[] = cart.map(item => ({ ...item, bundleIndex: lineFor(item).bundleIndex }));
     let effectiveOrderCartTotal = cartTotal;
 
     if (cart.length === 0) {
       if (!product) return;
       const line = priceLine(product as any, selectedBundleIdx, quantity);
-      effectiveOrderCart = [{ 
-        product, 
-        quantity, 
-        selectedVariants: selectedVariants, 
+      effectiveOrderCart = [{
+        product,
+        quantity,
+        selectedVariants: selectedVariants,
         bundle: line.offer,
         bundleIndex: line.bundleIndex,
       } as any];
       effectiveOrderCartTotal = line.total;
+    }
+
+    // Le formulaire direct (sans passer par « Commander ») n'avait aucun contrôle des variantes obligatoires.
+    const missingChoices = effectiveOrderCart.flatMap(item => missingVariantGroups(item.product.variants, item.selectedVariants));
+    if (missingChoices.length > 0) {
+      toast({ title: "Sélection requise", description: `Choisissez : ${Array.from(new Set(missingChoices)).join(", ")}`, variant: "destructive" });
+      return;
     }
 
     if (isEnabled("first_name") && isRequired("first_name") && !customerInfo.name) {
@@ -681,7 +705,7 @@ const ProductView = () => {
           product_id: item.product.id,
           quantity: item.quantity,
           bundle_index: (item as any).bundleIndex ?? null,
-          selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
+          selected_variants: cleanSelectedVariants(item.selectedVariants),
         })),
       });
       const orderId = created.orderId;
@@ -695,8 +719,10 @@ const ProductView = () => {
       const trackingPayload = {
         value: effectiveOrderCartTotal,
         order_id: order.order_number,
-        contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
-        num_items: cart.reduce((s, c) => s + c.quantity, 0),
+        // Sans passer par « Commander », le panier est vide : les événements Purchase partaient sans article.
+        content_ids: effectiveOrderCart.map((c) => c.product.id),
+        contents: effectiveOrderCart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
+        num_items: effectiveOrderCart.reduce((s, c) => s + c.quantity, 0),
         email: customerInfo.email,
         phone: normalizedPhone,
         first_name: customerInfo.name,
@@ -821,8 +847,16 @@ const ProductView = () => {
     else navigate(`/shop/${shop.slug}`);
   };
 
-  const productTitle = `${product.name} — ${shop.business_name}`;
-  const productDescription = product.short_description || product.description || shop.business_description || "";
+  // Montant du bouton « Commander » : prix de l'offre en lot choisie, remise du code promo déduite.
+  const currentLine = priceLine(product as any, selectedBundleIdx, quantity);
+  const currentPayable = Math.max(currentLine.total - promoOff, 0);
+
+  const productTitle = product.seo_title?.trim() || `${product.name} — ${shop.business_name}`;
+  // La description complète est du HTML : on n'en met jamais les balises dans les balises meta / partage.
+  const productDescription = product.seo_description?.trim()
+    || htmlToPlainText(product.short_description)
+    || htmlToPlainText(product.description)
+    || htmlToPlainText(shop.business_description);
   const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
   const customPageStyle = buildProductPageStyle(themeSettings);
 
@@ -881,7 +915,10 @@ const ProductView = () => {
                   <div className="flex items-center gap-1.5 mb-1"><ShoppingCart className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Récapitulatif</h4></div>
                   
                   {(() => {
-                    let effectiveCart = cart;
+                    let effectiveCart: any[] = cart.map(ci => {
+                      const l = lineFor(ci);
+                      return { ...ci, bundle: l.offer, lineTotal: l.total };
+                    });
                     let effectiveTotal = cartTotal;
                     if (cart.length === 0 && product) {
                       const line = priceLine(product as any, selectedBundleIdx, quantity);
@@ -922,10 +959,10 @@ const ProductView = () => {
                       <p className="font-bold text-[14px] truncate leading-tight" style={{ color: checkoutStyles.textColor }}>{item.product.name}</p>
                       
                       {/* Variants & Bundles */}
-                      {(Object.keys(item.selectedVariants || item.variants || {}).length > 0 || item.bundle) && (
+                      {(Object.keys(cleanSelectedVariants(item.selectedVariants) || {}).length > 0 || item.bundle) && (
                         <div className="text-[12px] text-gray-500 mt-0.5 line-clamp-1">
                           {item.bundle && <span className="font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mr-1">Offre : {item.bundle.label || `Lot de ${item.bundle.quantity}`}</span>}
-                          {Object.entries(item.selectedVariants || item.variants || {}).map(([k, v]) => `${v}`).join(", ")}
+                          {Object.values(cleanSelectedVariants(item.selectedVariants) || {}).join(", ")}
                         </div>
                       )}
                       
@@ -1285,7 +1322,7 @@ const ProductView = () => {
           <div className="max-w-6xl mx-auto flex items-center gap-2 sm:gap-3">
             <div className="flex-1 min-w-0 hidden md:block">
               <p className="font-bold text-sm truncate">{product.name}</p>
-              <p className="font-black text-base sm:text-lg" style={{ color: primaryColor }}>{formatPrice(Math.max(product.price * quantity - promoOff, 0))} FCFA</p>
+              <p className="font-black text-base sm:text-lg" style={{ color: primaryColor }}>{formatPrice(currentPayable)} FCFA</p>
             </div>
 
             {/* Sticky Inline Quantity Control */}
@@ -1329,7 +1366,7 @@ const ProductView = () => {
                   </span>
                   {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
                     <span className="text-[9.5px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
-                      {formatPrice(Math.max(product.price * quantity - promoOff, 0))} FCFA
+                      {formatPrice(currentPayable)} FCFA
                     </span>
                   )}
                 </div>
@@ -1416,7 +1453,7 @@ const ProductView = () => {
           "name": product.name,
           "description": productDescription,
           "image": images.map((img) => img.image_url),
-          "sku": product.id,
+          "sku": product.sku || product.id,
           "brand": {
             "@type": "Brand",
             "name": shop.business_name
@@ -1425,8 +1462,9 @@ const ProductView = () => {
             "@type": "Offer",
             "url": window.location.href,
             "price": String(product.price),
-            "priceCurrency": product.currency || "XOF",
-            "availability": (product.stock_quantity === null || product.stock_quantity > 0)
+            // « FCFA » n'est pas un code ISO 4217 : les moteurs de recherche rejettent l'offre.
+            "priceCurrency": !product.currency || /^(f\s?cfa|cfa)$/i.test(product.currency.trim()) ? "XOF" : product.currency,
+            "availability": isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false)
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
             "priceValidUntil": new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
@@ -1683,7 +1721,8 @@ const ProductView = () => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {product.bundle_offers.map((b, i) => {
-                        const active = selectedBundleIdx === i;
+                        // Une offre n'est « active » que si la quantité atteint celle du lot (sinon le prix de base s'applique).
+                        const active = selectedBundleIdx === i && quantity >= (Number(b.quantity) || 1);
                         return (
                           <button
                             key={i}
@@ -1776,10 +1815,7 @@ const ProductView = () => {
                   <div
                     key="long_description"
                     className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-img:rounded-xl prose-img:mx-auto prose-img:shadow-sm prose-a:text-blue-600 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description, {
-                      ALLOWED_TAGS: ['p','br','strong','b','em','i','u','s','ul','ol','li','h1','h2','h3','h4','h5','h6','blockquote','code','pre','img','a','span','div','hr','table','thead','tbody','tr','th','td'],
-                      ALLOWED_ATTR: ['href','src','alt','title','class','style','target','rel','width','height']
-                    }) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeProductHtml(product.description) }}
                     style={{ whiteSpace: "pre-wrap" }}
                   />
                 ) : null;
@@ -1880,7 +1916,7 @@ const ProductView = () => {
                           </span>
                           {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
                             <span className="text-[10px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
-                              {formatPrice(Math.max(product.price * quantity - promoOff, 0))} FCFA
+                              {formatPrice(currentPayable)} FCFA
                             </span>
                           )}
                         </div>
