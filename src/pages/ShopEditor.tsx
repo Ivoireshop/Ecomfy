@@ -176,22 +176,40 @@ const ShopEditor = () => {
   });
   const [productImages, setProductImages] = useState<File[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null }[]>([]);
+  const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null; visitor_country?: string | null; referrer?: string | null; device_type?: string | null }[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [collabRoles, setCollabRoles] = useState<string[] | null>(null);
   const lastPassiveRefreshRef = useRef(0);
   // Dérivé de la liste : reste exact quand une commande est lue depuis un autre appareil ou onglet.
   const unreadOrders = useMemo(() => orders.filter(o => !o.is_read).length, [orders]);
 
+  // Visites des 30 derniers jours, les plus récentes d'abord. PostgREST plafonne chaque réponse (1 000 lignes)
+  // quel que soit .limit() : on lit par pages jusqu'à 5000 visites, sinon les statistiques sous-comptent dès 1 000 visites.
+  const fetchVisits = useCallback(async () => {
+    if (!id) return null;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    const rows: any[] = [];
+    for (let from = 0; from < 5000; from += 1000) {
+      const page = await (supabase.from("shop_visits" as any)
+        .select("visited_at, product_id, session_id, visitor_country, referrer, device_type")
+        .eq("shop_id", id).gte("visited_at", startDate.toISOString())
+        .order("visited_at", { ascending: false })
+        .range(from, from + 999) as any);
+      if (page.error) return null;
+      rows.push(...(page.data || []));
+      if (!page.data || page.data.length < 1000) break;
+    }
+    return rows;
+  }, [id]);
+
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const visitsStartDate = new Date();
-    visitsStartDate.setDate(visitsStartDate.getDate() - 30);
-    const [shopRes, secretsRes, productsRes, visitsRes] = await Promise.all([
+    const [shopRes, secretsRes, productsRes, visitsData] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
-      supabase.from("shop_visits" as any).select("visited_at, product_id, session_id, visitor_country, referrer, device_type").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(5000) as any,
+      fetchVisits(),
     ]);
     // Boutique restreinte : la base refuse la lecture directe de `orders` et ne livre que des commandes masquées
     // (noms, téléphones, adresses, notes), via get_shop_orders_secure. Pas d'articles ni de livraisons dans ce cas.
@@ -291,11 +309,23 @@ const ShopEditor = () => {
       }
       setOrders(finalOrders);
     }
-    if (visitsRes?.data) setVisits(visitsRes.data as any);
+    if (visitsData) setVisits(visitsData);
     setLoading(false);
-  }, [id]);
+  }, [id, fetchVisits]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // « Visiteurs en ce moment » : les visites ne se rechargeaient qu'au retour sur l'onglet. Rafraîchies toutes les 30 s
+  // sur la page Statistiques uniquement (et seulement onglet visible).
+  useEffect(() => {
+    if (activeSection !== "statistics") return;
+    const timer = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const fresh = await fetchVisits();
+      if (fresh) setVisits(fresh);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [activeSection, fetchVisits]);
 
   useEffect(() => {
     (async () => {

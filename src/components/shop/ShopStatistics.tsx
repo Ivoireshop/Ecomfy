@@ -44,6 +44,89 @@ interface ShopStatisticsProps {
 
 interface Trend { label: string; up: boolean }
 
+type SourceKind = "facebook" | "google" | "instagram" | "tiktok" | "other";
+
+// Les noms de source viennent de la fonction de suivi (déjà regroupés) ou d'un référent brut : on reconnaît la
+// plateforme par mot entier, car « ig » ou « fb » dans un nom de domaine quelconque donnait la mauvaise icône.
+const sourceKind = (name: string): SourceKind => {
+  const n = name.toLowerCase();
+  if (/facebook|\bfb\b|\bmeta\b/.test(n)) return "facebook";
+  if (/google|\bseo\b/.test(n)) return "google";
+  if (/instagram|\big\b/.test(n)) return "instagram";
+  if (/tiktok/.test(n)) return "tiktok";
+  return "other";
+};
+
+// Un référent brut (« https://www.exemple.com/page ») devient son domaine ; vide = accès direct.
+const sourceLabel = (referrer?: string | null) => {
+  const r = (referrer || "").trim();
+  if (!r || r.toLowerCase() === "direct") return "Direct";
+  if (/^https?:\/\//i.test(r)) {
+    try { return new URL(r).hostname.replace(/^www\./, "") || "Direct"; } catch { return r; }
+  }
+  return r;
+};
+
+const normalizeText = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’`]/g, "'").toLowerCase().replace(/\s+/g, " ").trim();
+
+// Les visites portent un code pays (« CI »), les commandes un nom (« Côte d'Ivoire ») : sans rapprochement, un même
+// pays était listé deux fois, une fois avec les visiteurs et une fois avec les ventes, et n'avait pas de point sur le globe.
+let countryIndex: Map<string, string> | null = null;
+let frRegionNames: Intl.DisplayNames | null = null;
+const getFrRegionNames = () => {
+  if (!frRegionNames) {
+    try { frRegionNames = new Intl.DisplayNames(["fr"], { type: "region", fallback: "none" }); } catch { /* navigateur ancien */ }
+  }
+  return frRegionNames;
+};
+const getCountryIndex = () => {
+  if (countryIndex) return countryIndex;
+  const idx = new Map<string, string>([["ivory coast", "CI"], ["rdc", "CD"], ["usa", "US"], ["uk", "GB"]]);
+  const displayNames = ["fr", "en"].flatMap(l => {
+    try { return [new Intl.DisplayNames([l], { type: "region", fallback: "none" })]; } catch { return []; }
+  });
+  for (let a = 65; a <= 90; a++) {
+    for (let b = 65; b <= 90; b++) {
+      const code = String.fromCharCode(a, b);
+      displayNames.forEach(dn => {
+        try {
+          const name = dn.of(code);
+          // Première correspondance gardée : les codes obsolètes (FX, HV, ZR...) portent le même nom que FR, BF, CD.
+          if (name && name !== code && !idx.has(normalizeText(name))) idx.set(normalizeText(name), code);
+        } catch { /* code invalide */ }
+      });
+    }
+  }
+  countryIndex = idx;
+  return idx;
+};
+
+// `key` identifie le pays (code ISO quand il est reconnu), `label` est le nom français affiché.
+const canonicalCountry = (raw?: string | null): { key: string; label: string } => {
+  const v = (raw || "").trim();
+  // « XX » (inconnu) et « T1 » (Tor) sont les valeurs de Cloudflare quand le pays n'est pas déterminé.
+  if (!v || /^(unknown|inconnu|xx|t1)$/i.test(v)) return { key: "", label: "Autres / Non spécifié" };
+  const code = /^[a-z]{2}$/i.test(v) ? v.toUpperCase() : getCountryIndex().get(normalizeText(v));
+  const name = code ? getFrRegionNames()?.of(code) : undefined;
+  if (code && name && name !== code) return { key: code, label: name.replace(/’/g, "'") };
+  return { key: normalizeText(v), label: v };
+};
+
+const COUNTRY_COORDS: Record<string, [number, number]> = {
+  CI: [7.54, -5.5471], BF: [12.2383, -1.5616], SN: [14.4974, -14.4524], ML: [17.5707, -3.9962],
+  CM: [7.3697, 12.3547], FR: [46.2276, 2.2137], BJ: [9.3077, 2.3158], TG: [8.6195, 0.8248],
+  GN: [9.9456, -9.6966], MA: [31.7917, -7.0926], CA: [56.1304, -106.3468], US: [37.0902, -95.7129],
+  NG: [9.082, 8.6753], GH: [7.9465, -1.0232], NE: [17.6078, 8.0817], GA: [-0.8037, 11.6094],
+  CG: [-0.228, 15.8277], CD: [-4.0383, 21.7587], TD: [15.4542, 18.7322], DZ: [28.0339, 1.6596],
+  TN: [33.8869, 9.5375], MG: [-18.7669, 46.8691], BE: [50.5039, 4.4699], CH: [46.8182, 8.2275],
+  GB: [55.3781, -3.436], DE: [51.1657, 10.4515], ES: [40.4637, -3.7492], IT: [41.8719, 12.5674],
+  MR: [21.0079, -10.9408],
+};
+
+// Une visite sans identifiant de session compte pour une session à elle seule.
+const sessionKey = (v: { session_id?: string | null }, i: number) => v.session_id || `visit-${i}`;
+
 // Pastille de variation : cachée quand il n'y a rien à comparer (aucune valeur inventée).
 function TrendBadge({ trend, onColor = false }: { trend: Trend | null; onColor?: boolean }) {
   if (!trend) return null;
@@ -67,13 +150,14 @@ function TrendBadge({ trend, onColor = false }: { trend: Trend | null; onColor?:
 
 export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, shopId, visits = [] }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+  const compactNumber = (n: number) => new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(n);
   const funnelWidth = (n: number) => (trafficMetrics.visitors > 0 ? Math.min((n / trafficMetrics.visitors) * 100, 100) : 0);
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("30d");
 
   // Define icon helper for traffic sources
   const renderSourceIcon = (name: string) => {
-    const lName = name.toLowerCase();
-    if (lName.includes("facebook") || lName.includes("fb")) {
+    const kind = sourceKind(name);
+    if (kind === "facebook") {
       return (
         <div className="w-8 h-8 rounded-lg bg-[#1877F2]/10 flex items-center justify-center shrink-0">
           <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -82,7 +166,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
         </div>
       );
     }
-    if (lName.includes("google") || lName.includes("seo")) {
+    if (kind === "google") {
       return (
         <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
           <svg className="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -94,7 +178,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
         </div>
       );
     }
-    if (lName.includes("instagram") || lName.includes("ig")) {
+    if (kind === "instagram") {
       return (
         <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center shrink-0">
           <svg className="w-5 h-5 text-pink-500" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -103,7 +187,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
         </div>
       );
     }
-    if (lName.includes("tiktok")) {
+    if (kind === "tiktok") {
       return (
         <div className="w-8 h-8 rounded-lg bg-black/10 flex items-center justify-center shrink-0">
           <svg className="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -230,6 +314,17 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   const chartData = useMemo(() => {
+    // « Aujourd'hui » : un seul point par jour ne trace ni courbe ni aire, on détaille donc par heure.
+    if (period === "today") {
+      const hours = Array.from({ length: new Date().getHours() + 1 }, (_, h) => ({ date: `${h}h`, commandes: 0, ventes: 0, panier_moyen: 0 }));
+      filteredOrders.forEach(o => {
+        const slot = hours[new Date(o.created_at).getHours()];
+        if (slot) { slot.commandes += 1; slot.ventes += o.total; }
+      });
+      hours.forEach(h => { h.panier_moyen = h.commandes ? h.ventes / h.commandes : 0; });
+      return hours;
+    }
+
     const byDay = new Map<string, Order[]>();
     filteredOrders.forEach(o => {
       const key = dayKey(new Date(o.created_at));
@@ -237,7 +332,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
       if (list) list.push(o); else byDay.set(key, [o]);
     });
 
-    let dayCount = period === "today" ? 1 : period === "7d" ? 7 : 30;
+    let dayCount = period === "7d" ? 7 : 30;
     if (period === "all" && filteredOrders.length > 0) {
       const first = Math.min(...filteredOrders.map(o => new Date(o.created_at).getTime()));
       dayCount = Math.min(Math.max(Math.ceil((Date.now() - first) / 86400000) + 1, 7), 90);
@@ -262,43 +357,37 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
   const realtimeVisitors = useMemo(() => {
     const fifteenMinsAgo = new Date(Date.now() - 15 * 60000);
     const recent = visits.filter(v => new Date(v.visited_at) > fifteenMinsAgo);
-    return new Set(recent.map(v => v.session_id || Math.random().toString())).size;
+    return new Set(recent.map(sessionKey)).size;
   }, [visits]);
 
   const trafficSourcesData = useMemo(() => {
+    // Une session est attribuée à la source de sa PREMIÈRE visite (la liste est triée de la plus récente à la plus
+    // ancienne, la dernière écriture est donc la plus ancienne) : les visites suivantes portent un référent interne.
+    const bySession = new Map<string, string>();
+    filteredVisits.forEach((v, i) => bySession.set(sessionKey(v, i), sourceLabel(v.referrer)));
     const sources: Record<string, number> = {};
-    const sessions = new Set<string>();
-    filteredVisits.forEach(v => {
-      const sid = v.session_id || v.visited_at;
-      if (!sessions.has(sid)) {
-        sessions.add(sid);
-        const src = v.referrer || "Direct";
-        sources[src] = (sources[src] || 0) + 1;
-      }
-    });
-    const sorted = Object.entries(sources).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-    if (sorted.length === 0) return [{ name: "Direct", value: 1 }];
-    return sorted;
+    bySession.forEach(src => { sources[src] = (sources[src] || 0) + 1; });
+    return Object.entries(sources).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredVisits]);
 
   const trafficGlobeMarkers = useMemo(() => {
     const total = trafficSourcesData.reduce((acc, curr) => acc + curr.value, 0);
     return trafficSourcesData.map((src) => {
       const percentage = total > 0 ? (src.value / total) : 0;
-      const lName = src.name.toLowerCase();
+      const kind = sourceKind(src.name);
       let location: [number, number] = [5, 20]; // Default center (Africa)
       let color = primaryColor;
       
-      if (lName.includes("facebook") || lName.includes("fb")) {
+      if (kind === "facebook") {
         location = [37.4529, -122.1817];
         color = "#1877F2";
-      } else if (lName.includes("google") || lName.includes("seo")) {
+      } else if (kind === "google") {
         location = [39.0, -120.0]; // Offset to not overlap with FB
         color = "#EA4335";
-      } else if (lName.includes("instagram") || lName.includes("ig")) {
+      } else if (kind === "instagram") {
         location = [35.0, -124.0]; // Offset 
         color = "#ec4899";
-      } else if (lName.includes("tiktok")) {
+      } else if (kind === "tiktok") {
         location = [39.9042, 116.4074]; // Beijing
         color = "#000000";
       }
@@ -312,80 +401,51 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
     });
   }, [trafficSourcesData, primaryColor]);
 
+  // Repli quand la commande n'a pas de pays : indicatif international uniquement. Les numéros locaux de 8 ou 9 chiffres
+  // sont ambigus entre pays voisins (Burkina Faso, Mali, Bénin, Togo...) et étaient attribués au hasard.
   const guessCountryFromPhone = (phone: string | null | undefined): string => {
     if (!phone) return "Inconnu";
-    const cleanPhone = phone.replace(/\D/g, "");
-    if (cleanPhone.startsWith("225") || (cleanPhone.length === 10 && cleanPhone.startsWith("0"))) return "Côte d'Ivoire";
-    if (cleanPhone.startsWith("226") || (cleanPhone.length === 8 && (cleanPhone.startsWith("5") || cleanPhone.startsWith("6") || cleanPhone.startsWith("7")))) return "Burkina Faso";
-    if (cleanPhone.startsWith("221") || (cleanPhone.length === 9 && cleanPhone.startsWith("7"))) return "Sénégal";
-    if (cleanPhone.startsWith("223") || (cleanPhone.length === 8 && (cleanPhone.startsWith("7") || cleanPhone.startsWith("9")))) return "Mali";
-    if (cleanPhone.startsWith("237") || cleanPhone.startsWith("6")) return "Cameroun";
+    const digits = phone.replace(/\D/g, "");
+    const prefixes: [string, string][] = [
+      ["225", "CI"], ["226", "BF"], ["221", "SN"], ["223", "ML"], ["237", "CM"], ["229", "BJ"], ["228", "TG"],
+      ["224", "GN"], ["227", "NE"], ["241", "GA"], ["212", "MA"], ["33", "FR"],
+    ];
+    const hit = prefixes.find(([prefix]) => digits.startsWith(prefix) && digits.length > prefix.length + 5);
+    if (hit) return hit[1];
+    if (digits.length === 10 && digits.startsWith("0")) return "CI";
     return "Inconnu";
   };
 
-  const getCountryCoordinates = (countryName: string): [number, number] | null => {
-    const coords: Record<string, [number, number]> = {
-      "Côte d'Ivoire": [7.54, -5.5471],
-      "Burkina Faso": [12.2383, -1.5616],
-      "Sénégal": [14.4974, -14.4524],
-      "Mali": [17.5707, -3.9962],
-      "Cameroun": [7.3697, 12.3547],
-      "France": [46.2276, 2.2137],
-      "Bénin": [9.3077, 2.3158],
-      "Togo": [8.6195, 0.8248],
-      "Guinée": [9.9456, -9.6966],
-      "Maroc": [31.7917, -7.0926],
-      "Canada": [56.1304, -106.3468],
-      "États-Unis": [37.0902, -95.7129],
-    };
-    // Also try checking keys for partial matches
-    const key = Object.keys(coords).find(k => countryName.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(countryName.toLowerCase()));
-    if (key) return coords[key];
-    return null;
-  };
-
   const countryStats = useMemo(() => {
-    const stats: Record<string, { visitors: number, orders: number, revenue: number }> = {};
-    
-    // Process visits
-    const sessionsByCountry: Record<string, Set<string>> = {};
-    filteredVisits.forEach(v => {
-      let c = v.visitor_country || "Inconnu";
-      if (c === "Unknown") c = "Inconnu";
-      if (!sessionsByCountry[c]) sessionsByCountry[c] = new Set();
-      sessionsByCountry[c].add(v.session_id || Math.random().toString());
-    });
-    
-    Object.entries(sessionsByCountry).forEach(([country, sessions]) => {
-      if (!stats[country]) stats[country] = { visitors: 0, orders: 0, revenue: 0 };
-      stats[country].visitors = sessions.size;
-    });
+    const byCountry = new Map<string, { country: string; countryKey: string; visitors: number; orders: number; revenue: number }>();
+    const entry = (raw?: string | null) => {
+      const { key, label } = canonicalCountry(raw);
+      let e = byCountry.get(key);
+      if (!e) { e = { country: label, countryKey: key, visitors: 0, orders: 0, revenue: 0 }; byCountry.set(key, e); }
+      return e;
+    };
 
-    // Process orders
+    const sessionsByCountry = new Map<string, Set<string>>();
+    filteredVisits.forEach((v, i) => {
+      const e = entry(v.visitor_country);
+      let set = sessionsByCountry.get(e.countryKey);
+      if (!set) { set = new Set(); sessionsByCountry.set(e.countryKey, set); }
+      set.add(sessionKey(v, i));
+    });
+    sessionsByCountry.forEach((set, key) => { byCountry.get(key)!.visitors = set.size; });
+
     filteredOrders.forEach(o => {
-      let c = o.customer_country;
-      if (!c || c === "Unknown" || c === "Inconnu") {
-        c = guessCountryFromPhone(o.customer_phone);
-      }
-      if (!stats[c]) stats[c] = { visitors: 0, orders: 0, revenue: 0 };
-      stats[c].orders += 1;
-      stats[c].revenue += o.total;
+      const e = entry(canonicalCountry(o.customer_country).key ? o.customer_country : guessCountryFromPhone(o.customer_phone));
+      e.orders += 1;
+      e.revenue += o.total;
     });
 
-    // Handle "Inconnu" slightly differently to make it less prominent if it's an artifact
-    let result = Object.entries(stats).map(([country, data]) => ({ country, ...data })).sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
-    
-    // If we have an "Inconnu" but it's empty, remove it. If it has only visitors, we keep it as "Autres/Anonyme"
-    result = result.map(item => {
-      if (item.country === "Inconnu") {
-        return { ...item, country: "Autres / Non spécifié" };
-      }
-      return item;
-    });
-
-    return result;
+    // « Non spécifié » toujours en dernier, le reste par chiffre d'affaires puis visiteurs.
+    return Array.from(byCountry.values()).sort((a, b) =>
+      (a.countryKey === "" ? 1 : 0) - (b.countryKey === "" ? 1 : 0) || b.revenue - a.revenue || b.visitors - a.visitors);
   }, [filteredVisits, filteredOrders]);
 
+  const maxCountryVisitors = Math.max(0, ...countryStats.map(c => c.visitors));
 
   // Peak Hours (Heures d'affluence)
   const peakHoursData = useMemo(() => {
@@ -410,9 +470,11 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
 
     filteredOrders.forEach(o => {
       o.order_items?.forEach(item => {
-        if (!map[item.product_id]) map[item.product_id] = { name: item.product_name, views: 0, orders: 0, revenue: 0 };
-        map[item.product_id].orders += item.quantity;
-        map[item.product_id].revenue += item.total_price;
+        // Produit supprimé : product_id est nul, on regroupe alors par nom plutôt que tout mélanger sous « null ».
+        const key = item.product_id || `name:${item.product_name}`;
+        if (!map[key]) map[key] = { name: item.product_name, views: 0, orders: 0, revenue: 0 };
+        map[key].orders += item.quantity;
+        map[key].revenue += item.total_price;
       });
     });
 
@@ -430,6 +492,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
       .slice(0, 4);
   }, [filteredOrders, filteredVisits, products]);
 
+  const maxProductRevenue = Math.max(1, ...topProducts.map(x => x.revenue));
   const PIE_COLORS = [primaryColor, "#0f172a", "#3b82f6", "#10b981", "#8b5cf6"];
 
   return (
@@ -552,15 +615,16 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
-                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} width={60} />
-                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={false} width={0} />
+                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} width={60} tickFormatter={compactNumber} />
+                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={false} width={0} allowDecimals={false} />
                 <Tooltip 
+                  formatter={(value: number, name: string) => (name === "Commandes" ? [value, name] : [`${fmt(Math.round(value))} FCFA`, name])}
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ fontWeight: 'bold', color: '#0f172a', marginBottom: '4px' }}
                 />
-                <Bar yAxisId="right" dataKey="commandes" fill="#e0e7ff" radius={[4, 4, 0, 0]} barSize={20} />
-                <Area yAxisId="left" type="monotone" dataKey="ventes" stroke={primaryColor} strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                <Line yAxisId="left" type="monotone" dataKey="panier_moyen" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Panier Moyen" />
+                <Bar yAxisId="right" dataKey="commandes" name="Commandes" fill="#e0e7ff" radius={[4, 4, 0, 0]} barSize={20} />
+                <Area yAxisId="left" type="monotone" dataKey="ventes" name="Ventes" stroke={primaryColor} strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                <Line yAxisId="left" type="monotone" dataKey="panier_moyen" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Panier moyen" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -653,7 +717,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
               <BarChart data={peakHoursData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Bar dataKey="orders" fill="#0E7C66" radius={[4, 4, 0, 0]} name="Commandes">
                   {peakHoursData.map((entry, index) => (
@@ -684,7 +748,6 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
           ) : (
             <div className="space-y-4 flex-1">
               {topProducts.map((p, i) => {
-                const maxRev = Math.max(...topProducts.map(x => x.revenue));
                 return (
                   <div key={i} className="group">
                     <div className="flex justify-between text-sm mb-1.5">
@@ -693,9 +756,9 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex-1">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${(p.revenue / maxRev) * 100}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                        <div className="h-full rounded-full transition-all" style={{ width: `${(p.revenue / maxProductRevenue) * 100}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-semibold w-16 text-right">{p.orders} cmd</span>
+                      <span className="text-[10px] text-slate-500 font-semibold w-20 text-right">{p.orders} vendu{p.orders > 1 ? "s" : ""}</span>
                     </div>
                   </div>
                 );
@@ -744,7 +807,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             
             {trafficSourcesData.length === 0 && (
                <div className="flex items-center justify-center h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                 <p className="text-sm text-slate-500 font-medium">Aucune source disponible.</p>
+                 <p className="text-sm text-slate-500 font-medium">Aucune visite sur la période.</p>
                </div>
             )}
             
@@ -814,11 +877,9 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                   themeColor={primaryColor}
                   markers={countryStats
                     .map(c => {
-                      const loc = getCountryCoordinates(c.country);
+                      const loc = COUNTRY_COORDS[c.countryKey];
                       if (!loc) return null;
-                      // Base size on visitors + orders
-                      let size = 0.05 + (c.visitors / Math.max(...countryStats.map(s => s.visitors))) * 0.1;
-                      if (isNaN(size)) size = 0.1;
+                      const size = maxCountryVisitors > 0 ? 0.05 + (c.visitors / maxCountryVisitors) * 0.1 : 0.1;
                       return { location: loc, size, name: c.country };
                     })
                     .filter(Boolean) as { location: [number, number], size: number, name: string }[]} 
