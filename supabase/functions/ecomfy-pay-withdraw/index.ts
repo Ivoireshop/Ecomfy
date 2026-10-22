@@ -43,6 +43,7 @@ serve(async (req) => {
       destination_phone,
       destination_name,
       destination_bank_iban,
+      payout_operator,
       currency = "XOF",
     } = body;
 
@@ -74,6 +75,7 @@ serve(async (req) => {
         p_destination_name: destination_name || null,
         p_destination_bank_iban: destination_bank_iban || null,
         p_currency: currency,
+        p_payout_operator: payout_operator || null,
       }
     );
 
@@ -106,6 +108,7 @@ serve(async (req) => {
             type: payout_method,
             phone: destination_phone,
             name: destination_name,
+            operator: payout_operator || undefined,
           },
         };
 
@@ -128,6 +131,19 @@ serve(async (req) => {
               provider_reference: json.data?.reference || json.data?.id,
             })
             .eq("id", result.withdrawal_id);
+        } else if (resp.status >= 400 && resp.status < 500) {
+          // Refus définitif du prestataire : le montant retourne au solde disponible (écriture WITHDRAWAL_FAILED).
+          // Une erreur réseau ou 5xx reste ambiguë : le retrait est laissé en REQUESTED pour être clôturé par le webhook.
+          const { error: finErr } = await supabase.rpc("finalize_withdrawal", {
+            p_withdrawal_reference: result.withdrawal_reference,
+            p_status: "FAILED",
+            p_failure_reason: json?.message || json?.error || `Refusé par le prestataire (HTTP ${resp.status})`,
+          });
+          if (finErr) console.error("[ecomfy-pay-withdraw] finalize_withdrawal error:", finErr);
+          return new Response(
+            JSON.stringify({ success: false, error: "Le prestataire a refusé le transfert. Votre solde a été recrédité." }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
       } catch (e) {
         console.warn("[ecomfy-pay-withdraw] Payout dispatch exception:", e);

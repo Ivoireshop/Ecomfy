@@ -140,18 +140,22 @@ export const WalletTab: React.FC<WalletTabProps> = ({
                       {entry.description}
                     </span>
                     <span className="text-[11px] text-slate-400 block truncate">
-                      Réf: {entry.reference_id || "N/A"} • {new Date(entry.created_at).toLocaleString("fr-FR")}
+                      Réf: {entry.internal_reference || entry.reference_id || "N/A"}
+                      {entry.order_number ? ` • Commande ${entry.order_number}` : ""}
+                      {entry.operator ? ` • ${entry.operator}` : ""} • {new Date(entry.created_at).toLocaleString("fr-FR")}
                     </span>
                   </div>
 
                   <div className="text-right shrink-0">
                     <span
                       className={`font-black text-sm block ${
-                        isCredit ? "text-emerald-700" : "text-rose-600"
+                        entry.amount === 0 ? "text-slate-500" : isCredit ? "text-emerald-700" : "text-rose-600"
                       }`}
                     >
                       {isCredit ? "+" : ""}
-                      {formatPrice(entry.amount)} FCFA
+                      {entry.amount === 0 && entry.gross_amount != null
+                        ? `${formatPrice(entry.gross_amount)} FCFA versés`
+                        : `${formatPrice(entry.amount)} FCFA`}
                     </span>
                     <span className="text-[10px] text-slate-400 block">
                       Solde Avail: {formatPrice(entry.running_available_balance)} FCFA

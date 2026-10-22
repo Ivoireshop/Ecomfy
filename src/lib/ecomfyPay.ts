@@ -99,7 +99,7 @@ export const ecomfyPayApi = {
       .from("wallet_ledger")
       .select("*")
       .eq("merchant_id", session.user.id)
-      .order("created_at", { ascending: false })
+      .order("entry_seq", { ascending: false })
       .limit(100);
 
     if (error) {
@@ -153,6 +153,7 @@ export const ecomfyPayApi = {
     destination_phone?: string;
     destination_name?: string;
     destination_bank_iban?: string;
+    payout_operator?: "wave" | "orange_money" | "mtn" | "moov";
   }): Promise<{ success: boolean; error?: string; withdrawal_reference?: string }> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { success: false, error: "Session expirée." };

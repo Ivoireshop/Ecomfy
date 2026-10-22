@@ -64,6 +64,53 @@ serve(async (req) => {
       return ack({ success: false, error: "Missing transaction reference" });
     }
 
+    // Retraits (payouts) : clôture du retrait et écriture au ledger (finalize_withdrawal, idempotente).
+    // Ne passe jamais par la confirmation de paiement ci-dessous.
+    const eventName = String(event || "").toLowerCase();
+    if (/^(payout|withdrawal|transfer)\./.test(eventName)) {
+      const succeeded = /\.(success|succeeded|completed|paid)$/.test(eventName) || (!/\.(fail|failed|rejected|cancel|cancelled|canceled|error)$/.test(eventName) && ["completed", "success", "succeeded"].includes(String(data?.status).toLowerCase()));
+      const failed = /\.(fail|failed|rejected|cancel|cancelled|canceled|error)$/.test(eventName) || ["failed", "rejected", "cancelled", "canceled"].includes(String(data?.status).toLowerCase());
+      if (!succeeded && !failed) {
+        return ack({ success: true, ignored: true, event: eventName });
+      }
+
+      const candidates = [meta?.withdrawal_reference, data?.merchant_reference, data?.reference, data?.id]
+        .filter((v) => typeof v === "string" && v.length > 0);
+      if (candidates.length === 0) {
+        return ack({ success: false, error: "Missing withdrawal reference" });
+      }
+
+      const payoutEventId = req.headers.get("x-webhook-delivery") || `${candidates[0]}_${eventName}`;
+      const { error: payoutDupErr } = await supabase.from("payment_events").insert({
+        event_id: payoutEventId, provider: "geniuspay", event_type: event, payload,
+      });
+      if (payoutDupErr && (payoutDupErr as any).code === "23505") {
+        return ack({ success: true, duplicate: true });
+      }
+
+      const { data: wd } = await supabase
+        .from("withdrawal_requests")
+        .select("withdrawal_reference")
+        .or(candidates.flatMap((c) => [`withdrawal_reference.eq.${c}`, `provider_reference.eq.${c}`]).join(","))
+        .maybeSingle();
+      if (!wd) {
+        console.warn("[ecomfy-pay-webhook] Withdrawal not found:", candidates);
+        return ack({ success: false, error: "Withdrawal record not found" });
+      }
+
+      const { data: finRes, error: finErr } = await supabase.rpc("finalize_withdrawal", {
+        p_withdrawal_reference: wd.withdrawal_reference,
+        p_status: succeeded ? "SUCCEEDED" : "FAILED",
+        p_failure_reason: succeeded ? null : (data?.failure_reason || data?.message || null),
+        p_provider_reference: typeof data?.id === "string" ? data.id : null,
+      });
+      if (finErr) {
+        console.error("[ecomfy-pay-webhook] finalize_withdrawal error:", finErr);
+        return ack({ success: false, error: "Cannot finalize withdrawal" }, 500);
+      }
+      return ack({ success: !!finRes?.success, ...finRes });
+    }
+
     // Confirmation auprès de l'API GeniusPay avant de traiter un succès. Placée avant l'insertion
     // d'idempotence : en cas d'échec (503), la nouvelle tentative du fournisseur n'est pas ignorée.
     // `remoteAmount` / `remoteCurrency` : montant réellement encaissé, comparé plus bas à ecomfy_payments.amount (C6).
