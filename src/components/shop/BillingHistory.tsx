@@ -8,6 +8,7 @@ import { Loader2, Receipt, Wallet, AlertTriangle, CheckCircle2, Printer } from "
 import { InstallAppCard } from "./InstallAppCard";
 import { PayCommissionDialog } from "./PayCommissionDialog";
 import { BillingThresholdSection } from "./BillingThresholdSection";
+import { computeShopSubscription } from "@/lib/shopSubscription";
 
 interface BillingHistoryProps {
   shopId: string;
@@ -40,6 +41,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
   const balanceDue = Number(shop?.commission_balance_due) || 0;
   const totalPaid = payments.filter(p => p.status === "paid").reduce((s, p) => s + Number(p.amount), 0);
   const totalBilled = orderCount * perOrder;
+  const subscription = computeShopSubscription(shop);
 
   const openInvoice = (p: any) => {
     const date = new Date(p.created_at).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
@@ -111,16 +113,29 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
           Historique de facturation
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Suivez vos commissions Ecomfy : {fmt(perOrder)} FCFA prélevés par commande reçue.
+          {subscription.isActive
+            ? "Suivez vos règlements Ecomfy. Votre abonnement est actif : aucune commission n'est prélevée sur vos commandes."
+            : `Suivez vos commissions Ecomfy : ${fmt(perOrder)} FCFA prélevés par commande reçue.`}
         </p>
       </div>
+
+      {subscription.isActive && subscription.activeUntil && (
+        <Card className="p-4 border-emerald-500/40 bg-emerald-500/10">
+          <div className="text-sm text-emerald-800 dark:text-emerald-300">
+            Abonnement <b className="capitalize">{subscription.plan.replace(/_/g, " ")}</b> actif jusqu'au{" "}
+            <b>{subscription.activeUntil.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</b>.
+          </div>
+        </Card>
+      )}
 
       {/* Summary cards */}
       <div className="grid sm:grid-cols-3 gap-3">
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground mb-1">Total facturé</div>
-          <div className="text-2xl font-bold">{fmt(totalBilled)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
-          <div className="text-xs text-muted-foreground mt-1">{orderCount} commande{orderCount > 1 ? "s" : ""}</div>
+          <div className="text-xs text-muted-foreground mb-1">{subscription.isActive ? "Commission sur vos commandes" : "Total facturé"}</div>
+          <div className="text-2xl font-bold">{fmt(subscription.isActive ? 0 : totalBilled)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {subscription.isActive ? "Abonnement actif" : `${orderCount} commande${orderCount > 1 ? "s" : ""}`}
+          </div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600" />Total payé</div>

@@ -27,6 +27,8 @@ import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
+import { SubscriptionRenewalBanner } from "@/components/shop/SubscriptionRenewalBanner";
+import { computeShopSubscription, enforceShopSubscriptionExpiry } from "@/lib/shopSubscription";
 import { saveProductVideos, fetchProductVideos } from "@/lib/productAppearance";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
@@ -220,6 +222,22 @@ const ShopEditor = () => {
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Abonnement échu : demande au serveur de le constater (taux de commission rétabli, fermeture après le délai de grâce)
+  // sans attendre la tâche planifiée. Une seule fois par boutique et par échéance ; la mise à jour de la boutique
+  // revient par le canal temps réel ci-dessous.
+  const subscriptionCheckKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!shop?.id) return;
+    const sub = computeShopSubscription(shop);
+    if (!sub.isExpired) return;
+    const key = `${shop.id}:${shop.subscription_active_until}`;
+    if (subscriptionCheckKey.current === key) return;
+    subscriptionCheckKey.current = key;
+    void enforceShopSubscriptionExpiry(shop.id).then((result) => {
+      if (result && result !== "none") fetchData();
+    });
+  }, [shop, fetchData]);
 
   useEffect(() => {
     (async () => {
@@ -1060,6 +1078,7 @@ const ShopEditor = () => {
           return (
             <>
         {/* Système automatique de Seuil de Facturation & Délais (240 commandes / 12 000 FCFA) */}
+        <SubscriptionRenewalBanner shopId={shop.id} subscription={info.subscription} />
         <BillingAlertBanner shopId={shop?.id} />
 
         {/* Legacy Billing Banner */}

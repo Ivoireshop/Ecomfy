@@ -113,7 +113,7 @@ serve(async (req) => {
 
     if (payment.status === "completed" && paymentType === "shop_subscription" && shopId) {
       const plan = (meta.plan as string) || "starter";
-      await supabase.rpc("apply_shop_subscription", {
+      const { data: subResult, error: subError } = await supabase.rpc("apply_shop_subscription", {
         p_shop_id: shopId,
         p_user_id: payment.user_id,
         p_plan: plan,
@@ -121,6 +121,13 @@ serve(async (req) => {
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: payment.payment_method || "geniuspay",
       });
+      if (subError || subResult?.success === false) {
+        // Payé mais non appliqué : ne pas annoncer un succès (l'écran réessaiera, l'appel est idempotent)
+        console.error("apply_shop_subscription failed (verify-payment):", { subError, subResult });
+        return new Response(JSON.stringify({ success: false, status: "completed", applied: false, error: "subscription_not_applied" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ success: true, status: "completed", applied: true, shop_id: shopId }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -246,7 +253,7 @@ serve(async (req) => {
       }
     } else if (paymentType === "shop_subscription" && shopId) {
       const plan = (meta.plan as string) || "starter";
-      await supabase.rpc("apply_shop_subscription", {
+      const { data: subResult, error: subError } = await supabase.rpc("apply_shop_subscription", {
         p_shop_id: shopId,
         p_user_id: userId,
         p_plan: plan,
@@ -254,6 +261,12 @@ serve(async (req) => {
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
       });
+      if (subError || subResult?.success === false) {
+        console.error("apply_shop_subscription failed (verify-payment):", { subError, subResult });
+        return new Response(JSON.stringify({ success: false, status: "completed", applied: false, error: "subscription_not_applied" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     } else if (paymentType === "credits" && creditsSize > 0) {
       if (!paymentClaimed) {
         return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
@@ -272,24 +285,10 @@ serve(async (req) => {
         pack_price: Number(payment.amount) || 0, credits_added: creditsSize,
       });
     } else {
-      if (!paymentClaimed) {
-        return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
-          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const start = new Date();
-      const end = new Date();
-      end.setDate(end.getDate() + 30);
-      await supabase.from("subscriptions").update({
-        status: "active",
-        start_date: start.toISOString(),
-        end_date: end.toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq("user_id", userId);
-
-      // Also sync shop subscription state
+      // Abonnement : appliqué AVANT la réservation du paiement (idempotent par référence), pour qu'une tentative
+      // échouée soit rejouée au lieu d'être écartée parce que le paiement est déjà « completed ».
       const plan = (meta.plan as string) || "pro_monthly";
-      await supabase.rpc("apply_shop_subscription", {
+      const { data: subResult, error: subError } = await supabase.rpc("apply_shop_subscription", {
         p_shop_id: shopId,
         p_user_id: userId,
         p_plan: plan,
@@ -297,6 +296,18 @@ serve(async (req) => {
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
       });
+      if (subError || subResult?.success === false) {
+        console.error("apply_shop_subscription failed (verify-payment):", { subError, subResult });
+        return new Response(JSON.stringify({ success: false, status: "completed", applied: false, error: "subscription_not_applied" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // apply_shop_subscription a déjà écrit la ligne `subscriptions` avec la vraie échéance (30 ou 365 jours)
+      if (!paymentClaimed) {
+        return new Response(JSON.stringify({ success: true, status: "completed", alreadyApplied: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Trigger affiliate commission processing non-destructively
