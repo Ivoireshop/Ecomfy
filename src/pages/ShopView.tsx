@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from 
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { createPublicOrder } from "@/services/publicOrderService";
+import { PromoCodeField, type AppliedPromo } from "@/components/shop/PromoCodeField";
 import { thumbUrl } from "@/lib/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -75,6 +76,7 @@ const ShopView = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirm">("cart");
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [orderLoading, setOrderLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -528,6 +530,9 @@ const ShopView = () => {
 
   const removeFromCart = (key: string) => setCart(prev => prev.filter(item => cartKey(item.product.id, item.selectedVariants) !== key));
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // Aperçu : le serveur recalcule la remise et le total à la création de la commande.
+  const promoDiscount = promo ? Math.min(promo.discount, cartTotal) : 0;
+  const payableTotal = cartTotal - promoDiscount;
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const placeOrder = async () => {
@@ -563,6 +568,7 @@ const ShopView = () => {
         customerCity: customerInfo.city,
         customerCountry: detectedCountry,
         paymentMethod: customerInfo.paymentMethod,
+        promoCode: promo?.code,
         items: cart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
@@ -571,6 +577,10 @@ const ShopView = () => {
       });
       const order = { id: created.orderId, order_number: created.orderNumber };
       const orderTotal = created.total;
+      if (promo && !created.promoApplied) {
+        toast({ title: "Code promo non appliqué", description: created.promoMessage || "Le code n'a pas pu être appliqué à cette commande.", variant: "destructive" });
+      }
+      setPromo(null);
       // Mark abandoned cart as converted (if any was tracked)
       if (sessionIdRef.current && shop?.id) {
         try {
@@ -1444,11 +1454,26 @@ const ShopView = () => {
                         <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
                       </div>
                     ))}
+                    {promoDiscount > 0 && (
+                      <div className="flex justify-between text-emerald-700 font-medium">
+                        <span>Code {promo?.code}</span>
+                        <span>- {formatPrice(promoDiscount)} FCFA</span>
+                      </div>
+                    )}
                     <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
                       <span>Total</span>
-                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                      <span style={{ color: primaryColor }}>{formatPrice(payableTotal)} FCFA</span>
                     </div>
                   </div>
+                  <PromoCodeField
+                    shopId={shop.id}
+                    subtotal={cartTotal}
+                    customerPhone={customerInfo.phone}
+                    customerEmail={customerInfo.email}
+                    primaryColor={primaryColor}
+                    applied={promo}
+                    onChange={setPromo}
+                  />
                   {/* Infos client */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -1531,7 +1556,7 @@ const ShopView = () => {
                     </div>
                   </div>
                   <Button className="w-full h-11 rounded-xl text-sm font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
-                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
+                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(payableTotal)} FCFA</>}
                   </Button>
                 </div>
                 );

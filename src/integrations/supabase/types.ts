@@ -2236,6 +2236,7 @@ export type Database = {
           customer_phone: string
           delivery_provider_id: string | null
           delivery_transferred_at: string | null
+          discount_amount: number
           id: string
           internal_delivery_note: string | null
           is_read: boolean | null
@@ -2245,6 +2246,7 @@ export type Database = {
           order_status: string
           payment_method: string
           payment_status: string
+          promo_code: string | null
           products_summary: string | null
           received_during_lock: boolean
           scheduled_delivery_date: string | null
@@ -2264,6 +2266,7 @@ export type Database = {
           customer_phone: string
           delivery_provider_id?: string | null
           delivery_transferred_at?: string | null
+          discount_amount?: number
           id?: string
           internal_delivery_note?: string | null
           is_read?: boolean | null
@@ -2273,6 +2276,7 @@ export type Database = {
           order_status?: string
           payment_method?: string
           payment_status?: string
+          promo_code?: string | null
           products_summary?: string | null
           received_during_lock?: boolean
           scheduled_delivery_date?: string | null
@@ -2292,6 +2296,7 @@ export type Database = {
           customer_phone?: string
           delivery_provider_id?: string | null
           delivery_transferred_at?: string | null
+          discount_amount?: number
           id?: string
           internal_delivery_note?: string | null
           is_read?: boolean | null
@@ -2301,6 +2306,7 @@ export type Database = {
           order_status?: string
           payment_method?: string
           payment_status?: string
+          promo_code?: string | null
           products_summary?: string | null
           received_during_lock?: boolean
           scheduled_delivery_date?: string | null
@@ -3047,6 +3053,12 @@ export type Database = {
           created_by: string
           current_uses: number
           discount_percentage: number
+          discount_amount: number
+          discount_type: string
+          min_order_amount: number
+          shop_id: string | null
+          target_user_email: string | null
+          target_user_phone: string | null
           expires_at: string
           id: string
           is_active: boolean
@@ -3058,7 +3070,13 @@ export type Database = {
           created_at?: string
           created_by: string
           current_uses?: number
-          discount_percentage: number
+          discount_percentage?: number
+          discount_amount?: number
+          discount_type?: string
+          min_order_amount?: number
+          shop_id?: string | null
+          target_user_email?: string | null
+          target_user_phone?: string | null
           expires_at: string
           id?: string
           is_active?: boolean
@@ -3071,6 +3089,12 @@ export type Database = {
           created_by?: string
           current_uses?: number
           discount_percentage?: number
+          discount_amount?: number
+          discount_type?: string
+          min_order_amount?: number
+          shop_id?: string | null
+          target_user_email?: string | null
+          target_user_phone?: string | null
           expires_at?: string
           id?: string
           is_active?: boolean

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,14 +13,56 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { 
-  Heart, Phone, Mail, MapPin, MessageCircle, Loader2, 
-  Crown, Award, Sparkles, Search, Download, Send, Zap, 
-  TrendingUp, Users, RefreshCw, MessageSquare
+import {
+  Heart, Phone, Mail, MapPin, MessageCircle, Loader2,
+  Crown, Award, Sparkles, Search, Download, Send,
+  Users, RefreshCw, MessageSquare
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow, format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { normalizeToE164 } from "@/lib/phoneCountries";
+
+const PAGE_SIZE = 1000;
+// Une commande annulée ou retournée n'est ni une vente ni une preuve de fidélité.
+const EXCLUDED_STATUSES = new Set(["cancelled", "returned"]);
+
+// "+225 07 00 00 00 00", "0700000000" et "00225 0700000000" désignent le même client :
+// on compare les 8 derniers chiffres (longueur nationale minimale des pays gérés).
+const phoneKey = (raw: string) => {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length > 8 ? digits.slice(-8) : digits;
+};
+
+// wa.me exige l'indicatif pays sans "+" ni "00" ; un numéro local est complété avec le pays par défaut.
+const toWhatsAppNumber = (raw: string) => {
+  const e164 = normalizeToE164(raw);
+  if (e164) return e164.replace(/\D/g, "");
+  return raw.trim().replace(/^\+/, "").replace(/^00/, "").replace(/\D/g, "");
+};
+
+// Neutralise l'interprétation d'une cellule comme formule dans Excel / Sheets (un numéro "+225…" reste intact).
+const csvCell = (value: string | number) => {
+  let s = String(value ?? "");
+  if (/^([=@\t\r]|[+-].*[^\d\s().+-])/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+};
+
+interface ShopPromoCode {
+  code: string;
+  discount_type: string;
+  discount_percentage: number;
+  discount_amount: number;
+  min_order_amount: number;
+  target_user_email: string | null;
+  target_user_phone: string | null;
+  expires_at: string;
+  max_uses: number;
+  current_uses: number;
+}
+
+const promoDiscountLabel = (p: ShopPromoCode) =>
+  p.discount_type === "fixed_amount"
+    ? `${Number(p.discount_amount).toLocaleString("fr-FR")} FCFA`
+    : `${p.discount_percentage}%`;
 
 export interface CustomerLoyaltyProfile {
   id: string;
@@ -45,36 +87,61 @@ interface LoyalCustomersListProps {
 export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = "#0E7C66" }: LoyalCustomersListProps) {
   const [customers, setCustomers] = useState<CustomerLoyaltyProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState<"all" | "repeating" | "platine" | "or" | "argent" | "bronze">("all");
   const { toast } = useToast();
+  // Ignore la réponse d'un chargement lancé avant un autre (rafale d'évènements realtime).
+  const loadSeq = useRef(0);
 
   // Promo Broadcast Modal state
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerLoyaltyProfile | null>(null);
   const [showPromoModal, setShowPromoModal] = useState(false);
-  const [promoCode, setPromoCode] = useState("FIDELITE20");
-  const [discountValue, setDiscountValue] = useState("20%");
+  // Aucun code par défaut : un code inventé serait refusé par la boutique au moment de la commande.
+  const [promoCode, setPromoCode] = useState("");
+  const [discountValue, setDiscountValue] = useState("");
   const [customMessage, setCustomMessage] = useState("");
+  // Codes promo de la boutique ; null tant qu'ils ne sont pas chargés (ou si la lecture est refusée).
+  const [shopCodes, setShopCodes] = useState<ShopPromoCode[] | null>(null);
 
-  const loadCustomers = async () => {
-    setLoading(true);
+  const loadShopCodes = async () => {
+    const { data, error } = await (supabase as any)
+      .from("promo_codes")
+      .select("code, discount_type, discount_percentage, discount_amount, min_order_amount, target_user_email, target_user_phone, expires_at, max_uses, current_uses")
+      .eq("shop_id", shopId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Error loading shop promo codes:", error);
+      setShopCodes(null);
+      return;
+    }
+    setShopCodes((data as ShopPromoCode[]) || []);
+  };
+
+  // `silent` : rechargement en arrière-plan (realtime, actualisation), la liste et la modale restent affichées.
+  const loadCustomers = async (silent = false) => {
+    const seq = ++loadSeq.current;
+    if (!silent) setLoading(true);
     try {
-      // Query all orders for this shop
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select("id, customer_name, customer_phone, customer_email, customer_city, total, created_at, order_status, payment_status")
-        .eq("shop_id", shopId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      if (!orders || orders.length === 0) {
-        setCustomers([]);
-        setLoading(false);
-        return;
+      // PostgREST plafonne chaque réponse (1 000 lignes) : on pagine pour ne pas tronquer l'historique.
+      const orders: any[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("id, customer_name, customer_phone, customer_email, customer_city, total, created_at, order_status")
+          .eq("shop_id", shopId)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        orders.push(...(data || []));
+        if (!data || data.length < PAGE_SIZE) break;
       }
 
-      // Group orders by clean phone number or email or name
+      if (seq !== loadSeq.current) return;
+
+      // Group orders by clean phone number or email
       const customerMap = new Map<string, {
         name: string;
         phone: string;
@@ -86,18 +153,21 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
         firstDate: string;
       }>();
 
-      orders.forEach((o: any) => {
-        const rawPhone = (o.customer_phone || "").trim();
-        const cleanPhone = rawPhone.replace(/[^\d+]/g, "");
-        const key = cleanPhone || (o.customer_email || "").trim().toLowerCase() || (o.customer_name || "").trim().toLowerCase() || "anonyme";
+      // Les commandes arrivent de la plus récente à la plus ancienne : la première rencontrée fixe le nom et le numéro à jour.
+      orders.forEach((o) => {
+        if (EXCLUDED_STATUSES.has(o.order_status)) return;
 
-        if (!key || key === "anonyme") return;
+        const rawPhone = (o.customer_phone || "").trim();
+        const email = (o.customer_email || "").trim().toLowerCase();
+        // Sans téléphone ni e-mail, impossible de distinguer deux clients homonymes : on ne les regroupe pas.
+        const key = phoneKey(rawPhone) || email;
+        if (!key) return;
 
         const amount = Number(o.total) || 0;
         const date = o.created_at;
 
-        if (customerMap.has(key)) {
-          const existing = customerMap.get(key)!;
+        const existing = customerMap.get(key);
+        if (existing) {
           existing.count += 1;
           existing.totalSpent += amount;
           if (new Date(date).getTime() > new Date(existing.lastDate).getTime()) {
@@ -112,9 +182,12 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           if (!existing.email && o.customer_email) {
             existing.email = o.customer_email;
           }
+          if (!existing.phone && rawPhone) {
+            existing.phone = rawPhone;
+          }
         } else {
           customerMap.set(key, {
-            name: o.customer_name || "Client",
+            name: (o.customer_name || "").trim() || "Client",
             phone: rawPhone,
             email: o.customer_email || null,
             city: o.customer_city || null,
@@ -152,22 +225,39 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
 
       setCustomers(profiles);
     } catch (err: any) {
+      if (seq !== loadSeq.current) return;
       console.error("Error loading customer loyalty data:", err);
       toast({ title: "Erreur de chargement", description: err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadCustomers(true);
+    setRefreshing(false);
   };
 
   useEffect(() => {
     loadCustomers();
 
+    // Une commande groupée (plusieurs lignes à la fois) déclenche plusieurs évènements : un seul rechargement.
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const channel = supabase
       .channel(`orders-loyalty-${shopId}_${Math.random().toString(36).substring(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `shop_id=eq.${shopId}` }, () => loadCustomers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `shop_id=eq.${shopId}` }, () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => loadCustomers(true), 500);
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearTimeout(timer);
+      loadSeq.current++;
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId]);
 
   // Compute Loyalty Statistics
@@ -176,15 +266,20 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
   const platineCount = customers.filter(c => c.tier === "platine").length;
   const orCount = customers.filter(c => c.tier === "or").length;
   const argentCount = customers.filter(c => c.tier === "argent").length;
+  const bronzeCount = customers.filter(c => c.tier === "bronze").length;
 
   const totalRepeatRevenue = customers
     .filter(c => c.order_count >= 2)
     .reduce((sum, c) => sum + c.total_spent, 0);
 
-  const repeatRatio = totalCustomersCount > 0 ? Math.round((repeatCustomersCount / totalCustomersCount) * 100) : 0;
+  // Une décimale : 4 clients fidèles sur 1 105 donnent 0,4 % et non « 0 % ».
+  const repeatRatio = totalCustomersCount > 0 ? Math.round((repeatCustomersCount / totalCustomersCount) * 1000) / 10 : 0;
 
   // Filtered Customers List
   const filteredCustomers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    // Recherche de numéro uniquement si la saisie ressemble à un numéro (sinon « jean #7 » trouverait tout numéro contenant 7).
+    const qDigits = /^[\d\s+().-]+$/.test(q) ? q.replace(/\D/g, "") : "";
     return customers.filter(c => {
       // Tier Filter
       if (tierFilter === "repeating" && c.order_count < 2) return false;
@@ -194,11 +289,12 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
       if (tierFilter === "bronze" && c.tier !== "bronze") return false;
 
       // Search Query
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
+      if (!q) return true;
       return (
         c.customer_name.toLowerCase().includes(q) ||
         c.customer_phone.toLowerCase().includes(q) ||
+        // "07 00 00" doit retrouver "0700000000" quel que soit le formatage du numéro enregistré
+        (qDigits.length > 0 && c.customer_phone.replace(/\D/g, "").includes(qDigits)) ||
         (c.customer_email || "").toLowerCase().includes(q) ||
         (c.delivery_city || "").toLowerCase().includes(q)
       );
@@ -206,59 +302,105 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
   }, [customers, search, tierFilter]);
 
   // Prepare default WhatsApp Promo Message
-  const getWhatsAppPromoMessage = (c: CustomerLoyaltyProfile) => {
+  const buildPromoMessage = (c: CustomerLoyaltyProfile, code: string, discount: string) => {
     const storeLink = shopSlug ? `https://${shopSlug}.ecomfy.cloud` : "notre boutique";
     const brand = shopName || "Notre Boutique";
-    return `Bonjour ${c.customer_name || "cher client"} 👋 !\n\nToute l'équipe de ${brand} vous remercie chaleureusement pour votre fidélité (${c.order_count} commande${c.order_count > 1 ? "s" : ""} effectuée${c.order_count > 1 ? "s" : ""}) !\n\n🎁 Pour vous récompenser, profitez d'une réduction exclusive de ${discountValue} sur votre prochaine commande avec le code promotionnel : *${promoCode}* !\n\nCommandez vite directement ici : ${storeLink}\n\nÀ très vite !`;
+    const name = c.customer_name === "Client" ? "cher client" : c.customer_name;
+    const plural = c.order_count > 1 ? "s" : "";
+    const cleanCode = code.trim();
+    const cleanDiscount = discount.trim();
+    const offer = cleanCode
+      ? `🎁 Pour vous récompenser, profitez ${cleanDiscount ? `d'une réduction exclusive de ${cleanDiscount}` : "d'une offre exclusive"} sur votre prochaine commande avec le code promotionnel : *${cleanCode}* !\n\n`
+      : "";
+    return `Bonjour ${name} 👋 !\n\nToute l'équipe de ${brand} vous remercie chaleureusement pour votre fidélité (${c.order_count} commande${plural} effectuée${plural}) !\n\n${offer}Commandez directement ici : ${storeLink}\n\nÀ très vite !`;
+  };
+
+  // Codes utilisables par ce client : actifs, non expirés, non épuisés, publics ou attribués à lui.
+  const codesForCustomer = (c: CustomerLoyaltyProfile | null) => {
+    if (!c || !shopCodes) return [];
+    const phone = phoneKey(c.customer_phone);
+    const email = (c.customer_email || "").trim().toLowerCase();
+    const now = Date.now();
+    return shopCodes.filter(p => {
+      if (new Date(p.expires_at).getTime() < now || p.current_uses >= p.max_uses) return false;
+      if (p.target_user_email && p.target_user_email.trim().toLowerCase() !== email) return false;
+      if (p.target_user_phone && phoneKey(p.target_user_phone) !== phone) return false;
+      return true;
+    });
+  };
+
+  const handlePickCode = (p: ShopPromoCode) => {
+    setPromoCode(p.code);
+    setDiscountValue(promoDiscountLabel(p));
+    if (selectedCustomer) setCustomMessage(buildPromoMessage(selectedCustomer, p.code, promoDiscountLabel(p)));
   };
 
   const handleOpenPromoModal = (customer: CustomerLoyaltyProfile) => {
+    loadShopCodes();
     setSelectedCustomer(customer);
-    setCustomMessage(getWhatsAppPromoMessage(customer));
+    setCustomMessage(buildPromoMessage(customer, promoCode, discountValue));
     setShowPromoModal(true);
   };
 
+  // Le message est reconstruit avec les nouvelles valeurs (et non celles de l'état, pas encore à jour).
+  const handlePromoCodeChange = (value: string) => {
+    const code = value.toUpperCase().replace(/\s+/g, "");
+    setPromoCode(code);
+    if (selectedCustomer) setCustomMessage(buildPromoMessage(selectedCustomer, code, discountValue));
+  };
+
+  const handleDiscountChange = (value: string) => {
+    setDiscountValue(value);
+    if (selectedCustomer) setCustomMessage(buildPromoMessage(selectedCustomer, promoCode, value));
+  };
+
   const handleSendWhatsApp = (c: CustomerLoyaltyProfile, customText?: string) => {
-    if (!c.customer_phone) {
+    const phone = toWhatsAppNumber(c.customer_phone);
+    if (!phone) {
       toast({ title: "Numéro manquant", description: "Ce client n'a pas de numéro renseigné", variant: "destructive" });
       return;
     }
-    const cleanPhone = c.customer_phone.replace(/[^\d]/g, "");
-    const msgText = customText || getWhatsAppPromoMessage(c);
-    const encoded = encodeURIComponent(msgText);
-    window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, "_blank");
+    const msgText = customText || buildPromoMessage(c, promoCode, discountValue);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msgText)}`, "_blank", "noopener,noreferrer");
   };
 
   const handleSendSMS = (c: CustomerLoyaltyProfile, customText?: string) => {
-    if (!c.customer_phone) return;
-    const cleanPhone = c.customer_phone.replace(/[^\d+]/g, "");
-    const msgText = customText || getWhatsAppPromoMessage(c);
-    const encoded = encodeURIComponent(msgText);
-    window.open(`sms:${cleanPhone}?body=${encoded}`, "_blank");
+    const phone = toWhatsAppNumber(c.customer_phone);
+    if (!phone) {
+      toast({ title: "Numéro manquant", description: "Ce client n'a pas de numéro renseigné", variant: "destructive" });
+      return;
+    }
+    // Les *astérisques* sont la mise en gras de WhatsApp, pas des SMS.
+    const msgText = (customText || buildPromoMessage(c, promoCode, discountValue)).replace(/\*/g, "");
+    // Navigation directe : un onglet vide resterait ouvert sur ordinateur.
+    window.location.href = `sms:+${phone}?body=${encodeURIComponent(msgText)}`;
   };
 
   const handleExportCSV = () => {
     if (filteredCustomers.length === 0) return;
     const headers = ["Nom", "Telephone", "Email", "Ville", "Commandes", "Total Dépensé (FCFA)", "Niveau Fidélité", "Dernière Commande"];
     const rows = filteredCustomers.map(c => [
-      `"${c.customer_name.replace(/"/g, '""')}"`,
-      `"${c.customer_phone}"`,
-      `"${c.customer_email || ""}"`,
-      `"${c.delivery_city || ""}"`,
+      csvCell(c.customer_name),
+      csvCell(c.customer_phone),
+      csvCell(c.customer_email || ""),
+      csvCell(c.delivery_city || ""),
       c.order_count,
       c.total_spent,
-      c.tier.toUpperCase(),
-      `"${new Date(c.last_order_date).toLocaleDateString("fr-FR")}"`
+      csvCell(c.tier.toUpperCase()),
+      csvCell(new Date(c.last_order_date).toLocaleDateString("fr-FR")),
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    // Point-virgule + BOM UTF-8 : Excel (réglages français) sépare les colonnes et affiche les accents correctement.
+    const csvContent = "﻿" + [headers.map(csvCell).join(";"), ...rows.map(r => r.join(";"))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `clients_fideles_${shopSlug || "ecomfy"}.csv`);
+    link.href = url;
+    link.download = `clients_fideles_${shopSlug || "ecomfy"}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast({ title: "Export réussi", description: `${filteredCustomers.length} clients exportés en CSV.` });
   };
 
@@ -322,10 +464,11 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           <Button
             size="sm"
             variant="outline"
-            onClick={loadCustomers}
+            onClick={handleRefresh}
+            disabled={refreshing}
             className="rounded-full text-xs font-bold gap-1.5"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
             <span>Actualiser</span>
           </Button>
 
@@ -361,7 +504,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             <CardDescription className="text-xs font-bold uppercase tracking-wider text-emerald-700">Clients Fidèles (2+ Cmds)</CardDescription>
             <CardTitle className="text-2xl font-space font-extrabold text-emerald-800 flex items-center justify-between">
               <span>{repeatCustomersCount}</span>
-              <Badge className="bg-emerald-600 text-white text-xs font-bold">{repeatRatio}% Taux de Fidélité</Badge>
+              <Badge className="bg-emerald-600 text-white text-xs font-bold">{repeatRatio.toLocaleString("fr-FR")}% Taux de Fidélité</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -433,7 +576,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("platine")}
             className={`rounded-full text-xs font-bold ${tierFilter === "platine" ? "bg-purple-600 text-white" : ""}`}
           >
-            💎 Platine (5+)
+            💎 Platine (5+) ({platineCount})
           </Button>
 
           <Button
@@ -442,7 +585,25 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("or")}
             className={`rounded-full text-xs font-bold ${tierFilter === "or" ? "bg-amber-500 text-white" : ""}`}
           >
-            🥇 Or (3-4)
+            🥇 Or (3-4) ({orCount})
+          </Button>
+
+          <Button
+            size="sm"
+            variant={tierFilter === "argent" ? "default" : "outline"}
+            onClick={() => setTierFilter("argent")}
+            className={`rounded-full text-xs font-bold ${tierFilter === "argent" ? "bg-slate-700 text-white" : ""}`}
+          >
+            🥈 Argent (2) ({argentCount})
+          </Button>
+
+          <Button
+            size="sm"
+            variant={tierFilter === "bronze" ? "default" : "outline"}
+            onClick={() => setTierFilter("bronze")}
+            className={`rounded-full text-xs font-bold ${tierFilter === "bronze" ? "bg-slate-500 text-white" : ""}`}
+          >
+            1ère commande ({bronzeCount})
           </Button>
         </div>
       </div>
@@ -477,10 +638,12 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
                     </div>
 
                     <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                      <span className="flex items-center gap-1 font-mono text-slate-700 font-semibold">
-                        <Phone className="h-3 w-3 text-slate-400" />
-                        {c.customer_phone}
-                      </span>
+                      {c.customer_phone && (
+                        <span className="flex items-center gap-1 font-mono text-slate-700 font-semibold">
+                          <Phone className="h-3 w-3 text-slate-400" />
+                          {c.customer_phone}
+                        </span>
+                      )}
 
                       {c.delivery_city && (
                         <span className="flex items-center gap-1">
@@ -517,6 +680,8 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
                     <Button
                       size="sm"
                       onClick={() => handleOpenPromoModal(c)}
+                      disabled={!c.customer_phone}
+                      title={c.customer_phone ? undefined : "Aucun numéro enregistré pour ce client"}
                       className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 px-4 shadow-sm"
                     >
                       <MessageCircle className="h-3.5 w-3.5" />
@@ -527,6 +692,8 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
                       size="sm"
                       variant="outline"
                       onClick={() => handleSendSMS(c)}
+                      disabled={!c.customer_phone}
+                      title={c.customer_phone ? undefined : "Aucun numéro enregistré pour ce client"}
                       className="rounded-full border-slate-200 text-slate-700 text-xs font-bold gap-1"
                     >
                       <MessageSquare className="h-3.5 w-3.5" />
@@ -569,10 +736,8 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
                   <Label className="text-xs font-bold">Code Promo Offert</Label>
                   <Input
                     value={promoCode}
-                    onChange={(e) => {
-                      setPromoCode(e.target.value);
-                      if (selectedCustomer) setCustomMessage(getWhatsAppPromoMessage(selectedCustomer));
-                    }}
+                    onChange={(e) => handlePromoCodeChange(e.target.value)}
+                    placeholder="Ex : FIDELE10"
                     className="text-xs font-mono uppercase font-bold"
                   />
                 </div>
@@ -581,14 +746,50 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
                   <Label className="text-xs font-bold">Valeur Réduction</Label>
                   <Input
                     value={discountValue}
-                    onChange={(e) => {
-                      setDiscountValue(e.target.value);
-                      if (selectedCustomer) setCustomMessage(getWhatsAppPromoMessage(selectedCustomer));
-                    }}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    placeholder="Ex : 10% ou 2 000 FCFA"
                     className="text-xs font-bold"
                   />
                 </div>
               </div>
+              {(() => {
+                const available = codesForCustomer(selectedCustomer);
+                const typed = promoCode.trim();
+                const unknown = shopCodes !== null && typed !== "" && !available.some(p => p.code === typed);
+                return (
+                  <div className="space-y-2">
+                    {available.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-semibold text-slate-500">Vos codes actifs :</span>
+                        {available.map(p => (
+                          <button
+                            key={p.code}
+                            type="button"
+                            onClick={() => handlePickCode(p)}
+                            className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg border transition-all ${
+                              promoCode === p.code
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                            }`}
+                          >
+                            {p.code} · -{promoDiscountLabel(p)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {unknown && (
+                      <p className="text-[11px] text-amber-700">
+                        « {typed} » ne figure pas parmi vos codes actifs : le client le verrait refusé à la commande.
+                      </p>
+                    )}
+                    <p className="text-[11px] text-slate-500">
+                      {shopCodes !== null && available.length === 0
+                        ? "Aucun code actif pour ce client : créez-en un dans l'onglet « Codes promo ». Sans code, le message remercie simplement le client."
+                        : "Sans code, le message remercie simplement le client."}
+                    </p>
+                  </div>
+                );
+              })()}
 
               <div className="space-y-1">
                 <Label className="text-xs font-bold">Message WhatsApp Préréglé</Label>
@@ -608,6 +809,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
                     handleSendWhatsApp(selectedCustomer, customMessage);
                     setShowPromoModal(false);
                   }}
+                  disabled={!customMessage.trim()}
                   className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 px-5 shadow-lg"
                 >
                   <Send className="h-4 w-4" />

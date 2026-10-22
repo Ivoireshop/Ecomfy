@@ -182,7 +182,17 @@ const ShopEditor = () => {
         error: rpcRes.error,
       };
     } else {
-      ordersRes = await (supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any);
+      // PostgREST plafonne chaque réponse (1 000 lignes) quel que soit .limit() : on lit par pages jusqu'à 5000 commandes.
+      const rows: any[] = [];
+      ordersRes = { data: rows, error: null };
+      for (let from = 0; from < 5000; from += 1000) {
+        const page = await (supabase.from("orders").select("*, order_items(*)").eq("shop_id", id)
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(from, from + 999) as any);
+        if (page.error) { ordersRes = { data: null, error: page.error }; break; }
+        rows.push(...(page.data || []));
+        if (!page.data || page.data.length < 1000) break;
+      }
     }
     if (ordersRes.error) {
       console.error("FAILED TO FETCH ORDERS:", ordersRes.error);

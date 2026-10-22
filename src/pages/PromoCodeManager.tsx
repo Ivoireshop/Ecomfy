@@ -188,14 +188,14 @@ export default function PromoCodeManager({
         setValidityDays(2);
         setMinOrderAmount(0);
         toast({ title: "Preset Boutique Appliqué", description: "Vente Flash Articles : -50% pendant 48h" });
-      } else if (preset === "freeship") {
-        setCustomCode(`LIVRAISONFREE`);
-        setDiscountType("free_shipping");
-        setDiscountValue(0);
+      } else if (preset === "fixed") {
+        setCustomCode(`REDUC2000`);
+        setDiscountType("fixed_amount");
+        setDiscountValue(2000);
         setMaxUses(100);
         setValidityDays(14);
         setMinOrderAmount(8000);
-        toast({ title: "Preset Boutique Appliqué", description: "Livraison Offerte dès 8 000 FCFA d'achat" });
+        toast({ title: "Preset Boutique Appliqué", description: "2 000 FCFA offerts dès 8 000 FCFA d'achat" });
       }
     }
   };
@@ -217,11 +217,35 @@ export default function PromoCodeManager({
       return;
     }
 
-    // Check if code already exists
-    const { data: existing } = await (supabase as any)
-      .from("promo_codes")
-      .select("code")
-      .eq("code", finalCode);
+    if (!/^[A-Z0-9][A-Z0-9_-]{2,31}$/.test(finalCode)) {
+      toast({
+        title: "Code invalide",
+        description: "3 à 32 caractères : lettres, chiffres, tiret ou underscore, sans espace.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (discountType !== "free_shipping" && (!Number.isFinite(discountValue) || discountValue <= 0 || (discountType === "percentage" && discountValue > 100))) {
+      toast({
+        title: "Valeur invalide",
+        description: discountType === "percentage" ? "Le pourcentage doit être compris entre 1 et 100." : "Le montant de la réduction doit être supérieur à 0.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!Number.isFinite(maxUses) || maxUses < 1 || !Number.isFinite(validityDays) || validityDays < 1) {
+      toast({ title: "Quota ou validité invalide", description: "Le quota et la validité doivent être d'au moins 1.", variant: "destructive" });
+      return;
+    }
+    if (!isFounderMode && !shopId) {
+      toast({ title: "Boutique introuvable", description: "Impossible de rattacher le code à une boutique.", variant: "destructive" });
+      return;
+    }
+
+    // Un code est unique dans son périmètre (boutique, ou abonnements Ecomfy), sans tenir compte de la casse.
+    let existingQuery = (supabase as any).from("promo_codes").select("code").ilike("code", finalCode);
+    existingQuery = isFounderMode ? existingQuery.is("shop_id", null) : existingQuery.eq("shop_id", shopId);
+    const { data: existing } = await existingQuery;
 
     if (existing && existing.length > 0) {
       toast({
@@ -243,7 +267,7 @@ export default function PromoCodeManager({
         discount_amount: discountType === "fixed_amount" ? discountValue : 0,
         discount_type: isFounderMode && discountType === "free_shipping" ? "percentage" : discountType,
         max_uses: maxUses,
-        min_order_amount: isFounderMode ? 0 : minOrderAmount,
+        min_order_amount: isFounderMode ? 0 : Math.max(0, Number.isFinite(minOrderAmount) ? minOrderAmount : 0),
         target_user_email: targetType === "specific_user" && targetEmailOrPhone.includes("@") ? targetEmailOrPhone.trim().toLowerCase() : null,
         target_user_phone: targetType === "specific_user" && !targetEmailOrPhone.includes("@") ? targetEmailOrPhone.trim() : null,
         expires_at: expiresAt.toISOString(),
@@ -327,12 +351,14 @@ export default function PromoCodeManager({
 
   const toggleCodeStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("promo_codes")
         .update({ is_active: !currentStatus })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Seul le propriétaire de la boutique peut modifier un code promo.");
 
       toast({
         title: "Statut mis à jour",
@@ -347,8 +373,9 @@ export default function PromoCodeManager({
 
   const deleteCode = async (id: string) => {
     try {
-      const { error } = await (supabase as any).from("promo_codes").delete().eq("id", id);
+      const { data, error } = await (supabase as any).from("promo_codes").delete().eq("id", id).select("id");
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Seul le propriétaire de la boutique peut supprimer un code promo.");
       toast({ title: "Code supprimé", description: "Le code promo a été supprimé." });
       setPromoCodes(prev => prev.filter(c => c.id !== id));
     } catch (error: any) {
@@ -403,7 +430,7 @@ export default function PromoCodeManager({
             <p className="text-xs text-slate-500 mt-1">
               {isFounderMode
                 ? "Créez des réductions (10%, 20%, 50%...) applicables uniquement sur les abonnements SaaS Ecomfy (Pass VIP 35 000 FCFA, Formations, Crédits IA) et attribuez-les aux marchands."
-                : "Générez des réductions sur les articles de votre boutique (pourcentage, montant fixe, livraison offerte) et partagez-les à vos clients."}
+                : "Générez des réductions sur les articles de votre boutique (pourcentage ou montant fixe), avec un minimum de commande, et partagez-les à vos clients."}
             </p>
           </div>
 
@@ -497,10 +524,10 @@ export default function PromoCodeManager({
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => applyPreset("freeship")}
+                  onClick={() => applyPreset("fixed")}
                   className="rounded-2xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 justify-start gap-2"
                 >
-                  <span>🚚 Livraison Offerte</span>
+                  <span>🎁 -2 000 FCFA dès 8 000</span>
                 </Button>
               </>
             )}
@@ -570,10 +597,9 @@ export default function PromoCodeManager({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Pourcentage (%)</SelectItem>
-                    <SelectItem value="fixed_amount">Montant Fixe en FCFA sur l'Abonnement</SelectItem>
-                    {!isFounderMode && (
-                      <SelectItem value="free_shipping">🚚 Livraison Offerte (Articles Boutique)</SelectItem>
-                    )}
+                    <SelectItem value="fixed_amount">
+                      {isFounderMode ? "Montant Fixe en FCFA sur l'Abonnement" : "Montant Fixe en FCFA sur la commande"}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -586,6 +612,7 @@ export default function PromoCodeManager({
                   <Input
                     type="number"
                     min="1"
+                    max={discountType === "percentage" ? 100 : undefined}
                     value={discountValue}
                     onChange={(e) => setDiscountValue(Number(e.target.value))}
                     className="text-xs font-bold"
@@ -777,15 +804,21 @@ export default function PromoCodeManager({
                         <Badge className="bg-[#0E7C66]/10 text-[#0E7C66] border border-[#0E7C66]/30 text-[10px] font-bold">
                           {c.discount_type === "free_shipping"
                             ? "🚚 Livraison Offerte"
-                            : c.discount_amount
-                            ? `-${c.discount_amount.toLocaleString()} FCFA sur Abonnement`
-                            : `-${c.discount_percentage}% sur Abonnement`}
+                            : c.discount_type === "fixed_amount" || (c.discount_amount ?? 0) > 0
+                            ? `-${(c.discount_amount || 0).toLocaleString("fr-FR")} FCFA ${isFounderMode ? "sur Abonnement" : "sur la commande"}`
+                            : `-${c.discount_percentage}% ${isFounderMode ? "sur Abonnement" : "sur la commande"}`}
                         </Badge>
 
                         <Badge variant="outline" className="text-[10px] text-slate-600">
                           <Users className="h-3 w-3 mr-1 text-slate-400" />
                           {c.current_uses}/{c.max_uses} utilisations
                         </Badge>
+
+                        {!isFounderMode && (c.min_order_amount ?? 0) > 0 && (
+                          <Badge variant="outline" className="text-[10px] text-slate-600">
+                            Dès {(c.min_order_amount || 0).toLocaleString("fr-FR")} FCFA
+                          </Badge>
+                        )}
                       </div>
 
                       {/* Target Attachment Badge */}

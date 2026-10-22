@@ -46,6 +46,7 @@ import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPu
 import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
 import { createPublicOrder } from "@/services/publicOrderService";
+import { PromoCodeField, type AppliedPromo } from "@/components/shop/PromoCodeField";
 
 // Non-critical, below-the-fold widgets. Loaded only after the LCP image and
 // the "Commander maintenant" button are interactive — keeps the initial JS
@@ -541,6 +542,9 @@ const ProductView = () => {
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
+  // Remise de l'aperçu, répercutée sur les montants des boutons « Commander » (le serveur recalcule à la commande).
+  const promoOff = promo?.discount ?? 0;
 
   const scrollToCheckout = () => {
     if (shop?.theme_config?.checkout_form_position === 'modal') {
@@ -672,6 +676,7 @@ const ProductView = () => {
         customerCity: customerInfo.city,
         customerCountry: detectedCountry,
         paymentMethod: customerInfo.paymentMethod,
+        promoCode: promo?.code,
         items: effectiveOrderCart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
@@ -682,6 +687,10 @@ const ProductView = () => {
       const orderId = created.orderId;
       const order = { id: created.orderId, order_number: created.orderNumber };
       effectiveOrderCartTotal = created.total;
+      if (promo && !created.promoApplied) {
+        toast({ title: "Code promo non appliqué", description: created.promoMessage || "Le code n'a pas pu être appliqué à cette commande.", variant: "destructive" });
+      }
+      setPromo(null);
       // Distinguer le tracking Meta: InitiateCheckout pour paiement en ligne, Purchase pour paiement à la livraison
       const trackingPayload = {
         value: effectiveOrderCartTotal,
@@ -961,9 +970,26 @@ const ProductView = () => {
                   </div>
                 ))}
                       
+                      {shop && (
+                        <PromoCodeField
+                          shopId={shop.id}
+                          subtotal={effectiveTotal}
+                          customerPhone={customerInfo.phone}
+                          customerEmail={customerInfo.email}
+                          primaryColor={primaryColor}
+                          applied={promo}
+                          onChange={setPromo}
+                        />
+                      )}
+                      {promo && promo.discount > 0 && (
+                        <div className="flex justify-between text-sm font-semibold text-emerald-700">
+                          <span>Code {promo.code}</span>
+                          <span>- {formatPrice(Math.min(promo.discount, effectiveTotal))} FCFA</span>
+                        </div>
+                      )}
                       <div className="border-t border-gray-200 pt-3 mt-1 flex justify-between items-end">
                         <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total à payer</span>
-                        <span className="font-black text-xl leading-none" style={{ color: primaryColor }}>{formatPrice(effectiveTotal)} FCFA</span>
+                        <span className="font-black text-xl leading-none" style={{ color: primaryColor }}>{formatPrice(effectiveTotal - (promo ? Math.min(promo.discount, effectiveTotal) : 0))} FCFA</span>
                       </div>
                     </>
                   );
@@ -1247,7 +1273,7 @@ const ProductView = () => {
               setOrderSuccess(false); 
             }}
           >
-            <Lock className="h-5 w-5" /> Valider ma commande · {formatPrice(cartTotal)} FCFA
+            <Lock className="h-5 w-5" /> Valider ma commande · {formatPrice(cartTotal - (promo ? Math.min(promo.discount, cartTotal) : 0))} FCFA
             <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
           </Button>
         </div>
@@ -1259,7 +1285,7 @@ const ProductView = () => {
           <div className="max-w-6xl mx-auto flex items-center gap-2 sm:gap-3">
             <div className="flex-1 min-w-0 hidden md:block">
               <p className="font-bold text-sm truncate">{product.name}</p>
-              <p className="font-black text-base sm:text-lg" style={{ color: primaryColor }}>{formatPrice(product.price * quantity)} FCFA</p>
+              <p className="font-black text-base sm:text-lg" style={{ color: primaryColor }}>{formatPrice(Math.max(product.price * quantity - promoOff, 0))} FCFA</p>
             </div>
 
             {/* Sticky Inline Quantity Control */}
@@ -1303,7 +1329,7 @@ const ProductView = () => {
                   </span>
                   {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
                     <span className="text-[9.5px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
-                      {formatPrice(product.price * quantity)} FCFA
+                      {formatPrice(Math.max(product.price * quantity - promoOff, 0))} FCFA
                     </span>
                   )}
                 </div>
@@ -1854,7 +1880,7 @@ const ProductView = () => {
                           </span>
                           {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
                             <span className="text-[10px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
-                              {formatPrice(product.price * quantity)} FCFA
+                              {formatPrice(Math.max(product.price * quantity - promoOff, 0))} FCFA
                             </span>
                           )}
                         </div>

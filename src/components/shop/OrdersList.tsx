@@ -38,6 +38,8 @@ interface Order {
   customer_address: string | null;
   customer_city: string | null;
   total: number;
+  promo_code?: string | null;
+  discount_amount?: number | null;
   payment_method: string;
   payment_status: string;
   order_status: string;
@@ -264,6 +266,9 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
       order.products_summary.split(" ; ").forEach((p) => lines.push(`• ${p}`));
     }
     lines.push("");
+    if (order.promo_code && Number(order.discount_amount) > 0) {
+      lines.push(`🎟️ Code ${order.promo_code} : -${fmt(Number(order.discount_amount))} FCFA`);
+    }
     lines.push(`💰 TOTAL : ${fmt(order.total)} FCFA`);
     lines.push(`💳 Paiement : ${order.payment_method === "mobile_money" ? "Mobile Money" : "À la livraison"}`);
     return lines.join("\n");
@@ -542,6 +547,11 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                     </div>
                     <div className="text-right">
                       <p className="font-bold">{fmt(order.total)} FCFA</p>
+                      {order.promo_code && Number(order.discount_amount) > 0 && (
+                        <p className="text-[11px] font-medium text-emerald-700">
+                          Code {order.promo_code} : -{fmt(Number(order.discount_amount))} FCFA
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {new Date(order.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </p>
