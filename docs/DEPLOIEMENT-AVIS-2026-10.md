@@ -1,6 +1,6 @@
 # Avis produits boutique : correctifs du 23/10/2026
 
-**Branche :** `jeanmarc` (commité, voir le journal git : `fix(boutique): avis …`). **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix` ; le projet lié dans ce dépôt est **dev** (`xfpbpxncserliskrbaim`).
+**Branche :** `jeanmarc` (commité : `6055689`). **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix` ; le projet lié dans ce dépôt est **dev** (`xfpbpxncserliskrbaim`).
 
 **Guides liés :** [`DEPLOIEMENT-PRODUITS-2026-10.md`](DEPLOIEMENT-PRODUITS-2026-10.md) (la suppression de produit en dépend, A5), [`DEPLOIEMENT-APPARENCE-THEMES-2026-10.md`](DEPLOIEMENT-APPARENCE-THEMES-2026-10.md) (thèmes pro, A10), [`DEPLOIEMENT-FACTURATION-2026-10.md`](DEPLOIEMENT-FACTURATION-2026-10.md) (migrations 20261023120000 à 20261023150000, indépendantes de celle-ci).
 
