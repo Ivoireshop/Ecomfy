@@ -37,6 +37,7 @@ import {
   fetchProductVideoData,
   isProductOrderable,
   getCheckoutThemeStyles,
+  readableTextOn,
   type ProductAudio,
   type ProductThemeSettings,
   type ProductVideo,
@@ -862,7 +863,16 @@ const ProductView = () => {
 
   const isCustomTheme = !!themeSettings?.theme_slug && !new URLSearchParams(window.location.search).get("classic");
   const isInlineCheckout = shop?.theme_config?.checkout_form_position !== 'modal';
-  const checkoutStyles = getCheckoutThemeStyles(shop?.theme_config?.checkout_bg, primaryColor);
+  const checkoutStyles = (() => {
+    const base = getCheckoutThemeStyles(shop?.theme_config?.checkout_bg, primaryColor);
+    // « Couleur de texte générale » (menu Thème → Check-out) : texte courant du formulaire.
+    return shop?.theme_config?.checkout_text ? { ...base, textColor: shop.theme_config.checkout_text } : base;
+  })();
+  // « Couleur bouton de commande » et « Texte du bouton » (menu Thème → Check-out).
+  const orderButtonStyle = {
+    backgroundColor: shop?.theme_config?.checkout_btn_color || primaryColor,
+    color: shop?.theme_config?.checkout_btn_text || "#FFFFFF",
+  };
   const productTitleColor = shop?.theme_config?.product_title_color || (checkoutStyles.isDark ? "#FFFFFF" : checkoutStyles.textColor);
 
   const checkoutContent = (
@@ -1228,7 +1238,7 @@ const ProductView = () => {
                   <div className="pt-2">
                     <Button 
                       className="w-full h-12 sm:h-14 rounded-xl text-[15px] sm:text-lg font-bold gap-2 text-white shadow-md hover:shadow-lg transition-all"
-                      style={{ backgroundColor: primaryColor }}
+                      style={orderButtonStyle}
                       onClick={placeOrder} 
                       disabled={orderLoading}
                     >
@@ -1298,7 +1308,10 @@ const ProductView = () => {
               shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
               shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
             }`} 
-            style={{ backgroundColor: primaryColor }} 
+            style={{
+              backgroundColor: shop.theme_config?.checkout_btn_color || primaryColor,
+              color: shop.theme_config?.checkout_btn_text || "#FFFFFF",
+            }} 
             onClick={() => { 
               if (shop.theme_config?.checkout_form_position === 'top' || shop.theme_config?.checkout_form_position === 'bottom') {
                 const el = document.getElementById("inline-checkout-form");
@@ -1348,7 +1361,10 @@ const ProductView = () => {
 
             <Button 
               className={`flex-1 sm:flex-none h-11 sm:h-14 rounded-xl font-black flex items-center justify-center px-2 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all group relative z-20 ${getCTAAnimationClass(shop.theme_config?.cta_animation_type, shop.theme_config?.cta_animation_speed)}`}
-              style={{ backgroundColor: primaryColor }}
+              style={{
+                backgroundColor: shop.theme_config?.checkout_btn_color || primaryColor,
+                color: shop.theme_config?.checkout_btn_text || "#FFFFFF",
+              }}
               onClick={() => {
                 addToCart(product, quantity, true, true);
                 scrollToCheckout();
@@ -1358,14 +1374,14 @@ const ProductView = () => {
             >
               <div className="flex items-center justify-center gap-1.5 sm:gap-2 max-w-full overflow-hidden px-1">
                 <div className="p-1 rounded-full bg-white/20 shrink-0 flex items-center justify-center">
-                  <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:scale-110 transition-transform text-white" />
+                  <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:scale-110 transition-transform" />
                 </div>
                 <div className="flex flex-col items-center sm:items-start text-center sm:text-left leading-tight min-w-0">
-                  <span className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-white truncate max-w-full">
+                  <span className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider truncate max-w-full">
                     {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
                   </span>
                   {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
-                    <span className="text-[9.5px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
+                    <span className="text-[9.5px] sm:text-xs font-semibold opacity-90 truncate max-w-full">
                       {formatPrice(currentPayable)} FCFA
                     </span>
                   )}
@@ -1389,6 +1405,7 @@ const ProductView = () => {
             shopName={shop.business_name}
             primaryColor={shop.primary_color}
             secondaryColor={shop.secondary_color}
+            hideEcomfyBranding={shop.theme_config?.hide_ecomfy_branding === true}
           />
         </Suspense>
       )}
@@ -1497,11 +1514,16 @@ const ProductView = () => {
       {/* Header - conditionally hidden */}
       {!shop.theme_config?.hide_product_header && (
         <header
-          className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)]"
+          className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)]"
           style={{
             "--shop-header-mobile-bg": themeConfig.header_mobile_bg || "#FFFFFF",
             "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg || "#FFFFFF",
-            borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "#e5e7eb",
+            "--shop-header-mobile-border": themeConfig.header_mobile_border === false ? "transparent" : (themeConfig.header_mobile_border_color || "#e5e7eb"),
+            "--shop-header-desktop-border": themeConfig.header_desktop_border === false ? "transparent" : (themeConfig.header_desktop_border_color || themeConfig.header_mobile_border_color || "#e5e7eb"),
+            "--shop-header-mobile-text": readableTextOn(themeConfig.header_mobile_bg || themeConfig.header_desktop_bg),
+            "--shop-header-desktop-text": readableTextOn(themeConfig.header_desktop_bg || themeConfig.header_mobile_bg),
+            "--shop-header-mobile-btn": themeConfig.header_mobile_btn || "currentColor",
+            "--shop-header-desktop-btn": themeConfig.header_desktop_btn || themeConfig.header_mobile_btn || "currentColor",
           } as CSSProperties}
         >
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
@@ -1528,7 +1550,7 @@ const ProductView = () => {
                       </div>
                     )}
                     {showName && (
-                      <span className="font-bold text-sm sm:text-base truncate">{shop.business_name}</span>
+                      <span className="font-bold text-sm sm:text-base truncate text-[color:var(--shop-header-mobile-text)] md:text-[color:var(--shop-header-desktop-text)]">{shop.business_name}</span>
                     )}
                   </>
                 );
@@ -1538,7 +1560,7 @@ const ProductView = () => {
             <div className="flex items-center gap-2">
               {shop.whatsapp_number && (
                 <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-[color:var(--shop-header-mobile-btn)] md:text-[color:var(--shop-header-desktop-btn)]">
                     <Phone className="h-4 w-4" />
                   </Button>
                 </a>
@@ -1899,7 +1921,10 @@ const ProductView = () => {
                   ) : (
                     <Button 
                       className={`w-full h-[54px] sm:h-16 rounded-2xl font-black flex items-center justify-center px-2 sm:px-6 text-white shadow-xl hover:shadow-2xl transition-all group relative z-20 ${getCTAAnimationClass(shop.theme_config?.cta_animation_type, shop.theme_config?.cta_animation_speed)}`}
-                      style={{ backgroundColor: primaryColor }}
+                      style={{
+                        backgroundColor: shop.theme_config?.checkout_btn_color || primaryColor,
+                        color: shop.theme_config?.checkout_btn_text || "#FFFFFF",
+                      }}
                       onClick={() => {
                         addToCart(product, quantity, true, true);
                         scrollToCheckout();
@@ -1908,14 +1933,14 @@ const ProductView = () => {
                     >
                       <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 max-w-full overflow-hidden px-1">
                         <div className="p-1 sm:p-1.5 rounded-full bg-white/20 shrink-0 flex items-center justify-center">
-                          <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform text-white" />
+                          <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex flex-col items-center sm:items-start text-center sm:text-left leading-tight min-w-0">
-                          <span className="text-[11px] xs:text-xs sm:text-base font-extrabold tracking-wider uppercase text-white truncate max-w-full">
+                          <span className="text-[11px] xs:text-xs sm:text-base font-extrabold tracking-wider uppercase truncate max-w-full">
                             {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
                           </span>
                           {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
-                            <span className="text-[10px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
+                            <span className="text-[10px] sm:text-xs font-semibold opacity-90 truncate max-w-full">
                               {formatPrice(currentPayable)} FCFA
                             </span>
                           )}
@@ -2064,7 +2089,9 @@ const ProductView = () => {
           </div>
           <div className="text-center text-xs text-gray-400 mt-6 flex items-center justify-center gap-1">
             {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
-            Propulsé par <span className="font-semibold text-gray-600">Ecomfy</span>
+            {shop.theme_config?.hide_ecomfy_branding !== true && (
+              <>Propulsé par <span className="font-semibold text-gray-600">Ecomfy</span></>
+            )}
           </div>
         </div>
       </footer>

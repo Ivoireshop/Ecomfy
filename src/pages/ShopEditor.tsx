@@ -150,6 +150,25 @@ const productValidationSchema = z.object({
   weight: z.number().min(0, "Le poids ne peut pas être négatif").nullable().optional(),
 });
 
+// Champs de la boutique modifiables dans l'éditeur et enregistrés par « Enregistrer » (voir saveShop).
+const EDITABLE_SHOP_KEYS = [
+  "slug", "business_name", "business_description", "whatsapp_number", "phone_number", "email", "city",
+  "primary_color", "secondary_color", "chatbot_enabled", "chatbot_welcome_message", "is_published",
+  "seo_title", "seo_description", "logo_url", "banner_url", "favicon_url",
+  "facebook_pixels", "tiktok_pixels", "snapchat_pixels", "google_analytics_ids", "google_analytics_code",
+  "checkout_fields", "cod_delivery_rate", "payment_methods", "theme_config", "tracking_enabled",
+  "social_proof_enabled", "delivery_advisor_phone", "order_confirmation_message", "facebook_test_event_code",
+  "ga4_measurement_id", "notification_settings",
+  "facebook_access_token", "tiktok_access_token", "snapchat_access_token", "ga4_api_secret",
+  "google_ads_conversion_id", "google_ads_conversion_label",
+] as const;
+
+const pickEditableShopFields = (shop: any) => {
+  const picked: Record<string, any> = {};
+  for (const key of EDITABLE_SHOP_KEYS) picked[key] = shop?.[key] ?? null;
+  return picked;
+};
+
 const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -203,6 +222,14 @@ const ShopEditor = () => {
     return rows;
   }, [id]);
 
+  // Copie en mémoire de la boutique et empreinte de ses champs modifiables telle qu'enregistrée en base
+  // (dernier chargement ou dernière sauvegarde) : sert à repérer les modifications non enregistrées.
+  const shopRef = useRef<any>(null);
+  const savedShopSnapshotRef = useRef<string | null>(null);
+  useEffect(() => { shopRef.current = shop; }, [shop]);
+
+  // Un rechargement (retour sur l'onglet, fermeture d'un éditeur…) ne doit jamais écraser des réglages non enregistrés :
+  // un marchand qui règle ses couleurs puis regarde sa vitrine dans un autre onglet les perdait tous.
   const fetchData = useCallback(async () => {
     if (!id) return;
     const [shopRes, secretsRes, productsRes, visitsData] = await Promise.all([
@@ -238,7 +265,7 @@ const ShopEditor = () => {
     }
     if (shopRes.data) {
       const secrets = (secretsRes as any)?.data || {};
-      setShop({
+      const freshShop = {
         ...shopRes.data,
         facebook_access_token: secrets.facebook_access_token ?? null,
         tiktok_access_token: secrets.tiktok_access_token ?? null,
@@ -248,7 +275,18 @@ const ShopEditor = () => {
         google_ads_conversion_label: secrets.google_ads_conversion_label ?? null,
         weekly_finance_email: secrets.weekly_finance_email ?? null,
         weekly_finance_email_enabled: secrets.weekly_finance_email_enabled ?? false,
-      });
+      };
+      const local = shopRef.current;
+      const hasUnsavedEdits = !!local
+        && savedShopSnapshotRef.current !== null
+        && JSON.stringify(pickEditableShopFields(local)) !== savedShopSnapshotRef.current;
+      if (hasUnsavedEdits) {
+        // On garde les champs en cours de modification et on rafraîchit le reste (activation, paiement…).
+        setShop({ ...freshShop, ...pickEditableShopFields(local) });
+      } else {
+        savedShopSnapshotRef.current = JSON.stringify(pickEditableShopFields(freshShop));
+        setShop(freshShop);
+      }
     }
     if (productsRes.data) {
       setProducts((productsRes.data as Product[]).map(product => ({
@@ -372,7 +410,11 @@ const ShopEditor = () => {
           if (wasLocked && nowActive) {
             toast({ title: "✅ Boutique déverrouillée", description: "Paiement confirmé. Accès complet aux commandes restauré." });
           }
-          return { ...prev, ...next };
+          // Les réglages en cours de modification (non enregistrés) ne sont pas écrasés par une mise à jour venue d'ailleurs.
+          const hasUnsavedEdits = !!prev
+            && savedShopSnapshotRef.current !== null
+            && JSON.stringify(pickEditableShopFields(prev)) !== savedShopSnapshotRef.current;
+          return hasUnsavedEdits ? { ...prev, ...next, ...pickEditableShopFields(prev) } : { ...prev, ...next };
         });
       })
       .subscribe();
@@ -568,7 +610,9 @@ const ShopEditor = () => {
 
     if (error || secretsError) toast({ title: "Erreur", description: (error || secretsError)?.message, variant: "destructive" });
     else {
+      savedShopSnapshotRef.current = JSON.stringify(pickEditableShopFields({ ...shop, slug: nextSlug }));
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
+      invalidatePublicCaches();
       toast({ title: "✓ Sauvegardé" });
       if (shop.is_published && shop.is_activated) {
         triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${nextSlug}`);

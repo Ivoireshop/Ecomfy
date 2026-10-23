@@ -87,6 +87,10 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
 
   const installedMetas = SHOP_THEME_LIST.filter((t) => installed.includes(t.slug));
 
+  // Le « Constructeur Dynamique » n'est pas un thème prêt à l'emploi : il n'a de contenu qu'une fois la mise en page
+  // enregistrée dans l'Éditeur Visuel (qui l'active lui-même). On ne le propose donc pas dans le catalogue gratuit.
+  const catalogue = SHOP_THEME_LIST.filter((t) => t.slug !== "dynamic-builder");
+
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-10">
       <div>
@@ -218,7 +222,7 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
       <section>
         <h2 className="text-sm font-semibold text-muted-foreground mb-3">Tous les thèmes gratuits</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SHOP_THEME_LIST.map((t) => (
+          {catalogue.map((t) => (
             <ThemeCard
               key={t.slug}
               meta={t}
@@ -247,9 +251,14 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
               <Button size="sm" variant={previewMobile ? "secondary" : "ghost"} onClick={() => setPreviewMobile(true)}>
                 <Smartphone className="h-4 w-4 mr-1" /> Mobile
               </Button>
-              {previewSlug && (
-                <Button size="sm" onClick={() => { installTheme(previewSlug); }}>
-                  <Plus className="h-4 w-4 mr-1" /> Installer
+              {previewSlug && !installed.includes(previewSlug) && (
+                <Button size="sm" disabled={saving === previewSlug} onClick={() => { installTheme(previewSlug); }}>
+                  {saving === previewSlug ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />} Installer
+                </Button>
+              )}
+              {previewSlug && installed.includes(previewSlug) && activeSlug !== previewSlug && (
+                <Button size="sm" disabled={saving === previewSlug} onClick={() => { activateTheme(previewSlug); }}>
+                  {saving === previewSlug ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Activer
                 </Button>
               )}
               <Button size="icon" variant="ghost" onClick={() => setPreviewSlug(null)}>
@@ -257,7 +266,11 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
               </Button>
             </div>
           </DialogHeader>
-          <div className="flex-1 overflow-auto bg-muted/40">
+          {/* Aperçu : les liens de la boutique ne doivent pas faire quitter le tableau de bord. */}
+          <div
+            className="flex-1 overflow-auto bg-muted/40"
+            onClickCapture={(e) => { if ((e.target as HTMLElement).closest("a")) e.preventDefault(); }}
+          >
             {previewSlug && (
               <div className={previewMobile ? "mx-auto my-4 w-[390px] max-w-full rounded-[2rem] overflow-hidden shadow-xl bg-white border-8 border-neutral-900" : ""}>
                 <ShopThemeRenderer
@@ -265,6 +278,7 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
                   shop={shop}
                   products={products}
                   customSettings={themeConfig.custom_settings}
+                  embedded
                 />
               </div>
             )}

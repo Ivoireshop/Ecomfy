@@ -126,7 +126,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                       badge: "Texte pur"
                     },
                   ].map((mode) => {
-                    const isSelected = (themeConfig.header_display_mode || "logo_only") === mode.id;
+                    const isSelected = (themeConfig.header_display_mode || (shop.logo_url ? "logo_only" : "name_only")) === mode.id;
                     return (
                       <button
                         key={mode.id}
@@ -829,7 +829,8 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </Label>
                 {(() => {
                   const currentBg = themeConfig.checkout_bg || "#FFFFFF";
-                  const contrastStyles = getCheckoutThemeStyles(currentBg, shop.primary_color);
+                  const baseContrastStyles = getCheckoutThemeStyles(currentBg, shop.primary_color);
+                  const contrastStyles = themeConfig.checkout_text ? { ...baseContrastStyles, textColor: themeConfig.checkout_text } : baseContrastStyles;
                   const btnBg = themeConfig.checkout_btn_color || shop.primary_color || "#2563eb";
                   const btnText = themeConfig.checkout_btn_text || "#FFFFFF";
 

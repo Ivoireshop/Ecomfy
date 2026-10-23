@@ -28,6 +28,7 @@ import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheInvalidate, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
 import { useDeferredMount } from "@/lib/useDeferredMount";
+import { readableTextOn } from "@/lib/productAppearance";
 import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
 import { HomepageRenderer } from "@/components/shop/HomepageBuilder/HomepageRenderer";
 
@@ -804,6 +805,13 @@ const ShopView = () => {
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
+  // « Nombre de colonnes de produits (Desktop) » du menu Thème : 3, 4 (défaut) ou 5 ; 2 colonnes sur mobile.
+  const productsGridCols = themeConfig?.products_per_row === 3
+    ? "md:grid-cols-3"
+    : themeConfig?.products_per_row === 5
+      ? "md:grid-cols-3 lg:grid-cols-5"
+      : "md:grid-cols-4";
+
   const shopTitle = shop.seo_title || shop.business_name || "Boutique";
   const shopDescription = shop.seo_description || shop.business_description || `Boutique ${shop.business_name} sur Ecomfy`;
   const shopImage = shop.logo_url || shop.favicon_url || "https://storage.googleapis.com/gpt-engineer-file-uploads/YasR3rLLCfTPxhyVC44DaAaelxo2/social-images/social-1766315146557-T%C3%A9moignage%20(3).jpg";
@@ -841,9 +849,19 @@ const ShopView = () => {
 
       {/* Sticky Header - Premium Glassmorphism */}
       <header
-        className="border-b sticky top-0 z-40 bg-white/85 backdrop-blur-xl shadow-sm transition-all duration-300"
+        className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg,rgba(255,255,255,0.85))] md:bg-[var(--shop-header-desktop-bg,rgba(255,255,255,0.85))] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)] backdrop-blur-xl shadow-sm transition-all duration-300"
         style={{
-          borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "rgba(0,0,0,0.05)",
+          ...(themeConfig.header_mobile_bg || themeConfig.header_desktop_bg ? {
+            "--shop-header-mobile-bg": themeConfig.header_mobile_bg || themeConfig.header_desktop_bg,
+            "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg,
+          } : {}),
+          "--shop-header-mobile-border": themeConfig.header_mobile_border === false ? "transparent" : (themeConfig.header_mobile_border_color || "rgba(0,0,0,0.05)"),
+          "--shop-header-desktop-border": themeConfig.header_desktop_border === false ? "transparent" : (themeConfig.header_desktop_border_color || themeConfig.header_mobile_border_color || "rgba(0,0,0,0.05)"),
+          // Le nom de la boutique reste lisible quel que soit le fond d'en-tête choisi dans « Thème ».
+          "--shop-header-mobile-text": readableTextOn(themeConfig.header_mobile_bg || themeConfig.header_desktop_bg),
+          "--shop-header-desktop-text": readableTextOn(themeConfig.header_desktop_bg || themeConfig.header_mobile_bg),
+          "--shop-header-mobile-btn": themeConfig.header_mobile_btn || "#9ca3af",
+          "--shop-header-desktop-btn": themeConfig.header_desktop_btn || themeConfig.header_mobile_btn || "#9ca3af",
         } as CSSProperties}
       >
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-4 sm:gap-6">
@@ -878,7 +896,7 @@ const ShopView = () => {
                     </div>
                   )}
                   {showName && (
-                    <span className="font-extrabold text-lg sm:text-xl md:text-2xl truncate tracking-tight text-gray-900 group-hover:opacity-80 transition-opacity">{tShop.business_name}</span>
+                    <span className="font-extrabold text-lg sm:text-xl md:text-2xl truncate tracking-tight text-[color:var(--shop-header-mobile-text)] md:text-[color:var(--shop-header-desktop-text)] group-hover:opacity-80 transition-opacity">{tShop.business_name}</span>
                   )}
                 </>
               );
@@ -887,7 +905,7 @@ const ShopView = () => {
           
           {/* Search - Desktop */}
           <div className="hidden md:flex relative flex-1 max-w-xl mx-auto group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--shop-header-desktop-btn)] group-focus-within:text-primary transition-colors" />
             <Input 
               placeholder="Rechercher un produit..." 
               value={searchQuery} 
@@ -903,7 +921,7 @@ const ShopView = () => {
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="hidden sm:flex">
                 <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 sm:h-12 sm:w-12 bg-gray-50 hover:bg-green-50 hover:text-green-600 transition-colors">
-                  <Phone className="h-5 w-5" />
+                  <Phone className="h-5 w-5" style={{ color: themeConfig.header_desktop_btn || themeConfig.header_mobile_btn || undefined }} />
                 </Button>
               </a>
             )}
@@ -932,7 +950,7 @@ const ShopView = () => {
       <ShopReviewBar themeConfig={themeConfig} placement="below" />
 
       {/* Hero Section */}
-      {(() => {
+      {themeConfig?.hero_enabled !== false && (() => {
         const heroBannerUrl =
           shop.banner_url ||
           shop.hero_image_url ||
@@ -1108,7 +1126,7 @@ const ShopView = () => {
             </p>
             <div className="w-20 h-1.5 rounded-full mt-4" style={{ backgroundColor: primaryColor }} />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          <div className={`grid grid-cols-2 ${productsGridCols} gap-4 sm:gap-6 lg:gap-8`}>
             {effectiveFeaturedProducts.slice(0, 4).map((product, idx) => (
               <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
                 const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
@@ -1154,7 +1172,7 @@ const ShopView = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+        <div className={`grid grid-cols-2 ${productsGridCols} gap-4 sm:gap-6 lg:gap-8`}>
           {visibleProducts.map((product, idx) => (
             <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} eager={idx < 4 && featuredProducts.length === 0} onAddToCart={addToCart} onView={(p) => {
               const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
@@ -1188,6 +1206,7 @@ const ShopView = () => {
       )}
 
       {/* Contact Section */}
+      {themeConfig?.contact_section_enabled !== false && (
       <section className="bg-gray-900 text-white py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h2 className="text-3xl sm:text-4xl font-black mb-4">Besoin d'aide ?</h2>
@@ -1217,6 +1236,7 @@ const ShopView = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Footer */}
       <footer
@@ -1254,7 +1274,9 @@ const ShopView = () => {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 opacity-80">
             {shop.city && <><MapPin className="h-4 w-4" /> {shop.city}, {shop.country || "Côte d'Ivoire"} <span className="mx-2 opacity-30">|</span></>}
-            Créé avec <a href="https://ecomfy.cloud" target="_blank" rel="noopener noreferrer" className="font-extrabold text-foreground ml-1 hover:underline decoration-2 underline-offset-2">Ecomfy</a>
+            {themeConfig?.hide_ecomfy_branding !== true && (
+              <>Créé avec <a href="https://ecomfy.cloud" target="_blank" rel="noopener noreferrer" className="font-extrabold text-foreground ml-1 hover:underline decoration-2 underline-offset-2">Ecomfy</a></>
+            )}
           </div>
         </div>
       </footer>
@@ -1426,6 +1448,14 @@ const ShopView = () => {
                           <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
                         </div>
                       </div>
+                      {themeConfig?.cart_banner_enabled === true && (
+                        <div
+                          className="rounded-xl px-4 py-3 text-center text-sm font-medium"
+                          style={{ backgroundColor: themeConfig.cart_banner_bg || "#FEF3C7", color: themeConfig.cart_banner_text_color || "#92400E" }}
+                        >
+                          {themeConfig.cart_banner_text || "🚚 Livraison gratuite pour les commandes de plus de 10 000 FCFA"}
+                        </div>
+                      )}
                       <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
                         Continuer <ArrowRight className="h-4 w-4" />
                       </Button>
@@ -1615,6 +1645,7 @@ const ShopView = () => {
             shopName={shop.business_name}
             primaryColor={shop.primary_color}
             secondaryColor={shop.secondary_color}
+            hideEcomfyBranding={shop.theme_config?.hide_ecomfy_branding === true}
           />
         </Suspense>
       )}
