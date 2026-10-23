@@ -106,17 +106,27 @@ serve(async (req) => {
       });
       if (finErr) {
         console.error("[ecomfy-pay-webhook] finalize_withdrawal error:", finErr);
+        // Sans cela, la nouvelle tentative du prestataire serait écartée comme doublon et le retrait ne serait jamais clôturé.
+        await supabase.from("payment_events").delete().eq("provider", "geniuspay").eq("event_id", payoutEventId);
         return ack({ success: false, error: "Cannot finalize withdrawal" }, 500);
       }
       return ack({ success: !!finRes?.success, ...finRes });
     }
 
-    // Confirmation auprès de l'API GeniusPay avant de traiter un succès. Placée avant l'insertion
-    // d'idempotence : en cas d'échec (503), la nouvelle tentative du fournisseur n'est pas ignorée.
-    // `remoteAmount` / `remoteCurrency` : montant réellement encaissé, comparé plus bas à ecomfy_payments.amount (C6).
+    // Succès ou échec explicite uniquement : un événement intermédiaire (créé, en cours…) ne doit jamais faire échouer un paiement.
+    const isSuccess = event === "payment.success" || data?.status === "completed" || data?.status === "success";
+    const failureRe = /(fail|cancel|expire|declin|reject|error)/;
+    const isFailure = !isSuccess && (failureRe.test(eventName) || failureRe.test(String(data?.status || "").toLowerCase()));
+    if (!isSuccess && !isFailure) {
+      return ack({ success: true, ignored: true, event: eventName });
+    }
+
+    // Confirmation auprès de l'API GeniusPay avant de traiter un succès. Placée avant la transaction :
+    // en cas d'échec (503), rien n'est inscrit et la nouvelle tentative du fournisseur est traitée normalement.
+    // `remoteAmount` / `remoteCurrency` : montant réellement encaissé, comparé à ecomfy_payments.amount (C6) par confirm_ecomfy_payment.
     let remoteAmount: unknown = undefined;
     let remoteCurrency: unknown = undefined;
-    if (event === "payment.success" || data?.status === "completed" || data?.status === "success") {
+    if (isSuccess) {
       const apiKey = Deno.env.get("GENIUSPAY_API_KEY");
       const apiSecret = Deno.env.get("GENIUSPAY_API_SECRET");
       if (!apiKey || !apiSecret || !providerRef) {
@@ -147,111 +157,62 @@ serve(async (req) => {
       }
     }
 
-    // 1. Idempotence Webhook
-    const eventId = req.headers.get("x-webhook-delivery") || `${providerRef}_${event}`;
-    const { error: dupErr } = await supabase.from("payment_events").insert({
-      event_id: eventId,
-      provider: "geniuspay",
-      event_type: event,
-      payload: payload,
+    // Paiement → commande → crédit du portefeuille : une seule transaction côté base (confirm_ecomfy_payment), verrouillée,
+    // idempotente et rejouable. Le montant encaissé est comparé à celui enregistré à l'initialisation (C6) dans la même fonction.
+    // L'événement n'est inscrit dans payment_events qu'avec le résultat : une livraison tombée en erreur est rejouée par le
+    // prestataire (500 ci-dessous) au lieu d'être écartée comme doublon.
+    const eventId = req.headers.get("x-webhook-delivery") || `${providerRef || internalRef}_${event}`;
+    const { data: res, error: rpcErr } = await supabase.rpc("confirm_ecomfy_payment", {
+      p_internal_reference: internalRef || null,
+      p_provider_reference: providerRef ? String(providerRef) : null,
+      p_outcome: isSuccess ? "SUCCEEDED" : "FAILED",
+      p_remote_amount: isSuccess ? Number(remoteAmount) : null,
+      p_remote_currency: isSuccess && remoteCurrency ? String(remoteCurrency) : null,
+      p_event_id: eventId,
+      p_event_type: String(event),
+      p_payload: payload,
+      p_failure_reason: isFailure ? (data?.failure_reason || data?.message || null) : null,
     });
 
-    if (dupErr && (dupErr as any).code === "23505") {
-      console.log("[ecomfy-pay-webhook] Duplicate webhook ignored:", eventId);
-      return ack({ success: true, duplicate: true });
+    if (rpcErr) {
+      console.error("[ecomfy-pay-webhook] confirm_ecomfy_payment error:", rpcErr);
+      return ack({ success: false, error: "Cannot confirm payment" }, 500);
     }
 
-    // 2. Récupérer le paiement Ecomfy Pay
-    let query = supabase.from("ecomfy_payments").select("*");
-    if (internalRef) {
-      query = query.eq("internal_reference", internalRef);
-    } else {
-      query = query.eq("provider_reference", providerRef);
-    }
-
-    const { data: payment, error: fetchErr } = await query.maybeSingle();
-
-    if (fetchErr || !payment) {
-      console.warn("[ecomfy-pay-webhook] Payment record not found:", { internalRef, providerRef });
-      return ack({ success: false, error: "Payment record not found" });
-    }
-
-    // Anti-double crédit si déjà SUCCEEDED
-    if (payment.status === "SUCCEEDED") {
-      return ack({ success: true, already_processed: true });
-    }
-
-    // 3. Traiter le statut du paiement
-    const isSuccess = event === "payment.success" || data?.status === "completed" || data?.status === "success";
-
-    // C6 : le montant encaissé chez GeniusPay doit être celui enregistré à l'initialisation (et la même devise).
-    // Sinon : ni crédit du portefeuille ni commande marquée payée ; réponse 200 pour ne pas relancer en boucle.
-    if (isSuccess) {
-      const currencyOk = remoteCurrency === undefined || remoteCurrency === null
-        || String(remoteCurrency).toUpperCase() === String(payment.currency || "XOF").toUpperCase();
-      if (!remoteAmountMatches(remoteAmount, payment.amount) || !currencyOk) {
-        console.error("[ecomfy-pay-webhook] Amount mismatch, payment not credited:", {
-          internalRef: payment.internal_reference,
-          expected: payment.amount,
-          received: remoteAmount,
-          expectedCurrency: payment.currency,
-          receivedCurrency: remoteCurrency,
-        });
-        return ack({ success: false, error: "Amount mismatch", reference: payment.internal_reference });
+    if (!res?.success) {
+      if (res?.retryable) {
+        // Transaction annulée en bloc (rien n'a bougé) : le prestataire doit réessayer.
+        console.error("[ecomfy-pay-webhook] Transaction rolled back, provider will retry:", res?.error);
+        return ack({ success: false, error: "Payment processing failed, retry later" }, 500);
       }
+      if (res?.pending_replay) {
+        // Portefeuille gelé : encaissement et commande acquis, crédit rejoué par ecomfy-pay-settlement après le dégel.
+        console.warn("[ecomfy-pay-webhook] Credit blocked, will be replayed:", res?.internal_reference, res?.error);
+        return ack({ success: true, status: res.status, credit_pending: true, reference: res.internal_reference });
+      }
+      // Paiement introuvable ou montant différent (déjà journalisé) : 200 pour ne pas relancer en boucle.
+      console.warn("[ecomfy-pay-webhook] Not processed:", res?.error, res?.reference || { internalRef, providerRef });
+      return ack({ success: false, error: res?.error, reference: res?.reference });
     }
 
-    if (isSuccess) {
-      // Mettre à jour la transaction
-      await supabase
-        .from("ecomfy_payments")
-        .update({
-          status: "SUCCEEDED",
-          provider_reference: providerRef || payment.provider_reference,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", payment.id);
+    if (!isSuccess) {
+      return ack({ success: true, status: res.status });
+    }
 
-      // Si une commande est liée, la marquer comme PAYÉE
-      if (payment.order_id) {
-        await supabase
-          .from("orders")
-          .update({
-            payment_status: "PAID",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", payment.order_id);
-      }
-
-      // Crédit atomique sur le Wallet du vendeur en PENDING BALANCE
-      const { data: creditRes, error: creditErr } = await supabase.rpc(
-        "credit_merchant_wallet_pending",
-        {
-          p_merchant_id: payment.merchant_id,
-          p_payment_id: payment.id,
-          p_gross_amount: Number(payment.amount),
-          p_net_amount: Number(payment.net_merchant_amount),
-          p_currency: payment.currency,
-          p_settlement_hours: 72,
-          p_reference: payment.internal_reference,
-        }
-      );
-
-      if (creditErr) {
-        console.error("[ecomfy-pay-webhook] Wallet credit error:", creditErr);
-      } else {
-        console.log("[ecomfy-pay-webhook] Wallet credited successfully:", creditRes);
-      }
-
-      // Envoyer notification au vendeur (e-mail transactionnel best-effort)
+    // Notification au vendeur : seulement quand ce traitement vient de créditer (pas à chaque rejeu). E-mail best-effort,
+    // clé d'idempotence par paiement.
+    if (res?.steps?.credit === "done") {
       try {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("email, full_name")
-          .eq("id", payment.merchant_id)
+        const { data: payment } = await supabase
+          .from("ecomfy_payments")
+          .select("id, merchant_id, amount, net_merchant_amount, internal_reference, payment_method")
+          .eq("id", res.payment_id)
           .maybeSingle();
+        const { data: profile } = payment
+          ? await supabase.from("profiles").select("email, full_name").eq("id", payment.merchant_id).maybeSingle()
+          : { data: null };
 
-        if (profile?.email) {
+        if (payment && profile?.email) {
           await supabase.functions.invoke("send-transactional-email", {
             body: {
               templateName: "order-payment-success",
@@ -270,19 +231,9 @@ serve(async (req) => {
       } catch (e) {
         console.warn("[ecomfy-pay-webhook] Notification email failed:", e);
       }
-
-      return ack({ success: true, status: "SUCCEEDED" });
-    } else {
-      await supabase
-        .from("ecomfy_payments")
-        .update({
-          status: "FAILED",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", payment.id);
-
-      return ack({ success: true, status: "FAILED" });
     }
+
+    return ack({ success: true, status: "SUCCEEDED", already_processed: !!res.already_processed, steps: res.steps });
   } catch (err: any) {
     console.error("[ecomfy-pay-webhook] Unexpected error:", err);
     return ack({ success: false, error: err.message || "Webhook error" });

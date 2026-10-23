@@ -28,8 +28,9 @@ Les prérequis de la vague 2 (C5 secret du webhook, C6 montants serveur, revue K
 
 1. **Migration** `20261022140000` (section 3).
 2. **Migration** `20261022150000` (section 9, audit M4), si le système de facturation est déjà en production.
-3. **Edge Functions** `ecomfy-pay-withdraw`, `ecomfy-pay-webhook`, puis `ecomfy-pay-initiate` (sections 4 et 9).
-4. **Front** (branche `jeanmarc`).
+3. **Migration** `20261023100000` (section 10, audit M6).
+4. **Edge Functions** `ecomfy-pay-withdraw`, `ecomfy-pay-webhook`, `ecomfy-pay-settlement`, puis `ecomfy-pay-initiate` (sections 4, 9 et 10).
+5. **Front** (branche `jeanmarc`).
 
 Pourquoi migration d'abord : le nouveau front trie le ledger par `entry_seq` et la fenêtre de retrait envoie `p_payout_operator`. Avec l'ancienne base, la liste du portefeuille serait vide (colonne inconnue) et les retraits échoueraient (paramètre inconnu). **L'ancien front et les anciennes fonctions restent compatibles avec la nouvelle base** : le paramètre ajouté est facultatif et les nouvelles colonnes sont nullables ou ont une valeur par défaut.
 
@@ -157,7 +158,7 @@ Les colonnes ajoutées peuvent rester : elles sont inoffensives pour l'ancien co
 
 | Environnement | Migration | Edge Functions | Front |
 |---|---|---|---|
-| Dev | Appliquée le 22/10 (+ partie retrait de `20261022150000`) | Déployées le 22/10 (`ecomfy-pay-initiate` redéployée) | Local seulement ; checkout et liens testés dans le navigateur (section 9) |
+| Dev | Appliquée le 22/10 (+ partie retrait de `20261022150000`) ; `20261023100000` appliquée le 23/10 (section 10) | Déployées le 22/10 ; webhook, settlement et initiate redéployées le 23/10 | Local seulement ; checkout, liens et portefeuille testés dans le navigateur (sections 9 et 10) |
 | Production | **Non** (Ecomfy Pay absent, section 0) | Non | Non |
 
 ## 9. Références non devinables et checkout réel (audit M4, 22/10/2026)
@@ -233,3 +234,80 @@ Dans le navigateur : ouvrir un lien `/pay/<clé>` d'une boutique ; payer le mont
 - navigateur (Chrome, utilisateur et boutique de test créés puis supprimés) : création de lien, paiement sur lien à montant fixe enregistré en `PENDING`, cas sans boutique (message clair, aucune création).
 
 **Reste à brancher :** sans clés `GENIUSPAY_API_KEY` / `GENIUSPAY_API_SECRET` (cas de dev), `ecomfy-pay-initiate` renvoie un succès sans `checkout_url` et le paiement reste `PENDING` ; en production, le client est redirigé vers l'opérateur.
+
+## 10. Paiement → commande → crédit en une transaction, rejouable (audit M6, 23/10/2026)
+
+**Fichier :** `supabase/migrations/20261023100000_ecomfy_pay_confirm_transaction.sql`, à appliquer **après** `20261022140000` (le ledger enrichit les écritures du crédit). Ne pas utiliser `db push`.
+
+**Le défaut corrigé.** Le webhook faisait trois écritures séparées : paiement `SUCCEEDED`, commande `PAID`, crédit du portefeuille. Si le crédit échouait, l'erreur était seulement journalisée et le webhook acquitté ; le paiement étant déjà `SUCCEEDED`, plus aucun rejeu ne le reprenait : **argent encaissé, marchand jamais crédité**. L'événement était aussi inscrit dans `payment_events` *avant* le traitement : la nouvelle tentative du prestataire était écartée comme doublon. Enfin tout événement qui n'était pas un succès (« créé », « en cours »…) faisait passer le paiement à `FAILED`.
+
+| Élément | Comportement |
+|---|---|
+| `confirm_ecomfy_payment(...)` (`service_role`) | Verrouille le paiement, contrôle montant et devise (C6, tolérance 1 FCFA), puis paiement `SUCCEEDED` + commande `paid` + crédit en attente **dans la même transaction** : tout ou rien. Chaque étape est idempotente (`updated` / `already` / `none` / `done` / `blocked`) : rappeler la fonction termine ce qui manque et ne crédite jamais deux fois (verrou, `settlements.payment_id`, index unique du ledger). |
+| Erreur en cours de route | Rien n'a bougé (paiement resté `PENDING`), l'erreur est inscrite dans `payment_events` (`processing_status = 'ERROR'`), le webhook répond **500** : le prestataire réessaie et la même livraison est retraitée. |
+| Portefeuille gelé | L'encaissement reste acquis (paiement `SUCCEEDED`, commande `paid`), le crédit est `blocked` (`CREDIT_BLOCKED`), le webhook répond 200 ; le balayage crédite après le dégel. |
+| Échec (`p_outcome = 'FAILED'`) | Ne touche que `CREATED` / `PENDING` / `PROCESSING`. Un échec tardif ou rejoué ne défait jamais un paiement encaissé. Un succès tardif après `FAILED` est encaissé et crédité. |
+| `replay_incomplete_ecomfy_payments(limite)` (`service_role`) | Reprend tout paiement `SUCCEEDED` sans règlement ou dont la commande n'est pas payée (y compris les états laissés par l'ancien webhook). Retourne `examined / completed / blocked / failed`. |
+| `payment_events` | `processing_status` : `PROCESSED`, `AMOUNT_MISMATCH`, `PAYMENT_NOT_FOUND`, `ERROR`, `CREDIT_BLOCKED`. L'état d'un événement est mis à jour à chaque rejeu. |
+| Commande | `payment_status` s'écrit désormais **`paid`** en minuscules (valeur lue par `mcp`, `reconcile-tracking`, résumé hebdomadaire). Le `PAID` majuscule de l'ancien webhook n'était lu par personne. La migration rattrape les commandes déjà en `PAID` et liées à un paiement Ecomfy Pay. |
+
+**Edge Functions.**
+- `ecomfy-pay-webhook` : appelle `confirm_ecomfy_payment` ; n'envoie l'e-mail au vendeur que lorsque ce traitement vient de créditer ; ignore les événements intermédiaires. Les événements de payout ne sont plus écartés si `finalize_withdrawal` échoue (la ligne d'événement est retirée avant le 500, sinon la nouvelle tentative était ignorée).
+- `ecomfy-pay-settlement` : **exige désormais** la clé de service (`Authorization: Bearer`) ou `x-cron-secret` (`isAuthorizedCron`), comme les autres fonctions de planification. **Tout appelant actuel sans autorisation recevra 401** : vérifier le planificateur (pg_cron / `invoke_edge_function`) avant de déployer. Elle rejoue d'abord les paiements incomplets, puis libère les règlements échus.
+- `ecomfy-pay-initiate` : l'annulation d'une commande dont le prestataire n'a pas répondu ignore aussi `paid` en minuscules.
+
+```powershell
+$P = "yfggrceynzcwklbxhgix"
+npx supabase db query --linked -f supabase/migrations/20261023100000_ecomfy_pay_confirm_transaction.sql   # vérifier le projet lié avant
+npx supabase@latest functions deploy ecomfy-pay-webhook    --project-ref $P --use-api
+npx supabase@latest functions deploy ecomfy-pay-settlement --project-ref $P --use-api
+npx supabase@latest functions deploy ecomfy-pay-initiate   --project-ref $P --use-api
+```
+
+**Vérifier (lecture seule) :**
+
+```sql
+select has_function_privilege('anon','public.confirm_ecomfy_payment(text,text,text,numeric,text,text,text,jsonb,text)','execute') a,
+       has_function_privilege('authenticated','public.replay_incomplete_ecomfy_payments(int)','execute') b,
+       has_function_privilege('service_role','public.confirm_ecomfy_payment(text,text,text,numeric,text,text,text,jsonb,text)','execute') c;   -- false, false, true
+-- paiements encaissés mais sans règlement (attendu 0 après un passage de ecomfy-pay-settlement)
+select p.internal_reference, p.status from ecomfy_payments p left join settlements s on s.payment_id = p.id
+where p.status = 'SUCCEEDED' and s.id is null;
+-- livraisons en erreur, crédit bloqué ou montant refusé
+select event_id, processing_status, error_message, created_at from payment_events
+where processing_status in ('ERROR','CREDIT_BLOCKED','AMOUNT_MISMATCH') order by created_at desc;
+```
+
+Sans autorisation, `ecomfy-pay-settlement` doit répondre 401 ; avec la clé de service, 200 et un champ `replay`.
+
+**Rejeu manuel** d'un paiement précis (éditeur SQL, rôle `postgres` ou `service_role`) : `select public.confirm_ecomfy_payment(p_internal_reference := 'ECM-PAY-XXXXXXXXXXXX');` (sans montant distant, accepté seulement si le paiement est déjà `SUCCEEDED`). Un paiement resté `PENDING` dont le webhook n'est jamais arrivé n'est **pas** repris automatiquement : il n'y a pas encore de relecture de l'état chez GeniusPay pour `ecomfy_payments` (limite connue).
+
+**Test :** `supabase/tests/ecomfy_pay_confirm.sql` (36 contrôles : succès, rejeu, montant et devise, panne simulée au règlement puis rejeu, portefeuille gelé puis dégel, état hérité, échecs, droits). Dev uniquement ; se termine par une exception qui annule tout ; attendu `(0 échecs)`. Passé sur dev le 23/10/2026 : 0 échec.
+
+**Parcours navigateur sur dev (23/10/2026).** Lien `/pay/…` → paiement `PENDING` (`ecomfy-pay-initiate`) ; faux montant refusé ; confirmation → paiement `SUCCEEDED`, crédit en attente de 97,5 % du montant (frais Ecomfy 2,5 %) ; tableau de bord et onglet Wallet du marchand affichent le solde en attente et une seule écriture au registre ; rejeu de la même livraison : crédit « déjà fait », aucune seconde écriture. **Non testé de bout en bout : le webhook lui-même** (dev n'a ni clés GeniusPay ni `GENIUSPAY_WEBHOOK_SECRET`, il répond 500 sans secret) ; la livraison a été simulée en appelant `confirm_ecomfy_payment`. Le chemin avec commande liée n'est couvert que par le test SQL.
+
+**Retour arrière.** Redéployer l'ancien `ecomfy-pay-webhook` suffit (il n'appelle pas les fonctions ajoutées ; les commandes écrites `paid` restent valides). Suppression possible : `drop function public.replay_incomplete_ecomfy_payments(int); drop function public.confirm_ecomfy_payment(text,text,text,numeric,text,text,text,jsonb,text); drop function public.ecomfy_log_payment_event(text,text,uuid,jsonb,text,text);`.
+
+| Environnement | Migration | Edge Functions |
+|---|---|---|
+| Dev | Appliquée le 23/10 ; test 0 échec | Déployées le 23/10 (`ecomfy-pay-settlement` répond 401 sans autorisation) |
+| Production | Non (Ecomfy Pay absent, section 0) | Non |
+
+### 10.1 Checklist production (dans l'ordre)
+
+1. **Prérequis** : vague 2 d'Ecomfy Pay en production (section 0), puis `20261022140000` et, si le système de facturation est déployé, `20261022150000` (section 9). `20261023100000` n'a besoin que des tables Ecomfy Pay et de `credit_merchant_wallet_pending`.
+2. **Planificateur de `ecomfy-pay-settlement`** : la fonction exige maintenant la clé de service ou `x-cron-secret`. Avant de la déployer, repérer qui l'appelle (pg_cron, `invoke_edge_function`, planificateur externe) et lui faire envoyer `Authorization: Bearer <clé de service>` (ou `x-cron-secret` = `CRON_SECRET`, déjà défini en production depuis le 14/10). Aucune planification de cette fonction n'existe dans les migrations du dépôt : s'il n'y en a pas en production, en créer une (toutes les 5 à 15 minutes) ; sans elle, ni le rejeu ni la libération des règlements à 72 h ne tournent.
+3. **Sauvegarde** puis, en lecture seule, état de départ :
+   ```sql
+   select count(*) filter (where p.status='SUCCEEDED' and s.id is null) as encaisses_sans_reglement,
+          count(*) filter (where o.payment_status = 'PAID') as commandes_PAID_majuscules
+   from ecomfy_payments p left join settlements s on s.payment_id = p.id left join orders o on o.id = p.order_id;
+   ```
+   Sur une base où Ecomfy Pay vient d'être déployé, les deux valeurs doivent être 0. Sinon : le premier passage du balayage créditera ces paiements (c'est voulu) ; la migration passe aussi les `PAID` en `paid`.
+4. **Migration** `20261023100000` (commande de la section 10, après avoir vérifié le projet lié `yfggrceynzcwklbxhgix`). Ne pas lancer `supabase/tests/ecomfy_pay_confirm.sql` en production.
+5. **Edge Functions** dans cet ordre : `ecomfy-pay-webhook`, `ecomfy-pay-settlement`, `ecomfy-pay-initiate`. Déployer le webhook **après** la migration : l'ancien webhook reste compatible avec la nouvelle base, mais le nouveau échoue (500, donc réessayé par GeniusPay) tant que `confirm_ecomfy_payment` n'existe pas.
+6. **Vérifications** : requêtes de lecture de la section 10 ; `ecomfy-pay-settlement` sans autorisation → 401, avec la clé de service → 200 avec le champ `replay` ; `ecomfy-pay-webhook` sans signature → 401.
+7. **Premier vrai paiement** (petit montant) : suivre la ligne `payment_events` (`PROCESSED`), le paiement (`SUCCEEDED`), la commande (`paid`) et l'écriture `PAYMENT_PENDING` du ledger. C'est le seul test du webhook de bout en bout (`GENIUSPAY_WEBHOOK_SECRET`, `GENIUSPAY_API_KEY`, `GENIUSPAY_API_SECRET` doivent être définis ; sans eux le webhook répond 500 / 503 et GeniusPay réessaie).
+8. **Surveillance** les premiers jours : `payment_events` en `ERROR` ou `CREDIT_BLOCKED`, et la requête « encaissés sans règlement » (attendu 0 après un passage du balayage).
+
+**Retour arrière** : voir plus haut ; redéployer l'ancien `ecomfy-pay-webhook` (et, si le planificateur ne peut pas être adapté, l'ancien `ecomfy-pay-settlement`) suffit.

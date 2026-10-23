@@ -233,7 +233,7 @@ serve(async (req) => {
     if (order_id) {
       // Commande en paiement en ligne jamais payable : l'annuler évite une commande fantôme chez le marchand.
       await supabase.from("orders").update({ order_status: "cancelled", updated_at: new Date().toISOString() })
-        .eq("id", order_id).neq("payment_status", "PAID");
+        .eq("id", order_id).not("payment_status", "in", "(paid,PAID)");
     }
     return new Response(
       JSON.stringify({ success: false, error: "Le service de paiement est momentanément indisponible. Réessayez dans un instant." }),
