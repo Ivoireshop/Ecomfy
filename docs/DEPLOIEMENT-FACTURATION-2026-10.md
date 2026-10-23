@@ -1,6 +1,6 @@
 # Facturation boutique : correctifs du 23/10/2026
 
-**Branche :** `jeanmarc` (non commité). **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix`.
+**Branche :** `jeanmarc` (commité : `d8a60c6`). **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix`.
 
 ## 0. Contexte important
 

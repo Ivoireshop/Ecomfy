@@ -47,6 +47,8 @@ Fichiers : `ProductEditor.tsx`, `ShopEditor.tsx`, `lib/productVariants.ts`, `lib
 | T4 | Filtre actif sans résultat : message « Aucun produit — ajoutez votre premier produit ». | « Aucun résultat » + bouton Réinitialiser ; recherche aussi par SKU et catégorie. |
 | T5 | Publier (interrupteur) un produit à 0 FCFA ; caches non invalidés après masquer / supprimer / ordre des images. | Refus avec message ; caches invalidés. |
 
+> **Dépendance (suppression de produit)** : la suppression d'un produit était silencieusement annulée par la base (déclencheur `trg_enforce_lock_products`, `RETURN NEW` sur un `BEFORE DELETE`) : le correctif T1 ne pouvait pas aboutir. Il est dans la migration `20261023160000_product_reviews_hardening.sql` (voir [`DEPLOIEMENT-AVIS-2026-10.md`](DEPLOIEMENT-AVIS-2026-10.md) A5) : **à appliquer en prod pour que « Supprimer » fonctionne**, et c'est elle qui fait partir les avis avec le produit.
+
 ## 4. Fiche produit publique et boutique
 
 | # | Problème | Correction |
@@ -65,7 +67,7 @@ Fichiers : `ProductEditor.tsx`, `ShopEditor.tsx`, `lib/productVariants.ts`, `lib
 
 - **Edge Function `generate-product-sheet`** : son prompt demande encore à l'IA d'inventer 3 témoignages et sa version de secours en fabrique. Le front ne les utilise plus ; à nettoyer au prochain déploiement de la fonction.
 - **Bandeau « 🎁 Livraison gratuite & Offre spéciale »** (fiche produit, si aucune barre d'avis) et « Satisfait ou remboursé » (formulaire) sont écrits en dur pour toutes les boutiques.
-- **Nombre d'avis** : « (128 avis) » et 5 étoiles par défaut (`reviews_base_count`), indépendants des avis réels.
+- ~~**Nombre d'avis** : « (128 avis) » et 5 étoiles par défaut~~ : **corrigé** le 23/10 (badge = avis réels), voir [`DEPLOIEMENT-AVIS-2026-10.md`](DEPLOIEMENT-AVIS-2026-10.md) A13.
 - Le stock est un compteur marketing : la base ne le décrémente pas et ne bloque pas une commande en rupture (le blocage est côté front).
 - Prix de revient : non stocké volontairement (la table `products` est lisible publiquement).
 

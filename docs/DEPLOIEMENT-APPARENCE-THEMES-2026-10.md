@@ -1,6 +1,6 @@
 # Déploiement — Apparence et Thèmes de la boutique (23/10/2026)
 
-**Branche :** `jeanmarc`. **Front seul :** aucune migration SQL, aucune Edge Function. **Non commité.**
+**Branche :** `jeanmarc`. **Front seul :** aucune migration SQL, aucune Edge Function. **Commité : `01dabda`.** Les thèmes pro affichent désormais aussi les avis et la barre d'avis (voir [`DEPLOIEMENT-AVIS-2026-10.md`](DEPLOIEMENT-AVIS-2026-10.md) A10).
 
 Fichiers : `src/pages/ShopEditor.tsx`, `src/pages/ShopView.tsx`, `src/pages/ProductView.tsx`, `src/components/shop/ShopThemesManager.tsx`, `src/components/shop/ShopThemeSettings.tsx`, `src/components/shop/ShopAIAssistant.tsx`, `src/lib/shopThemes/ShopThemeRenderer.tsx`, `src/lib/shopThemes/themes/DynamicShop.tsx`, `src/lib/productAppearance.ts`.
 

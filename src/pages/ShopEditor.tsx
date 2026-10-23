@@ -204,6 +204,27 @@ const ShopEditor = () => {
   // Dérivé de la liste : reste exact quand une commande est lue depuis un autre appareil ou onglet.
   const unreadOrders = useMemo(() => orders.filter(o => !o.is_read).length, [orders]);
 
+  // Avis en attente de modération : pastille dans le menu (le marchand n'était jamais prévenu d'un nouvel avis).
+  const [pendingReviews, setPendingReviews] = useState(0);
+  useEffect(() => {
+    const shopId = shop?.id;
+    if (!shopId) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const { count, error } = await supabase
+        .from("product_reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("shop_id", shopId)
+        .eq("status", "pending");
+      if (!cancelled && !error) setPendingReviews(count ?? 0);
+    };
+    refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(refresh, 120000);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); window.clearInterval(timer); };
+  }, [shop?.id]);
+
   // Visites des 30 derniers jours, les plus récentes d'abord. PostgREST plafonne chaque réponse (1 000 lignes)
   // quel que soit .limit() : on lit par pages jusqu'à 5000 visites, sinon les statistiques sous-comptent dès 1 000 visites.
   const fetchVisits = useCallback(async () => {
@@ -1294,6 +1315,7 @@ const ShopEditor = () => {
     activeSection,
     onSectionChange: (s: ActiveSection) => { setActiveSection(s); setMobileSidebarOpen(false); },
     unreadOrders,
+    pendingReviews,
     productCount: products.length,
     isActivated: !!isActivated,
     onBack: () => navigate("/shop-manager"),
@@ -1717,7 +1739,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "reviews" && (
-            <ReviewsModeration shopId={shop.id} />
+            <ReviewsModeration shopId={shop.id} onPendingCountChange={setPendingReviews} />
           )}
 
           {activeSection === "collaborators" && isOwner && (

@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { LiveVisitorCounter } from "@/components/shop/LiveVisitorCounter";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
+import { useProductReviewStats } from "@/hooks/useProductReviewStats";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { PhoneInput } from "@/components/shop/PhoneInput";
@@ -197,6 +198,7 @@ const ProductView = () => {
   const [cityError, setCityError] = useState("");
 
   const [themeSettings, setThemeSettings] = useState<ProductThemeSettings | null>(null);
+  const reviewStats = useProductReviewStats(shop?.id, product?.id);
   const [productAudios, setProductAudios] = useState<ProductAudio[]>([]);
   // Guard against duplicate order submissions (double-tap on mobile, double-click,
   // Enter key spam). Uses a ref so state updates cannot race the second click.
@@ -838,6 +840,10 @@ const ProductView = () => {
   const primaryColor = shop.primary_color || "#2563eb";
   const themeConfig = shop.theme_config || {};
   const hasReviewBar = Boolean(themeConfig.review_bar_desktop_content || themeConfig.review_bar_mobile_content);
+  // Section des vrais avis (liste + formulaire). Seul son propre réglage la masque : l'interrupteur « Badge étoiles &
+  // compteur » (reviews_enabled) ne concerne que le badge sous le titre, il masquait aussi les vrais avis et le formulaire.
+  const showReviewsSection = themeConfig?.reviews_section_enabled !== false
+    && themeSettings?.custom_css_settings?.reviews_section_enabled !== false;
   const images = product.product_images || [];
   const discount = product.compare_at_price && product.compare_at_price > product.price
     ? Math.round((1 - product.price / product.compare_at_price) * 100)
@@ -1416,6 +1422,19 @@ const ProductView = () => {
     themeSettings?.theme_slug &&
     !new URLSearchParams(window.location.search).get("classic")
   ) {
+    // Les thèmes pro n'affichaient ni les avis, ni le formulaire, ni la barre d'avis : aucun client ne pouvait en déposer.
+    const themedReviews = deferredReady && showReviewsSection ? (
+      <Suspense fallback={null}>
+        <ProductReviews
+          shopId={shop.id}
+          productId={product.id}
+          primaryColor={primaryColor}
+          isPreview={!!shop._isPreview}
+          themeConfig={themeConfig}
+          themeSettings={themeSettings}
+        />
+      </Suspense>
+    ) : null;
     return (
       <>
         <Helmet>
@@ -1428,12 +1447,14 @@ const ProductView = () => {
           <meta property="og:type" content="product" />
           {primaryImage && <meta property="og:image" content={primaryImage} />}
         </Helmet>
+        <ShopReviewBar themeConfig={themeConfig} placement="above" />
         <Suspense fallback={<div className="min-h-screen bg-white" />}>
           <LazyThemeRenderer
             product={product}
             shop={shop}
             audios={productAudios}
             settings={themeSettings}
+            reviewsContent={themedReviews}
             fallback={<div className="min-h-screen bg-white" />}
             onCheckout={() => {
               scrollToCheckout();
@@ -1441,6 +1462,7 @@ const ProductView = () => {
             checkoutContent={checkoutContent}
           />
         </Suspense>
+        <ShopReviewBar themeConfig={themeConfig} placement="below" />
         {globalOverlays}
       </>
     );
@@ -1686,37 +1708,30 @@ const ProductView = () => {
               color={primaryColor} 
             />
 
-            {/* Reviews (rating + count) */}
-            {shop.theme_config?.reviews_enabled !== false && (() => {
-              const base = Number(shop.theme_config?.reviews_base_count ?? 128);
-              const incr = shop.theme_config?.reviews_increment_with_orders !== false;
-              const orders = Number((shop as any).total_orders || 0);
-              let count = base + (incr ? orders : 0);
-              // Realistic mode: deterministic daily variation within [min, max]
-              if (shop.theme_config?.reviews_realistic_mode) {
-                const min = Math.max(0, Number(shop.theme_config?.reviews_min ?? base));
-                const max = Math.max(min, Number(shop.theme_config?.reviews_max ?? base + 50));
-                const today = new Date();
-                const dayKey = `${today.getUTCFullYear()}-${today.getUTCMonth()}-${today.getUTCDate()}`;
-                const seedStr = `${product.id}-${dayKey}`;
-                let h = 2166136261;
-                for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619); }
-                const r = ((h >>> 0) % 1000) / 1000;
-                const variation = Math.floor(r * (max - min + 1));
-                count = min + variation + (incr ? orders : 0);
-              }
-              const rating = Math.min(5, Math.max(1, Number(shop.theme_config?.reviews_rating ?? 5)));
-              return (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-0.5">
-                    {[1,2,3,4,5].map(i => (
-                      <Star key={i} className={`h-4 w-4 sm:h-5 sm:w-5 ${i <= rating ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
-                    ))}
-                  </div>
-                  <span className="text-sm font-medium text-gray-500 hover:underline cursor-pointer">({count.toLocaleString("fr-FR")} avis)</span>
+            {/* Reviews (rating + count) : uniquement les vrais avis approuvés, jamais de valeur inventée */}
+            {shop.theme_config?.reviews_enabled !== false && reviewStats.count > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5" aria-label={`Note moyenne ${reviewStats.average.toFixed(1)} sur 5`}>
+                  {[1,2,3,4,5].map(i => (
+                    <Star key={i} className={`h-4 w-4 sm:h-5 sm:w-5 ${i <= Math.round(reviewStats.average) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
+                  ))}
                 </div>
-              );
-            })()}
+                {(() => {
+                  const label = `(${reviewStats.count.toLocaleString("fr-FR")} avis)`;
+                  return showReviewsSection ? (
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-gray-500 hover:underline cursor-pointer"
+                      onClick={() => document.getElementById("avis-clients")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <span className="text-sm font-medium text-gray-500">{label}</span>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Price */}
             <div className="flex items-end gap-3 pb-2 border-b border-gray-100">
@@ -2029,7 +2044,7 @@ const ProductView = () => {
       )}
 
       {/* ====== REVIEWS SECTION (deferred) ====== */}
-      {deferredReady && themeConfig?.reviews_section_enabled !== false && themeConfig?.reviews_enabled !== false && themeSettings?.custom_css_settings?.reviews_section_enabled !== false && themeSettings?.custom_css_settings?.reviews_enabled !== false && (
+      {deferredReady && showReviewsSection && (
         <Suspense fallback={null}>
           <ProductReviews
             shopId={shop.id}
