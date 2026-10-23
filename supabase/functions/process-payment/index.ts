@@ -219,9 +219,10 @@ serve(async (req) => {
 
     // C6 : le montant et les crédits viennent des tarifs serveur (_shared/pricing.ts), jamais du navigateur.
     let commissionBalanceDue: number | null = null;
+    let commissionRequireFull = false;
     if (payment_type === "commission_payment") {
       const { data: commissionShop } = shop_id
-        ? await supabase.from("shops").select("commission_balance_due").eq("id", shop_id).eq("user_id", user_id).maybeSingle()
+        ? await supabase.from("shops").select("commission_balance_due, shop_payment_status, is_suspended").eq("id", shop_id).eq("user_id", user_id).maybeSingle()
         : { data: null };
       if (!commissionShop) {
         return new Response(
@@ -230,10 +231,13 @@ serve(async (req) => {
         );
       }
       commissionBalanceDue = Number(commissionShop.commission_balance_due) || 0;
+      // Même définition que public.is_shop_restricted() et que RESTRICTED_SHOP_STATUSES côté interface.
+      commissionRequireFull = !!commissionShop.is_suspended
+        || ["STORE_RESTRICTED", "locked", "PAYMENT_OVERDUE", "final_suspension"].includes(commissionShop.shop_payment_status || "");
     }
 
     const priceCheck = checkAmount(
-      { paymentType: payment_type, plan, billingCycle: billing_cycle, creditsPack: credits_pack, commissionBalanceDue },
+      { paymentType: payment_type, plan, billingCycle: billing_cycle, creditsPack: credits_pack, commissionBalanceDue, commissionRequireFull },
       amount,
     );
     if (!priceCheck.ok) {

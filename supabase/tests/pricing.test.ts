@@ -66,6 +66,19 @@ test("commission : paiement partiel autorisé, jamais au-delà du solde, minimum
   assert.equal(c(12001, 12000), false);
   assert.equal(c(500, 0), false);
   assert.equal(c(500, null), false);
+  assert.equal(c(50, 50), true); // solde final inférieur au minimum : doit pouvoir être soldé
+  assert.equal(c(40, 50), false); // mais pas un paiement partiel sous le minimum
+});
+
+test("commission : boutique verrouillée, seul le solde complet est accepté", () => {
+  const c = (amount: number, due: number | null) =>
+    checkAmount({ paymentType: "commission_payment", commissionBalanceDue: due, commissionRequireFull: true }, amount).ok;
+  assert.equal(c(12000, 12000), true);
+  assert.equal(c(11950, 11950), true);
+  assert.equal(c(6000, 12000), false); // 50 % ne déverrouille rien : refusé avant l'encaissement
+  assert.equal(c(11999, 12000), false);
+  assert.equal(c(12001, 12000), false);
+  assert.equal(c(12000, 11999.5), true); // solde décimal : arrondi au franc supérieur, comme l'interface
 });
 
 test("type de paiement inconnu refusé", () => {

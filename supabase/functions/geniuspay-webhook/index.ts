@@ -453,7 +453,9 @@ serve(async (req) => {
       });
       if (subError || subResult?.success === false) {
         console.error("apply_shop_subscription failed:", { subError, subResult });
-        return ack({ success: false, error: "subscription_failed", reference }, true);
+        // 500 : l'abonnement est payé mais pas appliqué à la boutique, le fournisseur doit réessayer
+        // (apply_shop_subscription est idempotente par référence).
+        return ack({ success: false, error: "subscription_failed", reference }, true, 500);
       }
       console.log(`Shop subscription ${plan} activated for shop ${shopId}`, subResult);
     } else if (paymentType === "credits" && creditsSize > 0) {
@@ -483,25 +485,11 @@ serve(async (req) => {
       });
       console.log(`Credited ${creditsSize} credits to`, userId, "total:", newTotal);
     } else {
-      if (!paymentClaimed) {
-        console.log("Subscription already applied by another handler, skipping:", reference);
-        await awardAffiliateCommission();
-        return ack({ success: true, alreadyCompleted: true, reference }, true);
-      }
-      // Subscription
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 30);
-
-      await supabase.from("subscriptions").update({
-        status: "active",
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq("user_id", userId);
-
+      // Abonnement de la boutique : appliqué AVANT la réservation du paiement. Idempotent par référence, il peut donc
+      // être rejoué à chaque nouvelle livraison du webhook ; si une tentative a échoué, la suivante ne doit pas être
+      // écartée sous prétexte que le paiement est déjà « completed ».
       const plan = (metadata?.plan as string) || "pro_monthly";
-      await supabase.rpc("apply_shop_subscription", {
+      const { data: subResult, error: subError } = await supabase.rpc("apply_shop_subscription", {
         p_shop_id: metadata?.shop_id || null,
         p_user_id: userId,
         p_plan: plan,
@@ -509,6 +497,19 @@ serve(async (req) => {
         p_transaction_reference: reference || null,
         p_payment_method: data?.payment_method || data?.provider || "geniuspay",
       });
+      if (subError || subResult?.success === false) {
+        console.error("apply_shop_subscription failed:", { subError, subResult });
+        return ack({ success: false, error: "subscription_failed", reference }, true, 500);
+      }
+
+      if (!paymentClaimed) {
+        console.log("Subscription already applied by another handler, skipping:", reference);
+        await awardAffiliateCommission();
+        return ack({ success: true, alreadyCompleted: true, reference }, true);
+      }
+      // Subscription : apply_shop_subscription a déjà écrit la ligne `subscriptions` avec la vraie échéance (30 ou 365 jours)
+      const startDate = new Date();
+      const endDate = subResult?.active_until ? new Date(subResult.active_until) : new Date(startDate.getTime() + 30 * 86400000);
 
       // Send confirmation email
       try {

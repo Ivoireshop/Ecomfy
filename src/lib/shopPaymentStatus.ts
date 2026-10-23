@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { computeShopSubscription, type ShopSubscriptionState } from "@/lib/shopSubscription";
 
 export type ShopPaymentStatus = "active" | "payment_pending" | "locked" | "final_suspension";
 
@@ -22,6 +23,12 @@ export interface ShopPaymentInfo {
   extraDeadlineStartedAt: string | null;
   extraDeadlineEndsAt: string | null;
   extraDeadlineExpired: boolean;
+  subscription: ShopSubscriptionState;
+  /**
+   * Verrouillage pour abonnement non renouvelé (et non pour commission impayée) : l'espace est fermé sans échéance
+   * de fermeture définitive (second_deadline_at vide), seul le renouvellement le lève.
+   */
+  isSubscriptionLock: boolean;
 }
 
 export const SUPPORT_WHATSAPP = "22507581527 61".replace(/\s+/g, "");
@@ -48,6 +55,7 @@ export function computeShopPaymentInfo(shop: any): ShopPaymentInfo {
         ? shop?.first_deadline_at ?? shop?.payment_deadline ?? null
         : null;
   const remainingMs = deadline ? Math.max(0, new Date(deadline).getTime() - Date.now()) : 0;
+  const subscription = computeShopSubscription(shop);
   return {
     status,
     amountDue: Number(shop?.commission_balance_due) || 0,
@@ -67,6 +75,8 @@ export function computeShopPaymentInfo(shop: any): ShopPaymentInfo {
     extraDeadlineStartedAt: shop?.extra_deadline_started_at ?? null,
     extraDeadlineEndsAt,
     extraDeadlineExpired,
+    subscription,
+    isSubscriptionLock: isLocked && subscription.isExpired && !subscription.inGrace && !shop?.second_deadline_at,
   };
 }
 
@@ -92,7 +102,7 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
       const { data } = await supabase
         .from("shops")
         .select(
-          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at",
+          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at, subscription_plan, subscription_active_until",
         )
         .eq("id", shopId)
         .maybeSingle();
@@ -140,7 +150,7 @@ export function useShopPaymentStatus(shopId: string | null | undefined): ShopPay
       const { data } = await supabase
         .from("shops")
         .select(
-          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at",
+          "id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, payment_deadline, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at, subscription_plan, subscription_active_until",
         )
         .eq("id", shopId)
         .maybeSingle();

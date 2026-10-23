@@ -37,16 +37,33 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
   const [loading, setLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
+  // Réinitialisé à l'ouverture seulement : un rafraîchissement du solde pendant la saisie ne doit pas écraser le montant tapé.
   useEffect(() => {
     if (open) {
       setAmount(effectiveBalance);
       setLastError(null);
     }
-  }, [open, effectiveBalance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Montant réellement débité : le champ vide ou à 0 n'est plus interprété comme « tout le solde » (le bouton
+  // affichait alors « Payer 0 FCFA » mais le paiement partait pour le solde entier).
+  const chargeAmount = fullOnly ? Math.ceil(effectiveBalance) : Math.round(Number(amount) || 0);
+  const maxAmount = Math.ceil(effectiveBalance);
+  // Le minimum de 100 FCFA ne s'applique pas au solde final (voir pricing.ts côté serveur).
+  const minAmount = Math.min(100, maxAmount);
+  const amountError =
+    fullOnly
+      ? null
+      : chargeAmount < minAmount
+        ? `Minimum ${fmt(minAmount)} FCFA`
+        : chargeAmount > maxAmount
+          ? `Maximum ${fmt(maxAmount)} FCFA (solde dû)`
+          : null;
 
   const submit = async () => {
-    const chargeAmount = fullOnly ? effectiveBalance : (amount || effectiveBalance);
-    if (!chargeAmount || chargeAmount < 100) { toast({ title: "Montant invalide", description: "Minimum 100 FCFA", variant: "destructive" }); return; }
+    if (!chargeAmount || chargeAmount < minAmount) { toast({ title: "Montant invalide", description: `Minimum ${fmt(minAmount)} FCFA`, variant: "destructive" }); return; }
+    if (chargeAmount > maxAmount) { toast({ title: "Montant invalide", description: `Maximum ${fmt(maxAmount)} FCFA (solde dû)`, variant: "destructive" }); return; }
 
     setLoading(true);
     setLastError(null);
@@ -85,7 +102,6 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
   };
 
   const handleManualPayment = async () => {
-    const chargeAmount = fullOnly ? effectiveBalance : (amount || effectiveBalance);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connecté. Veuillez vous connecter.");
@@ -219,23 +235,24 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
                 </div>
                 <Input
                   type="number"
-                  min={100}
-                  max={Math.round(effectiveBalance)}
-                  value={amount}
+                  min={minAmount}
+                  max={maxAmount}
+                  step={1}
+                  value={amount === 0 ? "" : amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
                   className="mt-2"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Payez en plusieurs fois si besoin. Minimum 100 FCFA · Maximum : {fmt(effectiveBalance)} FCFA
+                <p className={`text-xs mt-1 ${amountError ? "text-red-600" : "text-muted-foreground"}`}>
+                  {amountError || `Payez en plusieurs fois si besoin. Minimum ${fmt(minAmount)} FCFA · Maximum : ${fmt(effectiveBalance)} FCFA`}
                 </p>
               </>
             )}
           </div>
 
           <div className="space-y-2 pt-1">
-            <Button onClick={submit} disabled={loading || !provider} className="w-full gap-2" size="lg">
+            <Button onClick={submit} disabled={loading || !provider || !!amountError || chargeAmount <= 0} className="w-full gap-2" size="lg">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-              {loading ? "Redirection..." : `Payer ${fmt(fullOnly ? Math.round(effectiveBalance) : amount)} FCFA en ligne`}
+              {loading ? "Redirection..." : `Payer ${fmt(chargeAmount)} FCFA en ligne`}
             </Button>
 
             <Button

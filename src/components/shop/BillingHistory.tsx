@@ -8,6 +8,9 @@ import { Loader2, Receipt, Wallet, AlertTriangle, CheckCircle2, Printer } from "
 import { InstallAppCard } from "./InstallAppCard";
 import { PayCommissionDialog } from "./PayCommissionDialog";
 import { BillingThresholdSection } from "./BillingThresholdSection";
+import { useToast } from "@/hooks/use-toast";
+import { isShopRowRestricted } from "@/lib/billingSystem";
+import { computeShopSubscription } from "@/lib/shopSubscription";
 
 interface BillingHistoryProps {
   shopId: string;
@@ -17,11 +20,16 @@ interface BillingHistoryProps {
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Number(n) || 0);
 const SUPPORT_PHONE = "+225 07 58 15 27 61";
+// La facture est écrite dans une fenêtre de même origine que l'application : tout texte venant de la base
+// (nom de boutique, méthode, référence) doit être échappé avant d'y être injecté.
+const esc = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 
 export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps) {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [payOpen, setPayOpen] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -38,16 +46,31 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
   const perOrder = Number(shop?.commission_per_order) || 50;
   const threshold = Number(shop?.commission_threshold) || 12000;
   const balanceDue = Number(shop?.commission_balance_due) || 0;
-  const totalPaid = payments.filter(p => p.status === "paid").reduce((s, p) => s + Number(p.amount), 0);
-  const totalBilled = orderCount * perOrder;
+  const paidPayments = payments.filter(p => p.status === "paid");
+  // Les règlements d'abonnement et d'activation ne sont pas des commissions : on les sépare pour que
+  // « facturé = payé + solde » reste vrai (avant : commandes x commission, faux pour une boutique abonnée
+  // dont la commission est nulle, et « payé » mélangeait tout).
+  const isCommissionPayment = (p: any) => !/abonnement|activation/i.test(p.notes || "");
+  const commissionPaid = paidPayments.filter(isCommissionPayment).reduce((s, p) => s + Number(p.amount), 0);
+  const otherPaid = paidPayments.filter(p => !isCommissionPayment(p)).reduce((s, p) => s + Number(p.amount), 0);
+  const totalBilled = commissionPaid + balanceDue;
+  const paidCount = paidPayments.filter(isCommissionPayment).length;
+  const subscription = computeShopSubscription(shop);
 
   const openInvoice = (p: any) => {
     const date = new Date(p.created_at).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
-    const isActivation = (p.notes || "").toLowerCase().includes("activation");
-    const label = isActivation ? "Activation de la boutique" : "Paiement de commission Ecomfy";
+    const notes = (p.notes || "").toLowerCase();
+    const isActivation = notes.includes("activation");
+    const isSubscription = notes.includes("abonnement");
+    const label = isActivation
+      ? "Activation de la boutique"
+      : isSubscription
+        ? `Abonnement Ecomfy${p.notes ? ` — ${String(p.notes).replace(/^abonnement\s*/i, "")}` : ""}`
+        : "Paiement de commission Ecomfy";
     const invoiceNum = `FAC-${(p.id || "").slice(0, 8).toUpperCase()}`;
+    const shopName = esc(shop?.business_name || "Boutique");
     const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"/>
-<title>${invoiceNum} — ${shop?.business_name || "Boutique"}</title>
+<title>${esc(invoiceNum)} — ${shopName}</title>
 <style>
  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#111;max-width:780px;margin:40px auto;padding:24px;}
  h1{font-size:24px;margin:0 0 4px}
@@ -66,8 +89,8 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
 <div class="row">
   <div>
     <h1>Facture</h1>
-    <div class="muted">N° ${invoiceNum}</div>
-    <div class="muted">Date : ${date}</div>
+    <div class="muted">N° ${esc(invoiceNum)}</div>
+    <div class="muted">Date : ${esc(date)}</div>
   </div>
   <div style="text-align:right">
     <div style="font-weight:700">Ecomfy</div>
@@ -77,20 +100,20 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
 </div>
 <div class="box">
   <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.04em">Facturé à</div>
-  <div style="font-weight:600;margin-top:4px">${shop?.business_name || "Boutique"}</div>
-  ${shop?.slug ? `<div class="muted">${shop.slug}.ecomfy.cloud</div>` : ""}
+  <div style="font-weight:600;margin-top:4px">${shopName}</div>
+  ${shop?.slug ? `<div class="muted">${esc(shop.slug)}.ecomfy.cloud</div>` : ""}
 </div>
 <table>
   <thead><tr><th>Description</th><th style="text-align:right">Montant</th></tr></thead>
   <tbody>
-    <tr><td>${label}</td><td style="text-align:right">${fmt(p.amount)} FCFA</td></tr>
+    <tr><td>${esc(label)}</td><td style="text-align:right">${fmt(p.amount)} FCFA</td></tr>
   </tbody>
 </table>
 <div class="total">Total payé : ${fmt(p.amount)} FCFA</div>
 <div style="margin-top:8px;text-align:right"><span class="pill">Payé</span></div>
 <div class="muted" style="margin-top:24px">
-  Méthode : ${p.payment_method || "—"}<br/>
-  Référence : ${p.transaction_reference || "—"}
+  Méthode : ${esc(p.payment_method || "—")}<br/>
+  Référence : ${esc(p.transaction_reference || "—")}
 </div>
 <div class="muted" style="margin-top:32px;font-size:12px;text-align:center">
   Merci pour votre confiance — Ecomfy · ecomfy.cloud
@@ -98,6 +121,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
 </body></html>`;
     const w = window.open("", "_blank");
     if (w) { w.document.write(html); w.document.close(); }
+    else toast({ title: "Facture bloquée par le navigateur", description: "Autorisez les fenêtres pop-up pour ce site, puis réessayez.", variant: "destructive" });
   };
 
   return (
@@ -111,21 +135,37 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
           Historique de facturation
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Suivez vos commissions Ecomfy : {fmt(perOrder)} FCFA prélevés par commande reçue.
+          {subscription.isActive
+            ? "Suivez vos règlements Ecomfy. Votre abonnement est actif : aucune commission n'est prélevée sur vos commandes."
+            : `Suivez vos commissions Ecomfy : ${fmt(perOrder)} FCFA prélevés par commande reçue.`}
         </p>
       </div>
+
+      {subscription.isActive && subscription.activeUntil && (
+        <Card className="p-4 border-emerald-500/40 bg-emerald-500/10">
+          <div className="text-sm text-emerald-800 dark:text-emerald-300">
+            Abonnement <b className="capitalize">{subscription.plan.replace(/_/g, " ")}</b> actif jusqu'au{" "}
+            <b>{subscription.activeUntil.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</b>.
+          </div>
+        </Card>
+      )}
 
       {/* Summary cards */}
       <div className="grid sm:grid-cols-3 gap-3">
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground mb-1">Total facturé</div>
-          <div className="text-2xl font-bold">{fmt(totalBilled)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
-          <div className="text-xs text-muted-foreground mt-1">{orderCount} commande{orderCount > 1 ? "s" : ""}</div>
+          <div className="text-xs text-muted-foreground mb-1">{subscription.isActive ? "Commission sur vos commandes" : "Commissions facturées"}</div>
+          <div className="text-2xl font-bold">{fmt(subscription.isActive ? 0 : totalBilled)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {subscription.isActive ? "Abonnement actif" : `${orderCount} commande${orderCount > 1 ? "s" : ""}`}
+          </div>
         </Card>
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600" />Total payé</div>
-          <div className="text-2xl font-bold text-green-600">{fmt(totalPaid)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
-          <div className="text-xs text-muted-foreground mt-1">{payments.filter(p => p.status === "paid").length} règlement{payments.length > 1 ? "s" : ""}</div>
+          <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600" />Commissions payées</div>
+          <div className="text-2xl font-bold text-green-600">{fmt(commissionPaid)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {paidCount} règlement{paidCount > 1 ? "s" : ""}
+            {otherPaid > 0 && <> · hors abonnement et activation ({fmt(otherPaid)} FCFA)</>}
+          </div>
         </Card>
         <Card className={`p-4 ${balanceDue > 0 ? "border-red-500/60 bg-red-50 dark:bg-red-950/20" : ""}`}>
           <div className={`text-xs mb-1 flex items-center gap-1 ${balanceDue > 0 ? "text-red-700 dark:text-red-400 font-semibold" : "text-muted-foreground"}`}>
@@ -159,7 +199,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
         </Card>
       )}
 
-      <PayCommissionDialog open={payOpen} onOpenChange={setPayOpen} shopId={shopId} balanceDue={balanceDue} />
+      <PayCommissionDialog open={payOpen} onOpenChange={setPayOpen} shopId={shopId} balanceDue={balanceDue} fullOnly={isShopRowRestricted(shop)} />
 
       {/* Install app card */}
       <InstallAppCard shopId={shopId} />

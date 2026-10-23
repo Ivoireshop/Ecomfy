@@ -29,6 +29,8 @@ export type PriceInput = {
   creditsPack?: { size: number; price: number } | null;
   /** Solde de commission dû de la boutique, lu en base (commission_payment uniquement). */
   commissionBalanceDue?: number | null;
+  /** Boutique verrouillée / restreinte : seul le règlement intégral du solde lève la restriction. */
+  commissionRequireFull?: boolean;
 };
 
 export type PriceResult =
@@ -68,8 +70,15 @@ export function checkAmount(input: PriceInput, amount: number): PriceResult {
       const due = Number(input.commissionBalanceDue);
       if (!Number.isFinite(due) || due <= 0) return { ok: false, error: "Aucune commission à régler." };
       // Paiement partiel autorisé (apply_commission_payment), mais jamais plus que le solde dû.
-      if (amount < MIN_COMMISSION_PAYMENT) return { ok: false, error: `Minimum ${MIN_COMMISSION_PAYMENT} FCFA.` };
+      // Le minimum ne s'applique pas au solde final : un reste de 50 FCFA (une commande) doit pouvoir être soldé,
+      // sinon une boutique verrouillée avec un tel reste ne pourrait plus jamais se déverrouiller en ligne.
+      if (amount < MIN_COMMISSION_PAYMENT && amount < Math.ceil(due)) return { ok: false, error: `Minimum ${MIN_COMMISSION_PAYMENT} FCFA.` };
       if (amount > Math.ceil(due)) return { ok: false, error: "Le montant dépasse la commission due." };
+      // Une boutique verrouillée ne se déverrouille qu'en payant tout le solde : un règlement partiel serait encaissé
+      // sans rien débloquer, alors que l'interface annonce « paiement complet obligatoire ».
+      if (input.commissionRequireFull && amount < Math.ceil(due)) {
+        return { ok: false, error: `Votre boutique est verrouillée : le règlement doit couvrir la totalité du solde (${Math.ceil(due)} FCFA).` };
+      }
       return { ok: true, amount, max: true };
     }
     default:
