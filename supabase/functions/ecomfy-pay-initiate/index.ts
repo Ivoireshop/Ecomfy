@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
+import { getDefaultConnector } from "../_shared/operators/index.ts";
 import { checkCustomerPayment, orderExpectedTotal } from "../_shared/pricing.ts";
 
 const corsHeaders = {
@@ -102,6 +102,8 @@ serve(async (req) => {
     const feeProvider = 0; // Calculable selon le provider
     const netMerchantAmount = amount - feeEcomfy - feeProvider;
 
+    const connector = getDefaultConnector();
+
     // Générer référence interne unique ECM-PAY-XXXXXXXX
     const internalReference = `ECM-PAY-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
 
@@ -118,7 +120,7 @@ serve(async (req) => {
         customer_name: customer_name || null,
         customer_phone: customer_phone || null,
         customer_email: customer_email || null,
-        provider: "geniuspay",
+        provider: connector.id,
         payment_method: payment_method,
         amount: amount,
         currency: currency,
@@ -143,11 +145,7 @@ serve(async (req) => {
       );
     }
 
-    // Appel au provider de paiement (ex: GeniusPay API)
-    const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
-    const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
-
-    if (!GENIUSPAY_API_KEY || !GENIUSPAY_API_SECRET) {
+    if (!connector.isConfigured()) {
       // Fallback mode démo / direct pour environnement sans clés externes renseignées
       return new Response(
         JSON.stringify({
@@ -163,72 +161,42 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://ecomfy.cloud";
 
-    const payload = {
+    const result = await connector.initiatePayment({
+      internalReference,
+      paymentId: paymentRecord.id,
+      merchantId,
+      shopId: shop_id,
       amount,
       currency,
+      paymentMethod: payment_method,
       description: `Paiement Ecomfy Pay — ${shop.business_name}`,
-      customer: {
-        name: customer_name || "Client",
-        phone: customer_phone || undefined,
-        email: customer_email || undefined,
-      },
-      metadata: {
-        internal_reference: internalReference,
-        payment_id: paymentRecord.id,
-        merchant_id: merchantId,
-        shop_id: shop_id,
-        type: "ecomfy_pay_customer_order",
-      },
-      success_url: `${origin}/order-confirmed?payment_ref=${internalReference}`,
-      error_url: `${origin}/shop/${shop_id}?payment_failed=true`,
-    };
-
-    const resp = await fetch(`${GENIUSPAY_API_URL}/payments`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": GENIUSPAY_API_KEY,
-        "X-API-Secret": GENIUSPAY_API_SECRET,
-      },
-      body: JSON.stringify(payload),
+      customer: { name: customer_name, phone: customer_phone, email: customer_email },
+      successUrl: `${origin}/order-confirmed?payment_ref=${internalReference}`,
+      errorUrl: `${origin}/shop/${shop_id}?payment_failed=true`,
     });
 
-    const json = await resp.json().catch(() => ({}));
-
-    if (resp.ok && json.data?.checkout_url) {
-      // Mettre à jour la référence du provider
-      await supabase
-        .from("ecomfy_payments")
-        .update({
-          provider_reference: json.data.reference || json.data.id,
-        })
-        .eq("id", paymentRecord.id);
+    if (result.ok) {
+      if (result.providerReference) {
+        // Mettre à jour la référence du provider
+        await supabase
+          .from("ecomfy_payments")
+          .update({ provider_reference: result.providerReference })
+          .eq("id", paymentRecord.id);
+      }
 
       return new Response(
         JSON.stringify({
           success: true,
           internal_reference: internalReference,
           payment_id: paymentRecord.id,
-          checkout_url: json.data.checkout_url || json.data.payment_url,
+          checkout_url: result.checkoutUrl,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (resp.ok && json?.checkout_url) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          internal_reference: internalReference,
-          payment_id: paymentRecord.id,
-          checkout_url: json.checkout_url,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // GeniusPay n'a pas fourni de lien de paiement : ne pas annoncer un succès (le client croirait sa commande payée).
-    console.error("[ecomfy-pay-initiate] Provider did not return a checkout URL:", resp.status, json);
+    // Le prestataire n'a pas fourni de lien de paiement : ne pas annoncer un succès (le client croirait sa commande payée).
+    console.error("[ecomfy-pay-initiate] Provider did not return a checkout URL:", connector.id, result.httpStatus, result.reason);
     await supabase.from("ecomfy_payments").update({ status: "FAILED", updated_at: new Date().toISOString() }).eq("id", paymentRecord.id);
     if (order_id) {
       // Commande en paiement en ligne jamais payable : l'annuler évite une commande fantôme chez le marchand.

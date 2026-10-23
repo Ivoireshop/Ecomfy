@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
+import { getDefaultConnector } from "../_shared/operators/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -94,59 +94,43 @@ serve(async (req) => {
       );
     }
 
-    // Dispatch Payout API call to provider (GeniusPay Payout / Wave Payout) if credentials present
-    const GENIUSPAY_API_KEY = Deno.env.get("GENIUSPAY_API_KEY");
-    const GENIUSPAY_API_SECRET = Deno.env.get("GENIUSPAY_API_SECRET");
+    // Envoi du versement à l'opérateur si ses identifiants sont présents.
+    const connector = getDefaultConnector();
 
-    if (GENIUSPAY_API_KEY && GENIUSPAY_API_SECRET) {
-      try {
-        const payoutPayload = {
-          amount,
-          currency,
-          reference: result.withdrawal_reference,
-          destination: {
-            type: payout_method,
-            phone: destination_phone,
-            name: destination_name,
-            operator: payout_operator || undefined,
-          },
-        };
+    if (connector.isConfigured()) {
+      const payout = await connector.initiatePayout({
+        withdrawalReference: result.withdrawal_reference,
+        amount,
+        currency,
+        method: payout_method,
+        phone: destination_phone,
+        name: destination_name,
+        operator: payout_operator,
+      });
 
-        const resp = await fetch(`${GENIUSPAY_API_URL}/payouts`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": GENIUSPAY_API_KEY,
-            "X-API-Secret": GENIUSPAY_API_SECRET,
-          },
-          body: JSON.stringify(payoutPayload),
+      if (payout.outcome === "ACCEPTED") {
+        await supabase
+          .from("withdrawal_requests")
+          .update({
+            status: "PROCESSING",
+            provider_reference: payout.providerReference,
+          })
+          .eq("id", result.withdrawal_id);
+      } else if (payout.outcome === "REJECTED") {
+        // Refus définitif du prestataire : le montant retourne au solde disponible (écriture WITHDRAWAL_FAILED).
+        // Une erreur réseau ou 5xx reste ambiguë (UNKNOWN) : le retrait est laissé en REQUESTED pour être clôturé par le webhook.
+        const { error: finErr } = await supabase.rpc("finalize_withdrawal", {
+          p_withdrawal_reference: result.withdrawal_reference,
+          p_status: "FAILED",
+          p_failure_reason: payout.reason,
         });
-
-        const json = await resp.json().catch(() => ({}));
-        if (resp.ok && json.success) {
-          await supabase
-            .from("withdrawal_requests")
-            .update({
-              status: "PROCESSING",
-              provider_reference: json.data?.reference || json.data?.id,
-            })
-            .eq("id", result.withdrawal_id);
-        } else if (resp.status >= 400 && resp.status < 500) {
-          // Refus définitif du prestataire : le montant retourne au solde disponible (écriture WITHDRAWAL_FAILED).
-          // Une erreur réseau ou 5xx reste ambiguë : le retrait est laissé en REQUESTED pour être clôturé par le webhook.
-          const { error: finErr } = await supabase.rpc("finalize_withdrawal", {
-            p_withdrawal_reference: result.withdrawal_reference,
-            p_status: "FAILED",
-            p_failure_reason: json?.message || json?.error || `Refusé par le prestataire (HTTP ${resp.status})`,
-          });
-          if (finErr) console.error("[ecomfy-pay-withdraw] finalize_withdrawal error:", finErr);
-          return new Response(
-            JSON.stringify({ success: false, error: "Le prestataire a refusé le transfert. Votre solde a été recrédité." }),
-            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } catch (e) {
-        console.warn("[ecomfy-pay-withdraw] Payout dispatch exception:", e);
+        if (finErr) console.error("[ecomfy-pay-withdraw] finalize_withdrawal error:", finErr);
+        return new Response(
+          JSON.stringify({ success: false, error: "Le prestataire a refusé le transfert. Votre solde a été recrédité." }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else {
+        console.warn("[ecomfy-pay-withdraw] Payout outcome unknown, left REQUESTED:", connector.id, payout.httpStatus);
       }
     }
 
