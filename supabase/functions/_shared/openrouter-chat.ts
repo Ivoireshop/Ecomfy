@@ -19,6 +19,8 @@ export interface ChatOptions {
   messages: ChatMessage[];
   jsonMode?: boolean;
   timeoutMs?: number;
+  /** Plafond de sortie. Sans lui OpenRouter réserve le maximum du modèle (jusqu'à 65 535 tokens) et refuse en 402 une clé au solde ou au plafond bas. */
+  maxTokens?: number;
   model?: string; // override (used for both, must be Gemini-compatible)
 }
 
@@ -39,7 +41,7 @@ function shouldFallback(status: number): boolean {
  * Throws only if BOTH providers fail.
  */
 export async function geminiChat(opts: ChatOptions): Promise<ChatResult> {
-  const { messages, jsonMode = false, timeoutMs = 60000, model } = opts;
+  const { messages, jsonMode = false, timeoutMs = 60000, maxTokens, model } = opts;
   const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
 
@@ -55,6 +57,7 @@ export async function geminiChat(opts: ChatOptions): Promise<ChatResult> {
       try {
         // First try with jsonMode if requested
         const bodyObj: any = { model: m, messages };
+        if (maxTokens) bodyObj.max_tokens = maxTokens;
         if (jsonMode) bodyObj.response_format = { type: "json_object" };
 
         let resp = await fetch(OPENROUTER_URL, {
@@ -63,8 +66,8 @@ export async function geminiChat(opts: ChatOptions): Promise<ChatResult> {
           headers: {
             Authorization: `Bearer ${openRouterKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://visuelpro.cloud",
-            "X-Title": "VisuelPro",
+            "HTTP-Referer": "https://ecomfy.cloud",
+            "X-Title": "Ecomfy",
           },
           body: JSON.stringify(bodyObj),
         });
@@ -78,8 +81,8 @@ export async function geminiChat(opts: ChatOptions): Promise<ChatResult> {
             headers: {
               Authorization: `Bearer ${openRouterKey}`,
               "Content-Type": "application/json",
-              "HTTP-Referer": "https://visuelpro.cloud",
-              "X-Title": "VisuelPro",
+              "HTTP-Referer": "https://ecomfy.cloud",
+              "X-Title": "Ecomfy",
             },
             body: JSON.stringify(bodyObj),
           });
@@ -109,6 +112,7 @@ export async function geminiChat(opts: ChatOptions): Promise<ChatResult> {
       const t = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const bodyObj: any = { model: m, messages };
+        if (maxTokens) bodyObj.max_tokens = maxTokens;
         if (jsonMode) bodyObj.response_format = { type: "json_object" };
 
         let resp = await fetch(LOVABLE_URL, {
@@ -188,8 +192,8 @@ export async function geminiImage(
           headers: {
             Authorization: `Bearer ${openRouterKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://visuelpro.cloud",
-            "X-Title": "VisuelPro",
+            "HTTP-Referer": "https://ecomfy.cloud",
+            "X-Title": "Ecomfy",
           },
           body: JSON.stringify({ model, ...body }),
         });

@@ -15,6 +15,61 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+const FRAMEWORKS = ["hormozi", "pas", "aida"];
+const IMPACTS = ["high", "medium", "low"];
+const EFFORTS = ["low", "medium", "high"];
+
+const str = (v: unknown, max = 600): string =>
+  typeof v === "string" ? v.trim().slice(0, max) : typeof v === "number" ? String(v) : "";
+const oneOf = (v: unknown, allowed: string[], fallback: string) =>
+  typeof v === "string" && allowed.includes(v.toLowerCase()) ? v.toLowerCase() : fallback;
+
+/** L'IA enveloppe parfois le JSON dans des balises ``` ou du texte : on l'en extrait. */
+function parseAiJson(raw: string): any | null {
+  const cleaned = raw.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+  try { return JSON.parse(cleaned); } catch { /* essai suivant */ }
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try { return JSON.parse(cleaned.slice(start, end + 1)); } catch { /* abandon */ }
+  }
+  return null;
+}
+
+/** Garantit la forme attendue par l'écran, quoi que renvoie l'IA (types, tailles, valeurs hors liste). */
+function normalizeAnalysis(p: any) {
+  const recommendations = (Array.isArray(p?.recommendations) ? p.recommendations : [])
+    .filter((r: any) => r && typeof r === "object" && str(r.title))
+    .slice(0, 10)
+    .map((r: any) => ({
+      title: str(r.title, 160),
+      category: str(r.category, 40) || "autre",
+      impact: oneOf(r.impact, IMPACTS, "medium"),
+      effort: oneOf(r.effort, EFFORTS, "medium"),
+      action: str(r.action, 800),
+    }));
+
+  const c = p?.rewritten_copy && typeof p.rewritten_copy === "object" ? p.rewritten_copy : {};
+  const copy = {
+    headline: str(c.headline, 200),
+    subheadline: str(c.subheadline, 300),
+    bullets: (Array.isArray(c.bullets) ? c.bullets : []).map((b: unknown) => str(b, 300)).filter(Boolean).slice(0, 8),
+    guarantee: str(c.guarantee, 300),
+    cta: str(c.cta, 80),
+    urgency: str(c.urgency, 300),
+  };
+  const hasCopy = Object.values(copy).some((v) => (Array.isArray(v) ? v.length > 0 : !!v));
+
+  const score = Number(p?.score);
+  return {
+    diagnosis: str(p?.diagnosis, 1500) || null,
+    score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : null,
+    priority_issues: (Array.isArray(p?.priority_issues) ? p.priority_issues : []).map((i: unknown) => str(i, 300)).filter(Boolean).slice(0, 6),
+    recommendations,
+    rewritten_copy: hasCopy ? copy : null,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __quota = await enforceAiQuota(req, "product-ai-optimizer");
@@ -37,14 +92,9 @@ Deno.serve(async (req) => {
     if (userErr || !userData?.user) return json({ success: false, error: "Session invalide" });
     const userId = userData.user.id;
 
-    // 1 free trial, then 1.5 credit per analysis
-    const charge = await consumeAiCredit(userId, "optimizer", 1.5);
-    if (!charge.success) {
-      if (charge.error === "credits_required") return creditsRequiredResponse({ feature: "optimizer" });
-      return json({ success: false, error: charge.error || "credits_error" });
-    }
-
-    const { shop_id, product_id, framework = "hormozi" } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const { shop_id, product_id } = body;
+    const framework = FRAMEWORKS.includes(body.framework) ? body.framework : "hormozi";
     if (!shop_id || !product_id) return json({ success: false, error: "Paramètres manquants" });
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -72,20 +122,32 @@ Deno.serve(async (req) => {
     // Window: last 30 days
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
 
-    const [{ count: visitorsAll }, { count: visitorsProduct }, { data: ordersRows }] = await Promise.all([
+    // Seules les ventes réelles comptent (hors annulées/retournées) ; le CA est celui de CE produit, pas de la commande entière.
+    const [visitsAllRes, visitsProductRes, ordersRes] = await Promise.all([
       admin.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shop_id).gte("visited_at", since),
       admin.from("shop_visits").select("id", { count: "exact", head: true }).eq("shop_id", shop_id).eq("product_id", product_id).gte("visited_at", since),
-      admin.from("orders").select("id, status, total, created_at, order_items!inner(product_id, quantity)").eq("shop_id", shop_id).gte("created_at", since),
+      admin
+        .from("orders")
+        .select("id, order_items!inner(product_id, total_price)")
+        .eq("shop_id", shop_id)
+        .eq("order_items.product_id", product_id)
+        .not("order_status", "in", "(cancelled,returned)")
+        .gte("created_at", since),
     ]);
+    if (visitsAllRes.error || visitsProductRes.error || ordersRes.error) {
+      console.error("product-ai-optimizer stats error", visitsAllRes.error, visitsProductRes.error, ordersRes.error);
+      return json({ success: false, error: "Impossible de lire les statistiques de la boutique. Réessayez." });
+    }
 
-    const productOrders = (ordersRows ?? []).filter((o: any) =>
-      (o.order_items ?? []).some((oi: any) => oi.product_id === product_id)
-    );
+    const productOrders = ordersRes.data ?? [];
     const totalOrders = productOrders.length;
-    const totalRevenue = productOrders.reduce((s: number, o: any) => s + Number(o.total || 0), 0);
-    const visitors = visitorsProduct ?? 0;
-    const shopVisitors = visitorsAll ?? 0;
-    const conversion = visitors > 0 ? (totalOrders / visitors) * 100 : 0;
+    const totalRevenue = productOrders.reduce(
+      (sum: number, o: any) => sum + (o.order_items ?? []).reduce((s: number, oi: any) => s + Number(oi.total_price || 0), 0),
+      0,
+    );
+    const visitors = visitsProductRes.count ?? 0;
+    const shopVisitors = visitsAllRes.count ?? 0;
+    const conversion = visitors > 0 ? Math.min(100, (totalOrders / visitors) * 100) : 0;
 
     const frameworkPrompts: Record<string, string> = {
       hormozi: "Applique les principes d'Alex Hormozi (Grand Slam Offer): clarifie le rêve, augmente la valeur perçue, réduis le risque, ajoute urgence et garantie.",
@@ -132,7 +194,7 @@ TRAFIC & CONVERSION (30 derniers jours):
 - Visiteurs sur la fiche produit: ${visitors}
 - Visiteurs totaux de la boutique: ${shopVisitors}
 - Commandes contenant ce produit: ${totalOrders}
-- Chiffre d'affaires: ${totalRevenue.toLocaleString()} ${shop.currency || "FCFA"}
+- Chiffre d'affaires: ${totalRevenue.toLocaleString("fr-FR")} ${shop.currency || "FCFA"}
 - Taux de conversion fiche produit: ${conversion.toFixed(2)}%
 - Référence marché e-commerce: 1-3% (faible), 3-5% (correct), >5% (excellent)
 
@@ -140,12 +202,15 @@ Analyse pourquoi les visiteurs ne convertissent pas et propose un plan d'action 
 
     let raw = "{}";
     try {
+      // 25 s par tentative : l'écran abandonne à 120 s, donc les 3 modèles de secours tiennent dans ce délai.
       const { content, provider } = await geminiChat({
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         jsonMode: true,
+        timeoutMs: 25000,
+        maxTokens: 4096,
       });
       console.log(`[product-ai-optimizer] provider=${provider}`);
       raw = content || "{}";
@@ -153,10 +218,23 @@ Analyse pourquoi les visiteurs ne convertissent pas et propose un plan d'action 
       console.error("AI error", e);
       return json({ success: false, error: "Service IA momentanément indisponible. Réessayez dans un instant." });
     }
-    let parsed: any = {};
-    try { parsed = JSON.parse(raw); } catch { parsed = { diagnosis: raw, recommendations: [] }; }
 
-    const { data: saved } = await admin
+    const parsed = normalizeAnalysis(parseAiJson(raw));
+    if (!parsed.diagnosis && parsed.recommendations.length === 0) {
+      console.error("product-ai-optimizer: réponse IA inexploitable", raw.slice(0, 300));
+      return json({ success: false, error: "L'IA a renvoyé une réponse inexploitable. Réessayez : aucun crédit n'a été débité." });
+    }
+
+    // Le crédit n'est débité qu'une fois l'analyse obtenue : un échec de l'IA ne consomme ni l'essai gratuit ni le solde.
+    // (1 essai gratuit, puis 1,5 crédit par analyse.)
+    const charge = await consumeAiCredit(userId, "optimizer", 1.5);
+    if (!charge.success) {
+      if (charge.error === "credits_required") return creditsRequiredResponse({ feature: "optimizer" });
+      return json({ success: false, error: charge.error || "credits_error" });
+    }
+
+    const conversionRate = Number(conversion.toFixed(2));
+    const { data: saved, error: saveErr } = await admin
       .from("product_ai_analyses")
       .insert({
         shop_id,
@@ -164,19 +242,35 @@ Analyse pourquoi les visiteurs ne convertissent pas et propose un plan d'action 
         framework,
         visitors_count: visitors,
         orders_count: totalOrders,
-        conversion_rate: Number(conversion.toFixed(2)),
-        diagnosis: parsed.diagnosis ?? null,
-        recommendations: parsed.recommendations ?? [],
-        rewritten_copy: parsed.rewritten_copy ?? null,
+        conversion_rate: conversionRate,
+        diagnosis: parsed.diagnosis,
+        recommendations: parsed.recommendations,
+        rewritten_copy: parsed.rewritten_copy,
         raw_markdown: raw,
       })
       .select("*")
       .maybeSingle();
+    if (saveErr || !saved) console.error("product-ai-optimizer: enregistrement impossible", saveErr);
+
+    // Crédit débité : on rend l'analyse même si l'historique n'a pas pu être enregistré.
+    const analysis = saved ?? {
+      id: crypto.randomUUID(),
+      shop_id,
+      product_id,
+      framework,
+      visitors_count: visitors,
+      orders_count: totalOrders,
+      conversion_rate: conversionRate,
+      diagnosis: parsed.diagnosis,
+      recommendations: parsed.recommendations,
+      rewritten_copy: parsed.rewritten_copy,
+      created_at: new Date().toISOString(),
+    };
 
     return json({
       success: true,
-      analysis: saved,
-      stats: { visitors, shopVisitors, totalOrders, totalRevenue, conversion: Number(conversion.toFixed(2)) },
+      analysis,
+      stats: { visitors, shopVisitors, totalOrders, totalRevenue, conversion: conversionRate },
       parsed,
     });
   } catch (e) {
