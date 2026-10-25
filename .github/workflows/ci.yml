@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  # Limité pour l'instant à la branche jeanmarc ; élargir (main, pull_request) quand la CI sera généralisée.
+  push:
+    branches: [jeanmarc]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # La dette historique est figée dans eslint-suppressions.json : seules les violations nouvelles échouent.
+      - run: npm run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # Compare à typecheck-baseline.txt : seules les erreurs de types nouvelles échouent.
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Bloquant : vulnérabilité critique dans une dépendance de production (le build embarque ces paquets).
+      - run: npm run audit:prod
+      # Informatif : le reste (high, dev) reste visible dans le journal sans bloquer la fusion.
+      - name: Rapport complet (non bloquant)
+        continue-on-error: true
+        run: npm audit --audit-level=high

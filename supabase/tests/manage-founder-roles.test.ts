@@ -1,7 +1,7 @@
 // Tests du correctif C7 : manage-founder-roles.
 // Exécution (Node >= 22.6, aucun accès réseau ni base requis, client Supabase simulé en mémoire) :
-//   node --experimental-strip-types --test supabase/tests/manage-founder-roles.test.ts
-import { test } from "node:test";
+//   npx vitest run supabase/tests/manage-founder-roles.test.ts
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { handleRequest } from "../functions/manage-founder-roles/handler.ts";
 

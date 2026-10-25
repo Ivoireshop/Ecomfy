@@ -1,7 +1,7 @@
 // Tests du correctif C8 : identifiants de suivi (src/lib/trackingIds.ts) et absence d'injection de code libre.
 // Exécution (Node >= 22.6, aucun accès réseau ni navigateur requis) :
-//   node --experimental-strip-types --test supabase/tests/tracking-ids.test.ts
-import { test } from "node:test";
+//   npx vitest run supabase/tests/tracking-ids.test.ts
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {

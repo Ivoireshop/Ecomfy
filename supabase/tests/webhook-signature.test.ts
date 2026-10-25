@@ -1,7 +1,7 @@
 // Tests du correctif C5 : signature HMAC du webhook ecomfy-pay-webhook (_shared/webhookSignature.ts).
 // Exécution (Node >= 22.6, aucun accès réseau requis) :
-//   node --experimental-strip-types --test supabase/tests/webhook-signature.test.ts
-import { test } from "node:test";
+//   npx vitest run supabase/tests/webhook-signature.test.ts
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";

@@ -1,9 +1,9 @@
 // Tests du correctif C6 : tarifs serveur (_shared/pricing.ts).
 // Exécution (Node >= 22.6, aucun accès réseau requis) :
-//   node --experimental-strip-types --test supabase/tests/pricing.test.ts
-import { test } from "node:test";
+//   npx vitest run supabase/tests/pricing.test.ts
+import { test } from "vitest";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { CREDIT_PACKS, PLAN_PRICES, checkAmount, checkCustomerPayment, orderExpectedTotal, remoteAmountMatches } from "../functions/_shared/pricing.ts";
 import { priceLine } from "../../src/lib/bundlePricing.ts";
 
@@ -210,12 +210,22 @@ test("AICreditsBadge.tsx et Subscription.tsx affichent les prix du serveur", () 
   }
 });
 
-test("ecomfy-pay-webhook compare le montant GeniusPay avant de créditer", () => {
+test("ecomfy-pay-webhook transmet le montant encaissé à confirm_ecomfy_payment, qui le compare avant tout crédit", () => {
   const wh = readFileSync(new URL("../functions/ecomfy-pay-webhook/index.ts", import.meta.url), "utf8");
-  const cmp = wh.indexOf("remoteAmountMatches(remoteAmount");
-  assert.ok(cmp > 0, "comparaison absente");
-  assert.ok(cmp < wh.indexOf('"credit_merchant_wallet_pending"'), "la comparaison doit précéder le crédit du portefeuille");
-  assert.ok(cmp < wh.indexOf('payment_status: "PAID"'), "la comparaison doit précéder le marquage PAID");
+  assert.match(wh, /p_remote_amount:\s*isSuccess \? Number\(remoteAmount\) : null/, "le webhook ne transmet plus le montant encaissé");
+  // Depuis M6 la comparaison et le crédit sont dans une seule transaction SQL : le montant doit être refusé avant le crédit.
+  const dir = new URL("../migrations/", import.meta.url);
+  // Migration la plus récente qui (re)définit la fonction ; lecture en ordre inverse, arrêtée dès qu'elle est trouvée.
+  const names = readdirSync(dir).filter((n) => n.endsWith(".sql")).sort().reverse();
+  let sql: string | undefined;
+  for (const n of names) {
+    const text = readFileSync(new URL(n, dir), "utf8");
+    if (text.includes("FUNCTION public.confirm_ecomfy_payment(")) { sql = text; break; }
+  }
+  assert.ok(sql, "définition de confirm_ecomfy_payment introuvable");
+  const cmp = sql.indexOf("ABS(p_remote_amount - v_pay.amount)");
+  assert.ok(cmp > 0, "comparaison du montant absente de confirm_ecomfy_payment");
+  assert.ok(cmp < sql.indexOf("credit_merchant_wallet_pending"), "la comparaison doit précéder le crédit du portefeuille");
 });
 
 test("PricingDashboard.tsx, SubscriptionCard.tsx et ShopEditor.tsx envoient les prix du serveur", () => {

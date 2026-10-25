@@ -1,3 +1,4 @@
+import { expect, test } from "vitest";
 import { parseCommandPrompt } from "../commandParser";
 import { resolveCommandsToCreativeBrief } from "../commandResolver";
 import { findCommandByToken } from "../commandRegistry";
@@ -69,3 +70,8 @@ export function runCommandEngineTests() {
   console.log(`=== TEST SUMMARY: ${passCount} PASSED, ${failCount} FAILED ===`);
   return { passCount, failCount };
 }
+
+test("moteur de commandes /command du Studio IA", () => {
+  const { failCount } = runCommandEngineTests();
+  expect(failCount).toBe(0);
+});

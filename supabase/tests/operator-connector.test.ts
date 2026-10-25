@@ -1,7 +1,7 @@
 // Tests de l'interface commune des connecteurs opérateurs (_shared/operators) avec le connecteur GeniusPay et un fetch simulé.
 // Exécution (Node >= 22.6, aucun accès réseau requis) :
-//   node --experimental-strip-types --test supabase/tests/operator-connector.test.ts
-import { test } from "node:test";
+//   npx vitest run supabase/tests/operator-connector.test.ts
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { GeniusPayConnector, mapGeniusPayStatus } from "../functions/_shared/operators/geniuspay.ts";
