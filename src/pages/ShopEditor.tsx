@@ -160,7 +160,7 @@ const EDITABLE_SHOP_KEYS = [
   "facebook_pixels", "tiktok_pixels", "snapchat_pixels", "google_analytics_ids", "google_analytics_code",
   "checkout_fields", "cod_delivery_rate", "payment_methods", "theme_config", "tracking_enabled",
   "social_proof_enabled", "delivery_advisor_phone", "order_confirmation_message", "facebook_test_event_code",
-  "ga4_measurement_id", "notification_settings",
+  "ga4_measurement_id", "notification_settings", "monthly_goal",
   "facebook_access_token", "tiktok_access_token", "snapchat_access_token", "ga4_api_secret",
   "google_ads_conversion_id", "google_ads_conversion_label",
 ] as const;
@@ -585,6 +585,10 @@ const ShopEditor = () => {
 
   const saveShop = async () => {
     if (!shop) return;
+    if (!shop.business_name?.trim()) {
+      toast({ title: "Nom de la boutique requis", description: "Renseignez le nom de votre boutique (Paramètres → Général).", variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     // Sanitize and validate the slug (public link). The user can edit it
@@ -612,8 +616,8 @@ const ShopEditor = () => {
       }
     }
 
-    const { error } = await supabase.from("shops").update({
-      slug: nextSlug,
+    const buildShopUpdate = (slug: string) => ({
+      slug,
       business_name: shop.business_name, business_description: shop.business_description,
       whatsapp_number: shop.whatsapp_number, phone_number: shop.phone_number, email: shop.email,
       city: shop.city, primary_color: shop.primary_color, secondary_color: shop.secondary_color,
@@ -632,7 +636,16 @@ const ShopEditor = () => {
       facebook_test_event_code: shop.facebook_test_event_code,
       ga4_measurement_id: shop.ga4_measurement_id,
       notification_settings: shop.notification_settings ?? {},
-    }).eq("id", shop.id) as any;
+      monthly_goal: shop.monthly_goal ?? null,
+    });
+
+    let { error } = await supabase.from("shops").update(buildShopUpdate(nextSlug)).eq("id", shop.id) as any;
+    // La lecture ci-dessus ne voit pas les boutiques non publiées des autres marchands : l'unicité du lien est
+    // alors arbitrée par la base, qui refuse l'enregistrement. On retente avec un suffixe plutôt que tout perdre.
+    if (error?.code === "23505" && /slug/i.test(`${error.message} ${error.details || ""}`)) {
+      nextSlug = `${nextSlug.slice(0, 45)}-${Math.random().toString(36).substring(2, 6)}`;
+      ({ error } = await supabase.from("shops").update(buildShopUpdate(nextSlug)).eq("id", shop.id) as any);
+    }
 
     // Upsert sensitive credentials into the private shop_secrets table.
     const { error: secretsError } = await (supabase as any)
@@ -652,7 +665,11 @@ const ShopEditor = () => {
       savedShopSnapshotRef.current = JSON.stringify(pickEditableShopFields({ ...shop, slug: nextSlug }));
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
       invalidatePublicCaches();
-      toast({ title: "✓ Sauvegardé" });
+      const slugAdjusted = !!shop.slug && nextSlug !== shop.slug;
+      toast({
+        title: "✓ Sauvegardé",
+        ...(slugAdjusted ? { description: `Le lien public a été ajusté : ecomfy.cloud/shop/${nextSlug}` } : {}),
+      });
       if (shop.is_published && shop.is_activated) {
         triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${nextSlug}`);
       }
@@ -1516,7 +1533,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "statistics" && (
-            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} />
+            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} codDeliveryRate={shop.cod_delivery_rate ?? 100} />
           )}
 
           {activeSection === "theme" && (

@@ -38,6 +38,8 @@ interface ShopStatisticsProps {
   products: Product[];
   primaryColor: string;
   monthlyGoal: number;
+  // Taux de délivrabilité des commandes à la livraison (%), réglé dans Paramètres → Paiement. 100 = aucune estimation.
+  codDeliveryRate?: number;
   shopId?: string;
   visits?: { visited_at: string; product_id?: string | null; session_id?: string | null; visitor_country?: string | null; referrer?: string | null; device_type?: string | null; }[];
 }
@@ -148,7 +150,7 @@ function TrendBadge({ trend, onColor = false }: { trend: Trend | null; onColor?:
   );
 }
 
-export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, shopId, visits = [] }: ShopStatisticsProps) {
+export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, codDeliveryRate = 100, shopId, visits = [] }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const compactNumber = (n: number) => new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(n);
   const funnelWidth = (n: number) => (trafficMetrics.visitors > 0 ? Math.min((n / trafficMetrics.visitors) * 100, 100) : 0);
@@ -276,6 +278,17 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredOrders, previousOrders, ranges]);
+
+  // Estimation à part (le chiffre d'affaires affiché reste celui des commandes enregistrées) : parmi les commandes de
+  // la période, celles ni livrées ni payées d'avance ne sont pas encore encaissées ; le taux de délivrabilité réglé
+  // par le marchand donne la part qu'on peut raisonnablement en attendre.
+  const awaitingDelivery = useMemo(() => {
+    const rate = Math.min(100, Math.max(0, codDeliveryRate));
+    const total = filteredOrders
+      .filter(o => o.order_status !== "delivered" && o.payment_status !== "paid")
+      .reduce((a, o) => a + o.total, 0);
+    return { total, expected: Math.round((total * rate) / 100), rate };
+  }, [filteredOrders, codDeliveryRate]);
 
   // Objectif mensuel : le chiffre d'affaires du MOIS en cours, quelle que soit la période affichée.
   const monthRevenue = useMemo(() => {
@@ -551,6 +564,12 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             </div>
             <p className="text-white/80 text-sm font-medium mb-1">Chiffre d'affaires</p>
             <h3 className="text-3xl font-bold tracking-tight">{fmt(stats.totalRevenue)} <span className="text-lg font-normal opacity-80">FCFA</span></h3>
+            {awaitingDelivery.total > 0 && awaitingDelivery.rate < 100 && (
+              <p className="text-white/80 text-xs mt-2 leading-snug">
+                Dont {fmt(awaitingDelivery.total)} FCFA en attente de livraison : environ {fmt(awaitingDelivery.expected)} FCFA attendus
+                (taux de délivrabilité de {awaitingDelivery.rate}&nbsp;%, estimation).
+              </p>
+            )}
           </div>
         </div>
 
