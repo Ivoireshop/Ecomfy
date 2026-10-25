@@ -1,6 +1,6 @@
 # Paramètres de la boutique : correctifs du 25/10/2026
 
-**Branche :** `jeanmarc` (non commité au moment de la rédaction). **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix` ; le projet lié dans ce dépôt est **dev** (`xfpbpxncserliskrbaim`).
+**Branche :** `jeanmarc` (commité : `6955c34`). **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix` ; le projet lié dans ce dépôt est **dev** (`xfpbpxncserliskrbaim`).
 
 ## 1. Bugs corrigés
 
