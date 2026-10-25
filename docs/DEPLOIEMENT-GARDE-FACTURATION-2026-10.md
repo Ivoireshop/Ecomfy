@@ -1,6 +1,6 @@
 # Garde de facturation des boutiques et tests RLS des flux d'argent : correctifs du 25/10/2026
 
-**Branche :** `jeanmarc`. **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix` ; le projet lié dans ce dépôt est **dev** (`xfpbpxncserliskrbaim`).
+**Branche :** `jeanmarc` (commité : `ebce9de`). **Ne jamais utiliser `supabase db push`.** Projet prod : `yfggrceynzcwklbxhgix` ; le projet lié dans ce dépôt est **dev** (`xfpbpxncserliskrbaim`).
 
 **Guides liés :** [`DEPLOIEMENT-FACTURATION-2026-10.md`](DEPLOIEMENT-FACTURATION-2026-10.md) (système de facturation par seuil, dont dépendent les échéances), [`DEPLOIEMENT-LEDGER-PAY-2026-10.md`](DEPLOIEMENT-LEDGER-PAY-2026-10.md) et [`DEPLOIEMENT-AFFILIATION-2026-10.md`](DEPLOIEMENT-AFFILIATION-2026-10.md) (tables couvertes par le test).
 
