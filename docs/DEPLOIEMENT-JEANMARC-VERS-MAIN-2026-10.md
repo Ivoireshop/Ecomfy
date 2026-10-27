@@ -438,7 +438,7 @@ Comptes jetables uniquement (Authentication > Users > Add user, *Auto Confirm Us
 | 2 | Même commande avec un code promo valide, puis invalide, puis minimum non atteint | Remise et nouveau total ; « Code promo invalide » ; « Commande minimum de … FCFA » ; code à 1 utilisation | codes promo §2.5 |
 | 3 | Panier abandonné : produit + téléphone valide ; vider ; commander | Ligne « En cours » ; elle disparaît ; elle est convertie à la commande | paniers §2.5 |
 | 4 | Avis envoyé depuis une vraie fiche produit | « En attente » dans Avis clients ; non visible avant modération | avis §3 |
-| 5 | Supprimer un produit de test déjà commandé | Suppression effective (M5) | produits §1 |
+| 5 | Supprimer un produit de test **sans commande**, puis un produit **déjà commandé** | Sans commande : suppression effective, avis supprimés avec lui (M5). Déjà commandé : **refus `23503`** (`order_items_product_id_fkey`) et message « Masquez-le plutôt » (voulu) | produits §1 |
 | 6 | Éditeur de produit : variantes, lot, réordonner les images, SEO (méta titre/description) | Enregistrés et relus après rechargement | produits §6 |
 | 7 | Abonnement : petit paiement réel sur une boutique de test | `subscription_active_until` posé, solde effacé, boutique `active`, ligne `commission_payments` « Abonnement … » ; une seule activation même si webhook, retour client et réconciliation confirment | abonnement §3.6 |
 | 8 | Commande reçue par une boutique abonnée | `commission_balance_due` inchangé | abonnement §3.6 |
@@ -511,7 +511,7 @@ Voir [`PROCEDURE-ROLLBACK-2026-10.md`](PROCEDURE-ROLLBACK-2026-10.md) (symptôme
 - **Script de rattrapage des abonnements** (`supabase/maintenance/abonnements_non_appliques.sql`) : son bloc 3 est filtré sur deux utilisateurs, dont celui de **CACAO+**. **Ne pas le rejouer** : il lui donnerait un mois à partir d'aujourd'hui. Le paiement du 11/09 de CACAO+ y restera listé « NON APPLIQUÉ » (aucune trace dans `commission_payments`).
 - **`config.toml` : `ecomfy-pay-settlement`** déclarée `verify_jwt = false` (modification **non commitée**) : sans elle, un redéploiement depuis le dépôt rétablit la vérification de JWT et la tâche planifiée échoue en 401.
 - **Fichiers non commités** à la fin de l'exécution : `supabase/config.toml`, `supabase/migrations/20261027120000_top_sellers_shop_logo_fallback.sql`, `scripts/migrate-avatars-to-storage.mjs`, ce guide, ainsi que `package.json` (script `secrets:compare`, avec un espace perdu sur la ligne `audit:prod`) et `scripts/compare-secrets.mjs` (hors lot).
-- **Recette non jouée** : codes promo (test 2, aucun code en production), abonnement par paiement réel (7), affiliation (12), webhook Ecomfy Pay signé (22), parcours marchand de l'éditeur de produit (6).
+- **Recette non jouée** : éditeur de produit en session marchand (6), abonnement par paiement réel (7), fondateur : activation et paiement manuel (11), affiliation (12), suivi de livraison (14), bibliothèque (16), académie (17), `/seo` (18), finance et courriel de test (19, bloqué par la file d'e-mails), optimiseur IA (20), webhook Ecomfy Pay signé (22), console sur les pages autres que l'accueil (23).
 
 ## 15. Ce qui a été validé, et où
 
@@ -576,7 +576,7 @@ Voir [`PROCEDURE-ROLLBACK-2026-10.md`](PROCEDURE-ROLLBACK-2026-10.md) (symptôme
 - [x] H3 planificateur de `ecomfy-pay-settlement` (`*/10 * * * *`, essai 200)
 
 **I. Recette et surveillance**
-- [x] Recette partielle : tests 1, 8, 9, 10, 13, 15 réussis, 23 sur l'accueil · [ ] tests 2, 6, 7, 12, 22 non joués · [ ] surveillance 48 h · [ ] états de la production mis à jour dans l'audit
+- [x] Recette partielle : tests 1, 2, 3, 4, 5, 8, 9, 10, 13, 15, 21 réussis (blocs SQL annulés), 23 sur l'accueil · [ ] tests 6, 7, 11, 12, 14, 16 à 20, 22 non joués (navigateur, paiement réel ou clés) · [ ] surveillance 48 h · [ ] états de la production mis à jour dans l'audit
 
 ## 17. Journal d'exécution en production (27/10/2026)
 
@@ -612,5 +612,10 @@ Règle retenue : la fin de l'abonnement part de **la date du paiement** (`+ 30 j
 | 10 : garde de facturation (rôle `authenticated`) | Réécriture de `commission_balance_due` refusée (`42501`) ; modification normale acceptée |
 | 13 : boutique restreinte | Lecture directe de `orders` : 0 ligne ; `get_shop_orders_secure` : 383/383 lignes masquées, sans notes |
 | 15 : API anonyme | `community_messages` 401 ; `shop_seo_connections` 401 ; `profiles` et `wallets` : `[]` |
+| 2 : codes promo (codes créés dans la transaction annulée, boutique Boutique.ci, produit à 7 500) | Valide 10 % : remise 750, total 6 750 ; même code à 1 utilisation, second essai : « limite d'utilisation » ; minimum non atteint : « Commande minimum de 100 000 FCFA » ; inexistant : « Code promo invalide » ; commande créée au prix plein dans les trois refus |
+| 3 : panier abandonné | Total falsifié (1) ramené à 7 500 par le serveur ; converti par une commande au même téléphone ; supprimé par `discard_abandoned_cart` |
+| 4 : avis anonyme | Tentative `approved` : forcée en `pending` (0 approuvé) ; avis en attente invisible pour un visiteur ; doublon refusé (`22023`) |
+| 5 : suppression de produit | Produit **sans commande** : supprimé (1 ligne), avis supprimés avec lui, clés `product_reviews_*_fkey` en cascade. Produit **déjà commandé** : refus `23503` (`order_items_product_id_fkey`), voulu |
+| 21 : preuve sociale | Seule la commande récente non annulée est visible ; annulée, retournée et datée de 10 jours : exclues |
 
 **Écart au guide.** Les avatars en base64 (10 profils) masquaient les photos des meilleurs vendeurs depuis M8 : le repli sur `shops.logo_url` est lu côté navigateur, où `shops` n'est plus lisible par un visiteur. Corrigé côté base par `20261027120000_top_sellers_shop_logo_fallback.sql` (images `data:` conservées jusqu'à 100 000 caractères, logo de la boutique en repli). La conversion des avatars vers `shop-images` s'est d'abord heurtée à des buckets inexistants (`avatars`, `shop-assets`, §14).
