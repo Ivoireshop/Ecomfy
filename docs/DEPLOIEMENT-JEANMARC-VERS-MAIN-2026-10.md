@@ -357,7 +357,7 @@ function Deploy($names) {
 |---|---|---|---|
 | **F1** indépendantes | `generate-certificate`, `manage-student-access`, `generate-ai-image`, `generate-video`, `product-ai-optimizer`, `dynamic-sitemap`, `seo-auto-index` | rien | `generate-certificate` est **bloquante** pour l'académie (sans elle aucun certificat) ; `generate-ai-image` n'enregistre plus en base une image absente du stockage ; `generate-video` passe en `failed` si le téléchargement final échoue ; `product-ai-optimizer` : statistiques réelles, débit après réponse, `max_tokens` |
 | **F2** paiements | `process-payment`, `geniuspay-webhook`, `verify-payment`, `reconcile-pending-payments` | M1, M2 (affiliation), M3 | Le résultat de `apply_shop_subscription` est contrôlé : en cas d'échec le webhook répond 500 (GeniusPay réessaie) et `verify-payment` répond `subscription_not_applied` ; l'abonnement est appliqué avant la réservation du paiement (idempotent par référence) ; la commission d'affiliation est attribuée dans tous les cas, y compris « déjà appliqué » ; un règlement partiel est refusé sur une boutique verrouillée, avec exception pour le solde final inférieur au minimum |
-| **F3** finance | `send-weekly-finance-summary`, `sync-ad-spend`, `finance-advisor`, `send-transactional-email` | M15 | `send-transactional-email` embarque le gabarit `finance-weekly-summary` (champ `warning`, libellés) : sans son redéploiement le courriel garde l'ancien gabarit |
+| **F3** finance et e-mails | `send-weekly-finance-summary`, `sync-ad-spend`, `finance-advisor`, `send-transactional-email`, `process-email-queue`, `send-generation-reminder` | M15 | `send-transactional-email` embarque le gabarit `finance-weekly-summary` (champ `warning`, libellés) : sans son redéploiement le courriel garde l'ancien gabarit. Depuis le commit `0e866a9`, `process-email-queue` envoie par l'API Resend (`RESEND_API_KEY`, déjà présent en production) et `send-generation-reminder` pointe vers `APP_URL`. **Déployer `process-email-queue` ne crée pas son travailleur** : voir §14 (aucun job `process-email-queue` ni secret Vault `email_queue_service_role_key` en production) |
 | **F4** SEO | `gsc-oauth-flow`, `gsc-analytics` | M14, secrets Google (section 5) | OAuth côté serveur, `state` signé, jetons jamais renvoyés au navigateur |
 | **F5** Ecomfy Pay *(conditionnel)* | `ecomfy-pay-webhook`, `ecomfy-pay-settlement`, `ecomfy-pay-initiate`, `ecomfy-pay-withdraw` | M17, secrets GeniusPay | Dans cet ordre, **webhook après la migration M17-3** (le nouveau webhook répond 500 tant que `confirm_ecomfy_payment` n'existe pas). `ecomfy-pay-settlement` exige désormais la clé de service ou `x-cron-secret` : voir H3 |
 | **F6** facultatives | `generate-product-sheet`, `generate-shop-content`, `generate-feature-image` | rien | Seule différence : l'en-tête OpenRouter devient « Ecomfy » au lieu de « VisuelPro ». Aucun effet fonctionnel ; peut attendre |
@@ -365,7 +365,7 @@ function Deploy($names) {
 ```powershell
 Deploy "generate-certificate","manage-student-access","generate-ai-image","generate-video","product-ai-optimizer","dynamic-sitemap","seo-auto-index"   # F1
 Deploy "process-payment","geniuspay-webhook","verify-payment","reconcile-pending-payments"                                                                # F2
-Deploy "send-weekly-finance-summary","sync-ad-spend","finance-advisor","send-transactional-email"                                                          # F3
+Deploy "send-weekly-finance-summary","sync-ad-spend","finance-advisor","send-transactional-email","process-email-queue","send-generation-reminder"            # F3
 Deploy "gsc-oauth-flow","gsc-analytics"                                                                                                                      # F4
 # F5 (si Ecomfy Pay est en production) : Deploy "ecomfy-pay-webhook","ecomfy-pay-settlement","ecomfy-pay-initiate","ecomfy-pay-withdraw"
 # F6 (facultatif) : Deploy "generate-product-sheet","generate-shop-content","generate-feature-image"
@@ -500,6 +500,19 @@ Voir [`PROCEDURE-ROLLBACK-2026-10.md`](PROCEDURE-ROLLBACK-2026-10.md) (symptôme
 - **Commission de commande (H10)** facturée à la création : décision ouverte.
 - **Produits** : le parcours d'édition n'a pas été testé dans un navigateur sur une session marchand.
 
+**Relevés à l'exécution en production (27/10/2026), à traiter :**
+
+- **File d'e-mails sans travailleur.** `process-email-queue` est déployée (envoi par Resend depuis `0e866a9`) mais **aucune tâche `pg_cron` ne l'appelle**, le secret Vault `email_queue_service_role_key` n'existe pas, et la fonction est déclarée `verify_jwt = true` dans `config.toml`. Conséquence : les e-mails qui passent par la file (résumé hebdomadaire de finance, paiement de commande, activation de boutique, invitation de collaborateur) **ne partent pas**. Ce n'est pas une régression (même situation avant le déploiement), mais le **résumé du lundi 02/11/2026 à 08 h UTC ne sera pas envoyé** tant que la file n'a pas de travailleur.
+- **Paiements Ecomfy Pay `PENDING`.** 12 paiements (du 21/10 au 26/10/2026), aucun crédité, ledger vide. Aucun rejeu automatique des `PENDING` dont le webhook n'est jamais arrivé (limite connue, ledger §10). À examiner avant d'ouvrir les retraits ; le webhook signé GeniusPay (test 22) n'a jamais été joué de bout en bout.
+- **Photos de profil en base64.** `Profile.tsx` téléverse d'abord dans `shop-assets/avatars/…` puis dans `avatars`, **deux buckets absents en production** (existants : `generated-content`, `generated-images`, `kyc-documents`, `shop-images`, `showcase-images`, `showcase-videos`). L'envoi échoue donc et le code retombe sur une URL `data:` stockée dans `profiles.avatar_url` (jusqu'à 3,2 Mo). `ConnectUsProfileView.tsx:85` enregistre aussi un `dataUrl`. À corriger : viser `shop-images` (dossier `avatars/<user_id>/`). Les 10 profils existants se convertissent avec `scripts/migrate-avatars-to-storage.mjs` (simulation par défaut, `--apply`, clé `service_role` saisie à l'invite ; le script refuse une clé qui n'a pas ce rôle). `get_top_sellers` retombe sur le logo de la boutique (migration `20261027120000_top_sellers_shop_logo_fallback.sql`).
+- **Second projet Vercel** `visualpro-african-ai-creations`, relié au même dépôt : il construit et déploie lui aussi à chaque fusion dans `main`. Domaines et variables non vérifiés ; à contrôler ou à déconnecter.
+- **Supabase Preview en échec** sur la pull request : une ancienne migration insère des modèles dans `ad_templates` avec `created_by = (SELECT id FROM auth.users WHERE email = '…')`, qui vaut `NULL` sur une base d'aperçu vide (`SQLSTATE 23502`). Sans lien avec le déploiement ; la production a ces lignes. Corriger le rejeu sur base vide ou désactiver Supabase Preview.
+- **Doublon de version** `20261023100000` (`ecomfy_pay_confirm_transaction` et `product_seo_fields`) : à renommer avant tout `migration repair` ou futur `db push` (§13).
+- **Script de rattrapage des abonnements** (`supabase/maintenance/abonnements_non_appliques.sql`) : son bloc 3 est filtré sur deux utilisateurs, dont celui de **CACAO+**. **Ne pas le rejouer** : il lui donnerait un mois à partir d'aujourd'hui. Le paiement du 11/09 de CACAO+ y restera listé « NON APPLIQUÉ » (aucune trace dans `commission_payments`).
+- **`config.toml` : `ecomfy-pay-settlement`** déclarée `verify_jwt = false` (modification **non commitée**) : sans elle, un redéploiement depuis le dépôt rétablit la vérification de JWT et la tâche planifiée échoue en 401.
+- **Fichiers non commités** à la fin de l'exécution : `supabase/config.toml`, `supabase/migrations/20261027120000_top_sellers_shop_logo_fallback.sql`, `scripts/migrate-avatars-to-storage.mjs`, ce guide, ainsi que `package.json` (script `secrets:compare`, avec un espace perdu sur la ligne `audit:prod`) et `scripts/compare-secrets.mjs` (hors lot).
+- **Recette non jouée** : codes promo (test 2, aucun code en production), abonnement par paiement réel (7), affiliation (12), webhook Ecomfy Pay signé (22), parcours marchand de l'éditeur de produit (6).
+
 ## 15. Ce qui a été validé, et où
 
 | Sujet | Dev (base) | Navigateur sur dev | En production |
@@ -544,23 +557,60 @@ Voir [`PROCEDURE-ROLLBACK-2026-10.md`](PROCEDURE-ROLLBACK-2026-10.md) (symptôme
 - [ ] `GENIUSPAY_*`, `OPENROUTER_API_KEY`, `CRON_SECRET` présents ; Vault : 3 secrets, `cron_secret` identique
 - [ ] `GOOGLE_OAUTH_*` posés (si Search Console voulue)
 
-**E. Migrations** (cocher chacune après ses vérifications)
-- [ ] M1 · [ ] M2 · [ ] M3 · [ ] M4 · [ ] M5 · [ ] M6 · [ ] M7 · [ ] M8 · [ ] M9 · [ ] M10
-- [ ] M11 (ou sautée : ________) · [ ] M12 · [ ] M13 · [ ] M14 · [ ] M15 · [ ] M16
-- [ ] M17 (ou sautée : Ecomfy Pay absent)
-- [ ] Pré-contrôle rejoué : toutes les empreintes à `true`
+**E. Migrations** (cocher chacune après ses vérifications) — *état au 27/10/2026*
+- [x] M1 · [x] M2 · [x] M3 · [x] M4 · [x] M5 · [x] M6 · [x] M7 · [x] M8 · [x] M9 (déjà en place au constat) · [x] M10
+- [x] M11 · [x] M12 · [x] M13 · [x] M14 · [x] M15 · [x] M16
+- [x] M17 (M17-2 : partie « 3. Demande de retrait » seulement, `shop_invoices` absente)
+- [x] Pré-contrôle rejoué : toutes les empreintes à `true` sauf `20261023140000` (appliquée ensuite, H2)
 
 **F. Fonctions**
-- [ ] F1 · [ ] F2 · [ ] F3 · [ ] F4 · [ ] F5 (ou sautée) · [ ] F6 (facultatif)
-- [ ] Contrôle sans JWT : 401 partout
+- [x] F1 · [x] F2 · [x] F3 (6 fonctions, dont `process-email-queue` et `send-generation-reminder`) · [x] F4 · [x] F5 · [ ] F6 (facultatif, non déployé)
+- [x] Contrôle sans JWT : 401 partout ; `process-payment` répond 200 avec `success:false` « Non autorisé » (comportement de la fonction, `verify_jwt = false`)
 
 **G. Front**
-- [ ] Pull request fusionnée · [ ] Vercel « Ready » · [ ] console sans violation CSP
+- [x] Pull request fusionnée (commit de fusion) · [x] Vercel « Ready » · [x] console sans violation CSP
 
 **H. Après le front**
-- [ ] H1 rattrapage des abonnements (blocs 1, 2, 3 et contrôle)
-- [ ] H2 boutiques en retard listées et prévenues, puis `20261023140000` appliquée
-- [ ] H3 planificateur de `ecomfy-pay-settlement` (si applicable)
+- [x] H1 rattrapage des abonnements (Boutique.ci, AZO ; CACAO+ : aucune période, voir §17)
+- [x] H2 boutiques en retard listées (aucune), puis `20261023140000` appliquée
+- [x] H3 planificateur de `ecomfy-pay-settlement` (`*/10 * * * *`, essai 200)
 
 **I. Recette et surveillance**
-- [ ] Recette de la section 10 · [ ] surveillance 48 h · [ ] états de la production mis à jour dans l'audit
+- [x] Recette partielle : tests 1, 8, 9, 10, 13, 15 réussis, 23 sur l'accueil · [ ] tests 2, 6, 7, 12, 22 non joués · [ ] surveillance 48 h · [ ] états de la production mis à jour dans l'audit
+
+## 17. Journal d'exécution en production (27/10/2026)
+
+Heures en UTC. Projet `yfggrceynzcwklbxhgix`. Tag de retour : `pre-deploy-20261025` ; point de retour du front : déploiement Vercel `ae858ff` (`ecomfy-ootkxcbc7-ulrich-djate.vercel.app`).
+
+**Migrations (éditeur SQL, une par une).** M1 appliquée à 20 h 17 (`subscription_enforcement_start()` = `2026-10-27 20:17:05`). M3 vers 20 h 24, M5 vers 20 h 28 (aucun avis orphelin), M11 vers 20 h 41, M17-1 vers 20 h 59, M17-2 vers 21 h 03. M9 (codes promo) était **déjà en place** au constat : `create_public_order` à 11 paramètres, colonnes, quatre politiques, fonctions réservées à `service_role` ; aucun code promo en base. M14 : les deux fichiers (tables `shop_seo_*` absentes). M2 : cas A. Journaux Postgres : aucune erreur de droits.
+
+**Fonctions.** 23 déployées entre 21 h 14 et la fin du groupe F5 (`--use-api`, `--project-ref`). `ecomfy-pay-settlement` **n'existait pas** en production ; elle a été créée. Contrôle sans JWT : 401 sur `ecomfy-pay-withdraw`, `ecomfy-pay-settlement`, `ecomfy-pay-webhook`, `gsc-oauth-flow`, `generate-certificate`, `manage-student-access`.
+
+**Front.** Fusion dans `main` par commit de fusion ; Vercel « Ready », console sans violation CSP. Le second projet Vercel s'est déployé aussi (§14).
+
+**H1 : rattrapage des abonnements.** Trois paiements `completed` sans trace d'application, tous avec `shop_id` dans leurs métadonnées :
+
+| Boutique | Paiement | Fin appliquée | Solde effacé |
+|---|---|---|---|
+| Boutique.ci (`d382eab4…`, réf `MTX-0AV5FVALXR`) | 22/10 18 h 05 | 21/11 18 h 05 | 750 FCFA relevés juste avant l'application (le montant exact est dans `shop_payment_events`, `subscription_activated`) |
+| AZO (`8c688c30…`, réf `MTX-PAYFY0HWPW`) | 27/10 18 h 14, avant M1 | 26/11 18 h 14 | 0 |
+| CACAO+ (`cd3c5d2b…`, réf `MTX-6Y7OOXJEX6`) | 11/09, mois échu depuis le 11/10 | **aucune période ajoutée** | 2 350 FCFA, effacés à 22 h 28 (`subscription_catchup_credit`) |
+
+Règle retenue : la fin de l'abonnement part de **la date du paiement** (`+ 30 jours`), pas d'aujourd'hui ; commission à 0 et solde effacé pour les abonnés. Pour CACAO+, le mois payé est écoulé : pas d'abonnement, mais le solde né depuis (2 350 FCFA, inférieur aux 3 850 FCFA de commissions nées pendant le mois payé) a été soldé. La boutique avait payé 16 800 FCFA le 26/10. Décision du propriétaire : **garder** cette situation. Un bloc 1 sans filtre n'a listé que ce paiement ; aucun paiement d'abonnement `pending`.
+
+**H2.** Aucune boutique en retard au premier passage. **Maison bio** (`2aa09aca…`, `payment_pending`, solde 12 950 FCFA, sans délai supplémentaire) a une échéance au **28/10/2026 à 13 h 36 UTC** : la tâche la verrouillera, puis la fermera 3 jours plus tard (≈ 31/10) sans règlement. Tâches `enforce-shop-payment-deadlines` (`*/5`) et `enforce-subscription-expiry` (`*/30`) actives, passages en `succeeded`.
+
+**H3.** Tâche `ecomfy-pay-settlement` (`*/10 * * * *`) via `invoke_edge_function`. Réponse de contrôle : 200, `settled_count: 0`, champ `replay` présent. Nécessite `verify_jwt = false` dans `config.toml` (§14).
+
+**Recette (blocs SQL annulés par construction, rôle simulé).**
+
+| Test | Résultat |
+|---|---|
+| 1 : commande anonyme sur Boutique.ci | Commande créée, numéro `VP-…` serveur, statut `new` |
+| 8 : boutique abonnée | Dette avant 0, après 0 |
+| 9 : règlement partiel puis complet d'une boutique verrouillée | Partiel (2 000) : `locked`, suspendue, solde 3 000 ; complet (3 000) : `active`, solde 0 |
+| 10 : garde de facturation (rôle `authenticated`) | Réécriture de `commission_balance_due` refusée (`42501`) ; modification normale acceptée |
+| 13 : boutique restreinte | Lecture directe de `orders` : 0 ligne ; `get_shop_orders_secure` : 383/383 lignes masquées, sans notes |
+| 15 : API anonyme | `community_messages` 401 ; `shop_seo_connections` 401 ; `profiles` et `wallets` : `[]` |
+
+**Écart au guide.** Les avatars en base64 (10 profils) masquaient les photos des meilleurs vendeurs depuis M8 : le repli sur `shops.logo_url` est lu côté navigateur, où `shops` n'est plus lisible par un visiteur. Corrigé côté base par `20261027120000_top_sellers_shop_logo_fallback.sql` (images `data:` conservées jusqu'à 100 000 caractères, logo de la boutique en repli). La conversion des avatars vers `shop-images` s'est d'abord heurtée à des buckets inexistants (`avatars`, `shop-assets`, §14).
