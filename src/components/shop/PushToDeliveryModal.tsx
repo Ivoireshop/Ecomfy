@@ -30,19 +30,25 @@ export function PushToDeliveryModal({ isOpen, onClose, orderId, shopId, onSucces
     try {
       const { data, error } = await supabase
         .from("shop_delivery_connections")
-        .select(`
-          delivery_provider_id,
-          delivery_providers (
-            id,
-            company_name
-          )
-        `)
+        .select("delivery_provider_id")
         .eq("shop_id", shopId)
         .eq("status", "active");
 
       if (error) throw error;
-      
-      const formatted = data?.map((d: any) => d.delivery_providers).filter(Boolean) || [];
+
+      // `delivery_providers` n'est lisible que par son propriétaire (durcissement 20260628182712) : une jointure
+      // directe renvoyait toujours null pour la boutique, d'où « Aucune structure de livraison trouvée ».
+      // La vue publique expose le nom des prestataires actifs.
+      const providerIds = (data || []).map((d: any) => d.delivery_provider_id).filter(Boolean);
+      let formatted: any[] = [];
+      if (providerIds.length > 0) {
+        const { data: providersData, error: providersError } = await (supabase as any)
+          .from("delivery_providers_public")
+          .select("id, company_name")
+          .in("id", providerIds);
+        if (providersError) throw providersError;
+        formatted = providersData || [];
+      }
       setProviders(formatted);
       if (formatted.length > 0) {
         setSelectedProviderId(formatted[0].id);
@@ -62,7 +68,7 @@ export function PushToDeliveryModal({ isOpen, onClose, orderId, shopId, onSucces
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("push_order_to_delivery_provider", {
+      const { data, error } = await (supabase as any).rpc("push_order_to_delivery_provider", {
         p_order_id: orderId,
         p_provider_id: selectedProviderId,
       });
@@ -70,7 +76,12 @@ export function PushToDeliveryModal({ isOpen, onClose, orderId, shopId, onSucces
       if (error) throw error;
       
       if (data && (data as any).success === false) {
-         toast.error((data as any).error || "Erreur lors de l'assignation");
+         const reason = (data as any).error;
+         toast.error(
+           reason === "Unauthorized" ? "Seul le propriétaire de la boutique peut expédier une commande."
+           : reason === "Order not found" ? "Commande introuvable."
+           : reason || "Erreur lors de l'assignation"
+         );
       } else {
         toast.success("Commande poussée avec succès");
         onSuccess();

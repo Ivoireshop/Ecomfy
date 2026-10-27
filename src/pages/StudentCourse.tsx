@@ -9,6 +9,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, CheckCircle2, Clock, FileText, Video, File } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { toVideoEmbedUrl } from "@/lib/videoEmbed";
+
+interface Course {
+  id: string;
+  title: string;
+}
+
+// Seuls les contenus obligatoires comptent dans la progression (comme pour la génération du certificat)
+const isRequired = (content: { is_mandatory: boolean | null }) => content.is_mandatory !== false;
 
 interface Module {
   id: string;
@@ -25,7 +34,7 @@ interface Content {
   content_url: string | null;
   content_text: string | null;
   duration_minutes: number | null;
-  is_mandatory: boolean;
+  is_mandatory: boolean | null;
 }
 
 interface StudentProgress {
@@ -37,14 +46,14 @@ interface StudentProgress {
 export default function StudentCourse() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<any>(null);
+  const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [contents, setContents] = useState<Record<string, Content[]>>({});
   const [progress, setProgress] = useState<Record<string, StudentProgress>>({});
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
-  const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
+  const [certificateNumber, setCertificateNumber] = useState<string | null>(null);
   const [generatingCertificate, setGeneratingCertificate] = useState(false);
 
   useEffect(() => {
@@ -52,7 +61,7 @@ export default function StudentCourse() {
   }, [courseId]);
 
   useEffect(() => {
-    if (course && calculateOverallProgress() === 100 && !certificateUrl) {
+    if (course && calculateOverallProgress() === 100 && !certificateNumber) {
       checkCertificate();
     }
   }, [progress, course]);
@@ -66,13 +75,13 @@ export default function StudentCourse() {
 
       const { data: certData } = await supabase
         .from("course_certificates")
-        .select("certificate_url")
+        .select("certificate_number")
         .eq("course_id", courseId)
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (certData) {
-        setCertificateUrl(certData.certificate_url);
+        setCertificateNumber(certData.certificate_number);
       }
     } catch (error) {
       console.error("Error checking certificate:", error);
@@ -88,15 +97,21 @@ export default function StudentCourse() {
         body: { courseId },
       });
 
-      if (error) throw error;
-
-      if (data.certificateUrl) {
-        setCertificateUrl(data.certificateUrl);
-        toast.success("Certificat généré avec succès !");
+      if (error) {
+        // FunctionsHttpError masque le message réel : il est dans le corps de la réponse
+        const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+        throw new Error(body?.error || error.message);
       }
-    } catch (error: any) {
+
+      if (data?.certificateNumber) {
+        setCertificateNumber(data.certificateNumber);
+        toast.success("Certificat généré avec succès !");
+      } else {
+        throw new Error(data?.error || "Certificat indisponible");
+      }
+    } catch (error) {
       console.error("Error generating certificate:", error);
-      toast.error(error.message || "Erreur lors de la génération du certificat");
+      toast.error(error instanceof Error ? error.message : "Erreur lors de la génération du certificat");
     } finally {
       setGeneratingCertificate(false);
     }
@@ -106,16 +121,28 @@ export default function StudentCourse() {
     if (!courseId) return;
 
     try {
-      // Check access
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+
+      // Check access (filtré sur l'utilisateur : un formateur voit les accès de tous ses étudiants)
       const { data: accessData, error: accessError } = await supabase
         .from("student_access")
-        .select("*, course:courses(*)")
+        .select("is_active, access_expires_at, course:courses(id, title)")
         .eq("course_id", courseId)
+        .eq("user_id", user.id)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
 
-      if (accessError || !accessData) {
-        toast.error("Vous n'avez pas accès à cette formation");
+      const accessExpired =
+        !!accessData?.access_expires_at && new Date(accessData.access_expires_at) < new Date();
+
+      if (accessError || !accessData?.course || accessExpired) {
+        toast.error(
+          accessExpired ? "Votre accès à cette formation a expiré" : "Vous n'avez pas accès à cette formation"
+        );
         navigate("/student");
         return;
       }
@@ -155,7 +182,8 @@ export default function StudentCourse() {
         const { data: progressData } = await supabase
           .from("student_progress")
           .select("*")
-          .eq("course_id", courseId);
+          .eq("course_id", courseId)
+          .eq("user_id", user.id);
 
         const progressMap = (progressData || []).reduce((acc, p) => {
           if (p.content_id) {
@@ -170,7 +198,7 @@ export default function StudentCourse() {
 
         setProgress(progressMap);
       }
-    } catch (error: any) {
+    } catch (error) {
       toast.error("Erreur lors du chargement");
       console.error(error);
     } finally {
@@ -200,17 +228,18 @@ export default function StudentCourse() {
 
       if (error) throw error;
 
-      setProgress({
-        ...progress,
+      setProgress((prev) => ({
+        ...prev,
         [content.id]: {
-          ...progress[content.id],
+          notes: null,
+          ...prev[content.id],
           content_id: content.id,
           is_completed: !isCompleted,
         },
-      });
+      }));
 
       toast.success(!isCompleted ? "Marqué comme terminé" : "Marqué comme non terminé");
-    } catch (error: any) {
+    } catch (error) {
       toast.error("Erreur lors de la mise à jour");
       console.error(error);
     }
@@ -236,17 +265,18 @@ export default function StudentCourse() {
 
       if (error) throw error;
 
-      setProgress({
-        ...progress,
+      setProgress((prev) => ({
+        ...prev,
         [selectedContent.id]: {
-          ...progress[selectedContent.id],
+          is_completed: false,
+          ...prev[selectedContent.id],
           content_id: selectedContent.id,
           notes: notes,
         },
-      });
+      }));
 
       toast.success("Notes sauvegardées");
-    } catch (error: any) {
+    } catch (error) {
       toast.error("Erreur lors de la sauvegarde");
       console.error(error);
     }
@@ -262,17 +292,17 @@ export default function StudentCourse() {
   };
 
   const calculateModuleProgress = (moduleId: string) => {
-    const moduleContents = contents[moduleId] || [];
+    const moduleContents = (contents[moduleId] || []).filter(isRequired);
     if (moduleContents.length === 0) return 0;
-    
+
     const completedCount = moduleContents.filter(c => progress[c.id]?.is_completed).length;
     return Math.round((completedCount / moduleContents.length) * 100);
   };
 
   const calculateOverallProgress = () => {
-    const allContents = Object.values(contents).flat();
+    const allContents = Object.values(contents).flat().filter(isRequired);
     if (allContents.length === 0) return 0;
-    
+
     const completedCount = allContents.filter(c => progress[c.id]?.is_completed).length;
     return Math.round((completedCount / allContents.length) * 100);
   };
@@ -322,11 +352,11 @@ export default function StudentCourse() {
                             Félicitations ! Vous avez terminé cette formation.
                           </p>
                         </div>
-                        {certificateUrl ? (
+                        {certificateNumber ? (
                           <Button
                             variant="outline"
-                            onClick={() => window.open(certificateUrl, "_blank")}
-                            className="border-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                            onClick={() => navigate(`/certificate/${certificateNumber}`)}
+                            className="border-green-600 text-green-800 hover:bg-green-100 hover:text-green-900 dark:text-green-200 dark:hover:bg-green-900 dark:hover:text-green-50"
                           >
                             Voir mon certificat
                           </Button>
@@ -369,13 +399,24 @@ export default function StudentCourse() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {selectedContent.content_type === "video" && selectedContent.content_url && (
-                    <div className="aspect-video">
-                      <iframe
-                        src={selectedContent.content_url.replace("watch?v=", "embed/")}
-                        className="w-full h-full rounded-lg"
-                        allowFullScreen
-                      />
-                    </div>
+                    toVideoEmbedUrl(selectedContent.content_url) ? (
+                      <div className="aspect-video">
+                        <iframe
+                          src={toVideoEmbedUrl(selectedContent.content_url)!}
+                          title={selectedContent.title}
+                          className="w-full h-full rounded-lg"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <Button asChild variant="outline" className="w-full">
+                        <a href={selectedContent.content_url} target="_blank" rel="noopener noreferrer">
+                          <Video className="h-4 w-4 mr-2" />
+                          Ouvrir la vidéo
+                        </a>
+                      </Button>
+                    )
                   )}
 
                   {selectedContent.content_type === "pdf" && selectedContent.content_url && (

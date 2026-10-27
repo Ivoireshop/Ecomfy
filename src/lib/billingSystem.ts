@@ -45,6 +45,40 @@ export interface BillingStatusInfo {
   hasInvoice: boolean;
 }
 
+/**
+ * Même définition que public.is_shop_restricted() côté base : boutique suspendue OU statut restreint.
+ * Le serveur reste l'autorité (la lecture directe de `orders` est refusée à une boutique restreinte) ;
+ * ceci ne sert qu'à choisir la bonne voie de lecture.
+ */
+export const RESTRICTED_SHOP_STATUSES = ["STORE_RESTRICTED", "locked", "PAYMENT_OVERDUE", "final_suspension"];
+
+export function isShopRowRestricted(shop: { is_suspended?: boolean | null; shop_payment_status?: string | null } | null | undefined): boolean {
+  if (!shop) return false;
+  return !!shop.is_suspended || RESTRICTED_SHOP_STATUSES.includes(shop.shop_payment_status || "");
+}
+
+/**
+ * Le système de factures par seuil (table shop_invoices, RPC check_and_trigger_billing_threshold et
+ * enforce_shop_billing_deadlines) n'existe pas sur toutes les bases. Quand PostgREST répond « introuvable »,
+ * on s'en souvient pour le reste de la session au lieu de renvoyer 2 à 3 requêtes en 404 à chaque rafraîchissement
+ * (le hook est monté plusieurs fois dans le tableau de bord).
+ */
+let invoiceSystemMissing = false;
+
+/** Vrai tant qu'aucune requête n'a montré que le système de factures est absent de la base. */
+export function isInvoiceSystemAvailable(): boolean {
+  return !invoiceSystemMissing;
+}
+
+function isMissingObjectError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  return ["PGRST202", "PGRST205", "42P01", "42883"].includes(error.code || "")
+    || /could not find the (table|function)|does not exist/i.test(error.message || "");
+}
+
+/** Statuts de la boutique qui ouvrent un délai de paiement (nouveau modèle et modèle historique). */
+const DUE_STATUSES = ["PAYMENT_DUE", "GRACE_PERIOD", "payment_pending"];
+
 export const BILLING_CONFIG = {
   THRESHOLD_ORDERS: 240,
   BILLING_AMOUNT: 12000,
@@ -82,13 +116,16 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       .eq("id", shopId)
       .maybeSingle();
 
-    // Trigger auto-check for 240 threshold if order count >= 240
-    if (shop && Number(shop.total_orders || 0) >= BILLING_CONFIG.THRESHOLD_ORDERS) {
-      await supabase.rpc("check_and_trigger_billing_threshold" as any, { _shop_id: shopId });
-    }
+    if (!invoiceSystemMissing) {
+      // Trigger auto-check for 240 threshold if order count >= 240
+      if (shop && Number(shop.total_orders || 0) >= BILLING_CONFIG.THRESHOLD_ORDERS) {
+        const { error } = await supabase.rpc("check_and_trigger_billing_threshold" as any, { _shop_id: shopId });
+        if (isMissingObjectError(error)) invoiceSystemMissing = true;
+      }
 
-    // Auto-check deadlines (if 3-day grace period expired)
-    await supabase.rpc("enforce_shop_billing_deadlines" as any);
+      // Les échéances dépassées sont appliquées par la tâche planifiée du serveur (enforce_shop_billing_deadlines,
+      // toutes les 5 minutes) : le navigateur ne la déclenche plus.
+    }
 
     // Re-query updated shop state
     const { data: updatedShop } = await supabase
@@ -99,18 +136,24 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
 
     const rawStatus = (updatedShop?.shop_payment_status as BillingStatusType) || "STORE_ACTIVE";
 
-    // 2. Fetch active invoice if any
-    const { data: invoices } = await supabase
-      .from("shop_invoices" as any)
-      .select("*")
-      .eq("shop_id", shopId)
-      .order("created_at", { ascending: false });
-
-    const invoiceList = (invoices || []) as unknown as ShopInvoice[];
-    const activeInvoice = invoiceList.find((i) => i.status !== "PAYMENT_CONFIRMED" && i.status !== "CANCELLED") || invoiceList[0] || null;
+    // 2. Fetch the open invoice if any (une facture réglée ou annulée n'est pas « active »)
+    let invoiceList: ShopInvoice[] = [];
+    if (!invoiceSystemMissing) {
+      const { data: invoices, error: invoicesError } = await supabase
+        .from("shop_invoices" as any)
+        .select("*")
+        .eq("shop_id", shopId)
+        .order("created_at", { ascending: false });
+      if (isMissingObjectError(invoicesError)) invoiceSystemMissing = true;
+      invoiceList = (invoices || []) as unknown as ShopInvoice[];
+    }
+    const activeInvoice = invoiceList.find((i) => i.status !== "PAYMENT_CONFIRMED" && i.status !== "CANCELLED") || null;
 
     const ordersCount = Number(updatedShop?.total_orders || 0);
-    const dueDate = activeInvoice?.due_date || updatedShop?.payment_deadline || null;
+    // L'échéance qui fait foi est celle de la boutique (c'est elle que le serveur applique), et seulement tant qu'un
+    // délai est ouvert : l'échéance d'une ancienne facture réglée ne doit pas restreindre un solde plus récent.
+    const isDueStatus = DUE_STATUSES.includes(rawStatus);
+    const dueDate = isDueStatus ? (updatedShop?.payment_deadline || activeInvoice?.due_date || null) : null;
     const remainingMs = dueDate ? Math.max(0, new Date(dueDate).getTime() - Date.now()) : 0;
 
     // Actual real balance due from DB shops.commission_balance_due (Single Source of Truth)
@@ -140,13 +183,11 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       rawStatus === "locked" || 
       rawStatus === "final_suspension" ||
       rawStatus === "PAYMENT_OVERDUE" ||
-      (remainingMs === 0 && dueDate !== null && activeInvoice?.status !== "PAYMENT_CONFIRMED" && storedBalanceDue > 0);
+      (isDueStatus && remainingMs === 0 && dueDate !== null && storedBalanceDue > 0);
 
-    const isGracePeriod = 
-      (rawStatus === "PAYMENT_DUE" || rawStatus === "GRACE_PERIOD" || rawStatus === "payment_pending") &&
-      remainingMs > 0 &&
-      !isRestricted &&
-      storedBalanceDue >= BILLING_CONFIG.BILLING_AMOUNT;
+    // Un règlement partiel ne ferme pas le délai : tant qu'il court et qu'un solde reste dû, le compte à rebours
+    // doit rester visible (avant, il disparaissait dès que le solde passait sous 12 000 FCFA).
+    const isGracePeriod = isDueStatus && remainingMs > 0 && !isRestricted && storedBalanceDue > 0;
 
     const isPaymentDue = storedBalanceDue > 0;
 
@@ -189,7 +230,7 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
  * Fetch full invoice history for a shop
  */
 export async function fetchShopInvoicesHistory(shopId: string): Promise<ShopInvoice[]> {
-  if (!shopId) return [];
+  if (!shopId || invoiceSystemMissing) return [];
   try {
     const { data, error } = await supabase
       .from("shop_invoices" as any)
@@ -198,7 +239,8 @@ export async function fetchShopInvoicesHistory(shopId: string): Promise<ShopInvo
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[BillingSystem] Error fetching invoices:", error);
+      if (isMissingObjectError(error)) invoiceSystemMissing = true;
+      else console.error("[BillingSystem] Error fetching invoices:", error);
       return [];
     }
     return (data || []) as unknown as ShopInvoice[];

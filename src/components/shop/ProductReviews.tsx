@@ -3,9 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, Loader2, MessageSquarePlus, CheckCircle2, Send, Shield } from "lucide-react";
+import { Star, Loader2, MessageSquarePlus, Send, Shield } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ProductThemeSettings, isDarkColor } from "@/lib/productAppearance";
+
+const PAGE_SIZE = 20;
+const NAME_MAX = 80;
+const COMMENT_MAX = 2000;
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 interface Review {
   id: string;
@@ -33,19 +38,65 @@ export function ProductReviews({
   themeSettings,
 }: ProductReviewsProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [total, setTotal] = useState(0);
+  const [average, setAverage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [website, setWebsite] = useState(""); // piège à robots : un humain ne le voit pas et ne le remplit pas
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Les hooks passent avant tout retour anticipé : changer un réglage d'apparence pendant que la section
+  // est montée faisait varier le nombre de hooks (« Rendered fewer hooks than expected »).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(false);
+      const [list, stats] = await Promise.all([
+        (supabase as any)
+          .from("product_reviews_public")
+          .select("id, reviewer_name, rating, comment, created_at", { count: "exact" })
+          .eq("shop_id", shopId)
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(0, PAGE_SIZE - 1),
+        (supabase as any).rpc("get_product_review_stats", { p_shop_id: shopId, p_product_id: productId }),
+      ]);
+      if (cancelled) return;
+      if (list.error) {
+        setReviews([]);
+        setTotal(0);
+        setAverage(0);
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
+      const rows: Review[] = list.data || [];
+      const st = Array.isArray(stats.data) ? stats.data[0] : stats.data;
+      setReviews(rows);
+      setTotal(list.count ?? rows.length);
+      // Moyenne sur TOUS les avis approuvés (serveur) ; à défaut, sur ceux qui sont chargés.
+      setAverage(
+        !stats.error && st
+          ? Number(st.average_rating) || 0
+          : rows.length ? rows.reduce((sum, r) => sum + r.rating, 0) / rows.length : 0,
+      );
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [shopId, productId, reloadKey]);
 
   if (
     themeConfig?.reviews_section_enabled === false ||
-    themeConfig?.reviews_enabled === false ||
-    themeSettings?.custom_css_settings?.reviews_section_enabled === false ||
-    themeSettings?.custom_css_settings?.reviews_enabled === false
+    themeSettings?.custom_css_settings?.reviews_section_enabled === false
   ) {
     return null;
   }
@@ -84,28 +135,29 @@ export function ProductReviews({
   const btnBg = themeSettings?.button_color || primaryColor || "#0E7C66";
   const btnFg = themeSettings?.button_text_color || "#FFFFFF";
 
-  const load = async () => {
-    setLoading(true);
-    const { data } = await (supabase as any)
+  const loadMore = async () => {
+    setLoadingMore(true);
+    const { data, error } = await (supabase as any)
       .from("product_reviews_public")
       .select("id, reviewer_name, rating, comment, created_at")
       .eq("shop_id", shopId)
       .eq("product_id", productId)
       .order("created_at", { ascending: false })
-      .limit(50);
-    setReviews((data as any) || []);
-    setLoading(false);
+      .order("id", { ascending: false })
+      .range(reviews.length, reviews.length + PAGE_SIZE - 1);
+    setLoadingMore(false);
+    if (error) {
+      toast({ title: "Erreur", description: "Impossible de charger plus d'avis. Réessayez.", variant: "destructive" });
+      return;
+    }
+    setReviews((prev) => {
+      const seen = new Set(prev.map((r) => r.id));
+      return [...prev, ...((data as Review[]) || []).filter((r) => !seen.has(r.id))];
+    });
   };
 
-  useEffect(() => {
-    load();
-  }, [shopId, productId]);
-
-  const avg = reviews.length
-    ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
-    : 0;
-
   const submit = async () => {
+    if (submitting) return;
     if (isPreview) {
       toast({
         title: "Mode aperçu",
@@ -113,7 +165,10 @@ export function ProductReviews({
       });
       return;
     }
-    if (!name.trim() || !comment.trim()) {
+    const cleanName = name.trim();
+    const cleanComment = comment.trim();
+    const cleanEmail = email.trim();
+    if (!cleanName || !cleanComment) {
       toast({
         title: "Champs requis",
         description: "Nom et commentaire obligatoires",
@@ -121,39 +176,50 @@ export function ProductReviews({
       });
       return;
     }
+    if (cleanEmail && (cleanEmail.length > 254 || !EMAIL_RE.test(cleanEmail))) {
+      toast({ title: "Email invalide", description: "Vérifiez votre adresse email ou laissez le champ vide.", variant: "destructive" });
+      return;
+    }
+    const done = () => {
+      toast({
+        title: "Merci !",
+        description: "Votre avis a été envoyé. Il sera publié après modération.",
+      });
+      setName("");
+      setEmail("");
+      setComment("");
+      setRating(5);
+      setShowForm(false);
+    };
+    if (website.trim()) { done(); return; } // robot : succès apparent, rien n'est enregistré
+
     setSubmitting(true);
     const { error } = await supabase.from("product_reviews").insert({
       shop_id: shopId,
       product_id: productId,
-      reviewer_name: name.trim(),
-      reviewer_email: email.trim() || null,
+      reviewer_name: cleanName,
+      reviewer_email: cleanEmail || null,
       rating,
-      comment: comment.trim(),
+      comment: cleanComment,
       status: "pending",
     });
     setSubmitting(false);
     if (error) {
+      // Les contrôles du serveur (code 22023) ont un message lisible ; le reste est technique.
       toast({
         title: "Erreur",
-        description: error.message,
+        description: error.code === "22023" ? error.message : "Impossible d'envoyer votre avis pour le moment. Réessayez dans un instant.",
         variant: "destructive",
       });
       return;
     }
-    toast({
-      title: "Merci !",
-      description: "Votre avis a été envoyé. Il sera publié après modération.",
-    });
-    setName("");
-    setEmail("");
-    setComment("");
-    setRating(5);
-    setShowForm(false);
+    done();
   };
 
   return (
     <section
-      className="border-t transition-colors duration-300"
+      id="avis-clients"
+      className="border-t transition-colors duration-300 scroll-mt-4"
       style={{
         backgroundColor: sectionBg,
         borderColor: borderColor,
@@ -174,7 +240,7 @@ export function ProductReviews({
                 <Star
                   key={i}
                   className={`h-6 w-6 sm:h-7 sm:w-7 ${
-                    i <= Math.round(avg)
+                    i <= Math.round(average)
                       ? "fill-amber-400 text-amber-400 drop-shadow-xs"
                       : "fill-gray-300/40 text-gray-300/60"
                   }`}
@@ -185,9 +251,9 @@ export function ProductReviews({
               className="text-base font-medium opacity-80"
               style={{ color: textColor }}
             >
-              {reviews.length > 0
-                ? `${avg.toFixed(1)} sur 5 basés sur ${reviews.length} avis`
-                : "Aucun avis pour le moment"}
+              {total > 0
+                ? `${average.toFixed(1)} sur 5 basés sur ${total} avis`
+                : loadError ? "Avis momentanément indisponibles" : "Aucun avis pour le moment"}
             </span>
           </div>
         </div>
@@ -195,6 +261,16 @@ export function ProductReviews({
         {loading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="h-8 w-8 animate-spin opacity-50" />
+          </div>
+        ) : loadError ? (
+          <div
+            className="text-base text-center mb-10 p-8 rounded-2xl border shadow-xs space-y-3"
+            style={{ backgroundColor: cardBg, borderColor: borderColor, color: textColor }}
+          >
+            <p>Impossible de charger les avis pour le moment.</p>
+            <Button variant="outline" onClick={() => setReloadKey((k) => k + 1)} style={{ borderColor: borderColor }}>
+              Réessayer
+            </Button>
           </div>
         ) : reviews.length > 0 ? (
           <div className="space-y-4 mb-10">
@@ -215,7 +291,6 @@ export function ProductReviews({
                       style={{ color: titleColor }}
                     >
                       {r.reviewer_name}
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                     </span>
                     <p className="text-xs opacity-60 mt-0.5">
                       {new Date(r.created_at).toLocaleDateString("fr-FR", {
@@ -238,9 +313,23 @@ export function ProductReviews({
                     ))}
                   </div>
                 </div>
-                <p className="leading-relaxed opacity-90">{r.comment}</p>
+                <p className="leading-relaxed opacity-90 whitespace-pre-wrap break-words">{r.comment}</p>
               </div>
             ))}
+            {reviews.length < total && (
+              <div className="text-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="rounded-full font-semibold"
+                  style={{ borderColor: borderColor, color: textColor }}
+                >
+                  {loadingMore && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Voir plus d'avis ({total - reviews.length})
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <p
@@ -268,7 +357,7 @@ export function ProductReviews({
           </div>
         ) : (
           <div
-            className="rounded-2xl p-6 sm:p-8 shadow-xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 border"
+            className="relative overflow-hidden rounded-2xl p-6 sm:p-8 shadow-xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 border"
             style={{
               backgroundColor: cardBg,
               borderColor: borderColor,
@@ -292,7 +381,9 @@ export function ProductReviews({
                       key={i}
                       type="button"
                       onClick={() => setRating(i)}
-                      className="p-1 hover:scale-110 transition-transform focus:outline-none"
+                      aria-label={`${i} étoile${i > 1 ? "s" : ""} sur 5`}
+                      aria-pressed={i === rating}
+                      className="p-1 hover:scale-110 transition-transform focus:outline-none focus-visible:ring-2 rounded"
                     >
                       <Star
                         className={`h-8 w-8 ${
@@ -314,6 +405,8 @@ export function ProductReviews({
                     className="h-12 rounded-xl border focus:ring-1"
                     style={{ backgroundColor: inputBg, borderColor: borderColor, color: textColor }}
                     placeholder="Ex: Jean Dupont"
+                    maxLength={NAME_MAX}
+                    autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -327,6 +420,8 @@ export function ProductReviews({
                     className="h-12 rounded-xl border focus:ring-1"
                     style={{ backgroundColor: inputBg, borderColor: borderColor, color: textColor }}
                     placeholder="Ex: jean@exemple.com"
+                    maxLength={254}
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -340,11 +435,24 @@ export function ProductReviews({
                   className="rounded-xl border resize-none focus:ring-1"
                   style={{ backgroundColor: inputBg, borderColor: borderColor, color: textColor }}
                   placeholder="Qu'avez-vous pensé de ce produit ?"
+                  maxLength={COMMENT_MAX}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={5}
                 />
+                <p className="text-xs opacity-60 text-right">{comment.length}/{COMMENT_MAX}</p>
               </div>
+
+              <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+              />
 
               <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2">
                 <Button
@@ -369,7 +477,7 @@ export function ProductReviews({
                   ) : (
                     <Send className="h-4 w-4 mr-2" />
                   )}
-                  Publier l'avis
+                  Envoyer mon avis
                 </Button>
               </div>
               <p className="text-xs opacity-60 text-center flex items-center justify-center gap-1.5 mt-2">

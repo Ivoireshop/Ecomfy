@@ -39,11 +39,13 @@ export interface SeoAuditResult {
   scannedDomain: string;
   overallScore: number;
   technicalScore: number;
-  performanceScore: number;
+  /** null tant qu'aucune analyse PageSpeed n'a été faite. */
+  performanceScore: number | null;
   contentScore: number;
   indexabilityScore: number;
   metadataScore: number;
-  mobileScore: number;
+  /** null tant qu'aucune analyse PageSpeed mobile n'a été faite. */
+  mobileScore: number | null;
   issuesCriticalCount: number;
   issuesImportantCount: number;
   issuesOptimizationCount: number;
@@ -113,6 +115,8 @@ export interface PageSpeedResult {
   webVitals: CoreWebVitals;
   source: 'PageSpeed Insights';
   analyzedAt: string | null;
+  /** Message d'erreur si l'analyse a échoué (quota, URL injoignable...). */
+  error: string | null;
 }
 
 export interface UrlInspectionResult {
@@ -120,6 +124,8 @@ export interface UrlInspectionResult {
   verdict: 'INDEXED' | 'NOT_INDEXED' | 'NEUTRAL' | 'UNAVAILABLE';
   coverageState: string;
   indexingState: string;
+  /** Explication affichée quand le verdict est UNAVAILABLE. */
+  message?: string;
   canonicalUrl?: string;
   googleCanonicalUrl?: string;
   lastCrawlTime?: string;
@@ -137,8 +143,8 @@ export interface StructuredDataPreview {
 export interface PlatformSeoGlobalStats {
   totalConnectedShops: number;
   totalAuditedDomains: number;
-  avgPlatformSeoScore: number;
+  avgPlatformSeoScore: number | null;
   totalCriticalIssues: number;
-  avgMobilePerformance: number;
+  avgMobilePerformance: number | null;
   shopsNeedingAttentionCount: number;
 }

@@ -1,3 +1,4 @@
+import { expect, test } from "vitest";
 /**
  * ECOMFY PROFILE COMPLETION SYSTEM — AUTOMATED LOCAL TEST SUITE
  * 
@@ -228,3 +229,7 @@ export function runProfileCompletionTests(): ProfileTestResult[] {
 
   return results;
 }
+
+test.each(runProfileCompletionTests().map((r) => [r.testId, r.title, r] as const))("%s — %s", (_id, _title, r) => {
+  expect(r.passed, `attendu : ${r.expected} / obtenu : ${r.actual}`).toBe(true);
+});

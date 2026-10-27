@@ -27,9 +27,10 @@ import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PREMIUM_ACADEMY_PLAN } from "@/config/pricingPlans";
 
 export interface TutorialVideo {
   id: string;
@@ -42,6 +43,8 @@ export interface TutorialVideo {
   categoryLabel: string;
   level: "Débutant" | "Intermédiaire" | "Avancé" | "Tous niveaux";
   featured?: boolean;
+  /** Vidéo pas encore tournée : listée au catalogue mais non lisible (aucun identifiant YouTube réel). */
+  comingSoon?: boolean;
   tags: string[];
   keyPoints?: string[];
   actionLink?: {
@@ -98,6 +101,7 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   },
   {
     id: "vid-ecomfy-products",
+    comingSoon: true,
     title: "Optimiser vos fiches produits pour doubler vos conversions",
     description: "Découvrez comment rendre vos produits irrésistibles grâce aux comptes à rebours d'urgence, à la jauge de stock animée et aux offres par lots (bundles).",
     youtubeId: "XOfjv1oX7Dc",
@@ -119,6 +123,7 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   },
   {
     id: "vid-ecomfy-branding",
+    comingSoon: true,
     title: "Personnaliser le thème et l'identité visuelle de votre vitrine",
     description: "Apprenez à adapter la couleur principale, le logo et l'ambiance visuelle de votre boutique pour refléter une marque ultra-professionnelle.",
     youtubeId: "XOfjv1oX7Dc",
@@ -136,6 +141,7 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   },
   {
     id: "vid-fb-business-setup",
+    comingSoon: true,
     title: "Créer et configurer un compte Facebook Business Manager",
     description: "Guide stratégique pour créer proprement votre Business Manager Facebook, lier votre page professionnelle et sécuriser vos actifs publicitaires.",
     youtubeId: "XOfjv1oX7Dc",
@@ -153,6 +159,7 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   },
   {
     id: "vid-fb-first-campaign",
+    comingSoon: true,
     title: "Lancer votre première campagne publicitaire rentable",
     description: "Comment structurer une campagne de vente directe ou de redirection WhatsApp rentable avec ciblage géographique précis en Afrique.",
     youtubeId: "XOfjv1oX7Dc",
@@ -174,6 +181,7 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   },
   {
     id: "vid-fb-creatives-ai",
+    comingSoon: true,
     title: "Générer des visuels & vidéos publicitaires percutants avec le Studio IA",
     description: "Créez des contenus visuels HD de niveau agence en 1 clic grâce à l'IA d'Ecomfy pour captiver l'attention dans le fil d'actualité Facebook.",
     youtubeId: "XOfjv1oX7Dc",
@@ -195,6 +203,7 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   },
   {
     id: "vid-sales-whatsapp",
+    comingSoon: true,
     title: "Convertir vos prospects Facebook en acheteurs sur WhatsApp",
     description: "Mettez en place un système d'accueil et de closing ultra efficace pour clore les ventes WhatsApp rapidement dès le premier message.",
     youtubeId: "XOfjv1oX7Dc",
@@ -212,6 +221,7 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   },
   {
     id: "vid-sales-retention",
+    comingSoon: true,
     title: "Techniques de relance client et livraison pour tripler vos revenus",
     description: "Comment gérer le suivi des livraisons avec vos livreurs et relancer les paniers abandonnés ou anciens clients avec de nouvelles offres.",
     youtubeId: "XOfjv1oX7Dc",
@@ -233,6 +243,10 @@ const ACADEMY_VIDEOS: TutorialVideo[] = [
   }
 ];
 
+const COMPLETED_STORAGE_KEY = "ecomfy_academy_completed_videos";
+const PLAYABLE_VIDEOS = ACADEMY_VIDEOS.filter((v) => !v.comingSoon);
+const PLAYABLE_VIDEO_IDS = new Set(PLAYABLE_VIDEOS.map((v) => v.id));
+
 export default function Academy() {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -240,12 +254,15 @@ export default function Academy() {
   const [activeVideo, setActiveVideo] = useState<TutorialVideo | null>(null);
   const [completedVideoIds, setCompletedVideoIds] = useState<string[]>([]);
 
-  // Charge les vidéos terminées sauvegardées
+  // Charge les vidéos terminées sauvegardées (on ignore les identifiants qui n'existent plus au catalogue)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("ecomfy_academy_completed_videos");
+      const saved = localStorage.getItem(COMPLETED_STORAGE_KEY);
       if (saved) {
-        setCompletedVideoIds(JSON.parse(saved));
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setCompletedVideoIds(parsed.filter((id): id is string => PLAYABLE_VIDEO_IDS.has(id)));
+        }
       }
     } catch (err) {
       console.error("Erreur de chargement de la progression vidéo", err);
@@ -258,7 +275,7 @@ export default function Academy() {
       : [...completedVideoIds, id];
     setCompletedVideoIds(next);
     try {
-      localStorage.setItem("ecomfy_academy_completed_videos", JSON.stringify(next));
+      localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(next));
     } catch (err) {
       console.error("Erreur de sauvegarde de la progression", err);
     }
@@ -273,8 +290,10 @@ export default function Academy() {
     return matchesCategory && matchesSearch;
   });
 
-  const featuredVideo = ACADEMY_VIDEOS.find((v) => v.featured) || ACADEMY_VIDEOS[0];
-  const progressPercent = Math.round((completedVideoIds.length / ACADEMY_VIDEOS.length) * 100);
+  const featuredVideo = PLAYABLE_VIDEOS.find((v) => v.featured) || PLAYABLE_VIDEOS[0];
+  const progressPercent = PLAYABLE_VIDEOS.length
+    ? Math.min(100, Math.round((completedVideoIds.length / PLAYABLE_VIDEOS.length) * 100))
+    : 0;
 
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 pb-20 pt-4 px-4 sm:px-6 lg:px-8">
@@ -293,7 +312,7 @@ export default function Academy() {
                 Académie Ecomfy • Formations & Tutoriels
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-xs font-bold">
-                👑 Pass Premium Académie : 35 000 FCFA / mois (ou 28 500 FCFA / mois en annuel)
+                👑 Pass Premium Académie : {PREMIUM_ACADEMY_PLAN.monthlyPrice.toLocaleString("fr-FR")} FCFA / mois (ou {PREMIUM_ACADEMY_PLAN.annualPriceMonthlyEquivalent?.toLocaleString("fr-FR")} FCFA / mois en annuel)
               </div>
             </div>
             
@@ -323,7 +342,7 @@ export default function Academy() {
                 </div>
                 <div>
                   <p className="text-xs text-emerald-100 font-medium">Tutoriels disponibles</p>
-                  <p className="text-lg font-bold text-white">{ACADEMY_VIDEOS.length} Vidéos Pro</p>
+                  <p className="text-lg font-bold text-white">{PLAYABLE_VIDEOS.length} Vidéos Pro</p>
                 </div>
               </div>
 
@@ -377,6 +396,7 @@ export default function Academy() {
                 <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] group-hover:bg-slate-950/20 transition-all flex items-center justify-center">
                   <button
                     onClick={() => setActiveVideo(featuredVideo)}
+                    aria-label={`Regarder : ${featuredVideo.title}`}
                     className="w-16 h-16 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-2xl transition-all duration-300 transform group-hover:scale-110 hover:bg-emerald-600 focus:outline-none"
                   >
                     <PlayCircle className="w-10 h-10 fill-white text-[#0E7C66] ml-0.5" />
@@ -418,14 +438,14 @@ export default function Academy() {
                     className="bg-[#0E7C66] hover:bg-emerald-700 text-white font-medium rounded-xl px-6 shadow-sm"
                   >
                     <PlayCircle className="w-4 h-4 mr-2" />
-                    Regarder la Vidéo (15 min)
+                    Regarder la Vidéo ({featuredVideo.duration})
                   </Button>
 
                   {featuredVideo.actionLink && (
                     <Button
                       variant="outline"
                       onClick={() => navigate(featuredVideo.actionLink!.url)}
-                      className="rounded-xl font-medium border-emerald-600/30 text-[#0E7C66] hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                      className="rounded-xl font-medium border-emerald-600/30 text-[#0E7C66] hover:bg-emerald-50 hover:text-[#0E7C66] dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
                     >
                       {featuredVideo.actionLink.label}
                       <ArrowRight className="w-4 h-4 ml-2" />
@@ -551,19 +571,32 @@ export default function Academy() {
                   >
                     <div>
                       {/* Card Thumbnail Header */}
-                      <div className="relative aspect-video bg-slate-950 overflow-hidden cursor-pointer" onClick={() => setActiveVideo(video)}>
-                        <img
-                          src={`https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`}
-                          alt={video.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 opacity-90 group-hover:opacity-100"
-                        />
-                        
-                        {/* Play Icon Hover Overlay */}
-                        <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] group-hover:bg-slate-950/20 transition-all flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
-                            <PlayCircle className="w-7 h-7 ml-0.5" />
+                      <div
+                        className={`relative aspect-video bg-slate-950 overflow-hidden ${video.comingSoon ? "" : "cursor-pointer"}`}
+                        onClick={() => !video.comingSoon && setActiveVideo(video)}
+                      >
+                        {video.comingSoon ? (
+                          <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex flex-col items-center justify-center gap-2 text-slate-300">
+                            <Clock className="w-8 h-8 opacity-70" />
+                            <span className="text-xs font-semibold">Bientôt disponible</span>
                           </div>
-                        </div>
+                        ) : (
+                          <>
+                            <img
+                              src={`https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`}
+                              alt={video.title}
+                              loading="lazy"
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 opacity-90 group-hover:opacity-100"
+                            />
+
+                            {/* Play Icon Hover Overlay */}
+                            <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] group-hover:bg-slate-950/20 transition-all flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-full bg-[#0E7C66] text-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+                                <PlayCircle className="w-7 h-7 ml-0.5" />
+                              </div>
+                            </div>
+                          </>
+                        )}
 
                         {/* Top Badges */}
                         <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
@@ -590,7 +623,7 @@ export default function Academy() {
                       <CardHeader className="p-4 pb-2 space-y-1.5">
                         <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground font-medium">
                           <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{video.level}</span>
-                          <span>YouTube HD</span>
+                          <span>{video.comingSoon ? "Bientôt" : "Vidéo"}</span>
                         </div>
 
                         <CardTitle className="text-base font-space font-bold line-clamp-2 text-foreground group-hover:text-[#0E7C66] transition-colors leading-snug">
@@ -620,6 +653,7 @@ export default function Academy() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        disabled={video.comingSoon}
                         onClick={() => toggleVideoCompleted(video.id)}
                         className={`text-xs h-8 px-2.5 rounded-lg ${
                           isCompleted
@@ -633,10 +667,11 @@ export default function Academy() {
 
                       <Button
                         size="sm"
+                        disabled={video.comingSoon}
                         onClick={() => setActiveVideo(video)}
                         className="bg-[#0E7C66] hover:bg-emerald-700 text-white text-xs h-8 px-3.5 rounded-xl shadow-sm"
                       >
-                        Voir
+                        {video.comingSoon ? "Bientôt" : "Voir"}
                         <ChevronRight className="w-3.5 h-3.5 ml-1" />
                       </Button>
                     </div>
@@ -671,7 +706,7 @@ export default function Academy() {
 
       {/* Video Modal / Player Dialog */}
       <Dialog open={!!activeVideo} onOpenChange={(open) => !open && setActiveVideo(null)}>
-        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden rounded-3xl bg-slate-950 text-white border-slate-800">
+        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden rounded-3xl bg-slate-950 text-white border-slate-800 [&>button]:hidden">
           {activeVideo && (
             <div className="flex flex-col max-h-[90vh] overflow-y-auto scrollbar-thin">
               {/* Header */}
@@ -686,6 +721,7 @@ export default function Academy() {
                 </div>
                 <button
                   onClick={() => setActiveVideo(null)}
+                  aria-label="Fermer la vidéo"
                   className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-800 transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -707,9 +743,9 @@ export default function Academy() {
               <div className="p-6 bg-slate-900 space-y-6">
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Aperçu du Tutoriel</h4>
-                  <p className="text-sm text-slate-200 leading-relaxed">
+                  <DialogDescription className="text-sm text-slate-200 leading-relaxed">
                     {activeVideo.description}
-                  </p>
+                  </DialogDescription>
                 </div>
 
                 {activeVideo.keyPoints && (

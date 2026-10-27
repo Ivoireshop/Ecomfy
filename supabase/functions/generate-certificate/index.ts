@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { APP_URL } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -266,17 +267,29 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
         global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
+          headers: { Authorization: authHeader },
         },
       }
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    // Écritures (fichier + ligne de certificat) : réservées au service-role, car un étudiant n'a ni
+    // droit d'insertion sur course_certificates ni accès au dossier `certificates/` du bucket.
+    // Elles ne sont atteintes qu'après la vérification d'accès et de complétion ci-dessous.
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Le jeton doit être passé explicitement : côté serveur il n'y a pas de session persistée
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -294,18 +307,68 @@ serve(async (req) => {
 
     console.log(`Generating certificate for user ${user.id}, course ${courseId}`);
 
-    // Vérifier complétion
+    // L'étudiant doit avoir un accès actif (et non expiré) à la formation
+    const { data: access } = await supabaseClient
+      .from("student_access")
+      .select("is_active, access_expires_at")
+      .eq("user_id", user.id)
+      .eq("course_id", courseId)
+      .maybeSingle();
+
+    const accessExpired =
+      !!access?.access_expires_at && new Date(access.access_expires_at) < new Date();
+    if (!access || !access.is_active || accessExpired) {
+      return new Response(
+        JSON.stringify({ error: "Vous n'avez pas accès à cette formation" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Vérifier complétion : la progression se mesure sur les contenus obligatoires
+    // de la formation, pas sur les seules lignes déjà enregistrées par l'étudiant.
+    const { data: publishedModules, error: modulesError } = await supabaseClient
+      .from("course_modules")
+      .select("id")
+      .eq("course_id", courseId)
+      .eq("is_published", true);
+
+    if (modulesError) throw modulesError;
+
+    const moduleIds = (publishedModules || []).map((m) => m.id);
+    const { data: moduleContents, error: contentsError } = moduleIds.length
+      ? await supabaseClient
+          .from("module_contents")
+          .select("id, is_mandatory")
+          .in("module_id", moduleIds)
+      : { data: [], error: null };
+
+    if (contentsError) throw contentsError;
+
+    const requiredIds = new Set(
+      (moduleContents || []).filter((c) => c.is_mandatory !== false).map((c) => c.id)
+    );
+
+    if (requiredIds.size === 0) {
+      return new Response(
+        JSON.stringify({ error: "Cette formation ne contient aucun contenu à valider" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: progressData, error: progressError } = await supabaseClient
       .from("student_progress")
-      .select("*")
+      .select("content_id, is_completed")
       .eq("user_id", user.id)
       .eq("course_id", courseId);
 
     if (progressError) throw progressError;
 
-    const completedCount = progressData?.filter((p) => p.is_completed).length || 0;
-    const totalCount = progressData?.length || 1;
-    const completionPercentage = (completedCount / totalCount) * 100;
+    const completedCount = new Set(
+      (progressData || [])
+        .filter((p) => p.is_completed && p.content_id && requiredIds.has(p.content_id))
+        .map((p) => p.content_id)
+    ).size;
+    const completionPercentage = (completedCount / requiredIds.size) * 100;
 
     if (completionPercentage < 100) {
       return new Response(
@@ -319,21 +382,29 @@ serve(async (req) => {
       .from("courses")
       .select("title, showcase_site_id")
       .eq("id", courseId)
-      .single();
+      .maybeSingle();
 
     const { data: profile } = await supabaseClient
       .from("profiles")
       .select("full_name, email")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    const { data: showcaseSite } = await supabaseClient
-      .from("showcase_sites")
-      .select("logo_url, business_name, owner_name")
-      .eq("id", course?.showcase_site_id)
-      .single();
+    // showcase_site_id est facultatif depuis que les formations peuvent appartenir à un utilisateur
+    const { data: showcaseSite } = course?.showcase_site_id
+      ? await supabaseClient
+          .from("showcase_sites")
+          .select("logo_url, business_name, owner_name")
+          .eq("id", course.showcase_site_id)
+          .maybeSingle()
+      : { data: null };
 
-    const studentName = profile?.full_name || profile?.email || "Étudiant";
+    const studentName =
+      profile?.full_name ||
+      user.user_metadata?.full_name ||
+      profile?.email ||
+      user.email ||
+      "Étudiant";
     const businessName = showcaseSite?.business_name || "Formation";
     const ownerName = showcaseSite?.owner_name || "Formateur";
 
@@ -343,7 +414,7 @@ serve(async (req) => {
       .select("certificate_url, certificate_number")
       .eq("user_id", user.id)
       .eq("course_id", courseId)
-      .single();
+      .maybeSingle();
 
     if (existingCert) {
       return new Response(
@@ -366,7 +437,7 @@ serve(async (req) => {
     });
 
     // URL de vérification du certificat
-    const verificationUrl = `${Deno.env.get("SUPABASE_URL")}/verify-certificate/${certNumber}`;
+    const verificationUrl = `${APP_URL}/verify-certificate/${certNumber}`;
 
     // Générer HTML
     const certificateHTML = generateCertificateHTML(
@@ -384,7 +455,7 @@ serve(async (req) => {
     const filePath = `certificates/${fileName}`;
 
     // Upload
-    const { error: uploadError } = await supabaseClient.storage
+    const { error: uploadError } = await adminClient.storage
       .from("generated-content")
       .upload(filePath, certificateHTML, {
         contentType: "text/html",
@@ -393,14 +464,14 @@ serve(async (req) => {
 
     if (uploadError) throw uploadError;
 
-    const { data: urlData } = supabaseClient.storage
+    const { data: urlData } = adminClient.storage
       .from("generated-content")
       .getPublicUrl(filePath);
 
     const certificateUrl = urlData.publicUrl;
 
     // Enregistrer
-    await supabaseClient.from("course_certificates").insert({
+    const { error: insertError } = await adminClient.from("course_certificates").insert({
       user_id: user.id,
       course_id: courseId,
       student_name: studentName,
@@ -409,6 +480,8 @@ serve(async (req) => {
       certificate_number: certNumber,
       completion_date: new Date().toISOString(),
     });
+
+    if (insertError) throw insertError;
 
     console.log(`Certificate generated: ${certificateUrl}`);
 

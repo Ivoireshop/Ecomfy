@@ -370,7 +370,7 @@ Tant que ce n'est pas remplacé, une approbation « automatique » ne prouve rie
 
 **Pourquoi 🛠️ :** `jeanmarc` apporte, pour ce module, la fin de l'auto-validation KYC (`evaluate_merchant_kyc_security` supprimée, remplacée par `review_merchant_kyc`), le gel des retraits par défaut (`ecomfy_pay_settings.withdrawals_enabled = false`), l'écran de revue `/founder/kyc-review`, le verrouillage des fonctions de portefeuille, la vérification HMAC du webhook et le rappel API GeniusPay. 18 tests SQL sur base jetable pour le KYC, 13 pour le portefeuille, 7 tests Node pour le webhook. **Non testé :** déploiement sur une vraie base Supabase, paiement de bout en bout avec GeniusPay.
 
-**Reste ouvert avant toute ouverture aux marchands :** montants décidés par le client (C6) dans `ecomfy-pay-initiate`, pièces d'identité dans un bucket public (H1), prestataire KYC non choisi, échec de crédit acquitté sans rejeu (M6), `ecomfy-pay-settlement` appelable sans authentification, référence de paiement prévisible (M4), `getWallet()` appelle encore une fonction réservée à `service_role`.
+**Reste ouvert avant toute ouverture aux marchands :** montants décidés par le client (C6) dans `ecomfy-pay-initiate`, pièces d'identité dans un bucket public (H1), prestataire KYC non choisi, `getWallet()` appelle encore une fonction réservée à `service_role`.
 
 ---
 
@@ -493,7 +493,7 @@ Seul vestige actif : le tableau de bord fondateur lit `showcase_sites` pour ses 
 
 **Pourquoi 🚧 :** les 8 tables `affiliate_*` sont absentes de dev ; la page ne peut rien afficher. Chaque connexion déclenche un appel d'enregistrement qui échoue silencieusement.
 
-**Sécurité (H6)** : corrigée dans le code le 17/10/2026, non déployée. Taux imposé par le serveur, parrainage limité au compte de l'appelant, RPC de commission réservées au serveur, commission limitée aux abonnements, remboursement géré (migration `20261017120000`, à appliquer après `20261005160000`). Reste : la RPC de commission n'est appelée que par `verify-payment`. Deux tests existent (`src/test/affiliateSystemTest.test.ts`, `profileCompletionTest.test.ts`) mais ne sont pas exécutables.
+**Sécurité (H6)** : corrigée dans le code le 17/10/2026, non déployée. Taux imposé par le serveur, parrainage limité au compte de l'appelant, RPC de commission réservées au serveur, commission limitée aux abonnements, remboursement géré (migration `20261017120000`, à appliquer après `20261005160000`). Reste : la RPC de commission n'est appelée que par `verify-payment` *(corrigé dans le code le 21/10/2026, commit `e885340` : appel aussi dans `geniuspay-webhook` et `reconcile-pending-payments`, non déployé ; voir `docs/DEPLOIEMENT-AFFILIATION-2026-10.md`)*. Deux tests existent (`src/test/affiliateSystemTest.test.ts`, `profileCompletionTest.test.ts`) mais ne sont pas exécutables.
 
 L'**ancien système de parrainage** (`Referral.tsx`, table `referrals`, RPC `process_referral_signup`) reste dans le code et dans l'inscription ; il n'a aucun lien depuis l'interface.
 

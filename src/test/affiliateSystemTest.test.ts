@@ -1,3 +1,4 @@
+import { expect, test } from "vitest";
 /**
  * ECOMFY AFFILIATE SYSTEM — AUTOMATED LOCAL TEST SUITE
  * 
@@ -168,12 +169,12 @@ export function runAffiliateSystemTests(): TestResult[] {
   const nameUser1 = "Ulrich DJATÉ";
   const userId1 = "3a8f9c12-0000-0000-0000-000000000000";
   const suffix1 = userId1.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
-  const cleanCode1 = `${nameUser1.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}-${suffix1}`;
+  const cleanCode1: string = `${nameUser1.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}-${suffix1}`;
 
   const nameUser2 = "Ulrich DJATÉ";
   const userId2 = "b9d2e4f1-0000-0000-0000-000000000000";
   const suffix2 = userId2.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
-  const cleanCode2 = `${nameUser2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}-${suffix2}`;
+  const cleanCode2: string = `${nameUser2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}-${suffix2}`;
 
   results.push({
     testId: "TEST-9",
@@ -207,3 +208,7 @@ export function runAffiliateSystemTests(): TestResult[] {
 
   return results;
 }
+
+test.each(runAffiliateSystemTests().map((r) => [r.testId, r.title, r] as const))("%s — %s", (_id, _title, r) => {
+  expect(r.passed, `attendu : ${r.expected} / obtenu : ${r.actual}`).toBe(true);
+});

@@ -72,8 +72,9 @@ export function ProductsTable({
         orderCounts[item.product_id] = (orderCounts[item.product_id] || 0) + 1;
       }
     });
-    // Fallback via products_summary when order_items is empty or missing the product
-    const summary = o.products_summary ? normalize(o.products_summary) : "";
+    // Repli par nom sur products_summary uniquement quand la commande n'a aucune ligne d'article. Avec des lignes, le
+    // rapprochement par nom comptait « Sac » dans une commande de « Sac à dos » (faux positifs).
+    const summary = !o.order_items?.length && o.products_summary ? normalize(o.products_summary) : "";
     if (summary) {
       Object.entries(productByNorm).forEach(([nname, pid]) => {
         if (counted.has(pid)) return;
@@ -87,22 +88,44 @@ export function ProductsTable({
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
 
+  // Stock vide (null) = illimité, comme sur la fiche publique : ce n'est pas une rupture.
+  const hasStock = (p: Product) => p.stock_quantity !== null && p.stock_quantity !== undefined;
+  const isOutOfStock = (p: Product) => hasStock(p) && p.stock_quantity <= 0;
+  const stockLabel = (p: Product) => !hasStock(p) ? "Illimité" : p.stock_quantity <= 0 ? "Rupture" : p.stock_quantity;
+  const stockTone = (p: Product) => isOutOfStock(p) ? "text-destructive font-semibold" : hasStock(p) && p.stock_quantity < 5 ? "text-orange-500" : "text-muted-foreground";
+
+  const query = searchQuery.trim().toLowerCase();
+  const hasActiveFilter = !!query || statusFilter !== "all" || categoryFilter !== "all";
+
   const filtered = products
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(p => !query
+      || (p.name || "").toLowerCase().includes(query)
+      || (p.sku || "").toLowerCase().includes(query)
+      || (p.category || "").toLowerCase().includes(query))
     .filter(p => statusFilter === "all"
       || (statusFilter === "published" && p.is_published)
       || (statusFilter === "draft" && !p.is_published)
-      || (statusFilter === "out_of_stock" && p.stock_quantity <= 0))
+      || (statusFilter === "out_of_stock" && isOutOfStock(p)))
     .filter(p => categoryFilter === "all" || p.category === categoryFilter)
     .sort((a, b) => {
-      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
-      if (sortBy === "name_desc") return b.name.localeCompare(a.name);
+      if (sortBy === "name_asc") return (a.name || "").localeCompare(b.name || "", "fr");
+      if (sortBy === "name_desc") return (b.name || "").localeCompare(a.name || "", "fr");
       if (sortBy === "price_asc") return a.price - b.price;
       if (sortBy === "price_desc") return b.price - a.price;
       if (sortBy === "orders_desc") return (orderCounts[b.id] || 0) - (orderCounts[a.id] || 0);
-      if (sortBy === "stock_asc") return a.stock_quantity - b.stock_quantity;
+      if (sortBy === "stock_asc") return (hasStock(a) ? a.stock_quantity : Infinity) - (hasStock(b) ? b.stock_quantity : Infinity);
       return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
     });
+
+  const copyProductLink = async (slug: string) => {
+    const url = `https://ecomfy.cloud/shop/${shopSlug}/p/${slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Lien copié ✓", description: url });
+    } catch {
+      toast({ title: "Copie impossible", description: url, variant: "destructive" });
+    }
+  };
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString("fr-FR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -165,11 +188,18 @@ export function ProductsTable({
       {filtered.length === 0 ? (
         <Card className="p-12 text-center">
           <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-1">{searchQuery ? "Aucun résultat" : "Aucun produit"}</h3>
+          <h3 className="font-semibold mb-1">{hasActiveFilter ? "Aucun résultat" : "Aucun produit"}</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            {searchQuery ? "Essayez un autre terme" : "Ajoutez votre premier produit pour démarrer"}
+            {hasActiveFilter ? "Essayez un autre terme ou retirez un filtre" : "Ajoutez votre premier produit pour démarrer"}
           </p>
-          {!searchQuery && (
+          {hasActiveFilter ? (
+            <Button
+              variant="outline"
+              onClick={() => { onSearchChange(""); setStatusFilter("all"); setCategoryFilter("all"); }}
+            >
+              Réinitialiser les filtres
+            </Button>
+          ) : (
             <Button onClick={onAddProduct} className="gap-2">
               <Plus className="h-4 w-4" /> Ajouter un produit
             </Button>
@@ -219,8 +249,8 @@ export function ProductsTable({
                         </span>
                       </div>
 
-                      <span className={`text-[11px] ${product.stock_quantity <= 0 ? "text-destructive font-semibold" : product.stock_quantity < 5 ? "text-orange-500" : "text-muted-foreground"}`}>
-                        Stock: {product.stock_quantity <= 0 ? "Rupture" : product.stock_quantity}
+                      <span className={`text-[11px] ${stockTone(product)}`}>
+                        Stock: {stockLabel(product)}
                       </span>
                       {prodOrders > 0 && (
                         <span className="text-[11px] text-muted-foreground">· {prodOrders} cmd</span>
@@ -246,13 +276,7 @@ export function ProductsTable({
                         </DropdownMenuItem>
                       )}
                       {shopSlug && product.slug && (
-                        <DropdownMenuItem
-                          onClick={() => {
-                            const url = `https://ecomfy.cloud/shop/${shopSlug}/p/${product.slug}`;
-                            navigator.clipboard.writeText(url);
-                            toast({ title: "Lien copié ✓", description: url });
-                          }}
-                        >
+                        <DropdownMenuItem onClick={() => copyProductLink(product.slug!)}>
                           <Link2 className="h-4 w-4 mr-2" /> Copier le lien
                         </DropdownMenuItem>
                       )}
@@ -319,8 +343,8 @@ export function ProductsTable({
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className={`text-sm ${product.stock_quantity <= 0 ? "text-destructive font-semibold" : product.stock_quantity < 5 ? "text-orange-500" : "text-muted-foreground"}`}>
-                          {product.stock_quantity <= 0 ? "Rupture" : product.stock_quantity}
+                        <span className={`text-sm ${stockTone(product)}`}>
+                          {stockLabel(product)}
                         </span>
                       </TableCell>
                       <TableCell className="text-center text-sm text-muted-foreground">
@@ -333,7 +357,7 @@ export function ProductsTable({
                             onCheckedChange={() => onToggleStatus?.(product.id, product.is_published)}
                           />
                           <span className={`text-xs font-bold ${product.is_published ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
-                            {product.is_published ? "Actif" : "Désactivé"}
+                            {product.is_published ? "Actif" : "Masqué"}
                           </span>
                         </div>
                       </TableCell>
@@ -353,11 +377,7 @@ export function ProductsTable({
                               size="icon"
                               className="h-8 w-8"
                               title="Copier le lien produit"
-                              onClick={() => {
-                                const url = `https://ecomfy.cloud/shop/${shopSlug}/p/${product.slug}`;
-                                navigator.clipboard.writeText(url);
-                                toast({ title: "Lien copié ✓", description: url });
-                              }}
+                              onClick={() => copyProductLink(product.slug!)}
                             >
                               <Link2 className="h-4 w-4 text-muted-foreground" />
                             </Button>

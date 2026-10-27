@@ -27,7 +27,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { stats } = await req.json();
+    const { stats: rawStats } = await req.json();
+
+    // Le client envoie ses chiffres : on ne transmet au modèle que des nombres connus et un nom court, jamais un objet libre
+    // (sinon n'importe quel texte arrive dans l'invite et le quota IA sert à autre chose qu'un bilan).
+    const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+    const NUMERIC = ["ordersCount", "deliveredCount", "revenue", "cashIn", "totalExpenses", "platformFees", "profit", "margin", "adSpendTotal", "roas", "cac"];
+    const stats: Record<string, unknown> = {};
+    for (const k of NUMERIC) stats[k] = num(rawStats?.[k]);
+    stats.expByCat = Object.fromEntries(
+      ["ads", "stock", "shipping", "salary", "other"].map((c) => [c, num(rawStats?.expByCat?.[c])]),
+    );
+    stats.period = ["week", "month", "all"].includes(rawStats?.period) ? rawStats.period : "month";
+    stats.shopName = String(rawStats?.shopName || "").slice(0, 80);
 
     const prompt = `Tu es un comptable expert pour e-commerçants africains (FCFA). Analyse ces chiffres et donne 4 conseils concrets, courts (1-2 phrases chacun), avec emojis. Sois direct, bienveillant, sans jargon.
 

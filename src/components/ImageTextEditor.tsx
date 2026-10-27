@@ -15,7 +15,8 @@ interface ImageTextEditorProps {
   imageUrl: string;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (editedImageBlob: Blob) => void;
+  /** Doit rejeter en cas d'échec : l'éditeur reste alors ouvert pour ne pas perdre le travail. */
+  onSave: (editedImageBlob: Blob) => void | Promise<void>;
 }
 
 const FONTS = [
@@ -258,8 +259,13 @@ const TEXT_TEMPLATES: TextTemplate[] = [
 ];
 
 export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageTextEditorProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // En état et non en ref : la fenêtre est rendue dans un portail, le <canvas> n'existe pas encore
+  // au premier passage de l'effet. Sans ça, Fabric n'était jamais initialisé (canevas 300×150 inerte).
+  const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  // Largeur native de l'image : l'export doit la restituer, pas la taille réduite d'affichage.
+  const sourceWidthRef = useRef(0);
+  const [isSaving, setIsSaving] = useState(false);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const [selectedObject, setSelectedObject] = useState<FabricObject | null>(null);
   const [textContent, setTextContent] = useState("");
@@ -271,7 +277,7 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
   const [isUnderline, setIsUnderline] = useState(false);
 
   useEffect(() => {
-    if (!canvasRef.current || !isOpen) return;
+    if (!canvasEl || !isOpen) return;
 
     // Responsive sizing: fit canvas to wrapper width (mobile-first).
     const wrap = canvasWrapRef.current;
@@ -279,7 +285,7 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
     const targetW = Math.max(280, Math.min(wrapW, 1024));
     const targetH = Math.round(targetW * 0.75); // 4:3 default until image loads
 
-    const canvas = new FabricCanvas(canvasRef.current, {
+    const canvas = new FabricCanvas(canvasEl, {
       width: targetW,
       height: targetH,
       backgroundColor: "#ffffff",
@@ -302,12 +308,17 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
       // Resize canvas to image aspect ratio.
       const iw = img.width || 1;
       const ih = img.height || 1;
+      sourceWidthRef.current = iw;
       const newH = Math.round(targetW * (ih / iw));
       canvas.setDimensions({ width: targetW, height: newH });
       const scale = targetW / iw;
 
       img.scale(scale);
+      // Fabric 7 centre les objets par défaut : sans origine explicite, l'image était décalée
+      // d'un demi-cadre et seul son quart bas-droit apparaissait (export quasi blanc).
       img.set({
+        originX: "left",
+        originY: "top",
         left: 0,
         top: 0,
         selectable: false,
@@ -317,6 +328,9 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
       canvas.add(img);
       canvas.sendObjectToBack(img);
       canvas.renderAll();
+    }).catch((error) => {
+      console.error("Error loading image in editor:", error);
+      toast.error("Impossible de charger l'image dans l'éditeur");
     });
 
     // Handle object selection
@@ -345,7 +359,7 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
     return () => {
       canvas.dispose();
     };
-  }, [imageUrl, isOpen]);
+  }, [imageUrl, isOpen, canvasEl]);
 
   const updateTextControls = (textObj: IText) => {
     setTextContent(textObj.text || "");
@@ -437,22 +451,27 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
   };
 
   const handleSave = async () => {
-    if (!fabricCanvas) return;
+    if (!fabricCanvas || isSaving) return;
 
+    setIsSaving(true);
     try {
+      // Sans multiplicateur, l'image enregistrée était réduite à la largeur d'affichage (≤ 1024 px).
+      const displayWidth = fabricCanvas.width || 1;
+      const multiplier = Math.min(4, Math.max(1, sourceWidthRef.current / displayWidth));
       const dataUrl = fabricCanvas.toDataURL({
         format: "png",
         quality: 1,
-        multiplier: 1,
+        multiplier,
       });
 
       const blob = await (await fetch(dataUrl)).blob();
-      onSave(blob);
-      toast.success("Image modifiée enregistrée");
+      await onSave(blob);
       onClose();
     } catch (error) {
       console.error("Error saving image:", error);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error("Impossible d'enregistrer l'image modifiée");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -464,7 +483,7 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[100vw] sm:w-auto h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
+      <DialogContent className="max-w-6xl w-[100vw] sm:w-[95vw] h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg">Éditeur de texte sur image</DialogTitle>
         </DialogHeader>
@@ -473,7 +492,7 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
           {/* Canvas */}
           <div className="lg:col-span-3">
             <div ref={canvasWrapRef} className="border rounded-lg overflow-hidden bg-muted flex justify-center">
-              <canvas ref={canvasRef} className="max-w-full h-auto touch-none" />
+              <canvas ref={setCanvasEl}className="max-w-full h-auto touch-none" />
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               Double-cliquez sur un texte pour le modifier. Glissez les coins pour redimensionner.
@@ -705,11 +724,11 @@ export const ImageTextEditor = ({ imageUrl, isOpen, onClose, onSave }: ImageText
         </div>
 
         <DialogFooter className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t p-3 sm:static sm:border-0 sm:p-0 flex-row gap-2 [padding-bottom:max(env(safe-area-inset-bottom),0.75rem)]">
-          <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-initial h-11">
+          <Button variant="outline" onClick={onClose} disabled={isSaving} className="flex-1 sm:flex-initial h-11">
             Annuler
           </Button>
-          <Button onClick={handleSave} className="flex-1 sm:flex-initial h-11">
-            Enregistrer
+          <Button onClick={handleSave} disabled={isSaving} className="flex-1 sm:flex-initial h-11">
+            {isSaving ? "Enregistrement..." : "Enregistrer"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCommunityUnread } from "@/hooks/useCommunityUnread";
 
 interface NavItemDef {
   title: string;
@@ -44,6 +45,7 @@ export function MobileBottomNav() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const communityUnread = useCommunityUnread();
 
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
@@ -106,7 +108,12 @@ export function MobileBottomNav() {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] text-muted-foreground transition-colors">
-              <Menu className="h-5 w-5" />
+              <span className="relative">
+                <Menu className="h-5 w-5" />
+                {communityUnread > 0 && (
+                  <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+                )}
+              </span>
               <span>Plus</span>
             </button>
           </SheetTrigger>
@@ -131,7 +138,14 @@ export function MobileBottomNav() {
                         }`
                       }
                     >
-                      <item.icon className="h-5 w-5" />
+                      <span className="relative">
+                        <item.icon className="h-5 w-5" />
+                        {item.url === "/community" && communityUnread > 0 && (
+                          <span className="absolute -right-2 -top-1.5 min-w-[16px] rounded-full bg-primary px-1 text-center text-[9px] font-bold leading-4 text-primary-foreground">
+                            {communityUnread > 99 ? "99+" : communityUnread}
+                          </span>
+                        )}
+                      </span>
                       <span className="text-center leading-tight">{item.title}</span>
                     </NavLink>
                   ))}

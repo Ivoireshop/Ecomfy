@@ -2,8 +2,11 @@ import { ShopThemeData } from "../types";
 import { formatPrice, getPrimaryImage } from "../dataAdapter";
 
 export default function DynamicShop({ data }: { data: ShopThemeData }) {
-  const layout = data.settings.layout;
-  const blocks = layout?.blocks || [];
+  // Le layout est enregistré par l'éditeur visuel dans theme_config.layout (et non dans custom_settings).
+  const layout = data.shop?.theme_config?.layout || data.customSettings?.layout;
+  const blocks = Array.isArray(layout?.blocks) ? layout.blocks : [];
+  const shopName = data.shop?.business_name || "";
+  const shopDescription = data.shop?.business_description || "";
 
   if (!blocks.length) {
     return (
@@ -18,14 +21,14 @@ export default function DynamicShop({ data }: { data: ShopThemeData }) {
       case "hero":
         return (
           <div key={block.id} className="w-full bg-blue-50 py-20 text-center">
-            <h1 className="text-4xl font-bold mb-4">{data.shopName}</h1>
-            <p className="text-lg text-gray-600">{data.shopDescription || "Bienvenue sur notre boutique"}</p>
+            <h1 className="text-4xl font-bold mb-4">{shopName}</h1>
+            <p className="text-lg text-gray-600">{shopDescription || "Bienvenue sur notre boutique"}</p>
           </div>
         );
       case "header":
         return (
           <header key={block.id} className="w-full bg-white border-b py-4 px-6 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-            <div className="font-bold text-xl">{data.shopName}</div>
+            <div className="font-bold text-xl">{shopName}</div>
             <nav className="hidden md:flex gap-4">
               <a href="#" className="text-sm font-medium hover:text-primary">Accueil</a>
               <a href="#products" className="text-sm font-medium hover:text-primary">Produits</a>

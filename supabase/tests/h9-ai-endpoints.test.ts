@@ -1,9 +1,9 @@
 // Tests du correctif H9 : endpoints IA publics ou sans quota.
 // Exécution (Node >= 22.6, aucun accès réseau ni base requis) :
-//   node --experimental-strip-types --test supabase/tests/h9-ai-endpoints.test.ts
+//   npx vitest run supabase/tests/h9-ai-endpoints.test.ts
 // Ces tests couvrent le nettoyage de l'historique de chat et des garde-fous lus dans le code source.
 // Le comportement réel (RPC check_rate_limit, JWT) n'est pas exécuté ici : à recetter sur Supabase.
-import { test } from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { sanitizeChatMessages } from "../functions/_shared/chat-sanitize.ts";

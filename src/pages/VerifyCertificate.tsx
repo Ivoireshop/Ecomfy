@@ -185,7 +185,7 @@ const VerifyCertificate = () => {
 
                 <div className="flex justify-center pt-6">
                   <Button
-                    onClick={() => window.open(certificate.certificate_url, "_blank")}
+                    onClick={() => navigate(`/certificate/${certificate.certificate_number}`)}
                     size="lg"
                     className="w-full md:w-auto"
                   >

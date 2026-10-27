@@ -3,37 +3,33 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { toast } from "sonner";
+import { extractMentions, isConnectUsPayload, mentionToken } from "@/lib/communityChat";
 
 const seen = new Set<string>();
-
-const firstNameToken = (name: string | null | undefined) => {
-  if (!name) return "";
-  const t = name.trim().split(/\s+/)[0] || "";
-  return t.replace(/[^a-zA-ZÀ-ÿ0-9_.-]/g, "").toLowerCase();
-};
 
 export const useCommunityNotifications = () => {
   const { session } = useAuthReady();
   const navigate = useNavigate();
-  const meRef = useRef<{ id: string; token: string; name: string } | null>(null);
+  // `session.user` change de référence à chaque rafraîchissement du jeton : on ne dépend que de l'identifiant
+  const userId = session?.user?.id;
+  const meRef = useRef<{ id: string; token: string } | null>(null);
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!userId) {
+      meRef.current = null;
+      return;
+    }
     let cancelled = false;
 
     (async () => {
       const { data: prof } = await supabase
         .from("profiles")
         .select("full_name")
-        .eq("id", session.user.id)
+        .eq("id", userId)
         .maybeSingle();
       if (cancelled) return;
-      const name = (prof?.full_name || session.user.email || "").toString();
-      meRef.current = {
-        id: session.user.id,
-        token: firstNameToken(name),
-        name,
-      };
+      // Sans nom complet, aucune mention possible (on n'utilise plus l'adresse e-mail comme jeton)
+      meRef.current = { id: userId, token: mentionToken(prof?.full_name) };
     })();
 
     // Request browser notification permission once
@@ -51,15 +47,13 @@ export const useCommunityNotifications = () => {
           if (!m || !meRef.current) return;
           if (m.user_id === meRef.current.id) return;
           if (seen.has(m.id)) return;
+          // Blobs ConnectUs (réactions, notifications…) : jamais une mention du salon
+          if (isConnectUsPayload(m.body)) return;
 
           let reason: "mention" | "reply" | null = null;
 
           const token = meRef.current.token;
-          if (token) {
-            const mentions = Array.from(String(m.body || "").matchAll(/@([a-zA-ZÀ-ÿ0-9_.-]+)/g))
-              .map((x) => x[1].toLowerCase());
-            if (mentions.includes(token)) reason = "mention";
-          }
+          if (token && extractMentions(String(m.body || "")).includes(token)) reason = "mention";
 
           if (!reason && m.reply_to_id) {
             const { data: parent } = await supabase
@@ -72,6 +66,11 @@ export const useCommunityNotifications = () => {
 
           if (!reason) return;
           seen.add(m.id);
+
+          const onCommunityPage = window.location.pathname.startsWith("/community");
+          const visible = document.visibilityState === "visible";
+          // Le message s'affiche déjà sous les yeux de l'utilisateur : pas de notification en double
+          if (onCommunityPage && visible) return;
 
           const { data: authors } = await supabase
             .rpc("get_community_profiles", { _ids: [m.user_id] });
@@ -89,7 +88,7 @@ export const useCommunityNotifications = () => {
             },
           });
 
-          if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.visibilityState !== "visible") {
+          if (typeof Notification !== "undefined" && Notification.permission === "granted" && !visible) {
             try {
               const n = new Notification(title, { body: preview, tag: `community-${m.id}` });
               n.onclick = () => { window.focus(); navigate("/community"); n.close(); };
@@ -103,5 +102,5 @@ export const useCommunityNotifications = () => {
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [session?.user, navigate]);
+  }, [userId, navigate]);
 };

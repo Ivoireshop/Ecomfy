@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -23,11 +23,14 @@ import { BillingBanner } from "@/components/shop/BillingBanner";
 import { BillingAlertBanner } from "@/components/shop/BillingAlertBanner";
 import { StoreRestrictedLockScreen } from "@/components/shop/StoreRestrictedLockScreen";
 import { useBillingSystem } from "@/hooks/useBillingSystem";
+import { isShopRowRestricted } from "@/lib/billingSystem";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
-import { saveProductVideos, fetchProductVideos } from "@/lib/productAppearance";
+import { SubscriptionRenewalBanner } from "@/components/shop/SubscriptionRenewalBanner";
+import { computeShopSubscription, enforceShopSubscriptionExpiry } from "@/lib/shopSubscription";
+import { saveProductVideos, fetchProductVideos, fetchProductThemeSettings, upsertProductThemeSettings } from "@/lib/productAppearance";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
 // Keeps the editor's initial JS small without changing UI or behavior.
@@ -103,6 +106,8 @@ interface Order {
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; product_id: string }[];
 }
 
+const EXCLUDED_FROM_REVENUE = new Set(["cancelled", "returned"]);
+
 const CATEGORIES = [
   "Mode & Vêtements", "Électronique", "Beauté & Soins", "Maison & Déco",
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
@@ -117,6 +122,27 @@ const toSlug = (value: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 
+// Offres en lot : quantité entière (le panier ne compte que des unités) et prix renseignés ; le reste est écarté.
+const cleanBundleOffers = (offers: any) => Array.isArray(offers)
+  ? offers
+      .map((o: any) => ({ quantity: Math.floor(Number(o?.quantity)), price: Number(o?.price), label: String(o?.label ?? "").trim() }))
+      .filter((o) => o.quantity > 0 && o.price > 0)
+      .map((o) => (o.label ? o : { quantity: o.quantity, price: o.price }))
+  : [];
+
+// Le nom d'un groupe est la clé du choix du client : on le rogne, sans quoi « Taille » et « Taille  » divergent.
+const cleanVariants = (variants: any) => Array.isArray(variants)
+  ? variants
+      .map((g: any) => ({
+        name: String(g?.name ?? "").trim(),
+        options: Array.isArray(g?.options) ? g.options.map((o: any) => String(o ?? "").trim()).filter(Boolean) : [],
+      }))
+      .filter((g) => g.name && g.options.length > 0)
+  : [];
+
+// Un produit visible à 0 FCFA est presque toujours un oubli : la commande part gratuite chez le client.
+const PUBLISHED_PRICE_ERROR = "Un produit visible doit avoir un prix supérieur à 0. Saisissez le prix ou passez-le en brouillon.";
+
 const productValidationSchema = z.object({
   name: z.string().min(1, "Le nom du produit est requis").max(200, "Le nom est trop long"),
   price: z.number({ invalid_type_error: "Le prix doit être un nombre" }).min(0, "Le prix ne peut pas être négatif"),
@@ -125,6 +151,25 @@ const productValidationSchema = z.object({
   category: z.string().min(1, "La catégorie est requise"),
   weight: z.number().min(0, "Le poids ne peut pas être négatif").nullable().optional(),
 });
+
+// Champs de la boutique modifiables dans l'éditeur et enregistrés par « Enregistrer » (voir saveShop).
+const EDITABLE_SHOP_KEYS = [
+  "slug", "business_name", "business_description", "whatsapp_number", "phone_number", "email", "city",
+  "primary_color", "secondary_color", "chatbot_enabled", "chatbot_welcome_message", "is_published",
+  "seo_title", "seo_description", "logo_url", "banner_url", "favicon_url",
+  "facebook_pixels", "tiktok_pixels", "snapchat_pixels", "google_analytics_ids", "google_analytics_code",
+  "checkout_fields", "cod_delivery_rate", "payment_methods", "theme_config", "tracking_enabled",
+  "social_proof_enabled", "delivery_advisor_phone", "order_confirmation_message", "facebook_test_event_code",
+  "ga4_measurement_id", "notification_settings", "monthly_goal",
+  "facebook_access_token", "tiktok_access_token", "snapchat_access_token", "ga4_api_secret",
+  "google_ads_conversion_id", "google_ads_conversion_label",
+] as const;
+
+const pickEditableShopFields = (shop: any) => {
+  const picked: Record<string, any> = {};
+  for (const key of EDITABLE_SHOP_KEYS) picked[key] = shop?.[key] ?? null;
+  return picked;
+};
 
 const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -152,29 +197,98 @@ const ShopEditor = () => {
   });
   const [productImages, setProductImages] = useState<File[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [unreadOrders, setUnreadOrders] = useState(0);
-  const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null }[]>([]);
+  const [visits, setVisits] = useState<{ visited_at: string; product_id?: string | null; session_id?: string | null; visitor_country?: string | null; referrer?: string | null; device_type?: string | null }[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [collabRoles, setCollabRoles] = useState<string[] | null>(null);
   const lastPassiveRefreshRef = useRef(0);
+  // Dérivé de la liste : reste exact quand une commande est lue depuis un autre appareil ou onglet.
+  const unreadOrders = useMemo(() => orders.filter(o => !o.is_read).length, [orders]);
 
+  // Avis en attente de modération : pastille dans le menu (le marchand n'était jamais prévenu d'un nouvel avis).
+  const [pendingReviews, setPendingReviews] = useState(0);
+  useEffect(() => {
+    const shopId = shop?.id;
+    if (!shopId) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const { count, error } = await supabase
+        .from("product_reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("shop_id", shopId)
+        .eq("status", "pending");
+      if (!cancelled && !error) setPendingReviews(count ?? 0);
+    };
+    refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(refresh, 120000);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); window.clearInterval(timer); };
+  }, [shop?.id]);
+
+  // Visites des 30 derniers jours, les plus récentes d'abord. PostgREST plafonne chaque réponse (1 000 lignes)
+  // quel que soit .limit() : on lit par pages jusqu'à 5000 visites, sinon les statistiques sous-comptent dès 1 000 visites.
+  const fetchVisits = useCallback(async () => {
+    if (!id) return null;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    const rows: any[] = [];
+    for (let from = 0; from < 5000; from += 1000) {
+      const page = await (supabase.from("shop_visits" as any)
+        .select("visited_at, product_id, session_id, visitor_country, referrer, device_type")
+        .eq("shop_id", id).gte("visited_at", startDate.toISOString())
+        .order("visited_at", { ascending: false })
+        .range(from, from + 999) as any);
+      if (page.error) return null;
+      rows.push(...(page.data || []));
+      if (!page.data || page.data.length < 1000) break;
+    }
+    return rows;
+  }, [id]);
+
+  // Copie en mémoire de la boutique et empreinte de ses champs modifiables telle qu'enregistrée en base
+  // (dernier chargement ou dernière sauvegarde) : sert à repérer les modifications non enregistrées.
+  const shopRef = useRef<any>(null);
+  const savedShopSnapshotRef = useRef<string | null>(null);
+  useEffect(() => { shopRef.current = shop; }, [shop]);
+
+  // Un rechargement (retour sur l'onglet, fermeture d'un éditeur…) ne doit jamais écraser des réglages non enregistrés :
+  // un marchand qui règle ses couleurs puis regarde sa vitrine dans un autre onglet les perdait tous.
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const visitsStartDate = new Date();
-    visitsStartDate.setDate(visitsStartDate.getDate() - 30);
-    const [shopRes, secretsRes, productsRes, ordersRes, visitsRes] = await Promise.all([
+    const [shopRes, secretsRes, productsRes, visitsData] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
       supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
-      supabase.from("orders").select("*, order_items(*)").eq("shop_id", id).order("created_at", { ascending: false }).limit(5000) as any,
-      supabase.from("shop_visits" as any).select("visited_at, product_id, session_id, visitor_country, referrer, device_type").eq("shop_id", id).gte("visited_at", visitsStartDate.toISOString()).order("visited_at", { ascending: false }).limit(5000) as any,
+      fetchVisits(),
     ]);
+    // Boutique restreinte : la base refuse la lecture directe de `orders` et ne livre que des commandes masquées
+    // (noms, téléphones, adresses, notes), via get_shop_orders_secure. Pas d'articles ni de livraisons dans ce cas.
+    let ordersRes: { data: any[] | null; error: any };
+    if (isShopRowRestricted(shopRes.data)) {
+      const rpcRes = await (supabase as any).rpc("get_shop_orders_secure", { _shop_id: id });
+      ordersRes = {
+        data: rpcRes.data ? (rpcRes.data as any[]).slice(0, 5000).map(o => ({ ...o, order_items: [] })) : null,
+        error: rpcRes.error,
+      };
+    } else {
+      // PostgREST plafonne chaque réponse (1 000 lignes) quel que soit .limit() : on lit par pages jusqu'à 5000 commandes.
+      const rows: any[] = [];
+      ordersRes = { data: rows, error: null };
+      for (let from = 0; from < 5000; from += 1000) {
+        const page = await (supabase.from("orders").select("*, order_items(*)").eq("shop_id", id)
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(from, from + 999) as any);
+        if (page.error) { ordersRes = { data: null, error: page.error }; break; }
+        rows.push(...(page.data || []));
+        if (!page.data || page.data.length < 1000) break;
+      }
+    }
     if (ordersRes.error) {
       console.error("FAILED TO FETCH ORDERS:", ordersRes.error);
     }
     if (shopRes.data) {
       const secrets = (secretsRes as any)?.data || {};
-      setShop({
+      const freshShop = {
         ...shopRes.data,
         facebook_access_token: secrets.facebook_access_token ?? null,
         tiktok_access_token: secrets.tiktok_access_token ?? null,
@@ -184,7 +298,18 @@ const ShopEditor = () => {
         google_ads_conversion_label: secrets.google_ads_conversion_label ?? null,
         weekly_finance_email: secrets.weekly_finance_email ?? null,
         weekly_finance_email_enabled: secrets.weekly_finance_email_enabled ?? false,
-      });
+      };
+      const local = shopRef.current;
+      const hasUnsavedEdits = !!local
+        && savedShopSnapshotRef.current !== null
+        && JSON.stringify(pickEditableShopFields(local)) !== savedShopSnapshotRef.current;
+      if (hasUnsavedEdits) {
+        // On garde les champs en cours de modification et on rafraîchit le reste (activation, paiement…).
+        setShop({ ...freshShop, ...pickEditableShopFields(local) });
+      } else {
+        savedShopSnapshotRef.current = JSON.stringify(pickEditableShopFields(freshShop));
+        setShop(freshShop);
+      }
     }
     if (productsRes.data) {
       setProducts((productsRes.data as Product[]).map(product => ({
@@ -194,32 +319,90 @@ const ShopEditor = () => {
     }
     if (ordersRes.data) {
       let finalOrders = ordersRes.data;
-      if (finalOrders.length > 0) {
+      if (finalOrders.length > 0 && !isShopRowRestricted(shopRes.data)) {
         try {
-          const orderIds = finalOrders.map((o: any) => o.id);
-          const deliveriesRes = await supabase
-            .from("order_deliveries")
-            .select("*, driver:delivery_company_members(*), provider:delivery_providers(*)")
-            .in("order_id", orderIds);
-          
-          if (deliveriesRes.data) {
-            finalOrders = finalOrders.map((o: any) => ({
-              ...o,
-              order_deliveries: deliveriesRes.data.filter((d: any) => d.order_id === o.id)
-            }));
+          // Par lots : avec jusqu'à 5000 commandes, un seul .in() dépasse la longueur d'URL
+          // autorisée, la requête échoue et le suivi de livraison disparaît silencieusement.
+          const orderIds: string[] = finalOrders.map((o: any) => o.id);
+          const chunks: string[][] = [];
+          for (let i = 0; i < orderIds.length; i += 100) chunks.push(orderIds.slice(i, i + 100));
+          const results = await Promise.all(chunks.map(chunk =>
+            supabase
+              .from("order_deliveries")
+              .select("*")
+              .in("order_id", chunk)
+          ));
+          const failed = results.find(r => r.error);
+          if (failed?.error) console.error("Failed to fetch order deliveries", failed.error);
+          // Le nom du prestataire vient de la vue publique : `delivery_providers` n'est lisible que par son propriétaire.
+          const providerIds = Array.from(new Set(results.flatMap(r => (r.data || []).map((d: any) => d.provider_id)).filter(Boolean)));
+          const providerNames = new Map<string, any>();
+          if (providerIds.length > 0) {
+            const { data: providers } = await (supabase as any).from("delivery_providers_public").select("id, company_name").in("id", providerIds);
+            (providers || []).forEach((p: any) => providerNames.set(p.id, p));
           }
+          // Nom et téléphone du livreur : absents de delivery_company_members, lus dans le profil via une fonction
+          // qui ne répond que pour les livreurs affectés aux commandes de l'appelant.
+          const driverIds = Array.from(new Set(results.flatMap(r => (r.data || []).map((d: any) => d.driver_id)).filter(Boolean)));
+          const driverContacts = new Map<string, any>();
+          for (let i = 0; i < driverIds.length; i += 500) {
+            const { data: contacts } = await (supabase as any).rpc("get_delivery_driver_contacts", { _member_ids: driverIds.slice(i, i + 500) });
+            (contacts || []).forEach((c: any) => driverContacts.set(c.member_id, c));
+          }
+          const deliveriesByOrder = new Map<string, any[]>();
+          results.forEach(r => (r.data || []).forEach((d: any) => {
+            const list = deliveriesByOrder.get(d.order_id) || [];
+            const contact = d.driver_id ? driverContacts.get(d.driver_id) : null;
+            list.push({
+              ...d,
+              provider: providerNames.get(d.provider_id) || null,
+              driver: d.driver_id ? { id: d.driver_id, name: contact?.full_name || "Livreur", phone: contact?.phone || "" } : null,
+            });
+            deliveriesByOrder.set(d.order_id, list);
+          }));
+          finalOrders = finalOrders.map((o: any) => ({
+            ...o,
+            order_deliveries: deliveriesByOrder.get(o.id) || [],
+          }));
         } catch (e) {
           console.error("Failed to fetch order deliveries", e);
         }
       }
       setOrders(finalOrders);
-      setUnreadOrders(finalOrders.filter((o: Order) => !o.is_read).length);
     }
-    if (visitsRes?.data) setVisits(visitsRes.data as any);
+    if (visitsData) setVisits(visitsData);
     setLoading(false);
-  }, [id]);
+  }, [id, fetchVisits]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Abonnement échu : demande au serveur de le constater (taux de commission rétabli, fermeture après le délai de grâce)
+  // sans attendre la tâche planifiée. Une seule fois par boutique et par échéance ; la mise à jour de la boutique
+  // revient par le canal temps réel ci-dessous.
+  const subscriptionCheckKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!shop?.id) return;
+    const sub = computeShopSubscription(shop);
+    if (!sub.isExpired) return;
+    const key = `${shop.id}:${shop.subscription_active_until}`;
+    if (subscriptionCheckKey.current === key) return;
+    subscriptionCheckKey.current = key;
+    void enforceShopSubscriptionExpiry(shop.id).then((result) => {
+      if (result && result !== "none") fetchData();
+    });
+  }, [shop, fetchData]);
+
+  // « Visiteurs en ce moment » : les visites ne se rechargeaient qu'au retour sur l'onglet. Rafraîchies toutes les 30 s
+  // sur la page Statistiques uniquement (et seulement onglet visible).
+  useEffect(() => {
+    if (activeSection !== "statistics") return;
+    const timer = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const fresh = await fetchVisits();
+      if (fresh) setVisits(fresh);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [activeSection, fetchVisits]);
 
   useEffect(() => {
     (async () => {
@@ -237,9 +420,19 @@ const ShopEditor = () => {
     const channel = supabase.channel(`shop-orders-${id}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
         const newOrder = payload.new as Order;
-        setOrders(prev => [newOrder, ...prev]);
-        setUnreadOrders(prev => prev + 1);
-        toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
+        let isDuplicate = false;
+        setOrders(prev => {
+          isDuplicate = prev.some(o => o.id === newOrder.id);
+          return isDuplicate ? prev : [newOrder, ...prev];
+        });
+        if (!isDuplicate) {
+          toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
+        }
+        // L'événement n'embarque ni les articles ni le total final (calculés par triggers juste après l'insertion).
+        (async () => {
+          const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", newOrder.id).maybeSingle();
+          if (data) setOrders(prev => prev.map(o => o.id === newOrder.id ? { ...o, ...(data as any) } : o));
+        })();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
         const updatedOrder = payload.new as Order;
@@ -256,7 +449,11 @@ const ShopEditor = () => {
           if (wasLocked && nowActive) {
             toast({ title: "✅ Boutique déverrouillée", description: "Paiement confirmé. Accès complet aux commandes restauré." });
           }
-          return { ...prev, ...next };
+          // Les réglages en cours de modification (non enregistrés) ne sont pas écrasés par une mise à jour venue d'ailleurs.
+          const hasUnsavedEdits = !!prev
+            && savedShopSnapshotRef.current !== null
+            && JSON.stringify(pickEditableShopFields(prev)) !== savedShopSnapshotRef.current;
+          return hasUnsavedEdits ? { ...prev, ...next, ...pickEditableShopFields(prev) } : { ...prev, ...next };
         });
       })
       .subscribe();
@@ -388,6 +585,10 @@ const ShopEditor = () => {
 
   const saveShop = async () => {
     if (!shop) return;
+    if (!shop.business_name?.trim()) {
+      toast({ title: "Nom de la boutique requis", description: "Renseignez le nom de votre boutique (Paramètres → Général).", variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     // Sanitize and validate the slug (public link). The user can edit it
@@ -415,8 +616,8 @@ const ShopEditor = () => {
       }
     }
 
-    const { error } = await supabase.from("shops").update({
-      slug: nextSlug,
+    const buildShopUpdate = (slug: string) => ({
+      slug,
       business_name: shop.business_name, business_description: shop.business_description,
       whatsapp_number: shop.whatsapp_number, phone_number: shop.phone_number, email: shop.email,
       city: shop.city, primary_color: shop.primary_color, secondary_color: shop.secondary_color,
@@ -435,7 +636,16 @@ const ShopEditor = () => {
       facebook_test_event_code: shop.facebook_test_event_code,
       ga4_measurement_id: shop.ga4_measurement_id,
       notification_settings: shop.notification_settings ?? {},
-    }).eq("id", shop.id) as any;
+      monthly_goal: shop.monthly_goal ?? null,
+    });
+
+    let { error } = await supabase.from("shops").update(buildShopUpdate(nextSlug)).eq("id", shop.id) as any;
+    // La lecture ci-dessus ne voit pas les boutiques non publiées des autres marchands : l'unicité du lien est
+    // alors arbitrée par la base, qui refuse l'enregistrement. On retente avec un suffixe plutôt que tout perdre.
+    if (error?.code === "23505" && /slug/i.test(`${error.message} ${error.details || ""}`)) {
+      nextSlug = `${nextSlug.slice(0, 45)}-${Math.random().toString(36).substring(2, 6)}`;
+      ({ error } = await supabase.from("shops").update(buildShopUpdate(nextSlug)).eq("id", shop.id) as any);
+    }
 
     // Upsert sensitive credentials into the private shop_secrets table.
     const { error: secretsError } = await (supabase as any)
@@ -452,13 +662,27 @@ const ShopEditor = () => {
 
     if (error || secretsError) toast({ title: "Erreur", description: (error || secretsError)?.message, variant: "destructive" });
     else {
+      savedShopSnapshotRef.current = JSON.stringify(pickEditableShopFields({ ...shop, slug: nextSlug }));
       if (nextSlug !== shop.slug) setShop({ ...shop, slug: nextSlug });
-      toast({ title: "✓ Sauvegardé" });
+      invalidatePublicCaches();
+      const slugAdjusted = !!shop.slug && nextSlug !== shop.slug;
+      toast({
+        title: "✓ Sauvegardé",
+        ...(slugAdjusted ? { description: `Le lien public a été ajusté : ecomfy.cloud/shop/${nextSlug}` } : {}),
+      });
       if (shop.is_published && shop.is_activated) {
         triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${nextSlug}`);
       }
     }
     setSaving(false);
+  };
+
+  // Vide les copies en mémoire de la boutique / des produits publics (onglet courant : aperçu du marchand).
+  const invalidatePublicCaches = () => {
+    if (!id || !shop?.slug) return;
+    cacheInvalidate(`shop:slug:${shop.slug}`);
+    cacheInvalidate(`shop-products:${id}`);
+    cacheInvalidate(`product:${id}:`);
   };
 
   const resetProductForm = () => {
@@ -530,6 +754,17 @@ const ShopEditor = () => {
     }
   };
 
+  // Méta titre / description : envoyés seulement s'ils sont renseignés ou si la colonne existe déjà sur la ligne lue.
+  // Ainsi une base où la migration SEO n'est pas encore passée continue d'enregistrer les produits normalement.
+  const seoFields = (data: any, existing: any) => {
+    const out: Record<string, string | null> = {};
+    const title = String(data.seo_title ?? "").trim();
+    const description = String(data.seo_description ?? "").trim();
+    if (title || (existing && "seo_title" in existing)) out.seo_title = title || null;
+    if (description || (existing && "seo_description" in existing)) out.seo_description = description || null;
+    return out;
+  };
+
   const handleProductEditorSave = async (data: any, newImgs: File[]): Promise<boolean> => {
     if (!id) return false;
     
@@ -549,9 +784,24 @@ const ShopEditor = () => {
       }
     }
     
+    if (data.is_published && !(Number(data.price) > 0)) {
+      toast({ title: "Prix manquant", description: PUBLISHED_PRICE_ERROR, variant: "destructive" });
+      return false;
+    }
+
     setSaving(true);
     try {
-      const productSlug = editingProduct?.slug || await getUniqueProductSlug(data.slug || data.name, editingProduct?.id);
+      // L'adresse saisie dans « URL slug » est enregistrée (avant, elle était ignorée dès que le produit avait un slug).
+      const wantedSlug = toSlug(data.slug || "");
+      let productSlug: string;
+      if (editingProduct?.slug && (!wantedSlug || wantedSlug === editingProduct.slug)) {
+        productSlug = editingProduct.slug;
+      } else {
+        productSlug = await getUniqueProductSlug(wantedSlug || data.name, editingProduct?.id);
+        if (wantedSlug && productSlug !== wantedSlug) {
+          toast({ title: "Adresse déjà utilisée", description: `Un autre produit utilise « ${wantedSlug} » : l'adresse enregistrée est « ${productSlug} ».` });
+        }
+      }
       const rawSectionOrder = typeof data.section_order === "object" && data.section_order !== null ? data.section_order : {};
       const sectionOrderWithTitle = {
         ...rawSectionOrder,
@@ -564,14 +814,11 @@ const ShopEditor = () => {
         stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
         is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null, shop_id: id,
         slug: productSlug,
-        bundle_offers: Array.isArray(data.bundle_offers)
-          ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
-          : [],
+        bundle_offers: cleanBundleOffers(data.bundle_offers),
         bundle_position: data.bundle_position || "after_countdown",
-        variants: Array.isArray(data.variants)
-          ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
-          : [],
+        variants: cleanVariants(data.variants),
         section_order: sectionOrderWithTitle,
+        ...seoFields(data, editingProduct),
       };
       let prodId = editingProduct?.id;
 
@@ -593,6 +840,20 @@ const ShopEditor = () => {
         await saveProductVideos(prodId, id, data.videos);
         if (editingProduct) {
           setEditingProduct((prev) => prev ? { ...prev, ...productData, videos: data.videos } : null);
+        }
+      }
+
+      // « Autoriser les commandes au-delà du stock » choisi avant la création : le produit n'existait pas encore.
+      if (prodId && !editingProduct && data.allow_out_of_stock_orders === false) {
+        const existing = await fetchProductThemeSettings(prodId);
+        const result = await upsertProductThemeSettings({
+          product_id: prodId,
+          shop_id: id,
+          ...existing,
+          custom_css_settings: { ...(existing?.custom_css_settings || {}), allow_out_of_stock_orders: false },
+        });
+        if (!result.success) {
+          toast({ title: "Réglage de stock non enregistré", description: "Rouvrez le produit et réactivez l'option « Autoriser les commandes au-delà du stock ».", variant: "destructive" });
         }
       }
 
@@ -652,11 +913,7 @@ const ShopEditor = () => {
       await fetchData();
       // Invalidate public-facing caches so the new product + images appear
       // immediately for visitors arriving from ads/links.
-      if (shop?.slug) {
-        cacheInvalidate(`shop:slug:${shop.slug}`);
-        cacheInvalidate(`shop-products:${id}`);
-        cacheInvalidate(`product:${id}:`);
-      }
+      invalidatePublicCaches();
       if (data.is_published && shop?.slug) {
         triggerSeoAutoIndex(`https://ecomfy.cloud/shop/${shop.slug}/p/${productSlug}`);
       }
@@ -672,6 +929,21 @@ const ShopEditor = () => {
   // Silent auto-save: updates the product fields in DB without closing the editor and without re-uploading images.
   const handleProductAutoSave = async (data: any): Promise<boolean> => {
     if (!id || !editingProduct?.id) return false;
+    // Mêmes règles que l'enregistrement complet : sans elles, une frappe en cours (nom vidé, prix négatif ou à 0 sur un
+    // produit visible) était écrite en base au bout d'une seconde et demie.
+    try {
+      productValidationSchema.parse({
+        name: data.name,
+        price: Number(data.price),
+        compare_at_price: data.compare_at_price ? Number(data.compare_at_price) : null,
+        stock_quantity: Number(data.stock_quantity),
+        category: data.category,
+        weight: data.weight ? Number(data.weight) : null,
+      });
+    } catch {
+      return false;
+    }
+    if (data.is_published && !(Number(data.price) > 0)) return false;
     const rawSectionOrder = typeof data.section_order === "object" && data.section_order !== null ? data.section_order : {};
     const sectionOrderWithTitle = {
       ...rawSectionOrder,
@@ -683,40 +955,42 @@ const ShopEditor = () => {
       price: data.price, compare_at_price: data.compare_at_price || null, category: data.category,
       stock_quantity: data.stock_quantity, is_digital: data.is_digital, is_published: data.is_published,
       is_featured: data.is_featured, sku: data.sku || null, weight: data.weight || null,
-      bundle_offers: Array.isArray(data.bundle_offers)
-        ? data.bundle_offers.filter((o: any) => Number(o?.quantity) > 0 && Number(o?.price) > 0)
-        : [],
+      bundle_offers: cleanBundleOffers(data.bundle_offers),
       bundle_position: data.bundle_position || "after_countdown",
-      variants: Array.isArray(data.variants)
-        ? data.variants.filter((g: any) => g?.name?.trim() && Array.isArray(g?.options) && g.options.length > 0)
-        : [],
+      variants: cleanVariants(data.variants),
       section_order: sectionOrderWithTitle,
+      ...seoFields(data, editingProduct),
     };
     const { error } = await supabase
       .from("products")
       .update(productData)
       .eq("id", editingProduct.id) as any;
     if (error) return false;
+    invalidatePublicCaches();
     return true;
   };
 
   const deleteProductImage = async (imageId: string) => {
     const productId = editingProduct?.id;
     const imageToDelete = editingProduct?.product_images?.find(img => img.id === imageId);
-    
-    if (imageToDelete?.image_url) {
-      try {
-        const path = imageToDelete.image_url.split('/shop-images/').pop();
-        if (path) await supabase.storage.from("shop-images").remove([path]);
-      } catch (e) {
-        console.error("Failed to delete image from storage", e);
-      }
-    }
 
+    // La ligne en base part d'abord : si elle ne peut pas être supprimée, le fichier reste en place. Avant, le fichier
+    // était effacé en premier et la fiche gardait une image cassée quand la suppression échouait.
     const { error } = await supabase.from("product_images").delete().eq("id", imageId) as any;
     if (error) {
       toast({ title: "Image non supprimée", description: error.message, variant: "destructive" });
       return;
+    }
+
+    if (imageToDelete?.image_url) {
+      try {
+        // Un même fichier peut encore servir à une autre ligne : on ne l'efface que s'il n'est plus référencé.
+        const { count } = await supabase.from("product_images").select("id", { count: "exact", head: true }).eq("image_url", imageToDelete.image_url);
+        const path = imageToDelete.image_url.split('/shop-images/').pop()?.split('?')[0];
+        if (!count && path) await supabase.storage.from("shop-images").remove([path]);
+      } catch (e) {
+        console.error("Failed to delete image from storage", e);
+      }
     }
 
     if (productId && imageToDelete?.is_primary) {
@@ -746,6 +1020,32 @@ const ShopEditor = () => {
     fetchData();
   };
 
+  // La première image de l'ordre devient l'image principale : c'est ce que l'éditeur annonce, et la boutique place
+  // l'image principale en tête quel que soit l'ordre. L'éditeur lit editingProduct, qui n'était pas mis à jour ici :
+  // le changement n'apparaissait qu'après réouverture du produit.
+  const reorderProductImages = async (orderedIds: string[]) => {
+    const productId = editingProduct?.id;
+    if (!productId || orderedIds.length === 0) return;
+    const results = await Promise.all(
+      orderedIds.map((imgId, idx) =>
+        supabase.from("product_images").update({ display_order: idx, is_primary: idx === 0 }).eq("id", imgId) as any
+      )
+    );
+    const failed = results.find((r: any) => r.error);
+    if (failed?.error) {
+      toast({ title: "Ordre des images non enregistré", description: failed.error.message, variant: "destructive" });
+      await fetchData();
+      return;
+    }
+    const apply = (images?: ProductImageRow[] | null) => sortProductImages((images || []).map(img => {
+      const idx = orderedIds.indexOf(img.id);
+      return idx < 0 ? img : { ...img, display_order: idx, is_primary: idx === 0 };
+    }));
+    setEditingProduct(prev => prev?.id === productId ? { ...prev, product_images: apply(prev.product_images) } : prev);
+    setProducts(prev => prev.map(product => product.id === productId ? { ...product, product_images: apply(product.product_images) } : product));
+    invalidatePublicCaches();
+  };
+
   const setPrimaryProductImage = async (imageId: string) => {
     if (!editingProduct?.id) return;
     const productId = editingProduct.id;
@@ -773,39 +1073,41 @@ const ShopEditor = () => {
       ? { ...product, product_images: sortProductImages((product.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
       : product
     ));
+    invalidatePublicCaches();
     toast({ title: "Image principale mise à jour" });
     fetchData();
   };
 
   const deleteProduct = async (productId: string) => {
+    const productToDelete = products.find(p => p.id === productId);
+
+    // Une commande garde la référence du produit : la base refuse de le supprimer. Avant, ce refus n'arrivait
+    // qu'après la suppression de ses images, avis et réglages (la fiche restait, vidée). On vérifie donc d'abord.
+    const { count: orderCount, error: countError } = await supabase
+      .from("order_items")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", productId);
+    if (countError) {
+      toast({ title: "Suppression impossible", description: countError.message, variant: "destructive" });
+      return;
+    }
+    if ((orderCount ?? 0) > 0) {
+      const hide = productToDelete?.is_published
+        ? confirm(`Ce produit figure dans ${orderCount} commande(s) : il ne peut pas être supprimé sans effacer votre historique.\n\nLe masquer de la boutique à la place ?`)
+        : (alert(`Ce produit figure dans ${orderCount} commande(s) : il ne peut pas être supprimé. Il est déjà masqué de la boutique.`), false);
+      if (hide) await toggleProductStatus(productId, true);
+      return;
+    }
+
     if (!confirm("Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.")) return;
 
     // Optimistic removal from UI state
     const previousProducts = [...products];
     setProducts(prev => prev.filter(p => p.id !== productId));
-    
+
     try {
-      // 1. Purge product images from storage bucket
-      const productToDelete = previousProducts.find(p => p.id === productId);
-      if (productToDelete?.product_images?.length) {
-        const paths = productToDelete.product_images
-          .map(img => img.image_url?.split('/shop-images/').pop())
-          .filter(Boolean) as string[];
-        if (paths.length > 0) {
-          await supabase.storage.from("shop-images").remove(paths);
-        }
-      }
-
-      // 2. Delete child SQL records to prevent Foreign Key constraints error
-      await Promise.allSettled([
-        supabase.from("product_images").delete().eq("product_id", productId),
-        (supabase as any).from("product_bundles").delete().eq("product_id", productId),
-        supabase.from("product_reviews").delete().eq("product_id", productId),
-        (supabase as any).from("product_variants").delete().eq("product_id", productId),
-        (supabase as any).from("cart_items").delete().eq("product_id", productId),
-      ]);
-
-      // 3. Delete product main record
+      // Le produit d'abord : images, avis, thème, vidéos… partent avec lui (ON DELETE CASCADE). Rien d'autre n'est
+      // touché si la base refuse.
       const { error } = await supabase.from("products").delete().eq("id", productId);
 
       if (error) {
@@ -813,12 +1115,23 @@ const ShopEditor = () => {
         setProducts(previousProducts); // Restore state on error
         toast({
           title: "Erreur lors de la suppression",
-          description: error.message || "Impossible de supprimer ce produit.",
+          description: error.code === "23503"
+            ? "Ce produit est encore utilisé (commandes, paiements). Masquez-le plutôt que de le supprimer."
+            : (error.message || "Impossible de supprimer ce produit."),
           variant: "destructive"
         });
         return;
       }
 
+      // Fichiers d'images : seulement une fois le produit réellement supprimé (nettoyage sans conséquence si une étape échoue).
+      const paths = (productToDelete?.product_images || [])
+        .map(img => img.image_url?.split('/shop-images/').pop()?.split('?')[0])
+        .filter(Boolean) as string[];
+      if (paths.length > 0) {
+        try { await supabase.storage.from("shop-images").remove(paths); } catch (e) { console.error("Failed to purge product images", e); }
+      }
+
+      invalidatePublicCaches();
       toast({ title: "Produit supprimé avec succès ✓" });
     } catch (e: any) {
       console.error("Product deletion exception:", e);
@@ -835,6 +1148,11 @@ const ShopEditor = () => {
 
   const toggleProductStatus = async (productId: string, currentPublishedState: boolean) => {
     const nextPublishedState = !currentPublishedState;
+    const target = products.find(p => p.id === productId);
+    if (nextPublishedState && target && !(Number(target.price) > 0)) {
+      toast({ title: "Prix manquant", description: PUBLISHED_PRICE_ERROR, variant: "destructive" });
+      return;
+    }
     // Optimistic UI state update
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, is_published: nextPublishedState } : p));
 
@@ -855,6 +1173,7 @@ const ShopEditor = () => {
       return;
     }
 
+    invalidatePublicCaches();
     toast({
       title: nextPublishedState ? "Produit activé & visible sur la boutique" : "Produit désactivé (masqué)",
     });
@@ -947,23 +1266,35 @@ const ShopEditor = () => {
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
-    await supabase.from("orders").update({ order_status: status, is_read: true }).eq("id", orderId) as any;
+    const previous = orders.find(o => o.id === orderId);
+    // Mise à jour immédiate de l'écran, annulée si le serveur refuse.
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: status, is_read: true } : o));
+    const { error } = await supabase.from("orders").update({ order_status: status, is_read: true }).eq("id", orderId);
+    if (error) {
+      if (previous) setOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: previous.order_status, is_read: previous.is_read } : o));
+      toast({ title: "Statut non modifié", description: error.message || "Vous n'avez peut-être pas les droits sur cette commande.", variant: "destructive" });
+      return;
+    }
     toast({ title: "Statut mis à jour" });
+    // Le serveur peut réagir au changement (transfert automatique au livreur) : on recharge.
     fetchData();
   };
 
   const markOrderRead = async (orderId: string) => {
-    await supabase.from("orders").update({ is_read: true }).eq("id", orderId) as any;
-    setUnreadOrders(prev => Math.max(0, prev - 1));
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, is_read: true } : o));
+    const { error } = await supabase.from("orders").update({ is_read: true }).eq("id", orderId);
+    if (error) {
+      console.error("Failed to mark order as read", error);
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, is_read: false } : o));
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!shop) return <div className="min-h-screen flex items-center justify-center"><p>Boutique introuvable</p></div>;
 
   const primaryColor = shop.primary_color || "#2563eb";
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const newOrders = orders.filter(o => o.order_status === "new").length;
+  // Les commandes annulées ou retournées ne sont pas du chiffre d'affaires.
+  const totalRevenue = orders.reduce((sum, o) => sum + (EXCLUDED_FROM_REVENUE.has(o.order_status) ? 0 : o.total), 0);
 
   const openPreview = () => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank");
 
@@ -1001,6 +1332,7 @@ const ShopEditor = () => {
     activeSection,
     onSectionChange: (s: ActiveSection) => { setActiveSection(s); setMobileSidebarOpen(false); },
     unreadOrders,
+    pendingReviews,
     productCount: products.length,
     isActivated: !!isActivated,
     onBack: () => navigate("/shop-manager"),
@@ -1060,13 +1392,15 @@ const ShopEditor = () => {
           return (
             <>
         {/* Système automatique de Seuil de Facturation & Délais (240 commandes / 12 000 FCFA) */}
+        <SubscriptionRenewalBanner shopId={shop.id} subscription={info.subscription} />
         <BillingAlertBanner shopId={shop?.id} />
 
         {/* Legacy Billing Banner */}
         {(() => {
           const sub = (shop as any).subscription_active_until;
           const isSubscribed = sub && new Date(sub).getTime() > Date.now();
-          if (isSubscribed || billingInfo?.hasInvoice) return null;
+          // Le bandeau BillingAlertBanner (ci-dessus) couvre déjà les délais ouverts et les restrictions.
+          if (isSubscribed || billingInfo?.hasInvoice || billingInfo?.isGracePeriod || billingInfo?.isRestricted) return null;
           return (
             <BillingBanner
               balanceDue={Number(shop.commission_balance_due) || 0}
@@ -1160,6 +1494,8 @@ const ShopEditor = () => {
                 is_digital: editingProduct.is_digital, is_published: editingProduct.is_published,
                 is_featured: editingProduct.is_featured, sku: editingProduct.sku || "", weight: editingProduct.weight || 0,
                 slug: (editingProduct as any).slug || "",
+                seo_title: (editingProduct as any).seo_title || "",
+                seo_description: (editingProduct as any).seo_description || "",
                 bundle_offers: (editingProduct as any).bundle_offers || [],
                 bundle_position: (editingProduct as any).bundle_position || "after_countdown",
                 bundle_title: (editingProduct as any).bundle_title || (editingProduct as any).section_order?.bundle_title || "",
@@ -1176,18 +1512,11 @@ const ShopEditor = () => {
               isEditing={!!editingProduct}
               onSave={handleProductEditorSave}
               onAutoSave={handleProductAutoSave}
-              onCancel={() => { setShowProductEditor(false); setEditingProduct(null); }}
+              onCancel={() => { setShowProductEditor(false); setEditingProduct(null); fetchData(); }}
               onUploadImage={editingProduct ? (file) => uploadProductImage(editingProduct.id, file, false) : undefined}
               onDeleteImage={deleteProductImage}
               onSetPrimaryImage={setPrimaryProductImage}
-              onReorderImages={async (orderedIds) => {
-                await Promise.all(
-                  orderedIds.map((imgId, idx) =>
-                    supabase.from("product_images").update({ display_order: idx }).eq("id", imgId) as any
-                  )
-                );
-                fetchData();
-              }}
+              onReorderImages={reorderProductImages}
               saving={saving}
             />
             </Suspense>
@@ -1200,11 +1529,11 @@ const ShopEditor = () => {
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
-            <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} newOrders={newOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
+            <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} unreadOrders={unreadOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
           )}
 
           {activeSection === "statistics" && (
-            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} />
+            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} codDeliveryRate={shop.cod_delivery_rate ?? 100} />
           )}
 
           {activeSection === "theme" && (
@@ -1233,7 +1562,7 @@ const ShopEditor = () => {
                 onSearchChange={setSearchQuery}
                 onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
                 onEditProduct={async (product) => {
-                  const loadedVideos = await fetchProductVideos(product.id);
+                  const loadedVideos = await fetchProductVideos(product.id).catch(() => [] as any[]);
                   setEditingProduct({
                     ...product,
                     videos: loadedVideos.length > 0 ? loadedVideos : (Array.isArray((product as any).videos) ? (product as any).videos : [])
@@ -1272,7 +1601,7 @@ const ShopEditor = () => {
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked || isRestricted
               ? <StoreRestrictedLockScreen shopId={shop.id} isRestricted={true}><div /></StoreRestrictedLockScreen>
-              : <AbandonedCartsList shopId={shop.id} />;
+              : <AbandonedCartsList shopId={shop.id} shopName={shop.business_name} />;
           })()}
 
           {activeSection === "loyal-customers" && shop?.id && (() => {
@@ -1427,7 +1756,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "reviews" && (
-            <ReviewsModeration shopId={shop.id} />
+            <ReviewsModeration shopId={shop.id} onPendingCountChange={setPendingReviews} />
           )}
 
           {activeSection === "collaborators" && isOwner && (

@@ -30,6 +30,8 @@ export interface ThemeData {
   shortDescription: string;
   longDescriptionHTML: string;
   settings: ProductThemeSettings | null;
+  /** Section des avis clients (rendue par ShopFooter, donc par chaque thème, juste avant le pied de page). */
+  reviews?: React.ReactNode;
 }
 
 export interface ThemeProps {

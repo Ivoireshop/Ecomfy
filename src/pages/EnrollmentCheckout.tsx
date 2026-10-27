@@ -89,7 +89,7 @@ export default function EnrollmentCheckout() {
     setUploading(true);
     try {
       const fileExt = proofFile.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `payment-proofs/${fileName}`;
 
       const { error: uploadError, data } = await supabase.storage
@@ -128,10 +128,15 @@ export default function EnrollmentCheckout() {
         }
       }
 
-      const { data: insertedEnrollment, error } = await supabase
+      // Identifiant généré côté client : l'étudiant (souvent anonyme) n'a pas le droit de relire
+      // sa ligne, donc un `.select()` après l'insertion ferait échouer toute la requête (RLS).
+      const enrollmentId = crypto.randomUUID();
+
+      const { error } = await supabase
         .from("enrollments")
         .insert([
           {
+            id: enrollmentId,
             course_id: course.id,
             showcase_site_id: course.showcase_site_id,
             student_name: enrollmentForm.student_name,
@@ -145,22 +150,16 @@ export default function EnrollmentCheckout() {
             payment_proof_url: proofUrl,
             payment_status: "pending",
           },
-        ])
-        .select()
-        .single();
+        ]);
 
       if (error) throw error;
 
       toast.success(
         "Inscription enregistrée ! Votre paiement sera validé sous 24h."
       );
-      
+
       setTimeout(() => {
-        if (insertedEnrollment) {
-          navigate(`/payment-success?enrollment_id=${insertedEnrollment.id}`);
-        } else {
-          navigate("/auth?mode=login");
-        }
+        navigate(`/payment-success?enrollment_id=${enrollmentId}&course_id=${course.id}`);
       }, 2000);
     } catch (error) {
       console.error("Error submitting enrollment:", error);

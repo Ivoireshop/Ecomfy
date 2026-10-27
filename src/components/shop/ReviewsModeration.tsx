@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Star, Loader2, Check, X, Trash2, MessageSquare } from "lucide-react";
+import { Star, Loader2, Check, X, Trash2, MessageSquare, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Review {
@@ -17,38 +17,72 @@ interface Review {
   created_at: string;
 }
 
-export function ReviewsModeration({ shopId }: { shopId: string }) {
+export function ReviewsModeration({ shopId, onPendingCountChange }: { shopId: string; onPendingCountChange?: (count: number) => void }) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [products, setProducts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
+  const [loadError, setLoadError] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
+  // Avant : une erreur de chargement affichait « Aucun avis dans cette catégorie » comme si la boutique n'en avait pas.
   const load = async () => {
     setLoading(true);
-    const [{ data: revs }, { data: prods }] = await Promise.all([
+    setLoadError(false);
+    const [revsRes, prodsRes] = await Promise.all([
       supabase.from("product_reviews").select("*").eq("shop_id", shopId).order("created_at", { ascending: false }),
       supabase.from("products").select("id, name").eq("shop_id", shopId),
     ]);
-    setReviews((revs as any) || []);
+    if (revsRes.error) {
+      setReviews([]);
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    setReviews((revsRes.data as any) || []);
     const map: Record<string, string> = {};
-    (prods || []).forEach((p: any) => { map[p.id] = p.name; });
+    (prodsRes.data || []).forEach((p: any) => { map[p.id] = p.name; });
     setProducts(map);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [shopId]);
 
+  // Les nouveaux avis arrivent pendant que l'onglet est ouvert : relecture au retour sur la page.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [shopId]);
+
   const updateStatus = async (id: string, status: "approved" | "rejected") => {
-    const { error } = await supabase.from("product_reviews").update({ status }).eq("id", id);
+    if (busyId) return;
+    setBusyId(id);
+    // .select() : sans lui, une mise à jour qui ne touche aucune ligne (avis déjà supprimé, droits) passait pour réussie.
+    const { data, error } = await supabase.from("product_reviews").update({ status }).eq("id", id).select("id");
+    setBusyId(null);
     if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    if (!data || data.length === 0) {
+      toast({ title: "Avis introuvable", description: "Il a peut-être été supprimé. La liste est rechargée.", variant: "destructive" });
+      load();
+      return;
+    }
     toast({ title: status === "approved" ? "Avis approuvé" : "Avis rejeté" });
     setReviews(prev => prev.map(r => r.id === id ? { ...r, status } : r));
   };
 
   const remove = async (id: string) => {
+    if (busyId) return;
     if (!confirm("Supprimer cet avis définitivement ?")) return;
-    const { error } = await supabase.from("product_reviews").delete().eq("id", id);
+    setBusyId(id);
+    const { data, error } = await supabase.from("product_reviews").delete().eq("id", id).select("id");
+    setBusyId(null);
     if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    if (!data || data.length === 0) {
+      toast({ title: "Avis introuvable", description: "Il a peut-être déjà été supprimé. La liste est rechargée.", variant: "destructive" });
+      load();
+      return;
+    }
     setReviews(prev => prev.filter(r => r.id !== id));
     toast({ title: "Avis supprimé" });
   };
@@ -59,6 +93,9 @@ export function ReviewsModeration({ shopId }: { shopId: string }) {
     approved: reviews.filter(r => r.status === "approved").length,
     rejected: reviews.filter(r => r.status === "rejected").length,
   };
+  useEffect(() => {
+    if (!loading && !loadError) onPendingCountChange?.(counts.pending);
+  }, [counts.pending, loading, loadError]);
 
   return (
     <div className="space-y-4">
@@ -75,8 +112,13 @@ export function ReviewsModeration({ shopId }: { shopId: string }) {
         </TabsList>
 
         <TabsContent value={tab} className="mt-4">
-          {loading ? (
+          {loading && reviews.length === 0 ? (
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : loadError ? (
+            <div className="text-center py-10 text-sm border rounded-xl space-y-3">
+              <p className="text-destructive">Impossible de charger les avis.</p>
+              <Button size="sm" variant="outline" onClick={load} className="gap-1"><RefreshCw className="h-4 w-4" /> Réessayer</Button>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-10 text-sm text-muted-foreground border rounded-xl">Aucun avis dans cette catégorie.</div>
           ) : (
@@ -97,21 +139,21 @@ export function ReviewsModeration({ shopId }: { shopId: string }) {
                         )}
                       </div>
                       {r.reviewer_email && <p className="text-xs text-muted-foreground mt-0.5">{r.reviewer_email}</p>}
-                      <p className="text-sm mt-2 whitespace-pre-wrap">{r.comment}</p>
+                      <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.comment}</p>
                       <p className="text-[11px] text-muted-foreground mt-2">{new Date(r.created_at).toLocaleString("fr-FR")}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       {r.status !== "approved" && (
-                        <Button size="sm" variant="default" onClick={() => updateStatus(r.id, "approved")} className="gap-1">
+                        <Button size="sm" variant="default" disabled={busyId === r.id} onClick={() => updateStatus(r.id, "approved")} className="gap-1">
                           <Check className="h-4 w-4" /> Approuver
                         </Button>
                       )}
                       {r.status !== "rejected" && (
-                        <Button size="sm" variant="outline" onClick={() => updateStatus(r.id, "rejected")} className="gap-1">
+                        <Button size="sm" variant="outline" disabled={busyId === r.id} onClick={() => updateStatus(r.id, "rejected")} className="gap-1">
                           <X className="h-4 w-4" /> Rejeter
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => remove(r.id)} className="text-destructive">
+                      <Button size="sm" variant="ghost" disabled={busyId === r.id} onClick={() => remove(r.id)} className="text-destructive" aria-label="Supprimer l'avis">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

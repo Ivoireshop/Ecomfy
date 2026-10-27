@@ -36,6 +36,17 @@ npm i
 npm run dev
 ```
 
+**Tests et contrôles qualité**
+
+```sh
+npm test            # vitest
+npm run lint        # ESLint (dette historique figée dans eslint-suppressions.json)
+npm run typecheck   # tsc, comparé à typecheck-baseline.txt
+npm run audit:prod  # npm audit, dépendances de production, niveau critical
+```
+
+La CI GitHub Actions (`.github/workflows/ci.yml`) enchaîne ces quatre contrôles ; détails dans `docs/DEPLOIEMENT-CI-2026-10.md`.
+
 **Edit a file directly in GitHub**
 
 - Navigate to the desired file(s).

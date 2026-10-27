@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   TrendingUp, ShoppingCart, DollarSign, Package, Monitor, 
-  Smartphone, Tablet, Globe, Clock, Target, Activity, Users, Filter, ArrowUpRight
+  Smartphone, Tablet, Globe, Clock, Target, Activity, Users, Filter, ArrowUpRight, TrendingDown
 } from "lucide-react";
 import { TrafficGlobe } from "./TrafficGlobe";
 import { TrackingReconciliation } from "./TrackingReconciliation";
@@ -18,6 +18,7 @@ interface Order {
   order_number: string;
   customer_name: string;
   customer_city?: string | null;
+  customer_phone?: string | null;
   customer_country?: string | null;
   total: number;
   order_status: string;
@@ -37,18 +38,128 @@ interface ShopStatisticsProps {
   products: Product[];
   primaryColor: string;
   monthlyGoal: number;
+  // Taux de délivrabilité des commandes à la livraison (%), réglé dans Paramètres → Paiement. 100 = aucune estimation.
+  codDeliveryRate?: number;
   shopId?: string;
   visits?: { visited_at: string; product_id?: string | null; session_id?: string | null; visitor_country?: string | null; referrer?: string | null; device_type?: string | null; }[];
 }
 
-export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, shopId, visits = [] }: ShopStatisticsProps) {
+interface Trend { label: string; up: boolean }
+
+type SourceKind = "facebook" | "google" | "instagram" | "tiktok" | "other";
+
+// Les noms de source viennent de la fonction de suivi (déjà regroupés) ou d'un référent brut : on reconnaît la
+// plateforme par mot entier, car « ig » ou « fb » dans un nom de domaine quelconque donnait la mauvaise icône.
+const sourceKind = (name: string): SourceKind => {
+  const n = name.toLowerCase();
+  if (/facebook|\bfb\b|\bmeta\b/.test(n)) return "facebook";
+  if (/google|\bseo\b/.test(n)) return "google";
+  if (/instagram|\big\b/.test(n)) return "instagram";
+  if (/tiktok/.test(n)) return "tiktok";
+  return "other";
+};
+
+// Un référent brut (« https://www.exemple.com/page ») devient son domaine ; vide = accès direct.
+const sourceLabel = (referrer?: string | null) => {
+  const r = (referrer || "").trim();
+  if (!r || r.toLowerCase() === "direct") return "Direct";
+  if (/^https?:\/\//i.test(r)) {
+    try { return new URL(r).hostname.replace(/^www\./, "") || "Direct"; } catch { return r; }
+  }
+  return r;
+};
+
+const normalizeText = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’`]/g, "'").toLowerCase().replace(/\s+/g, " ").trim();
+
+// Les visites portent un code pays (« CI »), les commandes un nom (« Côte d'Ivoire ») : sans rapprochement, un même
+// pays était listé deux fois, une fois avec les visiteurs et une fois avec les ventes, et n'avait pas de point sur le globe.
+let countryIndex: Map<string, string> | null = null;
+let frRegionNames: Intl.DisplayNames | null = null;
+const getFrRegionNames = () => {
+  if (!frRegionNames) {
+    try { frRegionNames = new Intl.DisplayNames(["fr"], { type: "region", fallback: "none" }); } catch { /* navigateur ancien */ }
+  }
+  return frRegionNames;
+};
+const getCountryIndex = () => {
+  if (countryIndex) return countryIndex;
+  const idx = new Map<string, string>([["ivory coast", "CI"], ["rdc", "CD"], ["usa", "US"], ["uk", "GB"]]);
+  const displayNames = ["fr", "en"].flatMap(l => {
+    try { return [new Intl.DisplayNames([l], { type: "region", fallback: "none" })]; } catch { return []; }
+  });
+  for (let a = 65; a <= 90; a++) {
+    for (let b = 65; b <= 90; b++) {
+      const code = String.fromCharCode(a, b);
+      displayNames.forEach(dn => {
+        try {
+          const name = dn.of(code);
+          // Première correspondance gardée : les codes obsolètes (FX, HV, ZR...) portent le même nom que FR, BF, CD.
+          if (name && name !== code && !idx.has(normalizeText(name))) idx.set(normalizeText(name), code);
+        } catch { /* code invalide */ }
+      });
+    }
+  }
+  countryIndex = idx;
+  return idx;
+};
+
+// `key` identifie le pays (code ISO quand il est reconnu), `label` est le nom français affiché.
+const canonicalCountry = (raw?: string | null): { key: string; label: string } => {
+  const v = (raw || "").trim();
+  // « XX » (inconnu) et « T1 » (Tor) sont les valeurs de Cloudflare quand le pays n'est pas déterminé.
+  if (!v || /^(unknown|inconnu|xx|t1)$/i.test(v)) return { key: "", label: "Autres / Non spécifié" };
+  const code = /^[a-z]{2}$/i.test(v) ? v.toUpperCase() : getCountryIndex().get(normalizeText(v));
+  const name = code ? getFrRegionNames()?.of(code) : undefined;
+  if (code && name && name !== code) return { key: code, label: name.replace(/’/g, "'") };
+  return { key: normalizeText(v), label: v };
+};
+
+const COUNTRY_COORDS: Record<string, [number, number]> = {
+  CI: [7.54, -5.5471], BF: [12.2383, -1.5616], SN: [14.4974, -14.4524], ML: [17.5707, -3.9962],
+  CM: [7.3697, 12.3547], FR: [46.2276, 2.2137], BJ: [9.3077, 2.3158], TG: [8.6195, 0.8248],
+  GN: [9.9456, -9.6966], MA: [31.7917, -7.0926], CA: [56.1304, -106.3468], US: [37.0902, -95.7129],
+  NG: [9.082, 8.6753], GH: [7.9465, -1.0232], NE: [17.6078, 8.0817], GA: [-0.8037, 11.6094],
+  CG: [-0.228, 15.8277], CD: [-4.0383, 21.7587], TD: [15.4542, 18.7322], DZ: [28.0339, 1.6596],
+  TN: [33.8869, 9.5375], MG: [-18.7669, 46.8691], BE: [50.5039, 4.4699], CH: [46.8182, 8.2275],
+  GB: [55.3781, -3.436], DE: [51.1657, 10.4515], ES: [40.4637, -3.7492], IT: [41.8719, 12.5674],
+  MR: [21.0079, -10.9408],
+};
+
+// Une visite sans identifiant de session compte pour une session à elle seule.
+const sessionKey = (v: { session_id?: string | null }, i: number) => v.session_id || `visit-${i}`;
+
+// Pastille de variation : cachée quand il n'y a rien à comparer (aucune valeur inventée).
+function TrendBadge({ trend, onColor = false }: { trend: Trend | null; onColor?: boolean }) {
+  if (!trend) return null;
+  const Icon = trend.up ? TrendingUp : TrendingDown;
+  if (onColor) {
+    return (
+      <Badge className="bg-white/20 text-white hover:bg-white/30 border-none font-bold text-[10px]">
+        <Icon className="h-3 w-3 mr-1" /> {trend.label}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[10px] font-bold ${trend.up ? "text-emerald-600 border-emerald-200 bg-emerald-50" : "text-red-600 border-red-200 bg-red-50"}`}
+    >
+      <Icon className="h-3 w-3 mr-1" /> {trend.label}
+    </Badge>
+  );
+}
+
+export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, codDeliveryRate = 100, shopId, visits = [] }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+  const compactNumber = (n: number) => new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+  const funnelWidth = (n: number) => (trafficMetrics.visitors > 0 ? Math.min((n / trafficMetrics.visitors) * 100, 100) : 0);
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("30d");
 
   // Define icon helper for traffic sources
   const renderSourceIcon = (name: string) => {
-    const lName = name.toLowerCase();
-    if (lName.includes("facebook") || lName.includes("fb")) {
+    const kind = sourceKind(name);
+    if (kind === "facebook") {
       return (
         <div className="w-8 h-8 rounded-lg bg-[#1877F2]/10 flex items-center justify-center shrink-0">
           <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -57,7 +168,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
         </div>
       );
     }
-    if (lName.includes("google") || lName.includes("seo")) {
+    if (kind === "google") {
       return (
         <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
           <svg className="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -69,7 +180,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
         </div>
       );
     }
-    if (lName.includes("instagram") || lName.includes("ig")) {
+    if (kind === "instagram") {
       return (
         <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center shrink-0">
           <svg className="w-5 h-5 text-pink-500" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -78,7 +189,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
         </div>
       );
     }
-    if (lName.includes("tiktok")) {
+    if (kind === "tiktok") {
       return (
         <div className="w-8 h-8 rounded-lg bg-black/10 flex items-center justify-center shrink-0">
           <svg className="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -95,70 +206,162 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
     );
   };
 
-  // Filter orders based on selected period
-  const filteredOrders = useMemo(() => {
-    if (period === "all") return orders;
-    const now = new Date();
-    const start = new Date();
-    if (period === "today") start.setHours(0, 0, 0, 0);
-    else if (period === "7d") { start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0); }
-    else if (period === "30d") { start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0); }
-    return orders.filter(o => new Date(o.created_at) >= start);
-  }, [orders, period]);
+  // Les commandes annulées ou retournées ne sont pas des ventes.
+  const sales = useMemo(
+    () => orders.filter(o => o.order_status !== "cancelled" && o.order_status !== "returned"),
+    [orders]
+  );
 
-  // Filter visits
-  const filteredVisits = useMemo(() => {
-    if (period === "all") return visits;
-    const now = new Date();
+  // Fenêtre de la période choisie et fenêtre précédente de même durée (pour les tendances).
+  // « Tout » n'a pas de période précédente.
+  const ranges = useMemo(() => {
+    if (period === "all") return { start: null as Date | null, prevStart: null as Date | null };
     const start = new Date();
-    if (period === "today") start.setHours(0, 0, 0, 0);
-    else if (period === "7d") { start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0); }
-    else if (period === "30d") { start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0); }
-    return visits.filter(v => new Date(v.visited_at) >= start);
-  }, [visits, period]);
+    start.setHours(0, 0, 0, 0);
+    const days = period === "today" ? 1 : period === "7d" ? 7 : 30;
+    start.setDate(start.getDate() - (days - 1));
+    const prevStart = new Date(start);
+    prevStart.setDate(prevStart.getDate() - days);
+    return { start, prevStart };
+  }, [period]);
+
+  const inRange = (iso: string, from: Date | null, to?: Date | null) => {
+    const t = new Date(iso).getTime();
+    return (!from || t >= from.getTime()) && (!to || t < to.getTime());
+  };
+
+  const filteredOrders = useMemo(
+    () => sales.filter(o => inRange(o.created_at, ranges.start)),
+    [sales, ranges]
+  );
+  const previousOrders = useMemo(
+    () => (ranges.start && ranges.prevStart ? sales.filter(o => inRange(o.created_at, ranges.prevStart, ranges.start)) : []),
+    [sales, ranges]
+  );
+
+  const filteredVisits = useMemo(
+    () => visits.filter(v => inRange(v.visited_at, ranges.start)),
+    [visits, ranges]
+  );
+  // Les visites ne sont chargées que sur 30 jours : la période précédente n'est comparable que si elle y tient entièrement.
+  const previousVisits = useMemo(() => {
+    if (!ranges.start || !ranges.prevStart) return null;
+    const horizon = new Date();
+    horizon.setHours(0, 0, 0, 0);
+    horizon.setDate(horizon.getDate() - 30);
+    if (ranges.prevStart.getTime() < horizon.getTime()) return null;
+    return visits.filter(v => inRange(v.visited_at, ranges.prevStart, ranges.start));
+  }, [visits, ranges]);
+
+  // Variation en % entre deux valeurs ; null quand il n'y a rien à comparer.
+  const percentTrend = (current: number, previous: number): Trend | null => {
+    if (!ranges.start) return null;
+    if (previous <= 0) return current > 0 ? { label: "Nouveau", up: true } : null;
+    const pct = ((current - previous) / previous) * 100;
+    if (Math.abs(pct) < 0.05) return { label: "0%", up: true };
+    return { label: `${pct > 0 ? "+" : "-"}${Math.abs(pct).toFixed(1)}%`, up: pct > 0 };
+  };
 
   const stats = useMemo(() => {
-    const totals = filteredOrders.map(o => o.total);
-    const totalRevenue = totals.reduce((a, b) => a + b, 0);
-    const orderCount = totals.length;
+    const totalRevenue = filteredOrders.reduce((a, o) => a + o.total, 0);
+    const orderCount = filteredOrders.length;
     const avgOrder = orderCount ? totalRevenue / orderCount : 0;
-    
-    // Simulate previous period comparison
-    const trendRev = orderCount > 0 ? "+12.5%" : "0%";
-    const trendConv = orderCount > 0 ? "+2.1%" : "0%";
-    const trendAOV = orderCount > 0 ? "+5.4%" : "0%";
-    
-    return { totalRevenue, avgOrder, orderCount, trendRev, trendConv, trendAOV };
-  }, [filteredOrders]);
+    const prevRevenue = previousOrders.reduce((a, o) => a + o.total, 0);
+    const prevAvg = previousOrders.length ? prevRevenue / previousOrders.length : 0;
 
+    return {
+      totalRevenue,
+      avgOrder,
+      orderCount,
+      trendRev: percentTrend(totalRevenue, prevRevenue),
+      trendAOV: percentTrend(avgOrder, prevAvg),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredOrders, previousOrders, ranges]);
+
+  // Estimation à part (le chiffre d'affaires affiché reste celui des commandes enregistrées) : parmi les commandes de
+  // la période, celles ni livrées ni payées d'avance ne sont pas encore encaissées ; le taux de délivrabilité réglé
+  // par le marchand donne la part qu'on peut raisonnablement en attendre.
+  const awaitingDelivery = useMemo(() => {
+    const rate = Math.min(100, Math.max(0, codDeliveryRate));
+    const total = filteredOrders
+      .filter(o => o.order_status !== "delivered" && o.payment_status !== "paid")
+      .reduce((a, o) => a + o.total, 0);
+    return { total, expected: Math.round((total * rate) / 100), rate };
+  }, [filteredOrders, codDeliveryRate]);
+
+  // Objectif mensuel : le chiffre d'affaires du MOIS en cours, quelle que soit la période affichée.
+  const monthRevenue = useMemo(() => {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    return sales.filter(o => inRange(o.created_at, startOfMonth)).reduce((a, o) => a + o.total, 0);
+  }, [sales]);
+
+  const countSessions = (list: { session_id?: string | null }[]) =>
+    new Set(list.map((v, i) => v.session_id || `visit-${i}`)).size;
+
+  // Uniquement des données mesurées : visiteurs = sessions suivies, aucune valeur de remplacement.
   const trafficMetrics = useMemo(() => {
-    const trackedPageViews = filteredVisits.length;
-    const sessions = new Set(filteredVisits.map((v, i) => v.session_id || `visit-${i}`));
-    const trackedVisitors = sessions.size;
-    const hasReliableTrackedTraffic = trackedVisitors >= filteredOrders.length;
-    const visitors = hasReliableTrackedTraffic ? trackedVisitors : (filteredOrders.length > 0 ? filteredOrders.length * 8 : 120);
-    const pageViews = hasReliableTrackedTraffic ? Math.max(trackedPageViews, visitors) : (filteredOrders.length > 0 ? filteredOrders.length * 15 : 340);
-    const conversion = visitors > 0 ? Math.min((filteredOrders.length / visitors) * 100, 100) : 0;
-    
-    const atc = Math.floor(visitors * (conversion > 0 ? (conversion * 2.5) / 100 : 0.15)); // Add to cart (simulated)
+    const visitors = countSessions(filteredVisits);
+    const pageViews = filteredVisits.length;
+    const viewedProduct = countSessions(filteredVisits.filter(v => v.product_id));
+    const rate = (n: number, v: number) => (v > 0 ? Math.min((n / v) * 100, 100) : 0);
+    const conversion = rate(filteredOrders.length, visitors);
 
-    return { visitors, pageViews, conversionRate: conversion.toFixed(2), add_to_cart: atc, purchases: filteredOrders.length };
-  }, [filteredOrders.length, filteredVisits]);
+    // Écart de taux de conversion en points, seulement si la période précédente a des visites mesurées.
+    let conversionTrend: Trend | null = null;
+    if (ranges.start && previousVisits) {
+      const prevVisitors = countSessions(previousVisits);
+      if (prevVisitors > 0 && visitors > 0) {
+        const diff = conversion - rate(previousOrders.length, prevVisitors);
+        conversionTrend = { label: `${diff >= 0 ? "+" : "-"}${Math.abs(diff).toFixed(1)} pt`, up: diff >= 0 };
+      }
+    }
 
-  // Chart data
+    return { visitors, pageViews, conversionRate: conversion.toFixed(2), conversionTrend, viewedProduct, purchases: filteredOrders.length };
+  }, [filteredOrders, previousOrders, filteredVisits, previousVisits, ranges]);
+
+  // Clé de jour en heure LOCALE (toISOString donnait le jour UTC et décalait les ventes de fin de soirée).
+  const dayKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
   const chartData = useMemo(() => {
-    const days: any[] = [];
-    const dayCount = period === "today" ? 1 : period === "7d" ? 7 : period === "30d" ? 30 : 30;
+    // « Aujourd'hui » : un seul point par jour ne trace ni courbe ni aire, on détaille donc par heure.
+    if (period === "today") {
+      const hours = Array.from({ length: new Date().getHours() + 1 }, (_, h) => ({ date: `${h}h`, commandes: 0, ventes: 0, panier_moyen: 0 }));
+      filteredOrders.forEach(o => {
+        const slot = hours[new Date(o.created_at).getHours()];
+        if (slot) { slot.commandes += 1; slot.ventes += o.total; }
+      });
+      hours.forEach(h => { h.panier_moyen = h.commandes ? h.ventes / h.commandes : 0; });
+      return hours;
+    }
+
+    const byDay = new Map<string, Order[]>();
+    filteredOrders.forEach(o => {
+      const key = dayKey(new Date(o.created_at));
+      const list = byDay.get(key);
+      if (list) list.push(o); else byDay.set(key, [o]);
+    });
+
+    let dayCount = period === "7d" ? 7 : 30;
+    if (period === "all" && filteredOrders.length > 0) {
+      const first = Math.min(...filteredOrders.map(o => new Date(o.created_at).getTime()));
+      dayCount = Math.min(Math.max(Math.ceil((Date.now() - first) / 86400000) + 1, 7), 90);
+    }
+
+    const days: { date: string; commandes: number; ventes: number; panier_moyen: number }[] = [];
     for (let i = dayCount - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().split("T")[0];
-      const dayOrders = filteredOrders.filter(o => o.created_at.startsWith(key));
+      const dayOrders = byDay.get(dayKey(d)) || [];
+      const ventes = dayOrders.reduce((sum, o) => sum + o.total, 0);
       days.push({
         date: d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }),
         commandes: dayOrders.length,
-        ventes: dayOrders.reduce((s, o) => s + o.total, 0),
-        panier_moyen: dayOrders.length ? dayOrders.reduce((s, o) => s + o.total, 0) / dayOrders.length : 0
+        ventes,
+        panier_moyen: dayOrders.length ? ventes / dayOrders.length : 0,
       });
     }
     return days;
@@ -167,43 +370,37 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
   const realtimeVisitors = useMemo(() => {
     const fifteenMinsAgo = new Date(Date.now() - 15 * 60000);
     const recent = visits.filter(v => new Date(v.visited_at) > fifteenMinsAgo);
-    return new Set(recent.map(v => v.session_id || Math.random().toString())).size;
+    return new Set(recent.map(sessionKey)).size;
   }, [visits]);
 
   const trafficSourcesData = useMemo(() => {
+    // Une session est attribuée à la source de sa PREMIÈRE visite (la liste est triée de la plus récente à la plus
+    // ancienne, la dernière écriture est donc la plus ancienne) : les visites suivantes portent un référent interne.
+    const bySession = new Map<string, string>();
+    filteredVisits.forEach((v, i) => bySession.set(sessionKey(v, i), sourceLabel(v.referrer)));
     const sources: Record<string, number> = {};
-    const sessions = new Set<string>();
-    filteredVisits.forEach(v => {
-      const sid = v.session_id || v.visited_at;
-      if (!sessions.has(sid)) {
-        sessions.add(sid);
-        const src = v.referrer || "Direct";
-        sources[src] = (sources[src] || 0) + 1;
-      }
-    });
-    const sorted = Object.entries(sources).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-    if (sorted.length === 0) return [{ name: "Direct", value: 1 }];
-    return sorted;
+    bySession.forEach(src => { sources[src] = (sources[src] || 0) + 1; });
+    return Object.entries(sources).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredVisits]);
 
   const trafficGlobeMarkers = useMemo(() => {
     const total = trafficSourcesData.reduce((acc, curr) => acc + curr.value, 0);
     return trafficSourcesData.map((src) => {
       const percentage = total > 0 ? (src.value / total) : 0;
-      const lName = src.name.toLowerCase();
+      const kind = sourceKind(src.name);
       let location: [number, number] = [5, 20]; // Default center (Africa)
       let color = primaryColor;
       
-      if (lName.includes("facebook") || lName.includes("fb")) {
+      if (kind === "facebook") {
         location = [37.4529, -122.1817];
         color = "#1877F2";
-      } else if (lName.includes("google") || lName.includes("seo")) {
+      } else if (kind === "google") {
         location = [39.0, -120.0]; // Offset to not overlap with FB
         color = "#EA4335";
-      } else if (lName.includes("instagram") || lName.includes("ig")) {
+      } else if (kind === "instagram") {
         location = [35.0, -124.0]; // Offset 
         color = "#ec4899";
-      } else if (lName.includes("tiktok")) {
+      } else if (kind === "tiktok") {
         location = [39.9042, 116.4074]; // Beijing
         color = "#000000";
       }
@@ -217,80 +414,51 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
     });
   }, [trafficSourcesData, primaryColor]);
 
+  // Repli quand la commande n'a pas de pays : indicatif international uniquement. Les numéros locaux de 8 ou 9 chiffres
+  // sont ambigus entre pays voisins (Burkina Faso, Mali, Bénin, Togo...) et étaient attribués au hasard.
   const guessCountryFromPhone = (phone: string | null | undefined): string => {
     if (!phone) return "Inconnu";
-    const cleanPhone = phone.replace(/\D/g, "");
-    if (cleanPhone.startsWith("225") || (cleanPhone.length === 10 && cleanPhone.startsWith("0"))) return "Côte d'Ivoire";
-    if (cleanPhone.startsWith("226") || (cleanPhone.length === 8 && (cleanPhone.startsWith("5") || cleanPhone.startsWith("6") || cleanPhone.startsWith("7")))) return "Burkina Faso";
-    if (cleanPhone.startsWith("221") || (cleanPhone.length === 9 && cleanPhone.startsWith("7"))) return "Sénégal";
-    if (cleanPhone.startsWith("223") || (cleanPhone.length === 8 && (cleanPhone.startsWith("7") || cleanPhone.startsWith("9")))) return "Mali";
-    if (cleanPhone.startsWith("237") || cleanPhone.startsWith("6")) return "Cameroun";
+    const digits = phone.replace(/\D/g, "");
+    const prefixes: [string, string][] = [
+      ["225", "CI"], ["226", "BF"], ["221", "SN"], ["223", "ML"], ["237", "CM"], ["229", "BJ"], ["228", "TG"],
+      ["224", "GN"], ["227", "NE"], ["241", "GA"], ["212", "MA"], ["33", "FR"],
+    ];
+    const hit = prefixes.find(([prefix]) => digits.startsWith(prefix) && digits.length > prefix.length + 5);
+    if (hit) return hit[1];
+    if (digits.length === 10 && digits.startsWith("0")) return "CI";
     return "Inconnu";
   };
 
-  const getCountryCoordinates = (countryName: string): [number, number] | null => {
-    const coords: Record<string, [number, number]> = {
-      "Côte d'Ivoire": [7.54, -5.5471],
-      "Burkina Faso": [12.2383, -1.5616],
-      "Sénégal": [14.4974, -14.4524],
-      "Mali": [17.5707, -3.9962],
-      "Cameroun": [7.3697, 12.3547],
-      "France": [46.2276, 2.2137],
-      "Bénin": [9.3077, 2.3158],
-      "Togo": [8.6195, 0.8248],
-      "Guinée": [9.9456, -9.6966],
-      "Maroc": [31.7917, -7.0926],
-      "Canada": [56.1304, -106.3468],
-      "États-Unis": [37.0902, -95.7129],
-    };
-    // Also try checking keys for partial matches
-    const key = Object.keys(coords).find(k => countryName.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(countryName.toLowerCase()));
-    if (key) return coords[key];
-    return null;
-  };
-
   const countryStats = useMemo(() => {
-    const stats: Record<string, { visitors: number, orders: number, revenue: number }> = {};
-    
-    // Process visits
-    const sessionsByCountry: Record<string, Set<string>> = {};
-    filteredVisits.forEach(v => {
-      let c = v.visitor_country || "Inconnu";
-      if (c === "Unknown") c = "Inconnu";
-      if (!sessionsByCountry[c]) sessionsByCountry[c] = new Set();
-      sessionsByCountry[c].add(v.session_id || Math.random().toString());
-    });
-    
-    Object.entries(sessionsByCountry).forEach(([country, sessions]) => {
-      if (!stats[country]) stats[country] = { visitors: 0, orders: 0, revenue: 0 };
-      stats[country].visitors = sessions.size;
-    });
+    const byCountry = new Map<string, { country: string; countryKey: string; visitors: number; orders: number; revenue: number }>();
+    const entry = (raw?: string | null) => {
+      const { key, label } = canonicalCountry(raw);
+      let e = byCountry.get(key);
+      if (!e) { e = { country: label, countryKey: key, visitors: 0, orders: 0, revenue: 0 }; byCountry.set(key, e); }
+      return e;
+    };
 
-    // Process orders
+    const sessionsByCountry = new Map<string, Set<string>>();
+    filteredVisits.forEach((v, i) => {
+      const e = entry(v.visitor_country);
+      let set = sessionsByCountry.get(e.countryKey);
+      if (!set) { set = new Set(); sessionsByCountry.set(e.countryKey, set); }
+      set.add(sessionKey(v, i));
+    });
+    sessionsByCountry.forEach((set, key) => { byCountry.get(key)!.visitors = set.size; });
+
     filteredOrders.forEach(o => {
-      let c = o.customer_country;
-      if (!c || c === "Unknown" || c === "Inconnu") {
-        c = guessCountryFromPhone(o.customer_phone);
-      }
-      if (!stats[c]) stats[c] = { visitors: 0, orders: 0, revenue: 0 };
-      stats[c].orders += 1;
-      stats[c].revenue += o.total;
+      const e = entry(canonicalCountry(o.customer_country).key ? o.customer_country : guessCountryFromPhone(o.customer_phone));
+      e.orders += 1;
+      e.revenue += o.total;
     });
 
-    // Handle "Inconnu" slightly differently to make it less prominent if it's an artifact
-    let result = Object.entries(stats).map(([country, data]) => ({ country, ...data })).sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
-    
-    // If we have an "Inconnu" but it's empty, remove it. If it has only visitors, we keep it as "Autres/Anonyme"
-    result = result.map(item => {
-      if (item.country === "Inconnu") {
-        return { ...item, country: "Autres / Non spécifié" };
-      }
-      return item;
-    });
-
-    return result;
+    // « Non spécifié » toujours en dernier, le reste par chiffre d'affaires puis visiteurs.
+    return Array.from(byCountry.values()).sort((a, b) =>
+      (a.countryKey === "" ? 1 : 0) - (b.countryKey === "" ? 1 : 0) || b.revenue - a.revenue || b.visitors - a.visitors);
   }, [filteredVisits, filteredOrders]);
 
+  const maxCountryVisitors = Math.max(0, ...countryStats.map(c => c.visitors));
 
   // Peak Hours (Heures d'affluence)
   const peakHoursData = useMemo(() => {
@@ -300,14 +468,10 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
       hours[h].orders += 1;
       hours[h].revenue += o.total;
     });
-    // For visual aesthetics if no data, simulate a realistic curve based on order count
-    if (filteredOrders.length === 0) {
-       return [
-         { hour: '08h', orders: 2 }, { hour: '12h', orders: 5 }, { hour: '18h', orders: 8 }, { hour: '20h', orders: 4 }
-       ];
-    }
-    return hours.filter(h => h.orders > 0 || h.hour === '08h' || h.hour === '12h' || h.hour === '18h' || h.hour === '20h');
+    return hours.filter(h => h.orders > 0);
   }, [filteredOrders]);
+
+  const peakMax = Math.max(0, ...peakHoursData.map(h => h.orders));
 
   // Top products
   const topProducts = useMemo(() => {
@@ -319,9 +483,11 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
 
     filteredOrders.forEach(o => {
       o.order_items?.forEach(item => {
-        if (!map[item.product_id]) map[item.product_id] = { name: item.product_name, views: 0, orders: 0, revenue: 0 };
-        map[item.product_id].orders += item.quantity;
-        map[item.product_id].revenue += item.total_price;
+        // Produit supprimé : product_id est nul, on regroupe alors par nom plutôt que tout mélanger sous « null ».
+        const key = item.product_id || `name:${item.product_name}`;
+        if (!map[key]) map[key] = { name: item.product_name, views: 0, orders: 0, revenue: 0 };
+        map[key].orders += item.quantity;
+        map[key].revenue += item.total_price;
       });
     });
 
@@ -339,6 +505,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
       .slice(0, 4);
   }, [filteredOrders, filteredVisits, products]);
 
+  const maxProductRevenue = Math.max(1, ...topProducts.map(x => x.revenue));
   const PIE_COLORS = [primaryColor, "#0f172a", "#3b82f6", "#10b981", "#8b5cf6"];
 
   return (
@@ -393,12 +560,16 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
               <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
                 <DollarSign className="h-5 w-5 text-white" />
               </div>
-              <Badge className="bg-white/20 text-white hover:bg-white/30 border-none font-bold text-[10px]">
-                <TrendingUp className="h-3 w-3 mr-1" /> {stats.trendRev}
-              </Badge>
+              <TrendBadge trend={stats.trendRev} onColor />
             </div>
             <p className="text-white/80 text-sm font-medium mb-1">Chiffre d'affaires</p>
             <h3 className="text-3xl font-bold tracking-tight">{fmt(stats.totalRevenue)} <span className="text-lg font-normal opacity-80">FCFA</span></h3>
+            {awaitingDelivery.total > 0 && awaitingDelivery.rate < 100 && (
+              <p className="text-white/80 text-xs mt-2 leading-snug">
+                Dont {fmt(awaitingDelivery.total)} FCFA en attente de livraison : environ {fmt(awaitingDelivery.expected)} FCFA attendus
+                (taux de délivrabilité de {awaitingDelivery.rate}&nbsp;%, estimation).
+              </p>
+            )}
           </div>
         </div>
 
@@ -408,9 +579,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             <div className="bg-blue-50 p-2.5 rounded-xl text-blue-600">
               <ShoppingCart className="h-5 w-5" />
             </div>
-            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] font-bold">
-              <TrendingUp className="h-3 w-3 mr-1" /> {stats.trendAOV}
-            </Badge>
+            <TrendBadge trend={stats.trendAOV} />
           </div>
           <p className="text-slate-500 text-sm font-medium mb-1">Panier Moyen (AOV)</p>
           <div className="flex items-baseline gap-2">
@@ -425,9 +594,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             <div className="bg-orange-50 p-2.5 rounded-xl text-orange-600">
               <Activity className="h-5 w-5" />
             </div>
-            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px] font-bold">
-              <TrendingUp className="h-3 w-3 mr-1" /> {stats.trendConv}
-            </Badge>
+            <TrendBadge trend={trafficMetrics.conversionTrend} />
           </div>
           <p className="text-slate-500 text-sm font-medium mb-1">Taux de Conversion</p>
           <div className="flex items-baseline gap-2">
@@ -467,15 +634,16 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
-                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} width={60} />
-                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={false} width={0} />
+                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} width={60} tickFormatter={compactNumber} />
+                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={false} width={0} allowDecimals={false} />
                 <Tooltip 
+                  formatter={(value: number, name: string) => (name === "Commandes" ? [value, name] : [`${fmt(Math.round(value))} FCFA`, name])}
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ fontWeight: 'bold', color: '#0f172a', marginBottom: '4px' }}
                 />
-                <Bar yAxisId="right" dataKey="commandes" fill="#e0e7ff" radius={[4, 4, 0, 0]} barSize={20} />
-                <Area yAxisId="left" type="monotone" dataKey="ventes" stroke={primaryColor} strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                <Line yAxisId="left" type="monotone" dataKey="panier_moyen" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Panier Moyen" />
+                <Bar yAxisId="right" dataKey="commandes" name="Commandes" fill="#e0e7ff" radius={[4, 4, 0, 0]} barSize={20} />
+                <Area yAxisId="left" type="monotone" dataKey="ventes" name="Ventes" stroke={primaryColor} strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                <Line yAxisId="left" type="monotone" dataKey="panier_moyen" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Panier moyen" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -495,16 +663,16 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                   <span className="text-slate-900">{trafficMetrics.visitors}</span>
                 </div>
                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-400 rounded-full" style={{ width: '100%' }} />
+                  <div className="h-full bg-blue-400 rounded-full" style={{ width: trafficMetrics.visitors > 0 ? '100%' : '0%' }} />
                 </div>
               </div>
               <div className="relative">
                 <div className="flex justify-between text-xs font-semibold text-slate-500 mb-1">
-                  <span className="flex items-center gap-1"><ArrowUpRight className="h-3 w-3" /> Ajouts au panier</span>
-                  <span className="text-slate-900">{trafficMetrics.add_to_cart}</span>
+                  <span className="flex items-center gap-1"><ArrowUpRight className="h-3 w-3" /> Ont consulté un produit</span>
+                  <span className="text-slate-900">{trafficMetrics.viewedProduct}</span>
                 </div>
                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(trafficMetrics.add_to_cart / trafficMetrics.visitors) * 100}%` }} />
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${funnelWidth(trafficMetrics.viewedProduct)}%` }} />
                 </div>
               </div>
               <div className="relative">
@@ -513,7 +681,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                   <span className="text-slate-900">{trafficMetrics.purchases}</span>
                 </div>
                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${(trafficMetrics.purchases / trafficMetrics.visitors) * 100}%`, backgroundColor: primaryColor }} />
+                  <div className="h-full rounded-full" style={{ width: `${funnelWidth(trafficMetrics.purchases)}%`, backgroundColor: primaryColor }} />
                 </div>
               </div>
             </div>
@@ -524,7 +692,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="font-bold text-white text-lg">Objectif Mensuel</h3>
-                <p className="text-xs text-slate-400">Objectif: {fmt(monthlyGoal)} FCFA</p>
+                <p className="text-xs text-slate-400">Objectif du mois : {fmt(monthlyGoal)} FCFA</p>
               </div>
               <div className="bg-white/10 p-2 rounded-lg">
                 <Target className="h-4 w-4 text-[#0E7C66]" />
@@ -533,13 +701,13 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             
             <div className="mt-6">
               <div className="flex justify-between text-sm font-medium mb-2">
-                <span>{fmt(stats.totalRevenue)}</span>
-                <span className="text-[#0E7C66] font-bold">{Math.min(Math.round((stats.totalRevenue / monthlyGoal) * 100), 100)}%</span>
+                <span>{fmt(monthRevenue)}</span>
+                <span className="text-[#0E7C66] font-bold">{Math.min(Math.round((monthRevenue / (monthlyGoal || 1)) * 100), 100)}%</span>
               </div>
               <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div 
                   className="h-full rounded-full shadow-[0_0_10px_rgba(14,124,102,0.8)] transition-all duration-1000 ease-out" 
-                  style={{ width: `${Math.min((stats.totalRevenue / monthlyGoal) * 100, 100)}%`, backgroundColor: primaryColor }} 
+                  style={{ width: `${Math.min((monthRevenue / (monthlyGoal || 1)) * 100, 100)}%`, backgroundColor: primaryColor }} 
                 />
               </div>
             </div>
@@ -559,19 +727,25 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             </div>
           </div>
           <div className="h-[220px] w-full">
+            {peakHoursData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <p className="text-sm text-slate-500 font-medium">Aucune commande sur la période.</p>
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={peakHoursData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Bar dataKey="orders" fill="#0E7C66" radius={[4, 4, 0, 0]} name="Commandes">
                   {peakHoursData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.orders > 5 ? primaryColor : '#94a3b8'} fillOpacity={entry.orders > 5 ? 1 : 0.4} />
+                    <Cell key={`cell-${index}`} fill={entry.orders === peakMax ? primaryColor : '#94a3b8'} fillOpacity={entry.orders === peakMax ? 1 : 0.4} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
         </Card>
 
@@ -593,7 +767,6 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
           ) : (
             <div className="space-y-4 flex-1">
               {topProducts.map((p, i) => {
-                const maxRev = Math.max(...topProducts.map(x => x.revenue));
                 return (
                   <div key={i} className="group">
                     <div className="flex justify-between text-sm mb-1.5">
@@ -602,9 +775,9 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex-1">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${(p.revenue / maxRev) * 100}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                        <div className="h-full rounded-full transition-all" style={{ width: `${(p.revenue / maxProductRevenue) * 100}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-semibold w-16 text-right">{p.orders} cmd</span>
+                      <span className="text-[10px] text-slate-500 font-semibold w-20 text-right">{p.orders} vendu{p.orders > 1 ? "s" : ""}</span>
                     </div>
                   </div>
                 );
@@ -653,7 +826,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
             
             {trafficSourcesData.length === 0 && (
                <div className="flex items-center justify-center h-32 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                 <p className="text-sm text-slate-500 font-medium">Aucune source disponible.</p>
+                 <p className="text-sm text-slate-500 font-medium">Aucune visite sur la période.</p>
                </div>
             )}
             
@@ -682,8 +855,8 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
               <p className="text-sm text-slate-500 font-medium">Aucune donnée géographique disponible.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start flex-1">
-              <div className="overflow-x-auto pb-4">
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 items-start flex-1">
+              <div className="overflow-x-auto pb-4 min-w-0">
                 <table className="w-full text-sm text-left">
                   <thead className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-50/80 rounded-lg whitespace-nowrap">
                     <tr>
@@ -699,7 +872,7 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                       const conv = country.visitors > 0 ? (country.orders / country.visitors) * 100 : 0;
                       return (
                         <tr key={country.country} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors whitespace-nowrap">
-                          <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">
+                          <td className="px-4 py-3 font-medium text-slate-900">
                             {country.country}
                           </td>
                           <td className="px-4 py-3 text-center text-slate-600 font-medium">{country.visitors}</td>
@@ -723,11 +896,9 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, sh
                   themeColor={primaryColor}
                   markers={countryStats
                     .map(c => {
-                      const loc = getCountryCoordinates(c.country);
+                      const loc = COUNTRY_COORDS[c.countryKey];
                       if (!loc) return null;
-                      // Base size on visitors + orders
-                      let size = 0.05 + (c.visitors / Math.max(...countryStats.map(s => s.visitors))) * 0.1;
-                      if (isNaN(size)) size = 0.1;
+                      const size = maxCountryVisitors > 0 ? 0.05 + (c.visitors / maxCountryVisitors) * 0.1 : 0.1;
                       return { location: loc, size, name: c.country };
                     })
                     .filter(Boolean) as { location: [number, number], size: number, name: string }[]} 

@@ -3,7 +3,7 @@
 // Automatically parses grouped options like "Blanc (S, M, L, XL, 2XL, 3XL)" or "M-XL-XXL-XXXL" or "S, M, L, XL, 2XL"
 // into compact, horizontal, high-converting clickable pills.
 
-import React, { useMemo } from "react";
+import React from "react";
 import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
 
@@ -18,12 +18,31 @@ interface SmartVariantSelectorProps {
   onChange: (variantKey: string, value: string) => void;
   primaryColor?: string;
   className?: string;
+  /** Met la première option en avant tant que le client n'a rien choisi (défaut). À désactiver pour exiger un choix explicite. */
+  preselect?: boolean;
 }
 
 interface ParsedOptionItem {
   raw: string;
   mainLabel: string;
   subOptions: string[];
+}
+
+// Jetons de taille (S, XL, 2XL, 40…) : seuls ceux-ci peuvent s'écrire « M-XL-XXL » ou « S/M/L ». Un trait d'union
+// ou une barre dans « Noir-Mat », « T-shirt » ou « iPhone 13/14 » appartient au libellé et ne doit pas le couper.
+const SIZE_TOKEN = /^(?:x{1,3}[sl]|[2-5]x[sl]|[sml]|xl|xs|\d{1,3})$/i;
+
+function splitRange(value: string): string[] {
+  const parts = value.split(/[/|-]+/).map((s) => s.trim()).filter(Boolean);
+  return parts.length > 1 && parts.every((p) => SIZE_TOKEN.test(p)) ? parts : [value.trim()];
+}
+
+function splitSubOptions(raw: string): string[] {
+  return raw
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .flatMap(splitRange);
 }
 
 export function parseVariantOptions(options: string[]): {
@@ -37,7 +56,7 @@ export function parseVariantOptions(options: string[]): {
   }
 
   // 1. Check if options have format "Main (sub1, sub2, sub3)" or "Main: sub1, sub2"
-  const bracketRegex = /^([^(:]+)\s*[\(:]([^)]+)[\)]?$/;
+  const bracketRegex = /^([^(:]+)\s*[(:]([^)]+)[)]?$/;
   let matchesBracketCount = 0;
   const parsedItems: ParsedOptionItem[] = [];
 
@@ -47,11 +66,7 @@ export function parseVariantOptions(options: string[]): {
     if (match) {
       matchesBracketCount++;
       const mainLabel = match[1].trim();
-      const rawSub = match[2].trim();
-      const subOptions = rawSub
-        .split(/[,;\/|\-]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const subOptions = splitSubOptions(match[2].trim());
       parsedItems.push({ raw: trimmed, mainLabel, subOptions });
     } else {
       parsedItems.push({ raw: trimmed, mainLabel: trimmed, subOptions: [] });
@@ -69,17 +84,11 @@ export function parseVariantOptions(options: string[]): {
 
   for (const opt of options) {
     const trimmed = (opt || "").trim();
-    if (trimmed.includes("-") || trimmed.includes(",") || trimmed.includes("/") || trimmed.includes("|") || trimmed.includes(";")) {
-      const parts = trimmed
-        .split(/[,;\/|\-]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (parts.length > 1) {
-        containsDelimiters = true;
-        allSplitItems.push(...parts);
-      } else {
-        allSplitItems.push(trimmed);
-      }
+    if (!trimmed) continue;
+    const parts = splitSubOptions(trimmed);
+    if (parts.length > 1) {
+      containsDelimiters = true;
+      allSplitItems.push(...parts);
     } else {
       allSplitItems.push(trimmed);
     }
@@ -93,12 +102,46 @@ export function parseVariantOptions(options: string[]): {
   return { isSubVariantGroup: false, isSplitList: false, parsedItems: [], standaloneList: options.map(o => o.trim()).filter(Boolean) };
 }
 
+// Valeur enregistrée pour un choix « Couleur + taille » : « Blanc — S ». Le libellé « Taille » n'est plus imposé :
+// le sous-niveau peut être un volume, une pointure, un modèle…
+const combinedLabel = (main: string, sub: string) => `${main} — ${sub}`;
+
+/**
+ * Sélection correspondant à ce que le sélecteur met en avant par défaut (première option de chaque groupe).
+ * Sans elle, le client voyait « S » coché alors que la commande partait sans taille : l'état n'était jamais enregistré.
+ */
+export function getDefaultVariantSelection(variants: SmartVariantGroup[] | null | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!Array.isArray(variants)) return out;
+  for (const group of variants) {
+    const name = (group?.name || "").trim();
+    if (!name || !Array.isArray(group.options) || group.options.length === 0) continue;
+    const parsed = parseVariantOptions(group.options);
+    if (parsed.isSubVariantGroup) {
+      const first = parsed.parsedItems[0];
+      if (!first) continue;
+      out[name + "_main"] = first.mainLabel;
+      const sub = first.subOptions[0];
+      if (sub) {
+        out[name + "_sub"] = sub;
+        out[name] = combinedLabel(first.mainLabel, sub);
+      } else {
+        out[name] = first.mainLabel;
+      }
+    } else if (parsed.standaloneList[0]) {
+      out[name] = parsed.standaloneList[0];
+    }
+  }
+  return out;
+}
+
 export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
   variants,
   selectedVariants,
   onChange,
   primaryColor = "#2563eb",
   className = "space-y-4",
+  preselect = true,
 }) => {
   if (!Array.isArray(variants) || variants.length === 0) return null;
 
@@ -114,9 +157,9 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
 
         // CASE 1: Multi-level sub-variants (e.g. Couleur = Blanc, Taille = S, M, L, XL, 2XL)
         if (isSubVariantGroup) {
-          const selectedMainRaw = selectedVariants[groupName + "_main"] || parsedItems[0]?.mainLabel || "";
-          const activeItem = parsedItems.find((p) => p.mainLabel === selectedMainRaw) || parsedItems[0];
-          const selectedSub = selectedVariants[groupName + "_sub"] || activeItem?.subOptions[0] || "";
+          const selectedMainRaw = selectedVariants[groupName + "_main"] || (preselect ? parsedItems[0]?.mainLabel : "") || "";
+          const activeItem = parsedItems.find((p) => p.mainLabel === selectedMainRaw) || (preselect ? parsedItems[0] : undefined);
+          const selectedSub = selectedVariants[groupName + "_sub"] || (preselect ? activeItem?.subOptions[0] : "") || "";
 
           return (
             <div key={groupIdx} className="space-y-3 p-3.5 sm:p-4 rounded-2xl bg-gray-50/80 border border-gray-200/80">
@@ -142,7 +185,7 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
                           const firstSub = item.subOptions[0] || "";
                           if (firstSub) {
                             onChange(groupName + "_sub", firstSub);
-                            onChange(groupName, `${item.mainLabel} — Taille: ${firstSub}`);
+                            onChange(groupName, combinedLabel(item.mainLabel, firstSub));
                           } else {
                             onChange(groupName, item.mainLabel);
                           }
@@ -167,7 +210,7 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
                 <div className="space-y-1.5 pt-2.5 border-t border-gray-200/60">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs sm:text-sm font-bold text-gray-700 flex items-center gap-1.5">
-                      <span>Taille disponible pour {activeItem.mainLabel}</span>
+                      <span>Choix pour {activeItem.mainLabel}</span>
                       {selectedSub && (
                         <span className="font-extrabold text-emerald-600 font-mono">: {selectedSub}</span>
                       )}
@@ -182,7 +225,7 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
                           type="button"
                           onClick={() => {
                             onChange(groupName + "_sub", sub);
-                            onChange(groupName, `${activeItem.mainLabel} — Taille: ${sub}`);
+                            onChange(groupName, combinedLabel(activeItem.mainLabel, sub));
                           }}
                           className={`min-w-[48px] h-10 px-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 ${
                             isSubActive
@@ -205,7 +248,7 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
 
         // CASE 2: Single line split (e.g. "M-XL-XXL-XXXL" or "S, M, L, XL, 2XL, 3XL")
         if (isSplitList) {
-          const selectedVal = selectedVariants[groupName] || standaloneList[0] || "";
+          const selectedVal = selectedVariants[groupName] || (preselect ? standaloneList[0] : "") || "";
           return (
             <div key={groupIdx} className="space-y-2 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-200/80">
               <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5 uppercase tracking-wide">
@@ -238,7 +281,7 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
         }
 
         // CASE 3: Standard flat options list
-        const selectedVal = selectedVariants[groupName] || standaloneList[0] || "";
+        const selectedVal = selectedVariants[groupName] || (preselect ? standaloneList[0] : "") || "";
         return (
           <div key={groupIdx} className="space-y-2 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-200/80">
             <Label className="text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5 uppercase tracking-wide">
@@ -272,4 +315,3 @@ export const SmartVariantSelector: React.FC<SmartVariantSelectorProps> = ({
     </div>
   );
 };
-

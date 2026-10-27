@@ -19,6 +19,8 @@ import { Palette as PaletteIcon, Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
+import { splitVariantOptions } from "@/lib/productVariants";
+import { toVideoEmbedUrl } from "@/lib/sanitizeProductHtml";
 import {
   DEFAULT_PRODUCT_BLOCKS,
   PRODUCT_SECTION_LABELS,
@@ -165,9 +167,6 @@ const COLORS = [
   "#FF3399", "#FF9966", "#FFFF00", "#66FF66", "#66CCFF", "#CC99FF",
 ];
 
-const PRODUCT_TYPES = ["Physique", "Digital", "Service", "Abonnement"];
-const PRODUCT_LOCATIONS = ["Entrepôt principal", "Stock fournisseur", "Dropshipping", "Sur commande"];
-
 const toProductSlug = (value: string) =>
   (value || "")
     .toLowerCase()
@@ -223,12 +222,16 @@ interface ProductData {
   sku: string;
   weight: number;
   slug?: string;
+  seo_title?: string;
+  seo_description?: string;
   bundle_offers?: BundleOffer[];
   bundle_position?: string;
   bundle_title?: string;
   variants?: VariantGroup[];
   section_order?: ProductSectionOrder;
   videos?: ProductVideo[];
+  // Réglage stocké à part (product_theme_settings) ; porté ici pour qu'un nouveau produit puisse l'enregistrer à la création.
+  allow_out_of_stock_orders?: boolean;
 }
 
 export interface BundleOffer {
@@ -288,7 +291,6 @@ export function ProductEditor({
   const [localSaving, setLocalSaving] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipAutoSave = useRef(true);
   const [showFontSize, setShowFontSize] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState<string>("16");
   const [showTextColor, setShowTextColor] = useState(false);
@@ -299,11 +301,8 @@ export function ProductEditor({
   const [tableRows, setTableRows] = useState(2);
   const [tableCols, setTableCols] = useState(2);
   const [activeFmt, setActiveFmt] = useState({ bold: false, italic: false, underline: false, strike: false, ordered: false, unordered: false });
-  const [seoTitle, setSeoTitle] = useState("");
-  const [seoDescription, setSeoDescription] = useState("");
-  const [seoKeywords, setSeoKeywords] = useState("");
-  const [productType, setProductType] = useState("Physique");
-  const [productLocation, setProductLocation] = useState("Entrepôt principal");
+  // Prix de revient : sert uniquement au calcul de marge affiché ici. Il n'est pas enregistré, car la table des produits
+  // est lisible par les visiteurs de la boutique.
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInitialized = useRef(false);
@@ -358,19 +357,30 @@ export function ProductEditor({
   }, [productId]);
 
   const handleToggleAllowOutOfStock = async (checked: boolean) => {
+    const previous = allowOutOfStockOrders;
     setAllowOutOfStockOrders(checked);
+    // Produit pas encore créé : le choix voyage avec la fiche et est enregistré à la création (voir ShopEditor).
+    setProduct((prev) => ({ ...prev, allow_out_of_stock_orders: checked }));
     if (productId && shop?.id) {
-      const existing = await fetchProductThemeSettings(productId);
-      const custom = existing?.custom_css_settings || {};
-      await upsertProductThemeSettings({
-        product_id: productId,
-        shop_id: shop.id,
-        ...existing,
-        custom_css_settings: {
-          ...custom,
-          allow_out_of_stock_orders: checked,
-        },
-      });
+      try {
+        const existing = await fetchProductThemeSettings(productId);
+        const custom = existing?.custom_css_settings || {};
+        const result = await upsertProductThemeSettings({
+          product_id: productId,
+          shop_id: shop.id,
+          ...existing,
+          custom_css_settings: {
+            ...custom,
+            allow_out_of_stock_orders: checked,
+          },
+        });
+        if (!result.success) throw new Error(result.error);
+      } catch (e: any) {
+        // L'interrupteur ne doit pas afficher un état que le serveur n'a pas enregistré.
+        setAllowOutOfStockOrders(previous);
+        setProduct((prev) => ({ ...prev, allow_out_of_stock_orders: previous }));
+        toast({ title: "Réglage non enregistré", description: e?.message || "Réessayez dans un instant.", variant: "destructive" });
+      }
     }
   };
 
@@ -465,30 +475,55 @@ export function ProductEditor({
     }
   };
 
-  // Initialize editor content only once
+  // Garde la zone d'édition alignée sur product.description. Deux cas la modifient depuis l'extérieur : le chargement
+  // initial et l'assistant guidé (génération IA). Quand la frappe vient de la zone elle-même, le HTML est déjà identique
+  // et on n'y touche pas : réécrire innerHTML pendant la frappe ramène le curseur au début (« bonjour » devenait « onjourb »).
   useEffect(() => {
-    if (editorRef.current && !editorInitialized.current && product.description) {
-      editorRef.current.innerHTML = product.description;
-      editorInitialized.current = true;
-    }
+    const el = editorRef.current;
+    if (!el || el.getAttribute("data-code-view") === "true") return;
+    const next = product.description || "";
+    if (el.innerHTML === next) return;
+    if (document.activeElement === el || el.contains(document.activeElement)) return;
+    el.innerHTML = next;
+    editorInitialized.current = true;
   }, [product.description]);
 
-  // Auto-save (debounced) — only when editing an existing product and a handler is provided.
+  // Instantané des champs enregistrés par l'enregistrement automatique (les vidéos et le réglage de stock ont
+  // leur propre circuit). Sert à ne sauvegarder que de vraies modifications.
+  // L'adresse (slug) est exclue : elle n'est enregistrée que par « Tout enregistrer », jamais à chaque pause de frappe.
+  const snapshotOf = (p: ProductData) => JSON.stringify({ ...p, videos: undefined, allow_out_of_stock_orders: undefined, slug: undefined });
+  const lastSavedSnapshot = useRef<string>(snapshotOf(product));
+  const productRef = useRef(product);
+  const onAutoSaveRef = useRef(onAutoSave);
   useEffect(() => {
-    if (!onAutoSave || !isEditing) return;
-    // Skip the very first run (initial state hydration).
-    if (skipAutoSave.current) {
-      skipAutoSave.current = false;
+    productRef.current = product;
+    onAutoSaveRef.current = onAutoSave;
+  });
+
+  // Auto-save (debounced) — only when editing an existing product and a handler is provided.
+  // Dépend du seul contenu de la fiche : le parent recrée onAutoSave à chaque rendu (commande reçue, upload d'image…),
+  // ce qui relançait le minuteur et réécrivait la fiche sans aucune modification.
+  useEffect(() => {
+    if (!onAutoSaveRef.current || !isEditing) return;
+    const snap = snapshotOf(product);
+    if (snap === lastSavedSnapshot.current) {
+      setAutoSaveState((s) => (s === "pending" ? "idle" : s));
       return;
     }
     if (!product.name?.trim() && !product.short_description?.trim()) return;
     setAutoSaveState("pending");
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
+      autoSaveTimer.current = null;
       setAutoSaveState("saving");
       try {
-        const res = await onAutoSave(product);
-        setAutoSaveState(res === false ? "error" : "saved");
+        const res = await onAutoSaveRef.current?.(productRef.current);
+        if (res === false) {
+          setAutoSaveState("error");
+        } else {
+          lastSavedSnapshot.current = snapshotOf(productRef.current);
+          setAutoSaveState("saved");
+        }
       } catch {
         setAutoSaveState("error");
       }
@@ -497,7 +532,49 @@ export function ProductEditor({
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, onAutoSave, isEditing]);
+  }, [product, isEditing]);
+
+  // Enregistre tout de suite ce qui attend dans le minuteur (bouton Retour). Avant, quitter dans la seconde et demie
+  // suivant une modification perdait cette modification sans prévenir.
+  const flushAutoSave = async (): Promise<boolean> => {
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
+    const save = onAutoSaveRef.current;
+    if (!save || !isEditing) return true;
+    const current = productRef.current;
+    const snap = snapshotOf(current);
+    if (snap === lastSavedSnapshot.current) return true;
+    setAutoSaveState("saving");
+    try {
+      const res = await save(current);
+      if (res === false) {
+        setAutoSaveState("error");
+        return false;
+      }
+      lastSavedSnapshot.current = snap;
+      setAutoSaveState("saved");
+      return true;
+    } catch {
+      setAutoSaveState("error");
+      return false;
+    }
+  };
+
+  const handleBack = async () => {
+    if (localSaving || saving) return;
+    if (isEditing) {
+      const ok = await flushAutoSave();
+      if (!ok && !confirm("Les dernières modifications n'ont pas pu être enregistrées. Quitter quand même ?")) return;
+      const typedSlug = toProductSlug(productRef.current.slug || "");
+      const storedSlug = toProductSlug(initialData?.slug || "");
+      if (typedSlug && typedSlug !== storedSlug && !confirm("La nouvelle adresse du produit n'est pas enregistrée (utilisez « Tout enregistrer »). Quitter quand même ?")) return;
+    } else if ((product.name.trim() || product.description || newImages.length > 0) && !confirm("Ce produit n'est pas encore créé. Quitter et perdre cette saisie ?")) {
+      return;
+    }
+    onCancel();
+  };
 
   // Reset "saved" badge after a few seconds.
   useEffect(() => {
@@ -810,19 +887,29 @@ export function ProductEditor({
   }, [execCmd, toast, uploadDescriptionImage]);
 
   const insertVideo = () => {
-    const url = prompt("Entrez l'URL de la vidéo (YouTube, Vimeo...)");
-    if (url) {
-      let embedUrl = url;
-      const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-      if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
-      const html = `<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:12px 0;border-radius:8px;"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
-      execCmd("insertHTML", html);
+    const url = prompt("Entrez l'URL de la vidéo (YouTube ou Vimeo)");
+    if (!url) return;
+    // Seuls YouTube et Vimeo sont affichés sur la fiche publique : une autre adresse serait supprimée sans prévenir.
+    const embedUrl = toVideoEmbedUrl(url);
+    if (!embedUrl) {
+      toast({ title: "Vidéo non prise en charge", description: "Collez un lien YouTube ou Vimeo.", variant: "destructive" });
+      return;
     }
+    const html = `<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:12px 0;border-radius:8px;"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>`;
+    execCmd("insertHTML", html);
   };
 
   const insertLink = () => {
-    const url = prompt("URL du lien");
-    if (url) execCmd("createLink", url);
+    const input = prompt("URL du lien");
+    const raw = input?.trim();
+    if (!raw) return;
+    // Sans protocole, « monsite.com » devenait un lien relatif vers la boutique ; javascript: et consorts sont refusés.
+    const url = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : /^[a-z][a-z0-9+.-]*:/i.test(raw) ? "" : `https://${raw}`;
+    if (!url) {
+      toast({ title: "Lien non valide", description: "Utilisez une adresse http(s), mailto: ou tel:.", variant: "destructive" });
+      return;
+    }
+    execCmd("createLink", url);
   };
 
   const insertHR = () => {
@@ -863,7 +950,11 @@ export function ProductEditor({
 
   const handleEditorInput = () => {
     if (editorRef.current) {
-      setProduct(prev => ({ ...prev, description: editorRef.current!.innerHTML }));
+      // En vue « code source », la zone contient le HTML écrit en texte : on enregistre ce texte, pas son échappement
+      // (« &lt;p&gt; »), qui aurait été publié tel quel sur la fiche.
+      const inCodeView = editorRef.current.getAttribute("data-code-view") === "true";
+      const html = inCodeView ? editorRef.current.innerText : editorRef.current.innerHTML;
+      setProduct(prev => ({ ...prev, description: html }));
       saveSelection();
       refreshActiveFormats();
     }
@@ -878,10 +969,16 @@ export function ProductEditor({
     }
   };
 
+  // Même ordre que la boutique : l'image principale d'abord, puis l'ordre d'affichage. Trier sur l'ordre seul pouvait
+  // placer en tête une image qui n'était pas la principale, avec deux pastilles « Principal » à l'écran.
+  const sortExistingImages = (images: ProductImage[]) =>
+    images.slice().sort((a, b) => {
+      if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+      return (a.display_order ?? 0) - (b.display_order ?? 0);
+    });
+
   const allImages = [
-    ...existingImages
-      .slice()
-      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    ...sortExistingImages(existingImages)
       .map(img => ({ type: "existing" as const, ...img })),
     ...newImages.map((pending, idx) => ({
       type: "new" as const,
@@ -972,7 +1069,16 @@ export function ProductEditor({
     setLocalSaving(true);
     try {
       const pendingFiles = newImages.map(img => img.file);
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = null;
+      }
       const result = await onSave(product, pendingFiles);
+      if (result !== false) {
+        // Fiche enregistrée en entier : l'enregistrement automatique n'a plus rien à rattraper.
+        lastSavedSnapshot.current = snapshotOf(product);
+        setAutoSaveState((s) => (s === "pending" || s === "error" ? "idle" : s));
+      }
       if (result !== false && pendingFiles.length > 0) {
         setNewImages(prev => {
           prev.forEach(img => URL.revokeObjectURL(img.previewUrl));
@@ -1003,10 +1109,7 @@ export function ProductEditor({
     }
     // Swap within "existing" group
     if (a.type === "existing" && b.type === "existing" && onReorderImages) {
-      const ordered = existingImages
-        .slice()
-        .sort((x, y) => (x.display_order ?? 0) - (y.display_order ?? 0))
-        .map(i => i.id);
+      const ordered = sortExistingImages(existingImages).map(i => i.id);
       const ai = ordered.indexOf(a.id);
       const bi = ordered.indexOf(b.id);
       if (ai === -1 || bi === -1) return;
@@ -1061,7 +1164,7 @@ export function ProductEditor({
       <div className="sticky top-0 z-30 bg-card border-b">
         <div className="flex items-center justify-between gap-2 px-3 md:px-6 h-14">
           <div className="flex items-center gap-2 min-w-0">
-            <Button variant="ghost" size="icon" onClick={onCancel} className="h-9 w-9 shrink-0" aria-label="Retour">
+            <Button variant="ghost" size="icon" onClick={handleBack} className="h-9 w-9 shrink-0" aria-label="Retour">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
@@ -1143,7 +1246,11 @@ export function ProductEditor({
             {/* Product URL */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card border shadow-sm rounded-xl px-4 py-3">
               <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
-              <span className="truncate">https://votreboutique.shop/produit/{product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "..."}</span>
+              <span className="truncate">
+                {shopSlug
+                  ? `https://ecomfy.cloud/shop/${shopSlug}/p/${shareableSlug || "…"}`
+                  : "Le lien du produit s'affiche une fois la boutique créée"}
+              </span>
             </div>
 
 
@@ -1386,7 +1493,7 @@ export function ProductEditor({
                 <Input type="number" value={product.compare_at_price || ""} onChange={(e) => setProduct({ ...product, compare_at_price: Number(e.target.value) })} placeholder="0" className="h-11 border-dashed" />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm">Prix de revient</Label>
+                <Label className="text-sm">Prix de revient <span className="text-xs font-normal text-muted-foreground">(calcul de marge, non enregistré)</span></Label>
                 <Input type="number" value={costPrice || ""} onChange={(e) => setCostPrice(Number(e.target.value))} placeholder="0" className="h-11" />
               </div>
             </div>
@@ -1414,7 +1521,7 @@ export function ProductEditor({
                           GIF
                         </span>
                       )}
-                      {(img.is_primary || idx === 0) && (
+                      {(img.is_primary || (idx === 0 && !allImages.some(i => i.is_primary))) && (
                         <span className="absolute top-1 left-1 text-[9px] font-bold tracking-wide bg-green-600 text-white px-1.5 py-0.5 rounded shadow">
                           Principal
                         </span>
@@ -1698,18 +1805,16 @@ export function ProductEditor({
                           </button>
                         </div>
                       </div>
-                      <Input
-                        value={group.options.join(", ")}
-                        placeholder="Ex: S, M, L, XL, 2XL, 3XL OU Blanc (S, M, L, XL), Noir (S, M, L, XL)"
-                        onChange={(e) => {
-                          const next = [...(product.variants || [])];
-                          next[gIdx] = {
-                            ...next[gIdx],
-                            options: e.target.value.split(",").map(o => o.trim()).filter(Boolean),
-                          };
-                          setProduct({ ...product, variants: next });
+                      <VariantOptionsInput
+                        options={group.options}
+                        onChange={(options) => {
+                          setProduct((prev) => {
+                            const next = [...(prev.variants || [])];
+                            if (!next[gIdx]) return prev;
+                            next[gIdx] = { ...next[gIdx], options };
+                            return { ...prev, variants: next };
+                          });
                         }}
-                        className="h-9 font-mono text-xs"
                       />
                     </div>
                   </div>
@@ -1880,54 +1985,19 @@ export function ProductEditor({
           {/* Options avancées */}
           <CollapsibleSection title="Options avancées" icon={<Settings className="h-4 w-4" />}>
             <div className="space-y-4">
-              {/* Toggles */}
-              {[
-                { label: "Masquer le récapitulatif de commande sur la fiche", desc: "Masque l'encadré récapitulatif (image, quantité, total) sur le formulaire de commande pour rendre la fiche plus courte et ultra-responsive", key: "hide_order_summary" as const },
-                { label: "Recocher", desc: "Permettre aux clients de recommander ce produit", key: "is_featured" as const },
-                { label: "Déballer", desc: "Permettre le déballage vidéo du produit", key: "is_digital" as const },
-              ].map(item => (
-                <div key={item.key} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                  <div><p className="text-sm font-medium">{item.label}</p><p className="text-xs text-muted-foreground">{item.desc}</p></div>
-                  <Switch checked={!!product[item.key as keyof typeof product]} onCheckedChange={(v) => setProduct({ ...product, [item.key]: v })} />
-                </div>
-              ))}
-
-              {/* Product type */}
-              <div className="space-y-1.5">
-                <Label className="text-sm flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Type de produit</Label>
-                <Select value={productType} onValueChange={setProductType}>
-                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRODUCT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Product location */}
-              <div className="space-y-1.5">
-                <Label className="text-sm flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Emplacement du produit</Label>
-                <Select value={productLocation} onValueChange={setProductLocation}>
-                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRODUCT_LOCATIONS.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Compte Arribo */}
-              <div className="space-y-1.5">
-                <Label className="text-sm">Compte Arribo</Label>
-                <Input placeholder="Identifiant Arribo (optionnel)" className="h-10" />
-                <p className="text-xs text-muted-foreground">Connectez votre compte Arribo pour la livraison automatique</p>
-              </div>
-
-              {/* More toggles */}
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
                 <div>
                   <p className="text-sm font-medium">Produit vedette</p>
                   <p className="text-xs text-muted-foreground">Mis en avant sur la page d'accueil</p>
                 </div>
                 <Switch checked={product.is_featured} onCheckedChange={(v) => setProduct({ ...product, is_featured: v })} />
+              </div>
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                <div>
+                  <p className="text-sm font-medium">Produit numérique</p>
+                  <p className="text-xs text-muted-foreground">Aucune livraison physique (e-book, formation, service…). Un badge « Digital » s'affiche sur la boutique.</p>
+                </div>
+                <Switch checked={product.is_digital} onCheckedChange={(v) => setProduct({ ...product, is_digital: v })} />
               </div>
             </div>
           </CollapsibleSection>
@@ -1938,26 +2008,35 @@ export function ProductEditor({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-sm">Meta titre</Label>
-                  <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Titre pour les moteurs de recherche" className="h-10" />
-                  <p className="text-xs text-muted-foreground">{seoTitle.length}/70 caractères recommandés</p>
+                  <Input
+                    value={product.seo_title || ""}
+                    onChange={(e) => setProduct({ ...product, seo_title: e.target.value })}
+                    placeholder={product.name ? `${product.name} — nom de la boutique` : "Titre pour les moteurs de recherche"}
+                    maxLength={120}
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground">{(product.seo_title || "").length}/70 caractères recommandés. Vide : le nom du produit est utilisé.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-sm">URL slug</Label>
                   <Input
                     value={product.slug || ""}
                     onChange={(e) =>
+                      // Le tiret final est conservé pendant la frappe (sinon « mon-produit » est impossible à écrire) ;
+                      // les tirets en bord sont retirés à la sortie du champ.
                       setProduct({
                         ...product,
                         slug: e.target.value
                           .toLowerCase()
                           .normalize("NFD")
-                          .replace(/[\u0300-\u036f]/g, "")
+                          .replace(/[̀-ͯ]/g, "")
                           .replace(/[^a-z0-9-]+/g, "-")
                           .replace(/-+/g, "-")
-                          .replace(/^-|-$/g, ""),
+                          .replace(/^-/, ""),
                       })
                     }
-                    placeholder={product.name ? product.name.toLowerCase().replace(/\s+/g, "-") : "mon-produit"}
+                    onBlur={() => setProduct((prev) => ({ ...prev, slug: toProductSlug(prev.slug || "") }))}
+                    placeholder={product.name ? toProductSlug(product.name) : "mon-produit"}
                     className="h-10"
                   />
                   {shopSlug && (
@@ -1965,33 +2044,47 @@ export function ProductEditor({
                       <p className="text-xs text-muted-foreground truncate">
                         ecomfy.cloud/shop/{shopSlug}/p/{shareableSlug || "mon-produit"}
                       </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => {
-                          const url = productId
-                            ? `https://visuelpro.cloud/shop/${shopSlug}/product?product=${productId}`
-                            : `https://visuelpro.cloud/shop/${shopSlug}/p/${shareableSlug}`;
-                          navigator.clipboard.writeText(url);
-                          toast({ title: "Lien copié ✓", description: url });
-                        }}
-                      >
-                        Copier
-                      </Button>
+                      {productId && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={async () => {
+                            // Lien lu depuis l'adresse enregistrée : copier un slug pas encore enregistré donnerait un lien mort.
+                            const url = savedProductSlug
+                              ? `https://ecomfy.cloud/shop/${shopSlug}/p/${savedProductSlug}`
+                              : `https://ecomfy.cloud/shop/${shopSlug}/product?product=${productId}`;
+                            try {
+                              await navigator.clipboard.writeText(url);
+                              toast({ title: "Lien copié ✓", description: url });
+                            } catch {
+                              toast({ title: "Copie impossible", description: url, variant: "destructive" });
+                            }
+                          }}
+                        >
+                          Copier
+                        </Button>
+                      )}
                     </div>
+                  )}
+                  {savedProductSlug && shareableSlug !== savedProductSlug && (
+                    <p className="text-[11px] text-amber-600">
+                      Changer l'adresse enregistrée casse les liens déjà partagés (publicités, WhatsApp) : l'ancien lien ne marchera plus.
+                    </p>
                   )}
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm">Description meta</Label>
-                <Textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} placeholder="Description pour les résultats de recherche" rows={2} />
-                <p className="text-xs text-muted-foreground">{seoDescription.length}/160 caractères recommandés</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm">Mots-clés</Label>
-                <Input value={seoKeywords} onChange={(e) => setSeoKeywords(e.target.value)} placeholder="mot-clé1, mot-clé2, ..." className="h-10" />
+                <Textarea
+                  value={product.seo_description || ""}
+                  onChange={(e) => setProduct({ ...product, seo_description: e.target.value })}
+                  placeholder="Description pour les résultats de recherche"
+                  rows={2}
+                  maxLength={320}
+                />
+                <p className="text-xs text-muted-foreground">{(product.seo_description || "").length}/160 caractères recommandés. Vide : le résumé court est utilisé.</p>
               </div>
             </div>
           </CollapsibleSection>
@@ -2218,6 +2311,39 @@ function ToolbarButton({ icon, onClick, title, hasDropdown, active }: { icon: Re
       {icon}
       {hasDropdown && <ChevronDown className="h-2 w-2 ml-0.5 opacity-50" />}
     </button>
+  );
+}
+
+/**
+ * Saisie des options d'une variante. Le texte est gardé tel que tapé et converti en liste à chaque frappe :
+ * reconstruire le champ depuis la liste effaçait la virgule et l'espace dès qu'ils étaient tapés, et il était
+ * impossible d'écrire plusieurs options. Les virgules entre parenthèses ne séparent pas : « Blanc (S, M), Noir (S) ».
+ */
+function VariantOptionsInput({ options, onChange }: { options: string[]; onChange: (options: string[]) => void }) {
+  const [text, setText] = useState(options.join(", "));
+  const lastEmitted = useRef(options);
+
+  // Les boutons « + Tailles S à 3XL » remplacent la liste depuis l'extérieur : on recopie alors dans le champ.
+  useEffect(() => {
+    if (options.join("\u0001") !== lastEmitted.current.join("\u0001")) {
+      lastEmitted.current = options;
+      setText(options.join(", "));
+    }
+  }, [options]);
+
+  return (
+    <Input
+      value={text}
+      placeholder="Ex: S, M, L, XL, 2XL, 3XL OU Blanc (S, M, L, XL), Noir (S, M, L, XL)"
+      onChange={(e) => {
+        setText(e.target.value);
+        const parsed = splitVariantOptions(e.target.value);
+        lastEmitted.current = parsed;
+        onChange(parsed);
+      }}
+      onBlur={() => setText(lastEmitted.current.join(", "))}
+      className="h-9 font-mono text-xs"
+    />
   );
 }
 

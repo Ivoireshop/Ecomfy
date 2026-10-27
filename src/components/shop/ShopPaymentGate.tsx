@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { AlertOctagon, Lock, MessageCircle } from "lucide-react";
+import { AlertOctagon, Loader2, Lock, MessageCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRemaining, supportWhatsappLink, type ShopPaymentInfo } from "@/lib/shopPaymentStatus";
 import { PayCommissionDialog } from "./PayCommissionDialog";
+import { startShopSubscriptionPayment } from "@/lib/shopSubscription";
+import { toast } from "@/hooks/use-toast";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
 
@@ -15,6 +17,7 @@ interface Props {
 export function ShopPaymentGate({ shopId, info, children }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [payOpen, setPayOpen] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
   useEffect(() => {
     if (info.status !== "locked" && info.status !== "final_suspension") return;
@@ -24,6 +27,56 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
 
   if (info.status !== "locked" && info.status !== "final_suspension") {
     return <>{children}</>;
+  }
+
+  if (info.isSubscriptionLock) {
+    const sub = info.subscription;
+    const renew = async () => {
+      setRenewing(true);
+      try {
+        window.location.href = await startShopSubscriptionPayment(shopId, sub.plan);
+      } catch (e: any) {
+        toast({ title: "Paiement non démarré", description: e?.message || "Réessayez dans un instant.", variant: "destructive" });
+        setRenewing(false);
+      }
+    };
+    const expiredOn = sub.activeUntil?.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    const waMsg = "Bonjour Ecomfy, mon abonnement a expiré et ma boutique est fermée. Je souhaite la rouvrir.";
+    return (
+      <div className="relative min-h-[70vh]">
+        <div aria-hidden className="pointer-events-none select-none blur-sm opacity-40">{children}</div>
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-red-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border-2 border-red-600 overflow-hidden">
+            <div className="bg-red-600 text-white px-5 py-4 flex items-center gap-2">
+              <Lock className="h-6 w-6" />
+              <h2 className="text-lg font-bold">Abonnement expiré</h2>
+            </div>
+            <div className="p-5 space-y-4 text-gray-800">
+              <p className="text-sm">
+                Votre abonnement <span className="font-semibold capitalize">{sub.plan.replace(/_/g, " ")}</span> a pris fin
+                {expiredOn ? <> le <span className="font-semibold">{expiredOn}</span></> : null}. L'espace de gestion de votre boutique
+                est fermé tant que l'abonnement n'est pas renouvelé. Votre boutique publique reste visible et vos clients peuvent toujours commander.
+              </p>
+              {sub.renewalAmount ? (
+                <Button size="lg" onClick={renew} disabled={renewing} className="w-full gap-2 bg-red-600 hover:bg-red-700 text-white">
+                  {renewing ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
+                  Renouveler pour {fmt(sub.renewalAmount)} FCFA
+                </Button>
+              ) : null}
+              <Button asChild variant="outline" size="lg" className="w-full gap-2">
+                <a href={supportWhatsappLink(waMsg)} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle className="h-4 w-4" />
+                  Contacter le support
+                </a>
+              </Button>
+              <p className="text-[11px] text-center text-gray-500">
+                Le renouvellement rouvre votre boutique dès la confirmation du paiement et vous évite la commission de 50 FCFA par commande.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const remaining = info.deadline ? Math.max(0, new Date(info.deadline).getTime() - now) : 0;

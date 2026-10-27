@@ -154,16 +154,17 @@ export const EmptyState = ({ mode, onSuggestionClick }: EmptyStateProps) => {
             onClick={() => onSuggestionClick(suggestion.prompt)}
             className="group relative flex flex-col p-5 rounded-2xl bg-card border border-border/60 hover:border-[#0E7C66]/50 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden"
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-muted/60 group-hover:bg-emerald-500/10 transition-colors">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-2 rounded-xl bg-muted/60 group-hover:bg-emerald-500/10 transition-colors shrink-0">
                   {suggestion.icon}
                 </div>
-                <h3 className="font-extrabold text-sm text-foreground group-hover:text-[#0E7C66] transition-colors whitespace-nowrap">
+                {/* Le titre peut passer à la ligne : en nowrap il écrasait l'étiquette à droite lettre par lettre. */}
+                <h3 className="font-extrabold text-sm leading-snug text-foreground group-hover:text-[#0E7C66] transition-colors line-clamp-2">
                   {suggestion.title}
                 </h3>
               </div>
-              <span className="text-[10px] font-black font-mono px-2 py-0.5 rounded-md bg-[#0E7C66]/10 text-[#0E7C66] group-hover:bg-[#0E7C66] group-hover:text-white transition-colors">
+              <span className="shrink-0 whitespace-nowrap text-[10px] font-black font-mono px-2 py-0.5 rounded-md bg-[#0E7C66]/10 text-[#0E7C66] group-hover:bg-[#0E7C66] group-hover:text-white transition-colors">
                 {suggestion.badge}
               </span>
             </div>

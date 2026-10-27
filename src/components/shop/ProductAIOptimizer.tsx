@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { z } from "zod";
-import { Brain, Copy, CheckCircle2, AlertTriangle, ArrowRight, RefreshCcw, Save, Loader2, Sparkles, TrendingUp, Users, ShoppingCart } from "lucide-react";
+import { Brain, Copy, CheckCircle2, AlertTriangle, Loader2, Sparkles, TrendingUp, Users, ShoppingCart } from "lucide-react";
 import { handleCreditsRequired } from "@/lib/creditsDialog";
 
 type Product = { id: string; name: string; price: number; is_published: boolean };
@@ -42,6 +39,11 @@ type Analysis = {
   created_at: string;
 };
 
+// Délai d'attente de l'écran : au-delà de la durée maximale de la fonction (3 modèles × 25 s).
+const ANALYSIS_TIMEOUT_MS = 120000;
+
+const text = (v: unknown): string => (typeof v === "string" ? v : "");
+
 const IMPACT_COLORS: Record<string, string> = {
   high: "bg-red-500/10 text-red-600 border-red-200",
   medium: "bg-orange-500/10 text-orange-600 border-orange-200",
@@ -56,76 +58,82 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
   const [history, setHistory] = useState<Analysis[]>([]);
 
   const product = useMemo(() => products.find((p) => p.id === productId), [products, productId]);
+  // Produit réellement sélectionné au moment où la réponse arrive (l'utilisateur a pu en changer pendant l'analyse).
+  const selectedRef = useRef(productId);
+  selectedRef.current = productId;
+
+  // Les produits peuvent arriver après le premier rendu, ou le produit choisi être supprimé.
+  useEffect(() => {
+    if (!products.some((p) => p.id === productId)) setProductId(products[0]?.id ?? "");
+  }, [products, productId]);
 
   useEffect(() => {
-    if (!productId) return;
+    if (!productId) { setHistory([]); setAnalysis(null); return; }
+    let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("product_ai_analyses")
         .select("*")
         .eq("product_id", productId)
         .order("created_at", { ascending: false })
         .limit(5);
-      setHistory((data as any) || []);
-      setAnalysis(((data as any) || [])[0] ?? null);
+      if (cancelled) return;
+      if (error) toast.error("Impossible de charger l'historique des analyses");
+      const rows = (data as any as Analysis[]) || [];
+      setHistory(rows);
+      setAnalysis(rows[0] ?? null);
     })();
+    return () => { cancelled = true; };
   }, [productId]);
-
-  const aiOptimizerSchema = z.object({
-    success: z.boolean().optional(),
-    error: z.string().optional(),
-    message: z.string().optional(),
-    credits_required: z.boolean().optional(),
-    analysis: z.record(z.any()).optional(),
-    parsed: z.object({
-      score: z.number().optional(),
-      weaknesses: z.array(z.string()).optional(),
-      improvements: z.array(z.string()).optional(),
-      optimized_title: z.string().optional(),
-      optimized_description: z.string().optional(),
-      seo_keywords: z.array(z.string()).optional(),
-    }).passthrough().optional(),
-  }).passthrough();
 
   const runAnalysis = async () => {
     if (!productId) { toast.error("Choisissez un produit"); return; }
+    const analysedProductId = productId;
     setLoading(true);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Délai d'attente dépassé (60s). L'IA est surchargée, réessayez.")), 60000)
-      );
-
-      const fetchPromise = supabase.functions.invoke("product-ai-optimizer", {
-        body: { shop_id: shop.id, product_id: productId, framework },
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("L'analyse prend trop de temps. Rechargez la page pour retrouver le résultat dans l'historique, sinon réessayez.")),
+          ANALYSIS_TIMEOUT_MS,
+        );
       });
 
-      const { data: rawData, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+      const fetchPromise = supabase.functions.invoke("product-ai-optimizer", {
+        body: { shop_id: shop.id, product_id: analysedProductId, framework },
+      });
+
+      const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any;
       if (error) throw error;
-      
-      const data = aiOptimizerSchema.parse(rawData);
 
       if (!data?.success) {
         if (handleCreditsRequired(data)) return;
         throw new Error(data?.message || data?.error || "Erreur lors de l'analyse");
       }
-      const a = { ...data.analysis, ...data.parsed } as Analysis;
-      setAnalysis(a);
-      setHistory((h) => [a, ...h].slice(0, 5));
+      const a = data.analysis as Analysis | null;
+      if (!a) throw new Error("Réponse de l'IA incomplète. Réessayez.");
+
+      // Changement de produit pendant l'analyse : on ne l'affiche pas sur la fiche d'un autre produit.
+      if (selectedRef.current === analysedProductId) {
+        setAnalysis(a);
+        setHistory((h) => [a, ...h.filter((x) => x.id !== a.id)].slice(0, 5));
+      }
       toast.success("Analyse terminée");
     } catch (e: any) {
-      if (e instanceof z.ZodError) {
-        toast.error("Format de réponse IA invalide");
-      } else {
-        toast.error(e?.message || "Erreur lors de l'analyse");
-      }
+      toast.error(e?.message || "Erreur lors de l'analyse");
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   };
 
-  const copy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copié");
+  const copy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success("Copié");
+    } catch {
+      toast.error("Copie impossible : sélectionnez le texte manuellement");
+    }
   };
 
   return (
@@ -136,7 +144,7 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
           Équipe d'agents IA – Optimisation des conversions
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Optimisez une fiche existante ou créez une fiche complète à partir de zéro avec images générées (méthodes Alex Hormozi, PAS, AIDA).
+          Analysez la conversion d'une fiche produit et obtenez un plan d'action et une fiche réécrite (méthodes Alex Hormozi, PAS, AIDA).
         </p>
       </div>
 
@@ -167,6 +175,9 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
                 </Select>
               </div>
             </div>
+            {products.length === 0 && (
+              <p className="text-sm text-muted-foreground">Ajoutez d'abord un produit à votre boutique pour lancer une analyse.</p>
+            )}
             <Button onClick={runAnalysis} disabled={loading || !productId} className="gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {loading ? "Analyse en cours..." : "Lancer l'analyse"}
@@ -192,7 +203,9 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
                 <Card className="p-4">
                   <div className="flex items-center gap-2 text-muted-foreground text-xs"><AlertTriangle className="h-3.5 w-3.5" /> Benchmark</div>
                   <div className="text-sm font-semibold mt-1">
-                    {analysis.conversion_rate < 1 ? "Faible" : analysis.conversion_rate < 3 ? "À améliorer" : analysis.conversion_rate < 5 ? "Correct" : "Excellent"}
+                    {analysis.visitors_count === 0
+                      ? "Pas assez de visites"
+                      : analysis.conversion_rate < 1 ? "Faible" : analysis.conversion_rate < 3 ? "À améliorer" : analysis.conversion_rate < 5 ? "Correct" : "Excellent"}
                   </div>
                 </Card>
               </div>
@@ -209,7 +222,7 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
               )}
 
               {/* Recommendations */}
-              {analysis.recommendations?.length > 0 && (
+              {Array.isArray(analysis.recommendations) && analysis.recommendations.length > 0 && (
                 <Card className="p-5">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -236,29 +249,29 @@ export function ProductAIOptimizer({ shop, products, onShopUpdate }: Props) {
               )}
 
               {/* Rewritten copy */}
-              {analysis.rewritten_copy && (
+              {analysis.rewritten_copy && typeof analysis.rewritten_copy === "object" && (
                 <Card className="p-5">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Fiche produit réécrite</h3>
                   </div>
                   <div className="space-y-3 text-sm">
-                    {analysis.rewritten_copy.headline && (
-                      <Block label="Titre" value={analysis.rewritten_copy.headline} onCopy={copy} />
+                    {text(analysis.rewritten_copy.headline) && (
+                      <Block label="Titre" value={text(analysis.rewritten_copy.headline)} onCopy={copy} />
                     )}
-                    {analysis.rewritten_copy.subheadline && (
-                      <Block label="Sous-titre" value={analysis.rewritten_copy.subheadline} onCopy={copy} />
+                    {text(analysis.rewritten_copy.subheadline) && (
+                      <Block label="Sous-titre" value={text(analysis.rewritten_copy.subheadline)} onCopy={copy} />
                     )}
                     {Array.isArray(analysis.rewritten_copy.bullets) && analysis.rewritten_copy.bullets.length > 0 && (
-                      <Block label="Bénéfices" value={analysis.rewritten_copy.bullets.map((b: string) => `• ${b}`).join("\n")} onCopy={copy} multiline />
+                      <Block label="Bénéfices" value={analysis.rewritten_copy.bullets.map((b: unknown) => `• ${text(b)}`).join("\n")} onCopy={copy} multiline />
                     )}
-                    {analysis.rewritten_copy.guarantee && (
-                      <Block label="Garantie" value={analysis.rewritten_copy.guarantee} onCopy={copy} />
+                    {text(analysis.rewritten_copy.guarantee) && (
+                      <Block label="Garantie" value={text(analysis.rewritten_copy.guarantee)} onCopy={copy} />
                     )}
-                    {analysis.rewritten_copy.urgency && (
-                      <Block label="Urgence / Rareté" value={analysis.rewritten_copy.urgency} onCopy={copy} />
+                    {text(analysis.rewritten_copy.urgency) && (
+                      <Block label="Urgence / Rareté" value={text(analysis.rewritten_copy.urgency)} onCopy={copy} />
                     )}
-                    {analysis.rewritten_copy.cta && (
-                      <Block label="Bouton d'action" value={analysis.rewritten_copy.cta} onCopy={copy} />
+                    {text(analysis.rewritten_copy.cta) && (
+                      <Block label="Bouton d'action" value={text(analysis.rewritten_copy.cta)} onCopy={copy} />
                     )}
                   </div>
                 </Card>

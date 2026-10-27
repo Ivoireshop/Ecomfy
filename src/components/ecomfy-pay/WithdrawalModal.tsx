@@ -31,6 +31,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   const [phone, setPhone] = useState(wallet?.default_payout_phone || kyc?.phone_number || "");
   const [recipientName, setRecipientName] = useState(wallet?.default_payout_name || kyc?.full_name || "");
   const [iban, setIban] = useState("");
+  const [operator, setOperator] = useState<"wave" | "orange_money" | "mtn" | "moov">("wave");
   const [submitting, setSubmitting] = useState(false);
 
   React.useEffect(() => {
@@ -40,6 +41,11 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
 
       if (wallet?.default_payout_name) setRecipientName(wallet.default_payout_name);
       else if (kyc?.full_name) setRecipientName(kyc.full_name);
+
+      const preferred = wallet?.default_payout_provider;
+      if (preferred === "wave" || preferred === "orange_money" || preferred === "mtn" || preferred === "moov") {
+        setOperator(preferred);
+      }
     }
   }, [open, wallet, kyc]);
 
@@ -75,6 +81,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       destination_phone: method === "mobile_money" ? phone : undefined,
       destination_name: recipientName,
       destination_bank_iban: method === "bank_transfer" ? iban : undefined,
+      payout_operator: method === "mobile_money" ? operator : undefined,
     });
     setSubmitting(false);
 
@@ -177,6 +184,17 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
                   <PaymentMethodLogo id="moov" size={28} />
                   <span className="text-[10px] text-slate-400 font-semibold ml-1">Wave, Orange, MTN, Moov</span>
                 </div>
+                <select
+                  value={operator}
+                  onChange={(e) => setOperator(e.target.value as typeof operator)}
+                  aria-label="Opérateur de retrait"
+                  className="mt-1 w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold"
+                >
+                  <option value="wave">Wave</option>
+                  <option value="orange_money">Orange Money</option>
+                  <option value="mtn">MTN</option>
+                  <option value="moov">Moov</option>
+                </select>
                 <Input
                   required
                   value={phone}

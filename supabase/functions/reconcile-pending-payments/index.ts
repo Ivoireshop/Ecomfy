@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
               p_notes: "Réconciliation automatique GeniusPay",
             });
           } else if (paymentType === "shop_subscription" && shopId) {
-            await supabase.rpc("apply_shop_subscription", {
+            const { data: subResult, error: subError } = await supabase.rpc("apply_shop_subscription", {
               p_shop_id: shopId,
               p_user_id: p.user_id,
               p_plan: (meta.plan as string) || "starter",
@@ -115,6 +115,11 @@ Deno.serve(async (req) => {
               p_transaction_reference: reference,
               p_payment_method: remote?.payment_method || "geniuspay",
             });
+            if (subError || subResult?.success === false) {
+              // Payé mais non appliqué : à rejouer (apply_shop_subscription est idempotente par référence)
+              console.error("reconcile: apply_shop_subscription failed", { reference, subError, subResult });
+              errors++;
+            }
           } else if (paymentType === "credits") {
             const size = Number(meta.credits_size || 0);
             if (size > 0 && paymentClaimed) {
@@ -143,6 +148,13 @@ Deno.serve(async (req) => {
           }
         } catch (e) {
           console.error("reconcile apply error:", e);
+        }
+
+        // Commission d'affiliation (H6) : idempotente, le paiement est désormais « completed »
+        try {
+          await supabase.rpc("process_affiliate_commission_for_payment", { p_payment_id: p.id });
+        } catch (e) {
+          console.warn("reconcile affiliate commission error (non-fatal):", e);
         }
 
         confirmed++;

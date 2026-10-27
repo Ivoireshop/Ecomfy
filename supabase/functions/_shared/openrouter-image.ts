@@ -43,8 +43,8 @@ export async function generateImageWithOpenRouter(
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://visuelpro.cloud",
-          "X-Title": "VisuelPro",
+          "HTTP-Referer": "https://ecomfy.cloud",
+          "X-Title": "Ecomfy",
         },
         body: JSON.stringify({
           model,

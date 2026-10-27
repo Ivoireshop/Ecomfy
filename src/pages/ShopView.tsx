@@ -1,7 +1,11 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
+import { cleanSelectedVariants, missingVariantGroups, usableVariantGroups } from "@/lib/productVariants";
+import { htmlToPlainText } from "@/lib/sanitizeProductHtml";
 import { createPublicOrder } from "@/services/publicOrderService";
+import { PromoCodeField, type AppliedPromo } from "@/components/shop/PromoCodeField";
 import { thumbUrl } from "@/lib/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,6 +28,7 @@ import { containsDigits, stripDigits } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { cacheGet, cacheSet, cacheInvalidate, cacheIsFresh, shopKey, shopProductsKey } from "@/lib/shopCache";
 import { useDeferredMount } from "@/lib/useDeferredMount";
+import { readableTextOn } from "@/lib/productAppearance";
 import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
 import { HomepageRenderer } from "@/components/shop/HomepageBuilder/HomepageRenderer";
 
@@ -75,11 +80,15 @@ const ShopView = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirm">("cart");
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [orderLoading, setOrderLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [variantChoice, setVariantChoice] = useState<Record<string, string>>({});
+  // Produits à stock 0 dont le marchand a désactivé « Autoriser les commandes au-delà du stock » (réglage lu dans
+  // product_theme_settings). Sans cela, l'ajout rapide depuis la grille contournait le blocage de la fiche produit.
+  const [soldOutIds, setSoldOutIds] = useState<Set<string>>(new Set());
   const [orderSuccess, setOrderSuccess] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   // Progressive rendering: only render a window of products to keep first paint fast.
@@ -133,13 +142,16 @@ const ShopView = () => {
   const abandonedSavedRef = useRef<boolean>(false);
   // Prevent duplicate order submissions from double-tap / double-click.
   const submittingOrderRef = useRef(false);
+  const newAbandonSessionId = () =>
+    (crypto as any).randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random()}`;
   useEffect(() => {
     if (!shop?.id) return;
     const key = `vp_abandon_session_${shop.id}`;
-    let sid = localStorage.getItem(key);
+    let sid: string | null = null;
+    try { sid = localStorage.getItem(key); } catch {}
     if (!sid) {
-      sid = (crypto as any).randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random()}`;
-      localStorage.setItem(key, sid);
+      sid = newAbandonSessionId();
+      try { localStorage.setItem(key, sid); } catch {}
     }
     sessionIdRef.current = sid;
   }, [shop?.id]);
@@ -148,17 +160,29 @@ const ShopView = () => {
   useEffect(() => {
     if (!shop?.id || shop?._isPreview) return;
     if (!sessionIdRef.current) return;
-    // Only track when there is at least a phone OR a name AND items in cart
-    if (cart.length === 0) return;
-    if (!customerInfo.phone && !customerInfo.name) return;
+    if (cart.length === 0) {
+      // Panier vidé : on retire le panier abandonné déjà enregistré pour cette session.
+      if (abandonedSavedRef.current) {
+        abandonedSavedRef.current = false;
+        (supabase as any)
+          .rpc("discard_abandoned_cart", { _shop_id: shop.id, _session_id: sessionIdRef.current })
+          .then(() => {}, () => {});
+      }
+      return;
+    }
+    // Ne suivre que des coordonnées exploitables : téléphone valide ou e-mail plausible
+    // (évite d'enregistrer "0" ou "+22" saisis à moitié).
+    const phoneOk = !!customerInfo.phone && isValidFullPhone(customerInfo.phone);
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerInfo.email || "");
+    if (!phoneOk && !emailOk) return;
 
     const t = setTimeout(async () => {
       try {
+        // Prix, noms et totaux sont recalculés par le serveur ; on n'envoie que l'identité des lignes.
         const items = cart.map(i => ({
           product_id: i.product.id,
-          name: i.product.name,
           quantity: i.quantity,
-          price: i.product.price,
+          selected_variants: i.selectedVariants && Object.keys(i.selectedVariants).length > 0 ? i.selectedVariants : null,
         }));
         const itemsCount = cart.reduce((s, i) => s + i.quantity, 0);
         const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
@@ -167,7 +191,7 @@ const ShopView = () => {
           const n = normalizeToE164(customerInfo.phone, shop?.country) || customerInfo.phone;
           return parseFullPhone(n).country?.name || null;
         })();
-        await (supabase as any).rpc("upsert_abandoned_cart", {
+        const { error: rpcError } = await (supabase as any).rpc("upsert_abandoned_cart", {
           _shop_id: shop.id,
           _session_id: sessionIdRef.current,
           _customer_name: customerInfo.name || null,
@@ -181,7 +205,7 @@ const ShopView = () => {
           _items_count: itemsCount,
           _total: total,
         });
-        abandonedSavedRef.current = true;
+        if (!rpcError) abandonedSavedRef.current = true;
       } catch (_) { /* silent */ }
     }, 1200);
     return () => clearTimeout(t);
@@ -437,7 +461,7 @@ const ShopView = () => {
   const tShop = shop ? mergeShop(shop) : shop;
   const tProducts = products.map((p) => mergeProduct(p as any));
 
-  const categories = ["all", ...new Set(tProducts.map(p => p.category))];
+  const categories = ["all", ...new Set(tProducts.map(p => p.category).filter(Boolean))];
   const filteredProducts = tProducts.filter(p => {
     const matchCat = selectedCategory === "all" || p.category === selectedCategory;
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -447,6 +471,31 @@ const ShopView = () => {
   const effectiveFeaturedProducts = featuredProducts.length > 0 ? featuredProducts : tProducts.slice(0, 4);
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const hasMore = filteredProducts.length > visibleCount;
+
+  useEffect(() => {
+    const candidates = products
+      .filter(p => p.stock_quantity !== null && p.stock_quantity !== undefined && Number(p.stock_quantity) <= 0)
+      .map(p => p.id);
+    if (candidates.length === 0) {
+      setSoldOutIds(prev => (prev.size === 0 ? prev : new Set()));
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const blocked = new Set<string>();
+      for (let i = 0; i < candidates.length; i += 80) {
+        const { data } = await (supabase as any)
+          .from("product_theme_settings")
+          .select("product_id, custom_css_settings")
+          .in("product_id", candidates.slice(i, i + 80));
+        (data || []).forEach((row: any) => {
+          if (row?.custom_css_settings?.allow_out_of_stock_orders === false) blocked.add(row.product_id);
+        });
+      }
+      if (!cancelled) setSoldOutIds(blocked);
+    })();
+    return () => { cancelled = true; };
+  }, [products]);
 
   // Reset window whenever the active filter / search changes.
   useEffect(() => {
@@ -475,17 +524,17 @@ const ShopView = () => {
       toast({ title: "🔒 Aperçu", description: "Activez la boutique pour recevoir des commandes." });
       return;
     }
-    const variantGroups = Array.isArray(product.variants) ? product.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0) : [];
-    if (variantGroups.length > 0) {
-      const sv = selectedVariants || {};
-      const missing = variantGroups.filter((g: any) => !sv[g.name]);
-      if (missing.length > 0) {
-        setVariantChoice({});
-        setSelectedProduct(product);
-        return;
-      }
+    if (soldOutIds.has(product.id)) {
+      toast({ title: "Rupture de stock", description: "Ce produit n'est plus disponible à la commande.", variant: "destructive" });
+      return;
     }
-    const sv = selectedVariants && Object.keys(selectedVariants).length > 0 ? selectedVariants : null;
+    if (missingVariantGroups(product.variants, selectedVariants).length > 0) {
+      setVariantChoice({});
+      setSelectedProduct(product);
+      return;
+    }
+    // Les clés techniques du sélecteur (« Couleur_main », « Couleur_sub ») ne vont ni dans le panier ni dans la commande.
+    const sv = cleanSelectedVariants(selectedVariants);
     const key = cartKey(product.id, sv);
     setCart(prev => {
       const existing = prev.find(item => cartKey(item.product.id, item.selectedVariants) === key);
@@ -513,6 +562,9 @@ const ShopView = () => {
 
   const removeFromCart = (key: string) => setCart(prev => prev.filter(item => cartKey(item.product.id, item.selectedVariants) !== key));
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // Aperçu : le serveur recalcule la remise et le total à la création de la commande.
+  const promoDiscount = promo ? Math.min(promo.discount, cartTotal) : 0;
+  const payableTotal = cartTotal - promoDiscount;
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const placeOrder = async () => {
@@ -548,14 +600,19 @@ const ShopView = () => {
         customerCity: customerInfo.city,
         customerCountry: detectedCountry,
         paymentMethod: customerInfo.paymentMethod,
+        promoCode: promo?.code,
         items: cart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
-          selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
+          selected_variants: cleanSelectedVariants(item.selectedVariants),
         })),
       });
       const order = { id: created.orderId, order_number: created.orderNumber };
       const orderTotal = created.total;
+      if (promo && !created.promoApplied) {
+        toast({ title: "Code promo non appliqué", description: created.promoMessage || "Le code n'a pas pu être appliqué à cette commande.", variant: "destructive" });
+      }
+      setPromo(null);
       // Mark abandoned cart as converted (if any was tracked)
       if (sessionIdRef.current && shop?.id) {
         try {
@@ -564,6 +621,11 @@ const ShopView = () => {
             _session_id: sessionIdRef.current,
           });
         } catch (_) {}
+        // Nouvelle session pour le prochain panier : l'ancienne est close côté serveur.
+        abandonedSavedRef.current = false;
+        const nextSid = newAbandonSessionId();
+        sessionIdRef.current = nextSid;
+        try { localStorage.setItem(`vp_abandon_session_${shop.id}`, nextSid); } catch {}
       }
       const trackingPayload = {
         value: orderTotal,
@@ -694,7 +756,7 @@ const ShopView = () => {
       <>
         <Helmet>
           <title>{shop.seo_title || shop.business_name || "Boutique"}</title>
-          <meta name="description" content={shop.business_description || `Boutique ${shop.business_name}`} />
+          <meta name="description" content={shop.seo_description || shop.business_description || `Boutique ${shop.business_name}`} />
           <link rel="canonical" href={window.location.href} />
         </Helmet>
         <HomepageRenderer
@@ -728,7 +790,7 @@ const ShopView = () => {
       <>
         <Helmet>
           <title>{shop.seo_title || shop.business_name || "Boutique"}</title>
-          <meta name="description" content={shop.business_description || `Boutique ${shop.business_name}`} />
+          <meta name="description" content={shop.seo_description || shop.business_description || `Boutique ${shop.business_name}`} />
           <link rel="canonical" href={window.location.href} />
         </Helmet>
         <ShopThemeRenderer
@@ -743,8 +805,15 @@ const ShopView = () => {
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
+  // « Nombre de colonnes de produits (Desktop) » du menu Thème : 3, 4 (défaut) ou 5 ; 2 colonnes sur mobile.
+  const productsGridCols = themeConfig?.products_per_row === 3
+    ? "md:grid-cols-3"
+    : themeConfig?.products_per_row === 5
+      ? "md:grid-cols-3 lg:grid-cols-5"
+      : "md:grid-cols-4";
+
   const shopTitle = shop.seo_title || shop.business_name || "Boutique";
-  const shopDescription = shop.business_description || `Boutique ${shop.business_name} sur Ecomfy`;
+  const shopDescription = shop.seo_description || shop.business_description || `Boutique ${shop.business_name} sur Ecomfy`;
   const shopImage = shop.logo_url || shop.favicon_url || "https://storage.googleapis.com/gpt-engineer-file-uploads/YasR3rLLCfTPxhyVC44DaAaelxo2/social-images/social-1766315146557-T%C3%A9moignage%20(3).jpg";
 
   return (
@@ -780,9 +849,19 @@ const ShopView = () => {
 
       {/* Sticky Header - Premium Glassmorphism */}
       <header
-        className="border-b sticky top-0 z-40 bg-white/85 backdrop-blur-xl shadow-sm transition-all duration-300"
+        className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg,rgba(255,255,255,0.85))] md:bg-[var(--shop-header-desktop-bg,rgba(255,255,255,0.85))] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)] backdrop-blur-xl shadow-sm transition-all duration-300"
         style={{
-          borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "rgba(0,0,0,0.05)",
+          ...(themeConfig.header_mobile_bg || themeConfig.header_desktop_bg ? {
+            "--shop-header-mobile-bg": themeConfig.header_mobile_bg || themeConfig.header_desktop_bg,
+            "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg,
+          } : {}),
+          "--shop-header-mobile-border": themeConfig.header_mobile_border === false ? "transparent" : (themeConfig.header_mobile_border_color || "rgba(0,0,0,0.05)"),
+          "--shop-header-desktop-border": themeConfig.header_desktop_border === false ? "transparent" : (themeConfig.header_desktop_border_color || themeConfig.header_mobile_border_color || "rgba(0,0,0,0.05)"),
+          // Le nom de la boutique reste lisible quel que soit le fond d'en-tête choisi dans « Thème ».
+          "--shop-header-mobile-text": readableTextOn(themeConfig.header_mobile_bg || themeConfig.header_desktop_bg),
+          "--shop-header-desktop-text": readableTextOn(themeConfig.header_desktop_bg || themeConfig.header_mobile_bg),
+          "--shop-header-mobile-btn": themeConfig.header_mobile_btn || "#9ca3af",
+          "--shop-header-desktop-btn": themeConfig.header_desktop_btn || themeConfig.header_mobile_btn || "#9ca3af",
         } as CSSProperties}
       >
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-4 sm:gap-6">
@@ -817,7 +896,7 @@ const ShopView = () => {
                     </div>
                   )}
                   {showName && (
-                    <span className="font-extrabold text-lg sm:text-xl md:text-2xl truncate tracking-tight text-gray-900 group-hover:opacity-80 transition-opacity">{tShop.business_name}</span>
+                    <span className="font-extrabold text-lg sm:text-xl md:text-2xl truncate tracking-tight text-[color:var(--shop-header-mobile-text)] md:text-[color:var(--shop-header-desktop-text)] group-hover:opacity-80 transition-opacity">{tShop.business_name}</span>
                   )}
                 </>
               );
@@ -826,7 +905,7 @@ const ShopView = () => {
           
           {/* Search - Desktop */}
           <div className="hidden md:flex relative flex-1 max-w-xl mx-auto group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--shop-header-desktop-btn)] group-focus-within:text-primary transition-colors" />
             <Input 
               placeholder="Rechercher un produit..." 
               value={searchQuery} 
@@ -842,7 +921,7 @@ const ShopView = () => {
             {shop.whatsapp_number && (
               <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="hidden sm:flex">
                 <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 sm:h-12 sm:w-12 bg-gray-50 hover:bg-green-50 hover:text-green-600 transition-colors">
-                  <Phone className="h-5 w-5" />
+                  <Phone className="h-5 w-5" style={{ color: themeConfig.header_desktop_btn || themeConfig.header_mobile_btn || undefined }} />
                 </Button>
               </a>
             )}
@@ -871,7 +950,7 @@ const ShopView = () => {
       <ShopReviewBar themeConfig={themeConfig} placement="below" />
 
       {/* Hero Section */}
-      {(() => {
+      {themeConfig?.hero_enabled !== false && (() => {
         const heroBannerUrl =
           shop.banner_url ||
           shop.hero_image_url ||
@@ -1047,9 +1126,9 @@ const ShopView = () => {
             </p>
             <div className="w-20 h-1.5 rounded-full mt-4" style={{ backgroundColor: primaryColor }} />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          <div className={`grid grid-cols-2 ${productsGridCols} gap-4 sm:gap-6 lg:gap-8`}>
             {effectiveFeaturedProducts.slice(0, 4).map((product, idx) => (
-              <ProductCard key={product.id} product={product} primaryColor={primaryColor} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
+              <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
                 const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
                 navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
               }} formatPrice={formatPrice} />
@@ -1093,9 +1172,9 @@ const ShopView = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+        <div className={`grid grid-cols-2 ${productsGridCols} gap-4 sm:gap-6 lg:gap-8`}>
           {visibleProducts.map((product, idx) => (
-            <ProductCard key={product.id} product={product} primaryColor={primaryColor} eager={idx < 4 && featuredProducts.length === 0} onAddToCart={addToCart} onView={(p) => {
+            <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} eager={idx < 4 && featuredProducts.length === 0} onAddToCart={addToCart} onView={(p) => {
               const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
               navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
             }} formatPrice={formatPrice} />
@@ -1127,6 +1206,7 @@ const ShopView = () => {
       )}
 
       {/* Contact Section */}
+      {themeConfig?.contact_section_enabled !== false && (
       <section className="bg-gray-900 text-white py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h2 className="text-3xl sm:text-4xl font-black mb-4">Besoin d'aide ?</h2>
@@ -1156,6 +1236,7 @@ const ShopView = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Footer */}
       <footer
@@ -1193,7 +1274,9 @@ const ShopView = () => {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 opacity-80">
             {shop.city && <><MapPin className="h-4 w-4" /> {shop.city}, {shop.country || "Côte d'Ivoire"} <span className="mx-2 opacity-30">|</span></>}
-            Créé avec <a href="https://ecomfy.cloud" target="_blank" rel="noopener noreferrer" className="font-extrabold text-foreground ml-1 hover:underline decoration-2 underline-offset-2">Ecomfy</a>
+            {themeConfig?.hide_ecomfy_branding !== true && (
+              <>Créé avec <a href="https://ecomfy.cloud" target="_blank" rel="noopener noreferrer" className="font-extrabold text-foreground ml-1 hover:underline decoration-2 underline-offset-2">Ecomfy</a></>
+            )}
           </div>
         </div>
       </footer>
@@ -1230,35 +1313,23 @@ const ShopView = () => {
                     )}
                   </div>
                 </div>
-                {selectedProduct.description && <p className="text-muted-foreground leading-relaxed">{selectedProduct.description}</p>}
-                {selectedProduct.short_description && !selectedProduct.description && <p className="text-muted-foreground">{selectedProduct.short_description}</p>}
-                {Array.isArray(selectedProduct.variants) && selectedProduct.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0).length > 0 && (
-                  <div className="space-y-3 pt-1">
-                    {selectedProduct.variants
-                      .filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0)
-                      .map((group: any, gi: number) => (
-                        <div key={gi} className="space-y-1.5">
-                          <Label className="text-xs font-semibold">
-                            {group.name} <span className="text-destructive">*</span>
-                          </Label>
-                          <div className="flex flex-wrap gap-2">
-                            {group.options.map((opt: string) => {
-                              const active = variantChoice[group.name] === opt;
-                              return (
-                                <button
-                                  key={opt}
-                                  type="button"
-                                  onClick={() => setVariantChoice({ ...variantChoice, [group.name]: opt })}
-                                  className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${active ? "text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                                  style={active ? { backgroundColor: primaryColor, borderColor: primaryColor } : { borderColor: "hsl(var(--border))" }}
-                                >
-                                  {opt}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                {/* La description complète est du HTML riche : l'afficher telle quelle montrait les balises <p>, <strong>… */}
+                {(selectedProduct.short_description || selectedProduct.description) && (
+                  <p className="text-muted-foreground leading-relaxed">
+                    {selectedProduct.short_description || htmlToPlainText(selectedProduct.description, 280)}
+                  </p>
+                )}
+                {usableVariantGroups(selectedProduct.variants).length > 0 && (
+                  <div className="pt-1">
+                    {/* Même sélecteur que la fiche produit : les options « Blanc (S, M, L) » y sont séparées en couleur + taille.
+                        Avant, le client voyait un seul bouton « Blanc (S, M, L) » sans pouvoir choisir la taille. */}
+                    <SmartVariantSelector
+                      variants={selectedProduct.variants as any}
+                      selectedVariants={variantChoice}
+                      onChange={(key, value) => setVariantChoice(prev => ({ ...prev, [key]: value }))}
+                      primaryColor={primaryColor}
+                      preselect={false}
+                    />
                   </div>
                 )}
                 <div className="flex gap-3 pt-2">
@@ -1268,8 +1339,8 @@ const ShopView = () => {
                     </div>
                   ) : (
                     (() => {
-                      const groups = Array.isArray(selectedProduct.variants) ? selectedProduct.variants.filter((g: any) => g?.name && Array.isArray(g?.options) && g.options.length > 0) : [];
-                      const missing = groups.filter((g: any) => !variantChoice[g.name]);
+                      const groups = usableVariantGroups(selectedProduct.variants);
+                      const missing = missingVariantGroups(selectedProduct.variants, variantChoice);
                       const ready = missing.length === 0;
                       return (
                         <Button
@@ -1279,7 +1350,7 @@ const ShopView = () => {
                           onClick={() => { addToCart(selectedProduct, groups.length > 0 ? variantChoice : null); setSelectedProduct(null); setVariantChoice({}); }}
                         >
                           <ShoppingCart className="h-5 w-5" />
-                          {ready ? "Ajouter au panier" : `Choisir : ${missing.map((m: any) => m.name).join(", ")}`}
+                          {ready ? "Ajouter au panier" : `Choisir : ${missing.join(", ")}`}
                         </Button>
                       );
                     })()
@@ -1358,7 +1429,7 @@ const ShopView = () => {
                             <p className="text-sm font-semibold truncate">{item.product.name}</p>
                             {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
                               <p className="text-[11px] text-muted-foreground truncate">
-                                {Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                                {Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(" · ")}
                               </p>
                             )}
                             <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
@@ -1377,6 +1448,14 @@ const ShopView = () => {
                           <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
                         </div>
                       </div>
+                      {themeConfig?.cart_banner_enabled === true && (
+                        <div
+                          className="rounded-xl px-4 py-3 text-center text-sm font-medium"
+                          style={{ backgroundColor: themeConfig.cart_banner_bg || "#FEF3C7", color: themeConfig.cart_banner_text_color || "#92400E" }}
+                        >
+                          {themeConfig.cart_banner_text || "🚚 Livraison gratuite pour les commandes de plus de 10 000 FCFA"}
+                        </div>
+                      )}
                       <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
                         Continuer <ArrowRight className="h-4 w-4" />
                       </Button>
@@ -1417,18 +1496,33 @@ const ShopView = () => {
                         <span className="text-muted-foreground truncate">
                           {item.product.name}
                           {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
-                            <span className="opacity-70"> ({Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
+                            <span className="opacity-70"> ({Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
                           )}
                           {" × "}{item.quantity}
                         </span>
                         <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
                       </div>
                     ))}
+                    {promoDiscount > 0 && (
+                      <div className="flex justify-between text-emerald-700 font-medium">
+                        <span>Code {promo?.code}</span>
+                        <span>- {formatPrice(promoDiscount)} FCFA</span>
+                      </div>
+                    )}
                     <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
                       <span>Total</span>
-                      <span style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                      <span style={{ color: primaryColor }}>{formatPrice(payableTotal)} FCFA</span>
                     </div>
                   </div>
+                  <PromoCodeField
+                    shopId={shop.id}
+                    subtotal={cartTotal}
+                    customerPhone={customerInfo.phone}
+                    customerEmail={customerInfo.email}
+                    primaryColor={primaryColor}
+                    applied={promo}
+                    onChange={setPromo}
+                  />
                   {/* Infos client */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -1511,7 +1605,7 @@ const ShopView = () => {
                     </div>
                   </div>
                   <Button className="w-full h-11 rounded-xl text-sm font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
-                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(cartTotal)} FCFA</>}
+                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(payableTotal)} FCFA</>}
                   </Button>
                 </div>
                 );
@@ -1551,6 +1645,7 @@ const ShopView = () => {
             shopName={shop.business_name}
             primaryColor={shop.primary_color}
             secondaryColor={shop.secondary_color}
+            hideEcomfyBranding={shop.theme_config?.hide_ecomfy_branding === true}
           />
         </Suspense>
       )}
@@ -1560,8 +1655,8 @@ const ShopView = () => {
 };
 
 // Product Card Component
-function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, eager }: {
-  product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string; eager?: boolean;
+function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, eager, soldOut }: {
+  product: Product; primaryColor: string; onAddToCart: (p: Product) => void; onView: (p: Product) => void; formatPrice: (n: number) => string; eager?: boolean; soldOut?: boolean;
 }) {
   // Warm up the ProductView chunk and its images on hover/touch so navigation
   // feels instant. Idempotent — repeated calls are cheap.
@@ -1605,6 +1700,11 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
           </Badge>
         )}
         {product.is_digital && <Badge className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-purple-600 rounded-lg text-[10px] sm:text-xs">Digital</Badge>}
+        {soldOut && (
+          <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+            <Badge className="bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs">Rupture de stock</Badge>
+          </div>
+        )}
       </div>
       <div className="p-2.5 sm:p-3 md:p-4">
         <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 mb-0.5 sm:mb-1">{product.name}</h3>
@@ -1617,10 +1717,12 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
               <span className="text-[10px] sm:text-xs text-muted-foreground line-through ml-1 hidden sm:inline">{formatPrice(product.compare_at_price)}</span>
             )}
           </div>
-          <Button 
-            size="icon" 
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0" 
+          <Button
+            size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0"
             style={{ backgroundColor: primaryColor }}
+            disabled={soldOut}
+            aria-label={soldOut ? "Rupture de stock" : "Ajouter au panier"}
             onClick={(e) => { e.stopPropagation(); onAddToCart(product); }}
           >
             <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />

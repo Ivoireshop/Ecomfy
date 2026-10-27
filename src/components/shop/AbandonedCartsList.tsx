@@ -7,6 +7,7 @@ import { ShoppingBag, Phone, Mail, MapPin, Trash2, MessageCircle, Loader2 } from
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { cleanSelectedVariants } from "@/lib/productVariants";
 
 interface AbandonedCart {
   id: string;
@@ -22,13 +23,17 @@ interface AbandonedCart {
   updated_at: string;
 }
 
-export function AbandonedCartsList({ shopId }: { shopId: string }) {
+// En dessous de ce délai sans activité, le visiteur est probablement encore en train de remplir son panier.
+const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
+
+export function AbandonedCartsList({ shopId, shopName }: { shopId: string; shopName?: string | null }) {
   const [carts, setCarts] = useState<AbandonedCart[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    // Rechargements realtime : on garde la liste affichée au lieu de la remplacer par le spinner.
+    if (!silent) setLoading(true);
     const { data, error } = await supabase
       .from("abandoned_carts" as any)
       .select("*")
@@ -48,24 +53,30 @@ export function AbandonedCartsList({ shopId }: { shopId: string }) {
     load();
     const channel = supabase
       .channel(`abandoned-${shopId}_${Math.random().toString(36).substring(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "abandoned_carts", filter: `shop_id=eq.${shopId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "abandoned_carts", filter: `shop_id=eq.${shopId}` }, () => load(true))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId]);
 
   const remove = async (id: string) => {
-    const { error } = await supabase.from("abandoned_carts" as any).delete().eq("id", id);
+    const { data, error } = await supabase.from("abandoned_carts" as any).delete().eq("id", id).select("id");
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    else setCarts(prev => prev.filter(c => c.id !== id));
+    else if (!data || data.length === 0) {
+      // RLS : seuls les propriétaires de la boutique peuvent supprimer (0 ligne, sans erreur, pour un collaborateur).
+      toast({ title: "Suppression impossible", description: "Seul le propriétaire de la boutique peut supprimer un panier.", variant: "destructive" });
+    } else setCarts(prev => prev.filter(c => c.id !== id));
   };
 
   const relance = (cart: AbandonedCart) => {
     if (!cart.customer_phone) return;
     const phone = cart.customer_phone.replace(/[^\d]/g, "");
-    const msg = encodeURIComponent(`Bonjour ${cart.customer_name || ""}, vous avez laissé ${cart.items_count} article(s) dans votre panier. Souhaitez-vous finaliser votre commande ?`);
+    const shopPart = shopName ? ` sur ${shopName}` : "";
+    const msg = encodeURIComponent(`Bonjour ${cart.customer_name || ""}, vous avez laissé ${cart.items_count} article(s) dans votre panier${shopPart}. Souhaitez-vous finaliser votre commande ?`);
     window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   };
+
+  const isActive = (cart: AbandonedCart) => Date.now() - new Date(cart.updated_at).getTime() < ACTIVE_WINDOW_MS;
 
   if (loading) {
     return <div className="flex items-center justify-center py-12 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Chargement...</div>;
@@ -102,6 +113,9 @@ export function AbandonedCartsList({ shopId }: { shopId: string }) {
                     <Badge variant="secondary" className="text-xs">
                       {cart.items_count} produit{cart.items_count > 1 ? "s" : ""}
                     </Badge>
+                    {isActive(cart) && (
+                      <Badge className="bg-amber-500 text-white text-xs">En cours</Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(cart.updated_at), { addSuffix: true, locale: fr })}
                     </span>
@@ -121,7 +135,12 @@ export function AbandonedCartsList({ shopId }: { shopId: string }) {
                     <div className="text-xs text-muted-foreground border-t pt-2 mt-2">
                       {cart.items.map((it: any, i: number) => (
                         <div key={i} className="flex justify-between">
-                          <span>{it.name} × {it.quantity}</span>
+                          <span>
+                            {it.name} × {it.quantity}
+                            {it.selected_variants && Object.keys(it.selected_variants).length > 0 && (
+                              <span className="ml-1">({Object.entries(cleanSelectedVariants(it.selected_variants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
+                            )}
+                          </span>
                           <span>{Number(it.price * it.quantity).toLocaleString()} FCFA</span>
                         </div>
                       ))}
@@ -132,7 +151,14 @@ export function AbandonedCartsList({ shopId }: { shopId: string }) {
                   <div className="text-lg font-bold">{Number(cart.total).toLocaleString()} FCFA</div>
                   <div className="flex gap-2">
                     {cart.customer_phone && (
-                      <Button size="sm" variant="outline" onClick={() => relance(cart)} className="gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => relance(cart)}
+                        disabled={isActive(cart)}
+                        title={isActive(cart) ? "Le visiteur est peut-être encore en train de commander" : undefined}
+                        className="gap-1.5"
+                      >
                         <MessageCircle className="h-3.5 w-3.5" /> Relancer
                       </Button>
                     )}

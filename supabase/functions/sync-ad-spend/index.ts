@@ -18,16 +18,22 @@ function ok(body: Record<string, unknown>, status = 200) {
 async function syncMeta(accountId: string, token: string) {
   // accountId may be "act_xxx" or "xxx"
   const id = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
-  const url = `https://graph.facebook.com/v19.0/${id}/insights?fields=spend,account_currency,date_start,date_stop&time_increment=1&date_preset=maximum&limit=500&access_token=${encodeURIComponent(token)}`;
-  const res = await fetch(url);
-  const json = await res.json();
-  if (!res.ok || json.error) {
-    throw new Error(json?.error?.message || `Meta API error ${res.status}`);
+  let url: string | null = `https://graph.facebook.com/v19.0/${id}/insights?fields=spend,account_currency,date_start,date_stop&time_increment=1&date_preset=maximum&limit=500&access_token=${encodeURIComponent(token)}`;
+  const rows: Array<{ spend: string; account_currency?: string; date_start: string }> = [];
+  // Meta pagine à 500 jours : l'historique maximum (37 mois, soit plus de 1 000 jours) tenait sur plusieurs pages et seule la
+  // première était lue, d'où des dépenses publicitaires et un total tronqués sans erreur.
+  for (let page = 0; url && page < 10; page++) {
+    const res: Response = await fetch(url);
+    const json: any = await res.json();
+    if (!res.ok || json.error) {
+      throw new Error(json?.error?.message || `Meta API error ${res.status}`);
+    }
+    rows.push(...(json.data || []));
+    url = json?.paging?.next || null;
   }
-  const rows: Array<{ spend: string; account_currency?: string; date_start: string }> = json.data || [];
   return rows.map((r) => ({
     spend_date: r.date_start,
-    amount: Number(r.spend || 0),
+    amount: Number.isFinite(Number(r.spend)) ? Number(r.spend) : 0,
     currency: r.account_currency || "XOF",
     raw: r,
   }));
@@ -36,8 +42,8 @@ async function syncMeta(accountId: string, token: string) {
 async function debugMetaToken(token: string): Promise<string | null> {
   try {
     const url = `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`;
-    const res = await fetch(url);
-    const json = await res.json();
+    const res: Response = await fetch(url);
+    const json: any = await res.json();
     const expSec = json?.data?.data_access_expires_at ?? json?.data?.expires_at;
     if (!expSec || Number(expSec) === 0) return null;
     return new Date(Number(expSec) * 1000).toISOString();
@@ -112,11 +118,18 @@ Deno.serve(async (req) => {
         currency: d.currency,
         raw: d.raw,
       }));
-      const { error: upErr } = await admin
-        .from("ad_spend_daily")
-        .upsert(rows, { onConflict: "ad_account_id,spend_date" });
-      if (upErr) {
-        return ok({ success: false, error: upErr.message });
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error: upErr } = await admin
+          .from("ad_spend_daily")
+          .upsert(rows.slice(i, i + 500), { onConflict: "ad_account_id,spend_date" });
+        if (upErr) {
+          await admin.from("ad_accounts").update({
+            last_synced_at: new Date().toISOString(),
+            last_sync_status: "error",
+            last_sync_error: upErr.message.slice(0, 500),
+          }).eq("id", acc.id);
+          return ok({ success: false, error: upErr.message });
+        }
       }
     }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +56,7 @@ const SETTINGS_NAV: { id: SettingsTab; label: string; icon: React.ElementType, d
 ];
 
 export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -124,26 +126,38 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
     toast({ title: enabled ? "Preuve sociale activée ✓" : "Preuve sociale désactivée" });
   };
 
+  const canConfirmDelete = !!shop.business_name?.trim() && deleteConfirmText === shop.business_name;
+
   const handleDeleteShop = async () => {
-    if (deleteConfirmText !== shop.business_name) return;
+    if (!canConfirmDelete) return;
     setDeleting(true);
     try {
-      await supabase.from("products").delete().eq("shop_id", shop.id);
-      await supabase.from("orders").delete().eq("shop_id", shop.id);
-      await supabase.from("shops").delete().eq("id", shop.id);
+      // Produits, commandes et le reste sont supprimés en cascade par la base : les effacer à la main avant
+      // faisait perdre les commandes quand la suppression de la boutique échouait ensuite.
+      const { error } = await supabase.from("shops").delete().eq("id", shop.id);
+      if (error) throw error;
       toast({ title: "Boutique supprimée" });
       onDeleteShop();
-    } catch {
-      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Erreur lors de la suppression", description: e?.message, variant: "destructive" });
     } finally { setDeleting(false); }
   };
 
-  const paymentMethods = shop.payment_methods || ["cod"];
+  // La base crée les boutiques avec « cash_on_delivery » (la vitrine l'accepte), les réglages écrivent « cod » :
+  // les deux désignent le paiement à la livraison. Par défaut (jamais enregistré), la vitrine propose les deux modes.
+  const rawPaymentMethods: string[] = Array.isArray(shop.payment_methods) ? shop.payment_methods : ["cod", "mobile_money"];
+  const paymentMethods = Array.from(new Set(rawPaymentMethods.map((m) => (m === "cash_on_delivery" ? "cod" : m))));
   const togglePaymentMethod = (method: string) => {
     const current = [...paymentMethods];
     const idx = current.indexOf(method);
-    if (idx >= 0) current.splice(idx, 1);
-    else current.push(method);
+    if (idx >= 0) {
+      // La vitrine retombe sur le paiement à la livraison quand rien n'est coché : on évite un réglage trompeur.
+      if (current.length === 1) {
+        toast({ title: "Au moins un mode de paiement", description: "Gardez au moins un mode de paiement actif pour que vos clients puissent commander.", variant: "destructive" });
+        return;
+      }
+      current.splice(idx, 1);
+    } else current.push(method);
     setShop({ ...shop, payment_methods: current });
   };
 
@@ -284,8 +298,9 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                     <Label className="text-sm font-semibold">Objectif mensuel de revenus (FCFA)</Label>
                     <Input 
                       type="number"
-                      value={shop.monthly_goal || 1000000} 
-                      onChange={(e) => setShop({ ...shop, monthly_goal: Number(e.target.value) })} 
+                      min={0}
+                      value={shop.monthly_goal ?? ""}
+                      onChange={(e) => setShop({ ...shop, monthly_goal: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
                       className="h-11 bg-muted/30 focus-visible:bg-background transition-colors"
                       placeholder="Ex: 1000000"
                     />
@@ -453,7 +468,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   <div className="flex items-center justify-between p-4 rounded-xl border border-border/60 hover:border-primary/30 transition-colors bg-muted/10">
                     <div className="pr-4">
                       <p className="font-bold flex items-center gap-2">Preuve sociale {savingSocialProof && <Loader2 className="h-3 w-3 animate-spin text-primary" />}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">Afficher de fausses notifications de ventes récentes pour booster la confiance ("Quelqu'un de Bamako a acheté...").</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Affiche à vos visiteurs vos vraies commandes des 7 derniers jours (prénom du client et produit commandé, hors commandes annulées ou retournées) pour renforcer la confiance. Rien ne s'affiche tant que vous n'avez pas de commande récente.</p>
                     </div>
                     <Switch checked={shop.social_proof_enabled || false} onCheckedChange={updateSocialProof} disabled={savingSocialProof} className="data-[state=checked]:bg-primary" />
                   </div>
@@ -529,12 +544,12 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                       <Input
                         type="number"
                         value={shop.cod_delivery_rate ?? 100}
-                        onChange={(e) => setShop({ ...shop, cod_delivery_rate: Number(e.target.value) })}
+                        onChange={(e) => setShop({ ...shop, cod_delivery_rate: Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0))) })}
                         min={0} max={100}
                         className="h-11 w-32 font-mono text-lg"
                       />
                       <p className="text-sm text-muted-foreground max-w-md">
-                        Ce pourcentage est utilisé dans vos statistiques pour estimer le chiffre d'affaires réel généré par les commandes en attente de livraison.
+                        Ce pourcentage sert, dans vos statistiques, à estimer la part du chiffre d'affaires que vous encaisserez sur les commandes pas encore livrées ni payées d'avance. Le chiffre d'affaires affiché n'est pas modifié. À 100 %, aucune estimation n'est affichée.
                       </p>
                     </div>
                   </div>
@@ -789,7 +804,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                     La connexion d'un nom de domaine personnalisé nécessite un abonnement Premium. Mettez à niveau votre boutique pour débloquer cette fonctionnalité et renforcer votre image de marque.
                   </p>
-                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => navigate("/subscription")}>
                     Passer à l'abonnement Premium
                   </Button>
                 </Card>
@@ -807,7 +822,18 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                     const cleaned = domain.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
                     const { data, error } = await supabase.from("shops").update({ custom_domain: cleaned }).eq("id", shop.id).select().single();
                     if (error) throw error;
-                    if (data) setShop({ ...shop, ...data });
+                    // Seuls les champs du domaine sont repris : fusionner toute la ligne écrasait les réglages non enregistrés.
+                    if (data) {
+                      const d: any = data;
+                      setShop({
+                        ...shop,
+                        custom_domain: d.custom_domain,
+                        domain_status: d.domain_status,
+                        domain_verification_code: d.domain_verification_code,
+                        dns_propagation_percentage: d.dns_propagation_percentage,
+                        ssl_status: d.ssl_status,
+                      });
+                    }
                   }}
                 />
               )}
@@ -1044,7 +1070,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                     <Button
                       variant="destructive"
                       className="w-full h-12 gap-2 text-base font-bold shadow-lg"
-                      disabled={deleteConfirmText !== shop.business_name || deleting}
+                      disabled={!canConfirmDelete || deleting}
                       onClick={handleDeleteShop}
                     >
                       {deleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}

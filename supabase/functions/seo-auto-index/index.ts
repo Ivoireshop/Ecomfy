@@ -4,12 +4,12 @@
 //
 // Connected via the Google Search Console connector. The gateway
 // transparently refreshes the OAuth token for the connected account
-// (must own the verified GSC property for visuelpro.cloud).
+// (must own the verified GSC property for ecomfy.cloud).
 //
 // Body: { url?: string, siteUrls?: string[] }
 //   - url: the specific URL that changed (used for IndexNow ping)
 //   - siteUrls: GSC property identifiers (default: both URL-prefix
-//     and domain property for visuelpro.cloud)
+//     and domain property for ecomfy.cloud)
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,10 +38,10 @@ async function isAuthenticatedUser(req: Request): Promise<boolean> {
 }
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_search_console";
-const SITEMAP_URL = "https://visuelpro.cloud/sitemap.xml";
+const SITEMAP_URL = "https://ecomfy.cloud/sitemap.xml";
 const DEFAULT_SITES = [
-  "https://visuelpro.cloud/",
-  "sc-domain:visuelpro.cloud",
+  "https://ecomfy.cloud/",
+  "sc-domain:ecomfy.cloud",
 ];
 
 async function submitSitemap(siteUrl: string, sitemapUrl: string, lovableKey: string, gscKey: string) {

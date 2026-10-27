@@ -1,5 +1,5 @@
 import { useState } from "react";
-import DOMPurify from "dompurify";
+import { sanitizeProductHtml } from "@/lib/sanitizeProductHtml";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,7 @@ export function ProductWizard({
   const [aiProblem, setAiProblem] = useState("");
   const [aiFeatures, setAiFeatures] = useState("");
   const [aiPromise, setAiPromise] = useState("");
+  const [aiGenerated, setAiGenerated] = useState(false);
 
   const totalImages = newImages.length + existingImages.length;
   const canNext = () => {
@@ -122,12 +123,20 @@ export function ProductWizard({
         aiPromise.trim() ? `Promesse clé / Offre spéciale : ${aiPromise.trim()}` : "",
       ].filter(Boolean).join("\n\n");
 
-      const firstImageBase64 = newImages.length > 0 && newImages[0].previewUrl.startsWith("data:") 
-        ? newImages[0].previewUrl.split(",")[1] 
-        : undefined;
-      const firstImageMime = newImages.length > 0 && newImages[0].previewUrl.startsWith("data:")
-        ? newImages[0].previewUrl.split(";")[0].replace("data:", "")
-        : undefined;
+      // La première photo ajoutée est envoyée à l'IA pour qu'elle décrive le vrai produit. Les aperçus sont des
+      // URL blob: (jamais data:), donc l'image n'était jamais transmise : on relit le fichier lui-même.
+      let firstImageBase64: string | undefined;
+      let firstImageMime: string | undefined;
+      const firstFile = newImages[0]?.file;
+      if (firstFile && firstFile.type.startsWith("image/") && firstFile.type !== "image/gif") {
+        try {
+          const encoded = await fileToBase64(firstFile);
+          firstImageBase64 = encoded.base64 || undefined;
+          firstImageMime = encoded.base64 ? encoded.mime : undefined;
+        } catch {
+          // Sans image, la génération reste possible à partir du nom et du brief.
+        }
+      }
 
       const fetchPromise = supabase.functions.invoke("generate-product-sheet", {
         body: {
@@ -145,86 +154,63 @@ export function ProductWizard({
       });
 
       const res: any = await Promise.race([fetchPromise, timeoutPromise]);
-      const rawData = res?.data || res;
-      
-      let sheet: any = rawData?.sheet || rawData || {};
+      if (res?.error) throw new Error(res.error.message || "La génération a échoué.");
+      const rawData = res?.data ?? {};
+      if (rawData.success === false || (rawData.error && !rawData.sheet)) {
+        throw new Error(rawData.message || rawData.error || "La génération a échoué.");
+      }
+
+      let sheet: any = rawData.sheet || rawData || {};
       if (typeof sheet === "string") {
         try { sheet = JSON.parse(sheet); } catch { sheet = {}; }
       }
 
-      const shortDesc: string = sheet.subheadline || sheet.short_description || aiBrief.slice(0, 100) || `Produit ${product.name} de haute qualité`;
-      const benefitsList = sheet.benefits || sheet.bullets || [
-        "Efficacité immédiate dès la première utilisation",
-        "Conception robuste et qualité supérieure",
-        "Économie de temps et sérénité au quotidien",
-        "Satisfaction 100% garantie avec service client dédié"
-      ];
-      const featuresList = sheet.features || [
-        `Produit : ${product.name}`,
-        `Catégorie : ${product.category || "Générale"}`
-      ];
-      const testimonialsList = Array.isArray(sheet.testimonials) && sheet.testimonials.length
-        ? sheet.testimonials
-        : [
-            { name: "Awa K.", city: "Abidjan", rating: 5, comment: "Franchement je doutais au début mais après 3 jours d'utilisation, c'est juste incroyable. Je recommande les yeux fermés !" },
-            { name: "Marc O.", city: "Dakar", rating: 5, comment: "Service client au top et livraison super rapide. Le produit correspond exactement à la description." },
-            { name: "Sandrine T.", city: "Douala", rating: 5, comment: "Un vrai soulagement ! La qualité est au rendez-vous. Merci à l'équipe !" }
-          ];
+      const shortDesc: string = String(sheet.subheadline || sheet.short_description || "").trim();
+      const benefitsList: string[] = Array.isArray(sheet.benefits) ? sheet.benefits : Array.isArray(sheet.bullets) ? sheet.bullets : [];
+      const featuresList: string[] = Array.isArray(sheet.features) ? sheet.features : [];
 
       const storytellingHtml = sheet.storytelling
         ? `<h3>📖 Notre Histoire & Engagement</h3><p>${escapeHtml(sheet.storytelling).replace(/\n+/g, "</p><p>")}</p>`
         : "";
 
-      const testimonialsHtml = `<h3>💬 Témoignages & Avis Clients Vérifiés</h3>` +
-        testimonialsList.map((t: any) => 
-          `<blockquote style="border-left: 4px solid #10b981; padding-left: 12px; margin: 12px 0; font-style: italic;"><p>"${escapeHtml(t.comment || "")}"</p><footer style="font-style: normal; font-weight: bold; margin-top: 4px;">⭐ ⭐ ⭐ ⭐ ⭐ ${escapeHtml(t.name || "Client vérifié")} (${escapeHtml(t.city || "Avis vérifié")})</footer></blockquote>`
-        ).join("\n");
-
-      const guaranteeHtml = sheet.guarantee 
-        ? `<h3>🛡️ Garantie & Sérénité</h3><p><strong>${escapeHtml(sheet.guarantee)}</strong></p>`
-        : `<h3>🛡️ Garantie & Sérénité</h3><p><strong>Garantie 100% Satisfait ou Remboursé sous 14 jours.</strong></p>`;
-
       const faqHtml = Array.isArray(sheet.faq) && sheet.faq.length
         ? `<h3>❓ Questions Fréquentes</h3>` + sheet.faq.map((item: any) => `<p><strong>Q : ${escapeHtml(item.q)}</strong><br/>R : ${escapeHtml(item.a)}</p>`).join("")
         : "";
 
+      // Volontairement absents : faux témoignages « clients vérifiés » et garantie inventée. Ce sont des engagements
+      // et des avis que seul le vendeur peut fournir ; les afficher tels quels induirait les acheteurs en erreur.
       const longParts = [
         sheet.headline ? `<h2>${escapeHtml(sheet.headline)}</h2>` : `<h2>Découvrez ${escapeHtml(product.name)}</h2>`,
-        sheet.short_description ? `<p><strong>${escapeHtml(sheet.short_description)}</strong></p>` : `<p><strong>${escapeHtml(shortDesc)}</strong></p>`,
+        sheet.short_description ? `<p><strong>${escapeHtml(sheet.short_description)}</strong></p>` : "",
         sheet.long_description 
-          ? `<p>${escapeHtml(sheet.long_description).replace(/\n+/g, "</p><p>")}</p>` 
-          : `<p>${escapeHtml(product.name)} est votre produit idéal. Conçu avec soin, il répond à tous vos besoins quotidiens avec fiabilité et élégance.</p>`,
+          ? `<p>${escapeHtml(sheet.long_description).replace(/\n+/g, "</p><p>")}</p>`
+          : "",
         storytellingHtml,
-        Array.isArray(benefitsList) && benefitsList.length
-          ? `<h3>✨ Vos Avantages Exclusifs</h3><ul>${benefitsList.map((b: string) => `<li>${escapeHtml(String(b))}</li>`).join("")}</ul>`
+        benefitsList.length
+          ? `<h3>✨ Vos Avantages Exclusifs</h3><ul>${benefitsList.map((b) => `<li>${escapeHtml(String(b))}</li>`).join("")}</ul>`
           : "",
-        Array.isArray(featuresList) && featuresList.length
-          ? `<h3>📋 Caractéristiques Techniques</h3><ul>${featuresList.map((b: string) => `<li>${escapeHtml(String(b))}</li>`).join("")}</ul>`
+        featuresList.length
+          ? `<h3>📋 Caractéristiques</h3><ul>${featuresList.map((b) => `<li>${escapeHtml(String(b))}</li>`).join("")}</ul>`
           : "",
-        testimonialsHtml,
-        guaranteeHtml,
         faqHtml,
-        sheet.cta ? `<p><strong>👉 ${escapeHtml(sheet.cta)}</strong></p>` : `<p><strong>👉 Commander Maintenant & Profiter de la Promo</strong></p>`,
+        sheet.cta ? `<p><strong>👉 ${escapeHtml(sheet.cta)}</strong></p>` : "",
       ].filter(Boolean).join("\n");
+
+      if (!sheet.long_description && benefitsList.length === 0) {
+        throw new Error("L'IA n'a renvoyé aucun contenu exploitable. Réessayez dans un instant.");
+      }
 
       setProduct((prev) => ({
         ...prev,
         short_description: shortDesc || prev.short_description,
         description: longParts || prev.description,
       }));
-      toast.success("🎉 Fiche produit AIDA rédigée avec succès !");
+      setAiGenerated(true);
+      toast.success("Fiche produit rédigée. Relisez-la avant de publier.");
     } catch (e: any) {
-      console.warn("Generation fallback triggered:", e);
-      // Fallback pre-fill to ensure user workflow is never blocked
-      const fallbackShortDesc = aiBrief.slice(0, 100) || `${product.name} — Qualité supérieure & Satisfaction garantie.`;
-      const fallbackLongDesc = `<h2>Découvrez ${escapeHtml(product.name)} — Le Secret Pour Transformer Votre Quotidien</h2>\n<p><strong>${escapeHtml(fallbackShortDesc)}</strong></p>\n<p>Avez-vous déjà ressenti cette frustration constante de chercher une solution efficace sans jamais trouver satisfaction ? Vous n'êtes pas seul.\n\nC'est précisément pour cette raison que ${escapeHtml(product.name)} a été créé. Conçu avec une rigueur absolue et des matériaux de première qualité, ce produit redéfinit totalement vos attentes.\n\nImaginez un quotidien sans tracas, où vous gagnez du temps et de l'énergie. Dès la première utilisation, vous ressentez une différence remarquable.</p>\n<h3>✨ Vos Avantages Exclusifs</h3><ul><li>Efficacité immédiate dès la première utilisation</li><li>Conception robuste et qualité supérieure</li><li>Économie de temps et sérénité au quotidien</li><li>Livraison rapide et sécurisée directement chez vous</li></ul>\n<h3>💬 Témoignages & Avis Clients Vérifiés</h3><blockquote style="border-left: 4px solid #10b981; padding-left: 12px; margin: 12px 0; font-style: italic;"><p>"Franchement je doutais au début mais après 3 jours d'utilisation, c'est juste incroyable !"</p><footer style="font-style: normal; font-weight: bold; margin-top: 4px;">⭐ ⭐ ⭐ ⭐ ⭐ Awa K. (Abidjan)</footer></blockquote>\n<h3>🛡️ Garantie & Sérénité</h3><p><strong>Garantie 100% Satisfait ou Remboursé sous 14 jours.</strong></p>`;
-      
-      setProduct((prev) => ({
-        ...prev,
-        short_description: prev.short_description || fallbackShortDesc,
-        description: prev.description || fallbackLongDesc,
-      }));
-      toast.success("🎉 Fiche produit AIDA rédigée avec succès !");
+      // Aucun texte de remplacement n'est inventé : un échec doit rester visible, pas se faire passer pour un succès.
+      console.warn("Product sheet generation failed:", e);
+      toast.error(e?.message || "La génération a échoué. Réessayez ou rédigez la description en mode Expert.");
     } finally {
       setAiLoading(false);
     }
@@ -358,7 +344,11 @@ export function ProductWizard({
                       {onDeleteExisting && (
                         <button
                           type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteExisting(img.id); }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (confirm("Supprimer cette image définitivement ?")) onDeleteExisting(img.id);
+                          }}
                           className="absolute top-1 right-1 h-7 w-7 rounded-full bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 shadow-sm"
                           aria-label="Supprimer"
                         >
@@ -480,10 +470,10 @@ export function ProductWizard({
                     <div className="h-8 w-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
                       <Check className="h-5 w-5" />
                     </div>
-                    <span>🎉 Fiche produit rédigée avec succès par l'IA !</span>
+                    <span>{aiGenerated ? "Fiche produit rédigée par l'IA" : "Description actuelle du produit"}</span>
                   </div>
                   <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 self-start sm:self-auto">
-                    Prête à l'emploi
+                    {aiGenerated ? "À relire avant de publier" : "Enregistrée"}
                   </Badge>
                 </div>
 
@@ -491,10 +481,7 @@ export function ProductWizard({
                   <div
                     className="prose prose-sm dark:prose-invert max-w-none"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(product.description, {
-                        ALLOWED_TAGS: ['p','br','strong','em','ul','ol','li','h1','h2','h3','h4','span','div','a'],
-                        ALLOWED_ATTR: ['class','style','href','target','rel'],
-                      }),
+                      __html: sanitizeProductHtml(product.description),
                     }}
                   />
                 </div>
@@ -731,6 +718,18 @@ export function ProductWizard({
       </Card>
     </div>
   );
+}
+
+function fileToBase64(file: File): Promise<{ base64: string; mime: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve({ base64: result.split(",")[1] || "", mime: file.type || "image/jpeg" });
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function escapeHtml(s: string) {

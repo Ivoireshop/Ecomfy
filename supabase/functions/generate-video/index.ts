@@ -326,6 +326,14 @@ Format as a clear prompt fragment for DALL-E 3 to faithfully recreate this exact
             progress_percentage: 100,
           }).eq("id", videoData.id);
           console.log("Video generation completed successfully:", videoData.id);
+        } else {
+          // Sans ce statut, la ligne restait « processing » à jamais (spinner infini dans le Studio et la Bibliothèque).
+          console.error("Video download failed:", videoResp.status, videoData.id);
+          await serviceClient.from("generated_videos").update({
+            status: "failed",
+            progress_step: "failed",
+            progress_percentage: 0,
+          }).eq("id", videoData.id);
         }
       } catch (genError) {
         console.error("Video generation error:", genError);

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { activateShopManually } from "@/lib/founderBilling";
 import {
   AlertTriangle,
   Bug,
@@ -33,6 +34,10 @@ import {
   Flame,
   Radio
 } from "lucide-react";
+
+
+// Frais d'activation d'une boutique (voir FounderDashboard : « Frais d'Activation Boutique »).
+const ACTIVATION_FEE_FCFA = 1300;
 
 type DiagnosticCheck = {
   id: string;
@@ -73,6 +78,7 @@ const FounderTroubleshooting = () => {
 
   const [shopsList, setShopsList] = useState<ShopDiag[]>([]);
   const [repairingId, setRepairingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -171,7 +177,7 @@ const FounderTroubleshooting = () => {
 
     // 4. Check RLS Policies on Shops & Products
     try {
-      const { data: shops, error: sErr } = await supabase.from("shops").select("id, business_name, slug, is_published, is_activated, user_id").limit(20);
+      const { data: shops, error: sErr } = await supabase.from("shops").select("id, business_name, slug, is_published, is_activated, user_id").order("created_at", { ascending: false }).limit(20);
       if (sErr) {
         newChecks[3] = { ...newChecks[3], status: "error", message: `Politique RLS restrictive : ${sErr.message}` };
       } else {
@@ -211,12 +217,9 @@ const FounderTroubleshooting = () => {
   const handleActivateShop = async (shopId: string) => {
     setRepairingId(shopId);
     try {
-      const { error } = await supabase
-        .from("shops")
-        .update({ is_activated: true, is_published: true })
-        .eq("id", shopId);
-
-      if (error) throw error;
+      // Le fondateur n'a pas de droit d'écriture direct sur `shops` : l'activation passe par l'Edge Function,
+      // qui enregistre les frais d'activation encaissés hors ligne puis active et publie la boutique.
+      await activateShopManually({ shopId, amount: ACTIVATION_FEE_FCFA, paymentMethod: "cash_direct" });
 
       toast({
         title: "Boutique activée !",
@@ -232,6 +235,7 @@ const FounderTroubleshooting = () => {
       });
     } finally {
       setRepairingId(null);
+      setConfirmingId(null);
     }
   };
 
@@ -411,11 +415,11 @@ const FounderTroubleshooting = () => {
                       <Button
                         size="sm"
                         disabled={repairingId === shop.id}
-                        onClick={() => handleActivateShop(shop.id)}
+                        onClick={() => (confirmingId === shop.id ? handleActivateShop(shop.id) : setConfirmingId(shop.id))}
                         className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs gap-1.5 px-4"
                       >
                         {repairingId === shop.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                        <span>Activer la Boutique</span>
+                        <span>{confirmingId === shop.id ? `Confirmer l'encaissement de ${ACTIVATION_FEE_FCFA.toLocaleString("fr-FR")} FCFA` : "Activer la Boutique"}</span>
                       </Button>
                     )}
                     {shop.slug && (

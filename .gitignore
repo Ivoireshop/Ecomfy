@@ -31,3 +31,5 @@ scratch/
 supabase/.temp/
 !.env.example
 backups/
+# Playwright MCP (captures et journaux de test)
+.playwright-mcp/

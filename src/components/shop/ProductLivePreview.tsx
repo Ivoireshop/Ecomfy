@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import DOMPurify from "dompurify";
+import { sanitizeProductHtml } from "@/lib/sanitizeProductHtml";
 import { Smartphone, Monitor, ShoppingCart, Star, Truck, Shield, Heart, Share2, Save, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -51,10 +51,7 @@ export function ProductLivePreview({
   const [activeImg, setActiveImg] = useState(0);
 
   const safeDescription = useMemo(
-    () => DOMPurify.sanitize(description || "", {
-      ALLOWED_TAGS: ["p","br","strong","em","i","u","s","span","div","img","a","ul","ol","li","h1","h2","h3","h4","h5","h6","table","thead","tbody","tr","td","th","hr","font","iframe"],
-      ALLOWED_ATTR: ["href","src","style","alt","target","rel","width","height","color","size","face","allowfullscreen","frameborder"],
-    }),
+    () => sanitizeProductHtml(description),
     [description]
   );
 

@@ -12,6 +12,7 @@ interface ShopSidebarProps {
   activeSection: ActiveSection;
   onSectionChange: (section: ActiveSection) => void;
   unreadOrders: number;
+  pendingReviews?: number;
   productCount: number;
   isActivated: boolean;
   onBack: () => void;
@@ -47,7 +48,7 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; is
 
 export function ShopSidebar({
   shopName, slug, primaryColor, logoUrl, activeSection, onSectionChange,
-  unreadOrders, productCount, isActivated, onBack, onSave, saving, onPreview, isPublished,
+  unreadOrders, pendingReviews = 0, productCount, isActivated, onBack, onSave, saving, onPreview, isPublished,
   allowedSections, isOwner = true, onMobileClose,
 }: ShopSidebarProps) {
   const visibleItems = NAV_ITEMS.filter((item) => {
@@ -80,7 +81,7 @@ export function ShopSidebar({
       <nav className="flex-1 py-3 px-2 space-y-1">
         {visibleItems.map((item) => {
           const isActive = activeSection === item.id;
-          const count = item.id === "orders" ? unreadOrders : item.id === "products" ? productCount : 0;
+          const count = item.id === "orders" ? unreadOrders : item.id === "products" ? productCount : item.id === "reviews" ? pendingReviews : 0;
           return (
             <button
               key={item.id}
@@ -101,7 +102,7 @@ export function ShopSidebar({
               )}
               {count > 0 && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                  item.id === "orders" ? "bg-[#0E7C66] text-white" : "bg-slate-100 text-slate-600"
+                  item.id === "orders" || item.id === "reviews" ? "bg-[#0E7C66] text-white" : "bg-slate-100 text-slate-600"
                 }`}>
                   {count > 999 ? "999+" : count}
                 </span>

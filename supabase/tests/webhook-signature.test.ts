@@ -1,7 +1,7 @@
 // Tests du correctif C5 : signature HMAC du webhook ecomfy-pay-webhook (_shared/webhookSignature.ts).
 // Exécution (Node >= 22.6, aucun accès réseau requis) :
-//   node --experimental-strip-types --test supabase/tests/webhook-signature.test.ts
-import { test } from "node:test";
+//   npx vitest run supabase/tests/webhook-signature.test.ts
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";
@@ -61,10 +61,15 @@ test("timingSafeEqual", () => {
 
 test("ecomfy-pay-webhook : la signature est vérifiée avant tout accès à la base", () => {
   const src = readFileSync(new URL("../functions/ecomfy-pay-webhook/index.ts", import.meta.url), "utf8");
-  const iVerify = src.indexOf("verifyWebhookSignature({");
-  assert.ok(iVerify > 0, "verifyWebhookSignature non appelé");
+  // La vérification passe par l'interface commune des connecteurs (_shared/operators) ; GeniusPay la fait via verifyWebhookSignature.
+  const iVerify = src.indexOf("connector.verifyWebhook(");
+  assert.ok(iVerify > 0, "connector.verifyWebhook non appelé");
   assert.ok(src.indexOf("createClient(supabaseUrl") > iVerify, "createClient avant la vérification");
   assert.ok(src.indexOf('.from("payment_events")') > iVerify, "écriture en base avant la vérification");
-  assert.ok(src.indexOf("GENIUSPAY_WEBHOOK_SECRET") < iVerify);
+  assert.ok(src.indexOf("parseWebhook(") > iVerify, "contenu lu avant la vérification");
   assert.doesNotMatch(src, /await req\.json\(\)/, "le corps doit être lu en texte brut pour la signature");
+  const gp = readFileSync(new URL("../functions/_shared/operators/geniuspay.ts", import.meta.url), "utf8");
+  assert.match(gp, /verifyWebhookSignature\(\{/, "le connecteur GeniusPay doit vérifier la signature HMAC");
+  const reg = readFileSync(new URL("../functions/_shared/operators/index.ts", import.meta.url), "utf8");
+  assert.match(reg, /GENIUSPAY_WEBHOOK_SECRET/);
 });

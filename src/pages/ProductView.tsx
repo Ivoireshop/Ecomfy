@@ -17,10 +17,10 @@ import {
   CreditCard, User, ArrowRight, Trash2, Send, X, Lock, Volume2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import DOMPurify from "dompurify";
 import { PreviewLockedNotice } from "@/components/shop/PreviewLockedNotice";
 import { LiveVisitorCounter } from "@/components/shop/LiveVisitorCounter";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
+import { useProductReviewStats } from "@/hooks/useProductReviewStats";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { PhoneInput } from "@/components/shop/PhoneInput";
@@ -38,14 +38,18 @@ import {
   fetchProductVideoData,
   isProductOrderable,
   getCheckoutThemeStyles,
+  readableTextOn,
   type ProductAudio,
   type ProductThemeSettings,
   type ProductVideo,
 } from "@/lib/productAppearance";
 import { ProductShortVideosPublic } from "@/components/shop/ProductShortVideosPublic";
-import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
+import { SmartVariantSelector, getDefaultVariantSelection } from "@/components/shop/SmartVariantSelector";
+import { cleanSelectedVariants, missingVariantGroups } from "@/lib/productVariants";
+import { sanitizeProductHtml, htmlToPlainText } from "@/lib/sanitizeProductHtml";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
 import { createPublicOrder } from "@/services/publicOrderService";
+import { PromoCodeField, type AppliedPromo } from "@/components/shop/PromoCodeField";
 
 // Non-critical, below-the-fold widgets. Loaded only after the LCP image and
 // the "Commander maintenant" button are interactive — keeps the initial JS
@@ -143,10 +147,15 @@ interface Product {
   bundle_title?: string | null;
   variants?: { name: string; options: string[] }[] | null;
   section_order?: any;
+  sku?: string | null;
+  seo_title?: string | null;
+  seo_description?: string | null;
   product_images: { id: string; image_url: string; is_primary: boolean; display_order: number | null }[];
 }
 
-interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string>; }
+// bundleIndex : offre en lot choisie (index dans product.bundle_offers). Elle doit suivre l'article dans le panier,
+// sinon le bouton « Commander » (qui ajoute l'article au panier) faisait perdre le prix du lot.
+interface CartItem { product: Product; quantity: number; selectedVariants?: Record<string, string>; bundleIndex?: number | null; }
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 const sortProductImages = (images?: Product["product_images"] | null) =>
@@ -189,6 +198,7 @@ const ProductView = () => {
   const [cityError, setCityError] = useState("");
 
   const [themeSettings, setThemeSettings] = useState<ProductThemeSettings | null>(null);
+  const reviewStats = useProductReviewStats(shop?.id, product?.id);
   const [productAudios, setProductAudios] = useState<ProductAudio[]>([]);
   // Guard against duplicate order submissions (double-tap on mobile, double-click,
   // Enter key spam). Uses a ref so state updates cannot race the second click.
@@ -209,18 +219,24 @@ const ProductView = () => {
     return () => observer.disconnect();
   }, [showInlineCheckout, deferredReady, cart.length]);
 
-  // Sync cart with current quantity when user changes quantity while inline checkout is open
+  // Garde la ligne du panier alignée sur la quantité et l'offre en lot choisies sur la fiche
+  // (avant, seule la quantité était suivie, et seulement quand le formulaire modal était ouvert).
   useEffect(() => {
-    if (showInlineCheckout && product) {
-      setCart(prev => {
-        const existing = prev.find(item => item.product.id === product.id);
-        if (existing && existing.quantity !== quantity) {
-          return prev.map(item => item.product.id === product.id ? { ...item, quantity } : item);
-        }
-        return prev;
-      });
-    }
-  }, [quantity, showInlineCheckout, product]);
+    if (!product) return;
+    setCart(prev => {
+      const existing = prev.find(item => item.product.id === product.id);
+      if (!existing || (existing.quantity === quantity && (existing.bundleIndex ?? null) === selectedBundleIdx)) return prev;
+      return prev.map(item => item.product.id === product.id ? { ...item, quantity, bundleIndex: selectedBundleIdx } : item);
+    });
+  }, [quantity, selectedBundleIdx, product]);
+
+  // L'option mise en avant par le sélecteur (« S » coché) doit aussi être celle de la commande.
+  useEffect(() => {
+    if (!product?.id) return;
+    const defaults = getDefaultVariantSelection(product.variants);
+    if (Object.keys(defaults).length === 0) return;
+    setSelectedVariants(prev => ({ ...defaults, ...prev }));
+  }, [product?.id]);
 
   useEffect(() => { fetchData(); }, [slug, id, productId, productSlug]);
 
@@ -449,13 +465,16 @@ const ProductView = () => {
       };
 
       let productData: any = null;
+      let lookupFailed = false;
       if (productSlug) {
         const bySlug = await fetchWithRetry(() => loadProduct("slug", productSlug));
         productData = bySlug.data;
+        if (bySlug.error) lookupFailed = true;
       }
       if (!productData && productId) {
         const byId = await fetchWithRetry(() => loadProduct("id", productId));
         productData = byId.data;
+        if (byId.error) lookupFailed = true;
       }
 
       if (productData) {
@@ -476,13 +495,12 @@ const ProductView = () => {
           .limit(4)).then((res: any) => {
             setRelatedProducts(res?.data || []);
           }, () => {});
-      } else if (!hydrated) {
-        // Distinguish a real "not found" from a slow-network timeout so the
-        // user sees the retry button instead of a misleading "Ce produit
-        // n'existe pas" — the #1 source of bogus "ma boutique ne marche pas"
-        // reports.
+      } else if (!hydrated && lookupFailed) {
+        // Une vraie absence (produit supprimé, masqué ou lien erroné) donne « Produit introuvable » ; seule une requête
+        // en échec (réseau lent, délai dépassé) affiche le bouton Réessayer. Avant, tout produit absent était présenté
+        // comme « Connexion lente — votre produit existe bien ».
         setFetchError(
-          "Connexion lente détectée. Réessayez — votre produit existe bien."
+          "Connexion lente détectée. Réessayez dans un instant."
         );
       }
 
@@ -540,7 +558,12 @@ const ProductView = () => {
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // Prix d'une ligne du panier avec son offre en lot (même règle que le trigger SQL enforce_order_item_price).
+  const lineFor = (item: CartItem) => priceLine(item.product as any, item.bundleIndex ?? null, item.quantity);
+  const cartTotal = cart.reduce((sum, item) => sum + lineFor(item).total, 0);
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
+  // Remise de l'aperçu, répercutée sur les montants des boutons « Commander » (le serveur recalcule à la commande).
+  const promoOff = promo?.discount ?? 0;
 
   const scrollToCheckout = () => {
     if (shop?.theme_config?.checkout_form_position === 'modal') {
@@ -563,18 +586,18 @@ const ProductView = () => {
 
   const addToCart = (prod: Product, qty: number = 1, replace: boolean = false, silent: boolean = false) => {
     // Validate variants
-    const variantGroups = Array.isArray(prod.variants) ? prod.variants : [];
     const isCurrent = product && prod.id === product.id;
     const chosen = isCurrent ? selectedVariants : {};
-    const missing = variantGroups.filter(g => g?.name && Array.isArray(g?.options) && g.options.length > 0 && !chosen[g.name]);
+    const missing = missingVariantGroups(prod.variants, chosen);
     if (missing.length > 0) {
-      toast({ title: "Sélection requise", description: `Choisissez : ${missing.map(m => m.name).join(", ")}`, variant: "destructive" });
+      toast({ title: "Sélection requise", description: `Choisissez : ${missing.join(", ")}`, variant: "destructive" });
       return;
     }
+    const bundleIndex = isCurrent ? selectedBundleIdx : null;
     setCart(prev => {
       const existing = prev.find(item => item.product.id === prod.id);
-      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty, selectedVariants: isCurrent ? chosen : item.selectedVariants } : item);
-      return [...prev, { product: prod, quantity: qty, selectedVariants: isCurrent ? chosen : undefined }];
+      if (existing) return prev.map(item => item.product.id === prod.id ? { ...item, quantity: replace ? qty : item.quantity + qty, selectedVariants: isCurrent ? chosen : item.selectedVariants, bundleIndex: isCurrent ? bundleIndex : item.bundleIndex } : item);
+      return [...prev, { product: prod, quantity: qty, selectedVariants: isCurrent ? chosen : undefined, bundleIndex }];
     });
     if (!silent) toast({ title: "✓ Ajouté au panier", description: prod.name });
     trackEvent(shop, "AddToCart", {
@@ -612,20 +635,28 @@ const ProductView = () => {
       return f ? !!f.required : ["first_name","phone","city"].includes(id);
     };
 
-    let effectiveOrderCart = cart;
+    // Chaque ligne porte l'offre en lot réellement applicable (aucune si la quantité n'atteint pas celle du lot).
+    let effectiveOrderCart: any[] = cart.map(item => ({ ...item, bundleIndex: lineFor(item).bundleIndex }));
     let effectiveOrderCartTotal = cartTotal;
 
     if (cart.length === 0) {
       if (!product) return;
       const line = priceLine(product as any, selectedBundleIdx, quantity);
-      effectiveOrderCart = [{ 
-        product, 
-        quantity, 
-        selectedVariants: selectedVariants, 
+      effectiveOrderCart = [{
+        product,
+        quantity,
+        selectedVariants: selectedVariants,
         bundle: line.offer,
         bundleIndex: line.bundleIndex,
       } as any];
       effectiveOrderCartTotal = line.total;
+    }
+
+    // Le formulaire direct (sans passer par « Commander ») n'avait aucun contrôle des variantes obligatoires.
+    const missingChoices = effectiveOrderCart.flatMap(item => missingVariantGroups(item.product.variants, item.selectedVariants));
+    if (missingChoices.length > 0) {
+      toast({ title: "Sélection requise", description: `Choisissez : ${Array.from(new Set(missingChoices)).join(", ")}`, variant: "destructive" });
+      return;
     }
 
     if (isEnabled("first_name") && isRequired("first_name") && !customerInfo.name) {
@@ -672,22 +703,29 @@ const ProductView = () => {
         customerCity: customerInfo.city,
         customerCountry: detectedCountry,
         paymentMethod: customerInfo.paymentMethod,
+        promoCode: promo?.code,
         items: effectiveOrderCart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
           bundle_index: (item as any).bundleIndex ?? null,
-          selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0 ? item.selectedVariants : null,
+          selected_variants: cleanSelectedVariants(item.selectedVariants),
         })),
       });
       const orderId = created.orderId;
       const order = { id: created.orderId, order_number: created.orderNumber };
       effectiveOrderCartTotal = created.total;
+      if (promo && !created.promoApplied) {
+        toast({ title: "Code promo non appliqué", description: created.promoMessage || "Le code n'a pas pu être appliqué à cette commande.", variant: "destructive" });
+      }
+      setPromo(null);
       // Distinguer le tracking Meta: InitiateCheckout pour paiement en ligne, Purchase pour paiement à la livraison
       const trackingPayload = {
         value: effectiveOrderCartTotal,
         order_id: order.order_number,
-        contents: cart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
-        num_items: cart.reduce((s, c) => s + c.quantity, 0),
+        // Sans passer par « Commander », le panier est vide : les événements Purchase partaient sans article.
+        content_ids: effectiveOrderCart.map((c) => c.product.id),
+        contents: effectiveOrderCart.map((c) => ({ id: c.product.id, quantity: c.quantity, item_price: c.product.price })),
+        num_items: effectiveOrderCart.reduce((s, c) => s + c.quantity, 0),
         email: customerInfo.email,
         phone: normalizedPhone,
         first_name: customerInfo.name,
@@ -802,6 +840,10 @@ const ProductView = () => {
   const primaryColor = shop.primary_color || "#2563eb";
   const themeConfig = shop.theme_config || {};
   const hasReviewBar = Boolean(themeConfig.review_bar_desktop_content || themeConfig.review_bar_mobile_content);
+  // Section des vrais avis (liste + formulaire). Seul son propre réglage la masque : l'interrupteur « Badge étoiles &
+  // compteur » (reviews_enabled) ne concerne que le badge sous le titre, il masquait aussi les vrais avis et le formulaire.
+  const showReviewsSection = themeConfig?.reviews_section_enabled !== false
+    && themeSettings?.custom_css_settings?.reviews_section_enabled !== false;
   const images = product.product_images || [];
   const discount = product.compare_at_price && product.compare_at_price > product.price
     ? Math.round((1 - product.price / product.compare_at_price) * 100)
@@ -812,14 +854,31 @@ const ProductView = () => {
     else navigate(`/shop/${shop.slug}`);
   };
 
-  const productTitle = `${product.name} — ${shop.business_name}`;
-  const productDescription = product.short_description || product.description || shop.business_description || "";
+  // Montant du bouton « Commander » : prix de l'offre en lot choisie, remise du code promo déduite.
+  const currentLine = priceLine(product as any, selectedBundleIdx, quantity);
+  const currentPayable = Math.max(currentLine.total - promoOff, 0);
+
+  const productTitle = product.seo_title?.trim() || `${product.name} — ${shop.business_name}`;
+  // La description complète est du HTML : on n'en met jamais les balises dans les balises meta / partage.
+  const productDescription = product.seo_description?.trim()
+    || htmlToPlainText(product.short_description)
+    || htmlToPlainText(product.description)
+    || htmlToPlainText(shop.business_description);
   const primaryImage = images.find((img) => img.is_primary)?.image_url || images[0]?.image_url || shop.logo_url || "";
   const customPageStyle = buildProductPageStyle(themeSettings);
 
   const isCustomTheme = !!themeSettings?.theme_slug && !new URLSearchParams(window.location.search).get("classic");
   const isInlineCheckout = shop?.theme_config?.checkout_form_position !== 'modal';
-  const checkoutStyles = getCheckoutThemeStyles(shop?.theme_config?.checkout_bg, primaryColor);
+  const checkoutStyles = (() => {
+    const base = getCheckoutThemeStyles(shop?.theme_config?.checkout_bg, primaryColor);
+    // « Couleur de texte générale » (menu Thème → Check-out) : texte courant du formulaire.
+    return shop?.theme_config?.checkout_text ? { ...base, textColor: shop.theme_config.checkout_text } : base;
+  })();
+  // « Couleur bouton de commande » et « Texte du bouton » (menu Thème → Check-out).
+  const orderButtonStyle = {
+    backgroundColor: shop?.theme_config?.checkout_btn_color || primaryColor,
+    color: shop?.theme_config?.checkout_btn_text || "#FFFFFF",
+  };
   const productTitleColor = shop?.theme_config?.product_title_color || (checkoutStyles.isDark ? "#FFFFFF" : checkoutStyles.textColor);
 
   const checkoutContent = (
@@ -872,7 +931,10 @@ const ProductView = () => {
                   <div className="flex items-center gap-1.5 mb-1"><ShoppingCart className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Récapitulatif</h4></div>
                   
                   {(() => {
-                    let effectiveCart = cart;
+                    let effectiveCart: any[] = cart.map(ci => {
+                      const l = lineFor(ci);
+                      return { ...ci, bundle: l.offer, lineTotal: l.total };
+                    });
                     let effectiveTotal = cartTotal;
                     if (cart.length === 0 && product) {
                       const line = priceLine(product as any, selectedBundleIdx, quantity);
@@ -913,10 +975,10 @@ const ProductView = () => {
                       <p className="font-bold text-[14px] truncate leading-tight" style={{ color: checkoutStyles.textColor }}>{item.product.name}</p>
                       
                       {/* Variants & Bundles */}
-                      {(Object.keys(item.selectedVariants || item.variants || {}).length > 0 || item.bundle) && (
+                      {(Object.keys(cleanSelectedVariants(item.selectedVariants) || {}).length > 0 || item.bundle) && (
                         <div className="text-[12px] text-gray-500 mt-0.5 line-clamp-1">
                           {item.bundle && <span className="font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mr-1">Offre : {item.bundle.label || `Lot de ${item.bundle.quantity}`}</span>}
-                          {Object.entries(item.selectedVariants || item.variants || {}).map(([k, v]) => `${v}`).join(", ")}
+                          {Object.values(cleanSelectedVariants(item.selectedVariants) || {}).join(", ")}
                         </div>
                       )}
                       
@@ -961,9 +1023,26 @@ const ProductView = () => {
                   </div>
                 ))}
                       
+                      {shop && (
+                        <PromoCodeField
+                          shopId={shop.id}
+                          subtotal={effectiveTotal}
+                          customerPhone={customerInfo.phone}
+                          customerEmail={customerInfo.email}
+                          primaryColor={primaryColor}
+                          applied={promo}
+                          onChange={setPromo}
+                        />
+                      )}
+                      {promo && promo.discount > 0 && (
+                        <div className="flex justify-between text-sm font-semibold text-emerald-700">
+                          <span>Code {promo.code}</span>
+                          <span>- {formatPrice(Math.min(promo.discount, effectiveTotal))} FCFA</span>
+                        </div>
+                      )}
                       <div className="border-t border-gray-200 pt-3 mt-1 flex justify-between items-end">
                         <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total à payer</span>
-                        <span className="font-black text-xl leading-none" style={{ color: primaryColor }}>{formatPrice(effectiveTotal)} FCFA</span>
+                        <span className="font-black text-xl leading-none" style={{ color: primaryColor }}>{formatPrice(effectiveTotal - (promo ? Math.min(promo.discount, effectiveTotal) : 0))} FCFA</span>
                       </div>
                     </>
                   );
@@ -1165,7 +1244,7 @@ const ProductView = () => {
                   <div className="pt-2">
                     <Button 
                       className="w-full h-12 sm:h-14 rounded-xl text-[15px] sm:text-lg font-bold gap-2 text-white shadow-md hover:shadow-lg transition-all"
-                      style={{ backgroundColor: primaryColor }}
+                      style={orderButtonStyle}
                       onClick={placeOrder} 
                       disabled={orderLoading}
                     >
@@ -1235,7 +1314,10 @@ const ProductView = () => {
               shop.theme_config?.cta_animation_speed === 'fast' ? 'duration-150' : 
               shop.theme_config?.cta_animation_speed === 'slow' ? 'duration-700' : 'duration-300'
             }`} 
-            style={{ backgroundColor: primaryColor }} 
+            style={{
+              backgroundColor: shop.theme_config?.checkout_btn_color || primaryColor,
+              color: shop.theme_config?.checkout_btn_text || "#FFFFFF",
+            }} 
             onClick={() => { 
               if (shop.theme_config?.checkout_form_position === 'top' || shop.theme_config?.checkout_form_position === 'bottom') {
                 const el = document.getElementById("inline-checkout-form");
@@ -1247,7 +1329,7 @@ const ProductView = () => {
               setOrderSuccess(false); 
             }}
           >
-            <Lock className="h-5 w-5" /> Valider ma commande · {formatPrice(cartTotal)} FCFA
+            <Lock className="h-5 w-5" /> Valider ma commande · {formatPrice(cartTotal - (promo ? Math.min(promo.discount, cartTotal) : 0))} FCFA
             <Badge className="ml-auto bg-white/20 text-white">{cartCount}</Badge>
           </Button>
         </div>
@@ -1259,7 +1341,7 @@ const ProductView = () => {
           <div className="max-w-6xl mx-auto flex items-center gap-2 sm:gap-3">
             <div className="flex-1 min-w-0 hidden md:block">
               <p className="font-bold text-sm truncate">{product.name}</p>
-              <p className="font-black text-base sm:text-lg" style={{ color: primaryColor }}>{formatPrice(product.price * quantity)} FCFA</p>
+              <p className="font-black text-base sm:text-lg" style={{ color: primaryColor }}>{formatPrice(currentPayable)} FCFA</p>
             </div>
 
             {/* Sticky Inline Quantity Control */}
@@ -1285,7 +1367,10 @@ const ProductView = () => {
 
             <Button 
               className={`flex-1 sm:flex-none h-11 sm:h-14 rounded-xl font-black flex items-center justify-center px-2 sm:px-6 text-white shadow-lg hover:shadow-xl transition-all group relative z-20 ${getCTAAnimationClass(shop.theme_config?.cta_animation_type, shop.theme_config?.cta_animation_speed)}`}
-              style={{ backgroundColor: primaryColor }}
+              style={{
+                backgroundColor: shop.theme_config?.checkout_btn_color || primaryColor,
+                color: shop.theme_config?.checkout_btn_text || "#FFFFFF",
+              }}
               onClick={() => {
                 addToCart(product, quantity, true, true);
                 scrollToCheckout();
@@ -1295,15 +1380,15 @@ const ProductView = () => {
             >
               <div className="flex items-center justify-center gap-1.5 sm:gap-2 max-w-full overflow-hidden px-1">
                 <div className="p-1 rounded-full bg-white/20 shrink-0 flex items-center justify-center">
-                  <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:scale-110 transition-transform text-white" />
+                  <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:scale-110 transition-transform" />
                 </div>
                 <div className="flex flex-col items-center sm:items-start text-center sm:text-left leading-tight min-w-0">
-                  <span className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-white truncate max-w-full">
+                  <span className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider truncate max-w-full">
                     {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
                   </span>
                   {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
-                    <span className="text-[9.5px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
-                      {formatPrice(product.price * quantity)} FCFA
+                    <span className="text-[9.5px] sm:text-xs font-semibold opacity-90 truncate max-w-full">
+                      {formatPrice(currentPayable)} FCFA
                     </span>
                   )}
                 </div>
@@ -1326,6 +1411,7 @@ const ProductView = () => {
             shopName={shop.business_name}
             primaryColor={shop.primary_color}
             secondaryColor={shop.secondary_color}
+            hideEcomfyBranding={shop.theme_config?.hide_ecomfy_branding === true}
           />
         </Suspense>
       )}
@@ -1336,6 +1422,19 @@ const ProductView = () => {
     themeSettings?.theme_slug &&
     !new URLSearchParams(window.location.search).get("classic")
   ) {
+    // Les thèmes pro n'affichaient ni les avis, ni le formulaire, ni la barre d'avis : aucun client ne pouvait en déposer.
+    const themedReviews = deferredReady && showReviewsSection ? (
+      <Suspense fallback={null}>
+        <ProductReviews
+          shopId={shop.id}
+          productId={product.id}
+          primaryColor={primaryColor}
+          isPreview={!!shop._isPreview}
+          themeConfig={themeConfig}
+          themeSettings={themeSettings}
+        />
+      </Suspense>
+    ) : null;
     return (
       <>
         <Helmet>
@@ -1348,12 +1447,14 @@ const ProductView = () => {
           <meta property="og:type" content="product" />
           {primaryImage && <meta property="og:image" content={primaryImage} />}
         </Helmet>
+        <ShopReviewBar themeConfig={themeConfig} placement="above" />
         <Suspense fallback={<div className="min-h-screen bg-white" />}>
           <LazyThemeRenderer
             product={product}
             shop={shop}
             audios={productAudios}
             settings={themeSettings}
+            reviewsContent={themedReviews}
             fallback={<div className="min-h-screen bg-white" />}
             onCheckout={() => {
               scrollToCheckout();
@@ -1361,6 +1462,7 @@ const ProductView = () => {
             checkoutContent={checkoutContent}
           />
         </Suspense>
+        <ShopReviewBar themeConfig={themeConfig} placement="below" />
         {globalOverlays}
       </>
     );
@@ -1390,7 +1492,7 @@ const ProductView = () => {
           "name": product.name,
           "description": productDescription,
           "image": images.map((img) => img.image_url),
-          "sku": product.id,
+          "sku": product.sku || product.id,
           "brand": {
             "@type": "Brand",
             "name": shop.business_name
@@ -1399,8 +1501,9 @@ const ProductView = () => {
             "@type": "Offer",
             "url": window.location.href,
             "price": String(product.price),
-            "priceCurrency": product.currency || "XOF",
-            "availability": (product.stock_quantity === null || product.stock_quantity > 0)
+            // « FCFA » n'est pas un code ISO 4217 : les moteurs de recherche rejettent l'offre.
+            "priceCurrency": !product.currency || /^(f\s?cfa|cfa)$/i.test(product.currency.trim()) ? "XOF" : product.currency,
+            "availability": isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false)
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
             "priceValidUntil": new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
@@ -1433,11 +1536,16 @@ const ProductView = () => {
       {/* Header - conditionally hidden */}
       {!shop.theme_config?.hide_product_header && (
         <header
-          className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)]"
+          className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)]"
           style={{
             "--shop-header-mobile-bg": themeConfig.header_mobile_bg || "#FFFFFF",
             "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg || "#FFFFFF",
-            borderColor: themeConfig.header_mobile_border_color || themeConfig.header_desktop_border_color || "#e5e7eb",
+            "--shop-header-mobile-border": themeConfig.header_mobile_border === false ? "transparent" : (themeConfig.header_mobile_border_color || "#e5e7eb"),
+            "--shop-header-desktop-border": themeConfig.header_desktop_border === false ? "transparent" : (themeConfig.header_desktop_border_color || themeConfig.header_mobile_border_color || "#e5e7eb"),
+            "--shop-header-mobile-text": readableTextOn(themeConfig.header_mobile_bg || themeConfig.header_desktop_bg),
+            "--shop-header-desktop-text": readableTextOn(themeConfig.header_desktop_bg || themeConfig.header_mobile_bg),
+            "--shop-header-mobile-btn": themeConfig.header_mobile_btn || "currentColor",
+            "--shop-header-desktop-btn": themeConfig.header_desktop_btn || themeConfig.header_mobile_btn || "currentColor",
           } as CSSProperties}
         >
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
@@ -1464,7 +1572,7 @@ const ProductView = () => {
                       </div>
                     )}
                     {showName && (
-                      <span className="font-bold text-sm sm:text-base truncate">{shop.business_name}</span>
+                      <span className="font-bold text-sm sm:text-base truncate text-[color:var(--shop-header-mobile-text)] md:text-[color:var(--shop-header-desktop-text)]">{shop.business_name}</span>
                     )}
                   </>
                 );
@@ -1474,7 +1582,7 @@ const ProductView = () => {
             <div className="flex items-center gap-2">
               {shop.whatsapp_number && (
                 <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-[color:var(--shop-header-mobile-btn)] md:text-[color:var(--shop-header-desktop-btn)]">
                     <Phone className="h-4 w-4" />
                   </Button>
                 </a>
@@ -1600,37 +1708,30 @@ const ProductView = () => {
               color={primaryColor} 
             />
 
-            {/* Reviews (rating + count) */}
-            {shop.theme_config?.reviews_enabled !== false && (() => {
-              const base = Number(shop.theme_config?.reviews_base_count ?? 128);
-              const incr = shop.theme_config?.reviews_increment_with_orders !== false;
-              const orders = Number((shop as any).total_orders || 0);
-              let count = base + (incr ? orders : 0);
-              // Realistic mode: deterministic daily variation within [min, max]
-              if (shop.theme_config?.reviews_realistic_mode) {
-                const min = Math.max(0, Number(shop.theme_config?.reviews_min ?? base));
-                const max = Math.max(min, Number(shop.theme_config?.reviews_max ?? base + 50));
-                const today = new Date();
-                const dayKey = `${today.getUTCFullYear()}-${today.getUTCMonth()}-${today.getUTCDate()}`;
-                const seedStr = `${product.id}-${dayKey}`;
-                let h = 2166136261;
-                for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619); }
-                const r = ((h >>> 0) % 1000) / 1000;
-                const variation = Math.floor(r * (max - min + 1));
-                count = min + variation + (incr ? orders : 0);
-              }
-              const rating = Math.min(5, Math.max(1, Number(shop.theme_config?.reviews_rating ?? 5)));
-              return (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-0.5">
-                    {[1,2,3,4,5].map(i => (
-                      <Star key={i} className={`h-4 w-4 sm:h-5 sm:w-5 ${i <= rating ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
-                    ))}
-                  </div>
-                  <span className="text-sm font-medium text-gray-500 hover:underline cursor-pointer">({count.toLocaleString("fr-FR")} avis)</span>
+            {/* Reviews (rating + count) : uniquement les vrais avis approuvés, jamais de valeur inventée */}
+            {shop.theme_config?.reviews_enabled !== false && reviewStats.count > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5" aria-label={`Note moyenne ${reviewStats.average.toFixed(1)} sur 5`}>
+                  {[1,2,3,4,5].map(i => (
+                    <Star key={i} className={`h-4 w-4 sm:h-5 sm:w-5 ${i <= Math.round(reviewStats.average) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
+                  ))}
                 </div>
-              );
-            })()}
+                {(() => {
+                  const label = `(${reviewStats.count.toLocaleString("fr-FR")} avis)`;
+                  return showReviewsSection ? (
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-gray-500 hover:underline cursor-pointer"
+                      onClick={() => document.getElementById("avis-clients")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <span className="text-sm font-medium text-gray-500">{label}</span>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Price */}
             <div className="flex items-end gap-3 pb-2 border-b border-gray-100">
@@ -1657,7 +1758,8 @@ const ProductView = () => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {product.bundle_offers.map((b, i) => {
-                        const active = selectedBundleIdx === i;
+                        // Une offre n'est « active » que si la quantité atteint celle du lot (sinon le prix de base s'applique).
+                        const active = selectedBundleIdx === i && quantity >= (Number(b.quantity) || 1);
                         return (
                           <button
                             key={i}
@@ -1750,10 +1852,7 @@ const ProductView = () => {
                   <div
                     key="long_description"
                     className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-img:rounded-xl prose-img:mx-auto prose-img:shadow-sm prose-a:text-blue-600 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description, {
-                      ALLOWED_TAGS: ['p','br','strong','b','em','i','u','s','ul','ol','li','h1','h2','h3','h4','h5','h6','blockquote','code','pre','img','a','span','div','hr','table','thead','tbody','tr','th','td'],
-                      ALLOWED_ATTR: ['href','src','alt','title','class','style','target','rel','width','height']
-                    }) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeProductHtml(product.description) }}
                     style={{ whiteSpace: "pre-wrap" }}
                   />
                 ) : null;
@@ -1837,7 +1936,10 @@ const ProductView = () => {
                   ) : (
                     <Button 
                       className={`w-full h-[54px] sm:h-16 rounded-2xl font-black flex items-center justify-center px-2 sm:px-6 text-white shadow-xl hover:shadow-2xl transition-all group relative z-20 ${getCTAAnimationClass(shop.theme_config?.cta_animation_type, shop.theme_config?.cta_animation_speed)}`}
-                      style={{ backgroundColor: primaryColor }}
+                      style={{
+                        backgroundColor: shop.theme_config?.checkout_btn_color || primaryColor,
+                        color: shop.theme_config?.checkout_btn_text || "#FFFFFF",
+                      }}
                       onClick={() => {
                         addToCart(product, quantity, true, true);
                         scrollToCheckout();
@@ -1846,15 +1948,15 @@ const ProductView = () => {
                     >
                       <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 max-w-full overflow-hidden px-1">
                         <div className="p-1 sm:p-1.5 rounded-full bg-white/20 shrink-0 flex items-center justify-center">
-                          <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform text-white" />
+                          <ShoppingCart className="h-3.5 w-3.5 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex flex-col items-center sm:items-start text-center sm:text-left leading-tight min-w-0">
-                          <span className="text-[11px] xs:text-xs sm:text-base font-extrabold tracking-wider uppercase text-white truncate max-w-full">
+                          <span className="text-[11px] xs:text-xs sm:text-base font-extrabold tracking-wider uppercase truncate max-w-full">
                             {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) ? "Commander" : "Rupture de stock"}
                           </span>
                           {isProductOrderable(product, themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false) && (
-                            <span className="text-[10px] sm:text-xs font-semibold text-white/90 truncate max-w-full">
-                              {formatPrice(product.price * quantity)} FCFA
+                            <span className="text-[10px] sm:text-xs font-semibold opacity-90 truncate max-w-full">
+                              {formatPrice(currentPayable)} FCFA
                             </span>
                           )}
                         </div>
@@ -1942,7 +2044,7 @@ const ProductView = () => {
       )}
 
       {/* ====== REVIEWS SECTION (deferred) ====== */}
-      {deferredReady && themeConfig?.reviews_section_enabled !== false && themeConfig?.reviews_enabled !== false && themeSettings?.custom_css_settings?.reviews_section_enabled !== false && themeSettings?.custom_css_settings?.reviews_enabled !== false && (
+      {deferredReady && showReviewsSection && (
         <Suspense fallback={null}>
           <ProductReviews
             shopId={shop.id}
@@ -2002,7 +2104,9 @@ const ProductView = () => {
           </div>
           <div className="text-center text-xs text-gray-400 mt-6 flex items-center justify-center gap-1">
             {shop.city && <><MapPin className="h-3 w-3" /> {shop.city}, {shop.country || "Côte d'Ivoire"} · </>}
-            Propulsé par <span className="font-semibold text-gray-600">Ecomfy</span>
+            {shop.theme_config?.hide_ecomfy_branding !== true && (
+              <>Propulsé par <span className="font-semibold text-gray-600">Ecomfy</span></>
+            )}
           </div>
         </div>
       </footer>

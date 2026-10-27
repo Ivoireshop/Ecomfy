@@ -13,13 +13,10 @@ import { toast } from "@/hooks/use-toast";
 import {
   ShieldCheck,
   CheckCircle2,
-  Sparkles,
   Lock,
   ArrowRight,
   Loader2,
   Store,
-  Plus,
-  Minus,
   Truck,
   CreditCard,
 } from "lucide-react";
@@ -34,12 +31,12 @@ export default function EcomfyPayCheckout() {
   const [link, setLink] = useState<PaymentLink | null>(null);
   const [shopName, setShopName] = useState<string>("Boutique Partenaire");
 
-  // Quantity & Amount controls
-  const [quantity, setQuantity] = useState<number>(1);
+  // Montant libre (uniquement si le vendeur l'autorise sur le lien)
   const [customAmount, setCustomAmount] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [selectedMethod, setSelectedMethod] = useState<string>("wave");
+  // Paiement enregistré côté serveur mais sans page opérateur à ouvrir : la confirmation arrive plus tard.
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [paymentRef, setPaymentRef] = useState<string>("");
 
@@ -53,7 +50,7 @@ export default function EcomfyPayCheckout() {
       try {
         const { data, error } = await supabase
           .from("ecomfy_payment_links")
-          .select("*, products(name, image_url, price, bundle_pricing), shops(business_name)")
+          .select("*, products(name, price), shops(business_name)")
           .eq("link_key", linkKey)
           .maybeSingle();
 
@@ -90,23 +87,14 @@ export default function EcomfyPayCheckout() {
     fetchLinkDetails();
   }, [linkKey]);
 
-  // Calculate unit and total price considering tier discounts/bundles
-  const getUnitPrice = () => {
-    if (!link) return 0;
-    const basePrice = link.amount || 0;
-    // Bundle pricing simulation: 2 units = 10% off, 3+ units = 20% off
-    if (quantity === 2) return Math.round(basePrice * 0.9);
-    if (quantity >= 3) return Math.round(basePrice * 0.8);
-    return basePrice;
-  };
-
+  // Le serveur (ecomfy-pay-initiate) n'accepte que le montant du lien, ou un montant supérieur si le vendeur autorise la saisie libre.
   const calculateTotal = () => {
     if (!link) return 0;
-    if (link.allow_custom_amount && customAmount) {
+    if (link.allow_custom_amount) {
       const parsed = parseFloat(customAmount);
-      if (!isNaN(parsed) && parsed > 0) return parsed;
+      return !isNaN(parsed) && parsed >= link.amount ? parsed : 0;
     }
-    return getUnitPrice() * quantity;
+    return link.amount || 0;
   };
 
   const finalTotal = calculateTotal();
@@ -120,39 +108,29 @@ export default function EcomfyPayCheckout() {
 
     setSubmitting(true);
     try {
-      // Simulate real/sandbox payment processing
-      const ref = `PAY-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      // Le paiement est créé et validé côté serveur (montant relu en base, référence générée par le serveur).
+      const res = await ecomfyPayApi.initiateCustomerPayment({
+        shop_id: link.shop_id,
+        payment_link_id: link.id,
+        amount: finalTotal,
+        currency: link.currency,
+        payment_method: selectedMethod,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+      });
 
-      if (link) {
-        const { error: payErr } = await supabase.from("ecomfy_payments").insert({
-          internal_reference: ref,
-          merchant_id: link.shop_id, // link owner
-          shop_id: link.shop_id,
-          payment_link_id: link.id,
-          customer_name: customerName || "Client Direct",
-          customer_phone: customerPhone || undefined,
-          provider: selectedMethod,
-          payment_method: selectedMethod,
-          amount: finalTotal,
-          currency: "XOF",
-          fee_provider: Math.round(finalTotal * 0.01),
-          fee_ecomfy: Math.round(finalTotal * 0.01),
-          net_merchant_amount: Math.round(finalTotal * 0.98),
-          status: "SUCCEEDED",
-          is_sandbox: link.is_sandbox || false,
-        });
-
-        if (payErr) {
-          console.warn("[Checkout payment record warn]", payErr);
-        }
+      if (!res.success) {
+        toast({ title: "Paiement non démarré", description: res.error || "Réessayez dans un instant.", variant: "destructive" });
+        return;
       }
 
-      setPaymentRef(ref);
+      if (res.checkout_url) {
+        window.location.href = res.checkout_url;
+        return;
+      }
+
+      setPaymentRef(res.internal_reference || "");
       setIsSuccess(true);
-      toast({
-        title: "Paiement Effectué avec Succès ✓",
-        description: `Référence ${ref}. Les fonds ont été crédités sur le compte du vendeur.`,
-      });
     } catch (err: any) {
       toast({ title: "Échec du paiement", description: err.message, variant: "destructive" });
     } finally {
@@ -219,13 +197,13 @@ export default function EcomfyPayCheckout() {
 
             <div>
               <Badge className="bg-emerald-600 text-white font-extrabold text-xs px-3 py-1 uppercase rounded-md border-0 mb-2">
-                Paiement Confirmé
+                Paiement Enregistré
               </Badge>
               <h2 className="text-xl font-extrabold text-slate-900">
-                Paiement Réussi !
+                Paiement en cours de traitement
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Votre transaction de <strong className="text-slate-900">{formatPrice(finalTotal)} FCFA</strong> à <strong className="text-[#0E7C66]">{shopName}</strong> a été enregistrée.
+                Votre paiement de <strong className="text-slate-900">{formatPrice(finalTotal)} FCFA</strong> à <strong className="text-[#0E7C66]">{shopName}</strong> a été enregistré. Il sera confirmé dès réception par l'opérateur.
               </p>
             </div>
 
@@ -245,7 +223,7 @@ export default function EcomfyPayCheckout() {
             </div>
 
             <p className="text-[11px] text-slate-400">
-              Un SMS/Email de confirmation a été transmis à la boutique et à l'acheteur.
+              Conservez cette référence pour tout suivi auprès de la boutique.
             </p>
           </div>
         ) : (
@@ -267,40 +245,11 @@ export default function EcomfyPayCheckout() {
               )}
             </div>
 
-            {/* Ajustement Quantité & Montant Flexible (Pour Livreur / Clients) */}
+            {/* Montant à payer (libre si le vendeur l'autorise) */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Quantité d'articles :</span>
-                <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="w-6 text-center font-extrabold text-sm text-slate-900">{quantity}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Remise sur lots automatique si > 1 */}
-              {quantity > 1 && (
-                <div className="bg-emerald-100/60 border border-emerald-300 text-emerald-800 rounded-xl p-2 text-[11px] font-bold flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Offre Lot Appliquée ! Prix unitaire réduit à {formatPrice(getUnitPrice())} FCFA</span>
-                </div>
-              )}
-
               {/* Option Montant Libre / Ajustable par le client ou livreur */}
               {link.allow_custom_amount && (
-                <div className="pt-2 border-t border-slate-200 space-y-1">
+                <div className="space-y-1">
                   <Label className="text-xs font-bold text-slate-700">
                     Montant personnalisé (FCFA)
                   </Label>
@@ -312,13 +261,13 @@ export default function EcomfyPayCheckout() {
                     className="font-extrabold text-base h-11 bg-white"
                   />
                   <p className="text-[10px] text-slate-400">
-                    Saisie libre activée par le vendeur pour l'ajustement sur le terrain.
+                    Saisie libre activée par le vendeur (minimum {formatPrice(link.amount)} FCFA).
                   </p>
                 </div>
               )}
 
               {/* Total final à régler */}
-              <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+              <div className={`flex items-center justify-between ${link.allow_custom_amount ? "pt-2 border-t border-slate-200" : ""}`}>
                 <span className="text-xs font-extrabold text-slate-900">Total à payer :</span>
                 <span className="text-xl font-black text-[#0E7C66]">
                   {formatPrice(finalTotal)} FCFA

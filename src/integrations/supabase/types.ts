@@ -45,6 +45,7 @@ export type Database = {
           created_at: string
           customer_address: string | null
           customer_city: string | null
+          customer_country: string | null
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
@@ -62,6 +63,7 @@ export type Database = {
           created_at?: string
           customer_address?: string | null
           customer_city?: string | null
+          customer_country?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -79,6 +81,7 @@ export type Database = {
           created_at?: string
           customer_address?: string | null
           customer_city?: string | null
+          customer_country?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -721,6 +724,7 @@ export type Database = {
           created_at: string
           id: string
           is_pinned: boolean
+          kind: string | null
           reply_to_id: string | null
           updated_at: string
           user_id: string
@@ -2232,6 +2236,7 @@ export type Database = {
           customer_phone: string
           delivery_provider_id: string | null
           delivery_transferred_at: string | null
+          discount_amount: number
           id: string
           internal_delivery_note: string | null
           is_read: boolean | null
@@ -2241,6 +2246,7 @@ export type Database = {
           order_status: string
           payment_method: string
           payment_status: string
+          promo_code: string | null
           products_summary: string | null
           received_during_lock: boolean
           scheduled_delivery_date: string | null
@@ -2260,6 +2266,7 @@ export type Database = {
           customer_phone: string
           delivery_provider_id?: string | null
           delivery_transferred_at?: string | null
+          discount_amount?: number
           id?: string
           internal_delivery_note?: string | null
           is_read?: boolean | null
@@ -2269,6 +2276,7 @@ export type Database = {
           order_status?: string
           payment_method?: string
           payment_status?: string
+          promo_code?: string | null
           products_summary?: string | null
           received_during_lock?: boolean
           scheduled_delivery_date?: string | null
@@ -2288,6 +2296,7 @@ export type Database = {
           customer_phone?: string
           delivery_provider_id?: string | null
           delivery_transferred_at?: string | null
+          discount_amount?: number
           id?: string
           internal_delivery_note?: string | null
           is_read?: boolean | null
@@ -2297,6 +2306,7 @@ export type Database = {
           order_status?: string
           payment_method?: string
           payment_status?: string
+          promo_code?: string | null
           products_summary?: string | null
           received_during_lock?: boolean
           scheduled_delivery_date?: string | null
@@ -2895,6 +2905,8 @@ export type Database = {
           name: string
           price: number
           section_order: Json | null
+          seo_description: string | null
+          seo_title: string | null
           shop_id: string
           short_description: string | null
           sku: string | null
@@ -2921,6 +2933,8 @@ export type Database = {
           name: string
           price?: number
           section_order?: Json | null
+          seo_description?: string | null
+          seo_title?: string | null
           shop_id: string
           short_description?: string | null
           sku?: string | null
@@ -2947,6 +2961,8 @@ export type Database = {
           name?: string
           price?: number
           section_order?: Json | null
+          seo_description?: string | null
+          seo_title?: string | null
           shop_id?: string
           short_description?: string | null
           sku?: string | null
@@ -3043,6 +3059,12 @@ export type Database = {
           created_by: string
           current_uses: number
           discount_percentage: number
+          discount_amount: number
+          discount_type: string
+          min_order_amount: number
+          shop_id: string | null
+          target_user_email: string | null
+          target_user_phone: string | null
           expires_at: string
           id: string
           is_active: boolean
@@ -3054,7 +3076,13 @@ export type Database = {
           created_at?: string
           created_by: string
           current_uses?: number
-          discount_percentage: number
+          discount_percentage?: number
+          discount_amount?: number
+          discount_type?: string
+          min_order_amount?: number
+          shop_id?: string | null
+          target_user_email?: string | null
+          target_user_phone?: string | null
           expires_at: string
           id?: string
           is_active?: boolean
@@ -3067,6 +3095,12 @@ export type Database = {
           created_by?: string
           current_uses?: number
           discount_percentage?: number
+          discount_amount?: number
+          discount_type?: string
+          min_order_amount?: number
+          shop_id?: string | null
+          target_user_email?: string | null
+          target_user_phone?: string | null
           expires_at?: string
           id?: string
           is_active?: boolean
@@ -5196,6 +5230,7 @@ export type Database = {
           avatar_url: string
           full_name: string
           id: string
+          is_founder: boolean
         }[]
       }
       get_invite_email_by_token: { Args: { _token: string }; Returns: string }
@@ -5339,6 +5374,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      discard_abandoned_cart: {
+        Args: { _session_id: string; _shop_id: string }
+        Returns: undefined
       }
       increment_promo_usage: { Args: { promo_code: string }; Returns: boolean }
       increment_shop_gif_count: { Args: { _shop_id: string }; Returns: number }

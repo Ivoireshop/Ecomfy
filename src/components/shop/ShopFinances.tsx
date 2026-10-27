@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,13 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, TrendingUp, TrendingDown, Wallet, Megaphone, Package, Truck, Users, Sparkles, MessageCircle, Mail, Send, Activity, BrainCircuit, Receipt, ArrowRight, Download, CreditCard, Bell } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { AdAccountsManager } from "@/components/shop/AdAccountsManager";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ComposedChart, Bar, Line } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ComposedChart, Area, Bar } from "recharts";
+import {
+  type FinancePeriod, VALIDATED_STATUSES, csvCell, dayOf, isCashedIn, isInPeriod, isValidEmail,
+  localDayKey, periodStartKey, toFcfa, whatsappDigits,
+} from "@/lib/shopFinance";
 
-interface Order { id: string; total: number; order_status: string; payment_status: string; created_at: string; }
+interface Order { id: string; order_number?: string; total: number; order_status: string; payment_status: string; created_at: string; }
 interface Expense { id: string; shop_id: string; category: string; amount: number; description: string | null; expense_date: string; created_at: string; }
 
 const CATEGORIES: { value: string; label: string; icon: any; color: string }[] = [
@@ -36,9 +40,10 @@ interface Props {
 export function ShopFinances({ shopId, shop, orders }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
-  const [adSpend, setAdSpend] = useState<{ spend_date: string; amount: number }[]>([]);
+  const [adSpend, setAdSpend] = useState<{ spend_date: string; amount: number; currency: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<"week" | "month" | "all">("month");
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [period, setPeriod] = useState<FinancePeriod>("month");
   
   // Modals state
   const [addOpen, setAddOpen] = useState(false);
@@ -46,183 +51,234 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
   const [reportsOpen, setReportsOpen] = useState(false);
   
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ category: "ads", amount: "", description: "", expense_date: new Date().toISOString().slice(0, 10) });
+  const [form, setForm] = useState({ category: "ads", amount: "", description: "", expense_date: localDayKey(new Date()) });
   const [aiAdvice, setAiAdvice] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
   
   const [autoEmail, setAutoEmail] = useState<boolean>(!!shop?.weekly_finance_email_enabled);
   const [emailRecipient, setEmailRecipient] = useState<string>(shop?.weekly_finance_email || "");
+  const savedRecipient = useRef<string>((shop?.weekly_finance_email || "").trim());
   const [savingAuto, setSavingAuto] = useState(false);
   const [sendingNow, setSendingNow] = useState(false);
 
+  // PostgREST plafonne chaque réponse à 1 000 lignes quel que soit .limit() : lecture par pages, sinon les dépenses
+  // publicitaires (une ligne par jour et par compte, jusqu'à 37 mois d'historique) sont tronquées sans erreur.
+  const fetchAllPages = async (build: () => any): Promise<{ rows: any[]; failed: boolean }> => {
+    const rows: any[] = [];
+    for (let from = 0; from < 20000; from += 1000) {
+      const page = await build().range(from, from + 999);
+      if (page.error) return { rows, failed: true };
+      rows.push(...(page.data || []));
+      if (!page.data || page.data.length < 1000) break;
+    }
+    return { rows, failed: false };
+  };
+
   const reloadAll = async () => {
     const [exp, pay, ads] = await Promise.all([
-      supabase.from("shop_expenses" as any).select("*").eq("shop_id", shopId).order("expense_date", { ascending: false }),
-      supabase.from("commission_payments").select("*").eq("shop_id", shopId).eq("status", "paid"),
-      (supabase as any).from("ad_spend_daily").select("spend_date, amount").eq("shop_id", shopId),
+      fetchAllPages(() => supabase.from("shop_expenses" as any).select("*").eq("shop_id", shopId)
+        .order("expense_date", { ascending: false }).order("id", { ascending: false })),
+      fetchAllPages(() => supabase.from("commission_payments").select("id, amount, created_at").eq("shop_id", shopId).eq("status", "paid")
+        .order("created_at", { ascending: false }).order("id", { ascending: false })),
+      fetchAllPages(() => (supabase as any).from("ad_spend_daily").select("id, spend_date, amount, currency").eq("shop_id", shopId)
+        .order("spend_date", { ascending: false }).order("id", { ascending: false })),
     ]);
-    setExpenses(((exp.data as any[]) || []) as Expense[]);
-    setPayments((pay.data as any[]) || []);
-    setAdSpend(((ads.data as any[]) || []).map((r: any) => ({ spend_date: r.spend_date, amount: Number(r.amount || 0) })));
+    // Une lecture en échec ne doit pas s'afficher comme « 0 FCFA » : on le dit.
+    setLoadFailed(exp.failed || pay.failed || ads.failed);
+    setExpenses(exp.rows as Expense[]);
+    setPayments(pay.rows);
+    setAdSpend(ads.rows.map((r: any) => ({ spend_date: r.spend_date, amount: Number(r.amount || 0), currency: r.currency || "XOF" })));
     setLoading(false);
   };
-  useEffect(() => { reloadAll(); }, [shopId]);
+  useEffect(() => { setLoading(true); reloadAll(); }, [shopId]);
+
+  const startKey = useMemo(() => periodStartKey(period), [period]);
 
   const filtered = useMemo(() => {
-    const now = new Date();
-    let from: Date | null = null;
-    if (period === "week") { from = new Date(now); from.setDate(now.getDate() - 7); }
-    if (period === "month") { from = new Date(now.getFullYear(), now.getMonth(), 1); }
-    const inRange = (d: string) => !from || new Date(d).getTime() >= from.getTime();
+    // Dépenses publicitaires converties en FCFA ; une devise sans parité fixe (USD...) n'est pas additionnée à des FCFA.
+    const ads: { spend_date: string; amount: number }[] = [];
+    const skipped = new Set<string>();
+    adSpend.forEach(a => {
+      if (!isInPeriod(a.spend_date, startKey)) return;
+      const converted = toFcfa(a.amount, a.currency);
+      if (converted === null) { skipped.add(String(a.currency).toUpperCase()); return; }
+      ads.push({ spend_date: a.spend_date, amount: converted });
+    });
     return {
-      orders: orders.filter(o => inRange(o.created_at)),
-      expenses: expenses.filter(e => inRange(e.expense_date)),
-      platformPayments: payments.filter(p => inRange(p.created_at)),
-      adSpend: adSpend.filter(a => inRange(a.spend_date)),
+      orders: orders.filter(o => isInPeriod(o.created_at, startKey)),
+      expenses: expenses.filter(e => isInPeriod(e.expense_date, startKey)),
+      platformPayments: payments.filter(p => isInPeriod(p.created_at, startKey)),
+      adSpend: ads,
+      skippedCurrencies: Array.from(skipped),
     };
-  }, [orders, expenses, payments, adSpend, period]);
+  }, [orders, expenses, payments, adSpend, startKey]);
 
   const stats = useMemo(() => {
-    const confirmed = filtered.orders.filter(o => ["confirmed","processing","shipped","delivered"].includes(o.order_status));
+    const confirmed = filtered.orders.filter(o => VALIDATED_STATUSES.includes(o.order_status));
     const delivered = filtered.orders.filter(o => o.order_status === "delivered");
-    
-    const cashIn = delivered.reduce((s, o) => s + Number(o.total || 0), 0);
+
+    const cashIn = filtered.orders.filter(isCashedIn).reduce((s, o) => s + Number(o.total || 0), 0);
     const revenue = confirmed.reduce((s, o) => s + Number(o.total || 0), 0);
-    
+
     const expByCat: Record<string, number> = {};
     filtered.expenses.forEach(e => { expByCat[e.category] = (expByCat[e.category] || 0) + Number(e.amount); });
-    
+
     const adSpendTotal = filtered.adSpend.reduce((s, a) => s + Number(a.amount || 0), 0);
     if (adSpendTotal > 0) {
       expByCat["ads"] = (expByCat["ads"] || 0) + adSpendTotal;
     }
-    
+
     const manualExpenses = filtered.expenses.reduce((s, e) => s + Number(e.amount), 0);
-    const totalExpenses = manualExpenses + adSpendTotal;
+    const operatingExpenses = manualExpenses + adSpendTotal;
     const platformFees = filtered.platformPayments.reduce((s, p) => s + Number(p.amount), 0);
-    
+    // « Dépenses totales » = tout ce qui est déduit du bénéfice, frais Ecomfy compris : les chiffres se recoupent.
+    const totalExpenses = operatingExpenses + platformFees;
+
     const commissionDue = Number(shop?.commission_balance_due) || 0;
-    const profit = cashIn - totalExpenses - platformFees;
-    
+    const profit = cashIn - totalExpenses;
+
     // Margins & Advanced Metrics
     const margin = cashIn > 0 ? (profit / cashIn) * 100 : 0;
     const roas = adSpendTotal > 0 ? (cashIn / adSpendTotal) : 0;
-    const cac = confirmed.length > 0 ? (adSpendTotal / confirmed.length) : 0; // Coût publicitaire par commande
-    
+    const cac = confirmed.length > 0 ? (adSpendTotal / confirmed.length) : 0; // Coût publicitaire par commande validée
+
     return {
       ordersCount: filtered.orders.length,
       confirmedCount: confirmed.length,
       deliveredCount: delivered.length,
-      revenue, cashIn, totalExpenses, platformFees, commissionDue, profit, margin, expByCat, adSpendTotal,
+      revenue, cashIn, totalExpenses, operatingExpenses, platformFees, commissionDue, profit, margin, expByCat, adSpendTotal,
       roas, cac
     };
   }, [filtered, shop]);
 
   const cashflowData = useMemo(() => {
+    // Semaine : 7 jours ; mois : du 1er à aujourd'hui ; tout : un point par mois (les 24 derniers au plus).
+    const monthly = period === "all";
+    const bucketOf = (value: string) => { const day = dayOf(value); return monthly ? day.slice(0, 7) : day; };
     const map: Record<string, { cashIn: number; expenses: number }> = {};
-    const dayCount = period === "week" ? 7 : period === "month" ? 30 : 30;
-    for (let i = dayCount - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().split("T")[0];
-      map[key] = { cashIn: 0, expenses: 0 };
+    const today = new Date();
+
+    if (monthly) {
+      const days = [
+        ...orders.map(o => dayOf(o.created_at)), ...expenses.map(e => dayOf(e.expense_date)),
+        ...payments.map(p => dayOf(p.created_at)), ...adSpend.map(a => dayOf(a.spend_date)),
+      ].filter(Boolean).sort();
+      const first = days.length ? new Date(`${days[0].slice(0, 7)}-01T12:00:00`) : today;
+      const cursor = new Date(Math.max(first.getTime(), new Date(today.getFullYear(), today.getMonth() - 23, 1, 12).getTime()));
+      cursor.setDate(1);
+      while (localDayKey(cursor).slice(0, 7) <= localDayKey(today).slice(0, 7)) {
+        map[localDayKey(cursor).slice(0, 7)] = { cashIn: 0, expenses: 0 };
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    } else {
+      const start = startKey ? new Date(`${startKey}T12:00:00`) : today;
+      for (const d = new Date(start); localDayKey(d) <= localDayKey(today); d.setDate(d.getDate() + 1)) {
+        map[localDayKey(d)] = { cashIn: 0, expenses: 0 };
+      }
     }
 
-    filtered.orders.forEach(o => {
-      const date = o.created_at.split("T")[0];
-      if (map[date] && o.order_status === "delivered") map[date].cashIn += Number(o.total);
-    });
+    const slot = (value: string) => map[bucketOf(value)];
+    filtered.orders.forEach(o => { const s = slot(o.created_at); if (s && isCashedIn(o)) s.cashIn += Number(o.total || 0); });
+    filtered.expenses.forEach(e => { const s = slot(e.expense_date); if (s) s.expenses += Number(e.amount); });
+    filtered.adSpend.forEach(a => { const s = slot(a.spend_date); if (s) s.expenses += Number(a.amount); });
+    filtered.platformPayments.forEach(p => { const s = slot(p.created_at); if (s) s.expenses += Number(p.amount); });
 
-    filtered.expenses.forEach(e => {
-      const date = e.expense_date.split("T")[0];
-      if (map[date]) map[date].expenses += Number(e.amount);
+    return Object.keys(map).sort().map(key => {
+      const date = new Date(monthly ? `${key}-01T12:00:00` : `${key}T12:00:00`);
+      return {
+        date: monthly
+          ? date.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" })
+          : date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }),
+        entrees: map[key].cashIn,
+        sorties: map[key].expenses,
+      };
     });
-
-    filtered.adSpend.forEach(a => {
-      const date = a.spend_date.split("T")[0];
-      if (map[date]) map[date].expenses += Number(a.amount);
-    });
-
-    return Object.keys(map).sort().map(date => ({
-      date: new Date(date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }),
-      entrees: map[date].cashIn,
-      sorties: map[date].expenses
-    }));
-  }, [filtered, period]);
+  }, [filtered, orders, expenses, payments, adSpend, period, startKey]);
 
   const addExpense = async () => {
-    if (!form.amount || Number(form.amount) <= 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    const amount = Math.round(Number(form.amount));
+    if (!form.amount || !Number.isFinite(amount) || amount <= 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    if (amount > 1_000_000_000) { toast({ title: "Montant trop élevé", description: "Vérifiez le nombre de zéros.", variant: "destructive" }); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.expense_date)) { toast({ title: "Date invalide", variant: "destructive" }); return; }
     setSaving(true);
     const { data, error } = await supabase.from("shop_expenses" as any).insert({
       shop_id: shopId,
       category: form.category,
-      amount: Number(form.amount),
-      description: form.description || null,
+      amount,
+      description: form.description.trim().slice(0, 500) || null,
       expense_date: form.expense_date,
     }).select().single();
     setSaving(false);
     if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
-    setExpenses(prev => [data as any, ...prev]);
+    // Le registre est trié par date décroissante : une dépense antidatée ne doit pas s'afficher tout en haut.
+    setExpenses(prev => [data as any, ...prev].sort((a, b) => b.expense_date.localeCompare(a.expense_date)));
     setAddOpen(false);
-    setForm({ category: "ads", amount: "", description: "", expense_date: new Date().toISOString().slice(0, 10) });
+    setForm({ category: "ads", amount: "", description: "", expense_date: localDayKey(new Date()) });
     toast({ title: "Dépense enregistrée" });
   };
 
   const removeExpense = async (id: string) => {
     if (!confirm("Supprimer cette dépense ?")) return;
     const { error } = await supabase.from("shop_expenses" as any).delete().eq("id", id);
-    if (error) { toast({ title: "Erreur", variant: "destructive" }); return; }
+    if (error) { toast({ title: "Suppression impossible", description: error.message, variant: "destructive" }); return; }
     setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
   const exportAccountingReport = () => {
     const rows: { date: string, type: string, category: string, desc: string, in: number, out: number }[] = [];
-    
-    filtered.orders.filter(o => o.order_status === "delivered").forEach(o => {
-      rows.push({ date: o.created_at, type: "Vente Encaissée", category: "Commande", desc: `CMD-${o.id.split('-')[0]}`, in: Number(o.total), out: 0 });
+
+    filtered.orders.filter(isCashedIn).forEach(o => {
+      rows.push({ date: dayOf(o.created_at), type: "Vente encaissée", category: "Commande", desc: o.order_number || `CMD-${o.id.split('-')[0]}`, in: Math.round(Number(o.total || 0)), out: 0 });
     });
     filtered.expenses.forEach(e => {
       const catLabel = CATEGORIES.find(c => c.value === e.category)?.label || e.category;
-      rows.push({ date: e.expense_date, type: "Dépense Manuelle", category: catLabel, desc: e.description || "-", in: 0, out: Number(e.amount) });
+      rows.push({ date: dayOf(e.expense_date), type: "Dépense manuelle", category: catLabel, desc: e.description || "-", in: 0, out: Math.round(Number(e.amount)) });
     });
     filtered.adSpend.forEach(a => {
-      rows.push({ date: a.spend_date, type: "Dépense Publicitaire", category: "Ads", desc: "Budget journalier synchronisé", in: 0, out: Number(a.amount) });
+      rows.push({ date: dayOf(a.spend_date), type: "Dépense publicitaire", category: "Publicité", desc: "Dépense journalière synchronisée", in: 0, out: Math.round(Number(a.amount)) });
     });
     filtered.platformPayments.forEach(p => {
-      rows.push({ date: p.created_at, type: "Frais Plateforme", category: "Commissions", desc: "Paiement facture Ecomfy", in: 0, out: Number(p.amount) });
+      rows.push({ date: dayOf(p.created_at), type: "Frais plateforme", category: "Commissions", desc: "Paiement facture Ecomfy", in: 0, out: Math.round(Number(p.amount)) });
     });
 
-    // Sort by date ascending
-    rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    rows.sort((a, b) => a.date.localeCompare(b.date));
 
-    let csv = "Date,Type,Categorie,Description,Entrees (FCFA),Sorties (FCFA)\n";
+    // Point-virgule : Excel en français lit une virgule comme une décimale et colle tout dans une seule colonne.
+    const empty = '""';
+    const lines = [["Date", "Type", "Catégorie", "Description", "Entrées (FCFA)", "Sorties (FCFA)"].map(csvCell).join(";")];
     rows.forEach(r => {
-      csv += `${new Date(r.date).toLocaleDateString("fr-FR")},"${r.type}","${r.category}","${r.desc}",${r.in},${r.out}\n`;
+      lines.push([csvCell(r.date.split("-").reverse().join("/")), csvCell(r.type), csvCell(r.category), csvCell(r.desc), r.in, r.out].join(";"));
     });
-
-    csv += `\nTOTAL,,,${stats.cashIn},${stats.totalExpenses + stats.platformFees}\n`;
-    csv += `BENEFICE NET,,,,${stats.profit}\n`;
-    csv += `ROAS,,,,${stats.roas.toFixed(2)}\n`;
-    csv += `CAC,,,,${fmt(stats.cac)}\n`;
+    lines.push("");
+    lines.push([csvCell("TOTAL"), empty, empty, empty, Math.round(stats.cashIn), Math.round(stats.totalExpenses)].join(";"));
+    lines.push([csvCell("BÉNÉFICE NET"), empty, empty, empty, Math.round(stats.profit), empty].join(";"));
+    lines.push([csvCell("ROAS"), empty, empty, empty, csvCell(stats.roas.toFixed(2).replace(".", ",")), empty].join(";"));
+    lines.push([csvCell("CAC (FCFA)"), empty, empty, empty, Math.round(stats.cac), empty].join(";"));
+    if (filtered.skippedCurrencies.length > 0) {
+      lines.push(csvCell(`Dépenses publicitaires en ${filtered.skippedCurrencies.join(", ")} non converties, exclues des totaux`));
+    }
 
     // BOM for Excel UTF-8 support
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
+    const periodTag = period === "week" ? "7j" : period === "month" ? "mois" : "tout";
     link.setAttribute("href", url);
-    link.setAttribute("download", `Fiche_Comptable_${shop?.business_name?.replace(/\s+/g, '_') || "Boutique"}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `Fiche_Comptable_${(shop?.business_name || "Boutique").replace(/[^\p{L}\p{N}]+/gu, "_")}_${periodTag}_${localDayKey(new Date())}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast({ title: "Fiche comptable exportée avec succès" });
   };
 
   const askAI = async () => {
     setAiLoading(true);
     setAiAdvice("");
+    const { ordersCount, deliveredCount, revenue, cashIn, totalExpenses, platformFees, profit, margin, adSpendTotal, roas, cac, expByCat } = stats;
     const { data, error } = await supabase.functions.invoke("finance-advisor", {
-      body: { stats: { ...stats, period, shopName: shop?.business_name } },
+      body: { stats: { ordersCount, deliveredCount, revenue, cashIn, totalExpenses, platformFees, profit, margin, adSpendTotal, roas, cac, expByCat, period, shopName: shop?.business_name } },
     });
     setAiLoading(false);
     if (error || !data?.success) {
@@ -233,8 +289,8 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
   };
 
   const sendWhatsAppSummary = () => {
-    const phone = (shop?.whatsapp_number || shop?.phone_number || "").replace(/\D/g, "");
-    if (!phone) { toast({ title: "Aucun numéro WhatsApp configuré dans les paramètres", variant: "destructive" }); return; }
+    const phone = whatsappDigits(shop?.whatsapp_number) || whatsappDigits(shop?.phone_number);
+    if (!phone) { toast({ title: "Aucun numéro WhatsApp valide (avec l'indicatif du pays) dans les paramètres", variant: "destructive" }); return; }
     const periodLabel = period === "week" ? "7 derniers jours" : period === "month" ? "ce mois" : "depuis l'ouverture";
     const lines = [
       `📊 *Résumé financier — ${shop?.business_name || "Boutique"}*`,
@@ -245,7 +301,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       `✅ Encaissé (livré) : ${fmt(stats.cashIn)} FCFA`,
       ``,
       `💸 Dépenses totales : ${fmt(stats.totalExpenses)} FCFA`,
-      `🏦 Frais plateforme payés : ${fmt(stats.platformFees)} FCFA`,
+      `   dont frais Ecomfy payés : ${fmt(stats.platformFees)} FCFA`,
       ``,
       `📈 *Bénéfice net estimé : ${fmt(stats.profit)} FCFA*`,
       `📊 Marge Nette : ${stats.margin.toFixed(1)}%`,
@@ -258,25 +314,44 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     window.open(url, "_blank");
   };
 
-  const saveAutoEmail = async (enabled: boolean, recipient?: string) => {
+  // Retourne true si l'enregistrement a réussi. Une adresse vide est permise (le résumé part alors vers l'e-mail du compte).
+  const saveAutoEmail = async (enabled: boolean, recipient?: string): Promise<boolean> => {
+    const cleaned = recipient?.trim();
+    if (enabled && cleaned && !isValidEmail(cleaned)) {
+      toast({ title: "Adresse e-mail invalide", description: "Corrigez l'adresse avant d'activer l'envoi.", variant: "destructive" });
+      return false;
+    }
     setSavingAuto(true);
     const payload: any = { shop_id: shopId, weekly_finance_email_enabled: enabled };
-    if (recipient !== undefined) payload.weekly_finance_email = recipient || null;
+    if (cleaned !== undefined) payload.weekly_finance_email = cleaned || null;
     const { error } = await (supabase as any)
       .from("shop_secrets")
       .upsert(payload, { onConflict: "shop_id" });
     setSavingAuto(false);
-    if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return false; }
     setAutoEmail(enabled);
+    if (cleaned !== undefined) { setEmailRecipient(cleaned); savedRecipient.current = cleaned; }
     toast({ title: enabled ? "Envoi automatique activé" : "Envoi automatique désactivé", description: enabled ? "Vous recevrez un résumé chaque lundi à 8h." : undefined });
+    return true;
+  };
+
+  // À la sortie du champ : n'enregistre que si l'adresse a changé (sinon un clic dans le champ réécrit et notifie pour rien).
+  const saveRecipientOnBlur = async () => {
+    if (emailRecipient.trim() === savedRecipient.current) return;
+    await saveAutoEmail(true, emailRecipient);
   };
 
   const sendNow = async () => {
     setSendingNow(true);
-    const { data, error } = await supabase.functions.invoke("send-weekly-finance-summary", { body: { shop_id: shopId } });
+    // Le test lit l'adresse en base : on enregistre d'abord celle qui est affichée.
+    if (emailRecipient.trim() !== savedRecipient.current && !(await saveAutoEmail(true, emailRecipient))) { setSendingNow(false); return; }
+    const { data, error } = await supabase.functions.invoke("send-weekly-finance-summary", { body: { shop_id: shopId, test: true } });
     setSendingNow(false);
-    if (error || !data?.success) { toast({ title: "Échec de l'envoi", description: data?.errors?.[0] || error?.message, variant: "destructive" }); return; }
-    toast({ title: "Email envoyé", description: `Vérifiez votre boîte (${data.sent} envoi).` });
+    if (error || !data?.success || !data.sent) {
+      toast({ title: "Échec de l'envoi", description: data?.errors?.[0] || data?.error || error?.message || "Aucun e-mail n'a été envoyé.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "E-mail envoyé", description: "Vérifiez votre boîte de réception (et les courriers indésirables)." });
   };
 
   if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
@@ -310,6 +385,19 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
           ))}
         </div>
       </div>
+
+      {loadFailed && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>Une partie des données financières n'a pas pu être chargée : les montants affichés peuvent être incomplets.</span>
+          <Button size="sm" variant="outline" className="shrink-0 border-red-200" onClick={() => { setLoading(true); reloadAll(); }}>Réessayer</Button>
+        </div>
+      )}
+      {filtered.skippedCurrencies.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Des dépenses publicitaires en {filtered.skippedCurrencies.join(", ")} ne sont pas converties en FCFA et sont exclues des totaux.
+          Passez votre compte publicitaire en FCFA/XOF ou ajoutez ces dépenses à la main.
+        </div>
+      )}
 
       {/* Command Center - Horizontal Action Bar */}
       <Card className="p-2 border-slate-100 shadow-sm bg-white overflow-x-auto">
@@ -348,7 +436,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
               <div className="relative z-10">
                 <div className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-emerald-500" /> Argent Encaissé</div>
                 <div className="text-2xl font-bold text-emerald-600">{fmt(stats.cashIn)}</div>
-                <div className="text-[10px] text-slate-400 mt-1 font-medium">FCFA (Commandes livrées)</div>
+                <div className="text-[10px] text-slate-400 mt-1 font-medium">FCFA (Livrées, hors remboursées)</div>
               </div>
             </Card>
 
@@ -357,7 +445,9 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
               <div className="relative z-10">
                 <div className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider flex items-center gap-1.5"><TrendingDown className="h-3.5 w-3.5 text-red-500" /> Dépenses Totales</div>
                 <div className="text-2xl font-bold text-red-600">{fmt(stats.totalExpenses)}</div>
-                <div className="text-[10px] text-slate-400 mt-1 font-medium">FCFA (Pub + Opérationnel)</div>
+                <div className="text-[10px] text-slate-400 mt-1 font-medium">
+                  {stats.platformFees > 0 ? `FCFA (dont ${fmt(stats.platformFees)} de frais Ecomfy)` : "FCFA (Pub + Opérationnel)"}
+                </div>
               </div>
             </Card>
 
@@ -567,6 +657,20 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
                   </div>
                 );
               })}
+              {stats.platformFees > 0 && (
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                      <span className="h-6 w-6 rounded-md inline-flex items-center justify-center text-teal-700 bg-teal-100"><CreditCard className="h-3 w-3" /></span>
+                      Frais Ecomfy
+                    </span>
+                    <span className="font-bold text-slate-900">{fmt(stats.platformFees)} FCFA</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-slate-800 transition-all" style={{ width: `${(stats.platformFees / stats.totalExpenses) * 100}%` }} />
+                  </div>
+                </div>
+              )}
               {stats.totalExpenses === 0 && (
                  <div className="text-center text-xs text-slate-400 py-4">Aucune dépense enregistrée</div>
               )}
@@ -608,7 +712,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
                 </div>
                 {autoEmail && (
                   <div className="flex flex-col gap-3">
-                    <Label className="text-xs text-slate-500">Adresse de réception</Label>
+                    <Label className="text-xs text-slate-500">Adresse de réception (vide : e-mail de votre compte)</Label>
                     <div className="flex items-center gap-2">
                       <Input 
                         type="email" 
@@ -616,7 +720,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
                         className="h-10 text-sm"
                         value={emailRecipient}
                         onChange={e => setEmailRecipient(e.target.value)}
-                        onBlur={() => saveAutoEmail(true, emailRecipient)}
+                        onBlur={saveRecipientOnBlur}
                       />
                       <Button size="icon" className="h-10 w-10 shrink-0 bg-slate-900" onClick={sendNow} disabled={sendingNow} title="Tester l'envoi">
                         {sendingNow ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

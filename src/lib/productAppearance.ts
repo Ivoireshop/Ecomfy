@@ -98,6 +98,12 @@ export function ensureReadableTextColor(bg: string, text: string): string {
   return contrastRatio(bg, "#FFFFFF") >= contrastRatio(bg, "#111111") ? "#FFFFFF" : "#111111";
 }
 
+/** Couleur de texte lisible sur `bg` : `preferred` si le contraste suffit, sinon noir ou blanc. */
+export function readableTextOn(bg: string | null | undefined, preferred = "#111827"): string {
+  if (!bg || !isValidHex(bg)) return preferred;
+  return ensureReadableTextColor(bg, preferred);
+}
+
 export interface ProductVideo {
   id: string;
   url: string;

@@ -153,18 +153,10 @@ export const affiliateService = {
       if (error) throw error;
       return data as unknown as AffiliateProfile;
     } catch (err) {
+      // No made-up profile: its id and code would not exist in the database, so the link would credit
+      // nobody and saving a payout method would fail on the foreign key.
       console.error("Error in getOrCreateProfile:", err);
-      const fallbackSuffix = userId.replace(/[^a-zA-Z0-9]/g, "").substring(0, 4).toUpperCase();
-      const fallbackCode = `USER-${fallbackSuffix}`;
-      return {
-        id: userId,
-        user_id: userId,
-        affiliate_code: fallbackCode,
-        commission_rate: 0.20,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      return null;
     }
   },
 
@@ -409,8 +401,16 @@ export const affiliateService = {
    * Record the referral code for the logged-in user (the server attaches the caller, never another account)
    */
   async recordReferral(affiliateCode: string): Promise<boolean> {
+    return (await this.recordReferralDetailed(affiliateCode)).success;
+  },
+
+  /**
+   * Same as recordReferral, but tells a definitive refusal (invalid code, self-referral, already paid)
+   * from a transient failure (network, RPC error) so callers know whether a retry can ever succeed.
+   */
+  async recordReferralDetailed(affiliateCode: string): Promise<{ success: boolean; definitive: boolean }> {
     const cleanCode = (affiliateCode || "").trim().toUpperCase();
-    if (!cleanCode) return false;
+    if (!cleanCode) return { success: false, definitive: true };
 
     try {
       const { data, error } = await supabase.rpc("record_affiliate_referral", {
@@ -419,23 +419,29 @@ export const affiliateService = {
 
       if (error) {
         console.error("Error recording affiliate referral:", error);
-        return false;
+        return { success: false, definitive: false };
       }
-      return (data as any)?.success === true;
+      const success = (data as any)?.success === true;
+      return { success, definitive: true };
     } catch (err) {
       console.error("Error in recordReferral:", err);
-      return false;
+      return { success: false, definitive: false };
     }
   },
 
   /**
-   * Automatically check and record any pending referral code stored in localStorage for the logged in user
+   * Record the referral code pending for the logged-in user, then forget it.
+   * Sources, by priority: code typed for this email at signup, code of the last referral link
+   * opened in this browser, code carried by the account itself (signup confirmed on another device).
    */
-  async checkAndRecordPendingReferral(userId: string, email?: string): Promise<boolean> {
+  async checkAndRecordPendingReferral(userId: string, email?: string, accountCode?: string | null): Promise<boolean> {
     try {
-      const storedRefCode = 
-        localStorage.getItem("ecomfy_affiliate_ref") || 
-        (email ? localStorage.getItem(`referral_${email}`) : null);
+      const emailKey = email ? `referral_${email}` : null;
+      const storedRefCode =
+        (emailKey ? localStorage.getItem(emailKey) : null) ||
+        localStorage.getItem("ecomfy_affiliate_ref") ||
+        accountCode ||
+        null;
 
       if (!storedRefCode || !storedRefCode.trim()) {
         return false;
@@ -444,12 +450,17 @@ export const affiliateService = {
       const cleanCode = storedRefCode.trim().toUpperCase();
       console.log(`Processing pending referral for user ${userId} with code ${cleanCode}`);
 
-      const success = await this.recordReferral(cleanCode);
+      const { success, definitive } = await this.recordReferralDetailed(cleanCode);
 
-      if (success) {
+      // A transient failure keeps the code for the next attempt; a definitive answer settles it.
+      if (definitive) {
         localStorage.removeItem("ecomfy_affiliate_ref");
-        if (email) {
-          localStorage.removeItem(`referral_${email}`);
+        if (emailKey) {
+          localStorage.removeItem(emailKey);
+        }
+        if (accountCode) {
+          const { error } = await supabase.auth.updateUser({ data: { referral_code: null } });
+          if (error) console.warn("Could not clear referral_code from account metadata:", error);
         }
       }
 

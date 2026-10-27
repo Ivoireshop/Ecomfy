@@ -1,10 +1,10 @@
 // Dynamic sitemap edge function — returns an up-to-date XML sitemap
-// covering the visuelpro.cloud marketing pages, all published shops
+// covering the ecomfy.cloud marketing pages, all published shops
 // and all published products. No JWT required (search engines must
 // be able to fetch it anonymously).
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
-const BASE_URL = "https://visuelpro.cloud";
+const BASE_URL = "https://ecomfy.cloud";
 
 const STATIC_PAGES: { path: string; changefreq: string; priority: string }[] = [
   { path: "/", changefreq: "daily", priority: "1.0" },
@@ -97,10 +97,11 @@ Deno.serve(async (req) => {
         for (const p of products as any[]) {
           const shop = p.shops;
           if (!shop?.slug || !p.slug) continue;
-          const base = shop.custom_domain && shop.domain_status === "active"
+          // La route produit est /shop/:slug/p/:productSlug sur tous les hôtes (pas de /p/:slug seul)
+          const host = shop.custom_domain && shop.domain_status === "active"
             ? `https://${shop.custom_domain}`
-            : `${BASE_URL}/shop/${shop.slug}`;
-          urls.push(urlNode(`${base}/p/${p.slug}`, p.updated_at, "weekly", "0.7"));
+            : BASE_URL;
+          urls.push(urlNode(`${host}/shop/${shop.slug}/p/${p.slug}`, p.updated_at, "weekly", "0.7"));
         }
       }
     }

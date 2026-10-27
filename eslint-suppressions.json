@@ -1,0 +1,1690 @@
+{
+  "src/App.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/AICreditsBadge.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/AIImageGenerator.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/AdTemplateSelector.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/AnalyticsViewer.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/ApiErrorState.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/AppSidebar.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "src/components/BlogManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/BookingForm.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/BrandExtractor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/CourseModulesManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/CoursesManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/DnsConfigurationAssistant.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-useless-escape": {
+      "count": 2
+    }
+  },
+  "src/components/EnrollmentsManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/ErrorBoundary.tsx": {
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/FeatureLandingPage.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/FeaturesEditorWithImages.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/FormationsEditor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/FounderRoute.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "src/components/ImageEditor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 14
+    }
+  },
+  "src/components/InstallPwaBanner.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/LanguageSelector.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/ModulesTabContent.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/MultiImageUploader.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/PaymentLinksManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/ProtectedRoute.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "src/components/SEOEditor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/ShowcaseVersionHistory.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/SimpleWorkflow.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "src/components/TextCorrector.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/TrashManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
+    "no-case-declarations": {
+      "count": 8
+    }
+  },
+  "src/components/VariationGenerator.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/VideoGalleryManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/VideoGenerator.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/VideoUploader.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/WebPushBanner.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/dashboard/DashboardVideoBanner.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/dashboard/StartChecklist.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/delivery/CustomerParcelPhotoModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/delivery/DeliveryCashTracker.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/delivery/DeliveryIdentityVerificationStep.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/delivery/DeliveryOnboardingWizard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/delivery/DispatchOrderModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/delivery/DispatchTable.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/delivery/DriversList.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/ecomfy-pay/KycVerificationTab.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/components/founder/FounderAffiliateAdmin.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/founder/FounderManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/governance/CreateDocumentModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/landing/LandingConnectUsSection.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/landing/LandingHero.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/landing/LandingProofSection.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/landing/LandingTopSellers.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/components/landing/LandingVideoShowcase.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/seo/CredibilityBar.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/seo/GlobalAdminSeoDashboard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/shop/AbandonedCartsList.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/shop/AdAccountsManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/BillingHistory.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/components/shop/BillingPaymentModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/shop/CheckoutMobilePreview.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/DragDropEditor/DragDropEditor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/shop/DragDropEditor/types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/HomepageBuilder/HomepageBuilder.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/components/shop/HomepageBuilder/HomepageRenderer.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 20
+    }
+  },
+  "src/components/shop/HomepageBuilder/SectionControls.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    }
+  },
+  "src/components/shop/HomepageBuilder/sections/FeaturedProductsSection.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/HomepageBuilder/sections/SingleProductCheckoutSection.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/HomepageBuilder/types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/InstallAppCard.tsx": {
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/shop/LanguageSettings.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/LockedOrdersScreen.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/shop/LoyalCustomersList.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/shop/NotificationSettings.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
+    "no-empty": {
+      "count": 4
+    }
+  },
+  "src/components/shop/OrdersList.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 1
+    },
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ProductAIOptimizer.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/ProductAppearancePanel.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/shop/ProductAudioManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    }
+  },
+  "src/components/shop/ProductEditor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ProductGifGenerator.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/shop/ProductLivePreview.tsx": {
+    "no-empty": {
+      "count": 2
+    }
+  },
+  "src/components/shop/ProductReviews.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/ProductShortVideosManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ProductShortVideosPublic.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ProductWizard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/shop/PromoCodeField.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/PushToDeliveryModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "src/components/shop/ReviewsModeration.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/shop/RichTextEditor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ScheduleDeliveryModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ShopAIAssistant.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/ShopAssistantSettings.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/shop/ShopCollaboratorsManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 23
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ShopDeliveryPartners.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ShopFinances.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 15
+    }
+  },
+  "src/components/shop/ShopOverview.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ShopPaymentGate.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ShopReviewBar.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/shop/ShopSettings.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "src/components/shop/ShopStatistics.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/ShopThemeSettings.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/components/shop/ShopThemesManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/shop/SocialProofNotification.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/shop/SubscriptionCard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/SubscriptionRenewalBanner.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/shop/TrackingReconciliation.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/components/shop/TrafficGlobe.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "src/components/showcase/ShowcaseAbout.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/showcase/ShowcaseBiography.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/showcase/ShowcaseBlog.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/showcase/ShowcaseContact.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-constant-binary-expression": {
+      "count": 3
+    }
+  },
+  "src/components/showcase/ShowcaseCourses.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/showcase/ShowcaseCoursesPage.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/components/showcase/ShowcaseFooter.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/showcase/ShowcaseFormations.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/showcase/ShowcaseGallery.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/showcase/ShowcaseHome.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/components/showcase/ShowcaseServices.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    }
+  },
+  "src/components/ui/command.tsx": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/components/ui/textarea.tsx": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/hooks/useCommunityNotifications.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 2
+    }
+  },
+  "src/hooks/useCommunityUnread.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/hooks/useCorporateGovernance.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 38
+    }
+  },
+  "src/hooks/useFCM.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/hooks/useNativePush.ts": {
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/hooks/useOrderNotifications.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
+    "no-empty": {
+      "count": 4
+    }
+  },
+  "src/hooks/useProductReviewStats.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/hooks/useSeoIntelligence.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "src/hooks/useSeoShop.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/hooks/useShopTranslation.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/hooks/useSoundIdentity.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/hooks/useWebPush.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/lib/billingSystem.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/lib/creditsDialog.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/deliveryService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 28
+    }
+  },
+  "src/lib/ecomfyPay.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/lib/error-handler.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/lib/founderBilling.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/identityVerificationEngine.ts": {
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/lib/imageCompress.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/notificationFormat.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/lib/premium.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/productAppearance.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    },
+    "no-empty": {
+      "count": 4
+    }
+  },
+  "src/lib/productSections.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/lib/productThemes/ThemeRenderer.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/lib/productThemes/ThemeShared.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "src/lib/productThemes/dataAdapter.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/lib/productThemes/types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/lib/seoShop.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "src/lib/shopCache.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "no-empty": {
+      "count": 2
+    }
+  },
+  "src/lib/shopPaymentStatus.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/shopSubscription.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/lib/shopThemes/ShopThemeRenderer.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/lib/shopThemes/dataAdapter.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/lib/shopThemes/themes/ClassicShop.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/lib/shopThemes/themes/DynamicShop.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/shopThemes/types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/lib/subscriptionStatus.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "src/lib/textOverlay.ts": {
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/lib/tracking.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 26
+    },
+    "@typescript-eslint/no-unused-expressions": {
+      "count": 2
+    },
+    "no-useless-escape": {
+      "count": 6
+    },
+    "prefer-rest-params": {
+      "count": 6
+    },
+    "prefer-spread": {
+      "count": 2
+    }
+  },
+  "src/lib/trashHelper.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/useDeferredMount.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/lib/verificationAuditService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/modules/connectus/components/ConnectUsDirectMessages.tsx": {
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/modules/connectus/components/ConnectUsHeader.tsx": {
+    "@typescript-eslint/no-unused-expressions": {
+      "count": 2
+    }
+  },
+  "src/modules/connectus/components/ConnectUsProfileView.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/modules/connectus/components/CreatePostModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/modules/connectus/components/NotificationCenter.tsx": {
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/modules/connectus/components/PostCard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
+    "no-empty": {
+      "count": 2
+    }
+  },
+  "src/modules/connectus/components/StoryViewerModal.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/modules/connectus/hooks/useConnectUs.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/modules/connectus/services/connectus.service.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 34
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    },
+    "no-empty": {
+      "count": 24
+    },
+    "prefer-const": {
+      "count": 15
+    }
+  },
+  "src/modules/connectus/utils/fileUploader.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "prefer-const": {
+      "count": 2
+    }
+  },
+  "src/pages/AcceptShopInvite.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
+    "no-empty": {
+      "count": 2
+    }
+  },
+  "src/pages/AffiliateSpace.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/pages/ApiDocumentation.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
+    "@typescript-eslint/no-unused-expressions": {
+      "count": 1
+    }
+  },
+  "src/pages/Auth.tsx": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/pages/Community.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/pages/CompleteProfile.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/CorporateGovernance.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 18
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/pages/CorporateOnboardingPage.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    },
+    "no-empty": {
+      "count": 4
+    }
+  },
+  "src/pages/CoursesManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/pages/Dashboard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/pages/DeliveryAdminPage.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/pages/DeliveryDashboard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/DeliveryPartnerDashboard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/DeliveryResubmissionPage.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/pages/DeliverySignup.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/Documentation.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/EcomfyPayCheckout.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/Feedback.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/FounderDashboard.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    }
+  },
+  "src/pages/FounderTroubleshooting.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "src/pages/Generator.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    },
+    "no-empty": {
+      "count": 1
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/pages/Library.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/pages/OAuthConsent.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "src/pages/PricingDashboard.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/pages/ProductView.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 47
+    },
+    "no-constant-binary-expression": {
+      "count": 6
+    },
+    "no-empty": {
+      "count": 7
+    }
+  },
+  "src/pages/Profile.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/pages/PromoCodeManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/pages/ResetPassword.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/pages/SeoIntelligencePage.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/pages/ShopBuilder.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/pages/ShopEditor.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 88
+    }
+  },
+  "src/pages/ShopManager.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/pages/ShopView.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 39
+    },
+    "no-empty": {
+      "count": 8
+    }
+  },
+  "src/pages/Studio.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/pages/Subscription.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/VideoCreator.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "src/pages/driver/DriverMission.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/founder/KycReview.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 2
+    }
+  },
+  "src/pages/founder/SeoPreview.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages/founder/ShopPaymentControl.tsx": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/services/affiliateService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/services/financialMetricsService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/services/gscService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/services/profileCompletionService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/services/publicOrderService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/services/seoAuditService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "src/services/seoFixService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/services/seoReportService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/types/corporate.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/types/ecomfyPay.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/_shared/credits-gate.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/gsc.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/openai-config.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/openai-key.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/openrouter-chat.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "supabase/functions/_shared/openrouter-image.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/_shared/operators/geniuspay.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "supabase/functions/_shared/prompt-engine.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/ad-token-expiring.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/app-incident-alert.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/commission-payment.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/finance-weekly-summary.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/order-payment-success.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/registry.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/shop-activation.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/_shared/transactional-email-templates/shop-collaborator-invite.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/app-remediation/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/auth-email-hook/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "supabase/functions/check-ad-token-expiry/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/correct-text/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/dynamic-sitemap/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/ecomfy-pay-initiate/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "supabase/functions/ecomfy-pay-settlement/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/ecomfy-pay-webhook/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/ecomfy-pay-withdraw/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/extract-brand/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "supabase/functions/founder-activate-shop/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/founder-record-commission-payment/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/generate-ad-visual/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/generate-ai-image/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/generate-certificate/index.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "supabase/functions/generate-feature-image/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "supabase/functions/generate-product-sheet/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "supabase/functions/generate-shop-content/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/generate-video/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "supabase/functions/geniuspay-webhook/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/gsc-analytics/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/gsc-oauth-flow/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/invite-shop-collaborator/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/manage-founder-roles/handler.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/mcp/index.ts": {
+    "no-var": {
+      "count": 5
+    }
+  },
+  "supabase/functions/payment-callback/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/process-payment/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "supabase/functions/product-ai-optimizer/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "supabase/functions/reconcile-pending-payments/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/reconcile-tracking/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "supabase/functions/send-24h-reminder/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/send-booking-notification/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "supabase/functions/send-contact-notification/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "supabase/functions/send-corporate-invite/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "supabase/functions/send-email/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/send-generation-reminder/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/send-promo-notification/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/send-push-notification/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "supabase/functions/send-transactional-email/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/send-weekly-finance-summary/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 16
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "supabase/functions/seo-auto-index/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/share-product/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "supabase/functions/shop-ai-assistant-chat/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/shop-ai-assistant-tts/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/shop-chatbot/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/showcase-chat/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/sync-ad-spend/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "supabase/functions/test-openai-image/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/track-conversion/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "supabase/functions/track-shop-visit/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/verify-delivery-identity/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "supabase/functions/verify-domain-dns/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/functions/verify-payment/index.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "supabase/tests/manage-founder-roles.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "supabase/tests/pricing.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "tailwind.config.ts": {
+    "@typescript-eslint/no-require-imports": {
+      "count": 1
+    }
+  }
+}

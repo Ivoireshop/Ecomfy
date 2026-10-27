@@ -5,6 +5,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { useCommunityUnread } from "@/hooks/useCommunityUnread";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,7 @@ interface NavItemProps {
     icon: React.ElementType;
     comingSoon?: boolean;
     onClick?: () => void;
+    badge?: number;
   };
   isCollapsed: boolean;
 }
@@ -110,6 +112,14 @@ const NavItem = ({ item, isCollapsed }: NavItemProps) => {
               >
                 <item.icon className={`h-[18px] w-[18px] shrink-0 transition-opacity ${isCollapsed ? '' : 'opacity-75'}`} />
                 <span className={isCollapsed ? "md:hidden" : ""}>{item.title}</span>
+                {!!item.badge && (
+                  <span
+                    className={`ml-auto min-w-[18px] rounded-full bg-primary px-1.5 text-center text-[10px] font-bold leading-[18px] text-primary-foreground ${isCollapsed ? "md:hidden" : ""}`}
+                    aria-label={`${item.badge} non lu${item.badge > 1 ? "s" : ""}`}
+                  >
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                )}
               </NavLink>
             )}
           </SidebarMenuButton>
@@ -126,7 +136,7 @@ const NavItem = ({ item, isCollapsed }: NavItemProps) => {
 
 interface NavSectionProps {
   label?: string;
-  items: { title: string; url: string; icon: React.ElementType; comingSoon?: boolean; onClick?: () => void }[];
+  items: { title: string; url: string; icon: React.ElementType; comingSoon?: boolean; onClick?: () => void; badge?: number }[];
   isCollapsed: boolean;
 }
 
@@ -155,6 +165,7 @@ export function AppSidebar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const communityUnread = useCommunityUnread();
 
   const handleSignOut = async () => {
     try {
@@ -176,7 +187,7 @@ export function AppSidebar() {
     { title: "Affiliation 🤝", url: "/affiliate", icon: Users },
     { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
     { title: "Académie", url: "/academy", icon: GraduationCap },
-    { title: "Communauté", url: "/community", icon: Users },
+    { title: "Communauté", url: "/community", icon: Users, badge: communityUnread },
     { title: "Tarifs", url: "/pricing", icon: CreditCard },
     { title: "Bibliothèque", url: "/library", icon: FolderHeart },
   ];

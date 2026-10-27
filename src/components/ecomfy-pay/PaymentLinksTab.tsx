@@ -52,7 +52,8 @@ export const PaymentLinksTab: React.FC<PaymentLinksTabProps> = ({
     e.preventDefault();
     let targetShopId = selectedShopId || initialShopId || (shops[0]?.id || "");
 
-    // Fallback: If no shop is found, get or create default shop for session user
+    // Fallback : retrouver la boutique de l'utilisateur connecté. Une boutique ne se crée jamais ici
+    // (slug, thème et réglages obligatoires) : sans boutique, on renvoie vers sa création.
     if (!targetShopId) {
       setLoading(true);
       try {
@@ -66,19 +67,6 @@ export const PaymentLinksTab: React.FC<PaymentLinksTabProps> = ({
 
           if (existingShops && existingShops.length > 0) {
             targetShopId = existingShops[0].id;
-          } else {
-            // Auto create main shop for merchant
-            const { data: newShop } = await supabase
-              .from("shops")
-              .insert({
-                user_id: session.user.id,
-                name: "Ma Boutique Ecomfy",
-                business_name: "Ma Boutique Ecomfy",
-              })
-              .select("id")
-              .single();
-
-            if (newShop) targetShopId = newShop.id;
           }
         }
       } catch (err) {
@@ -91,7 +79,7 @@ export const PaymentLinksTab: React.FC<PaymentLinksTabProps> = ({
     if (!targetShopId) {
       toast({
         title: "Boutique requise",
-        description: "Impossible d'identifier votre boutique. Veuillez réessayer.",
+        description: "Créez d'abord votre boutique (menu « Boutique ») pour générer des liens de paiement.",
         variant: "destructive",
       });
       return;

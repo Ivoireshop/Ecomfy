@@ -1,4 +1,4 @@
-import DOMPurify from "dompurify";
+import { sanitizeProductHtml } from "@/lib/sanitizeProductHtml";
 import { isPremiumShop } from "@/lib/premium";
 import type { ProductAudio, ProductThemeSettings } from "@/lib/productAppearance";
 import type { ThemeData } from "./types";
@@ -89,7 +89,7 @@ export function buildThemeData(input: {
   const shortDescription = String(product?.short_description || "").trim();
   const longDescriptionRaw = String(product?.description || "").trim();
   const longDescriptionHTML = longDescriptionRaw
-    ? DOMPurify.sanitize(longDescriptionRaw)
+    ? sanitizeProductHtml(longDescriptionRaw)
     : "";
 
   return {

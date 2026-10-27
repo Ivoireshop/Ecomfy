@@ -126,7 +126,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                       badge: "Texte pur"
                     },
                   ].map((mode) => {
-                    const isSelected = (themeConfig.header_display_mode || "logo_only") === mode.id;
+                    const isSelected = (themeConfig.header_display_mode || (shop.logo_url ? "logo_only" : "name_only")) === mode.id;
                     return (
                       <button
                         key={mode.id}
@@ -525,8 +525,8 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                         <Plus className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-base font-bold text-foreground">Badge 5 étoiles &amp; Compteur (Haut de page)</p>
-                        <p className="text-xs text-muted-foreground">Affiche la note 5 étoiles et le nombre d'avis sous le titre du produit.</p>
+                        <p className="text-base font-bold text-foreground">Note &amp; nombre d'avis (Haut de page)</p>
+                        <p className="text-xs text-muted-foreground">Affiche la note moyenne et le nombre d'avis réels sous le titre du produit (dès le premier avis approuvé).</p>
                       </div>
                     </div>
                     <Switch checked={themeConfig.reviews_enabled !== false} onCheckedChange={v => updateThemeConfig("reviews_enabled", v)} />
@@ -547,51 +547,12 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                   </div>
                 </div>
 
-                {themeConfig.reviews_enabled !== false && (
+                {themeConfig.reviews_section_enabled !== false && (
                   <div className="space-y-6 animate-in fade-in">
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold">Nombre d'avis de départ</Label>
-                        <Input type="number" min={0} value={themeConfig.reviews_base_count ?? 128} onChange={e => updateThemeConfig("reviews_base_count", Number(e.target.value) || 0)} className="h-11" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold">Note moyenne (sur 5)</Label>
-                        <Input type="number" min={1} max={5} step={0.1} value={themeConfig.reviews_rating ?? 5} onChange={e => updateThemeConfig("reviews_rating", Math.min(5, Math.max(1, Number(e.target.value) || 5)))} className="h-11" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
-                        <div>
-                          <p className="text-sm font-bold text-foreground">Augmentation automatique</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Ajoute +1 avis pour chaque commande passée sur la boutique.</p>
-                        </div>
-                        <Switch checked={themeConfig.reviews_increment_with_orders !== false} onCheckedChange={v => updateThemeConfig("reviews_increment_with_orders", v)} />
-                      </div>
-                      
-                      <div className={`p-4 rounded-xl border transition-colors ${themeConfig.reviews_realistic_mode ? "bg-primary/5 border-primary/20" : "bg-muted/10"}`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-bold text-foreground">Mode de variation réaliste</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Le nombre d'avis varie légèrement chaque jour pour paraître crédible.</p>
-                          </div>
-                          <Switch checked={!!themeConfig.reviews_realistic_mode} onCheckedChange={v => updateThemeConfig("reviews_realistic_mode", v)} />
-                        </div>
-                        
-                        {themeConfig.reviews_realistic_mode && (
-                          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50">
-                            <div className="space-y-2">
-                              <Label className="text-xs font-semibold">Avis minimum</Label>
-                              <Input type="number" min={0} value={themeConfig.reviews_min ?? 120} onChange={e => updateThemeConfig("reviews_min", Math.max(0, Number(e.target.value) || 0))} className="h-10 bg-background" />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-xs font-semibold">Avis maximum</Label>
-                              <Input type="number" min={0} value={themeConfig.reviews_max ?? 180} onChange={e => updateThemeConfig("reviews_max", Math.max(0, Number(e.target.value) || 0))} className="h-10 bg-background" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <p className="text-xs text-muted-foreground p-4 rounded-xl border bg-muted/10">
+                      La note et le nombre d'avis affichés sous le titre du produit sont ceux des <strong>avis réels approuvés</strong> :
+                      le badge n'apparaît qu'à partir du premier avis. Approuvez les avis reçus dans l'onglet « Avis ».
+                    </p>
 
                     {/* Personnalisation des Couleurs des Avis */}
                     <div className="space-y-4 pt-4 border-t border-border">
@@ -829,7 +790,8 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </Label>
                 {(() => {
                   const currentBg = themeConfig.checkout_bg || "#FFFFFF";
-                  const contrastStyles = getCheckoutThemeStyles(currentBg, shop.primary_color);
+                  const baseContrastStyles = getCheckoutThemeStyles(currentBg, shop.primary_color);
+                  const contrastStyles = themeConfig.checkout_text ? { ...baseContrastStyles, textColor: themeConfig.checkout_text } : baseContrastStyles;
                   const btnBg = themeConfig.checkout_btn_color || shop.primary_color || "#2563eb";
                   const btnText = themeConfig.checkout_btn_text || "#FFFFFF";
 

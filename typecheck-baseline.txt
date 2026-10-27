@@ -1,0 +1,301 @@
+src/components/AIImageGenerator.tsx	TS2304	Cannot find name 'cn'.
+src/components/TemplatePreviewDialog.tsx	TS2307	Cannot find module '@/lib/showcaseTemplates' or its corresponding type declarations.
+src/components/ecomfy-pay/OverviewTab.tsx	TS2551	Property 'payment_method_code' does not exist on type 'EcomfyPayment'. Did you mean 'payment_method'?
+src/components/ecomfy-pay/PaymentsTab.tsx	TS2551	Property 'payment_method_code' does not exist on type 'EcomfyPayment'. Did you mean 'payment_method'?
+src/components/shop/HomepageBuilder/sections/TextImageSection.tsx	TS2345	Argument of type '"products" | "custom" | "checkout"' is not assignable to parameter of type '"products" | "custom"'.
+src/hooks/useOrderNotifications.ts	TS2339	Property 'Capacitor' does not exist on type 'Window & typeof globalThis'.
+src/hooks/useOrderNotifications.ts	TS2353	Object literal may only specify known properties, and 'vibrate' does not exist in type 'NotificationOptions'.
+src/hooks/useWebPush.ts	TS2307	Cannot find module 'virtual:pwa-register' or its corresponding type declarations.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/hooks/useWebPush.ts	TS2345	Argument of type '"endpoint"' is not assignable to parameter of type 'never'.
+src/hooks/useWebPush.ts	TS2551	Property 'catch' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "14.15"; }, { Tables: { abandoned_carts: { Row: { converted: boolean; created_at: string; customer_address: string; customer_city: string; customer_country: string; customer_email: string; ... 9 more ...; updated_at: string; }; Insert: { ...; }; Update: { ...; }; Relationsh...'. Did you mean 'match'?
+src/hooks/useWebPush.ts	TS2551	Property 'catch' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "14.15"; }, { Tables: { abandoned_carts: { Row: { converted: boolean; created_at: string; customer_address: string; customer_city: string; customer_country: string; customer_email: string; ... 9 more ...; updated_at: string; }; Insert: { ...; }; Update: { ...; }; Relationsh...'. Did you mean 'match'?
+src/hooks/useWebPush.ts	TS2551	Property 'catch' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "14.15"; }, { Tables: { abandoned_carts: { Row: { converted: boolean; created_at: string; customer_address: string; customer_city: string; customer_country: string; customer_email: string; ... 9 more ...; updated_at: string; }; Insert: { ...; }; Update: { ...; }; Relationsh...'. Did you mean 'match'?
+src/hooks/useWebPush.ts	TS2769	No overload matches this call.
+src/hooks/useWebPush.ts	TS2769	No overload matches this call.
+src/hooks/useWebPush.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2339	Property 'success' does not exist on type 'Json | { avatar_url: string; full_name: string; id: string; is_founder: boolean; }[] | { address: string; banner_url: string; business_description: string; business_name: string; chatbot_enabled: boolean; ... 33 more ...; whatsapp_number: string; }[] | ... 7 more ... | { ...; }[]'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"get_or_create_my_wallet"' is not assignable to parameter of type '"accept_shop_invitation" | "apply_commission_payment" | "apply_shop_activation" | "apply_shop_subscription" | "can_manage_shop" | "check_rate_limit" | "cleanup_expired_trash" | ... 52 more ... | "verify_certificate_by_number"'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"merchant_id"' is not assignable to parameter of type 'never'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"merchant_id"' is not assignable to parameter of type 'never'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"merchant_id"' is not assignable to parameter of type 'never'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"merchant_id"' is not assignable to parameter of type 'never'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"save_merchant_payout_config"' is not assignable to parameter of type '"accept_shop_invitation" | "apply_commission_payment" | "apply_shop_activation" | "apply_shop_subscription" | "can_manage_shop" | "check_rate_limit" | "cleanup_expired_trash" | ... 52 more ... | "verify_certificate_by_number"'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"shop_id"' is not assignable to parameter of type 'never'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '"user_id"' is not assignable to parameter of type 'never'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '{ link_key: string; currency: string; is_active: boolean; is_sandbox: boolean; shop_id: string; product_id?: string; title: string; description?: string; amount: number; allow_custom_amount?: boolean; }' is not assignable to parameter of type 'RejectExcessProperties<{ converted?: boolean; created_at?: string; customer_address?: string; customer_city?: string; customer_country?: string; customer_email?: string; customer_name?: string; customer_phone?: string; ... 7 more ...; updated_at?: string; } | ... 85 more ... | { ...; }, { ...; }> | RejectExcessPrope...'.
+src/lib/ecomfyPay.ts	TS2345	Argument of type '{ user_id: string; updated_at: string; id?: string; full_name?: string; country?: string; phone_number?: string; address?: string | null; seller_type?: "individual" | "business"; document_type?: "cni" | "passport" | "consular_card" | "trade_register"; ... 12 more ...; created_at?: string; }' is not assignable to parameter of type 'RejectExcessProperties<{ converted?: boolean; created_at?: string; customer_address?: string; customer_city?: string; customer_country?: string; customer_email?: string; customer_name?: string; customer_phone?: string; ... 7 more ...; updated_at?: string; } | ... 85 more ... | { ...; }, { ...; }> | RejectExcessPrope...'.
+src/lib/ecomfyPay.ts	TS2352	Conversion of type 'string | number | boolean | { [key: string]: Json; } | Json[]' to type 'Wallet' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/lib/ecomfyPay.ts	TS2589	Type instantiation is excessively deep and possibly infinite.
+src/lib/ecomfyPay.ts	TS2589	Type instantiation is excessively deep and possibly infinite.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
+src/lib/verificationAuditService.ts	TS2339	Property 'company_name' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/lib/verificationAuditService.ts	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/lib/verificationAuditService.ts	TS2339	Property 'manager_name' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/modules/connectus/components/ConnectUsHeader.tsx	TS2345	Argument of type '{ id: string; user_id: string; username: string; full_name: string; avatar_url: null; bio: string; location: string; website_url: null; is_verified: false; is_business: false; followers_count: number; following_count: number; posts_count: number; created_at: string; }' is not assignable to parameter of type 'ConnectUsProfile'.
+src/modules/connectus/components/StoryBar.tsx	TS2339	Property 'length' does not exist on type 'Promise<ConnectUsStory[]>'.
+src/modules/connectus/components/StoryBar.tsx	TS2345	Argument of type 'Promise<ConnectUsStory[]>' is not assignable to parameter of type 'SetStateAction<ConnectUsStory[]>'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'boolean' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'boolean' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'boolean' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2322	Type 'string[]' is not assignable to type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'actor_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'actor_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'attached_product' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'attached_shop_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'avatar_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'avatar_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'bio' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'bio' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'caption' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'comments_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'content' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'content' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'conversation_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'cover_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'cover_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'created_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'created_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'created_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'created_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'created_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'expires_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'followers_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'followers_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'following_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'following_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'full_name' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'full_name' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'full_name' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'is_business' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'is_business' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'is_read' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'last_message' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'last_message_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'likes_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'likes_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'link_preview' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'location' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'location' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'media_type' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'media_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'media_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'media_urls' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'message' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'participant_ids' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'participant_ids' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'post_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'post_summary' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'posts_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'posts_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'reaction_type' does not exist on type 'SelectQueryError<"column 'reaction_type' does not exist on 'shops'."> | SelectQueryError<"column 'reaction_type' does not exist on 'ad_accounts'."> | ... 84 more ... | SelectQueryError<...>'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'receiver_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'recipient_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'sender_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'sender_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'shares_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'shop_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'shop_name' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'shop_slug' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'show_shop_on_profile' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'show_shop_on_profile' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'type' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'updated_at' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'username' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'username' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'video_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'viewers' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'views_count' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'visibility' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'website_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2339	Property 'website_url' does not exist on type 'ResultOne'.
+src/modules/connectus/services/connectus.service.ts	TS2345	Argument of type '"conversation_id"' is not assignable to parameter of type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2345	Argument of type '"recipient_id"' is not assignable to parameter of type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2345	Argument of type '"user_id"' is not assignable to parameter of type 'never'.
+src/modules/connectus/services/connectus.service.ts	TS2769	No overload matches this call.
+src/modules/connectus/services/connectus.service.ts	TS2769	No overload matches this call.
+src/modules/connectus/services/connectus.service.ts	TS2769	No overload matches this call.
+src/modules/connectus/services/connectus.service.ts	TS2769	No overload matches this call.
+src/modules/connectus/services/connectus.service.ts	TS2769	No overload matches this call.
+src/modules/connectus/services/connectus.service.ts	TS2769	No overload matches this call.
+src/modules/connectus/services/connectus.service.ts	TS2769	No overload matches this call.
+src/modules/connectus/utils/fileUploader.ts	TS2345	Argument of type 'PrepareResult' is not assignable to parameter of type 'Blob'.
+src/modules/connectus/utils/fileUploader.ts	TS2554	Expected 1 arguments, but got 3.
+src/pages/AffiliateSpace.tsx	TS2322	Type '{ title: string; }' is not assignable to type 'IntrinsicAttributes'.
+src/pages/CorporateGovernance.tsx	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'corporate_role' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'created_at' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'email' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'full_name' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'onboarding_completed' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
+src/pages/DeliveryAdminPage.tsx	TS2339	Property 'action_type' does not exist on type 'VerificationAuditLog'.
+src/pages/DeliveryAdminPage.tsx	TS2339	Property 'admin_notes' does not exist on type 'VerificationAuditLog'.
+src/pages/DeliveryAdminPage.tsx	TS2339	Property 'rejection_details' does not exist on type 'VerificationAuditLog'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'allow_custom_amount' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'amount' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'amount' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'created_at' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'currency' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'description' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'is_active' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'is_sandbox' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'link_key' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'product_id' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'products' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'shop_id' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'shops' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'shops' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'title' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'updated_at' does not exist on type 'ResultOne'.
+src/pages/EcomfyPayCheckout.tsx	TS2345	Argument of type '"link_key"' is not assignable to parameter of type 'never'.
+src/pages/EcomfyPayCheckout.tsx	TS2589	Type instantiation is excessively deep and possibly infinite.
+src/pages/EcomfyPayCheckout.tsx	TS2769	No overload matches this call.
+src/pages/GovernanceDocumentPage.tsx	TS2305	Module '"react"' has no exported member 'Link'.
+src/pages/GovernanceDocumentPage.tsx	TS2305	Module '"react"' has no exported member 'useNavigate'.
+src/pages/GovernanceDocumentPage.tsx	TS2305	Module '"react"' has no exported member 'useParams'.
+src/pages/PricingDashboard.tsx	TS2339	Property 'end_date' does not exist on type 'SelectQueryError<"column 'plan' does not exist on 'subscriptions'.">'.
+src/pages/PricingDashboard.tsx	TS2339	Property 'is_subscribed' does not exist on type 'SelectQueryError<"column 'is_subscribed' does not exist on 'shops'.">'.
+src/pages/PricingDashboard.tsx	TS2339	Property 'plan' does not exist on type 'SelectQueryError<"column 'plan' does not exist on 'subscriptions'.">'.
+src/pages/PricingDashboard.tsx	TS2339	Property 'status' does not exist on type 'SelectQueryError<"column 'plan' does not exist on 'subscriptions'.">'.
+src/pages/PricingDashboard.tsx	TS2339	Property 'subscription_active_until' does not exist on type 'SelectQueryError<"column 'is_subscribed' does not exist on 'shops'.">'.
+src/pages/PricingDashboard.tsx	TS2339	Property 'subscription_plan' does not exist on type 'SelectQueryError<"column 'is_subscribed' does not exist on 'shops'.">'.
+src/services/affiliateService.ts	TS2322	Type '"orange_money" | "wave" | "mtn_money" | "moov_money" | "bank_transfer"' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
+src/services/affiliateService.ts	TS2339	Property 'affiliate_id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'affiliate_id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'affiliate_id' does not exist on type 'SelectQueryError<"column 'affiliate_id' does not exist on 'shops'."> | SelectQueryError<"column 'affiliate_id' does not exist on 'ad_accounts'."> | ... 84 more ... | SelectQueryError<...>'.
+src/services/affiliateService.ts	TS2339	Property 'affiliate_id' does not exist on type 'SelectQueryError<"column 'affiliate_id' does not exist on 'shops'."> | SelectQueryError<"column 'affiliate_id' does not exist on 'ad_accounts'."> | ... 84 more ... | SelectQueryError<...>'.
+src/services/affiliateService.ts	TS2339	Property 'amount_paid' does not exist on type 'SelectQueryError<"column 'amount_paid' does not exist on 'shops'."> | SelectQueryError<"column 'amount_paid' does not exist on 'ad_accounts'."> | ... 84 more ... | SelectQueryError<...>'.
+src/services/affiliateService.ts	TS2339	Property 'commission_amount' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'commission_amount' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'commission_amount' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'commission_rate' does not exist on type 'SelectQueryError<"column 'commission_rate' does not exist on 'shops'."> | SelectQueryError<"column 'commission_rate' does not exist on 'ad_accounts'."> | ... 84 more ... | SelectQueryError<...>'.
+src/services/affiliateService.ts	TS2339	Property 'email' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'first_name' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'first_name' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'full_name' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'full_name' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'full_name' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'id' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'last_name' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'last_name' does not exist on type 'SelectQueryError<"column 'first_name' does not exist on 'profiles'.">'.
+src/services/affiliateService.ts	TS2339	Property 'referred_user_id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'referred_user_id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'status' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2339	Property 'user_id' does not exist on type 'ResultOne'.
+src/services/affiliateService.ts	TS2345	Argument of type '"affiliate_id"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"affiliate_id"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"affiliate_id"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"affiliate_id"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"affiliate_id"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"affiliate_id"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"get_or_create_my_affiliate"' is not assignable to parameter of type '"accept_shop_invitation" | "apply_commission_payment" | "apply_shop_activation" | "apply_shop_subscription" | "can_manage_shop" | "check_rate_limit" | "cleanup_expired_trash" | ... 52 more ... | "verify_certificate_by_number"'.
+src/services/affiliateService.ts	TS2345	Argument of type '"id"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"key"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"mark_affiliate_payout_paid"' is not assignable to parameter of type '"accept_shop_invitation" | "apply_commission_payment" | "apply_shop_activation" | "apply_shop_subscription" | "can_manage_shop" | "check_rate_limit" | "cleanup_expired_trash" | ... 52 more ... | "verify_certificate_by_number"'.
+src/services/affiliateService.ts	TS2345	Argument of type '"period_code"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"period_code"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"period_code"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2345	Argument of type '"record_affiliate_referral"' is not assignable to parameter of type '"accept_shop_invitation" | "apply_commission_payment" | "apply_shop_activation" | "apply_shop_subscription" | "can_manage_shop" | "check_rate_limit" | "cleanup_expired_trash" | ... 52 more ... | "verify_certificate_by_number"'.
+src/services/affiliateService.ts	TS2345	Argument of type '"status"' is not assignable to parameter of type 'never'.
+src/services/affiliateService.ts	TS2551	Property 'value' does not exist on type 'SelectQueryError<"column 'value' does not exist on 'shops'."> | SelectQueryError<"column 'value' does not exist on 'ad_accounts'."> | ... 84 more ... | SelectQueryError<...>'. Did you mean 'valueOf'?
+src/services/affiliateService.ts	TS2551	Property 'value' does not exist on type 'SelectQueryError<"column 'value' does not exist on 'shops'."> | SelectQueryError<"column 'value' does not exist on 'ad_accounts'."> | ... 84 more ... | SelectQueryError<...>'. Did you mean 'valueOf'?
+src/services/affiliateService.ts	TS2589	Type instantiation is excessively deep and possibly infinite.
+src/services/affiliateService.ts	TS2589	Type instantiation is excessively deep and possibly infinite.
+src/services/affiliateService.ts	TS2589	Type instantiation is excessively deep and possibly infinite.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/affiliateService.ts	TS2769	No overload matches this call.
+src/services/profileCompletionService.ts	TS2353	Object literal may only specify known properties, and 'first_name' does not exist in type 'RejectExcessProperties<{ avatar_url?: string; country?: string; created_at?: string; email?: string; free_generations_remaining?: number; free_optimizer_used?: boolean; free_product_sheet_used?: boolean; free_video_generations_remaining?: number; ... 9 more ...; updated_at?: string; }, { ...; }>'.
+src/test/affiliateSystemTest.test.ts	TS2367	This comparison appears to be unintentional because the types '"ULRICH-DJATE-3A8F"' and '"ULRICH-DJATE-B9D2"' have no overlap.

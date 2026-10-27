@@ -106,6 +106,23 @@ export interface WalletLedgerEntry {
   running_pending_balance: number;
   running_available_balance: number;
   created_at: string;
+  entry_seq?: number;
+  direction?: 'CREDIT' | 'DEBIT' | 'NONE';
+  internal_reference?: string | null;
+  provider_reference?: string | null;
+  provider?: string | null;
+  operator?: string | null;
+  payment_id?: string | null;
+  settlement_id?: string | null;
+  withdrawal_id?: string | null;
+  order_id?: string | null;
+  order_number?: string | null;
+  shop_id?: string | null;
+  gross_amount?: number | null;
+  fee_provider?: number | null;
+  fee_ecomfy?: number | null;
+  is_sandbox?: boolean;
+  metadata?: Record<string, any> | null;
 }
 
 export interface WithdrawalRequest {
@@ -116,6 +133,7 @@ export interface WithdrawalRequest {
   amount: number;
   currency: string;
   payout_method: 'mobile_money' | 'bank_transfer';
+  payout_operator?: 'wave' | 'orange_money' | 'mtn' | 'moov' | null;
   destination_phone?: string | null;
   destination_name?: string | null;
   destination_bank_iban?: string | null;

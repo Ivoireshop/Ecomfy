@@ -11,6 +11,8 @@ interface Props {
   fallback: React.ReactNode;
   onCheckout?: () => void;
   checkoutContent?: React.ReactNode;
+  /** Section des avis clients, affichée par le thème juste avant son pied de page. */
+  reviewsContent?: React.ReactNode;
 }
 
 class ThemeErrorBoundary extends React.Component<
@@ -38,7 +40,7 @@ class ThemeErrorBoundary extends React.Component<
   }
 }
 
-export default function ThemeRenderer({ product, shop, audios, settings, fallback, onCheckout, checkoutContent }: Props) {
+export default function ThemeRenderer({ product, shop, audios, settings, fallback, onCheckout, checkoutContent, reviewsContent }: Props) {
   const slug = settings?.theme_slug || null;
 
   // Force classic render: query ?classic=1 or no theme selected
@@ -46,7 +48,7 @@ export default function ThemeRenderer({ product, shop, audios, settings, fallbac
   if (force || !isKnownTheme(slug)) return <>{fallback}</>;
 
   const Theme = THEME_REGISTRY[slug].component;
-  const data = buildThemeData({ product, shop, audios, settings });
+  const data = { ...buildThemeData({ product, shop, audios, settings }), reviews: reviewsContent };
 
   void fallback;
   return (

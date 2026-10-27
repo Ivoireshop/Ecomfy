@@ -11,6 +11,8 @@ interface Props {
   shopName: string;
   primaryColor?: string;
   secondaryColor?: string;
+  /** Option premium « Masquer Propulsé par Ecomfy » (theme_config.hide_ecomfy_branding). */
+  hideEcomfyBranding?: boolean;
 }
 
 interface Msg { role: "user" | "assistant"; content: string }
@@ -40,7 +42,7 @@ interface AssistantConfig {
   voice_enabled: boolean;
 }
 
-export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", secondaryColor = "#7c3aed" }: Props) {
+export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", secondaryColor = "#7c3aed", hideEcomfyBranding = false }: Props) {
   const [config, setConfig] = useState<AssistantConfig | null>(null);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -397,7 +399,7 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
             </form>
             <p className="text-[10px] text-center text-gray-400 mt-2">
               <MessageCircle className="h-2.5 w-2.5 inline mr-1" />
-              Assistant IA {!(shop.theme_config?.hide_ecomfy_branding === true) && "— Propulsé par Ecomfy"}
+              Assistant IA {!hideEcomfyBranding && "— Propulsé par Ecomfy"}
             </p>
           </div>
         </Card>

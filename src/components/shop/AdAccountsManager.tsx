@@ -72,8 +72,14 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
   }, [loading, accounts]);
 
   const add = async () => {
-    if (!form.account_id.trim() || !form.access_token.trim()) {
+    // « act_123 » et « 123 » désignent le même compte : on stocke l'identifiant sans préfixe (sinon doublon possible et « act_act_123 » affiché).
+    const accountId = form.account_id.trim().replace(/^act_/i, "");
+    if (!accountId || !form.access_token.trim()) {
       toast({ title: "ID du compte et token requis", variant: "destructive" });
+      return;
+    }
+    if (!/^\d{5,20}$/.test(accountId)) {
+      toast({ title: "ID de compte invalide", description: "L'identifiant ne contient que des chiffres (sans le préfixe act_).", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -81,44 +87,51 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
       shop_id: shopId,
       user_id: userId,
       provider: form.provider,
-      account_id: form.account_id.trim(),
+      account_id: accountId,
       access_token: form.access_token.trim(),
       account_label: form.account_label.trim() || null,
     }).select().single();
     if (error) {
       setSaving(false);
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      const duplicate = error.code === "23505";
+      toast({ title: duplicate ? "Compte déjà connecté" : "Erreur", description: duplicate ? "Ce compte publicitaire est déjà relié à cette boutique." : error.message, variant: "destructive" });
       return;
     }
-    // Sync immédiat
-    await sync(data.id, true);
+    // Sync immédiat. Si elle échoue (ID ou token faux), on retire le compte qu'on vient de créer : sinon il reste
+    // listé avec « Erreur » et le formulaire est vidé, l'utilisateur doit tout retaper.
+    const synced = await sync(data.id, true);
+    if (!synced) {
+      await (supabase as any).from("ad_accounts").delete().eq("id", data.id);
+      setSaving(false);
+      load();
+      return;
+    }
     setSaving(false);
     setOpen(false);
     setForm({ provider: "meta", account_id: "", access_token: "", account_label: "" });
-    load();
-    onTotalsChanged?.();
   };
 
-  const sync = async (id: string, silent = false) => {
+  const sync = async (id: string, silent = false): Promise<boolean> => {
     setSyncingId(id);
     const { data, error } = await supabase.functions.invoke("sync-ad-spend", { body: { ad_account_id: id } });
     setSyncingId(null);
     if (error || !data?.success) {
       toast({ title: "Synchronisation échouée", description: data?.error || error?.message || "Vérifiez l'ID et le token", variant: "destructive" });
       load();
-      return;
+      return false;
     }
     if (!silent) {
       toast({ title: "Synchronisé", description: `${data.days} jour(s), ${fmt(data.total)} ${data.currency}` });
     }
     load();
     onTotalsChanged?.();
+    return true;
   };
 
   const remove = async (id: string) => {
     if (!confirm("Déconnecter ce compte publicitaire ? L'historique des dépenses synchronisées sera supprimé.")) return;
     const { error } = await (supabase as any).from("ad_accounts").delete().eq("id", id);
-    if (error) { toast({ title: "Erreur", variant: "destructive" }); return; }
+    if (error) { toast({ title: "Déconnexion impossible", description: error.message, variant: "destructive" }); return; }
     load();
     onTotalsChanged?.();
   };
@@ -148,7 +161,7 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="uppercase text-[10px]">{acc.provider}</Badge>
-                  <span className="text-sm font-medium truncate">{acc.account_label || `act_${acc.account_id}`}</span>
+                  <span className="text-sm font-medium truncate">{acc.account_label || `act_${acc.account_id.replace(/^act_/i, "")}`}</span>
                   {acc.token_expires_at && (() => {
                     const days = Math.ceil((new Date(acc.token_expires_at).getTime() - Date.now()) / 86400000);
                     if (days > 7) return null;
@@ -234,7 +247,7 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
                 Générer un token <ExternalLink className="h-3 w-3" />
               </a>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Permission requise : <code>ads_read</code>. Le token est stocké chiffré et n'est jamais affiché à nouveau.
+                Permission requise : <code>ads_read</code>. Le token n'est jamais affiché à nouveau. Le compte doit être en FCFA/XOF (ou en euro) pour que les montants soient comptés.
               </p>
             </div>
             <div>

@@ -111,7 +111,7 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider">
-                  ⚠️ SEUIL DE FACTURATION ATTEINT (240 COMMANDES)
+                  ⚠️ SEUIL DE FACTURATION ATTEINT
                 </span>
                 {formattedDate && (
                   <span className="text-xs text-amber-200/80 font-medium">
@@ -121,8 +121,8 @@ export const BillingAlertBanner: React.FC<BillingAlertBannerProps> = ({ shopId, 
               </div>
 
               <p className="text-sm text-slate-200 leading-snug">
-                Votre boutique a atteint 240 commandes. Un montant de <strong>{effectiveDue.toLocaleString("fr-FR")} FCFA</strong> est maintenant dû.
-                Vous disposez de 3 jours pour effectuer le règlement afin de conserver un accès normal à la gestion de votre boutique.
+                Un montant de <strong>{effectiveDue.toLocaleString("fr-FR")} FCFA</strong> est dû à Ecomfy.
+                Vous disposez jusqu'à la date limite pour effectuer le règlement afin de conserver un accès normal à la gestion de votre boutique.
               </p>
 
               <div className="flex items-center gap-2 text-xs font-bold text-amber-300 pt-1">
