@@ -16,6 +16,7 @@
     "typecheck:update": "node scripts/typecheck.mjs --update",
     "test": "vitest run",
     "test:watch": "vitest",
+    "secrets:compare": "node scripts/compare-secrets.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=critical",
     "preview": "vite preview",
     "native:setup": "bash scripts/setup-native.sh",
