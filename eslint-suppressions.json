@@ -1636,14 +1636,6 @@
       "count": 3
     }
   },
-  "supabase/functions/test-openai-image/index.ts": {
-    "@typescript-eslint/ban-ts-comment": {
-      "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "supabase/functions/track-conversion/index.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
