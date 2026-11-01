@@ -95,7 +95,11 @@ serve(async (req) => {
     // GeniusPay n'a qu'une URL de webhook par compte : les paiements clients d'Ecomfy Pay (table ecomfy_payments)
     // sont transmis tels quels (corps brut + en-têtes signés) à ecomfy-pay-webhook, qui vérifie la signature,
     // confirme auprès de l'opérateur et crédite le portefeuille. Cette fonction ne les traite pas.
+    // Les retraits (payout.*, withdrawal.*, transfer.*) suivent le même chemin : ecomfy-pay-webhook clôture le retrait
+    // (finalize_withdrawal). Même motif que GeniusPayConnector.parseWebhook, qui décide de ce qui est un retrait.
+    const isWithdrawalEvent = /^(payout|withdrawal|transfer)\./.test(String(event || "").toLowerCase());
     if (
+      isWithdrawalEvent ||
       metadata?.type === "ecomfy_pay_customer_order" ||
       String(metadata?.internal_reference || "").startsWith("ECM-PAY-")
     ) {

@@ -5,6 +5,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface SiteRow {
+  domain_status: string | null;
+  ssl_status: string | null;
+  user_id: string | null;
+  custom_domain: string | null;
+  domain_verification_code: string | null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
 // Fixed DNS configuration for VisualPro
 const VISUALPRO_CONFIG = {
   CNAME_TARGET: 'sites.visualpro.cloud',
@@ -150,35 +166,77 @@ Deno.serve(async (req) => {
       }
     );
 
-    const body = await req.json();
-    const { domain, verificationCode } = body;
+    // Authentification : la fonction écrit en base avec la clé de service, l'appelant doit donc être identifié
+    // et autorisé sur la ressource (propriétaire, collaborateur « edit_shop » de la boutique, admin ou fondateur).
+    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!token) {
+      return jsonResponse(401, { error: 'Authentification requise' });
+    }
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    const callerId = userData?.user?.id;
+    if (userError || !callerId) {
+      return jsonResponse(401, { error: 'Session expirée ou invalide' });
+    }
+
+    const body = await req.json().catch(() => ({}));
     // Back-compat: showcaseId / new: resourceId + resourceType ('showcase' | 'shop')
-    const resourceType: 'showcase' | 'shop' = body.resourceType || (body.shopId ? 'shop' : 'showcase');
+    const requestedType = body.resourceType || (body.shopId ? 'shop' : 'showcase');
+    if (requestedType !== 'shop' && requestedType !== 'showcase') {
+      return jsonResponse(400, { error: 'Invalid resourceType' });
+    }
+    const resourceType: 'showcase' | 'shop' = requestedType;
     const resourceId: string | undefined = body.resourceId || body.showcaseId || body.shopId;
     const tableName = resourceType === 'shop' ? 'shops' : 'showcase_sites';
     const showcaseId = resourceId; // keep local variable name to minimize diff
 
-    if (!resourceId || !domain || !verificationCode) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    if (!resourceId || typeof resourceId !== 'string' || !UUID_RE.test(resourceId)) {
+      return jsonResponse(400, { error: 'Missing required parameters' });
     }
 
-    console.log(`Verifying domain configuration for ${domain}...`);
-
-    // Get current domain status before verification
-    const selectColumns = resourceType === 'shop'
-      ? 'domain_status, ssl_status, business_name, user_id'
-      : 'domain_status, ssl_status, business_name, owner_name, user_id';
-    const { data: currentSite } = await supabaseClient
+    // Le domaine et le code de vérification viennent de la base, jamais de la requête : sinon un appelant
+    // pourrait faire « valider » la ressource d'un autre avec un domaine à lui.
+    const selectColumns: string = resourceType === 'shop'
+      ? 'domain_status, ssl_status, business_name, user_id, custom_domain, domain_verification_code'
+      : 'domain_status, ssl_status, business_name, owner_name, user_id, custom_domain, domain_verification_code';
+    const { data: currentSite } = (await supabaseClient
       .from(tableName)
       .select(selectColumns)
       .eq('id', resourceId)
-      .single();
+      .maybeSingle()) as { data: SiteRow | null };
+
+    if (!currentSite) {
+      return jsonResponse(404, { error: 'Ressource introuvable' });
+    }
+
+    let authorized = currentSite.user_id === callerId;
+    if (!authorized) {
+      const { data: roles } = await supabaseClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', callerId)
+        .in('role', ['admin', 'founder', 'co_founder']);
+      authorized = !!roles?.length;
+    }
+    if (!authorized && resourceType === 'shop') {
+      const { data: collabs } = await supabaseClient
+        .from('shop_collaborators')
+        .select('roles')
+        .eq('shop_id', resourceId)
+        .eq('user_id', callerId)
+        .eq('status', 'active');
+      authorized = !!collabs?.some((c: { roles: string[] | null }) => c.roles?.includes('edit_shop'));
+    }
+    if (!authorized) {
+      return jsonResponse(403, { error: 'Accès refusé' });
+    }
+
+    const domain: string | null = currentSite.custom_domain;
+    const verificationCode: string | null = currentSite.domain_verification_code;
+    if (!domain || !verificationCode) {
+      return jsonResponse(400, { error: 'Aucun domaine personnalisé configuré' });
+    }
+
+    console.log(`Verifying domain configuration for ${domain}...`);
 
     const previousStatus = currentSite?.domain_status;
     const previousSslStatus = currentSite?.ssl_status;
