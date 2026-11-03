@@ -102,7 +102,8 @@ export function ShopAssistantSettings({ shopId, isActivated }: Props) {
           voiceId: cfg.voice_id,
         },
       });
-      if (error || !data?.audioBase64) throw new Error(error?.message || "Échec");
+      if (error) throw new Error(error.message);
+      if (!data?.audioBase64) throw new Error(data?.message || "La voix n'est pas disponible pour le moment.");
       const audio = new Audio(`data:${data.mime || "audio/mpeg"};base64,${data.audioBase64}`);
       await audio.play();
     } catch (e: any) {

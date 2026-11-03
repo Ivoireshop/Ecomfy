@@ -85,3 +85,19 @@ test("correct-text : appel au modèle présent et taille bornée", () => {
   assert.match(code, /MAX_TEXT_CHARS/);
   assert.match(code, /enforceAiQuota\(req, "correct-text"/);
 });
+
+test("assistant de boutique : le chat passe par OpenRouter (secours Lovable), plus de clé unique obligatoire", () => {
+  const chat = src("shop-ai-assistant-chat/index.ts");
+  assert.ok(chat.includes("geminiChatStream"), "le chat doit utiliser le helper partagé");
+  assert.ok(!chat.includes('throw new Error("LOVABLE_API_KEY'), "LOVABLE_API_KEY ne doit plus être obligatoire");
+  assert.ok(!chat.includes("gemini-3-flash-preview"), "modèle de préversion retiré");
+  const helper = src("_shared/openrouter-chat.ts");
+  assert.ok(helper.includes("export async function geminiChatStream"));
+});
+
+test("voix de l'assistant : débit après ElevenLabs, voix validée, aperçu authentifié", () => {
+  const tts = src("shop-ai-assistant-tts/index.ts");
+  assert.ok(tts.indexOf("api.elevenlabs.io") < tts.indexOf("consumeShopOwnerCredit(shopId"), "le crédit se débite après la voix");
+  assert.ok(tts.includes("VOICE_ID_RE"), "identifiant de voix contrôlé avant d'entrer dans l'URL");
+  assert.ok(tts.includes("not_authenticated"), "l'aperçu sans boutique exige un utilisateur connecté");
+});

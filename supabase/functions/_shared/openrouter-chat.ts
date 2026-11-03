@@ -237,3 +237,63 @@ export async function geminiImage(
   if (typeof url !== "string" || !url) throw new Error("Lovable Cloud: pas d'image retournée");
   return { url, provider: "lovable" };
 }
+
+export interface ChatStreamOptions {
+  messages: ChatMessage[];
+  maxTokens?: number;
+  /** Délai pour obtenir le début de la réponse de chaque tentative (le flux, lui, n'est pas coupé). */
+  timeoutMs?: number;
+}
+
+export interface ChatStreamResult {
+  /** Réponse du fournisseur, déjà vérifiée (`ok`), au format SSE OpenAI (`choices[0].delta.content`). */
+  response: Response;
+  provider: "openrouter" | "lovable";
+  model: string;
+}
+
+/**
+ * Version « flux » de `geminiChat` pour les assistants de vitrine : OpenRouter d'abord, puis
+ * Lovable Cloud en secours, modèle par modèle. Seul l'établissement de la connexion est
+ * rejoué ; une fois le flux commencé, il est transmis tel quel.
+ * Lève une erreur uniquement si toutes les tentatives échouent.
+ */
+export async function geminiChatStream(opts: ChatStreamOptions): Promise<ChatStreamResult> {
+  const { messages, maxTokens, timeoutMs = 25000 } = opts;
+  const attempts: Array<{ provider: "openrouter" | "lovable"; key: string | undefined; url: string; model: string }> = [
+    { provider: "openrouter", key: Deno.env.get("OPENROUTER_API_KEY"), url: OPENROUTER_URL, model: "google/gemini-2.5-flash" },
+    { provider: "openrouter", key: Deno.env.get("OPENROUTER_API_KEY"), url: OPENROUTER_URL, model: "openai/gpt-4o-mini" },
+    { provider: "lovable", key: Deno.env.get("LOVABLE_API_KEY"), url: LOVABLE_URL, model: "google/gemini-2.5-flash" },
+  ];
+
+  let tried = 0;
+  for (const a of attempts) {
+    if (!a.key) continue;
+    tried++;
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const body: Record<string, unknown> = { model: a.model, messages, stream: true };
+      if (maxTokens) body.max_tokens = maxTokens;
+      const resp = await fetch(a.url, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${a.key}`,
+          "Content-Type": "application/json",
+          ...(a.provider === "openrouter" ? { "HTTP-Referer": "https://ecomfy.cloud", "X-Title": "Ecomfy" } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      if (resp.ok && resp.body) return { response: resp, provider: a.provider, model: a.model };
+      const errText = await resp.text().catch(() => "");
+      console.warn(`[geminiChatStream] ${a.provider} ${a.model} ${resp.status}:`, errText.slice(0, 300));
+    } catch (e) {
+      console.warn(`[geminiChatStream] ${a.provider} ${a.model} exception:`, e instanceof Error ? e.message : e);
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  throw new Error(tried === 0 ? "ai_not_configured" : "ai_unavailable");
+}
