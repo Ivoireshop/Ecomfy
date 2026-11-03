@@ -9,6 +9,13 @@ import { EmptyState } from "@/components/studio/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
+import {
+  loadStudioMedia,
+  loadStudioSession,
+  saveStudioMedia,
+  saveStudioSession,
+  StudioMode,
+} from "@/lib/studio/sessionStore";
 
 // Au-delà, on arrête d'attendre : la vidéo reste consultable dans la Bibliothèque.
 const VIDEO_WATCH_TIMEOUT_MS = 10 * 60 * 1000;
@@ -37,12 +44,19 @@ function throwIfRefused(data: any) {
 }
 
 export default function Studio() {
-  const [mode, setMode] = useState<"image" | "video">("image");
+  const [mode, setMode] = useState<StudioMode>("image");
   const [prompt, setPrompt] = useState("");
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState<string | null>(null);
-  
+  // Nature du résultat affiché : elle ne change pas quand l'utilisateur bascule d'onglet (une image ne doit pas finir dans un lecteur vidéo).
+  const [resultMode, setResultMode] = useState<StudioMode>("image");
+  // Vidéo en préparation côté serveur : conservée pour reprendre l'attente après un rafraîchissement.
+  const [pendingVideoId, setPendingVideoId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  // Tant que la session précédente n'est pas relue, on n'écrit rien (sinon on l'écraserait par l'état vide).
+  const [hydrated, setHydrated] = useState(false);
+
   const [settings, setSettings] = useState<StudioSettings>({
     aspectRatio: "1:1",
     style: "professional",
@@ -66,16 +80,75 @@ export default function Studio() {
   // Ne pas laisser un canal temps réel ouvert si l'utilisateur quitte le Studio.
   useEffect(() => stopWatchingVideo, []);
 
+  // Après un rafraîchissement : ré-afficher le dernier résultat et reprendre l'attente d'une vidéo en cours.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id ?? null;
+      const saved = uid ? loadStudioSession(uid) : null;
+      const storedMedia = uid ? loadStudioMedia(uid) : [];
+      if (cancelled) return;
+      setUserId(uid);
+      if (storedMedia.length > 0) {
+        // Le champ `file` n'est lu nulle part : on le reconstruit depuis la data-URL pour garder le type MediaFile.
+        const restored = await Promise.all(
+          storedMedia.map(async (m) => {
+            try {
+              const blob = await (await fetch(m.url)).blob();
+              return { id: m.id, url: m.url, file: new File([blob], m.name, { type: m.type }) } as MediaFile;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        if (cancelled) return;
+        setMedia(restored.filter((m): m is MediaFile => m !== null));
+      }
+      if (saved) {
+        setMode(saved.mode);
+        setPrompt(saved.prompt);
+        if (saved.settings) setSettings(saved.settings);
+        setGeneratedResult(saved.resultUrl);
+        setResultMode(saved.resultMode);
+        if (saved.pendingVideoId) {
+          setPendingVideoId(saved.pendingVideoId);
+          setIsGenerating(true);
+          watchVideo(saved.pendingVideoId);
+        }
+      }
+      setHydrated(true);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || !userId) return;
+    saveStudioSession(userId, { mode, prompt, settings, resultUrl: generatedResult, resultMode, pendingVideoId });
+  }, [hydrated, userId, mode, prompt, settings, generatedResult, resultMode, pendingVideoId]);
+
+  useEffect(() => {
+    if (!hydrated || !userId) return;
+    saveStudioMedia(
+      userId,
+      media.map((m) => ({ id: m.id, url: m.url, name: m.file.name, type: m.file.type })),
+    );
+  }, [hydrated, userId, media]);
+
   const watchVideo = (videoId: string) => {
     const handleRow = (row: any) => {
       if (row.status === "completed" && row.video_url && row.video_url !== "processing") {
         stopWatchingVideo();
+        setPendingVideoId(null);
         setGeneratedResult(row.video_url);
+        setResultMode("video");
         setIsGenerating(false);
         toast.success("Vidéo générée avec succès !");
       } else if (row.status === "failed" || row.status === "error") {
         // Le serveur écrit « failed » : attendre « error » laissait le chargement tourner indéfiniment.
         stopWatchingVideo();
+        setPendingVideoId(null);
         setIsGenerating(false);
         toast.error("La génération de la vidéo a échoué. Réessayez dans quelques instants.");
       }
@@ -96,12 +169,21 @@ export default function Studio() {
             .select("status, video_url")
             .eq("id", videoId)
             .maybeSingle()
-            .then(({ data }) => data && handleRow(data));
+            .then(({ data, error }) => {
+              if (data) return handleRow(data);
+              // Ligne supprimée entre-temps (ex. depuis la Bibliothèque) : inutile d'attendre jusqu'au délai maximal.
+              if (!error) {
+                stopWatchingVideo();
+                setPendingVideoId(null);
+                setIsGenerating(false);
+              }
+            });
         }
       });
 
     videoTimeoutRef.current = setTimeout(() => {
       stopWatchingVideo();
+      setPendingVideoId(null);
       setIsGenerating(false);
       toast.info("La vidéo est toujours en préparation. Retrouvez-la dans votre bibliothèque dès qu'elle est prête.");
     }, VIDEO_WATCH_TIMEOUT_MS);
@@ -114,6 +196,7 @@ export default function Studio() {
     }
 
     stopWatchingVideo();
+    setPendingVideoId(null);
     setIsGenerating(true);
     setGeneratedResult(null);
     let keepGenerating = false;
@@ -145,6 +228,7 @@ export default function Studio() {
         throwIfRefused(data);
 
         setGeneratedResult(data.imageUrl);
+        setResultMode("image");
         if (data.referenceIgnored) {
           toast.warning("Votre photo n'a pas pu être utilisée comme référence : l'image a été générée à partir de la description seule.");
         } else if (data.savedToLibrary === false) {
@@ -176,12 +260,14 @@ export default function Studio() {
 
         if (data.videoId) {
           toast.info("Vidéo en cours de préparation, cela peut prendre quelques minutes...");
+          setPendingVideoId(data.videoId);
           watchVideo(data.videoId);
           // La génération continue en arrière-plan : le chargement reste affiché jusqu'au résultat.
           keepGenerating = true;
           return;
         } else if (data.videoUrl) {
           setGeneratedResult(data.videoUrl);
+          setResultMode("video");
           toast.success("Vidéo générée avec succès !");
         }
       }
@@ -218,7 +304,7 @@ export default function Studio() {
 
   const handleDownload = async () => {
     if (!generatedResult) return;
-    const filename = `ecomfy-${mode}-${Date.now()}.${mode === "video" ? "mp4" : "png"}`;
+    const filename = `ecomfy-${resultMode}-${Date.now()}.${resultMode === "video" ? "mp4" : "png"}`;
     try {
       // L'attribut `download` est ignoré pour une URL d'un autre domaine (stockage) :
       // on passe par un blob pour forcer le téléchargement au lieu d'ouvrir le fichier.
@@ -270,7 +356,7 @@ export default function Studio() {
                 <Sparkles className="w-5 h-5 text-amber-500 absolute top-2 right-2 animate-bounce" />
               </div>
               <h3 className="text-2xl font-black text-foreground mb-2 tracking-tight">
-                {mode === "image" ? "Génération Afri AI Gen+ en cours..." : "Génération vidéo IA en cours..."}
+                {mode === "image" && !pendingVideoId ? "Génération Afri AI Gen+ en cours..." : "Génération vidéo IA en cours..."}
               </h3>
               <p className="text-muted-foreground text-sm max-w-md text-center font-medium leading-relaxed">
                 L'intelligence artificielle compose votre rendu studio en qualité maximale. Cela prend quelques secondes.
@@ -281,10 +367,14 @@ export default function Studio() {
           {generatedResult && (
             <GenerationCard
               url={generatedResult}
-              mode={mode}
+              mode={resultMode}
               onAnimateImage={handleAnimateImage}
               onDownload={handleDownload}
               onRegenerate={handleGenerate}
+              onLoadError={() => {
+                setGeneratedResult(null);
+                toast.info("Ce résultat n'est plus disponible. Générez-en un nouveau.");
+              }}
             />
           )}
 
