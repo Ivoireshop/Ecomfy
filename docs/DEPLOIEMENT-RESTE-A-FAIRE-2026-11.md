@@ -1,8 +1,50 @@
-# Déploiement — tout ce qui reste à passer en production (01/11/2026)
+# Déploiement — tout ce qui reste à passer en production (01/11/2026, mis à jour le 03/11/2026)
 
-**Projet prod :** `yfggrceynzcwklbxhgix` · **Dev :** `xfpbpxncserliskrbaim` · **Branche :** `jeanmarc` (code : `a522603`, 01/11/2026) · **Éditeur SQL :** Dashboard prod → SQL Editor. **Ne jamais utiliser `supabase db push`** (l'historique de migrations de la prod s'arrête à `20261018130000` : les migrations du 19 au 25/10 ont été appliquées à la main le 27/10, le CLI les croirait manquantes).
+**Projet prod :** `yfggrceynzcwklbxhgix` · **Dev :** `xfpbpxncserliskrbaim` · **Branche :** `jeanmarc` (code : `0f477ab`, 03/11/2026 ; le §1 à §9 a été écrit à `a522603`) · **Éditeur SQL :** Dashboard prod → SQL Editor. **Ne jamais utiliser `supabase db push`** (l'historique de migrations de la prod s'arrête à `20261018130000` : les migrations du 19 au 25/10 ont été appliquées à la main le 27/10, le CLI les croirait manquantes).
 
 Ce document remplace la liste dispersée dans les guides précédents. Il a été établi le 01/11/2026 en comparant `origin/main`, `jeanmarc` et l'état réel de la prod (lecture seule). Il renvoie aux guides détaillés au lieu de les recopier, sauf quand la prod a changé depuis.
+
+## Mise à jour du 03/11/2026 — contrôle de la prod en lecture seule (`--read-only`) et écart avec `origin/main`
+
+**Rien de ce document n'a encore été exécuté en prod.** Constaté le 03/11 (requêtes `SELECT` uniquement, `functions list`, `secrets list` pour les noms) :
+
+| Élément | Constat du 03/11 |
+|---|---|
+| `origin/main` (`27e7092`) | Toujours aucun commit absent de `jeanmarc`. `jeanmarc` a **22 commits de plus** (27/10 → 03/11), 69 fichiers. Toutes les migrations jusqu'à `20261025100000` sont déjà dans `main` ; seules 3 diffèrent (voir ci-dessous) |
+| Fonctions Edge en prod | **Aucun déploiement depuis le 27/10.** 69 fonctions ; plus récentes : 27/10 21 h–22 h 35 (`ecomfy-pay-*`, `gsc-*`, e-mails). `geniuspay-webhook` v21, `verify-domain-dns` v18 (19/10), `generate-ai-image` v32, `generate-video` v29, `generate-ad-visual` v30, `generate-feature-image` v23, `generate-product-sheet` v20, `shop-ai-assistant-chat` v20, `shop-ai-assistant-tts` v17 (11/08), `generate-voiceover` v20 |
+| Migrations | `20261027120000` et `20261030100000` actives. **`20261103100000_studio_ai_generation_log` absente** : `ai_generation_log` n'existe pas, ni `start_studio_generation`, ni `finish_studio_generation`, ni `expire_stale_studio_generations` ; pas de tâche `expire-stale-studio-generations` |
+| `pg_cron` | 6 tâches : `app-health-monitor`, `ecomfy-pay-settlement`, `enforce-shop-payment-deadlines`, `enforce-subscription-expiry`, `expire-stale-pending-payments`, `weekly-finance-summary`. **Absentes : `process-email-queue`, `expire-stale-ecomfy-payments`, `expire-stale-studio-generations`** |
+| `ecomfy_payments` | **20 `PENDING`, 0 `SUCCEEDED`**, dernier créé le 30/10 à 22 h 18 (UTC), tous de plus de 24 h. Aucun nouveau depuis le 01/11 |
+| File d'e-mails | **62 messages** (61 au 01/11). Nouveau : `shop-activation` du **02/11 à 13 h 14**, donc un vrai client attend toujours son mail d'activation (`email_send_log` : `pending`). Le plus vieux date du 12/08. Aucun travailleur, secret `email_queue_service_role_key` toujours absent du coffre (seuls `cron_secret` et `supabase_project_url`) |
+| `weekly-finance-summary` | A tourné le 02/11 à 08 h (`succeeded`, « 1 row »), mais **aucun message `finance-weekly-summary` n'est dans la file** : le résumé du 02/11 n'est pas parti. À regarder avant le lundi 09/11 (le travailleur doit tourner) |
+| `payment_events` | Table vide (aucune ligne `ERROR`/`AMOUNT_MISMATCH`/`CREDIT_BLOCKED`). Dernier `webhook_events` : `payment.success` le 02/11 à 13 h 14 (abonnement, route inchangée) |
+| Échecs `pg_cron` sur 48 h | 2 échecs `job startup timeout` de `expire-stale-pending-payments` (02/11 08 h 02 et 08 h 06 UTC), déjà un le 31/10 à 07 h 58. Tâche toutes les minutes, sans suite : démarrage du travail trop lent, pas une erreur du code. À surveiller ; à reprendre seulement si cela se répète |
+| `withdrawals_enabled` | `false` (inchangé) |
+| Secrets (noms) | `APP_URL`, `CRON_SECRET`, `ELEVEN_LABS_API_KEY`, `GENIUSPAY_API_KEY`, `GENIUSPAY_API_SECRET`, `GENIUSPAY_WEBHOOK_SECRET`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `REPLICATE_API_KEY`, `RESEND_API_KEY`, `VAPID_*` + `SUPABASE_*`. **Absents : `GOOGLE_OAUTH_CLIENT_ID` et `GOOGLE_OAUTH_CLIENT_SECRET`** (les fonctions `gsc-oauth-flow` et `gsc-analytics` sont déployées mais ne peuvent pas connecter Google Search Console), `EMAIL_MODE` (voulu), `AI_DAILY_COST_CAP_USD` (facultatif) |
+| Colonnes `profiles.is_founder` / `profiles.subscription_status` | Toujours absentes en prod (le point S2 du guide Studio IA s'applique donc aussi en prod) |
+| Dernière commande | `03/11 à 19 h 44` : la prod vit, un redéploiement incorrect se verrait tout de suite |
+| Projet lié du CLI | Au 03/11, `supabase/.temp/linked-project.json` pointe sur la **dev** (`xfpbpxncserliskrbaim`), alors que le guide Studio IA du même jour dit « prod ». **Toujours contrôler avec `cat supabase/.temp/linked-project.json` et passer `--project-ref` / `--remote=<ref>`** ; ne jamais se fier à `--linked` seul |
+
+### Ce qui s'est ajouté depuis le 01/11 (commits `9eda467` → `0f477ab`, 03/11, tous sur `jeanmarc`, non déployés)
+
+| Sujet | Commit | Prod : migration | Prod : fonctions | Prod : front (Vercel, via `main`) |
+|---|---|---|---|---|
+| Studio IA : tentatives bornées, coûts, quotas, remboursement | `9eda467` | **`20261103100000`** (avant les fonctions) | `generate-ai-image`, `generate-video`, `generate-ad-visual`, `generate-feature-image`, `generate-product-sheet` | `Studio`, `ProductEditor`, `AIImageGenerator`, `VariationGenerator` |
+| Échecs vidéo/voix classés, messages lisibles | `d0297bd` | — | `generate-video`, **`generate-voiceover`** | `AIImageGenerator`, `Generator` |
+| Studio : persistance après refresh | `31e5347` | — | — | `Studio`, `GenerationCard`, `sessionStore` |
+| Éditeur de produit : barre d'outils fixe | `fceb805` | — | — | `ProductEditor` |
+| `/pricing` : une seule formule « plan actuel » | `c210ae4` | — | — | `PricingDashboard`, `shopSubscription` |
+| Assistant IA de la boutique (chat via OpenRouter, voix débitée après coup) | `88212e8` | — | **`shop-ai-assistant-chat`**, **`shop-ai-assistant-tts`** (modifie aussi `_shared/openrouter-chat.ts`) | `ShopAIAssistant`, `ShopAssistantSettings` |
+| Marque : VisuelPro/VisualPro → Ecomfy | `e5496de` | — | `payment-callback`, `process-payment`, `extract-brand`, `mcp`, `send-contact-notification`, `send-push-notification`, `share-product`, `auth-email-hook` (gabarits) ; `public/.well-known/security.txt` | — |
+| ESLint de la CI (Studio IA) | `0f477ab` | — | (mêmes fichiers que `9eda467`) | — |
+
+**Fonctions qui importent `_shared/openrouter-chat.ts` sans être modifiées :** `finance-advisor`, `generate-shop-content`, `product-ai-optimizer`. Un redéploiement de celles-ci embarquerait le nouveau fichier partagé : ne les redéployer que sciemment.
+
+**Décisions toujours ouvertes avant la prod :** prix d'une vidéo (3 crédits, hypothèse) ; générations réelles de bout en bout à tester **sur dev** (image, photo de référence, prompt refusé par le filtre, vidéo : voir §6 du guide `DEPLOIEMENT-STUDIO-IA-2026-11.md`) ; fournir `GOOGLE_OAUTH_*` si Google Search Console doit être connecté.
+
+**Ordre d'exécution mis à jour (à partir du 03/11)** : §4 `verify-domain-dns` → §2 purge (62 messages) + fonctions e-mail + travailleur → §1 `geniuspay-webhook` et rattrapage → §3 expiration des paiements → **§10 Studio IA et assistant boutique (migration puis fonctions)** → §6 PR `jeanmarc` → `main` → §7 → §8. Le front du Studio ne change rien de nuisible avant les fonctions ; **les fonctions IA ne doivent jamais partir avant la migration `20261103100000`** (elles refusent alors toute génération).
+
+---
 
 ## 0. Ce qui est déjà fait (ne rien refaire)
 
@@ -17,7 +59,7 @@ Ce document remplace la liste dispersée dans les guides précédents. Il a ét�
 | Secrets présents | `GENIUSPAY_API_KEY`, `GENIUSPAY_API_SECRET`, `GENIUSPAY_WEBHOOK_SECRET`, `RESEND_API_KEY`, `APP_URL`, `CRON_SECRET`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `REPLICATE_API_KEY`, `ELEVEN_LABS_API_KEY`, `VAPID_*` |
 | Secrets absents (voulu) | `EMAIL_MODE` et `EMAIL_REDIRECT_TO` : la prod est donc en mode `live` |
 
-**Aucune migration SQL du dépôt n'est à appliquer.** Ce qui reste : 3 modifications en base à la main (§2, §3), 1 fonction à déployer (§1), 3 fonctions e-mail à redéployer (§2), du Git (§6), des tests (§7) et deux chantiers de code non écrits (§4, §5).
+**Au 01/11, aucune migration SQL du dépôt n'était à appliquer. Depuis le 03/11, une l'est : `20261103100000_studio_ai_generation_log` (voir §10).** Ce qui reste (état du 01/11, complété par la mise à jour du 03/11 ci-dessus) : 3 modifications en base à la main (§2, §3), 1 fonction à déployer (§1), 3 fonctions e-mail à redéployer (§2), du Git (§6), des tests (§7) et deux chantiers de code non écrits (§4, §5).
 
 ## Vue d'ensemble, par ordre de priorité
 
@@ -32,6 +74,7 @@ Ce document remplace la liste dispersée dans les guides précédents. Il a ét�
 | 7 | Tests applicatifs C5 à C8 et recettes non jouées | Cette semaine | 2 h | Tests |
 | 8 | Retraits (aiguillage des webhooks de retrait) | Avant d'ouvrir les retraits | 1 h | Fonction + test |
 | 9 | Surveillance 48 h | En continu | | SQL |
+| 10 | Studio IA (migration + 5 fonctions), voix, assistant boutique, marque (ajouté le 03/11) | Après 1 à 3 | 1 h + tests sur dev | 1 migration, 8 fonctions |
 
 ---
 
@@ -98,7 +141,9 @@ Guide de référence : [`DEPLOIEMENT-EMAILS-RESEND-2026-10.md`](DEPLOIEMENT-EMAI
 
 **Piège : ne pas lancer le travailleur avant d'avoir traité ces 61 messages.** Dès que la tâche tourne, ils partent tous vers de vrais clients (activations de boutique d'août, paiements de commission de septembre…). Soit on les vide, soit on décide lesquels méritent encore d'être envoyés.
 
-### 2.1 Décider du sort des 61 messages
+**Mise à jour du 03/11 :** la file compte maintenant **62 messages**. Le 62e est un `shop-activation` du **02/11 à 13 h 14**, donc récent : un vrai client attend. La purge recommandée ci-dessous le supprimerait aussi. Avant de purger, le copier à part (ou le laisser) : après démarrage du travailleur, le réinjecter avec `pgmq.send`, ou envoyer le mail à la main. L'échéance du lundi 02/11 est passée ; la prochaine est le **lundi 09/11 à 08 h UTC**.
+
+### 2.1 Décider du sort des 61 messages (62 au 03/11, voir ci-dessus)
 
 ```sql
 -- Aperçu : un message par ligne (lecture seule)
@@ -310,6 +355,40 @@ Critères de réussite :
 
 ---
 
+## 10. Studio IA, voix, assistant de la boutique, marque (ajouté le 03/11/2026)
+
+Guide détaillé du Studio IA : [`DEPLOIEMENT-STUDIO-IA-2026-11.md`](DEPLOIEMENT-STUDIO-IA-2026-11.md) (S1 à S10, changements de comportement, vérifications, retour arrière). Ce §10 ne le recopie pas.
+
+**Avant la prod (sur dev, à faire une fois)** : une image réussie, une image avec photo de référence, un prompt refusé par le filtre (le crédit doit être rendu, un seul appel fournisseur), une vidéo, un échec de voix. Jamais exécuté de bout en bout, même sur dev. Décider du prix de la vidéo (3 crédits supposés). Prévenir les marchands : un compte à 0 crédit ne génère plus d'image gratuite, de visuel publicitaire ni d'image de service.
+
+**Dans l'ordre**
+
+1. Contrôler la cible : `cat supabase/.temp/linked-project.json` (dev au 03/11) et passer `--remote=yfggrceynzcwklbxhgix` pour la prod.
+2. Pré-contrôle (lecture seule, déjà fait le 03/11 : attendu aucune ligne) : colonnes `profiles.is_founder` et `profiles.subscription_status`.
+3. Migration (idempotente) :
+
+   ```powershell
+   npx supabase@latest db query --remote=yfggrceynzcwklbxhgix -f supabase/migrations/20261103100000_studio_ai_generation_log.sql
+   ```
+
+   Contrôles : `select jobname, schedule, active from cron.job where jobname = 'expire-stale-studio-generations';` et `select to_regclass('public.ai_generation_log');`.
+4. Fonctions IA (après la migration) :
+
+   ```powershell
+   $P = "yfggrceynzcwklbxhgix"
+   npx supabase@latest functions deploy generate-ai-image generate-video generate-ad-visual generate-feature-image generate-product-sheet generate-voiceover --use-api --project-ref $P
+   npx supabase@latest functions deploy shop-ai-assistant-chat shop-ai-assistant-tts --use-api --project-ref $P
+   ```
+
+   Sans JWT, chacune doit répondre 401 (ou son refus propre). Ne pas redéployer `finance-advisor`, `generate-shop-content` ni `product-ai-optimizer` sans raison (elles importent `_shared/openrouter-chat.ts`, modifié).
+5. Fonctions de la marque (texte seulement, sans urgence, peuvent attendre le prochain déploiement) : `payment-callback`, `process-payment`, `extract-brand`, `mcp`, `send-contact-notification`, `send-push-notification`, `share-product`, `auth-email-hook`. `process-payment` touche aux paiements : la redéployer **après** le test du §1 pour ne pas mélanger deux causes en cas d'incident.
+6. Front : la PR `jeanmarc` → `main` (§6) apporte `Studio`, `ProductEditor`, `/pricing`, l'assistant de la boutique.
+7. Après quelques générations réelles : requêtes de la section 5 du guide Studio IA (coût par jour, échecs, réservations ouvertes > 30 min).
+
+**Retour arrière :** fonctions : redéployer la version précédente depuis `origin/main` (`git show origin/main:supabase/functions/<nom>/index.ts`) ; la migration n'a pas besoin d'être annulée (tables et RPC inutilisées sont inoffensives).
+
+---
+
 ## Liste de contrôle générale
 
 - [ ] **1.** `geniuspay-webhook` déployée depuis `a522603` (v22 attendue : paiements et retraits aiguillés), paiement réel de test réussi
@@ -326,6 +405,12 @@ Critères de réussite :
 - [ ] **7.** C5, C6, C7, C8 testés ; `secrets:compare` propre ; revue KYC
 - [ ] **8.** Événement de retrait aiguillé et retrait de test clôturé **avant** d'ouvrir `withdrawals_enabled`
 - [ ] **9.** Surveillance 48 h sans anomalie
+- [ ] **10.** Générations réelles testées sur dev, prix vidéo décidé
+- [ ] **10.** Migration `20261103100000` appliquée en prod (`ai_generation_log` existe, tâche `expire-stale-studio-generations` active)
+- [ ] **10.** 5 fonctions IA + `generate-voiceover` + `shop-ai-assistant-chat` / `-tts` déployées après la migration
+- [ ] **10.** Fonctions « marque » redéployées (non urgent)
+- [ ] Message `shop-activation` du 02/11 (client en attente) traité à la main ou envoyé après démarrage du travailleur
+- [ ] `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` posés si Google Search Console doit être connecté
 - [ ] Mettre à jour [`SUIVI-LANCEMENT-ETAT-PROD-2026-10.md`](SUIVI-LANCEMENT-ETAT-PROD-2026-10.md) et le journal [`DEPLOIEMENT-JEANMARC-VERS-MAIN-2026-10.md`](DEPLOIEMENT-JEANMARC-VERS-MAIN-2026-10.md)
 
 ## Ordre de déploiement conseillé, résumé

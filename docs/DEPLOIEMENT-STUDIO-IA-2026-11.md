@@ -2,7 +2,9 @@
 
 **Projet prod :** `yfggrceynzcwklbxhgix` · **Dev :** `xfpbpxncserliskrbaim`. **Branche :** `jeanmarc`. **Ne jamais utiliser `supabase db push`.**
 
-**Attention :** dans cet espace de travail, `supabase/.temp/linked-project.json` pointe sur la **PROD**. `--linked` seul vise donc la prod ; pour la dev, ajouter `--project-ref xfpbpxncserliskrbaim`.
+**Attention :** le projet lié du CLI (`supabase/.temp/linked-project.json`) change d'une session à l'autre. Il pointait sur la **prod** à la rédaction de ce guide ; **au 03/11/2026 (contrôle ultérieur) il pointe sur la dev** (`xfpbpxncserliskrbaim`). Ne jamais se fier à `--linked` seul : contrôler le fichier, et passer explicitement `--project-ref <ref>` (fonctions) ou `--remote=<ref>` (requêtes SQL). Les commandes du §4 ci-dessous utilisent `--linked` : les remplacer par `--remote=yfggrceynzcwklbxhgix` pour la prod.
+
+**Contrôle de la prod du 03/11/2026 (lecture seule) :** migration `20261103100000` non appliquée (`ai_generation_log` absente), cinq fonctions en versions antérieures (aucun déploiement depuis le 27/10), colonnes `profiles.is_founder` et `profiles.subscription_status` absentes (le point 1 du §4 donne bien « aucune ligne »). Ce guide est complété, pour la voix et l'assistant de la boutique, par le §10 de [`DEPLOIEMENT-RESTE-A-FAIRE-2026-11.md`](DEPLOIEMENT-RESTE-A-FAIRE-2026-11.md) : `generate-voiceover` (commit `d0297bd`) est à déployer avec les cinq autres.
 
 **Cinq fonctions concernées :** `generate-ai-image` (Studio), `generate-video`, `generate-ad-visual` (visuels publicitaires), `generate-feature-image` (images de services / formations, repli du Générateur), `generate-product-sheet` (fiche produit).
 

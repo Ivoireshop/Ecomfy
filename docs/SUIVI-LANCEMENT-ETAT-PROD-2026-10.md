@@ -1,12 +1,14 @@
 # Suivi du lancement : état réel en production
 
-**Date :** 30 octobre 2026 · **Projet prod :** `yfggrceynzcwklbxhgix` · **Source des tâches :** site « Ecomfy — Suivi du lancement » (dev-flow-sight.lovable.app, lu le 29/10/2026)
+**Date :** 3 novembre 2026 (première version : 30/10) · **Projet prod :** `yfggrceynzcwklbxhgix` · **Source des tâches :** site « Ecomfy — Suivi du lancement » (dev-flow-sight.lovable.app, statuts lus le 29/10/2026 ; le 03/11 le site s'affichait sans session, donc sans statuts)
 
-Le site est une liste cochée à la main : il ne sait pas ce qui est déployé. Ce document compare ses 112 tâches au code (`origin/main`, qui déploie le front par Vercel), aux journaux de déploiement (13/10, 27/10, 29/10) et aux contrôles faits en production le 30/10.
+Le site est une liste cochée à la main : il ne sait pas ce qui est déployé. Ce document compare ses 112 tâches au code (`origin/main`, qui déploie le front par Vercel, et la branche `jeanmarc`), aux journaux de déploiement (13/10, 27/10, 29/10) et aux contrôles faits en production les 30/10 et 03/11.
 
-✅ en prod · ⚠️ en prod mais incomplet ou non testé · ❓ à confirmer · n/a sans objet
+✅ en prod · ⚠️ en prod mais incomplet ou non testé · 🟡 code fait sur `jeanmarc`, **non déployé en prod** · ❌ aucun code trouvé · ❓ à confirmer · n/a sans objet
 
-**Le site affiche 24/112 (21 %). D'après ce document, environ 53 tâches sont en prod** (24 cochées + 29 de la Phase 1 non cochées).
+**Le site affichait 24/112 (21 %) le 29/10. D'après ce document, environ 53 tâches sont en prod** (24 cochées + 29 de la Phase 1 non cochées). **Six tâches de la Phase 2 sont codées mais pas en prod** (§3).
+
+**État de Git au 03/11 :** `origin/main` est resté au 27/10 (`27e7092`). `jeanmarc` a 22 commits d'avance, dont ceux du 30/10 au 03/11. Tant qu'ils ne sont pas fusionnés dans `main`, le front correspondant n'est pas en prod.
 
 ---
 
@@ -42,7 +44,7 @@ Le site est une liste cochée à la main : il ne sait pas ce qui est déployé. 
 | H2 : fermer les 8 tables de gouvernance | Terminé | ✅ 4 politiques attendues en place, RLS actif sur les 14 tables `corporate_*`, droits `anon` retirés le 30/10 | rien |
 | Bugs SEO intelligent : corriger toutes les anomalies | À faire | ⚠️ migrations posées, OAuth/synchro Google à construire | à discuter |
 | Bugs Ecomfy Academy : corriger toutes les anomalies | À faire | ✅ fonctions déployées le 27/10, recette non jouée | **cocher** |
-| H4 : authentifier et échapper les fonctions d'e-mail | Terminé | ⚠️ voir §4 : `verify-domain-dns` ouverte | à surveiller |
+| H4 : authentifier et échapper les fonctions d'e-mail | Terminé | ⚠️ 3 fonctions sur 4 protégées. 🟡 `verify-domain-dns` corrigée dans le code (`a522603`, 01/11), **pas déployée en prod au 03/11** (§5, point 1) | à surveiller |
 | H5 : verify-delivery-identity réservé aux admins | Terminé | ⚠️ fonction protégée (401), mais module `delivery_companies` absent en prod | rien |
 | Revue hebdomadaire avec le fondateur | À faire | n/a | rien |
 | Bugs Ecomfy Communauté : corriger toutes les anomalies | À faire | ✅ M12, recette non jouée | **cocher** |
@@ -77,15 +79,34 @@ Le site est une liste cochée à la main : il ne sait pas ce qui est déployé. 
 | Boutique : bugs Paramètres | À faire | ✅ M7 | **cocher** |
 | Revue de sécurité interne, validation du fondateur pour la Phase 2 | À faire | n/a | rien |
 
-## 3. Phases 2 à 4 : aucune tâche terminée (57)
+## 3. Phases 2 à 4 : aucune tâche terminée sur le site (57)
 
-Aucun code ni journal ne montre un déploiement, sauf mention.
+### Phase 2 (23 tâches), état au 03/11/2026
 
-**Phase 2 (23 tâches).** Wave : initiation et statuts · Wave : webhooks signés, erreurs, timeout · Orange Money : initiation et statuts · Orange Money : webhooks, erreurs, annulation · Rapprochement ledger / rapports opérateurs · Revue hebdomadaire · Studio IA : cause de l'erreur 4001 et message propre · Studio IA : résultats persistés après refresh · Abonnements : plan actif et commission 50 FCFA · Boutique : réparer l'assistant IA de la boutique · Studio IA : retry contrôlé, suivi des coûts et quotas · Quota 240 commandes / 12 000 FCFA, préavis 3 jours, verrouillage · Fiche produit : en-tête de l'éditeur toujours visible au défilement · Studio IA : UGC et fiche produit IA testés · Meta CAPI : audit en lecture seule · Boutique : ajout et modification fiables des termes · Logistique : flux commande → affectation → livraison, statuts · Meta : Purchase fiable (order_id, event_id, déduplication) · Fiche produit : affichage en 1 seconde depuis les publicités Facebook, TikTok, Google · Logistique : KYC/KYB, permis A/B, audit log, notifications · Démonstration au fondateur : paiement, IA, livraison · Revue hebdomadaire · Collaborateurs boutique : pouvoir tout cocher et donner l'accès total.
+| Tâche (nom du site) | Code (`jeanmarc`) | Prod |
+|---|---|---|
+| Studio IA : cause de l'erreur 4001 et message propre | `d0297bd` : échecs vidéo et voix classés, messages lisibles. Le code « 4001 » n'est pas cité dans le commit : à confirmer | 🟡 |
+| Studio IA : résultats persistés après refresh | `31e5347` : localStorage, 24 h, par utilisateur | 🟡 front seul |
+| Abonnements : plan actif et commission 50 FCFA | `c210ae4` : plan affiché d'après `subscription_active_until`. La commission passe par M1 | 🟡 affichage (`/pricing`), ✅ commission |
+| Boutique : réparer l'assistant IA de la boutique | `88212e8` : chat via OpenRouter, voix débitée après coup | 🟡 2 fonctions et le front |
+| Studio IA : retry contrôlé, suivi des coûts et quotas | `9eda467` + migration `20261103100000` | 🟡 dev seulement ; prix vidéo (3 crédits) à confirmer |
+| Fiche produit : en-tête de l'éditeur toujours visible au défilement | `fceb805` | 🟡 front seul |
+| Studio IA : UGC et fiche produit IA testés | code des 5 fonctions IA fait, aucun test de bout en bout | 🟡 non testé |
+| Quota 240 commandes / 12 000 FCFA, préavis 3 jours, verrouillage | en partie couvert par les tâches d'échéances (en prod) | ⚠️ à vérifier avant de cocher |
+| Boutique : ajout et modification fiables des termes | aucun commit sur des « termes » (`01dabda` traite les thèmes) | ❓ |
+| Wave : initiation et statuts · Wave : webhooks signés, erreurs, timeout · Orange Money : initiation et statuts · Orange Money : webhooks, erreurs, annulation | aucun commit dédié | ❌ |
+| Rapprochement ledger / rapports opérateurs | aucun commit dédié ; 20 paiements `PENDING` non rapprochés | ❌ |
+| Meta CAPI : audit en lecture seule · Meta : Purchase fiable (order_id, event_id, déduplication) | aucun commit dédié | ❌ |
+| Logistique : flux commande → affectation → livraison, statuts · Logistique : KYC/KYB, permis A/B, audit log, notifications | module livraison non déployé en prod (voir [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md)) | ❌ |
+| Fiche produit : affichage en 1 seconde depuis les publicités Facebook, TikTok, Google | aucun commit dédié (`624465c` du 21/10 : retour vers l'accueil seulement) | ❌ |
+| Collaborateurs boutique : pouvoir tout cocher et donner l'accès total | aucun commit dédié | ❌ |
+| Revue hebdomadaire (×2) · Démonstration au fondateur : paiement, IA, livraison | | n/a |
 
-- « Abonnements : plan actif et commission 50 FCFA » est probablement couvert par M1 (en prod), à vérifier avant de cocher.
-- « Quota 240 commandes… verrouillage » est en partie couvert par la tâche des échéances de paiement.
-- « Logistique : KYC/KYB » attend le module livraison (`delivery_companies` absent en prod).
+**Ne pas cocher les lignes 🟡 tant que la PR vers `main` n'est pas fusionnée et que la migration `20261103100000` n'est pas appliquée en prod.**
+
+### Phases 3 et 4
+
+Aucun commit dédié. Rien n'indique un travail démarré.
 
 **Phase 3 (24 tâches).** MTN Mobile Money : initiation et statuts · Dashboard : KPI réels · Page d'accueil boutique : corriger les bugs et la rendre plus smart · MTN : webhooks, erreurs, annulation · Revenus et activations, audit et gouvernance sur données réelles · Fiche produit : mesure de vitesse sur mobile · Moov Money : initiation et statuts · RBAC/RLS, collaborateurs, invitations e-mail, retrait des e-mails en dur (M7) · Moov : webhooks, erreurs, annulation · Page 404 propre, CORS et codes HTTP (M3) · Produits digitaux · API Ecomfy Pay documentée + sandbox · supabase db pull et SET search_path (M1, M11) · Revue hebdomadaire · Stock QR : activation par boutique, QR produit · Connect Ads : Business Manager et OAuth sécurisé · Stock : scan livreur et décrémentation · Connect Ads : dépenses et conversions Meta · Stock : historique et retours · Dépendances : npm audit fix, Capacitor ≥ 8.5.1 (M10) · Tests paiement : succès, échec, doublon, callback répété, timeout, paiement tardif · GEL DES FONCTIONNALITÉS · Décision sur les opérateurs sans accès production · Revue hebdomadaire.
 
@@ -117,9 +138,32 @@ Aucun code ni journal ne montre un déploiement, sauf mention.
 6. **Recettes non jouées** (journal du 27/10) : éditeur de produit en session marchand, abonnement par paiement réel, activation et paiement manuel fondateur, affiliation, suivi de livraison, bibliothèque, Académie, `/seo`, optimiseur IA, webhook Ecomfy Pay signé, console sur les pages autres que l'accueil.
 7. **Journaux de l'API Supabase :** rétention limitée, rien n'a été exporté dans un fichier.
 
-## 6. Modifications du dépôt de cette session, non commitées
+## 5 bis. Mise à jour du 03/11/2026 (contrôle de la prod en lecture seule)
 
-- `supabase/migrations/20261030100000_delivery_providers_verification_guard.sql` : garde de `delivery_providers` (déjà appliqué en prod).
-- Suppression de `supabase/functions/test-openai-image/` (indexée par `git rm`) : sans elle, un redéploiement complet remettrait la fonction en ligne.
-- `eslint-suppressions.json` : entrée de `test-openai-image` retirée.
-- Ce document.
+Détail complet et ordre d'exécution : [`DEPLOIEMENT-RESTE-A-FAIRE-2026-11.md`](DEPLOIEMENT-RESTE-A-FAIRE-2026-11.md), section « Mise à jour du 03/11/2026 ». Ce qui change pour le suivi :
+
+- **Aucun déploiement en prod depuis le 27/10** (fonctions) : les points 1, 4 et 5 ci-dessus sont toujours ouverts, aucun n'a avancé.
+- Point 4 (file d'e-mails) : **62 messages**, dont un `shop-activation` du 02/11 à 13 h 14 jamais envoyé ; le résumé finance du 02/11 n'est pas parti.
+- Point 5 : toujours **20 paiements `PENDING`**, tous de plus de 24 h, aucun nouveau depuis le 30/10.
+- Nouveau : la migration `20261103100000_studio_ai_generation_log` et 8 fonctions (Studio IA, voix, assistant boutique) sont prêtes sur `jeanmarc` mais **absentes de la prod** ; le front correspondant n'est pas dans `main`. Tâches concernées du site : « Studio IA : retry contrôlé, suivi des coûts et quotas », « Studio IA : résultats persistés après refresh » (front seul), « Boutique : réparer l'assistant IA de la boutique », « Fiche produit : en-tête de l'éditeur toujours visible » (front seul), « Abonnements : plan actif et commission 50 FCFA » (`/pricing`). **Ne pas les cocher tant que la PR vers `main` n'est pas fusionnée et la migration appliquée.**
+- Nouveau point ouvert : `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` absents des secrets de la prod (les fonctions `gsc-*` sont déployées).
+- `expire-stale-pending-payments` : 3 échecs `job startup timeout` (31/10 et 02/11), à surveiller.
+
+## 6. Modifications du dépôt du 30/10/2026 (commitées et poussées sur `origin/jeanmarc`, absentes de `main`)
+
+- `594941b` : migration `20261030100000_delivery_providers_verification_guard.sql` (garde de `delivery_providers`, déjà appliqué en prod) ; suppression de `supabase/functions/test-openai-image/` (sans elle, un redéploiement complet remettrait la fonction en ligne) ; entrée de `test-openai-image` retirée de `eslint-suppressions.json` ; première version de ce document.
+- `b7ef294` : plan de mise en production de H5, [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md).
+
+## 7. Commits de `jeanmarc` du 01/11 au 03/11/2026, non déployés
+
+| Commit | Sujet |
+|---|---|
+| `a522603` (01/11) | `verify-domain-dns` authentifié ; aiguillage des webhooks de retrait dans `geniuspay-webhook` |
+| `9eda467` (03/11) | Retry borné, suivi des coûts et quotas sur 5 fonctions IA (migration `20261103100000`) |
+| `d0297bd` (03/11) | Échecs vidéo et voix classés, messages lisibles |
+| `31e5347` (03/11) | Studio IA : résultat, prompt, réglages et images persistés après refresh |
+| `c210ae4` (03/11) | `/pricing` : une seule formule « plan actuel », la date de fin fait foi |
+| `88212e8` (03/11) | Assistant IA de la boutique réparé (chat via OpenRouter, voix débitée après coup) |
+| `fceb805` (03/11) | Fiche produit : barre d'outils de la description toujours visible au défilement |
+| `e5496de` (03/11) | VisuelPro/VisualPro remplacé par Ecomfy dans les mails, paiements et fonctions |
+| `0f477ab` (03/11) | Erreurs ESLint de la CI sur le Studio IA |
