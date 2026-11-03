@@ -2,6 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { enforceUserAiQuota, getAuthenticatedUserId } from "../_shared/ai-quota.ts";
+import { estimateImageCostUsd, estimateTextCallCostUsd } from "../_shared/ai-cost.ts";
+import { finishGeneration, startGeneration } from "../_shared/ai-generation-log.ts";
+import { isOperatorAlertCode, userMessageForFailure } from "../_shared/ai-retry.ts";
+import type { Failure } from "../_shared/ai-retry.ts";
+import { generateOpenAiImage, persistGeneratedImage } from "../_shared/openai-image-engine.ts";
 import { OPENAI_CONFIG, getOpenAiApiKey } from "../_shared/openai-config.ts";
 import { analyzeImageWithGpt4oMini } from "../_shared/openai-key.ts";
 import { PromptEngine } from "../_shared/prompt-engine.ts";
@@ -10,6 +15,9 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const json = (body: unknown) =>
+  new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 serve(async (req: Request) => {
   const startTime = Date.now();
@@ -57,7 +65,8 @@ serve(async (req: Request) => {
     const OPENAI_API_KEY = getOpenAiApiKey();
     if (!OPENAI_API_KEY) {
       console.error("[Engine Audit] Missing OPENAI_API_KEY.");
-      throw new Error("Clé API OpenAI non configurée côté serveur (OPENAI_API_KEY).");
+      console.error("[AI-OPERATOR-ALERT] generate-ai-image : OPENAI_API_KEY absente");
+      return json({ success: false, error: userMessageForFailure("provider_auth"), code: "provider_auth" });
     }
 
     let imageSize = OPENAI_CONFIG.ASPECT_RATIO_MAP[aspectRatio] || OPENAI_CONFIG.DEFAULT_SIZE;
@@ -66,284 +75,132 @@ serve(async (req: Request) => {
     const sacredPrompt = (prompt || userPrompt || "").trim();
     const imageToAnalyze = sourceImage || bannerImage || replacementPhoto;
 
-    // 1. Profil (fondateur / abonné) pour la gestion des crédits en fin de traitement
-    let isFounder = false;
-    let hasActiveSubscription = false;
+    // Réservation AVANT tout appel payant : solde (ou exemption fondateur / abonné), plafond de coût du jour, débit
+    // atomique. Le crédit est rendu automatiquement si la génération échoue (finishGeneration "failed").
+    // Avant, le solde n'était jamais vérifié : un compte à zéro générait gratuitement.
+    const gen = await startGeneration(userId, "image");
+    if (!gen.allowed) return gen.response;
 
-    if (userId && !userId.startsWith("guest-")) {
-      const { data: profile } = await supabaseClient
-        .from("profiles")
-        .select("is_founder, subscription_status")
-        .eq("id", userId)
-        .maybeSingle();
+    // Dépense engagée, y compris si l'image elle-même échoue ensuite (audit visuel + synthèse du prompt).
+    let costUsd = 0;
+    let attempts = 0;
+    let modelUsed: string | null = null;
 
-      if (profile) {
-        isFounder = profile.is_founder === true;
-        hasActiveSubscription = profile.subscription_status === "active";
-      }
-    }
-
-    // 2. Vision Audit (GPT-4o) for Reference Product Photo
-    let visionAnalysis = "";
-    if (imageToAnalyze) {
-      console.log(`[Engine Audit] Auditing reference product image with ${OPENAI_CONFIG.VISION_MODEL}...`);
-      visionAnalysis = await analyzeImageWithGpt4oMini(imageToAnalyze);
-    }
-
-    // 3. Synthesize 23-Pillar Commercial Ad Prompt via PromptEngine
-    console.log(`[Engine Audit] Synthesizing prompt via PromptEngine (Mode: ${mode})...`);
-    const finalExpandedPrompt = await PromptEngine.generateProfessionalPrompt({
-      userPrompt: sacredPrompt,
-      mode,
-      style,
-      sourceImageAnalysis: visionAnalysis,
-      aspectRatio,
-      productName,
-      niche
-    });
-
-    console.log(`[Engine Audit] Calling OpenAI Engine (Reference Image: ${!!imageToAnalyze}, Size: ${imageSize})...`);
-
-    // 4. OpenAI Image Engine Execution (Option A Image Edits / Generations)
-    const imageUrl = await callOpenAiImageEngine(OPENAI_API_KEY, finalExpandedPrompt, imageSize, imageToAnalyze);
-
-    const durationMs = Date.now() - startTime;
-    console.log(`[Engine Audit] Generation Successful in ${durationMs}ms for user ${userId}`);
-
-    // 5. Upload image to permanent Supabase Storage (generated-images bucket)
-    let permanentImageUrl = imageUrl;
-    let persistedInStorage = false;
     try {
-      let imageBytes: Uint8Array | null = null;
-      let contentType = "image/png";
-
-      if (imageUrl.startsWith("data:")) {
-        const parts = imageUrl.split(",");
-        const mimeMatch = parts[0].match(/:(.*?);/);
-        if (mimeMatch) contentType = mimeMatch[1];
-        const bstr = atob(parts[1]);
-        imageBytes = new Uint8Array(bstr.length);
-        for (let i = 0; i < bstr.length; i++) {
-          imageBytes[i] = bstr.charCodeAt(i);
-        }
-      } else {
-        const imageRes = await fetch(imageUrl);
-        if (imageRes.ok) {
-          const arrayBuffer = await imageRes.arrayBuffer();
-          imageBytes = new Uint8Array(arrayBuffer);
-          const headerType = imageRes.headers.get("content-type");
-          if (headerType) contentType = headerType;
-        }
+      // 2. Vision Audit (GPT-4o) for Reference Product Photo
+      let visionAnalysis = "";
+      if (imageToAnalyze) {
+        console.log(`[Engine Audit] Auditing reference product image with ${OPENAI_CONFIG.VISION_MODEL}...`);
+        visionAnalysis = await analyzeImageWithGpt4oMini(imageToAnalyze);
+        costUsd += estimateTextCallCostUsd();
       }
 
-      if (imageBytes) {
-        const storagePath = `${userId}/${Date.now()}_${crypto.randomUUID().substring(0, 8)}.png`;
-        const { error: uploadError } = await supabaseClient.storage
-          .from("generated-images")
-          .upload(storagePath, imageBytes, {
-            contentType,
-            upsert: true,
-          });
+      // 3. Synthesize 23-Pillar Commercial Ad Prompt via PromptEngine
+      console.log(`[Engine Audit] Synthesizing prompt via PromptEngine (Mode: ${mode})...`);
+      const finalExpandedPrompt = await PromptEngine.generateProfessionalPrompt({
+        userPrompt: sacredPrompt,
+        mode,
+        style,
+        sourceImageAnalysis: visionAnalysis,
+        aspectRatio,
+        productName,
+        niche
+      });
+      costUsd += estimateTextCallCostUsd();
 
-        if (!uploadError) {
-          const { data: publicUrlData } = supabaseClient.storage
-            .from("generated-images")
-            .getPublicUrl(storagePath);
-          if (publicUrlData?.publicUrl) {
-            permanentImageUrl = publicUrlData.publicUrl;
-            persistedInStorage = true;
+      console.log(`[Engine Audit] Calling OpenAI Engine (Reference Image: ${!!imageToAnalyze}, Size: ${imageSize})...`);
+
+      // 4. OpenAI Image Engine Execution : budget d'appels borné, échecs triés (voir _shared/ai-retry.ts)
+      const engine = await generateOpenAiImage(OPENAI_API_KEY, finalExpandedPrompt, imageSize, imageToAnalyze, startTime);
+      attempts = engine.attempts;
+      modelUsed = engine.model;
+
+      if (!engine.ok) {
+        const failure = engine.failure as Failure;
+        console.error(
+          `[Engine Audit] Image engine failed (${failure.code}) after ${engine.attempts} call(s):`,
+          engine.trail.join(" > "),
+          failure.detail
+        );
+        if (isOperatorAlertCode(failure.code)) {
+          // Repérable dans les logs de la fonction : clé invalide, solde OpenAI épuisé, modèle retiré.
+          console.error(`[AI-OPERATOR-ALERT] generate-ai-image : ${failure.code} (HTTP ${failure.status})`);
+        }
+        const fin = await finishGeneration(gen.logId, {
+          status: "failed", attempts, model: modelUsed, costUsd, durationMs: Date.now() - startTime, errorCode: failure.code,
+        });
+        // 200 + success:false : convention des fonctions IA, les écrans affichent `error` tel quel.
+        return json({
+          success: false,
+          error: userMessageForFailure(failure.code),
+          code: failure.code,
+          refunded: fin.refunded,
+        });
+      }
+
+      const imageUrl = engine.url as string;
+      costUsd += estimateImageCostUsd(engine.model as string, OPENAI_CONFIG.IMAGE_QUALITY, imageSize);
+
+      const durationMs = Date.now() - startTime;
+      console.log(`[Engine Audit] Generation Successful in ${durationMs}ms (${attempts} call(s)) for user ${userId}`);
+
+      // 5. Copie dans le stockage permanent (bucket generated-images)
+      const stored = await persistGeneratedImage(supabaseClient, userId, imageUrl);
+      const permanentImageUrl = stored.url;
+      const persistedInStorage = stored.persisted;
+
+      // 6. Save to DB for Library (retained 30 days).
+      // Sans copie dans le stockage, image_url serait une data-URL de plusieurs Mo (qui alourdit toute la
+      // Bibliothèque) ou une URL OpenAI qui expire en ~1 h : on n'enregistre alors rien et on le signale au client.
+      let savedToLibrary = false;
+      if (persistedInStorage) {
+        const { data: insertedRecord, error: dbError } = await supabaseClient.from("generated_images").insert({
+          user_id: userId,
+          image_url: permanentImageUrl,
+          prompt: finalExpandedPrompt.substring(0, 3500),
+          product_details: {
+            mode,
+            style,
+            preset: preset?.name || null,
+            originalPrompt: sacredPrompt,
+            size: imageSize,
+            modelUsed,
+            durationMs,
+            attempts,
+            estimatedCostUsd: Number(costUsd.toFixed(4))
           }
+        }).select().maybeSingle();
+
+        if (dbError) {
+          console.error("[Engine DB Error] Failed to insert generated_images:", dbError);
         } else {
-          console.warn("[Engine Storage Upload Warning]:", uploadError);
+          savedToLibrary = true;
+          console.log(`[Engine DB Audit] Saved generated image ID ${insertedRecord?.id} to Library for user ${userId}`);
         }
       }
-    } catch (storageErr) {
-      console.warn("[Engine Storage Exception]:", storageErr);
-    }
 
-    // 6. Save to DB for Library (retained 30 days).
-    // Sans copie dans le stockage, image_url serait une data-URL de plusieurs Mo (qui alourdit toute la
-    // Bibliothèque) ou une URL OpenAI qui expire en ~1 h : on n'enregistre alors rien et on le signale au client.
-    let savedToLibrary = false;
-    if (userId && !userId.startsWith("guest-") && persistedInStorage) {
-      const { data: insertedRecord, error: dbError } = await supabaseClient.from("generated_images").insert({
-        user_id: userId,
-        image_url: permanentImageUrl,
-        prompt: finalExpandedPrompt.substring(0, 3500),
-        product_details: {
-          mode,
-          style,
-          preset: preset?.name || null,
-          originalPrompt: sacredPrompt,
-          size: imageSize,
-          modelUsed: OPENAI_CONFIG.IMAGE_MODEL,
-          durationMs,
-          estimatedCostUsd: OPENAI_CONFIG.ESTIMATED_COST_USD
-        }
-      }).select().maybeSingle();
+      // 7. Clôture : coût estimé, tentatives, durée. Le crédit réservé au départ reste débité (succès).
+      await finishGeneration(gen.logId, { status: "succeeded", attempts, model: modelUsed, costUsd, durationMs });
 
-      if (dbError) {
-        console.error("[Engine DB Error] Failed to insert generated_images:", dbError);
-      } else {
-        savedToLibrary = true;
-        console.log(`[Engine DB Audit] Saved generated image ID ${insertedRecord?.id} to Library for user ${userId}`);
-      }
-    }
-
-    // 7. Credit management
-    if (!hasActiveSubscription && !isFounder && !userId.startsWith("guest-")) {
-      const { data: profileData } = await supabaseClient
-        .from("profiles")
-        .select("free_generations_remaining, purchased_credits")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (profileData) {
-        if (profileData.purchased_credits > 0) {
-          await supabaseClient
-            .from("profiles")
-            .update({ purchased_credits: profileData.purchased_credits - 1 })
-            .eq("id", userId);
-        } else if (profileData.free_generations_remaining > 0) {
-          await supabaseClient
-            .from("profiles")
-            .update({ free_generations_remaining: profileData.free_generations_remaining - 1 })
-            .eq("id", userId);
-        }
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        imageUrl: permanentImageUrl, 
+      return json({
+        imageUrl: permanentImageUrl,
         prompt: finalExpandedPrompt,
         success: true,
         savedToLibrary,
+        referenceIgnored: engine.referenceIgnored === true,
         durationMs
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
+      });
+    } catch (genErr) {
+      // Erreur inattendue après la réservation (synthèse du prompt, stockage…) : clôture en échec, ce qui rembourse.
+      await finishGeneration(gen.logId, {
+        status: "failed", attempts, model: modelUsed, costUsd, durationMs: Date.now() - startTime, errorCode: "internal_error",
+      });
+      throw genErr;
+    }
   } catch (err: any) {
     const durationMs = Date.now() - startTime;
-    const errorMessage = err.message || "Une erreur est survenue lors de la génération de l'image.";
-    console.error(`[Engine Audit Error] Failed after ${durationMs}ms:`, errorMessage);
-
-    return new Response(
-      JSON.stringify({ 
-        error: errorMessage,
-        success: false 
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Le détail reste dans les logs : il peut contenir des éléments du fournisseur qu'on ne montre pas à l'utilisateur.
+    console.error(`[Engine Audit Error] Failed after ${durationMs}ms:`, err?.message || err);
+    return json({ success: false, error: userMessageForFailure("internal_error"), code: "internal_error" });
   }
 });
-
-async function callOpenAiImageEngine(apiKey: string, prompt: string, size: string, referenceImage?: string): Promise<string> {
-  const models = [OPENAI_CONFIG.IMAGE_MODEL, OPENAI_CONFIG.IMAGE_MODEL_FALLBACK, "dall-e-3"];
-  let lastError = "";
-
-  // If user provided a reference image, execute Option A (/v1/images/edits) first
-  if (referenceImage) {
-    try {
-      console.log(`[OpenAI Call] Executing Option A (Reference Image Input via /v1/images/edits)...`);
-      let imageBlob: Blob;
-
-      if (referenceImage.startsWith("data:")) {
-        const parts = referenceImage.split(",");
-        const mimeMatch = parts[0].match(/:(.*?);/);
-        const mime = mimeMatch ? mimeMatch[1] : "image/png";
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        imageBlob = new Blob([u8arr], { type: mime });
-      } else {
-        const fetchRes = await fetch(referenceImage);
-        imageBlob = await fetchRes.blob();
-      }
-
-      for (const modelCandidate of models) {
-        try {
-          console.log(`[OpenAI Edits] Trying model ${modelCandidate} via /v1/images/edits...`);
-          const formData = new FormData();
-          formData.append("image", imageBlob, "product_reference.png");
-          formData.append("prompt", prompt.substring(0, 950));
-          formData.append("model", modelCandidate);
-          formData.append("n", "1");
-          formData.append("size", size);
-
-          const res = await fetch("https://api.openai.com/v1/images/edits", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: formData,
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            const url = data.data?.[0]?.url || (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
-            if (url) {
-              console.log(`[OpenAI Edits SUCCESS] Option A succeeded with model ${modelCandidate}!`);
-              return url;
-            }
-          } else {
-            const errText = await res.text();
-            console.warn(`[OpenAI Edits ${modelCandidate} Failed]:`, res.status, errText);
-            lastError = errText;
-          }
-        } catch (editErr) {
-          console.warn(`[OpenAI Edits ${modelCandidate} Exception]:`, editErr);
-        }
-      }
-    } catch (blobErr) {
-      console.warn("[OpenAI Edits Blob Conversion Failed]:", blobErr);
-    }
-  }
-
-  // Fallback to /v1/images/generations with Vision-Guided Sacred Prompt
-  console.log(`[OpenAI Call] Executing /v1/images/generations with Vision-Guided Prompt Engine...`);
-  for (const modelCandidate of models) {
-    try {
-      console.log(`[OpenAI Call] Requesting model ${modelCandidate} (${size}, quality: ${OPENAI_CONFIG.IMAGE_QUALITY})...`);
-      const bodyPayload: any = {
-        model: modelCandidate,
-        prompt: prompt.substring(0, 3800),
-        size,
-        n: 1,
-      };
-
-      if (modelCandidate.startsWith("gpt-image")) {
-        bodyPayload.quality = OPENAI_CONFIG.IMAGE_QUALITY;
-      } else {
-        bodyPayload.quality = "hd";
-      }
-
-      const res = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(bodyPayload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const url = data.data?.[0]?.url || (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
-        if (url) return url;
-      } else {
-        lastError = await res.text();
-        console.warn(`[OpenAI Call ${modelCandidate} Failed]:`, res.status, lastError);
-      }
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      console.warn(`[OpenAI Call ${modelCandidate} Exception]:`, lastError);
-    }
-  }
-
-  throw new Error(`Échec de la génération d'image OpenAI : ${lastError}`);
-}

@@ -122,7 +122,9 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
         setGeneratedImage(data.imageUrl);
         toast.success("Image générée et sauvegardée dans la bibliothèque !");
       } else {
-        toast.error("Erreur lors de la génération de l'image");
+        // Refus ou échec renvoyé en 200 (solde épuisé, limite du jour, filtre de sécurité…) : le message est lisible.
+        if (data?.code === "credits_required") window.dispatchEvent(new Event("open-credits-dialog"));
+        toast.error(data?.error || "Erreur lors de la génération de l'image");
       }
     } catch (error: any) {
       console.error("Error generating image:", error);

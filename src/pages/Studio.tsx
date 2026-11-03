@@ -18,10 +18,22 @@ async function readFunctionError(error: any): Promise<string> {
   try {
     if (error?.context && typeof error.context.json === "function") {
       const errJson = await error.context.json();
+      // `message` est le texte lisible ; `error` peut n'être qu'un code (ex. « rate_limited »).
+      if (errJson?.message) return errJson.message;
       if (errJson?.error) return errJson.error;
     }
   } catch (_) {}
   return "";
+}
+
+/**
+ * Refus ou échec renvoyé par le serveur dans un corps 200 (`success: false`, `error` lisible, `code` stable).
+ * Un solde épuisé ouvre la fenêtre de recharge ; dans les autres cas le message est simplement affiché.
+ */
+function throwIfRefused(data: any) {
+  if (!data || (data.success !== false && !data.error)) return;
+  if (data.code === "credits_required") window.dispatchEvent(new Event("open-credits-dialog"));
+  throw new Error(data.error || data.message || "La génération n'a pas pu être terminée.");
 }
 
 export default function Studio() {
@@ -127,18 +139,15 @@ export default function Studio() {
         });
 
         if (error) {
-          const status = (error as any)?.status;
-          if (status === 403 || status === 402) {
-            window.dispatchEvent(new Event("open-credits-dialog"));
-            throw new Error("Vous avez utilisé vos 3 générations gratuites. Veuillez recharger vos crédits IA ou souscrire à un abonnement.");
-          }
           const serverMsg = await readFunctionError(error);
           throw new Error(serverMsg || "Le service de génération d'images rencontre une petite pause. Veuillez réessayer dans un instant.");
         }
-        if (data?.error) throw new Error(data.error);
+        throwIfRefused(data);
 
         setGeneratedResult(data.imageUrl);
-        if (data.savedToLibrary === false) {
+        if (data.referenceIgnored) {
+          toast.warning("Votre photo n'a pas pu être utilisée comme référence : l'image a été générée à partir de la description seule.");
+        } else if (data.savedToLibrary === false) {
           toast.warning("Image générée, mais elle n'a pas pu être enregistrée dans votre bibliothèque. Téléchargez-la maintenant.");
         } else {
           toast.success("Image générée et enregistrée dans votre bibliothèque !");
@@ -163,7 +172,7 @@ export default function Studio() {
           const serverMsg = await readFunctionError(error);
           throw new Error(serverMsg || "Le service de génération vidéo rencontre une petite pause. Veuillez réessayer dans un instant.");
         }
-        if (data?.error) throw new Error(data.error);
+        throwIfRefused(data);
 
         if (data.videoId) {
           toast.info("Vidéo en cours de préparation, cela peut prendre quelques minutes...");

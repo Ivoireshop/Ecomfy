@@ -444,6 +444,11 @@ export function ProductEditor({
           };
       const { data, error } = await supabase.functions.invoke("generate-ai-image", { body });
       if (error) throw error;
+      // Refus ou échec renvoyé en 200 (solde épuisé, filtre de sécurité, surcharge) : le message est déjà lisible.
+      if (data?.success === false && data?.error) {
+        if (data.code === "credits_required") window.dispatchEvent(new Event("open-credits-dialog"));
+        throw new Error(data.error);
+      }
       const imageUrl: string | undefined = data?.imageUrl || data?.image_url;
       if (!imageUrl) throw new Error("Aucune image reçue");
       const res = await fetch(imageUrl);
