@@ -34,13 +34,13 @@ export const EmailChangeEmail = ({
 }: EmailChangeEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Confirmez le changement d'e-mail VisuelPro</Preview>
+    <Preview>Confirmez le changement d'e-mail Ecomfy</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brand}>VisuelPro</Text>
+        <Text style={brand}>Ecomfy</Text>
         <Heading style={h1}>Confirmez le changement d'e-mail</Heading>
         <Text style={text}>
-          Vous avez demandé à changer l'adresse e-mail de votre compte VisuelPro de{' '}
+          Vous avez demandé à changer l'adresse e-mail de votre compte Ecomfy de{' '}
           <Link href={`mailto:${oldEmail}`} style={link}>{oldEmail}</Link>{' '}à{' '}
           <Link href={`mailto:${newEmail}`} style={link}>{newEmail}</Link>.
         </Text>

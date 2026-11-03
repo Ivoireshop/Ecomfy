@@ -22,7 +22,7 @@ function supabaseForUser(ctx) {
 var list_my_shops_default = defineTool({
   name: "list_my_shops",
   title: "List my shops",
-  description: "List the e-commerce shops that belong to the signed-in VisualPro user. Returns id, business_name, slug and creation date.",
+  description: "List the e-commerce shops that belong to the signed-in Ecomfy user. Returns id, business_name, slug and creation date.",
   inputSchema: {
     limit: z.number().int().min(1).max(100).default(20).describe("Maximum number of shops to return.")
   },
@@ -123,9 +123,9 @@ var list_shop_orders_default = defineTool3({
 var projectRef = new URL(Deno.env.get("SUPABASE_URL")).hostname.split(".")[0];
 var mcp_default = defineMcp({
   name: "visualpro-mcp",
-  title: "VisualPro",
+  title: "Ecomfy",
   version: "0.1.0",
-  instructions: "Tools for VisualPro shop owners. Use `list_my_shops` first to discover the signed-in user's shops, then `list_shop_products` or `list_shop_orders` with the returned shop id. All tools are read-only.",
+  instructions: "Tools for Ecomfy shop owners. Use `list_my_shops` first to discover the signed-in user's shops, then `list_shop_products` or `list_shop_orders` with the returned shop id. All tools are read-only.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"

@@ -212,7 +212,7 @@ const handler = async (req: Request): Promise<Response> => {
                 </div>
                 
                 <div style="text-align: center;">
-                  <a href="https://${esc(site.subdomain)}.visualpro.cloud" class="button">
+                  <a href="https://${esc(site.subdomain)}.ecomfy.cloud" class="button">
                     Voir mon site vitrine
                   </a>
                 </div>

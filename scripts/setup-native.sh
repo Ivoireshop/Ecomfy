@@ -2,7 +2,7 @@
 set -e
 
 echo "=================================="
-echo "  VisualPro — Setup Natif"
+echo "  Ecomfy — Setup Natif"
 echo "  Android + iOS (Capacitor)"
 echo "=================================="
 echo ""
@@ -66,7 +66,7 @@ echo "----------------------------------"
 echo "Étape 3/4 : Son de notification"
 echo "----------------------------------"
 
-SOUND_SRC="public/sounds/visualpro-cash.mp3"
+SOUND_SRC="public/sounds/ecomfy-cash.mp3"
 ANDROID_RAW="android/app/src/main/res/raw"
 ANDROID_SOUND="$ANDROID_RAW/visualpro_cash.wav"
 
@@ -81,7 +81,7 @@ if command -v ffmpeg &> /dev/null; then
   fi
 else
   echo -e "${RED}✗${NC} ffmpeg non trouvé. Installe-le puis convertis manuellement :"
-  echo "    ffmpeg -i public/sounds/visualpro-cash.mp3 -ar 48000 -ac 1 android/app/src/main/res/raw/visualpro_cash.wav"
+  echo "    ffmpeg -i public/sounds/ecomfy-cash.mp3-ar 48000 -ac 1 android/app/src/main/res/raw/visualpro_cash.wav"
 fi
 
 if [ "$IS_MAC" = true ]; then

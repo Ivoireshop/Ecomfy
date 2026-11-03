@@ -80,7 +80,7 @@ serve(async (req) => {
     // Fetch the website HTML
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VisualPro-BrandExtractor/1.0)',
+        'User-Agent': 'Mozilla/5.0 (compatible; Ecomfy-BrandExtractor/1.0)',
       },
     });
 

@@ -474,14 +474,14 @@ serve(async (req) => {
     const orderId = `${typePrefix}_${user_id}_${Date.now()}`;
 
     const description = payment_type === 'shop_activation'
-      ? "Activation Boutique E-commerce - Visuel Pro"
+      ? "Activation Boutique E-commerce - Ecomfy"
       : payment_type === 'commission_payment'
-        ? "Règlement commission VisualPro"
+        ? "Règlement commission Ecomfy"
         : payment_type === 'shop_subscription'
-          ? `Abonnement Boutique ${plan === 'business' ? 'Business' : plan === 'premium' ? 'Premium' : 'Starter'} - Visuel Pro`
+          ? `Abonnement Boutique ${plan === 'business' ? 'Business' : plan === 'premium' ? 'Premium' : 'Starter'} - Ecomfy`
           : payment_type === 'credits' && credits_pack
-            ? `Achat de ${credits_pack.size} crédits - Visuel Pro`
-            : "Abonnement Visuel Pro";
+            ? `Achat de ${credits_pack.size} crédits - Ecomfy`
+            : "Abonnement Ecomfy";
 
     // Fetch user profile (name, email, phone) for the customer object
     const { data: userProfile } = await supabase

@@ -1,7 +1,7 @@
 // share-product — returns crawler-friendly HTML with full Open Graph
 // metadata so that WhatsApp, Facebook, Messenger, Telegram, LinkedIn,
 // X/Twitter, iMessage… display the correct product image, title and
-// description when a VisualPro product link is shared.
+// description when an Ecomfy product link is shared.
 //
 // Real browsers receive the same HTML but get auto-redirected (JS +
 // <meta http-equiv="refresh">) to the actual SPA product page so the
