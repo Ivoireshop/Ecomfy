@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
     }
     
     webpush.setVapidDetails(
-      'mailto:contact@visualpro.com',
+      'mailto:contact@ecomfy.cloud',
       vapidPublicKey,
       vapidPrivateKey
     );

@@ -29,15 +29,15 @@ export const SignupEmail = ({
 }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Confirmez votre adresse e-mail pour VisuelPro</Preview>
+    <Preview>Confirmez votre adresse e-mail pour Ecomfy</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brand}>VisuelPro</Text>
+        <Text style={brand}>Ecomfy</Text>
         <Heading style={h1}>Confirmez votre e-mail</Heading>
         <Text style={text}>
           Bienvenue sur{' '}
           <Link href={siteUrl} style={link}>
-            <strong>VisuelPro</strong>
+            <strong>Ecomfy</strong>
           </Link>{' '}! Confirmez votre adresse{' '}
           <Link href={`mailto:${recipient}`} style={link}>{recipient}</Link>{' '}
           pour activer votre compte et commencer à créer.

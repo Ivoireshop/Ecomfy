@@ -7,18 +7,20 @@ interface GenerationCardProps {
   onAnimateImage?: (url: string) => void;
   onDownload?: () => void;
   onRegenerate?: () => void;
+  /** Le fichier n'est plus lisible (supprimé, expiré) : l'appelant retire le résultat. */
+  onLoadError?: () => void;
 }
 
-export const GenerationCard = ({ url, mode, onAnimateImage, onDownload, onRegenerate }: GenerationCardProps) => {
+export const GenerationCard = ({ url, mode, onAnimateImage, onDownload, onRegenerate, onLoadError }: GenerationCardProps) => {
   if (!url) return null;
 
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 mb-8 mt-4">
       <div className="relative group w-full rounded-2xl overflow-hidden shadow-2xl border border-border bg-muted flex items-center justify-center min-h-[300px] md:min-h-[500px]">
         {mode === "image" ? (
-          <img src={url} alt="Generated" className="w-full h-full object-contain" />
+          <img src={url} alt="Generated" className="w-full h-full object-contain" onError={onLoadError} />
         ) : (
-          <video src={url} controls autoPlay loop className="w-full h-full object-contain" />
+          <video src={url} controls autoPlay loop className="w-full h-full object-contain" onError={onLoadError} />
         )}
       </div>
 

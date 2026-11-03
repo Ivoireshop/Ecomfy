@@ -3,7 +3,10 @@ declare const Deno: any;
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
-import { consumeAiCredit, creditsRequiredResponse } from "../_shared/credits-gate.ts";
+import { consumeAiCredit } from "../_shared/credits-gate.ts";
+import { estimateOpenRouterImageCostUsd, estimateSheetTextCostUsd, dailyCostCapUsd } from "../_shared/ai-cost.ts";
+import { dailyLimitResponse, recordGeneration, todaySpendUsd } from "../_shared/ai-generation-log.ts";
+import { classifyOpenAiFailure, fetchWithTimeout, runWithRetry } from "../_shared/ai-retry.ts";
 import { getOpenAiApiKey, OPENAI_CONFIG } from "../_shared/openai-config.ts";
 import { geminiChat, geminiImage } from "../_shared/openrouter-chat.ts";
 
@@ -32,7 +35,7 @@ async function generateWithOpenAI({
   userPrompt: string;
   imageBase64?: string;
   imageMime?: string;
-}): Promise<string> {
+}): Promise<{ content: string; attempts: number; model: string }> {
   const apiKey = getOpenAiApiKey();
   if (!apiKey) {
     throw new Error("[PRODUCT_AI_GENERATION_FAILED] OPENAI_API_KEY non configurée sur le serveur");
@@ -62,58 +65,61 @@ async function generateWithOpenAI({
     timestamp: new Date().toISOString(),
   });
 
-  const modelsToTry = [OPENAI_CONFIG.TEXT_MODEL, "gpt-4o-mini"];
-  let lastError: any = null;
-
-  for (const model of modelsToTry) {
-    console.log(`[PRODUCT_AI_OPENAI_REQUEST] Attempting call with OpenAI model: ${model}`);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
-
-    try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+  // Budget de 3 appels au total (avant : un essai par modèle, sans distinguer panne passagère et refus définitif).
+  // Panne passagère -> même modèle après une attente ; modèle indisponible -> le suivant ; refus définitif -> arrêt,
+  // l'appelant bascule alors sur le second fournisseur (Gemini).
+  const startedAt = Date.now();
+  const report = await runWithRetry<string>(
+    [OPENAI_CONFIG.TEXT_MODEL, "gpt-4o-mini"],
+    async (model, _n, remaining) => {
+      console.log(`[PRODUCT_AI_OPENAI_REQUEST] Attempting call with OpenAI model: ${model}`);
+      const res = await fetchWithTimeout(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model, messages, response_format: { type: "json_object" }, temperature: 0.3 }),
         },
-        body: JSON.stringify({
-          model,
-          messages,
-          response_format: { type: "json_object" },
-          temperature: 0.3,
-        }),
-      });
-
-      clearTimeout(timeout);
-
-      if (response.ok) {
-        const resultJson = await response.json();
-        const content = resultJson.choices?.[0]?.message?.content;
-        if (content) {
-          console.log(`[PRODUCT_AI_OPENAI_SUCCESS] Model ${model} responded successfully`);
-          return content;
-        }
-      } else {
-        const errText = await response.text();
-        console.warn(`[PRODUCT_AI_OPENAI_ERROR] Model ${model} HTTP ${response.status}:`, errText.slice(0, 300));
-        lastError = new Error(`OpenAI HTTP ${response.status}: ${errText.slice(0, 200)}`);
+        Math.max(5_000, Math.min(45_000, remaining)),
+      );
+      if (res.ok) {
+        const content = res.json()?.choices?.[0]?.message?.content;
+        if (content) return { ok: true as const, value: content as string };
+        return { ok: false as const, failure: { kind: "retryable" as const, code: "empty_response", status: res.status, detail: "réponse vide" } };
       }
-    } catch (err: any) {
-      clearTimeout(timeout);
-      console.warn(`[PRODUCT_AI_OPENAI_EXCEPTION] Model ${model} failed:`, err.message || err);
-      lastError = err;
-    }
-  }
+      console.warn(`[PRODUCT_AI_OPENAI_ERROR] Model ${model} HTTP ${res.status}:`, res.text.slice(0, 300));
+      return { ok: false as const, failure: classifyOpenAiFailure(res.status, res.text) };
+    },
+    { maxAttempts: 3, deadlineAt: startedAt + 100_000 },
+  );
 
-  throw lastError || new Error("OpenAI API unreachable");
+  if (report.ok) {
+    console.log(`[PRODUCT_AI_OPENAI_SUCCESS] Model ${report.model} responded successfully`);
+    return { content: report.value as string, attempts: report.attempts, model: report.model as string };
+  }
+  const err: any = new Error(`OpenAI ${report.failure?.code ?? "unreachable"}: ${report.failure?.detail ?? ""}`);
+  err.attempts = report.attempts;
+  throw err;
 }
 
 Deno.serve(async (req: any) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __quota = await enforceAiQuota(req, "generate-product-sheet");
   if (!__quota.allowed) return __quota.response;
+
+  // Suivi du coût (voir ai_generation_log) : renseigné au fil de la requête, écrit une fois à la sortie.
+  const startedAt = Date.now();
+  const usage = { userId: "", costUsd: 0, attempts: 0, model: null as string | null, aiContent: false, logged: false };
+  const logOnce = async (
+    status: "succeeded" | "failed",
+    extra: { errorCode?: string; chargeSource?: "free" | "credits" | "subscription" | "exempt"; chargeAmount?: number } = {},
+  ) => {
+    if (usage.logged || !usage.userId) return;
+    usage.logged = true;
+    await recordGeneration(usage.userId, "product_sheet", {
+      status, attempts: usage.attempts, model: usage.model, costUsd: usage.costUsd, durationMs: Date.now() - startedAt, ...extra,
+    });
+  };
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -129,16 +135,15 @@ Deno.serve(async (req: any) => {
     const { data: userData, error: userErr } = await userClient.auth.getUser(token);
     if (userErr || !userData?.user) return json({ success: false, error: "Session invalide" });
     const userId = userData.user.id;
+    usage.userId = userId;
 
-    // Credit charge (best effort, do not block creation onboarding if RPC fails)
-    try {
-      const charge = await consumeAiCredit(userId, "product_sheet", 1.5);
-      if (!charge.success && charge.error === "credits_required") {
-        console.warn("[PRODUCT_AI_CREDITS] User has insufficient credits, proceeding with free onboarding generation");
-      }
-    } catch (creditErr) {
-      console.warn("[PRODUCT_AI_CREDITS_WARN]", creditErr);
+    // Règle d'accueil conservée : un utilisateur sans crédit n'est PAS bloqué (la création de produit ne doit pas
+    // s'arrêter là). Le plafond de coût du jour, lui, s'applique à tous : c'est une limite de sécurité, pas un prix.
+    const spent = await todaySpendUsd(userId);
+    if (spent === null) {
+      return json({ success: false, error: "Le suivi des crédits est momentanément indisponible. Réessayez dans un instant.", code: "quota_unavailable" });
     }
+    if (spent >= dailyCostCapUsd()) return dailyLimitResponse();
 
     const body = await req.json().catch(() => ({}));
     const {
@@ -156,6 +161,9 @@ Deno.serve(async (req: any) => {
     } = body || {};
 
     if (!name || typeof name !== "string") return json({ success: false, error: "Nom du produit requis" });
+
+    // Borné côté serveur : le nombre d'images (une génération OpenRouter chacune) ne doit pas venir du navigateur.
+    const maxImages = Math.min(5, Math.max(0, Math.floor(Number(image_count)) || 0));
 
     const frameworkPrompts: Record<string, string> = {
       hormozi: "Applique le Grand Slam Offer d'Alex Hormozi: rêve clarifié, valeur perçue maximale, risque réduit (garantie forte), urgence/rareté.",
@@ -230,14 +238,20 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
 
     // 1) Primary execution: OpenAI Chat Completions API with Vision & Structured Outputs
     try {
-      rawCopy = await generateWithOpenAI({
+      const ai = await generateWithOpenAI({
         systemPrompt,
         userPrompt,
         imageBase64: image_base64,
         imageMime: image_mime,
       });
+      rawCopy = ai.content;
+      usage.attempts += ai.attempts;
+      usage.model = ai.model;
+      usage.costUsd += estimateSheetTextCostUsd(Boolean(image_base64));
+      usage.aiContent = true;
       console.log("[PRODUCT_AI_GENERATION_COMPLETED] Raw OpenAI response received");
     } catch (openAiError: any) {
+      usage.attempts += openAiError?.attempts ?? 0;
       console.warn("[PRODUCT_AI_OPENAI_FALLBACK] OpenAI engine failed, attempting geminiChat fallback:", openAiError.message);
       try {
         const { content } = await geminiChat({
@@ -256,6 +270,10 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
           jsonMode: true,
         });
         rawCopy = content || "{}";
+        usage.attempts++;
+        usage.model = "gemini";
+        usage.costUsd += estimateSheetTextCostUsd(Boolean(image_base64));
+        usage.aiContent = Boolean(content);
       } catch (geminiError: any) {
         console.warn("[PRODUCT_AI_FALLBACK_TRIGGERED] Both AI providers failed, generating structured local copywriter fallback", geminiError.message);
         sheet = {
@@ -309,6 +327,7 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
       } catch (parseErr) {
         console.error("[PRODUCT_AI_PARSE_FAILED] Failed to parse JSON response:", parseErr);
         sheet = {};
+        usage.aiContent = false;
       }
     }
 
@@ -319,7 +338,7 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
     }
 
     // 2) Image prompts & rendering (best effort)
-    const prompts: Array<{ title: string; prompt: string; why?: string }> = Array.isArray(sheet.image_prompts) ? sheet.image_prompts.slice(0, image_count) : [];
+    const prompts: Array<{ title: string; prompt: string; why?: string }> = Array.isArray(sheet.image_prompts) ? sheet.image_prompts.slice(0, maxImages) : [];
     const images: Array<{ title: string; url: string | null; prompt: string; why?: string; error?: string }> = [];
 
     if (generate_images && prompts.length > 0) {
@@ -336,6 +355,8 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
             ? [`data:${image_mime || "image/jpeg"};base64,${image_base64}`]
             : [];
           const { url, provider } = await geminiImage(styledPrompt, refs);
+          usage.attempts++;
+          if (url) usage.costUsd += estimateOpenRouterImageCostUsd();
           return { title: p.title, url, prompt: p.prompt, why: p.why };
         } catch (e) {
           console.warn("[PRODUCT_AI_IMAGE_GEN_EXCEPTION]", e);
@@ -345,9 +366,35 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
       images.push(...results);
     }
 
+    // Le crédit n'est débité que si une vraie fiche rédigée par l'IA est livrée (avant : débité d'avance, y compris
+    // quand l'IA tombait en panne et qu'un texte générique de secours était renvoyé). Toujours « au mieux » : un échec
+    // du débit, ou un solde insuffisant, ne bloque pas la création du produit (règle d'accueil).
+    if (usage.aiContent) {
+      let chargeSource: "free" | "credits" | "subscription" | "exempt" = "free";
+      let chargeAmount = 0;
+      try {
+        const charge: any = await consumeAiCredit(userId, "product_sheet", 1.5);
+        if (charge.success) {
+          if (charge.exempt) chargeSource = "exempt";
+          else if (charge.subscription) chargeSource = "subscription";
+          else if (charge.free_trial) chargeSource = "free";
+          else { chargeSource = "credits"; chargeAmount = Number(charge.charged) || 1.5; }
+        } else if (charge.error === "credits_required") {
+          console.warn("[PRODUCT_AI_CREDITS] User has insufficient credits, proceeding with free onboarding generation");
+        }
+      } catch (creditErr) {
+        console.warn("[PRODUCT_AI_CREDITS_WARN]", creditErr);
+      }
+      await logOnce("succeeded", { chargeSource, chargeAmount });
+    } else {
+      // Texte générique de secours (IA indisponible ou réponse inexploitable) : rien n'est facturé.
+      await logOnce("failed", { errorCode: "ai_unavailable" });
+    }
+
     return json({ success: true, sheet, images });
   } catch (e: any) {
     console.error("[PRODUCT_AI_GENERATION_FAILED_GLOBAL]", e);
+    await logOnce("failed", { errorCode: "internal_error" });
     const fallbackSheet = {
       headline: "Découvrez notre produit d'excellence",
       subheadline: "Le choix parfait pour vos besoins au meilleur prix.",

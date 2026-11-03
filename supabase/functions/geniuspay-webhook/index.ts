@@ -91,6 +91,45 @@ serve(async (req) => {
     const reference: string | undefined = data?.reference;
     const status: string | undefined = data?.status;
     const metadata = data?.metadata || {};
+
+    // GeniusPay n'a qu'une URL de webhook par compte : les paiements clients d'Ecomfy Pay (table ecomfy_payments)
+    // sont transmis tels quels (corps brut + en-têtes signés) à ecomfy-pay-webhook, qui vérifie la signature,
+    // confirme auprès de l'opérateur et crédite le portefeuille. Cette fonction ne les traite pas.
+    // Les retraits (payout.*, withdrawal.*, transfer.*) suivent le même chemin : ecomfy-pay-webhook clôture le retrait
+    // (finalize_withdrawal). Même motif que GeniusPayConnector.parseWebhook, qui décide de ce qui est un retrait.
+    const isWithdrawalEvent = /^(payout|withdrawal|transfer)\./.test(String(event || "").toLowerCase());
+    if (
+      isWithdrawalEvent ||
+      metadata?.type === "ecomfy_pay_customer_order" ||
+      String(metadata?.internal_reference || "").startsWith("ECM-PAY-")
+    ) {
+      try {
+        const fwd = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/ecomfy-pay-webhook?provider=geniuspay`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": req.headers.get("content-type") || "application/json",
+              "X-Webhook-Signature": signature,
+              "X-Webhook-Timestamp": timestamp,
+              "X-Webhook-Event": eventHeader,
+              ...(req.headers.get("x-webhook-delivery") ? { "X-Webhook-Delivery": req.headers.get("x-webhook-delivery")! } : {}),
+            },
+            body: rawBody,
+          },
+        );
+        const fwdBody = await fwd.text();
+        console.log("Forwarded to ecomfy-pay-webhook:", { reference, status: fwd.status });
+        // Le code de retour est repris tel quel : un 5xx fait réessayer GeniusPay.
+        return new Response(fwdBody, {
+          status: fwd.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        console.error("Forward to ecomfy-pay-webhook failed:", e);
+        return ack({ success: false, error: "Forward failed" }, false, 502);
+      }
+    }
     const amountPaid = Number(data?.amount) || 0;
     const currency: string = (data?.currency || "XOF").toUpperCase();
     const deliveryId =

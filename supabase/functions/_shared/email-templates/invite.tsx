@@ -27,14 +27,14 @@ export const InviteEmail = ({
 }: InviteEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Vous êtes invité(e) à rejoindre VisuelPro</Preview>
+    <Preview>Vous êtes invité(e) à rejoindre Ecomfy</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brand}>VisuelPro</Text>
+        <Text style={brand}>Ecomfy</Text>
         <Heading style={h1}>Vous êtes invité(e)</Heading>
         <Text style={text}>
           Vous avez été invité(e) à rejoindre{' '}
-          <Link href={siteUrl} style={link}><strong>VisuelPro</strong></Link>.
+          <Link href={siteUrl} style={link}><strong>Ecomfy</strong></Link>.
           Cliquez sur le bouton ci-dessous pour accepter l'invitation et créer votre compte.
         </Text>
         <Button style={button} href={confirmationUrl}>

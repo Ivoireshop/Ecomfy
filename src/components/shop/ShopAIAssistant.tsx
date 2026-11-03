@@ -57,6 +57,15 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const hasGreetedRef = useRef(false);
   const autoGreetedRef = useRef(false);
+  const [bubbleVisible, setBubbleVisible] = useState(false);
+  const dismissKey = `ecomfy-assistant-dismissed:${shopId}`;
+
+  const wasDismissed = () => {
+    try { return sessionStorage.getItem(dismissKey) === "1"; } catch { return false; }
+  };
+  const markDismissed = () => {
+    try { sessionStorage.setItem(dismissKey, "1"); } catch { /* navigation privée : on s'en passe */ }
+  };
 
   // Load config
   useEffect(() => {
@@ -75,38 +84,64 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
     return () => { cancelled = true; };
   }, [shopId]);
 
-  // Auto voice greeting on arrival (no text UI shown).
-  // Browsers block autoplay until a user gesture: we attach a one-shot
-  // listener so the first tap/scroll triggers the greeting silently.
+  // Message vocal d'accueil. Chaque voix coûte 2 crédits au marchand, donc :
+  //  - jamais avant un vrai geste du visiteur (pointerdown / keydown). Avant, l'appel partait 800 ms
+  //    après l'arrivée ; le navigateur bloquait la lecture et le crédit était perdu ;
+  //  - au plus une fois par jour et par visiteur et boutique, pas à chaque page ;
+  //  - pas si le chat est déjà ouvert (le texte d'accueil y est affiché).
   useEffect(() => {
     if (!config || autoGreetedRef.current) return;
-    if (!config.voice_enabled || muted) return;
+    if (!config.voice_enabled || muted || open) return;
+
+    const greetKey = `ecomfy-assistant-greeted:${shopId}`;
+    const alreadyGreeted = () => {
+      try {
+        const at = Number(localStorage.getItem(greetKey));
+        return !!at && Date.now() - at < 24 * 60 * 60 * 1000;
+      } catch { return false; }
+    };
+    if (alreadyGreeted()) return;
 
     const trigger = async () => {
       if (autoGreetedRef.current) return;
       autoGreetedRef.current = true;
+      try { localStorage.setItem(greetKey, String(Date.now())); } catch { /* stockage indisponible */ }
       const custom = config.custom_greeting?.trim();
       const spoken = custom ||
         `Bonjour et bienvenue sur ${shopName}. Je suis ${config.name}, votre assistante personnelle. Découvrez nos produits, et n'hésitez pas à me poser une question.`;
       await speak(spoken);
     };
 
-    // Try immediate autoplay (works on desktop / sometimes mobile)
-    const t = setTimeout(() => { void trigger(); }, 800);
-
     const onGesture = () => { void trigger(); };
     window.addEventListener("pointerdown", onGesture, { once: true });
-    window.addEventListener("scroll", onGesture, { once: true, passive: true });
     window.addEventListener("keydown", onGesture, { once: true });
 
     return () => {
-      clearTimeout(t);
       window.removeEventListener("pointerdown", onGesture);
-      window.removeEventListener("scroll", onGesture);
       window.removeEventListener("keydown", onGesture);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, muted, shopName]);
+  }, [config, muted, open, shopName]);
+
+  // « Bulle d'accroche » (widget fermé) et « Ouverture automatique » : réglés dans le tableau de bord,
+  // jamais lus par le widget jusqu'ici. Une seule fois par session, pour ne pas harceler le visiteur.
+  useEffect(() => {
+    if (!config || open || wasDismissed()) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (config.welcome_bubble?.trim()) {
+      timers.push(setTimeout(() => setBubbleVisible(true), 2000));
+    }
+    if (config.auto_open) {
+      timers.push(setTimeout(() => {
+        if (wasDismissed()) return;
+        markDismissed();
+        setBubbleVisible(false);
+        setOpen(true);
+      }, 5000));
+    }
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, open]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -187,6 +222,11 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
       }
       if (resp.status === 402) {
         setMessages([...newMsgs, { role: "assistant", content: "L'assistant est temporairement indisponible. Contactez-nous directement." }]);
+        setLoading(false);
+        return;
+      }
+      if (resp.status === 404) {
+        setMessages([...newMsgs, { role: "assistant", content: "L'assistant n'est pas disponible pour le moment." }]);
         setLoading(false);
         return;
       }
@@ -277,9 +317,23 @@ export function ShopAIAssistant({ shopId, shopName, primaryColor = "#2563eb", se
     <>
       {/* Small voice/mic floating button — no text bubble, mobile-friendly */}
       {!open && (
-        <div className="fixed bottom-5 right-5 z-[60]">
+        <div className="fixed bottom-5 right-5 z-[60] flex items-center gap-2">
+          {bubbleVisible && config.welcome_bubble?.trim() && (
+            <div className="relative max-w-[220px] rounded-2xl rounded-br-sm bg-white text-gray-900 text-sm shadow-xl border border-gray-100 pl-3 pr-7 py-2 animate-in fade-in slide-in-from-right-2">
+              <button
+                onClick={() => { markDismissed(); setBubbleVisible(false); }}
+                className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700"
+                aria-label="Fermer la bulle"
+              >
+                <X className="h-3 w-3" />
+              </button>
+              <button onClick={() => { markDismissed(); setBubbleVisible(false); setOpen(true); }} className="text-left">
+                {config.welcome_bubble}
+              </button>
+            </div>
+          )}
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => { markDismissed(); setBubbleVisible(false); setOpen(true); }}
             className="relative h-12 w-12 rounded-full shadow-xl flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95"
             style={{ background: gradient }}
             aria-label={speaking ? "Assistant en train de parler" : "Parler à l'assistant"}

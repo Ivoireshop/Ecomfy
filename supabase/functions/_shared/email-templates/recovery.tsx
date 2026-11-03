@@ -24,13 +24,13 @@ export const RecoveryEmail = ({
 }: RecoveryEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Réinitialisez votre mot de passe VisuelPro</Preview>
+    <Preview>Réinitialisez votre mot de passe Ecomfy</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brand}>VisuelPro</Text>
+        <Text style={brand}>Ecomfy</Text>
         <Heading style={h1}>Réinitialisez votre mot de passe</Heading>
         <Text style={text}>
-          Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte VisuelPro.
+          Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte Ecomfy.
           Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
         </Text>
         <Button style={button} href={confirmationUrl}>

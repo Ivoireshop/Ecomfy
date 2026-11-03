@@ -96,6 +96,11 @@ export function VariationGenerator({
         });
 
         if (error) throw error;
+        // Refus ou échec renvoyé en 200 (solde épuisé, limite du jour…) : sans image, la variation est en échec.
+        if (!data?.imageUrl) {
+          if (data?.code === "credits_required") window.dispatchEvent(new Event("open-credits-dialog"));
+          throw new Error(data?.error || "Aucune image reçue");
+        }
 
         return {
           id: `var-${Math.random().toString(36).substring(7)}`,

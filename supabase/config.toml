@@ -33,6 +33,9 @@ project_id = "ecomfy"
     verify_jwt = false
   [functions.ecomfy-pay-webhook]
     verify_jwt = false
+  # Appelée par pg_cron via invoke_edge_function (en-tête x-cron-secret, sans JWT) : le contrôle est fait par isAuthorizedCron
+  [functions.ecomfy-pay-settlement]
+    verify_jwt = false
   [functions.geniuspay-webhook]
     verify_jwt = false
   [functions.get-vapid-key]

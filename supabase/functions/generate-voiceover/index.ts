@@ -1,11 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
+import { classifyProviderFailure, isOperatorAlertCode, userMessageForFailure } from "../_shared/ai-retry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Échec géré : HTTP 200 avec `error` lisible et `code` stable (convention des fonctions IA, voir ai-quota.ts).
+function refusal(code: string, message: string): Response {
+  return new Response(JSON.stringify({ success: false, error: message, code }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -40,12 +48,13 @@ serve(async (req) => {
     const { text, voice = "Sarah" } = await req.json();
     
     if (!text) {
-      throw new Error('Le texte est requis');
+      return refusal('missing_text', 'Veuillez entrer un texte pour la voix off.');
     }
 
     const ELEVEN_LABS_API_KEY = Deno.env.get('ELEVEN_LABS_API_KEY');
     if (!ELEVEN_LABS_API_KEY) {
-      throw new Error('ELEVEN_LABS_API_KEY non configurée');
+      console.error('[AI-OPERATOR-ALERT] generate-voiceover : ELEVEN_LABS_API_KEY absente');
+      return refusal('provider_auth', userMessageForFailure('provider_auth'));
     }
 
     // Mapping des voix avec accent africain authentique
@@ -84,9 +93,14 @@ serve(async (req) => {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erreur Eleven Labs:', errorText);
-      throw new Error(`Erreur Eleven Labs: ${response.status} - ${errorText}`);
+      // Le détail du fournisseur reste dans les logs ; le navigateur reçoit un message lisible et un code stable.
+      const errorText = await response.text().catch(() => '');
+      const failure = classifyProviderFailure(response.status, errorText);
+      console.error(`[voiceover-provider] ElevenLabs HTTP ${response.status} -> ${failure.code}: ${failure.detail}`);
+      if (isOperatorAlertCode(failure.code)) {
+        console.error(`[AI-OPERATOR-ALERT] generate-voiceover : ${failure.code} (HTTP ${failure.status})`);
+      }
+      return refusal(failure.code, userMessageForFailure(failure.code));
     }
 
     // Convertir l'audio en base64 par morceaux pour éviter le dépassement de pile
@@ -113,13 +127,6 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Erreur dans generate-voiceover:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    );
+    return refusal('internal_error', "La voix off n'a pas pu être générée. Réessayez dans un instant.");
   }
 });

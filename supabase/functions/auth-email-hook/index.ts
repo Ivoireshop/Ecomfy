@@ -36,7 +36,6 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 
 // Configuration
 const SITE_NAME = "Ecomfy"
-const SENDER_DOMAIN = "notify.visuelpro.cloud"
 const ROOT_DOMAIN = "ecomfy.cloud"
 const FROM_ADDRESS = senderFrom()
 const REPLY_TO = REPLY_TO_ADDRESS
@@ -46,7 +45,7 @@ const REPLY_TO = REPLY_TO_ADDRESS
 // The sample email uses a fixed placeholder (RFC 6761 .test TLD) so the Go backend
 // can always find-and-replace it with the actual recipient when sending test emails,
 // even if the project's domain has changed since the template was scaffolded.
-const SAMPLE_PROJECT_URL = "https://visualpro-african-ai-creations.lovable.app"
+const SAMPLE_PROJECT_URL = `https://${ROOT_DOMAIN}`
 const SAMPLE_EMAIL = "user@example.test"
 const SAMPLE_DATA: Record<string, object> = {
   signup: {

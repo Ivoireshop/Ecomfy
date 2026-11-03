@@ -305,6 +305,19 @@ export function ProductEditor({
   // est lisible par les visiteurs de la boutique.
   const [costPrice, setCostPrice] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
+  // La barre d'outils du texte se colle juste sous l'en-tête fixe de la page ; sa hauteur varie (ligne d'état mobile).
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const [topBarHeight, setTopBarHeight] = useState(96);
+  useEffect(() => {
+    const el = topBarRef.current;
+    if (!el) return;
+    const measure = () => setTopBarHeight(el.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const editorInitialized = useRef(false);
   const pendingImagesRef = useRef<PendingProductImage[]>([]);
   const savedSelection = useRef<{ range: Range; capturedAt: number } | null>(null);
@@ -444,6 +457,11 @@ export function ProductEditor({
           };
       const { data, error } = await supabase.functions.invoke("generate-ai-image", { body });
       if (error) throw error;
+      // Refus ou échec renvoyé en 200 (solde épuisé, filtre de sécurité, surcharge) : le message est déjà lisible.
+      if (data?.success === false && data?.error) {
+        if (data.code === "credits_required") window.dispatchEvent(new Event("open-credits-dialog"));
+        throw new Error(data.error);
+      }
       const imageUrl: string | undefined = data?.imageUrl || data?.image_url;
       if (!imageUrl) throw new Error("Aucune image reçue");
       const res = await fetch(imageUrl);
@@ -1161,7 +1179,7 @@ export function ProductEditor({
   return (
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
-      <div className="sticky top-0 z-30 bg-card border-b">
+      <div ref={topBarRef} className="sticky top-0 z-30 bg-card border-b">
         <div className="flex items-center justify-between gap-2 px-3 md:px-6 h-14">
           <div className="flex items-center gap-2 min-w-0">
             <Button variant="ghost" size="icon" onClick={handleBack} className="h-9 w-9 shrink-0" aria-label="Retour">
@@ -1267,13 +1285,16 @@ export function ProductEditor({
           </div>
 
           {/* Rich Text Editor */}
-          <div className="bg-card border shadow-sm rounded-xl overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b bg-muted/5">
+          {/* Pas d'overflow-hidden ici : il ferait de la carte le conteneur de défilement et la barre d'outils ne se collerait plus. */}
+          <div className="bg-card border shadow-sm rounded-xl flex flex-col">
+            <div className="px-5 py-4 border-b bg-muted/5 rounded-t-xl">
               <Label className="text-base font-semibold">Description complète</Label>
             </div>
             <div className="relative">
+              {/* Barre d'outils (2 lignes) toujours visible au défilement, sous l'en-tête de la page */}
+              <div className="sticky z-20 bg-card" style={{ top: topBarHeight }}>
               {/* Toolbar Row 1 */}
-              <div className="bg-muted/30 backdrop-blur-md border-b px-3 py-2 flex flex-wrap items-center gap-1 sticky top-0 z-10">
+              <div className="bg-muted/30 backdrop-blur-md border-b px-3 py-2 flex flex-wrap items-center gap-1">
                 {/* Fullscreen placeholder */}
                 <ToolbarButton icon={<div className="h-3.5 w-3.5 border border-current rounded-sm" />} onClick={() => {}} title="Plein écran" />
                 <ToolbarDivider />
@@ -1286,10 +1307,10 @@ export function ProductEditor({
                 <ToolbarDivider />
 
                 {/* Font size */}
-                <div className="relative">
+                <div className="sm:relative">
                   <ToolbarButton icon={<span className="text-[10px] font-bold">{currentFontSize}</span>} onClick={() => { closeAllDropdowns(); setShowFontSize(!showFontSize); }} title="Taille du texte" hasDropdown />
                   {showFontSize && (
-                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto">
+                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-1 min-w-[168px] max-h-[240px] overflow-y-auto max-sm:left-2 max-sm:right-2 max-sm:min-w-0">
                       {FONT_SIZE_PRESETS.map(({ size, label, hint }) => (
                           <button key={size} type="button" className={`w-full text-left px-3 py-2 rounded-md transition-colors ${currentFontSize === size ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                           onPointerDown={(e) => { e.preventDefault(); applyFontSize(size); setShowFontSize(false); }}>
@@ -1305,10 +1326,10 @@ export function ProductEditor({
                 </div>
 
                 {/* Text color */}
-                <div className="relative">
+                <div className="sm:relative">
                   <ToolbarButton icon={<div className="flex flex-col items-center"><span className="text-[10px] font-bold leading-none">A</span><div className="w-3 h-0.5 bg-red-500 rounded-full mt-0.5" /></div>} onClick={() => { closeAllDropdowns(); setShowTextColor(!showTextColor); }} title="Couleur du texte" hasDropdown />
                   {showTextColor && (
-                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px]">
+                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px] max-sm:left-2 max-sm:right-2 max-sm:w-auto">
                       <div className="grid grid-cols-6 gap-1">
                         {COLORS.map(color => (
                           <button key={color} type="button" className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
@@ -1322,10 +1343,10 @@ export function ProductEditor({
                 </div>
 
                 {/* Background color / highlighter */}
-                <div className="relative">
+                <div className="sm:relative">
                   <ToolbarButton icon={<div className="flex flex-col items-center"><span className="text-[10px] font-bold leading-none">A</span><div className="w-3 h-1 bg-yellow-400 rounded-sm mt-0.5" /></div>} onClick={() => { closeAllDropdowns(); setShowBgColor(!showBgColor); }} title="Surligneur" hasDropdown />
                   {showBgColor && (
-                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px]">
+                    <div className="absolute top-full left-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[180px] max-sm:left-2 max-sm:right-2 max-sm:w-auto">
                       <div className="grid grid-cols-6 gap-1">
                         {COLORS.map(color => (
                           <button key={color} type="button" className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
@@ -1362,10 +1383,10 @@ export function ProductEditor({
 
                 {/* Link, Table, Emoji, Special char */}
                 <ToolbarButton icon={<LinkIcon className="h-3.5 w-3.5" />} onClick={insertLink} title="Insérer un lien" />
-                <div className="relative">
+                <div className="sm:relative">
                   <ToolbarButton icon={<Table className="h-3.5 w-3.5" />} onClick={() => { closeAllDropdowns(); setShowTablePicker(!showTablePicker); }} title="Insérer un tableau" hasDropdown />
                   {showTablePicker && (
-                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-3 w-[230px] space-y-3">
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-3 w-[230px] space-y-3 max-sm:left-2 max-sm:right-2 max-sm:w-auto">
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
                           <Label className="text-xs">Lignes</Label>
@@ -1380,10 +1401,10 @@ export function ProductEditor({
                     </div>
                   )}
                 </div>
-                <div className="relative">
+                <div className="sm:relative">
                   <ToolbarButton icon={<Smile className="h-3.5 w-3.5" />} onClick={() => { closeAllDropdowns(); setShowEmoji(!showEmoji); }} title="Émojis" />
                   {showEmoji && (
-                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[260px]">
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[260px] max-sm:left-2 max-sm:right-2 max-sm:w-auto">
                       <div className="grid grid-cols-8 gap-1">
                         {EMOJIS.map(emoji => (
                           <button key={emoji} type="button" className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-lg"
@@ -1395,10 +1416,10 @@ export function ProductEditor({
                     </div>
                   )}
                 </div>
-                <div className="relative">
+                <div className="sm:relative">
                   <ToolbarButton icon={<span className="text-[11px] font-serif">Ω</span>} onClick={() => { closeAllDropdowns(); setShowSymbol(!showSymbol); }} title="Symboles & caractères spéciaux" hasDropdown />
                   {showSymbol && (
-                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[280px] max-h-[260px] overflow-y-auto">
+                    <div className="absolute top-full right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-2 w-[280px] max-h-[260px] overflow-y-auto max-sm:left-2 max-sm:right-2 max-sm:w-auto">
                       <div className="grid grid-cols-8 gap-1">
                         {SYMBOLS.map((symbol, index) => (
                           <button key={`${symbol}-${index}`} type="button" className="h-8 w-8 flex items-center justify-center hover:bg-muted rounded text-base"
@@ -1426,9 +1447,10 @@ export function ProductEditor({
                 <ToolbarButton icon={<ImageIcon className="h-3.5 w-3.5" />} onClick={insertImage} title="Insérer une image" />
                 <ToolbarButton icon={<Video className="h-3.5 w-3.5" />} onClick={insertVideo} title="Insérer une vidéo" />
               </div>
+              </div>
 
-              {/* Editor Area */}
-              <div className="relative bg-background">
+              {/* Editor Area (isolate : la barre d'images flottante reste sous la barre d'outils collée) */}
+              <div className="relative isolate bg-background rounded-b-xl">
                 {/* Image Toolbar */}
                 {selectedEditorImage && imageToolbar && (
                   <div 

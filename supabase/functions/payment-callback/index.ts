@@ -106,7 +106,7 @@ serve(async (req) => {
       // SECURITY: GET redirects are unsigned and untrusted. NEVER mutate the database here.
       // Only the signed POST webhook is authoritative. We just bounce the user to the app.
       const status = url.searchParams.get("status");
-      const finalReturnUrl = "https://visuelpro.cloud";
+      const finalReturnUrl = "https://ecomfy.cloud";
       const target = (status === "success" || status === "completed")
         ? `${finalReturnUrl}/?payment=success`
         : `${finalReturnUrl}/?payment=failed`;
@@ -334,8 +334,8 @@ serve(async (req) => {
         }
       }
 
-      // Toujours rediriger vers visuelpro.cloud
-      const finalReturnUrl = "https://visuelpro.cloud";
+      // Toujours rediriger vers ecomfy.cloud
+      const finalReturnUrl = "https://ecomfy.cloud";
       const successTarget = isShopActivation && shop_id
         ? `${finalReturnUrl}/shop-editor/${shop_id}`
         : `${finalReturnUrl}/?payment=success`;
@@ -347,8 +347,8 @@ serve(async (req) => {
         },
       });
     } else {
-      // Toujours rediriger vers visuelpro.cloud
-      const finalReturnUrl = "https://visuelpro.cloud";
+      // Toujours rediriger vers ecomfy.cloud
+      const finalReturnUrl = "https://ecomfy.cloud";
       return new Response(null, {
         status: 302,
         headers: {

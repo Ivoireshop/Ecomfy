@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { shopOwnerHasCredits } from "../_shared/credits-gate.ts";
 import { sanitizeChatMessages } from "../_shared/chat-sanitize.ts";
 import { getClientIp, takeRateLimit } from "../_shared/rate-limit.ts";
+import { geminiChatStream } from "../_shared/openrouter-chat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,9 +54,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -132,38 +130,28 @@ RÈGLES IMPÉRATIVES ET STRICTES (Priorité absolue) :
 CONTEXTE DE LA BOUTIQUE :
 ${contextSections.join("\n\n") || "Aucun contexte produit pour l'instant."}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+    // OpenRouter d'abord, Lovable Cloud en secours : le chat ne dépendait que de LOVABLE_API_KEY,
+    // absente du projet, et répondait 500 à chaque message.
+    let stream;
+    try {
+      stream = await geminiChatStream({
         messages: [{ role: "system", content: systemPrompt }, ...messages],
-        stream: true,
-        max_tokens: 600,
-      }),
-    });
-
-    if (response.status === 429) {
-      return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (response.status === 402) {
-      return new Response(JSON.stringify({ error: "payment_required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "ai_gateway_error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        maxTokens: 600,
+      });
+    } catch (e) {
+      console.error("shop-ai-assistant-chat: aucun fournisseur IA disponible:", e instanceof Error ? e.message : e);
+      return new Response(JSON.stringify({ error: "ai_unavailable" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    return new Response(stream.response.body, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
   } catch (e) {
     console.error("shop-ai-assistant-chat error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), {
+    return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

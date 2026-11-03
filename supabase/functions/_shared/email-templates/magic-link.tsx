@@ -24,13 +24,13 @@ export const MagicLinkEmail = ({
 }: MagicLinkEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Votre lien de connexion VisuelPro</Preview>
+    <Preview>Votre lien de connexion Ecomfy</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brand}>VisuelPro</Text>
+        <Text style={brand}>Ecomfy</Text>
         <Heading style={h1}>Votre lien de connexion</Heading>
         <Text style={text}>
-          Cliquez sur le bouton ci-dessous pour vous connecter à VisuelPro.
+          Cliquez sur le bouton ci-dessous pour vous connecter à Ecomfy.
           Ce lien expirera dans quelques minutes.
         </Text>
         <Button style={button} href={confirmationUrl}>
