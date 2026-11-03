@@ -56,6 +56,28 @@ export function computeShopSubscription(shop: any): ShopSubscriptionState {
   };
 }
 
+export type PricingPlanId = "starter_free" | "pro_monthly" | "premium_academy_pro";
+
+/**
+ * Formule de la page des tarifs qui correspond à un plan stocké. `starter` est l'ancien nom de Pro.
+ * Premium est testé en premier : « premium_academy_pro » contient « pro ».
+ */
+export function pricingPlanIdFor(plan: string | null | undefined): PricingPlanId {
+  const p = String(plan || "free").toLowerCase();
+  if (p.includes("premium") || p.includes("vip") || p.includes("academy")) return "premium_academy_pro";
+  if (p === "free" || p === "starter_free") return "starter_free";
+  return "pro_monthly";
+}
+
+/**
+ * Abonnement de compte sans boutique : la table `subscriptions` n'a pas de colonne de plan, seul le montant payé
+ * (12 000 / 118 800 pour Pro, 35 000 / 342 000 pour Premium) permet de retrouver la formule.
+ */
+export function pricingPlanIdFromAmount(amount: number | null | undefined): PricingPlanId {
+  const a = Number(amount) || 0;
+  return a >= 300_000 || (a >= 30_000 && a < 100_000) ? "premium_academy_pro" : "pro_monthly";
+}
+
 /** Démarre le paiement d'un mois d'abonnement pour la boutique et retourne l'URL de paiement. */
 export async function startShopSubscriptionPayment(shopId: string, plan: string): Promise<string> {
   const amount = MONTHLY_PRICES[plan];

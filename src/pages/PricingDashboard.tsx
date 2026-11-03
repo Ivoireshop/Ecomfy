@@ -5,6 +5,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { computeShopSubscription, pricingPlanIdFor, pricingPlanIdFromAmount } from "@/lib/shopSubscription";
 
 export default function PricingDashboard() {
   const { session } = useAuthReady();
@@ -22,47 +23,37 @@ export default function PricingDashboard() {
   const loadActivePlan = async () => {
     if (!session?.user?.id) return;
     try {
-      const { data: subData } = await supabase
-        .from("subscriptions")
-        .select("plan, end_date, status")
-        .eq("user_id", session.user.id)
-        .eq("status", "active")
-        .maybeSingle();
-
+      // Comme côté base : seule la date de fin de la boutique fait foi (ni is_subscribed, ni subscriptions.status).
       const { data: shopData } = await supabase
         .from("shops")
-        .select("subscription_plan, subscription_active_until, is_subscribed")
+        .select("subscription_plan, subscription_active_until")
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      const plan = shopData?.subscription_plan || subData?.plan || null;
-      const until = shopData?.subscription_active_until || subData?.end_date || null;
-      const isSub = shopData?.is_subscribed || (subData?.status === "active");
-
-      if (isSub || (until && new Date(until).getTime() > Date.now())) {
-        setActivePlanId(plan);
+      if (shopData) {
+        const sub = computeShopSubscription(shopData);
+        setActivePlanId(sub.isActive ? pricingPlanIdFor(sub.plan) : null);
+        return;
       }
+
+      // Pas de boutique : abonnement de compte, formule retrouvée par le montant payé.
+      const { data: subData } = await supabase
+        .from("subscriptions")
+        .select("amount, end_date, status")
+        .eq("user_id", session.user.id)
+        .eq("status", "active")
+        .maybeSingle();
+      const accountActive = !!subData?.end_date && new Date(subData.end_date).getTime() > Date.now();
+      setActivePlanId(accountActive ? pricingPlanIdFromAmount(subData?.amount) : null);
     } catch (e) {
       console.error("Error loading active plan:", e);
     }
   };
 
-  const isPlanActive = (planId: string) => {
-    if (!activePlanId) return planId === "starter_free";
-    const norm = activePlanId.toLowerCase();
-    if (planId === "pro_monthly" && (norm.includes("pro") || norm.includes("starter") || norm.includes("business"))) {
-      return true;
-    }
-    if (planId === "premium_academy_pro" && (norm.includes("premium") || norm.includes("vip") || norm.includes("academy"))) {
-      return true;
-    }
-    if (planId === "starter_free" && (norm === "free" || norm === "starter_free")) {
-      return true;
-    }
-    return norm === planId.toLowerCase();
-  };
+  // Une seule formule est « actuelle » : celle de l'abonnement en cours, sinon la formule gratuite.
+  const isPlanActive = (planId: string) => planId === (activePlanId ?? "starter_free");
 
   // Déclenchement automatique post-connexion si l'utilisateur avait sélectionné un plan
   useEffect(() => {
