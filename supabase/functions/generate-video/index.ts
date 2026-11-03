@@ -4,7 +4,8 @@ import { getOpenAiApiKey, analyzeImageWithGpt4oMini, optimizePromptWithGpt4oMini
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 import { estimateImageCostUsd, estimateTextCallCostUsd, estimateVideoAnimationCostUsd } from "../_shared/ai-cost.ts";
 import { finishGeneration, startGeneration } from "../_shared/ai-generation-log.ts";
-import { classifyOpenAiFailure, fetchWithTimeout, runWithRetry } from "../_shared/ai-retry.ts";
+import { classifyOpenAiFailure, classifyProviderFailure, fetchWithTimeout, isOperatorAlertCode, runWithRetry } from "../_shared/ai-retry.ts";
+import type { Failure } from "../_shared/ai-retry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -236,6 +237,13 @@ serve(async (req) => {
           let animationPrompt = `Professional ${niche} commercial video advert. Style: ${style}. ${userExplicitDemand ? `Scene Directive: ${userExplicitDemand}.` : ""} Smooth fluid motion, cinematic camera pan, high quality animation.`;
 
           let videoUrl: string | null = null;
+          // Dernier échec classé des fournisseurs d'animation : code stable pour le journal, corps tronqué pour les logs.
+          // Avant, une réponse refusée (solde, clé, modèle, contenu) était avalée sans trace : impossible de dire pourquoi.
+          let animationFailure: Failure | null = null;
+          const noteAnimationFailure = (provider: string, status: number, bodyText: string) => {
+            animationFailure = classifyProviderFailure(status, bodyText);
+            console.error(`[video-provider] ${provider} HTTP ${status} -> ${animationFailure.code}: ${animationFailure.detail}`);
+          };
 
           if (replicateApiKey) {
             try {
@@ -253,6 +261,8 @@ serve(async (req) => {
                 const repData = await replicateResp.json();
                 if (repData.status === "succeeded" && repData.output) {
                   videoUrl = typeof repData.output === "string" ? repData.output : repData.output[0] || null;
+                } else if (repData.status === "failed" || repData.status === "canceled") {
+                  noteAnimationFailure("replicate", 422, String(repData.error ?? repData.status));
                 } else if (repData.id && (repData.status === "processing" || repData.status === "starting")) {
                   const predictionId = repData.id;
                   const pollEnd = Date.now() + 300000;
@@ -267,14 +277,18 @@ serve(async (req) => {
                         videoUrl = typeof pollData.output === "string" ? pollData.output : pollData.output[0] || null;
                         break;
                       } else if (pollData.status === "failed" || pollData.status === "canceled") {
+                        noteAnimationFailure("replicate", 422, String(pollData.error ?? pollData.status));
                         break;
                       }
                     }
                   }
                 }
+              } else {
+                noteAnimationFailure("replicate", replicateResp.status, await replicateResp.text().catch(() => ""));
               }
             } catch (e) {
               console.error("Replicate request failed:", e);
+              noteAnimationFailure("replicate", 0, String((e as any)?.message || e));
             }
           }
 
@@ -318,14 +332,18 @@ serve(async (req) => {
                     if (statusData.status === "SUCCEEDED") {
                       videoUrl = statusData.output?.[0] || null;
                       break;
-                    } else if (statusData.status === "FAILED") {
+                    } else if (statusData.status === "FAILED" || statusData.status === "CANCELLED") {
+                      noteAnimationFailure("runway", 422, `${statusData.failureCode ?? ""} ${statusData.failure ?? statusData.status}`);
                       break;
                     }
                   }
                 }
+              } else {
+                noteAnimationFailure("runway", runwayResponse.status, await runwayResponse.text().catch(() => ""));
               }
             } catch (e) {
               console.error("Runway request failed:", e);
+              noteAnimationFailure("runway", 0, String((e as any)?.message || e));
             }
           }
 
@@ -335,7 +353,12 @@ serve(async (req) => {
           }
 
           if (!videoUrl) {
-            outcome = { status: "failed", errorCode: "animation_failed" };
+            // Code précis dans le journal (provider_quota, provider_auth, content_policy…), sinon « animation_failed ».
+            const failure = animationFailure as Failure | null;
+            outcome = { status: "failed", errorCode: failure?.code ?? "animation_failed" };
+            if (failure && isOperatorAlertCode(failure.code)) {
+              console.error(`[AI-OPERATOR-ALERT] generate-video : ${failure.code} (HTTP ${failure.status})`);
+            }
             await serviceClient.from("generated_videos").update({
               status: "failed",
               progress_step: "failed",

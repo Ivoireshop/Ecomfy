@@ -175,6 +175,7 @@ export const AIImageGenerator = ({ onImageGenerated }: AIImageGeneratorProps) =>
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       if (data?.audioContent) {
         const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;

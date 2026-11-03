@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   classifyOpenAiFailure,
+  classifyProviderFailure,
   fetchWithTimeout,
   isOperatorAlertCode,
   runWithRetry,
@@ -242,4 +243,37 @@ test("ai-generation-log : fail-closed si le décompte est indisponible", () => {
   const code = src("_shared/ai-generation-log.ts");
   assert.match(code, /if \(error\) \{[\s\S]*?quota_unavailable/);
   assert.match(code, /catch \(e\) \{[\s\S]*?quota_unavailable/);
+});
+
+// --- fournisseurs vidéo et voix (Replicate, Runway, ElevenLabs) -------------------------------------------------
+
+test("fournisseurs vidéo/voix : solde épuisé = provider_quota, quel que soit le statut", () => {
+  assert.equal(classifyProviderFailure(402, '{"detail":"Insufficient credit"}').code, "provider_quota");
+  assert.equal(classifyProviderFailure(400, '{"error":"You do not have enough credits to run this task"}').code, "provider_quota");
+  assert.equal(classifyProviderFailure(401, '{"detail":{"status":"quota_exceeded"}}').code, "provider_quota");
+});
+
+test("fournisseurs vidéo/voix : clé refusée, contenu refusé, panne passagère", () => {
+  assert.equal(classifyProviderFailure(401, '{"detail":"Invalid token"}').code, "provider_auth");
+  assert.equal(classifyProviderFailure(403, "forbidden").code, "provider_auth");
+  assert.equal(classifyProviderFailure(422, "NSFW content detected").code, "content_policy");
+  assert.equal(classifyProviderFailure(429, "Request was throttled").kind, "retryable");
+  assert.equal(classifyProviderFailure(502, "").code, "provider_error");
+  assert.equal(classifyProviderFailure(0, "fetch failed").code, "network");
+});
+
+test("fournisseurs vidéo/voix : le message affiché ne contient aucun détail fournisseur", () => {
+  for (const code of ["animation_failed", "keyframe_failed", "download_failed", "provider_quota", "content_policy"]) {
+    const msg = userMessageForFailure(code);
+    assert.ok(msg.length > 20 && !/\d{4}|replicate|runway|eleven|http/i.test(msg), code);
+  }
+});
+
+test("branchement : generate-video classe les échecs, generate-voiceover ne renvoie plus de texte brut", () => {
+  const video = src("generate-video/index.ts");
+  assert.ok(video.includes("classifyProviderFailure") && video.includes("noteAnimationFailure"));
+  assert.ok(video.includes("failure?.code ?? \"animation_failed\""));
+  const voice = src("generate-voiceover/index.ts");
+  assert.ok(voice.includes("classifyProviderFailure") && !voice.includes("Erreur Eleven Labs: ${"));
+  assert.ok(!/status: 500/.test(voice));
 });

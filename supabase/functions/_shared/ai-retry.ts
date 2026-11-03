@@ -72,6 +72,32 @@ export function classifyOpenAiFailure(status: number, bodyText: string): Failure
   return f("fatal", "bad_request");
 }
 
+/**
+ * Classe une réponse d'erreur d'un fournisseur autre qu'OpenAI (Replicate et Runway pour la vidéo, ElevenLabs pour la voix).
+ * Même vocabulaire de codes qu'OpenAI, pour que `userMessageForFailure` et l'alerte opérateur s'appliquent tels quels.
+ * Les fournisseurs n'ont pas la même façon de dire « plus de solde » (402 chez Replicate, 400 chez Runway,
+ * 401 `quota_exceeded` chez ElevenLabs) : on lit donc le corps avant le statut.
+ */
+export function classifyProviderFailure(status: number, bodyText: string): Failure {
+  const body = (bodyText || "").toLowerCase();
+  if (
+    status > 0 &&
+    status < 500 &&
+    status !== 404 &&
+    /insufficient|enough credits|out of credits|quota_exceeded|exceeded your|billing|payment required/.test(body)
+  ) {
+    return { kind: "fatal", code: "provider_quota", status, detail: (bodyText || "").slice(0, 300) };
+  }
+  if (status === 403 && /nsfw|moderation|content|safety|policy/.test(body)) {
+    return { kind: "fatal", code: "content_policy", status, detail: (bodyText || "").slice(0, 300) };
+  }
+  if (status === 403) return { kind: "fatal", code: "provider_auth", status, detail: (bodyText || "").slice(0, 300) };
+  if (/nsfw|moderation|content policy|content_policy|flagged/.test(body)) {
+    return { kind: "fatal", code: "content_policy", status, detail: (bodyText || "").slice(0, 300) };
+  }
+  return classifyOpenAiFailure(status, bodyText);
+}
+
 /** Message affichable à l'utilisateur pour un code d'échec. Jamais de détail technique du fournisseur. */
 export function userMessageForFailure(code: string): string {
   switch (code) {
@@ -87,6 +113,10 @@ export function userMessageForFailure(code: string): string {
       return "Le service de génération est indisponible pour le moment. Votre crédit n'a pas été débité. L'équipe Ecomfy est prévenue.";
     case "model_unavailable":
       return "Le moteur de génération n'est pas disponible pour le moment. Votre crédit n'a pas été débité.";
+    case "keyframe_failed":
+    case "animation_failed":
+    case "download_failed":
+      return "La vidéo n'a pas pu être produite. Votre crédit n'a pas été débité, réessayez dans quelques minutes ou simplifiez votre description.";
     default:
       return "La génération n'a pas pu aboutir. Votre crédit n'a pas été débité, vérifiez votre demande puis réessayez.";
   }
