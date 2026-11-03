@@ -288,7 +288,7 @@ serve(async (req) => {
               }
             } catch (e) {
               console.error("Replicate request failed:", e);
-              noteAnimationFailure("replicate", 0, String((e as any)?.message || e));
+              noteAnimationFailure("replicate", 0, String((e as Error)?.message || e));
             }
           }
 
@@ -343,7 +343,7 @@ serve(async (req) => {
               }
             } catch (e) {
               console.error("Runway request failed:", e);
-              noteAnimationFailure("runway", 0, String((e as any)?.message || e));
+              noteAnimationFailure("runway", 0, String((e as Error)?.message || e));
             }
           }
 
@@ -433,7 +433,8 @@ serve(async (req) => {
       await close("failed", "internal_error");
       throw reserved;
     }
-  } catch (error: any) {
+  } catch (caught) {
+    const error = caught as { message?: string; details?: string };
     console.error("Error in generate-video function:", error);
     return new Response(
       JSON.stringify({ success: false, error: error?.message || error?.details || String(error) }),

@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- module Deno hors du projet tsc (jamais typé par `npm run typecheck`) ; @ts-nocheck coupe les faux positifs de l'éditeur sur les imports npm:/jsr: */
 // @ts-nocheck
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { classifyOpenAiFailure, fetchWithTimeout, runWithRetry } from "./ai-retry.ts";
 import type { AttemptOutcome, Failure } from "./ai-retry.ts";
 import { OPENAI_CONFIG } from "./openai-config.ts";
@@ -33,7 +35,9 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([u8], { type: mime });
 }
 
-function readImageUrl(data: any): string | null {
+type ImagesApiResponse = { data?: Array<{ url?: string; b64_json?: string }> } | null;
+
+function readImageUrl(data: ImagesApiResponse): string | null {
   return data?.data?.[0]?.url || (data?.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null);
 }
 
@@ -122,7 +126,7 @@ export async function generateOpenAiImage(
     [OPENAI_CONFIG.IMAGE_MODEL, OPENAI_CONFIG.IMAGE_MODEL_FALLBACK, "dall-e-3"],
     async (model, _n, remaining): Promise<AttemptOutcome<string>> => {
       console.log(`[OpenAI Call] Requesting model ${model} (${size}, quality: ${OPENAI_CONFIG.IMAGE_QUALITY})...`);
-      const bodyPayload: any = { model, prompt: prompt.substring(0, 3800), size, n: 1 };
+      const bodyPayload: Record<string, unknown> = { model, prompt: prompt.substring(0, 3800), size, n: 1 };
       bodyPayload.quality = model.startsWith("gpt-image") ? OPENAI_CONFIG.IMAGE_QUALITY : "hd";
       const res = await fetchWithTimeout(
         "https://api.openai.com/v1/images/generations",
@@ -152,7 +156,7 @@ export async function generateOpenAiImage(
  * OpenAI qui expire en ~1 h ne doivent pas finir dans la base : `persisted` dit si la copie a réussi.
  */
 export async function persistGeneratedImage(
-  supabaseClient: any,
+  supabaseClient: SupabaseClient,
   userId: string,
   imageUrl: string,
 ): Promise<{ url: string; persisted: boolean }> {

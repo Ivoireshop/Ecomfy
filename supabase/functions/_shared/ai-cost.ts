@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- module Deno hors du projet tsc (jamais typé par `npm run typecheck`) ; @ts-nocheck coupe les faux positifs de l'éditeur sur les imports npm:/jsr: */
 // @ts-nocheck
 /**
  * Estimation du coût fournisseur des générations du Studio, en USD.

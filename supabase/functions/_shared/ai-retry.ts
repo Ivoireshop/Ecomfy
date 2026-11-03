@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- module Deno hors du projet tsc (jamais typé par `npm run typecheck`) ; @ts-nocheck coupe les faux positifs de l'éditeur sur les imports npm:/jsr: */
 // @ts-nocheck
 /**
  * Nouvelle tentative contrôlée pour les appels IA payants (Studio).
@@ -135,6 +136,7 @@ export async function fetchWithTimeout(
   init: RequestInit,
   timeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
   fetchImpl: typeof fetch = fetch,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- corps JSON de fournisseurs divers, forme inconnue ici
 ): Promise<{ ok: boolean; status: number; text: string; json: () => any }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

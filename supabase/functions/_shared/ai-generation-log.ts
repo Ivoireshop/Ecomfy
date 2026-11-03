@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- module Deno hors du projet tsc (jamais typé par `npm run typecheck`) ; @ts-nocheck coupe les faux positifs de l'éditeur sur les imports npm:/jsr: */
 // @ts-nocheck
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { dailyCostCapUsd, IMAGE_CREDIT_COST, VIDEO_CREDIT_COST } from "./ai-cost.ts";

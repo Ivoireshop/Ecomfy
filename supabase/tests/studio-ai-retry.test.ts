@@ -135,14 +135,14 @@ test("retry : la durée restante est transmise à chaque appel", async () => {
 // --- fetchWithTimeout -------------------------------------------------------------------------------------------
 
 test("fetchWithTimeout : réponse normale, erreur réseau et délai dépassé ne lèvent jamais", async () => {
-  const good = await fetchWithTimeout("x://", {}, 1000, (async () => new Response('{"a":1}', { status: 200 })) as any);
+  const good = await fetchWithTimeout("x://", {}, 1000, (async () => new Response('{"a":1}', { status: 200 })) as unknown as typeof fetch);
   assert.deepEqual([good.ok, good.status, good.json()], [true, 200, { a: 1 }]);
 
-  const net = await fetchWithTimeout("x://", {}, 1000, (async () => { throw new TypeError("fetch failed"); }) as any);
+  const net = await fetchWithTimeout("x://", {}, 1000, (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch);
   assert.deepEqual([net.ok, net.status], [false, 0]);
 
   const slow = await fetchWithTimeout("x://", {}, 20, ((_u: string, init: RequestInit) =>
-    new Promise((_res, rej) => init.signal!.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }))))) as any);
+    new Promise((_res, rej) => init.signal!.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }))))) as unknown as typeof fetch);
   assert.deepEqual([slow.ok, slow.status], [false, -1]);
   assert.equal(classifyOpenAiFailure(slow.status, slow.text).code, "timeout");
 });
