@@ -283,7 +283,6 @@ export function DashboardVideoBanner({ firstName = "Cher Vendeur" }: DashboardVi
               title="Présentation Ecomfy Vendeurs"
               className="w-full h-full border-0 rounded-2xl relative z-10 scale-105 pointer-events-auto"
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
-              allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
               onLoad={handleIframeLoad}
               // @ts-ignore

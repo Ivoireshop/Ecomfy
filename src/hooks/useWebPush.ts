@@ -69,25 +69,9 @@ export const useWebPush = () => {
           } catch {
             // synchro best-effort
           }
-
-          try {
-            await supabase
-              .from('device_tokens')
-              .upsert(
-                {
-                  user_id: session.user.id,
-                  fcm_token: subJSON.endpoint,
-                  user_agent: navigator.userAgent,
-                  last_used_at: new Date().toISOString()
-                },
-                { onConflict: 'fcm_token' }
-              );
-          } catch {
-            // synchro best-effort
-          }
         }
       }
-      
+
       setIsSubscribed(!!subscription);
     } catch (error) {
       console.error('Erreur lors de la vérification de la souscription:', error);
@@ -200,23 +184,6 @@ export const useWebPush = () => {
         );
 
       if (error) throw error;
-
-      // Synchroniser également dans device_tokens
-      try {
-        await supabase
-          .from('device_tokens')
-          .upsert(
-            {
-              user_id: session.user.id,
-              fcm_token: subJSON.endpoint,
-              user_agent: navigator.userAgent,
-              last_used_at: new Date().toISOString()
-            },
-            { onConflict: 'fcm_token' }
-          );
-      } catch {
-        // synchro best-effort
-      }
 
       setIsSubscribed(true);
       toast({

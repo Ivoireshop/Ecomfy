@@ -146,7 +146,6 @@ export function LandingConnectUsSection() {
                 title="Présentation ConnectUs Ecomfy"
                 className="w-full h-full border-0 rounded-2xl sm:rounded-3xl relative z-10 scale-105 pointer-events-auto"
                 allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
-                allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
                 onLoad={triggerVimeoPlay}
                 // @ts-ignore
