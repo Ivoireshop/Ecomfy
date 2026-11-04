@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getTrackingContext } from "@/lib/tracking";
 import {
   MerchantKyc,
   PaymentLink,
@@ -244,7 +245,7 @@ export const ecomfyPayApi = {
   }): Promise<{ success: boolean; checkout_url?: string; internal_reference?: string; error?: string }> {
     try {
       const { data, error } = await supabase.functions.invoke("ecomfy-pay-initiate", {
-        body: params,
+        body: { ...params, tracking: getTrackingContext() },
       });
 
       if (error || !data?.success) {

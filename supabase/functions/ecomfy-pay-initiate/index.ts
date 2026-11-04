@@ -32,7 +32,21 @@ serve(async (req) => {
       customer_address,
       customer_city,
       order_id,
+      tracking,
     } = body;
+
+    // Contexte publicitaire du visiteur (cookies Meta, agent utilisateur, page) : le webhook de confirmation arrive
+    // sans navigateur et en a besoin pour envoyer le Purchase serveur. Valeurs tronquées, rien d'autre n'est conservé.
+    const clip = (v: unknown, max: number): string | undefined =>
+      typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+    const visitorIp = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || req.headers.get("cf-connecting-ip") || undefined;
+    const trackingContext = JSON.parse(JSON.stringify({
+      fbp: clip(tracking?.fbp, 200),
+      fbc: clip(tracking?.fbc, 300),
+      user_agent: clip(tracking?.user_agent, 500) ?? clip(req.headers.get("user-agent"), 500),
+      event_source_url: clip(tracking?.event_source_url, 1000),
+      client_ip: visitorIp ? visitorIp.slice(0, 64) : undefined,
+    }));
 
     if (!shop_id || typeof requestedAmount !== "number" || !(requestedAmount > 0) || !payment_method) {
       return new Response(
@@ -132,6 +146,7 @@ serve(async (req) => {
           customer_address,
           customer_city,
           created_via: "ecomfy_pay_checkout",
+          tracking: trackingContext,
         },
       })
       .select("*")

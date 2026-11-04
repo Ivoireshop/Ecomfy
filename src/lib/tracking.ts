@@ -83,6 +83,20 @@ function getFbp(): string | undefined {
   return getCookie("_fbp");
 }
 
+/**
+ * Contexte navigateur à mémoriser avec un paiement en ligne : le webhook de confirmation arrive sans navigateur,
+ * il en a besoin pour envoyer un Purchase serveur correctement rattaché (cookies Meta, agent utilisateur, page).
+ */
+export function getTrackingContext(): { fbp?: string; fbc?: string; user_agent?: string; event_source_url?: string } {
+  if (typeof window === "undefined") return {};
+  return {
+    fbp: getFbp(),
+    fbc: getFbc(),
+    user_agent: navigator.userAgent,
+    event_source_url: window.location.href,
+  };
+}
+
 const genEventId = (orderId?: string) =>
   orderId ? `ord_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, "_")}` : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -286,6 +300,11 @@ export async function trackEvent(
   try {
     const fbpVal = payload.fbp || getFbp();
     const fbcVal = payload.fbc || getFbc();
+    // Les formulaires ne demandent qu'un « nom complet » : Meta attend prénom (fn) et nom (ln) séparés.
+    const fullName = payload.first_name?.trim();
+    const namePart = fullName && !payload.last_name && /\s/.test(fullName)
+      ? { first_name: fullName.split(/\s+/)[0], last_name: fullName.split(/\s+/).slice(1).join(" ") }
+      : {};
 
     void supabase.functions.invoke("track-conversion", {
       body: {
@@ -296,6 +315,7 @@ export async function trackEvent(
         user_agent: navigator.userAgent,
         payload: {
           ...payload,
+          ...namePart,
           currency,
           ...(fbpVal ? { fbp: fbpVal } : {}),
           ...(fbcVal ? { fbc: fbcVal } : {}),
