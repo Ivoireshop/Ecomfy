@@ -19,6 +19,9 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 export function AICreditsBadge() {
   const { user } = useAuthReady();
   const [credits, setCredits] = useState<number>(0);
+  // Essais gratuits d'accueil : consommés avant les crédits achetés, donc à afficher (sinon « 0 crédit » alors qu'une
+  // génération est encore possible).
+  const [freeTrials, setFreeTrials] = useState<number>(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<number | null>(null);
   const [promoInput, setPromoInput] = useState("");
@@ -29,10 +32,11 @@ export function AICreditsBadge() {
     if (!user) return;
     const { data } = await supabase
       .from("profiles")
-      .select("purchased_credits")
+      .select("purchased_credits, free_generations_remaining")
       .eq("id", user.id)
       .maybeSingle();
     setCredits(data?.purchased_credits || 0);
+    setFreeTrials(Math.max(0, data?.free_generations_remaining || 0));
   };
 
   useEffect(() => {
@@ -48,6 +52,9 @@ export function AICreditsBadge() {
         (payload: any) => {
           if (payload?.new?.purchased_credits !== undefined && payload?.new?.purchased_credits !== null) {
             setCredits(payload.new.purchased_credits);
+          }
+          if (typeof payload?.new?.free_generations_remaining === "number") {
+            setFreeTrials(Math.max(0, payload.new.free_generations_remaining));
           }
         },
       )
@@ -123,11 +130,16 @@ export function AICreditsBadge() {
         size="sm"
         onClick={() => setOpen(true)}
         className="h-9 gap-1.5 rounded-full border-primary/30 bg-primary/5 hover:bg-primary/10 px-3"
-        title="Crédits IA - cliquez pour recharger"
+        title={freeTrials > 0 ? `Crédits IA et ${freeTrials} essai(s) gratuit(s) - cliquez pour recharger` : "Crédits IA - cliquez pour recharger"}
       >
         <Zap className="h-4 w-4 text-primary" />
         <span className="font-semibold tabular-nums">{credits}</span>
         <span className="hidden sm:inline text-xs text-muted-foreground">crédits</span>
+        {freeTrials > 0 && (
+          <span className="text-[10px] font-semibold text-primary bg-primary/10 rounded-full px-1.5 py-0.5">
+            +{freeTrials} {freeTrials > 1 ? "essais" : "essai"}
+          </span>
+        )}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -138,7 +150,8 @@ export function AICreditsBadge() {
             </DialogTitle>
             <DialogDescription>
               1,5 crédit par fiche produit · 2 crédits par message vocal. Solde
-              actuel : <b>{credits} crédits</b>.
+              actuel : <b>{credits} crédits</b>
+              {freeTrials > 0 && <> + <b>{freeTrials} {freeTrials > 1 ? "essais gratuits" : "essai gratuit"}</b> (utilisés en premier)</>}.
             </DialogDescription>
           </DialogHeader>
 

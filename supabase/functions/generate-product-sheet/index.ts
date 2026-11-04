@@ -275,47 +275,11 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
         usage.costUsd += estimateSheetTextCostUsd(Boolean(image_base64));
         usage.aiContent = Boolean(content);
       } catch (geminiError: any) {
-        console.warn("[PRODUCT_AI_FALLBACK_TRIGGERED] Both AI providers failed, generating structured local copywriter fallback", geminiError.message);
-        sheet = {
-          headline: `${name} — L'Excellence Et La Qualité Que Vous Méritez`,
-          subheadline: brief ? brief.slice(0, 100) : `Découvrez les performances exceptionnelles de ${name}.`,
-          short_description: brief || `${name} à été pensé pour répondre exactement à vos exigences de qualité et d'efficacité au quotidien.`,
-          long_description: `Si vous recherchez un produit de la catégorie ${category || 'haute qualité'} capable de faire la différence, ${name} est la solution idéale.\n\nConçu avec une grande attention aux détails, ${name} résout directement les problèmes fréquents rencontrés avec les alternatives ordinaires. Chaque aspect a été optimisé pour vous apporter satisfaction, durabilité et plaisir d'utilisation.\n\nEn choisissant ${name}, vous optez pour la tranquillité d'esprit et des résultats visibles dès la première prise en main.\n\nCommandez dès aujourd'hui et profitez d'un service de livraison rapide et d'un accompagnement personnalisé.`,
-          storytelling: `La conception de ${name} repose sur une exigence simple : offrir au marché un produit fiable, élégant et sans compromis sur la qualité.`,
-          bullets: [
-            `Efficacité remarquable pour ${name}`,
-            `Matériaux et finition haut de gamme`,
-            `Utilisation simple et intuitive au quotidien`,
-            `Garantie de satisfaction et support client dédié`,
-            `Livraison rapide et sécurisée`
-          ],
-          benefits: [
-            `Efficacité remarquable pour ${name}`,
-            `Matériaux et finition haut de gamme`,
-            `Utilisation simple et intuitive au quotidien`,
-            `Garantie de satisfaction et support client dédié`,
-            `Livraison rapide et sécurisée`
-          ],
-          features: [
-            `Nom du produit : ${name}`,
-            `Prix : ${price ? price + " " + currency : "Tarif promotionnel"}`,
-            `Catégorie : ${category || "Haute Qualité"}`
-          ],
-          testimonials: [
-            { name: "Fatou S.", city: "Dakar", rating: 5, comment: `J'ai commandé ${name} il y a 5 jours et je suis agréablement surprise par la qualité. C'est exactement ce que je cherchais !` },
-            { name: "Koffi A.", city: "Abidjan", rating: 5, comment: `Livraison rapide à Marcory et produit très bien emballé. ${name} vaut largement son prix.` },
-            { name: "Carine N.", city: "Douala", rating: 5, comment: `Très satisfaite de mon achat. ${name} fonctionne parfaitement et me simplifie la vie.` }
-          ],
-          guarantee: "Garantie 100% Satisfait ou Remboursé sous 14 jours",
-          urgency: "Offre promotionnelle valable dans la limite des stocks disponibles !",
-          cta: `Commander ${name} Maintenant`,
-          faq: [
-            { q: `Comment utiliser au mieux ${name} ?`, a: "Le produit est prêt à l'emploi et accompagné d'un guide simple d'utilisation." },
-            { q: "Quels sont les délais de livraison ?", a: "Expédition rapide avec livraison à domicile sous 24h à 48h." }
-          ],
-          seo_title: `${name} — Prix, Avis Clients & Achat (${currency})`,
-          seo_description: `Achetez ${name} au meilleur prix en ${currency}. Avis vérifiés, storytelling et livraison rapide.`
-        };
+        // Aucun texte de remplacement n'est inventé : un texte générique avec faux témoignages, garantie et délais
+        // inventés serait publié par le vendeur comme s'il avait été rédigé pour son produit.
+        console.warn("[PRODUCT_AI_FALLBACK_TRIGGERED] Both AI providers failed", geminiError.message);
+        sheet = {};
+        usage.aiContent = false;
       }
     }
 
@@ -335,6 +299,22 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
     if (sheet && typeof sheet === "object") {
       sheet.benefits = Array.isArray(sheet.benefits) && sheet.benefits.length ? sheet.benefits : (Array.isArray(sheet.bullets) ? sheet.bullets : []);
       sheet.bullets = Array.isArray(sheet.bullets) && sheet.bullets.length ? sheet.bullets : (Array.isArray(sheet.benefits) ? sheet.benefits : []);
+    }
+
+    // Réponse sans contenu exploitable (ni texte long, ni avantages) : même traitement qu'une IA indisponible.
+    if (usage.aiContent && !String(sheet?.long_description ?? "").trim() && !(Array.isArray(sheet?.benefits) && sheet.benefits.length)) {
+      usage.aiContent = false;
+    }
+
+    // IA indisponible ou réponse inexploitable : un vrai échec, rien n'est facturé, rien n'est inventé. Avant, un texte
+    // générique revenait avec success:true et l'écran le présentait comme « rédigé par l'IA ».
+    if (!usage.aiContent) {
+      await logOnce("failed", { errorCode: "ai_unavailable" });
+      return json({
+        success: false,
+        code: "ai_unavailable",
+        error: "La rédaction par l'IA est momentanément indisponible. Aucun crédit n'a été débité. Réessayez dans un instant ou rédigez la description en mode Expert.",
+      });
     }
 
     // 2) Image prompts & rendering (best effort)
@@ -386,45 +366,17 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
         console.warn("[PRODUCT_AI_CREDITS_WARN]", creditErr);
       }
       await logOnce("succeeded", { chargeSource, chargeAmount });
-    } else {
-      // Texte générique de secours (IA indisponible ou réponse inexploitable) : rien n'est facturé.
-      await logOnce("failed", { errorCode: "ai_unavailable" });
     }
 
     return json({ success: true, sheet, images });
   } catch (e: any) {
     console.error("[PRODUCT_AI_GENERATION_FAILED_GLOBAL]", e);
     await logOnce("failed", { errorCode: "internal_error" });
-    const fallbackSheet = {
-      headline: "Découvrez notre produit d'excellence",
-      subheadline: "Le choix parfait pour vos besoins au meilleur prix.",
-      short_description: "Produit de qualité supérieure avec garantie de satisfaction.",
-      long_description: "Ce produit exceptionnel a été soigneusement sélectionné pour vous offrir une expérience unique et des résultats optimaux. Profitez dès aujourd'hui d'une livraison rapide et d'un service client à votre écoute.",
-      bullets: [
-        "Qualité garantie et finition soignée",
-        "Support client réactif et à l'écoute",
-        "Livraison rapide et sécurisée",
-        "Meilleur rapport qualité-prix"
-      ],
-      benefits: [
-        "Qualité garantie et finition soignée",
-        "Support client réactif et à l'écoute",
-        "Livraison rapide et sécurisée",
-        "Meilleur rapport qualité-prix"
-      ],
-      features: [
-        "Qualité Premium",
-        "Garantie Incluses"
-      ],
-      guarantee: "Garantie satisfaction 100%",
-      urgency: "Stock limité",
-      cta: "Commander Maintenant",
-      faq: [
-        { q: "Quels sont les délais de livraison ?", a: "Livraison sous 24h à 48h." }
-      ],
-      seo_title: "Produit de Qualité — Achat en Ligne",
-      seo_description: "Découvrez notre produit d'exception avec garantie et livraison rapide."
-    };
-    return json({ success: true, sheet: fallbackSheet, images: [] });
+    // Pas de texte de remplacement (voir plus haut) : l'erreur reste visible, le vendeur peut réessayer.
+    return json({
+      success: false,
+      code: "internal_error",
+      error: "La rédaction de la fiche a échoué. Aucun crédit n'a été débité. Réessayez dans un instant ou rédigez la description en mode Expert.",
+    });
   }
 });
