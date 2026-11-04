@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheInvalidate } from "@/lib/shopCache";
+import type { Json } from "@/integrations/supabase/types";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +12,13 @@ import { ShopThemeRenderer } from "@/lib/shopThemes/ShopThemeRenderer";
 import classicDesktopPreview from "@/assets/themes/classic-shop.jpg";
 import classicMobilePreview from "@/assets/themes/classic-shop-mobile.jpg";
 
+type ThemeConfig = Record<string, unknown>;
+type ShopLike = { theme_config?: ThemeConfig | null; [key: string]: unknown };
+const asSlugList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : []);
+
 interface ShopThemesManagerProps {
   shop: any;
-  setShop: (shop: any) => void;
+  setShop: (update: (prev: ShopLike | null) => ShopLike | null) => void;
   products: any[];
   onCustomize?: () => void;
   onOpenVisualEditor?: () => void;
@@ -37,24 +43,59 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
     ? classicMobilePreview
     : (activeMeta.preview || classicMobilePreview);
 
-  const updateThemeConfig = async (patch: Record<string, any>) => {
-    const newConfig = { ...themeConfig, ...patch };
-    const { error } = await supabase
-      .from("shops")
-      .update({ theme_config: newConfig })
-      .eq("id", shop.id);
-    if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-      return false;
-    }
-    setShop({ ...shop, theme_config: newConfig });
-    return true;
+  // Les écritures passent l'une après l'autre : deux clics rapprochés (installer A puis B) ne doivent pas
+  // partir du même état de départ, sinon la seconde efface la première.
+  const queueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const slugRef = useRef<string | undefined>(shop?.slug);
+  slugRef.current = shop?.slug;
+
+  // `change` reçoit la configuration lue en base à l'instant de l'écriture (et non celle affichée à l'écran,
+  // qui peut être périmée ou contenir des réglages non enregistrés) et renvoie les clés à modifier.
+  // Seules ces clés sont écrites : les réglages en cours d'édition ailleurs ne sont pas enregistrés en douce.
+  const updateThemeConfig = (change: (current: ThemeConfig) => ThemeConfig): Promise<boolean> => {
+    const run = async (): Promise<boolean> => {
+      try {
+        const { data: row, error: readError } = await supabase
+          .from("shops")
+          .select("theme_config")
+          .eq("id", shop.id)
+          .maybeSingle();
+        if (readError) throw readError;
+        if (!row) throw new Error("Boutique introuvable ou accès refusé.");
+        const stored = row.theme_config && typeof row.theme_config === "object" && !Array.isArray(row.theme_config)
+          ? (row.theme_config as ThemeConfig)
+          : {};
+        const patch = change(stored);
+        const { data: written, error } = await supabase
+          .from("shops")
+          .update({ theme_config: { ...stored, ...patch } as Json })
+          .eq("id", shop.id)
+          .select("id");
+        if (error) throw error;
+        // Une règle d'accès qui refuse l'écriture ne renvoie pas d'erreur : aucune ligne n'est modifiée.
+        if (!written || written.length === 0) throw new Error("Le changement n'a pas été enregistré. Vérifiez que votre boutique n'est pas restreinte, puis réessayez.");
+        // On applique le même changement à l'écran en gardant les réglages non enregistrés.
+        setShop((prev) => (prev ? { ...prev, theme_config: { ...(prev.theme_config || {}), ...patch } } : prev));
+        // L'accueil public est lu par lien (`slug`), l'aperçu du tableau de bord par identifiant (`id`).
+        if (slugRef.current) cacheInvalidate(`shop:slug:${slugRef.current}`);
+        cacheInvalidate(`shop:id:${shop.id}`);
+        return true;
+      } catch (e) {
+        toast({ title: "Erreur", description: (e instanceof Error && e.message) || "Le changement de thème n'a pas pu être enregistré.", variant: "destructive" });
+        return false;
+      }
+    };
+    const result = queueRef.current.then(run, run);
+    queueRef.current = result;
+    return result;
   };
 
   const installTheme = async (slug: string) => {
     setSaving(slug);
-    const next = installed.includes(slug) ? installed : [...installed, slug];
-    const ok = await updateThemeConfig({ installed_themes: next });
+    const ok = await updateThemeConfig((cur) => {
+      const list = asSlugList(cur.installed_themes);
+      return { installed_themes: list.includes(slug) ? list : [...list, slug] };
+    });
     setSaving(null);
     if (ok) toast({ title: "Thème installé", description: "Vous pouvez maintenant l'activer." });
   };
@@ -62,25 +103,29 @@ export default function ShopThemesManager({ shop, setShop, products, onCustomize
   const activateTheme = async (slug: string) => {
     if (!confirm("Ce thème va modifier la présentation visuelle de votre boutique, mais vos produits, images, commandes et informations ne seront pas supprimés. Voulez-vous continuer ?")) return;
     setSaving(slug);
-    const next = installed.includes(slug) ? installed : [...installed, slug];
-    const ok = await updateThemeConfig({ active_theme_slug: slug, installed_themes: next });
+    const ok = await updateThemeConfig((cur) => {
+      const list = asSlugList(cur.installed_themes);
+      return { active_theme_slug: slug, installed_themes: list.includes(slug) ? list : [...list, slug] };
+    });
     setSaving(null);
     if (ok) toast({ title: "Thème activé", description: "Le nouveau design est en ligne." });
   };
 
   const resetToClassic = async () => {
     setSaving("__classic__");
-    const ok = await updateThemeConfig({ active_theme_slug: null });
+    const ok = await updateThemeConfig(() => ({ active_theme_slug: null }));
     setSaving(null);
     if (ok) toast({ title: "Thème classique restauré" });
   };
 
   const uninstall = async (slug: string) => {
     setSaving(slug);
-    const next = installed.filter((s) => s !== slug);
-    const patch: any = { installed_themes: next };
-    if (activeSlug === slug) patch.active_theme_slug = null;
-    const ok = await updateThemeConfig(patch);
+    const ok = await updateThemeConfig((cur) => {
+      const list = asSlugList(cur.installed_themes);
+      const patch: ThemeConfig = { installed_themes: list.filter((s) => s !== slug) };
+      if (cur.active_theme_slug === slug) patch.active_theme_slug = null;
+      return patch;
+    });
     setSaving(null);
     if (ok) toast({ title: "Thème supprimé" });
   };

@@ -681,6 +681,7 @@ const ShopEditor = () => {
   const invalidatePublicCaches = () => {
     if (!id || !shop?.slug) return;
     cacheInvalidate(`shop:slug:${shop.slug}`);
+    cacheInvalidate(`shop:id:${id}`);
     cacheInvalidate(`shop-products:${id}`);
     cacheInvalidate(`product:${id}:`);
   };

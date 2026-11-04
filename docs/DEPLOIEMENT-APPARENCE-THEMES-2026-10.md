@@ -20,6 +20,37 @@ Périmètre lu : menus « Boutique » (apparence), « Thème » (réglages) et �
 | T8 | Le nom de la boutique dans l'en-tête (accueil et fiche produit) gardait un gris foncé fixe : illisible sur un fond d'en-tête sombre choisi dans « Thème ». | Couleur calculée selon le fond d'en-tête (mobile et bureau séparément) : gris foncé sur fond clair, blanc sur fond sombre (`readableTextOn`, contraste WCAG ≥ 4,5). |
 | T9 | Le « Constructeur Dynamique » plantait **toujours** : le thème lisait `data.settings`, qui n'existe pas, et le layout au mauvais endroit (`custom_settings` au lieu de `theme_config.layout`, où l'éditeur visuel l'enregistre). Une boutique l'utilisant retombait en silence sur le design classique. Il était en outre proposé comme thème gratuit prêt à installer alors qu'il n'a de contenu qu'après l'éditeur visuel. | `DynamicShop` lit `theme_config.layout`, le nom et la description de la boutique. Retiré du catalogue « Tous les thèmes gratuits » ; il reste visible comme thème actuel et dans « Mes thèmes installés » quand l'éditeur visuel l'a activé. |
 
+### Passe du 04/11/2026 — installer / activer / désinstaller un thème (non commité)
+
+Fichiers : `src/components/shop/ShopThemesManager.tsx`, `src/pages/ShopEditor.tsx` (une ligne : cache `shop:id:`). Front seul.
+
+| # | Anomalie | Correction |
+|---|---|---|
+| T10 | Chaque action partait de la configuration **affichée à l'écran** : deux clics rapprochés (installer A puis B) partaient du même état, la seconde écriture effaçait la première ; un changement fait depuis un autre onglet ou l'éditeur visuel était écrasé. | Les écritures sont mises en file (l'une après l'autre) et lisent la configuration **en base** juste avant d'écrire. |
+| T11 | L'action écrivait aussi, sans le dire, tous les réglages « Thème » non enregistrés présents à l'écran. | Seules les clés concernées (`installed_themes`, `active_theme_slug`) sont écrites ; les réglages en cours restent en attente de « Sauvegarder ». |
+| T12 | Si la base refusait l'écriture sans erreur (boutique restreinte, droit d'accès), l'écran affichait « Thème activé » alors que rien n'était enregistré. | Écriture suivie d'un contrôle du nombre de lignes modifiées ; message d'erreur sinon. Exceptions de lecture/écriture capturées. |
+| T13 | Après activation, la copie en cache de la vitrine masquait le changement dans l'aperçu du marchand. | Caches `shop:slug:<slug>` **et** `shop:id:<id>` vidés après chaque changement (l'aperçu par identifiant lit la seconde ; l'enregistrement de l'éditeur ne vidait que la première, corrigé aussi). |
+
+**Vérifié le 04/11 :** `tsc` au même niveau que la référence (482 lignes, aucune dans les fichiers touchés), `eslint --pass-on-unpruned-suppressions` propre sur les deux fichiers (le fichier d'origine avait 5 `any` figés dans `eslint-suppressions.json`, la version corrigée en a moins), `vitest` 152 tests passés.
+
+**Testé dans le navigateur le 04/11 sur dev** (boutique « BOUTIQUE TEST », serveur local port 8082, session du marchand ; `theme_config` initial `{"force_mobile_money_interior": true}` rétabli à l'identique à la fin) :
+
+| Contrôle | Résultat |
+|---|---|
+| T10 : « Installer » de deux thèmes cliqué dans le même instant (rejoué après le dernier changement de code) | Les deux sont en base, clé existante conservée, les deux affichés dans « Mes thèmes installés ». |
+| T10 : deux onglets. L'onglet B ajoute `luxury-shop` en base ; l'onglet A, resté sur l'ancien état (3 thèmes), installe « Mobile First » | La base contient les deux ; l'onglet A affiche ensuite les 5 thèmes. |
+| T11 : réglage « Activer la bordure » décoché sans enregistrer, puis installation d'un thème | Base : seule `installed_themes` change ; le réglage reste en attente à l'écran. |
+| T11 : « Sauvegarder » après une activation de thème et une modification du réglage | La base garde `active_theme_slug` et reçoit le réglage. |
+| Aperçu : « Installer » puis « Activer » dans la fenêtre d'aperçu | Boutons successifs conformes (Installer, Activer, aucun) ; base conforme ; pas d'erreur d'aperçu. |
+| Activer, revenir au classique, désinstaller | `active_theme_slug` = `fashion-shop`, puis `null` ; thème retiré de la liste ; autres clés intactes. |
+| T12 : écriture sur `shops` simulée à « 0 ligne modifiée » | Message d'erreur affiché, pas de « Thème installé », base inchangée, thème toujours installable. |
+| T13 : marqueurs posés dans les clés `shop:slug:` et `shop:id:`, puis activation | Les deux clés de la boutique sont vidées ; la clé d'une autre boutique est conservée. |
+| Aperçu propriétaire `/shop-preview/<id>` avec Fashion actif | La vitrine affiche le thème Fashion (rendu différent du classique, sans repli). |
+
+**Constat hors périmètre :** une boutique non activée ouverte par son lien public `/shop/<slug>` est en mode aperçu et lit la boutique avec une requête limitée (sans `theme_config`) : le thème n'y est jamais appliqué. Et un **autre onglet** déjà ouvert sur la vitrine garde sa copie de session (5 min) : constaté en rechargeant l'aperçu, qui affichait encore Fashion après le retour au classique (déjà décrit plus bas).
+
+Non testé : un vrai refus par règle d'accès (simulé), la boîte de confirmation native d'activation (remplacée par « oui » dans le script, la fenêtre bloquerait l'outil), l'affichage mobile. L'enregistrement fait avec « Sauvegarder » réécrit les champs de la boutique tels qu'affichés (valeurs identiques ; `notification_settings` peut passer de vide à `{}` et une ligne `shop_secrets` peut être créée).
+
 ## 2. À trancher après (non fait)
 
 Trois points qui demandent une décision avant tout code. Contrôles laissés en place en attendant.
