@@ -52,32 +52,39 @@ export const useWebPush = () => {
         const subJSON = subscription.toJSON();
         if (subJSON.endpoint && subJSON.keys?.p256dh && subJSON.keys?.auth) {
           // Auto-sync / re-upsert push subscription for current user so push notifications never get lost
-          await supabase
-            .from('push_subscriptions')
-            .upsert(
-              {
-                user_id: session.user.id,
-                endpoint: subJSON.endpoint,
-                p256dh: subJSON.keys.p256dh,
-                auth: subJSON.keys.auth,
-                last_used_at: new Date().toISOString()
-              },
-              { onConflict: 'endpoint' }
-            )
-            .catch(() => undefined);
+          // Le builder Supabase n'a pas de .catch() : les erreurs sont renvoyées dans { error }
+          try {
+            await supabase
+              .from('push_subscriptions')
+              .upsert(
+                {
+                  user_id: session.user.id,
+                  endpoint: subJSON.endpoint,
+                  p256dh: subJSON.keys.p256dh,
+                  auth: subJSON.keys.auth,
+                  last_used_at: new Date().toISOString()
+                },
+                { onConflict: 'endpoint' }
+              );
+          } catch {
+            // synchro best-effort
+          }
 
-          await supabase
-            .from('device_tokens')
-            .upsert(
-              {
-                user_id: session.user.id,
-                fcm_token: subJSON.endpoint,
-                user_agent: navigator.userAgent,
-                last_used_at: new Date().toISOString()
-              },
-              { onConflict: 'fcm_token' }
-            )
-            .catch(() => undefined);
+          try {
+            await supabase
+              .from('device_tokens')
+              .upsert(
+                {
+                  user_id: session.user.id,
+                  fcm_token: subJSON.endpoint,
+                  user_agent: navigator.userAgent,
+                  last_used_at: new Date().toISOString()
+                },
+                { onConflict: 'fcm_token' }
+              );
+          } catch {
+            // synchro best-effort
+          }
         }
       }
       
@@ -195,18 +202,21 @@ export const useWebPush = () => {
       if (error) throw error;
 
       // Synchroniser également dans device_tokens
-      await supabase
-        .from('device_tokens')
-        .upsert(
-          {
-            user_id: session.user.id,
-            fcm_token: subJSON.endpoint,
-            user_agent: navigator.userAgent,
-            last_used_at: new Date().toISOString()
-          },
-          { onConflict: 'fcm_token' }
-        )
-        .catch(() => undefined);
+      try {
+        await supabase
+          .from('device_tokens')
+          .upsert(
+            {
+              user_id: session.user.id,
+              fcm_token: subJSON.endpoint,
+              user_agent: navigator.userAgent,
+              last_used_at: new Date().toISOString()
+            },
+            { onConflict: 'fcm_token' }
+          );
+      } catch {
+        // synchro best-effort
+      }
 
       setIsSubscribed(true);
       toast({
