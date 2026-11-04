@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard, ShieldCheck } from "lucide-react";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
+import { ecomfyPayApi } from "@/lib/ecomfyPay";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { ShopLanguageSelector } from "@/components/shop/ShopLanguageSelector";
 import { useShopTranslations } from "@/hooks/useShopTranslation";
@@ -641,6 +642,28 @@ const ShopView = () => {
 
       if (customerInfo.paymentMethod === "mobile_money") {
         trackEvent(shop, "InitiateCheckout", trackingPayload);
+        // Même flux que la fiche produit : sans cet appel, la commande restait « en attente » et le client voyait
+        // « commande confirmée » sans avoir payé. Le Purchase Meta part du webhook, à l'encaissement.
+        const payRes = await ecomfyPayApi.initiateCustomerPayment({
+          shop_id: shop.id,
+          order_id: order.id,
+          amount: orderTotal,
+          payment_method: "mobile_money",
+          customer_name: customerInfo.name,
+          customer_phone: normalizedPhone,
+          customer_email: customerInfo.email,
+          customer_address: customerInfo.address,
+          customer_city: customerInfo.city,
+        });
+        if (payRes.success && payRes.checkout_url) {
+          window.location.href = payRes.checkout_url;
+          return;
+        }
+        if (!payRes.success) {
+          // Le panier est conservé : le client peut réessayer ou choisir le paiement à la livraison.
+          toast({ title: "Paiement non démarré", description: payRes.error || "Réessayez ou choisissez le paiement à la livraison.", variant: "destructive" });
+          return;
+        }
       } else {
         if (typeof window !== "undefined" && order.order_number) {
           sessionStorage.setItem(`vp_tracked_purchase_${order.order_number}`, "1");
