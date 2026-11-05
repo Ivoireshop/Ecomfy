@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyDeliveryMissions } from "@/lib/driverMissions";
+import { useDeliveryEvents } from "@/hooks/useDeliveryEvents";
 import { Package, MapPin, Phone, CheckCircle2, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,30 +9,20 @@ import { Button } from "@/components/ui/button";
 export default function DriverHome() {
   const navigate = useNavigate();
 
-  // Fetch active deliveries for the current driver
-  const { data: deliveries, isLoading } = useQuery({
-    queryKey: ["driver-active-deliveries"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("order_deliveries")
-        .select(`
-          *,
-          orders (
-            id,
-            total_amount,
-            customer_name,
-            customer_phone,
-            customer_address,
-            customer_city
-          )
-        `)
-        .in("status", ["pending", "in_transit"])
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      return data;
-    },
+  // Courses actives du livreur connecté. Les droits de lecture sur `orders` ne sont pas ouverts aux livreurs :
+  // la fonction serveur ne renvoie que SES courses et les champs utiles (client, adresse, montant à encaisser).
+  const { data: userId } = useQuery({
+    queryKey: ["driver-user-id"],
+    queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
   });
+
+  const { data: deliveries, isLoading, refetch } = useQuery({
+    queryKey: ["driver-active-deliveries"],
+    queryFn: () => fetchMyDeliveryMissions(null, ["pending", "picked_up", "in_transit"]),
+  });
+
+  // Alerte en direct : nouvelle course assignée, course annulée par la boutique.
+  useDeliveryEvents("driver_user_id", userId, "driver", () => { void refetch(); });
 
   if (isLoading) {
     return (
@@ -41,7 +33,7 @@ export default function DriverHome() {
   }
 
   const pendingCount = deliveries?.filter((d) => d.status === "pending").length || 0;
-  const inTransitCount = deliveries?.filter((d) => d.status === "in_transit").length || 0;
+  const inTransitCount = deliveries?.filter((d) => d.status === "in_transit" || d.status === "picked_up").length || 0;
 
   return (
     <div className="p-4 space-y-6">
@@ -71,40 +63,36 @@ export default function DriverHome() {
         ) : (
           <div className="space-y-3">
             {deliveries?.map((delivery) => {
-              const order = delivery.orders;
-              // Cast properly if orders is an array or object
-              const orderData = Array.isArray(order) ? order[0] : order;
-              if (!orderData) return null;
-
+              const enRoute = delivery.status === "in_transit" || delivery.status === "picked_up";
               return (
-                <div 
-                  key={delivery.id} 
-                  onClick={() => navigate(`/delivery/driver/mission/${delivery.id}`)}
+                <div
+                  key={delivery.delivery_id}
+                  onClick={() => navigate(`/delivery/driver/mission/${delivery.delivery_id}`)}
                   className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 active:scale-[0.98] transition-transform cursor-pointer"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        delivery.status === "in_transit" 
-                          ? "bg-blue-100 text-blue-700" 
-                          : "bg-orange-100 text-orange-700"
+                        enRoute ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                       }`}>
-                        {delivery.status === "in_transit" ? "En route" : "À récupérer"}
+                        {enRoute ? "En route" : "À récupérer"}
                       </span>
                     </div>
                     <span className="font-bold text-slate-700">
-                      {orderData.total_amount?.toLocaleString("fr-FR")} FCFA
+                      {Number(delivery.amount_to_collect) > 0
+                        ? `${Number(delivery.amount_to_collect).toLocaleString("fr-FR")} FCFA à encaisser`
+                        : "Déjà payé"}
                     </span>
                   </div>
-                  
+
                   <h3 className="font-semibold text-slate-800 text-base mb-1">
-                    {orderData.customer_name || "Client anonyme"}
+                    {delivery.customer_name || "Client anonyme"}
                   </h3>
-                  
+
                   <div className="flex items-start gap-2 text-slate-500 text-sm mt-2">
                     <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
                     <span className="line-clamp-2 leading-tight">
-                      {orderData.customer_address}, {orderData.customer_city}
+                      {delivery.customer_address}, {delivery.customer_city}
                     </span>
                   </div>
                 </div>

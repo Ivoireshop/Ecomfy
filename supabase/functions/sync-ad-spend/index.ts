@@ -7,6 +7,10 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Même règle que track-conversion : réglable par le secret META_GRAPH_VERSION, v23.0 par défaut.
+const GRAPH_VERSION = /^v\d{2}\.\d$/.test(Deno.env.get("META_GRAPH_VERSION") ?? "")
+  ? Deno.env.get("META_GRAPH_VERSION")!
+  : "v23.0";
 
 function ok(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -18,7 +22,7 @@ function ok(body: Record<string, unknown>, status = 200) {
 async function syncMeta(accountId: string, token: string) {
   // accountId may be "act_xxx" or "xxx"
   const id = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
-  let url: string | null = `https://graph.facebook.com/v19.0/${id}/insights?fields=spend,account_currency,date_start,date_stop&time_increment=1&date_preset=maximum&limit=500&access_token=${encodeURIComponent(token)}`;
+  let url: string | null = `https://graph.facebook.com/${GRAPH_VERSION}/${id}/insights?fields=spend,account_currency,date_start,date_stop&time_increment=1&date_preset=maximum&limit=500&access_token=${encodeURIComponent(token)}`;
   const rows: Array<{ spend: string; account_currency?: string; date_start: string }> = [];
   // Meta pagine à 500 jours : l'historique maximum (37 mois, soit plus de 1 000 jours) tenait sur plusieurs pages et seule la
   // première était lue, d'où des dépenses publicitaires et un total tronqués sans erreur.

@@ -8,7 +8,9 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "next-themes";
 import { SupportButton } from "@/components/SupportButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { isCustomShopHostname } from "@/lib/leanShopPath";
 import { useCommunityNotifications } from "@/hooks/useCommunityNotifications";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useNativePush } from "@/hooks/useNativePush";
@@ -20,34 +22,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Eager load: landing only (critical path)
 import Index from "./pages/Index";
-
-// Wrap lazy() so that a stale chunk (after a redeploy) doesn't leave the user
-// on a blank screen. We retry once, and if it still fails we hard-reload the
-// page so the browser fetches the new asset manifest.
-const RELOAD_KEY = "__chunk_reload_attempted__";
-const lazyWithRetry = <T extends { default: React.ComponentType<any> }>(
-  factory: () => Promise<T>
-) =>
-  lazy(async () => {
-    try {
-      return await factory();
-    } catch (err) {
-      try {
-        return await factory();
-      } catch (err2) {
-        if (typeof window !== "undefined") {
-          const already = sessionStorage.getItem(RELOAD_KEY);
-          if (!already) {
-            sessionStorage.setItem(RELOAD_KEY, "1");
-            window.location.reload();
-            // Return a never-resolving promise to avoid Suspense throwing again.
-            return new Promise<T>(() => {});
-          }
-        }
-        throw err2;
-      }
-    }
-  });
 
 // Lazy load all other pages
 const Auth = lazyWithRetry(() => import("./pages/Auth"));
@@ -129,26 +103,7 @@ const CompleteProfile = lazyWithRetry(() => import("./pages/CompleteProfile"));
 // Detect when the visitor arrives via a custom shop domain. In that case the
 // root path "/" should render the shop (resolved by hostname inside ShopView)
 // instead of the marketing landing page.
-const isCustomShopHost = (() => {
-  if (typeof window === "undefined") return false;
-  
-  // En environnement de développement (Vite), on désactive la redirection vers le shop
-  // pour vous permettre de voir la landing page et le dashboard normalement.
-  if (import.meta.env.DEV) return false;
-
-  const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
-  const MAIN_DOMAINS = ["ecomfy.cloud", "localhost", "127.0.0.1"];
-  
-  if (MAIN_DOMAINS.includes(host)) return false;
-  if (
-    host.endsWith(".vercel.app") || 
-    host.endsWith(".netlify.app") || 
-    host.endsWith(".onrender.com") || 
-    host.endsWith(".pages.dev")
-  ) return false;
-  
-  return true;
-})();
+const isCustomShopHost = typeof window !== "undefined" && isCustomShopHostname(window.location.hostname, import.meta.env.DEV);
 
 const queryClient = new QueryClient({
   defaultOptions: {

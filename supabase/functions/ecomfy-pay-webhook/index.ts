@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getConnector } from "../_shared/operators/index.ts";
 import { remoteAmountMatches } from "../_shared/pricing.ts";
+import { sendServerPurchase } from "../_shared/purchase-capi.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -196,6 +197,19 @@ serve(async (req) => {
         }
       } catch (e) {
         console.warn("[ecomfy-pay-webhook] Notification email failed:", e);
+      }
+    }
+
+    // Purchase Meta/TikTok/Snap/GA4 côté serveur. Le client revient du prestataire sans état (/order-confirmed?payment_ref=…) :
+    // le navigateur n'envoie donc rien tant que le paiement n'est pas confirmé ici. L'envoi est idempotent (registre
+    // tracking_purchase_log + event_id canonique ord_<n°>) : on l'appelle à chaque livraison du webhook, ce qui reprend un
+    // envoi raté sans jamais en produire deux. Best-effort ; le balayage ecomfy-pay-settlement reprend ce qui reste.
+    if (res?.status === "SUCCEEDED" && res.payment_id && res.steps?.order !== "none") {
+      try {
+        const out = await sendServerPurchase(supabase, res.payment_id);
+        if (!out.sent) console.warn("[ecomfy-pay-webhook] Purchase serveur non envoyé:", out.reason);
+      } catch (e) {
+        console.warn("[ecomfy-pay-webhook] Purchase serveur en erreur (non bloquant):", e);
       }
     }
 

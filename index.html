@@ -9,6 +9,111 @@
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!--
+      Vitesse d'arrivée depuis les publicités (Facebook, TikTok, Google).
+      Ce script est dans le <head>, AVANT la feuille de style : un script placé dans le <body> attend la fin du
+      téléchargement du CSS avant de s'exécuter, ce qui retardait la requête de la fiche d'environ 0,5 s.
+      Dès le premier octet de la page on lance, en parallèle du téléchargement du code :
+        1. la fiche produit (RPC unique : boutique + produit + images + produits liés) ;
+        2. l'image principale (dès que la fiche répond, avec la même URL que celle de la page) ;
+        3. le thème, les témoignages audio et les vidéos du produit.
+      ProductView / ShopView récupèrent ces promesses au montage (window.__vpProductPreload / __vpShopPreload).
+      Aucune erreur ici ne doit bloquer la page : en cas d'échec l'application refait ses requêtes normalement.
+    -->
+    <script>
+      (function () {
+        try {
+          var SUPABASE_URL = "%VITE_SUPABASE_URL%";
+          var ANON = "%VITE_SUPABASE_PUBLISHABLE_KEY%";
+          if (!SUPABASE_URL || SUPABASE_URL.indexOf("VITE_SUPABASE") !== -1) return;
+          var path = location.pathname;
+          var headers = {
+            "Content-Type": "application/json",
+            "apikey": ANON,
+            "Authorization": "Bearer " + ANON,
+          };
+          function getJson(url) {
+            return fetch(url, { headers: headers }).then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+          }
+          // Même règle que heroImageWidth() dans src/lib/imageUrl.ts : les deux doivent rester identiques.
+          function heroWidth() {
+            var w = window.innerWidth || 390;
+            return w <= 640 ? 800 : w <= 1024 ? 1000 : 1200;
+          }
+          // Même règle que thumbUrl() dans src/lib/imageUrl.ts.
+          function thumb(url, width) {
+            if (!url || url.indexOf("/storage/v1/object/public/") === -1) return url || "";
+            try {
+              var u = new URL(url);
+              u.pathname = u.pathname.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/");
+              u.searchParams.set("width", String(width));
+              u.searchParams.set("quality", "85");
+              u.searchParams.set("resize", "contain");
+              return u.toString();
+            } catch (e) { return url; }
+          }
+          // Même tri que sortProductImages() dans ProductView : image principale d'abord, puis display_order.
+          function firstImage(images) {
+            var list = (images || []).slice().sort(function (a, b) {
+              if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+              return (a.display_order || 0) - (b.display_order || 0);
+            });
+            return list[0] && list[0].image_url;
+          }
+          function preloadImage(href) {
+            if (!href) return;
+            var l = document.createElement("link");
+            l.rel = "preload"; l.as = "image"; l.href = href;
+            l.setAttribute("fetchpriority", "high");
+            document.head.appendChild(l);
+          }
+
+          // /shop/:slug/p/:productSlug — fiche produit
+          var mProd = path.match(/^\/shop\/([^\/]+)\/p\/([^\/?#]+)/);
+          if (mProd) {
+            var slug = decodeURIComponent(mProd[1]);
+            var pslug = decodeURIComponent(mProd[2]);
+            var pre = { slug: slug, productSlug: pslug, extras: null, promise: null };
+            pre.promise = fetch(SUPABASE_URL + "/rest/v1/rpc/get_public_product_page", {
+              method: "POST",
+              headers: headers,
+              body: JSON.stringify({ p_shop_slug: slug, p_product_slug: pslug }),
+            }).then(function (r) { return r.ok ? r.json() : null; }).then(function (rpc) {
+              try {
+                if (rpc && rpc.shop && rpc.product) {
+                  var pid = rpc.product.id;
+                  preloadImage(thumb(firstImage(rpc.product.product_images), heroWidth()));
+                  var enc = encodeURIComponent(pid);
+                  pre.extras = Promise.all([
+                    getJson(SUPABASE_URL + "/rest/v1/product_theme_settings?select=*&product_id=eq." + enc),
+                    getJson(SUPABASE_URL + "/rest/v1/product_audios?select=*&product_id=eq." + enc + "&is_active=eq.true&order=sort_order.asc,created_at.asc"),
+                  ]).then(function (res) {
+                    return { ok: true, productId: pid, theme: res[0][0] || null, audios: res[1] || [] };
+                  }).catch(function () { return null; });
+                }
+              } catch (e) { /* le préchargement ne doit jamais bloquer la page */ }
+              return rpc;
+            }).catch(function () { return null; });
+            window.__vpProductPreload = pre;
+          } else {
+            // /shop/:slug — vitrine
+            var mShop = path.match(/^\/shop\/([^\/?#]+)\/?$/);
+            if (mShop) {
+              var sslug = decodeURIComponent(mShop[1]);
+              window.__vpShopPreload = {
+                slug: sslug,
+                promise: fetch(SUPABASE_URL + "/rest/v1/rpc/get_public_shop_by_slug", {
+                  method: "POST",
+                  headers: headers,
+                  body: JSON.stringify({ p_slug: sslug }),
+                }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+              };
+            }
+          }
+        } catch (e) { /* never block the page */ }
+      })();
+    </script>
+
     <!-- Security headers (meta-equivalents) -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; connect-src 'self' https: wss: data: blob:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:;" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
@@ -123,58 +228,6 @@
 
   <body>
     <div id="root"></div>
-    <!--
-      Ad-traffic landing speed: kick off the product/shop RPC BEFORE the JS
-      bundle has finished downloading. We stash a promise on
-      window.__vpProductPreload that ProductView / ShopView await on mount.
-      Saves 400–1500 ms on cold loads (network in parallel with bundle parse).
-    -->
-    <script>
-      (function () {
-        try {
-          var SUPABASE_URL = "%VITE_SUPABASE_URL%";
-          var ANON = "%VITE_SUPABASE_PUBLISHABLE_KEY%";
-          if (!SUPABASE_URL || SUPABASE_URL.indexOf("VITE_SUPABASE") !== -1) return;
-          var path = location.pathname;
-          var headers = {
-            "Content-Type": "application/json",
-            "apikey": ANON,
-            "Authorization": "Bearer " + ANON,
-          };
-          // /shop/:slug/p/:productSlug — product landing
-          var mProd = path.match(/^\/shop\/([^\/]+)\/p\/([^\/?#]+)/);
-          if (mProd) {
-            var slug = decodeURIComponent(mProd[1]);
-            var pslug = decodeURIComponent(mProd[2]);
-            window.__vpProductPreload = {
-              slug: slug,
-              productSlug: pslug,
-              promise: fetch(SUPABASE_URL + "/rest/v1/rpc/get_public_product_page", {
-                method: "POST",
-                headers: headers,
-                body: JSON.stringify({ p_shop_slug: slug, p_product_slug: pslug }),
-              }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-            };
-          } else {
-            // /shop/:slug or custom-domain "/" — shop landing
-            var mShop = path.match(/^\/shop\/([^\/?#]+)\/?$/);
-            if (mShop || path === "/") {
-              var sslug = mShop ? decodeURIComponent(mShop[1]) : null;
-              if (sslug) {
-                window.__vpShopPreload = {
-                  slug: sslug,
-                  promise: fetch(SUPABASE_URL + "/rest/v1/rpc/get_public_shop_by_slug", {
-                    method: "POST",
-                    headers: headers,
-                    body: JSON.stringify({ p_slug: sslug }),
-                  }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-                };
-              }
-            }
-          }
-        } catch (e) { /* never block the page */ }
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

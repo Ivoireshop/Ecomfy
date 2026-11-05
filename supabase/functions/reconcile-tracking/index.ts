@@ -1,3 +1,11 @@
+// Réconciliation commandes Ecomfy ↔ achats Meta (lecture seule).
+//
+// Principe : on ne présente que des chiffres réellement mesurés.
+//  - Côté Ecomfy : les commandes de la base.
+//  - Côté Meta : les achats ATTRIBUÉS aux publicités par l'API Insights du compte publicitaire lié (ad_accounts).
+//    Ce n'est pas le nombre d'événements CAPI reçus (Meta ne l'expose pas par cette API) : l'écart avec les commandes
+//    mélange donc événements perdus, ventes non attribuées à une publicité et ventes hors publicité.
+//  - Sans compte publicitaire lié ou si l'API refuse la requête : les valeurs Meta sont null, jamais estimées.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -7,11 +15,18 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Même règle que track-conversion : réglable par le secret META_GRAPH_VERSION, v23.0 par défaut.
+const GRAPH_VERSION = /^v\d{2}\.\d$/.test(Deno.env.get("META_GRAPH_VERSION") ?? "")
+  ? Deno.env.get("META_GRAPH_VERSION")!
+  : "v23.0";
 
 interface ReconcileRequest {
   shop_id?: string;
-  days?: number; // 7 or 30
+  days?: number; // 7 ou 30
 }
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -25,250 +40,177 @@ Deno.serve(async (req) => {
     });
     const { data: userData } = await userClient.auth.getUser();
     const user = userData?.user;
-    if (!user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Non authentifié" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (!user) return json({ success: false, error: "Non authentifié" }, 401);
 
-    const { shop_id, days = 7 }: ReconcileRequest = await req.json().catch(() => ({}));
-    if (!shop_id) {
-      return new Response(
-        JSON.stringify({ success: false, error: "shop_id requis" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { shop_id, days: rawDays = 7 }: ReconcileRequest = await req.json().catch(() => ({}));
+    if (!shop_id) return json({ success: false, error: "shop_id requis" }, 400);
+    const days = rawDays === 30 ? 30 : 7;
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Verify shop ownership
+    // Propriétaire de la boutique. Les jetons ne sont plus dans `shops` mais dans `shop_secrets`.
     const { data: shop, error: shopErr } = await admin
       .from("shops")
-      .select("id, user_id, facebook_pixel_id, facebook_access_token")
+      .select("id, user_id, facebook_pixels")
       .eq("id", shop_id)
       .maybeSingle();
-
-    if (shopErr || !shop || shop.user_id !== user.id) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Boutique non trouvée ou accès refusé" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (shopErr) {
+      console.error("[reconcile-tracking] shops:", shopErr);
+      return json({ success: false, error: "Lecture de la boutique impossible" }, 500);
+    }
+    if (!shop || shop.user_id !== user.id) {
+      return json({ success: false, error: "Boutique non trouvée ou accès refusé" }, 403);
     }
 
-    // Calculate dates (UTC)
+    const [{ data: secrets }, { data: adAccounts }] = await Promise.all([
+      admin.from("shop_secrets").select("facebook_access_token").eq("shop_id", shop_id).maybeSingle(),
+      admin
+        .from("ad_accounts")
+        .select("account_id, access_token")
+        .eq("shop_id", shop_id)
+        .eq("provider", "meta")
+        .eq("is_active", true),
+    ]);
+
+    // Période (UTC)
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(endDate.getDate() - days);
-    startDate.setHours(0, 0, 0, 0);
-
+    startDate.setUTCDate(endDate.getUTCDate() - days);
+    startDate.setUTCHours(0, 0, 0, 0);
     const startDateStr = startDate.toISOString();
     const endDateStr = endDate.toISOString();
 
-    // Fetch Ecomfy orders for the selected period
     const { data: ordersData, error: ordersErr } = await admin
       .from("orders")
-      .select("id, order_number, total, order_status, payment_status, payment_method, created_at, customer_name, customer_phone, customer_email, notes")
+      .select("id, order_number, total, order_status, payment_status, payment_method, created_at")
       .eq("shop_id", shop_id)
       .gte("created_at", startDateStr)
       .lte("created_at", endDateStr)
-      .order("created_at", { ascending: true });
-
-    if (ordersErr) {
-      throw new Error(`Erreur lors de la récupération des commandes: ${ordersErr.message}`);
-    }
-
+      .order("created_at", { ascending: true })
+      .limit(5000);
+    if (ordersErr) throw new Error(`Erreur lors de la récupération des commandes: ${ordersErr.message}`);
     const orders = ordersData || [];
 
-    // Reference orders: non-cancelled, payment not failed
+    // Commandes qui doivent produire un Purchase : ni annulées, ni échouées, et — pour le paiement en ligne — payées
+    // (le Purchase part à l'encaissement ; à la livraison il part à la création de la commande).
     const referenceOrders = orders.filter(
-      (o) => o.order_status !== "cancelled" && o.payment_status !== "failed"
+      (o) =>
+        o.order_status !== "cancelled" &&
+        o.payment_status !== "failed" &&
+        !(o.payment_method === "mobile_money" && String(o.payment_status || "").toLowerCase() !== "paid"),
     );
-
-    const totalOrdersCount = orders.length;
     const refOrdersCount = referenceOrders.length;
-    const paidOrdersCount = orders.filter((o) => o.payment_status === "paid").length;
-    const pendingOrdersCount = orders.filter((o) => o.payment_status === "pending").length;
-    const confirmedOrdersCount = orders.filter((o) => o.order_status === "confirmed").length;
-    const cancelledOrdersCount = orders.filter((o) => o.order_status === "cancelled").length;
 
-    // Fetch ad accounts for Meta insights if linked
-    const { data: adAccounts } = await admin
-      .from("ad_accounts")
-      .select("id, account_id, access_token, provider")
-      .eq("shop_id", shop_id)
-      .eq("provider", "meta")
-      .eq("is_active", true);
-
-    let metaPurchasesReceived = 0;
-    let metaPurchasesAttributed = 0;
+    // ---------- Meta Insights (achats attribués) ----------
+    const account = adAccounts?.[0];
+    const metaToken: string | undefined = account?.access_token || secrets?.facebook_access_token || undefined;
     let metaApiConnected = false;
     let metaErrorMessage: string | null = null;
-    const dailyMetaPurchases: Record<string, number> = {};
+    const metaByDay: Record<string, number> = {};
 
-    const metaToken = shop.facebook_access_token || adAccounts?.[0]?.access_token;
-    const pixelId = shop.facebook_pixel_id;
-    const accountId = adAccounts?.[0]?.account_id;
-
-    if (metaToken && (pixelId || accountId)) {
+    if (!account?.account_id) {
+      metaErrorMessage = "Aucun compte publicitaire Meta lié à cette boutique : les achats Meta ne peuvent pas être comptés.";
+    } else if (!metaToken) {
+      metaErrorMessage = "Aucun jeton d'accès Meta disponible pour ce compte publicitaire.";
+    } else {
       try {
-        if (accountId) {
-          const formattedId = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
-          const since = startDateStr.split("T")[0];
-          const until = endDateStr.split("T")[0];
-          const metaUrl = `https://graph.facebook.com/v19.0/${formattedId}/insights?fields=actions,action_values&time_increment=1&time_range={"since":"${since}","until":"${until}"}&access_token=${encodeURIComponent(metaToken)}`;
-
-          const metaRes = await fetch(metaUrl);
-          const metaJson = await metaRes.json();
-
-          if (metaRes.ok && metaJson.data) {
-            metaApiConnected = true;
-            for (const row of metaJson.data) {
-              const dateKey = row.date_start;
-              const actions = row.actions || [];
-              const purchaseAction = actions.find(
-                (a: any) =>
-                  a.action_type === "offsite_conversion.fb_pixel_purchase" ||
-                  a.action_type === "purchase"
-              );
-              const count = purchaseAction ? Number(purchaseAction.value || 0) : 0;
-              dailyMetaPurchases[dateKey] = count;
-              metaPurchasesAttributed += count;
-            }
-            // Estimate total Meta received as at least equal or slightly higher than attributed
-            metaPurchasesReceived = metaPurchasesAttributed;
-          } else if (metaJson.error) {
-            metaErrorMessage = metaJson.error.message;
+        const actId = String(account.account_id).startsWith("act_") ? String(account.account_id) : `act_${account.account_id}`;
+        const params = new URLSearchParams({
+          fields: "actions",
+          time_increment: "1",
+          time_range: JSON.stringify({ since: startDateStr.split("T")[0], until: endDateStr.split("T")[0] }),
+          limit: "100",
+          access_token: metaToken,
+        });
+        const metaRes = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${actId}/insights?${params.toString()}`);
+        const metaJson = await metaRes.json().catch(() => ({}));
+        if (metaRes.ok && Array.isArray(metaJson.data)) {
+          metaApiConnected = true;
+          for (const row of metaJson.data) {
+            const actions: Array<{ action_type: string; value: string }> = row.actions || [];
+            // « purchase » regroupe pixel et serveur ; on ne cumule jamais les deux types (même événements comptés deux fois).
+            const a =
+              actions.find((x) => x.action_type === "purchase") ||
+              actions.find((x) => x.action_type === "offsite_conversion.fb_pixel_purchase");
+            metaByDay[row.date_start] = (metaByDay[row.date_start] || 0) + (a ? Number(a.value || 0) : 0);
           }
+        } else {
+          metaErrorMessage = metaJson?.error?.message || `L'API Meta a répondu ${metaRes.status}.`;
         }
       } catch (err: any) {
-        metaErrorMessage = err?.message || "Échec de connexion API Meta Graph";
+        metaErrorMessage = err?.message || "Échec de connexion à l'API Meta Graph";
       }
     }
 
-    // If Meta API is not connected or returns 0, default to realistic telemetry state
-    if (!metaApiConnected) {
-      metaPurchasesReceived = Math.round(refOrdersCount * 0.85); // Fallback estimate if API not set up
-      metaPurchasesAttributed = Math.round(refOrdersCount * 0.70);
+    // ---------- Comparaison jour par jour ----------
+    const dailyMap: Record<string, { ecomfy: number }> = {};
+    for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
+      dailyMap[d.toISOString().split("T")[0]] = { ecomfy: 0 };
+    }
+    for (const o of referenceOrders) {
+      const k = String(o.created_at).split("T")[0];
+      if (dailyMap[k]) dailyMap[k].ecomfy += 1;
     }
 
-    // Compute key metrics
-    const coverageRatePct = refOrdersCount > 0 ? (metaPurchasesReceived / refOrdersCount) * 100 : 0;
-    const lossRatePct = Math.max(0, 100 - coverageRatePct);
-    const lossCountAbs = Math.max(0, refOrdersCount - metaPurchasesReceived);
-    const duplicateCountAbs = Math.max(0, metaPurchasesReceived - refOrdersCount);
-    const duplicateRatePct = refOrdersCount > 0 ? (duplicateCountAbs / refOrdersCount) * 100 : 0;
-    const attributionRatePct = metaPurchasesReceived > 0 ? (metaPurchasesAttributed / metaPurchasesReceived) * 100 : 0;
-
-    // Day-by-day comparison
-    const dailyMap: Record<string, { ecomfy: number; meta: number; attributed: number }> = {};
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateKey = d.toISOString().split("T")[0];
-      dailyMap[dateKey] = { ecomfy: 0, meta: 0, attributed: 0 };
-    }
-
-    referenceOrders.forEach((o) => {
-      const dateKey = o.created_at.split("T")[0];
-      if (dailyMap[dateKey]) {
-        dailyMap[dateKey].ecomfy += 1;
-      }
-    });
-
-    Object.keys(dailyMap).forEach((dateKey) => {
-      const metaVal = dailyMetaPurchases[dateKey] ?? Math.round(dailyMap[dateKey].ecomfy * 0.85);
-      dailyMap[dateKey].meta = metaVal;
-      dailyMap[dateKey].attributed = Math.round(metaVal * 0.80);
-    });
-
-    const dailyBreakdown = Object.entries(dailyMap).map(([date, val]) => {
-      const absDelta = val.ecomfy - val.meta;
-      const pctDelta = val.ecomfy > 0 ? ((absDelta / val.ecomfy) * 100).toFixed(2) : "0.00";
+    let daysMetaAbove = 0;
+    const dailyBreakdown = Object.entries(dailyMap).map(([date, v]) => {
+      const meta = metaApiConnected ? (metaByDay[date] ?? 0) : null;
+      const delta = meta === null ? null : v.ecomfy - meta;
+      if (meta !== null && meta > v.ecomfy) daysMetaAbove += 1;
       return {
         date,
-        ecomfy_orders: val.ecomfy,
-        meta_purchases: val.meta,
-        delta_abs: absDelta,
-        delta_pct: Number(pctDelta),
-        meta_attributed: val.attributed,
+        ecomfy_orders: v.ecomfy,
+        meta_purchases: meta,
+        delta_abs: delta,
+        delta_pct: delta === null || v.ecomfy === 0 ? null : Number(((delta / v.ecomfy) * 100).toFixed(2)),
       };
     });
 
-    // Sample categorization
-    const sampleSize = Math.min(orders.length, 20);
-    const sampleOrders = orders.slice(0, sampleSize).map((o, idx) => {
-      let category = "A — TRACKÉ CORRECTEMENT";
-      if (o.order_status === "cancelled") {
-        category = "B — COMMANDE ANNULÉE / EXCLUE";
-      } else if (idx % 5 === 1) {
-        category = "B — COMMANDE NON TRACKÉE (AdBlock/CAPI Timeout)";
-      } else if (idx % 5 === 2) {
-        category = "C — PURCHASE NON ATTRIBUÉ (Loss fbc/fbp)";
-      }
+    const metaTotal = metaApiConnected ? Object.values(metaByDay).reduce((s, n) => s + n, 0) : null;
 
-      return {
-        order_number: o.order_number,
-        date: o.created_at,
-        montant: o.total,
-        currency: "XOF",
-        order_status: o.order_status,
-        payment_status: o.payment_status,
-        event_id: `ord_${o.order_number}`,
-        category,
-      };
-    });
+    // Commandes récentes avec l'event_id attendu côté Meta (à retrouver dans le Gestionnaire d'événements).
+    const sampleOrders = orders.slice(-20).reverse().map((o) => ({
+      order_number: o.order_number,
+      date: o.created_at,
+      montant: o.total,
+      currency: "XOF",
+      order_status: o.order_status,
+      payment_status: o.payment_status,
+      payment_method: o.payment_method,
+      event_id: `ord_${String(o.order_number).replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+    }));
 
-    const report = {
-      period: {
-        startDate: startDateStr,
-        endDate: endDateStr,
-        days,
-        timezone: "UTC",
+    return json({
+      success: true,
+      report: {
+        period: { startDate: startDateStr, endDate: endDateStr, days, timezone: "UTC" },
+        ecomfy_reference: {
+          total_orders_recorded: orders.length,
+          reference_orders_count: refOrdersCount,
+          paid_orders_count: orders.filter((o) => o.payment_status === "paid").length,
+          pending_orders_count: orders.filter((o) => o.payment_status === "pending").length,
+          cancelled_orders_count: orders.filter((o) => o.order_status === "cancelled").length,
+        },
+        meta_telemetry: {
+          api_connected: metaApiConnected,
+          pixel_configured: Array.isArray(shop.facebook_pixels) && shop.facebook_pixels.length > 0,
+          access_token_configured: !!metaToken,
+          ad_account_linked: !!account?.account_id,
+          error_message: metaErrorMessage,
+        },
+        kpis: {
+          meta_purchases_attributed: metaTotal,
+          // Part des commandes de référence retrouvée dans les achats attribués par Meta (null si Meta n'est pas lisible).
+          attributed_share_pct:
+            metaTotal === null || refOrdersCount === 0 ? null : Number(((metaTotal / refOrdersCount) * 100).toFixed(2)),
+          days_meta_above_ecomfy: metaApiConnected ? daysMetaAbove : null,
+        },
+        daily_breakdown: dailyBreakdown,
+        sample_orders: sampleOrders,
       },
-      ecomfy_reference: {
-        total_orders_recorded: totalOrdersCount,
-        reference_orders_count: refOrdersCount,
-        paid_orders_count: paidOrdersCount,
-        pending_orders_count: pendingOrdersCount,
-        confirmed_orders_count: confirmedOrdersCount,
-        cancelled_orders_count: cancelledOrdersCount,
-      },
-      meta_telemetry: {
-        api_connected: metaApiConnected,
-        pixel_id_configured: !!pixelId,
-        access_token_configured: !!metaToken,
-        meta_purchases_received: metaPurchasesReceived,
-        meta_purchases_attributed: metaPurchasesAttributed,
-        error_message: metaErrorMessage,
-      },
-      kpis: {
-        tracking_coverage_pct: Number(coverageRatePct.toFixed(2)),
-        loss_rate_pct: Number(lossRatePct.toFixed(2)),
-        loss_count_abs: lossCountAbs,
-        duplicate_count_abs: duplicateCountAbs,
-        duplicate_rate_pct: Number(duplicateRatePct.toFixed(2)),
-        attribution_rate_pct: Number(attributionRatePct.toFixed(2)),
-      },
-      daily_breakdown: dailyBreakdown,
-      sample_orders: sampleOrders,
-      final_summary: {
-        reference_orders: refOrdersCount,
-        purchases_identifiable: metaPurchasesReceived,
-        purchases_untracked: lossCountAbs,
-        purchases_duplicates: duplicateCountAbs,
-        purchases_attributed: metaPurchasesAttributed,
-        net_tracking_gap: refOrdersCount - metaPurchasesReceived,
-        diagnostic_confidence: metaApiConnected ? "ÉLEVÉ" : "MOYEN (Basé sur règles d'analyse local)",
-      },
-    };
-
-    return new Response(JSON.stringify({ success: true, report }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    return new Response(
-      JSON.stringify({ success: false, error: err.message || "Erreur interne" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("[reconcile-tracking] error:", err);
+    return json({ success: false, error: err?.message || "Erreur interne" }, 500);
   }
 });

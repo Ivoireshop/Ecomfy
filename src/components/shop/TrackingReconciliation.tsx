@@ -4,23 +4,48 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Activity, ArrowDownRight, ArrowUpRight, CheckCircle2, AlertTriangle, 
-  RefreshCw, ShieldCheck, Zap, BarChart2, Layers, Target, EyeOff 
-} from "lucide-react";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
+import { AlertTriangle, Layers, RefreshCw, ShieldCheck, Target, Zap } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 
 interface TrackingReconciliationProps {
   shopId: string;
 }
 
+interface DeliveryRow {
+  provider: string;
+  pixel_id: string;
+  last_ok: boolean;
+  last_http_status: number | null;
+  last_error: string | null;
+  last_error_code: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  consecutive_failures: number;
+}
+
+const PROVIDER_LABEL: Record<string, string> = { meta: "Meta", tiktok: "TikTok", snapchat: "Snapchat", ga4: "Google Analytics 4" };
+
+// Explication en clair des refus les plus courants de l'API Meta.
+function explainDeliveryError(row: DeliveryRow): string {
+  if (row.provider === "meta") {
+    if (row.last_error_code === "190") return "Le jeton d'accès Meta est expiré ou invalide. Générez-en un nouveau dans le Gestionnaire d'événements (Paramètres > API de conversions) et collez-le dans les réglages de la boutique.";
+    if (row.last_error_code === "100") return "Meta refuse la requête : vérifiez que l'identifiant du pixel est correct et que le jeton appartient bien à ce pixel.";
+    if (row.last_error_code === "200" || row.last_error_code === "10") return "Le jeton n'a pas l'autorisation d'écrire sur ce pixel.";
+  }
+  return row.last_error || "Envoi refusé par la plateforme.";
+}
+
+const NA = "—";
+const fmt = (n: number | null | undefined, suffix = "") => (n === null || n === undefined ? NA : `${n}${suffix}`);
+
 export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState<7 | 30>(7);
   const [report, setReport] = useState<any>(null);
+  const [delivery, setDelivery] = useState<DeliveryRow[] | null>(null);
 
   const fetchReconciliation = async (periodDays: 7 | 30 = days) => {
     setLoading(true);
@@ -29,7 +54,12 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
         body: { shop_id: shopId, days: periodDays },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Le message précis du serveur est dans le corps de la réponse (401/403/500).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FunctionsHttpError : le corps de la réponse n'est pas typé
+        const serverMessage = await (error as any)?.context?.json?.().then((b: any) => b?.error).catch(() => undefined);
+        throw new Error(serverMessage || error.message);
+      }
       if (data?.success) {
         setReport(data.report);
       } else {
@@ -37,8 +67,8 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
       }
     } catch (err: any) {
       toast({
-        title: "Échec du calcul automatique",
-        description: err.message || "Impossible de contacter l'Edge Function reconcile-tracking",
+        title: "Échec du calcul",
+        description: err.message || "Impossible de contacter la fonction reconcile-tracking",
         variant: "destructive",
       });
     } finally {
@@ -52,48 +82,52 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
     }
   }, [shopId, days]);
 
+  // État des derniers envois serveur (jeton expiré, pixel refusé…). Table absente tant que la migration n'est pas appliquée : on masque la carte.
+  useEffect(() => {
+    if (!shopId) return;
+    (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table absente des types générés de Supabase
+      const { data, error } = await (supabase as any)
+        .from("tracking_delivery_status")
+        .select("provider, pixel_id, last_ok, last_http_status, last_error, last_error_code, last_success_at, last_failure_at, consecutive_failures")
+        .eq("shop_id", shopId)
+        .order("provider");
+      setDelivery(error ? null : (data as DeliveryRow[]));
+    })();
+  }, [shopId]);
+
   const kpis = report?.kpis;
   const ref = report?.ecomfy_reference;
   const meta = report?.meta_telemetry;
   const daily = report?.daily_breakdown || [];
   const sample = report?.sample_orders || [];
-  const summary = report?.final_summary;
 
   return (
     <div className="space-y-6">
-      {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-6 rounded-2xl text-white shadow-xl">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Zap className="w-5 h-5 text-amber-400 fill-amber-400" />
-            <h2 className="text-xl font-bold tracking-tight">Réconciliation Automatique Ecomfy vs Meta</h2>
-            <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-              Procédure 22 BIS Activée
-            </Badge>
+            <h2 className="text-xl font-bold tracking-tight">Réconciliation Ecomfy vs Meta</h2>
           </div>
           <p className="text-sm text-slate-300">
-            Comparaison chiffrée automatique entre les commandes Supabase DB et les événements Meta Purchase.
+            Compare vos commandes aux achats que Meta a attribués à vos publicités. Aucune valeur n'est estimée.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700">
-            <button
-              onClick={() => setDays(7)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                days === 7 ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-white"
-              }`}
-            >
-              7 Derniers Jours
-            </button>
-            <button
-              onClick={() => setDays(30)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                days === 30 ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-white"
-              }`}
-            >
-              30 Derniers Jours
-            </button>
+            {([7, 30] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDays(d)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  days === d ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                {d} derniers jours
+              </button>
+            ))}
           </div>
 
           <Button
@@ -102,93 +136,108 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
             className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold gap-2 rounded-xl shadow-lg hover:shadow-emerald-500/20"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            {loading ? "Calcul en cours..." : "Re-synchroniser"}
+            {loading ? "Calcul en cours..." : "Actualiser"}
           </Button>
         </div>
       </div>
 
-      {/* Main KPI Cards */}
-      {kpis && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-5 border border-slate-100 shadow-sm rounded-2xl bg-white relative overflow-hidden">
+      {delivery && delivery.length > 0 && (
+        <Card className="p-5 border border-slate-200/80 shadow-sm rounded-2xl bg-white space-y-3">
+          <div>
+            <h3 className="font-bold text-base text-slate-900">État des envois serveur</h3>
+            <p className="text-xs text-slate-500">Résultat du dernier envoi de chaque pixel (API de conversions).</p>
+          </div>
+          <div className="space-y-2">
+            {delivery.map((row) => (
+              <div
+                key={`${row.provider}-${row.pixel_id}`}
+                className={`rounded-xl border p-3 text-sm ${row.last_ok ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-900">
+                    {PROVIDER_LABEL[row.provider] || row.provider} · <span className="font-mono text-xs">{row.pixel_id}</span>
+                  </span>
+                  <Badge className={row.last_ok ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}>
+                    {row.last_ok ? "Fonctionne" : `En échec (${row.consecutive_failures})`}
+                  </Badge>
+                </div>
+                {!row.last_ok && <p className="mt-1 text-rose-900">{explainDeliveryError(row)}</p>}
+                <p className="mt-1 text-xs text-slate-500">
+                  {row.last_success_at ? `Dernier succès : ${new Date(row.last_success_at).toLocaleString("fr-FR")}` : "Aucun succès enregistré"}
+                  {row.last_failure_at && !row.last_ok ? ` · Dernier échec : ${new Date(row.last_failure_at).toLocaleString("fr-FR")}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {report && !meta?.api_connected && (
+        <Card className="p-4 border border-amber-200 bg-amber-50 rounded-2xl flex gap-3 items-start">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-900">
+            <p className="font-semibold">Les achats Meta ne sont pas lisibles pour le moment.</p>
+            <p className="mt-1">{meta?.error_message || "Liez votre compte publicitaire Meta pour comparer."}</p>
+            <p className="mt-1 text-xs text-amber-800">
+              Seules les commandes Ecomfy sont affichées ci-dessous. Vérifiez aussi vos événements dans le Gestionnaire d'événements Meta
+              avec les identifiants d'événement de la dernière section.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {report && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="p-5 border border-slate-100 shadow-sm rounded-2xl bg-white">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Taux de Couverture</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Commandes à comptabiliser</span>
               <ShieldCheck className="w-5 h-5 text-emerald-500" />
             </div>
-            <div className="text-3xl font-black text-slate-900">{kpis.tracking_coverage_pct}%</div>
+            <div className="text-3xl font-black text-slate-900">{ref?.reference_orders_count ?? NA}</div>
             <p className="text-xs text-slate-500 mt-1">
-              Purchase Meta reçus / Commandes Ecomfy de référence
+              Sur {ref?.total_orders_recorded ?? 0} commande(s) : hors annulées, échouées et paiements en ligne non payés
             </p>
-            <div className="mt-3 w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all"
-                style={{ width: `${Math.min(100, kpis.tracking_coverage_pct)}%` }}
-              />
-            </div>
           </Card>
 
-          <Card className="p-5 border border-slate-100 shadow-sm rounded-2xl bg-white relative overflow-hidden">
+          <Card className="p-5 border border-slate-100 shadow-sm rounded-2xl bg-white">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Taux de Perte Apparente</span>
-              <EyeOff className="w-5 h-5 text-rose-500" />
-            </div>
-            <div className="text-3xl font-black text-rose-600">{kpis.loss_rate_pct}%</div>
-            <p className="text-xs text-slate-500 mt-1">
-              {kpis.loss_count_abs} commande(s) non retrouvée(s)
-            </p>
-            <div className="mt-3 w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-rose-500 h-full rounded-full transition-all"
-                style={{ width: `${Math.min(100, kpis.loss_rate_pct)}%` }}
-              />
-            </div>
-          </Card>
-
-          <Card className="p-5 border border-slate-100 shadow-sm rounded-2xl bg-white relative overflow-hidden">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Taux de Doublon</span>
-              <Layers className="w-5 h-5 text-amber-500" />
-            </div>
-            <div className="text-3xl font-black text-slate-900">{kpis.duplicate_rate_pct}%</div>
-            <p className="text-xs text-slate-500 mt-1">
-              {kpis.duplicate_count_abs} Purchase en excès détecté(s)
-            </p>
-            <div className="mt-3 w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-amber-500 h-full rounded-full transition-all"
-                style={{ width: `${Math.min(100, kpis.duplicate_rate_pct)}%` }}
-              />
-            </div>
-          </Card>
-
-          <Card className="p-5 border border-slate-100 shadow-sm rounded-2xl bg-white relative overflow-hidden">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Taux d'Attribution Meta</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Achats attribués par Meta</span>
               <Target className="w-5 h-5 text-indigo-500" />
             </div>
-            <div className="text-3xl font-black text-indigo-600">{kpis.attribution_rate_pct}%</div>
+            <div className="text-3xl font-black text-indigo-600">{fmt(kpis?.meta_purchases_attributed)}</div>
             <p className="text-xs text-slate-500 mt-1">
-              Purchase attribués aux campagnes Meta Ads
+              {kpis?.attributed_share_pct === null || kpis?.attributed_share_pct === undefined
+                ? "Non disponible"
+                : `${kpis.attributed_share_pct}% des commandes à comptabiliser`}
             </p>
-            <div className="mt-3 w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-indigo-500 h-full rounded-full transition-all"
-                style={{ width: `${Math.min(100, kpis.attribution_rate_pct)}%` }}
-              />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Une commande non attribuée à une publicité, ou venue d'une autre source, n'apparaît pas ici : ce n'est pas forcément une perte.
+            </p>
+          </Card>
+
+          <Card className="p-5 border border-slate-100 shadow-sm rounded-2xl bg-white">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Jours où Meta dépasse Ecomfy</span>
+              <Layers className="w-5 h-5 text-amber-500" />
             </div>
+            <div className="text-3xl font-black text-slate-900">{fmt(kpis?.days_meta_above_ecomfy)}</div>
+            <p className="text-xs text-slate-500 mt-1">
+              Signe possible d'achats comptés en double, ou d'un décalage de fuseau horaire du compte publicitaire
+            </p>
           </Card>
         </div>
       )}
 
-      {/* Daily Comparison Chart & Table */}
       <Card className="p-6 border border-slate-200/80 shadow-sm rounded-2xl bg-white space-y-6">
         <div className="flex items-center justify-between border-b pb-4">
           <div>
-            <h3 className="font-bold text-lg text-slate-900">Analyse Quotidienne Ecomfy vs Meta</h3>
-            <p className="text-xs text-slate-500">Comparaison jour par jour sur les {days} derniers jours</p>
+            <h3 className="font-bold text-lg text-slate-900">Analyse quotidienne</h3>
+            <p className="text-xs text-slate-500">
+              Jours en UTC pour Ecomfy, fuseau du compte publicitaire pour Meta : un léger décalage est normal
+            </p>
           </div>
           <Badge variant="outline" className="text-slate-600">
-            {report?.period?.startDate?.split("T")[0]} au {report?.period?.endDate?.split("T")[0]} (UTC)
+            {report?.period?.startDate?.split("T")[0]} au {report?.period?.endDate?.split("T")[0]}
           </Badge>
         </div>
 
@@ -198,30 +247,27 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
               <BarChart data={daily} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#64748B" }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#64748B" }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#0F172A", color: "#FFF", borderRadius: "12px", border: "none" }}
-                />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#64748B" }} />
+                <Tooltip contentStyle={{ backgroundColor: "#0F172A", color: "#FFF", borderRadius: "12px", border: "none" }} />
                 <Legend />
                 <Bar dataKey="ecomfy_orders" name="Commandes Ecomfy" fill="#4F46E5" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="meta_purchases" name="Purchase Meta Reçus" fill="#10B981" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="meta_attributed" name="Attribués Meta Ads" fill="#F59E0B" radius={[6, 6, 0, 0]} />
+                {meta?.api_connected && (
+                  <Bar dataKey="meta_purchases" name="Achats attribués Meta" fill="#10B981" radius={[6, 6, 0, 0]} />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
         )}
 
-        {/* Daily Breakdown Table */}
         <div className="overflow-x-auto rounded-xl border border-slate-100">
           <table className="w-full text-xs text-left text-slate-700">
             <thead className="bg-slate-50 text-slate-700 uppercase tracking-wider border-b">
               <tr>
                 <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4 text-right">Commandes Ecomfy</th>
-                <th className="py-3 px-4 text-right">Purchase Meta</th>
-                <th className="py-3 px-4 text-right">Écart Absolu</th>
+                <th className="py-3 px-4 text-right">Achats Meta</th>
+                <th className="py-3 px-4 text-right">Écart</th>
                 <th className="py-3 px-4 text-right">Écart %</th>
-                <th className="py-3 px-4 text-right">Attribués Meta</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -229,12 +275,9 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
                 <tr key={row.date} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-2.5 px-4 font-semibold text-slate-900">{row.date}</td>
                   <td className="py-2.5 px-4 text-right font-bold text-indigo-600">{row.ecomfy_orders}</td>
-                  <td className="py-2.5 px-4 text-right font-bold text-emerald-600">{row.meta_purchases}</td>
-                  <td className={`py-2.5 px-4 text-right font-semibold ${row.delta_abs > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-                    {row.delta_abs}
-                  </td>
-                  <td className="py-2.5 px-4 text-right">{row.delta_pct}%</td>
-                  <td className="py-2.5 px-4 text-right font-semibold text-amber-600">{row.meta_attributed}</td>
+                  <td className="py-2.5 px-4 text-right font-bold text-emerald-600">{fmt(row.meta_purchases)}</td>
+                  <td className="py-2.5 px-4 text-right font-semibold">{fmt(row.delta_abs)}</td>
+                  <td className="py-2.5 px-4 text-right">{fmt(row.delta_pct, "%")}</td>
                 </tr>
               ))}
             </tbody>
@@ -242,17 +285,13 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
         </div>
       </Card>
 
-      {/* Sample Verification Table */}
       {sample.length > 0 && (
         <Card className="p-6 border border-slate-200/80 shadow-sm rounded-2xl bg-white space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
-            <div>
-              <h3 className="font-bold text-base text-slate-900">Échantillon de Vérification par Commande (22 BIS.12)</h3>
-              <p className="text-xs text-slate-500">Contrôle de bout en bout de l'event_id et de la catégorie d'attribution</p>
-            </div>
-            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
-              {sample.length} Commandes Vérifiées
-            </Badge>
+          <div className="border-b pb-3">
+            <h3 className="font-bold text-base text-slate-900">Dernières commandes et identifiant d'événement</h3>
+            <p className="text-xs text-slate-500">
+              Cherchez cet identifiant dans le Gestionnaire d'événements Meta pour vérifier qu'un achat a bien été reçu (navigateur et serveur).
+            </p>
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-100">
@@ -262,8 +301,8 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
                   <th className="py-3 px-4">Commande</th>
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Montant</th>
-                  <th className="py-3 px-4">Event ID</th>
-                  <th className="py-3 px-4">Catégorie de Réconciliation</th>
+                  <th className="py-3 px-4">Paiement</th>
+                  <th className="py-3 px-4">Identifiant d'événement</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -272,68 +311,14 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
                     <td className="py-2.5 px-4 font-mono font-bold text-slate-900">{s.order_number}</td>
                     <td className="py-2.5 px-4 text-slate-500">{new Date(s.date).toLocaleString("fr-FR")}</td>
                     <td className="py-2.5 px-4 font-semibold">{s.montant?.toLocaleString("fr-FR")} {s.currency}</td>
-                    <td className="py-2.5 px-4 font-mono text-xs text-indigo-600 bg-indigo-50/50 rounded px-1.5 py-0.5 w-fit">
-                      {s.event_id}
+                    <td className="py-2.5 px-4">
+                      {s.payment_method || NA} · {s.payment_status || NA}
                     </td>
-                    <td className="py-2.5 px-4 font-semibold">
-                      <Badge
-                        className={
-                          s.category.startsWith("A")
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : s.category.startsWith("B")
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
-                        }
-                      >
-                        {s.category}
-                      </Badge>
-                    </td>
+                    <td className="py-2.5 px-4 font-mono text-xs text-indigo-600">{s.event_id}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </Card>
-      )}
-
-      {/* Final Summary Card (22 BIS.16 & 22 BIS.17) */}
-      {summary && (
-        <Card className="p-6 border-2 border-indigo-500/30 bg-gradient-to-br from-indigo-50/30 via-white to-purple-50/30 shadow-lg rounded-2xl space-y-4">
-          <div className="flex items-center gap-2 text-indigo-950 font-bold text-lg border-b border-indigo-100 pb-3">
-            <CheckCircle2 className="w-5 h-5 text-indigo-600" />
-            Conclusion Chiffrée Formelle (22 BIS.17)
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-2">
-              <div className="flex justify-between py-1 border-b border-slate-200/60">
-                <span className="text-slate-600">Commandes Ecomfy de référence :</span>
-                <span className="font-bold text-slate-900">{summary.reference_orders}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-200/60">
-                <span className="text-slate-600">Purchase Meta identifiables :</span>
-                <span className="font-bold text-emerald-600">{summary.purchases_identifiable}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-200/60">
-                <span className="text-slate-600">Commandes non retrouvées (perte) :</span>
-                <span className="font-bold text-rose-600">{summary.purchases_untracked}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between py-1 border-b border-slate-200/60">
-                <span className="text-slate-600">Doublons potentiels détectés :</span>
-                <span className="font-bold text-amber-600">{summary.purchases_duplicates}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-200/60">
-                <span className="text-slate-600">Purchase attribués Meta Ads :</span>
-                <span className="font-bold text-indigo-600">{summary.purchases_attributed}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-200/60">
-                <span className="text-slate-600">Niveau de Confiance Diagnostic :</span>
-                <Badge className="bg-emerald-600 text-white font-bold">{summary.diagnostic_confidence}</Badge>
-              </div>
-            </div>
           </div>
         </Card>
       )}

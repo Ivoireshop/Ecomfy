@@ -182,7 +182,14 @@ export interface ProductVideoData {
   section_subtitle?: string;
 }
 
-export async function fetchProductVideoData(productId: string): Promise<ProductVideoData> {
+/**
+ * `themeOverride` : réglages du thème déjà chargés par l'appelant (évite une seconde requête identique).
+ * `undefined` = les charger ici.
+ */
+export async function fetchProductVideoData(
+  productId: string,
+  themeOverride?: ProductThemeSettings | null
+): Promise<ProductVideoData> {
   if (!productId) return { videos: [] };
 
   let localData: ProductVideoData = { videos: [] };
@@ -196,7 +203,7 @@ export async function fetchProductVideoData(productId: string): Promise<ProductV
   } catch {}
 
   try {
-    const themeSettings = await fetchProductThemeSettings(productId);
+    const themeSettings = themeOverride !== undefined ? themeOverride : await fetchProductThemeSettings(productId);
     const custom = themeSettings?.custom_css_settings;
     if (custom) {
       const vids = Array.isArray(custom.videos) ? (custom.videos as ProductVideo[]) : [];

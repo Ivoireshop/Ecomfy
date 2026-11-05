@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { openDeliveryProof } from "@/lib/deliveryRpc";
 import * as XLSX from "xlsx";
 import { PushToDeliveryModal } from "./PushToDeliveryModal";
 import { StoreRestrictedLockScreen } from "./StoreRestrictedLockScreen";
@@ -53,6 +54,10 @@ interface Order {
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; selected_variants?: Record<string, string> | null }[];
   order_deliveries?: {
     status: string;
+    failure_reason?: string | null;
+    pod_signature_url?: string | null;
+    pod_photo_url?: string | null;
+    payment?: { amount_collected: number; status: "collected_by_driver" | "remitted_to_company" | "remitted_to_shop" } | null;
     driver?: {
       name: string;
       phone: string;
@@ -593,7 +598,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                         <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-white dark:bg-background">
-                              {delivery.status === "pending" ? "En attente d'assignation" :
+                              {delivery.status === "pending" ? (delivery.driver ? "Assigné au livreur" : "En attente d'assignation") :
                                delivery.status === "assigned" ? "Assigné au livreur" :
                                delivery.status === "picked_up" ? "Récupéré" :
                                delivery.status === "in_transit" ? "En route" :
@@ -603,6 +608,9 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                             </Badge>
                             {delivery.provider && (
                               <span className="text-muted-foreground text-xs font-medium">via {delivery.provider.company_name}</span>
+                            )}
+                            {delivery.status === "failed" && delivery.failure_reason && (
+                              <span className="text-xs font-medium text-red-600">{delivery.failure_reason}</span>
                             )}
                           </div>
                           {delivery.driver ? (
@@ -621,6 +629,26 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground italic">Aucun livreur assigné</span>
+                          )}
+                          {delivery.payment && (
+                            <span className="text-xs font-medium text-amber-700" data-testid="delivery-cash-line">
+                              {Number(delivery.payment.amount_collected).toLocaleString("fr-FR")} FCFA encaissés ·{" "}
+                              {delivery.payment.status === "remitted_to_shop" ? "reversés" :
+                               delivery.payment.status === "remitted_to_company" ? "reçus par le prestataire" : "chez le livreur"}
+                            </span>
+                          )}
+                          {delivery.status === "delivered" && (delivery.pod_signature_url || delivery.pod_photo_url) && (
+                            <button
+                              type="button"
+                              className="text-xs text-primary hover:underline w-fit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeliveryProof((delivery.pod_signature_url || delivery.pod_photo_url) as string)
+                                  .catch((err: Error) => toast.error(err.message));
+                              }}
+                            >
+                              Voir la preuve de livraison
+                            </button>
                           )}
                         </div>
                       ))}

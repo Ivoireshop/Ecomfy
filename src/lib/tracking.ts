@@ -11,6 +11,7 @@ import {
   isValidGa4Id,
   isValidSnapchatPixelId,
   isValidTiktokPixelId,
+  orderEventId,
 } from "@/lib/trackingIds";
 
 declare global {
@@ -83,8 +84,24 @@ function getFbp(): string | undefined {
   return getCookie("_fbp");
 }
 
-const genEventId = (orderId?: string) =>
-  orderId ? `ord_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, "_")}` : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+/**
+ * Contexte navigateur à mémoriser avec un paiement en ligne : le webhook de confirmation arrive sans navigateur,
+ * il en a besoin pour envoyer un Purchase serveur correctement rattaché (cookies Meta, agent utilisateur, page).
+ */
+export function getTrackingContext(): { fbp?: string; fbc?: string; user_agent?: string; event_source_url?: string } {
+  if (typeof window === "undefined") return {};
+  return {
+    fbp: getFbp(),
+    fbc: getFbc(),
+    user_agent: navigator.userAgent,
+    event_source_url: window.location.href,
+  };
+}
+
+// Avec un numéro de commande, l'identifiant est déterministe (même valeur que celle recalculée par le serveur) ;
+// sans commande, un identifiant aléatoire suffit : le miroir serveur reçoit exactement le même.
+const genEventId = (event: TrackEvent, orderId?: string) =>
+  orderId ? orderEventId(event, orderId) : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 function ensureLoaded(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -209,10 +226,11 @@ const SNAP_EVENT_MAP: Record<TrackEvent, string> = {
 export async function trackEvent(
   shop: ShopTracking | null | undefined,
   event: TrackEvent,
-  payload: TrackPayload = {}
+  payload: TrackPayload = {},
+  options: { serverMirror?: boolean } = {}
 ) {
   if (!shop || shop.tracking_enabled === false || typeof window === "undefined") return;
-  const eventId = genEventId(payload.order_id);
+  const eventId = genEventId(event, payload.order_id);
   const currency = payload.currency || "XOF";
 
   try {
@@ -283,9 +301,18 @@ export async function trackEvent(
     console.warn("[tracking] browser pixel error", e);
   }
 
+  // serverMirror: false : le serveur envoie déjà cet événement lui-même (Purchase d'un paiement en ligne, envoyé par le webhook
+  // du prestataire) ; le navigateur ne fait que le pendant « pixel », avec le même event_id, pour la déduplication.
+  if (options.serverMirror === false) return;
+
   try {
     const fbpVal = payload.fbp || getFbp();
     const fbcVal = payload.fbc || getFbc();
+    // Les formulaires ne demandent qu'un « nom complet » : Meta attend prénom (fn) et nom (ln) séparés.
+    const fullName = payload.first_name?.trim();
+    const namePart = fullName && !payload.last_name && /\s/.test(fullName)
+      ? { first_name: fullName.split(/\s+/)[0], last_name: fullName.split(/\s+/).slice(1).join(" ") }
+      : {};
 
     void supabase.functions.invoke("track-conversion", {
       body: {
@@ -296,6 +323,7 @@ export async function trackEvent(
         user_agent: navigator.userAgent,
         payload: {
           ...payload,
+          ...namePart,
           currency,
           ...(fbpVal ? { fbp: fbpVal } : {}),
           ...(fbcVal ? { fbc: fbcVal } : {}),

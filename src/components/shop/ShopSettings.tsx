@@ -901,6 +901,12 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                       <div className="space-y-2">
                         <Label className="font-semibold text-muted-foreground">Code de test d'événement (Optionnel)</Label>
                         <Input value={shop.facebook_test_event_code || ""} onChange={(e) => setShop({ ...shop, facebook_test_event_code: e.target.value })} placeholder="TEST12345" className="h-11" />
+                        {shop.facebook_test_event_code?.trim() && (
+                          <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-2">
+                            Tant qu'un code de test est renseigné, Meta reçoit vos événements en mode test uniquement : ils n'alimentent pas vos campagnes.
+                            Videz ce champ une fois vos essais terminés.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from 
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 const LazyThemeRenderer = lazy(() => import("@/lib/productThemes/ThemeRenderer"));
-import { thumbUrl } from "@/lib/imageUrl";
+import { thumbUrl, heroImageWidth } from "@/lib/imageUrl";
 import { isPremiumShop } from "@/lib/premium";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -200,6 +200,8 @@ const ProductView = () => {
   const [themeSettings, setThemeSettings] = useState<ProductThemeSettings | null>(null);
   const reviewStats = useProductReviewStats(shop?.id, product?.id);
   const [productAudios, setProductAudios] = useState<ProductAudio[]>([]);
+  // Identifiant du produit dont thème / audios / vidéos ont déjà été reçus avec la fiche (préchargement).
+  const extrasLoadedForRef = useRef<string | null>(null);
   // Guard against duplicate order submissions (double-tap on mobile, double-click,
   // Enter key spam). Uses a ref so state updates cannot race the second click.
   const submittingOrderRef = useRef(false);
@@ -254,12 +256,15 @@ const ProductView = () => {
       setVideoSectionSubtitle(undefined);
       return;
     }
+    // Déjà fournis avec la fiche par le préchargement (voir fetchData) : rien à redemander.
+    if (extrasLoadedForRef.current === product.id) return;
     let cancel = false;
     (async () => {
+      const themeRequest = fetchProductThemeSettings(product.id);
       const [ts, audios, vidData] = await Promise.all([
-        fetchProductThemeSettings(product.id),
+        themeRequest,
         fetchProductAudios(product.id, true),
-        fetchProductVideoData(product.id),
+        themeRequest.then((t) => fetchProductVideoData(product.id, t)),
       ]);
       if (cancel) return;
       setThemeSettings(ts);
@@ -327,6 +332,32 @@ const ProductView = () => {
             const shopData = rpc.shop;
             const productData = rpc.product;
             productData.product_images = sortProductImages(productData.product_images);
+
+            // Thème, témoignages audio et vidéos : demandés par index.html dès la réponse de la fiche, en même temps
+            // que le téléchargement du code. On les attend (au plus 700 ms) pour afficher la page déjà habillée
+            // du bon thème, au lieu d'afficher la version classique puis de la remplacer.
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- réponse du préchargement, forme vérifiée juste après
+              const extras: any = preload.extras
+                ? await Promise.race([preload.extras, new Promise((r) => setTimeout(() => r(null), 700))])
+                : null;
+              if (extras && extras.ok && extras.productId === productData.id) {
+                const ts = (extras.theme || null) as ProductThemeSettings | null;
+                const audios = (Array.isArray(extras.audios) ? extras.audios : []) as ProductAudio[];
+                const vidData = await fetchProductVideoData(productData.id, ts);
+                if (ts?.theme_slug) void import("@/lib/productThemes/ThemeRenderer");
+                extrasLoadedForRef.current = productData.id;
+                setThemeSettings(ts);
+                setProductAudios(audios);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- champ `videos` hors du type du produit
+                setProductVideos(vidData.videos.length > 0 ? vidData.videos : (Array.isArray((productData as any).videos) ? (productData as any).videos : []));
+                setVideoSectionTitle(vidData.section_title);
+                setVideoSectionSubtitle(vidData.section_subtitle);
+              }
+            } catch (e) {
+              console.warn("[ProductView] preloaded extras ignored", e);
+            }
+
             setShop(shopData);
             setProduct(productData);
             setRelatedProducts(Array.isArray(rpc.related) ? rpc.related : []);
@@ -1645,7 +1676,7 @@ const ProductView = () => {
             <div className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 relative group shadow-sm border border-gray-100">
               {images.length > 0 ? (
                 <img 
-                  src={thumbUrl(images[selectedImageIdx]?.image_url, 1200)} 
+                  src={thumbUrl(images[selectedImageIdx]?.image_url, heroImageWidth())} 
                   alt={product.name} 
                   loading="eager"
                   decoding="async"

@@ -25,7 +25,9 @@ export function SignaturePad({ open, onOpenChange, onSave }: SignaturePadProps) 
     if (sigCanvas.current?.isEmpty()) {
       return;
     }
-    const dataUrl = sigCanvas.current?.getTrimmedCanvas().toDataURL("image/png");
+    // getTrimmedCanvas() plante avec Vite (« trim_canvas.default is not a function ») : la signature n'était jamais
+    // validée et aucune livraison ne pouvait être terminée. On exporte le canevas entier.
+    const dataUrl = sigCanvas.current?.getCanvas().toDataURL("image/png");
     if (dataUrl) {
       onSave(dataUrl);
       onOpenChange(false);

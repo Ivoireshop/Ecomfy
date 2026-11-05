@@ -325,7 +325,9 @@ serve(async (req) => {
     // Helper: Envoi CAPI Meta Serveur lors d'un paiement de commande validé
     const triggerServerSidePurchaseCapi = async (ordId: string, shpId: string) => {
       try {
-        await supabase.from("orders").update({ status: "paid" }).or(`id.eq.${ordId},order_number.eq.${ordId}`);
+        // Ici on n'écrit plus dans `orders` : l'ancienne écriture visait une colonne « status » qui n'existe pas (elle échouait
+        // sans bruit) et le montant n'est pas comparé à la commande dans cette branche. Les paiements clients d'Ecomfy Pay
+        // passent par ecomfy-pay-webhook (confirm_ecomfy_payment), seul à marquer une commande payée.
         const effectiveOrderId = metadata?.order_number || ordId;
         await supabase.functions.invoke("track-conversion", {
           body: {
