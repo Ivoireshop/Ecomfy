@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import type { ThemeData } from "./types";
 import { formatPrice } from "./dataAdapter";
+import { thumbUrl, heroImageWidth } from "@/lib/imageUrl";
+
+// Les GIF animés et les SVG ne passent pas par le redimensionnement du stockage.
+const resizable = (url: string) => !/\.(gif|svg)($|\?)/i.test(url);
 
 export function CTAButton({
   data,
@@ -95,7 +99,7 @@ export function HeroImage({
   }
   return (
     <img
-      src={src}
+      src={resizable(src) ? thumbUrl(src, heroImageWidth()) : src}
       alt={alt}
       loading={priority ? "eager" : "lazy"}
       // @ts-ignore — fetchpriority is a valid HTML attribute
@@ -113,7 +117,7 @@ export function GalleryStrip({ data }: { data: ThemeData }) {
       {imgs.map((img, i) => (
         <img
           key={i}
-          src={img.image_url}
+          src={resizable(img.image_url) ? thumbUrl(img.image_url, 240) : img.image_url}
           alt={`Image ${i + 1}`}
           loading="lazy"
           className="h-20 w-20 sm:h-24 sm:w-24 object-cover rounded-md flex-shrink-0 snap-start border"

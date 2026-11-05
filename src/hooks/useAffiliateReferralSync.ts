@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { affiliateService } from "@/services/affiliateService";
-
-const REF_STORAGE_KEY = "ecomfy_affiliate_ref";
+import { captureAffiliateRefFromUrl } from "@/lib/affiliateRef";
 
 /**
  * Attaches the logged-in account to the affiliate whose link brought it here, whichever way it signed in
@@ -13,14 +12,7 @@ export const useAffiliateReferralSync = () => {
   const syncedUserRef = useRef<string | null>(null);
 
   useEffect(() => {
-    try {
-      const ref = new URLSearchParams(window.location.search).get("ref");
-      if (ref && ref.trim()) {
-        localStorage.setItem(REF_STORAGE_KEY, ref.trim().toUpperCase());
-      }
-    } catch {
-      // storage unavailable: the code can still travel in the signup metadata
-    }
+    captureAffiliateRefFromUrl();
   }, []);
 
   useEffect(() => {
