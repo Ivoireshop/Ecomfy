@@ -59,6 +59,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
 import { cacheInvalidate } from "@/lib/shopCache";
+import { useDeliveryEvents } from "@/hooks/useDeliveryEvents";
 
 interface Product {
   id: string;
@@ -349,12 +350,23 @@ const ShopEditor = () => {
             const { data: contacts } = await (supabase as any).rpc("get_delivery_driver_contacts", { _member_ids: driverIds.slice(i, i + 500) });
             (contacts || []).forEach((c: any) => driverContacts.set(c.member_id, c));
           }
+          // Argent encaissé à la livraison (une ligne par livraison livrée sur commande non payée en ligne).
+          const deliveryIds: string[] = results.flatMap(r => (r.data || []).map(d => d.id));
+          const paymentsByDelivery = new Map<string, { delivery_id: string; amount_collected: number; status: string }>();
+          for (let i = 0; i < deliveryIds.length; i += 100) {
+            const { data: pays } = await supabase
+              .from("delivery_payments")
+              .select("delivery_id, amount_collected, status")
+              .in("delivery_id", deliveryIds.slice(i, i + 100));
+            (pays || []).forEach(p => paymentsByDelivery.set(p.delivery_id, p));
+          }
           const deliveriesByOrder = new Map<string, any[]>();
           results.forEach(r => (r.data || []).forEach((d: any) => {
             const list = deliveriesByOrder.get(d.order_id) || [];
             const contact = d.driver_id ? driverContacts.get(d.driver_id) : null;
             list.push({
               ...d,
+              payment: paymentsByDelivery.get(d.id) || null,
               provider: providerNames.get(d.provider_id) || null,
               driver: d.driver_id ? { id: d.driver_id, name: contact?.full_name || "Livreur", phone: contact?.phone || "" } : null,
             });
@@ -375,6 +387,9 @@ const ShopEditor = () => {
   }, [id, fetchVisits]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Alertes de livraison en direct (échec, livraison, argent reversé), puis rechargement des commandes.
+  useDeliveryEvents("shop_id", id, "shop", fetchData);
 
   // Abonnement échu : demande au serveur de le constater (taux de commission rétabli, fermeture après le délai de grâce)
   // sans attendre la tâche planifiée. Une seule fois par boutique et par échéance ; la mise à jour de la boutique
