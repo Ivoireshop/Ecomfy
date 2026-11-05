@@ -114,7 +114,7 @@ Le stockage est simulé par un schéma `storage` simplifié : les règles d'acc�
 ## 7. Reste hors périmètre
 
 - **Reversement** : la boutique ne « confirme » pas la réception de l'argent ; c'est le prestataire qui marque « reversé ». Un statut de confirmation par la boutique demanderait une valeur de plus dans `delivery_payments.status`.
-- **Notifications push** (téléphone fermé) : non branchées ; la fonction `send-push-notification` et son déclencheur sont câblés en dur sur la prod.
+- **Notifications push** (téléphone fermé) : non branchées pour les livraisons. (Correction du 05/11 : la fonction `send-push-notification` n'est plus câblée sur la prod. Depuis `20261011120000_edge_function_url_from_vault`, le déclencheur des nouvelles commandes passe par `invoke_edge_function`, qui lit l'adresse du projet dans le secret Vault `supabase_project_url` ; vérifié sur la dev, où il vaut l'hôte de la dev. Il n'a pas été vérifié que des déclencheurs de livraison appellent cette fonction.)
 - **Tests de l'ancienne migration** (`delivery_rls_recursion*.sql`) : le cas 03 (livreur voit les 2 livraisons du prestataire) n'est plus vrai après cette migration. Ils s'exécutent jusqu'à `20261022110000`, donc ne sont pas affectés tant qu'on n'y ajoute pas la nouvelle.
 
 ## 7bis. Test navigateur sur la dev (5 nov. 2026)
