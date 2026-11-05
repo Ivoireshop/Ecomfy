@@ -29,7 +29,7 @@ export default function bootShop(container: HTMLElement) {
   );
   if (!prefersFrench()) {
     const load = () => void import("../i18n");
-    const ric = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => number) | undefined;
+    const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
     if (ric) ric(load, { timeout: 1500 });
     else setTimeout(load, 300);
   }

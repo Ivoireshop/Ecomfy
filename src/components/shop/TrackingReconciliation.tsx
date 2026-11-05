@@ -56,6 +56,7 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
 
       if (error) {
         // Le message précis du serveur est dans le corps de la réponse (401/403/500).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FunctionsHttpError : le corps de la réponse n'est pas typé
         const serverMessage = await (error as any)?.context?.json?.().then((b: any) => b?.error).catch(() => undefined);
         throw new Error(serverMessage || error.message);
       }
@@ -85,6 +86,7 @@ export function TrackingReconciliation({ shopId }: TrackingReconciliationProps) 
   useEffect(() => {
     if (!shopId) return;
     (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table absente des types générés de Supabase
       const { data, error } = await (supabase as any)
         .from("tracking_delivery_status")
         .select("provider, pixel_id, last_ok, last_http_status, last_error, last_error_code, last_success_at, last_failure_at, consecutive_failures")

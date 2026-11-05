@@ -337,6 +337,7 @@ const ProductView = () => {
             // que le téléchargement du code. On les attend (au plus 700 ms) pour afficher la page déjà habillée
             // du bon thème, au lieu d'afficher la version classique puis de la remplacer.
             try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- réponse du préchargement, forme vérifiée juste après
               const extras: any = preload.extras
                 ? await Promise.race([preload.extras, new Promise((r) => setTimeout(() => r(null), 700))])
                 : null;
@@ -348,6 +349,7 @@ const ProductView = () => {
                 extrasLoadedForRef.current = productData.id;
                 setThemeSettings(ts);
                 setProductAudios(audios);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- champ `videos` hors du type du produit
                 setProductVideos(vidData.videos.length > 0 ? vidData.videos : (Array.isArray((productData as any).videos) ? (productData as any).videos : []));
                 setVideoSectionTitle(vidData.section_title);
                 setVideoSectionSubtitle(vidData.section_subtitle);

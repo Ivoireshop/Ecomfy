@@ -5,6 +5,7 @@ import { lazy } from "react";
 // page so the browser fetches the new asset manifest.
 const RELOAD_KEY = "__chunk_reload_attempted__";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- même contrainte que React.lazy : les props du composant sont libres
 export const lazyWithRetry = <T extends { default: React.ComponentType<any> }>(
   factory: () => Promise<T>
 ) =>

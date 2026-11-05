@@ -86,6 +86,7 @@ const normCountry = (v: unknown) => {
 // Une clé par destination serveur configurée : sert au registre des Purchase pour ne reprendre que ce qui a échoué.
 // Mêmes conditions d'envoi que les blocs Meta / TikTok / Snapchat / GA4 ci-dessous.
 // deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ligne `shops` lue avec un select libre
 const destinationKeys = (shop: any): string[] => [
   ...(shop.facebook_access_token ? (shop.facebook_pixels as string[]).map((p) => `meta:${p}`) : []),
   ...(shop.tiktok_access_token ? (shop.tiktok_pixels as string[]).map((p) => `tiktok:${p}`) : []),
@@ -215,10 +216,11 @@ Deno.serve(async (req) => {
           console.warn("track-conversion: claim_purchase_send indisponible", claimErr.message);
         } else {
           purchaseLedger = { orderId: order.id };
-          if ((claim as any)?.claimed === false) {
-            return ok({ deduplicated: true, purchase_status: (claim as any)?.status ?? null, event_id });
+          const claimed = claim as { claimed?: boolean; status?: string; delivered?: string[] } | null;
+          if (claimed?.claimed === false) {
+            return ok({ deduplicated: true, purchase_status: claimed.status ?? null, event_id });
           }
-          for (const k of ((claim as any)?.delivered ?? []) as string[]) alreadyDelivered.add(k);
+          for (const k of claimed?.delivered ?? []) alreadyDelivered.add(k);
         }
       } catch (e) {
         console.warn("track-conversion: claim_purchase_send en erreur", String(e));
@@ -304,6 +306,7 @@ Deno.serve(async (req) => {
         if (shop.facebook_test_event_code) reqBody.test_event_code = shop.facebook_test_event_code;
         try {
           const r = await post(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reqBody) });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- réponse JSON de la plateforme, lue champ par champ
           const j: any = await r.json().catch(() => null);
           const received = Number(j?.events_received ?? 0);
           const delivered = r.ok && received >= 1;
@@ -355,6 +358,7 @@ Deno.serve(async (req) => {
             headers: { "Content-Type": "application/json", "Access-Token": shop.tiktok_access_token },
             body: JSON.stringify(reqBody),
           });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- réponse JSON de la plateforme, lue champ par champ
           const j: any = await r.json().catch(() => null);
           const delivered = r.ok && (j?.code === undefined || j.code === 0);
           const errMsg: string | null = delivered ? null : (j?.message ?? `HTTP ${r.status}`);

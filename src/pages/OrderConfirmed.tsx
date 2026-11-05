@@ -78,6 +78,7 @@ export default function OrderConfirmed() {
     (async () => {
       for (let attempt = 0; attempt < 8 && !cancelled; attempt++) {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC absente des types générés de Supabase
           const { data } = await (supabase as any).rpc("get_payment_return_status", { p_reference: paymentRef });
           if (data?.found && data.order_number) setReturnOrderNumber(String(data.order_number));
           if (data?.found && ["FAILED", "EXPIRED", "CANCELLED", "REFUNDED"].includes(data.status)) return;

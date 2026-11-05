@@ -12,6 +12,7 @@ export interface ServerPurchaseResult {
 }
 
 // deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Supabase de service sans types générés
 export async function sendServerPurchase(supabase: any, paymentId: string): Promise<ServerPurchaseResult> {
   const { data: pay } = await supabase
     .from("ecomfy_payments")
