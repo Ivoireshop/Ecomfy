@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
+import { sendServerPurchase } from "../_shared/purchase-capi.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,6 +27,21 @@ serve(async (req) => {
     if (replayError) console.error("[ecomfy-pay-settlement] Replay error:", replayError);
     else if (replay?.examined) console.log("[ecomfy-pay-settlement] Replay:", JSON.stringify(replay));
 
+    // Purchase publicitaires non partis (webhook tombé, Meta indisponible, commande marquée payée par le rejeu ci-dessus).
+    // Idempotent : un Purchase déjà envoyé n'est pas renvoyé. Échec ici = journalisé, jamais bloquant pour l'apurement.
+    const purchases = { examined: 0, sent: 0, failed: 0 };
+    try {
+      const { data: due, error: dueErr } = await supabase.rpc("list_purchases_to_resend", { p_limit: 25 });
+      if (dueErr) console.warn("[ecomfy-pay-settlement] list_purchases_to_resend:", dueErr.message);
+      for (const row of (due ?? []) as Array<{ payment_id: string }>) {
+        purchases.examined++;
+        const out = await sendServerPurchase(supabase, row.payment_id);
+        if (out.sent) purchases.sent++; else { purchases.failed++; console.warn("[ecomfy-pay-settlement] Purchase non envoyé:", row.payment_id, out.reason); }
+      }
+    } catch (e) {
+      console.warn("[ecomfy-pay-settlement] Reprise des Purchase en erreur:", e);
+    }
+
     // Déclencher la procédure Postgres d'apurement des règlements (PENDING -> AVAILABLE)
     const { data: count, error } = await supabase.rpc("process_wallet_settlements");
 
@@ -45,6 +61,7 @@ serve(async (req) => {
         settled_count: count || 0,
         message: `${count || 0} règlements libérés vers les soldes disponibles.`,
         replay: replay ?? null,
+        purchases,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

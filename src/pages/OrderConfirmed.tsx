@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,9 @@ export default function OrderConfirmed() {
   const message = state.message || DEFAULT_MESSAGE;
   const cleanPhone = (p?: string) => (p || "").replace(/[^0-9+]/g, "");
   const trackedRef = useRef(false);
+  // Retour du prestataire de paiement : /order-confirmed?payment_ref=ECM-PAY-… (aucun état de navigation).
+  const paymentRef = new URLSearchParams(location.search).get("payment_ref");
+  const [returnOrderNumber, setReturnOrderNumber] = useState<string | undefined>();
 
   useEffect(() => {
     if (trackedRef.current || !state.orderNumber || !state.shopSlug) return;
@@ -66,6 +69,47 @@ export default function OrderConfirmed() {
     })();
   }, [state.orderNumber, state.shopSlug, state.total]);
 
+  // Paiement en ligne : le Purchase serveur part du webhook, à l'encaissement. Ici le navigateur n'envoie que le pendant
+  // « pixel », avec le même event_id (ord_<n° de commande>) : Meta garde alors un seul achat. On attend la confirmation du
+  // webhook (quelques secondes) et on n'envoie jamais tant que le paiement n'est pas encaissé.
+  useEffect(() => {
+    if (state.orderNumber || !paymentRef || !/^ECM-PAY-[A-F0-9]{12}$/.test(paymentRef)) return;
+    let cancelled = false;
+    (async () => {
+      for (let attempt = 0; attempt < 8 && !cancelled; attempt++) {
+        try {
+          const { data } = await (supabase as any).rpc("get_payment_return_status", { p_reference: paymentRef });
+          if (data?.found && data.order_number) setReturnOrderNumber(String(data.order_number));
+          if (data?.found && ["FAILED", "EXPIRED", "CANCELLED", "REFUNDED"].includes(data.status)) return;
+          if (data?.found && data.paid && data.order_number && data.shop_slug) {
+            const storageKey = `vp_tracked_purchase_${data.order_number}`;
+            try { if (sessionStorage.getItem(storageKey)) return; sessionStorage.setItem(storageKey, "1"); } catch { /* stockage indisponible : l'event_id déduplique de toute façon */ }
+            const { data: shop } = await supabase
+              .from("shops")
+              .select("id, tracking_enabled, facebook_pixels, tiktok_pixels, snapchat_pixels, ga4_measurement_id, google_analytics_ids")
+              .eq("slug", data.shop_slug)
+              .maybeSingle();
+            if (shop) {
+              initShopPixels(shop);
+              void trackEvent(shop, "Purchase", {
+                value: Number(data.amount) || 0,
+                currency: data.currency || "XOF",
+                order_id: String(data.order_number),
+              }, { serverMirror: false });
+            }
+            return;
+          }
+        } catch (e) {
+          console.warn("[OrderConfirmed] retour de paiement", e);
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [paymentRef, state.orderNumber]);
+
+  const shownOrderNumber = state.orderNumber || returnOrderNumber;
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="max-w-xl w-full p-8 md:p-10 text-center">
@@ -79,10 +123,10 @@ export default function OrderConfirmed() {
           Félicitations, votre commande est confirmée !
         </h1>
         <p className="text-muted-foreground mb-2 leading-relaxed">{message}</p>
-        {state.orderNumber && (
+        {shownOrderNumber && (
           <p className="text-sm text-muted-foreground mb-6">
             Numéro de commande&nbsp;:{" "}
-            <span className="font-mono font-semibold">{state.orderNumber}</span>
+            <span className="font-mono font-semibold">{shownOrderNumber}</span>
           </p>
         )}
 

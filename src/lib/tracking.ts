@@ -11,6 +11,7 @@ import {
   isValidGa4Id,
   isValidSnapchatPixelId,
   isValidTiktokPixelId,
+  orderEventId,
 } from "@/lib/trackingIds";
 
 declare global {
@@ -97,8 +98,10 @@ export function getTrackingContext(): { fbp?: string; fbc?: string; user_agent?:
   };
 }
 
-const genEventId = (orderId?: string) =>
-  orderId ? `ord_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, "_")}` : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+// Avec un numéro de commande, l'identifiant est déterministe (même valeur que celle recalculée par le serveur) ;
+// sans commande, un identifiant aléatoire suffit : le miroir serveur reçoit exactement le même.
+const genEventId = (event: TrackEvent, orderId?: string) =>
+  orderId ? orderEventId(event, orderId) : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 function ensureLoaded(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -223,10 +226,11 @@ const SNAP_EVENT_MAP: Record<TrackEvent, string> = {
 export async function trackEvent(
   shop: ShopTracking | null | undefined,
   event: TrackEvent,
-  payload: TrackPayload = {}
+  payload: TrackPayload = {},
+  options: { serverMirror?: boolean } = {}
 ) {
   if (!shop || shop.tracking_enabled === false || typeof window === "undefined") return;
-  const eventId = genEventId(payload.order_id);
+  const eventId = genEventId(event, payload.order_id);
   const currency = payload.currency || "XOF";
 
   try {
@@ -296,6 +300,10 @@ export async function trackEvent(
   } catch (e) {
     console.warn("[tracking] browser pixel error", e);
   }
+
+  // serverMirror: false : le serveur envoie déjà cet événement lui-même (Purchase d'un paiement en ligne, envoyé par le webhook
+  // du prestataire) ; le navigateur ne fait que le pendant « pixel », avec le même event_id, pour la déduplication.
+  if (options.serverMirror === false) return;
 
   try {
     const fbpVal = payload.fbp || getFbp();

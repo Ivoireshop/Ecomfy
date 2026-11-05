@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getConnector } from "../_shared/operators/index.ts";
 import { remoteAmountMatches } from "../_shared/pricing.ts";
+import { sendServerPurchase } from "../_shared/purchase-capi.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -200,49 +201,13 @@ serve(async (req) => {
     }
 
     // Purchase Meta/TikTok/Snap/GA4 côté serveur. Le client revient du prestataire sans état (/order-confirmed?payment_ref=…) :
-    // le navigateur n'envoie donc rien pour un paiement en ligne. Déclenché uniquement quand la commande vient de passer à
-    // « payée » (steps.order = « updated ») : une nouvelle livraison du webhook ne renvoie pas l'événement, et l'event_id
-    // (ord_<n° de commande>) est de toute façon le même que celui du navigateur pour la déduplication. Best-effort.
-    if (res?.steps?.order === "updated" && res.payment_id) {
+    // le navigateur n'envoie donc rien tant que le paiement n'est pas confirmé ici. L'envoi est idempotent (registre
+    // tracking_purchase_log + event_id canonique ord_<n°>) : on l'appelle à chaque livraison du webhook, ce qui reprend un
+    // envoi raté sans jamais en produire deux. Best-effort ; le balayage ecomfy-pay-settlement reprend ce qui reste.
+    if (res?.status === "SUCCEEDED" && res.payment_id && res.steps?.order !== "none") {
       try {
-        const { data: pay } = await supabase
-          .from("ecomfy_payments")
-          .select("order_id, shop_id, amount, currency, customer_name, customer_phone, customer_email, metadata")
-          .eq("id", res.payment_id)
-          .maybeSingle();
-        const { data: ord } = pay?.order_id
-          ? await supabase.from("orders").select("order_number").eq("id", pay.order_id).maybeSingle()
-          : { data: null };
-
-        if (pay?.shop_id && ord?.order_number) {
-          const ctx = ((pay.metadata as any)?.tracking ?? {}) as Record<string, string | undefined>;
-          const nameParts = String(pay.customer_name || "").trim().split(/\s+/).filter(Boolean);
-          const orderNumber = String(ord.order_number);
-          const { data: tcRes, error: tcErr } = await supabase.functions.invoke("track-conversion", {
-            body: {
-              shop_id: pay.shop_id,
-              event: "Purchase",
-              event_id: `ord_${orderNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
-              event_source_url: ctx.event_source_url || "https://ecomfy.cloud/",
-              user_agent: ctx.user_agent,
-              client_ip: ctx.client_ip,
-              payload: {
-                value: Number(pay.amount),
-                currency: pay.currency || "XOF",
-                order_id: orderNumber,
-                email: pay.customer_email || undefined,
-                phone: pay.customer_phone || undefined,
-                first_name: nameParts[0],
-                last_name: nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined,
-                fbp: ctx.fbp,
-                fbc: ctx.fbc,
-              },
-            },
-          });
-          if (tcErr || tcRes?.success === false) {
-            console.warn("[ecomfy-pay-webhook] Purchase serveur non envoyé:", tcErr?.message || tcRes?.error);
-          }
-        }
+        const out = await sendServerPurchase(supabase, res.payment_id);
+        if (!out.sent) console.warn("[ecomfy-pay-webhook] Purchase serveur non envoyé:", out.reason);
       } catch (e) {
         console.warn("[ecomfy-pay-webhook] Purchase serveur en erreur (non bloquant):", e);
       }

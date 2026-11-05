@@ -26,3 +26,15 @@ export function extractGa4Id(input: unknown): string | null {
   const id = match[0].toUpperCase();
   return isValidGa4Id(id) ? id : null;
 }
+
+/**
+ * Identifiant d'événement publicitaire d'une commande. DOIT rester identique à
+ * supabase/functions/_shared/tracking-event-id.ts : c'est ce qui permet à Meta (et TikTok, Snapchat, GA4)
+ * de dédoublonner l'événement du pixel et celui de l'API de conversions (vérifié par supabase/tests/purchase-dedup.test.ts).
+ * Purchase : un seul identifiant par commande. Autres événements : préfixés par leur nom, jamais confondus avec le Purchase.
+ */
+export const purchaseEventId = (orderNumber: string | number): string =>
+  `ord_${String(orderNumber).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+
+export const orderEventId = (event: string, orderNumber: string | number): string =>
+  event === "Purchase" ? purchaseEventId(orderNumber) : `${event.toLowerCase()}_${purchaseEventId(orderNumber)}`;
