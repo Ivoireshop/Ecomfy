@@ -58,11 +58,33 @@ test("initiatePayment : réponse à plat acceptée, sans référence", async () 
   assert.deepEqual(await connector.initiatePayment(payReq), { ok: true, checkoutUrl: "https://pay/2" });
 });
 
+test("initiatePayment : lien nommé payment_url / redirect_url / url, sous data ou à plat", async () => {
+  const a = await make(() => json({ data: { payment_url: "https://pay/3", id: 7 } })).connector.initiatePayment(payReq);
+  assert.deepEqual(a, { ok: true, checkoutUrl: "https://pay/3", providerReference: "7" });
+  const b = await make(() => json({ result: { redirect_url: "https://pay/4" } })).connector.initiatePayment(payReq);
+  assert.deepEqual(b, { ok: true, checkoutUrl: "https://pay/4" });
+  const c = await make(() => json({ url: "https://pay/5" })).connector.initiatePayment(payReq);
+  assert.deepEqual(c, { ok: true, checkoutUrl: "https://pay/5" });
+  const notUrl = await make(() => json({ data: { url: "javascript:alert(1)" } })).connector.initiatePayment(payReq);
+  assert.equal(notUrl.ok, false);
+});
+
+test("initiatePayment : sans lien, la raison garde la forme de la réponse pour le diagnostic", async () => {
+  const r = await make(() => json({ data: { status: "pending", id: 9 } })).connector.initiatePayment(payReq);
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.match(String(r.reason), /HTTP 200 — .*"status":"pending"/);
+});
+
 test("initiatePayment : sans lien, 4xx, 5xx ou réseau → ok:false, sans exception", async () => {
   const noUrl = await make(() => json({ data: {} })).connector.initiatePayment(payReq);
   assert.equal(noUrl.ok, false);
   const refused = await make(() => json({ message: "montant invalide" }, 422)).connector.initiatePayment(payReq);
-  assert.deepEqual(refused, { ok: false, httpStatus: 422, reason: "montant invalide" });
+  assert.equal(refused.ok, false);
+  if (!refused.ok) {
+    assert.equal(refused.httpStatus, 422);
+    assert.equal(refused.reason, "montant invalide");
+    assert.match(String(refused.detail), /montant invalide/);
+  }
   const down = await make(() => { throw new Error("ECONNRESET"); }).connector.initiatePayment(payReq);
   assert.equal(down.ok, false);
 });

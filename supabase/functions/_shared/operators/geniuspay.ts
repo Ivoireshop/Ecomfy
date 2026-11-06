@@ -54,7 +54,9 @@ export class GeniusPayConnector implements OperatorConnector {
   }
 
   private authHeaders(): Record<string, string> {
-    return { "X-API-Key": this.cfg.apiKey ?? "", "X-API-Secret": this.cfg.apiSecret ?? "" };
+    // Accept: sans lui, GeniusPay (Laravel) répond à une requête refusée par une redirection 302 vers sa page d'accueil
+    // (HTML, code 200 après suivi) au lieu d'un 422 JSON : le vrai motif du refus disparaît.
+    return { Accept: "application/json", "X-API-Key": this.cfg.apiKey ?? "", "X-API-Secret": this.cfg.apiSecret ?? "" };
   }
 
   isConfigured(): boolean {
@@ -92,16 +94,26 @@ export class GeniusPayConnector implements OperatorConnector {
     } catch (e) {
       return { ok: false, reason: `network: ${(e as Error)?.message ?? e}` };
     }
-    const json: any = await resp.json().catch(() => ({}));
+    const rawText = await resp.text().catch(() => "");
+    let json: any = {};
+    try { json = rawText ? JSON.parse(rawText) : {}; } catch { json = {}; }
 
-    if (resp.ok && json?.data?.checkout_url) {
-      const ref = json.data.reference || json.data.id;
-      return { ok: true, checkoutUrl: json.data.checkout_url, providerReference: ref ? String(ref) : undefined };
+    // Même tolérance que process-payment (abonnements) : GeniusPay nomme le lien de plusieurs façons selon l'API/l'environnement.
+    const body = json?.data ?? json?.result ?? json;
+    const checkoutUrl = [body?.checkout_url, body?.payment_url, body?.redirect_url, body?.url, body?.link, json?.checkout_url, json?.payment_url]
+      .find((u) => typeof u === "string" && /^https?:\/\//i.test(u));
+    if (resp.ok && checkoutUrl) {
+      const ref = body?.reference || body?.id;
+      return ref ? { ok: true, checkoutUrl, providerReference: String(ref) } : { ok: true, checkoutUrl };
     }
-    if (resp.ok && json?.checkout_url) {
-      return { ok: true, checkoutUrl: json.checkout_url };
-    }
-    return { ok: false, httpStatus: resp.status, reason: json?.message || json?.error || `HTTP ${resp.status}` };
+    // Sans lien exploitable, garder la forme de la réponse (clés + extrait) pour diagnostiquer, sans jamais renvoyer de secret.
+    const shape = `redirected=${resp.redirected ?? "?"} url=${resp.url ?? "?"} ${resp.headers?.get?.("content-type") ?? "?"} ${rawText.slice(0, 400)}`.trim();
+    return {
+      ok: false,
+      httpStatus: resp.status,
+      reason: json?.error?.message || json?.message || (typeof json?.error === "string" ? json.error : "") || `HTTP ${resp.status}${shape ? ` — ${shape}` : ""}`,
+      detail: shape.slice(0, 500),
+    };
   }
 
   async fetchPayment(providerReference: string): Promise<FetchPaymentResult> {

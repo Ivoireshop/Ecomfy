@@ -52,6 +52,8 @@ export type InitiatePaymentResult =
       /** Statut HTTP renvoyé par l'opérateur ; absent en cas d'erreur réseau. */
       httpStatus?: number;
       reason: string;
+      /** Extrait brut de la réponse de l'opérateur (diagnostic : journaux et gateway_error), jamais affiché au client. */
+      detail?: string;
     };
 
 export type FetchPaymentResult =

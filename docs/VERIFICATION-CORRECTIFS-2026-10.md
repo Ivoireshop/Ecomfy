@@ -37,7 +37,8 @@ Script HTTP final (comptes jetables) : **42 réussis, 6 échecs** ; les 6 échec
 | Export des journaux Supabase | Non fait. | Ouvrir les journaux du projet. Filtres : appels `rpc/apply_commission_payment`, `rpc/apply_shop_subscription`, `rpc/apply_shop_activation`, `rpc/prepare_shop_activation_payment`, `rpc/check_rate_limit`, `rpc/enqueue_email`, `rpc/read_email_batch` avec un rôle `anon` ; écritures sur `user_roles` et `corporate_*` ; lignes de `commission_payments` sans paiement GeniusPay associé. |
 | C1 sur dev | Non fait : fichier 02 non appliqué. | Décision de l'appliquer (lire `docs/DEPLOIEMENT-DEV-2026-10.md` section 6 : conflit `payment_links`, C4 ouvert). |
 | Nomination et révocation par le fondateur principal | Non testées (compte réel, non jetable). | Un compte `founder` jetable, ou test par le propriétaire. |
-| Paiement GeniusPay de bout en bout, vitrine publique avec pixels | Non testés. | Environnement sandbox GeniusPay ; boutique active avec un identifiant GA4 réel. |
+| Paiement GeniusPay de bout en bout | **Testé en sandbox sur la dev le 06/11/2026 : réussi** (redirection, webhook, commande payée, ledger) ; voir `DEPLOIEMENT-AIGUILLAGE-WEBHOOK-ECOMFY-PAY-2026-10.md`. Reste non testé : prod, retrait. | Prod : après déploiement de `geniuspay-webhook` et `ecomfy-pay-initiate`. |
+| Vitrine publique avec pixels | Non testée. | Boutique active avec un identifiant GA4 réel. |
 | Typage complet (`tsc` sans `head`) | Partiel : seules les 20 premières lignes de la sortie filtrée ont été lues. | Relancer `npx tsc --noEmit -p tsconfig.app.json` et lire toute la sortie. |
 
 ---

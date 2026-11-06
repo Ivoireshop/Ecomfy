@@ -6,6 +6,10 @@
 
 **Durée :** environ 1 h, dont un paiement réel de test. **Heure :** n'importe laquelle, aucune coupure (une seule fonction change, sans migration). Éviter seulement un pic de commandes.
 
+## Déjà validé en sandbox (dev, 06/11/2026)
+
+Le même enchaînement (redirection GeniusPay → webhook → `SUCCEEDED` → commande payée → écriture au ledger) a été rejoué avec succès sur la dev, avec les clés sandbox. Détail et défauts corrigés dans la dernière section de [DEPLOIEMENT-AIGUILLAGE-WEBHOOK-ECOMFY-PAY-2026-10.md](DEPLOIEMENT-AIGUILLAGE-WEBHOOK-ECOMFY-PAY-2026-10.md). **À retenir pour le paiement réel de test de l'étape 4 :** GeniusPay refuse moins de 200 XOF, et la prod doit aussi recevoir `ecomfy-pay-initiate` (correctif de diagnostic, même fonction partagée `_shared/operators/geniuspay.ts`) en plus de `geniuspay-webhook`.
+
 ## Ce qu'on répare
 
 | # | Constat | Action |
