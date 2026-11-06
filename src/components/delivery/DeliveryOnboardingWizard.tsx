@@ -1,38 +1,30 @@
-import React, { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  Building2, 
-  Users, 
-  ShieldCheck, 
-  Truck, 
-  FileText, 
-  CheckCircle2, 
-  ArrowRight, 
-  ArrowLeft, 
-  Camera, 
-  AlertCircle, 
-  Upload, 
-  RefreshCw, 
-  Lock, 
-  Store,
-  Sparkles,
-  MapPin,
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  Camera,
+  CheckCircle2,
+  FileText,
+  Lock,
+  ShieldCheck,
+  Truck,
+  Users,
   XCircle,
-  FileCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { deliveryService } from "@/lib/deliveryService";
-import { validateDocument, compressImageForUpload } from "@/lib/documentValidation";
-import { kycVerificationService, KYCAnalysisResult } from "@/lib/kycAbstractionService";
-import { validateVehicleLicenseCategory } from "@/lib/vehicleLicenseMatcher";
-import { DeliveryIdentityVerificationStep } from "./DeliveryIdentityVerificationStep";
-import { DeliveryProfileType, DeliveryVehicleType } from "@/types/delivery";
+import { VEHICLE_LICENSE_REQUIREMENTS } from "@/lib/vehicleLicenseMatcher";
+import { DeliveryDocUpload } from "./DeliveryDocUpload";
+import { DeliverySelfieCapture } from "./DeliverySelfieCapture";
+import { DriverLicenseFields } from "./DriverLicenseFields";
+import { emptyLicenseForm, licenseFormProblems, type LicenseFormState } from "@/lib/driverLicenseForm";
+import type { DeliveryProfileType, IdDocumentType } from "@/types/delivery";
 
 const COUNTRIES_LIST = [
   { code: "CI", name: "Côte d'Ivoire" },
@@ -47,479 +39,365 @@ const COUNTRIES_LIST = [
   { code: "FR", name: "France" },
 ];
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const eighteenYearsAgoIso = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().slice(0, 10);
+};
+
+function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs text-slate-200">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
 export function DeliveryOnboardingWizard() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const [step, setStep] = useState<number>(1);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [profileType, setProfileType] = useState<DeliveryProfileType>("manager");
 
-  // Profile Type: Gérant or Livreur
-  const [profileType, setProfileType] = useState<DeliveryProfileType>('manager');
+  // Étape 1 : identité déclarée (comparée à la pièce par un humain)
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [countryCode, setCountryCode] = useState("CI");
+  const [city, setCity] = useState("Abidjan");
+  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [idType, setIdType] = useState<IdDocumentType>("cni");
+  const [idNumber, setIdNumber] = useState("");
+  const [idExpiry, setIdExpiry] = useState("");
 
-  // Step 1: Personal & Store/Vehicle Info
-  const [firstName, setFirstName] = useState<string>("");
-  const [lastName, setLastName] = useState<string>("");
-  const [dateOfBirth, setDateOfBirth] = useState<string>("");
-  const [countryCode, setCountryCode] = useState<string>("CI");
-  const [phone, setPhone] = useState<string>("");
-  const [whatsapp, setWhatsapp] = useState<string>("");
-  const [address, setAddress] = useState<string>("");
-  const [city, setCity] = useState<string>("Abidjan");
-  const [companyName, setCompanyName] = useState<string>("");
-  const [vehicleType, setVehicleType] = useState<DeliveryVehicleType>('motorcycle');
+  // Étape 2 : pièce d'identité (chemin dans le bucket privé)
+  const [idPhoto, setIdPhoto] = useState("");
 
-  // Step 2: Document Selection & Verification State
-  const [selectedDocType, setSelectedDocType] = useState<'cni' | 'passport'>('cni');
-  const [idDocUrl, setIdDocUrl] = useState<string>("");
-  const [idDocAnalysis, setIdDocAnalysis] = useState<KYCAnalysisResult | null>(null);
+  // Étape 3 : permis + véhicule (livreur) ou structure + KYB (gérant)
+  const [license, setLicense] = useState<LicenseFormState>(emptyLicenseForm());
+  const [companyName, setCompanyName] = useState("");
+  const [address, setAddress] = useState("");
+  const [warehousePhoto, setWarehousePhoto] = useState("");
+  const [hasTax, setHasTax] = useState(false);
+  const [taxId, setTaxId] = useState("");
+  const [taxDoc, setTaxDoc] = useState("");
+  const [tradeRegister, setTradeRegister] = useState("");
+  const [tradeDoc, setTradeDoc] = useState("");
 
-  // Step 3: Driver License State
-  const [licenseUrl, setLicenseUrl] = useState<string>("");
-  const [licenseAnalysis, setLicenseAnalysis] = useState<{ passed: boolean; reason?: string } | null>(null);
+  // Étape 4 : selfie avec la pièce
+  const [selfie, setSelfie] = useState("");
 
-  // Step 4: Selfie Liveness State
-  const [selfieUrl, setSelfieUrl] = useState<string>("");
-  const [faceMatchResult, setFaceMatchResult] = useState<{ passed: boolean; score?: number } | null>(null);
+  const isDriver = profileType === "driver";
 
-  // Document Upload & Analysis Handler
-  const handleDocUpload = async (file: File, docType: 'cni' | 'passport' | 'driver_license') => {
-    try {
-      // 1. Basic validation & compression
-      const basicCheck = await validateDocument(file, docType === 'driver_license' ? 'driver_license' : 'national_id');
-      if (!basicCheck.valid) {
-        toast({ variant: "destructive", title: "Document invalide", description: basicCheck.reason });
-        return;
-      }
-
-      const compressed = await compressImageForUpload(file);
-      
-      // 2. KYC Abstraction Analysis
-      const analysis = await kycVerificationService.analyzeDocument(compressed, docType, {
-        first_name: firstName,
-        last_name: lastName,
-        date_of_birth: dateOfBirth,
-        country_code: countryCode,
-        profile_type: profileType
-      });
-
-      if (docType === 'driver_license') {
-        const categoryCheck = validateVehicleLicenseCategory(vehicleType, ['A', 'B']);
-        if (!categoryCheck.passed) {
-          setLicenseAnalysis({ passed: false, reason: categoryCheck.rejection_reason });
-          toast({ variant: "destructive", title: "Permis non conforme", description: categoryCheck.rejection_reason });
-          return;
-        }
-        setLicenseAnalysis({ passed: true });
-        setLicenseUrl(URL.createObjectURL(compressed));
-        toast({ title: "Permis validé !", description: `Conforme pour le véhicule ${vehicleType.toUpperCase()}` });
-      } else {
-        setIdDocAnalysis(analysis);
-        if (!analysis.valid) {
-          toast({ variant: "destructive", title: "Document rejeté", description: analysis.rejection_reason });
-          return;
-        }
-        setIdDocUrl(URL.createObjectURL(compressed));
-        toast({ title: "Document d'identité conforme", description: "Nom et type de document validés par l'IA." });
-      }
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur d'analyse", description: e.message });
+  const problemsFor = (target: number): string[] => {
+    const out: string[] = [];
+    if (target === 1) {
+      if (!firstName.trim() || !lastName.trim()) out.push("Indiquez votre prénom et votre nom, tels qu'inscrits sur votre pièce d'identité.");
+      if (!phone.trim()) out.push("Indiquez votre téléphone.");
+      if (!city.trim()) out.push("Indiquez votre ville.");
+      if (!dateOfBirth) out.push("Indiquez votre date de naissance.");
+      else if (dateOfBirth > eighteenYearsAgoIso()) out.push("Vous devez être majeur pour vous inscrire.");
+      if (idNumber.trim().length < 4) out.push("Indiquez le numéro de votre pièce d'identité.");
+      if (idExpiry && idExpiry < todayIso()) out.push("Votre pièce d'identité est expirée.");
     }
+    if (target === 2 && !idPhoto) out.push("Importez la photo de votre pièce d'identité.");
+    if (target === 3) {
+      if (isDriver) out.push(...licenseFormProblems(license, idExpiry));
+      else {
+        if (!companyName.trim()) out.push("Indiquez le nom de votre société ou boutique.");
+        if (!address.trim()) out.push("Indiquez l'adresse du siège ou de l'entrepôt.");
+        if (!warehousePhoto) out.push("Importez la photo de votre entrepôt principal.");
+        if (hasTax && !taxId.trim() && !tradeRegister.trim()) out.push("Indiquez votre numéro fiscal (NIF) ou de registre du commerce (RCCM).");
+      }
+    }
+    if (target === 4 && !selfie) out.push("Prenez ou importez le selfie avec votre pièce d'identité.");
+    return out;
   };
 
-  const handleFinalSubmit = async () => {
-    if (!idDocUrl || (profileType === 'driver' && !licenseUrl) || !selfieUrl) {
-      toast({ variant: "destructive", title: "Documents manquants", description: "Veuillez compléter toutes les étapes obligatoires." });
+  const goNext = () => {
+    const problems = problemsFor(step);
+    if (problems.length) {
+      toast({ variant: "destructive", title: "Informations à compléter", description: problems[0] });
       return;
     }
+    setStep((s) => Math.min(s + 1, 5));
+  };
 
+  const allProblems = [1, 2, 3, 4].flatMap((s) => problemsFor(s));
+
+  const handleFinalSubmit = async () => {
+    if (allProblems.length) {
+      toast({ variant: "destructive", title: "Dossier incomplet", description: allProblems[0] });
+      return;
+    }
     setSubmitting(true);
     try {
-      // Les contrôles ci-dessus sont faits côté navigateur : ils orientent le message affiché mais ne valident
-      // jamais le compte. La décision (badge de confiance) est prise par un administrateur (H5).
-      const prechecksPassed = idDocAnalysis?.valid && (profileType === 'manager' || licenseAnalysis?.passed) && faceMatchResult?.passed;
-      const rejectionReason = prechecksPassed ? undefined : (idDocAnalysis?.rejection_reason || licenseAnalysis?.reason || "Vérification biométrique incomplète.");
-
-      await deliveryService.registerDeliveryCompany({
-        company_name: companyName || `${firstName} ${lastName} Express`,
-        country: COUNTRIES_LIST.find(c => c.code === countryCode)?.name || "Côte d'Ivoire",
-        country_code: countryCode,
-        city: city,
-        headquarters_address: address || city,
-        manager_name: `${firstName} ${lastName}`.trim(),
-        manager_phone: phone,
-        manager_whatsapp: whatsapp || phone,
-        manager_photo_url: selfieUrl,
-        manager_id_photo_url: idDocUrl,
-        owner_photo_url: selfieUrl,
-        warehouse_photo_url: idDocUrl,
-        has_tax_registration: false,
-        covered_cities: [city],
-        total_drivers_count: 1,
-        hubs: [{ city, address: address || city }],
-        drivers: profileType === 'driver' ? [{
-          full_name: `${firstName} ${lastName}`,
-          phone: phone,
-          vehicle_type: vehicleType,
-          photo_url: selfieUrl,
-          national_id_photo_url: idDocUrl,
-          license_photo_url: licenseUrl
-        }] : []
+      const country = COUNTRIES_LIST.find((c) => c.code === countryCode)?.name || "Côte d'Ivoire";
+      await deliveryService.registerApplication({
+        company: {
+          profile_type: profileType,
+          company_name: companyName.trim() || `${firstName.trim()} ${lastName.trim()} Express`,
+          country,
+          country_code: countryCode,
+          city: city.trim(),
+          headquarters_address: address.trim() || city.trim(),
+          manager_first_name: firstName.trim(),
+          manager_last_name: lastName.trim(),
+          manager_phone: phone.trim(),
+          manager_whatsapp: whatsapp.trim() || phone.trim(),
+          manager_id_photo_url: idPhoto,
+          manager_selfie_with_id_url: selfie,
+          warehouse_photo_url: isDriver ? undefined : warehousePhoto,
+          has_tax_registration: !isDriver && hasTax,
+          tax_id_number: !isDriver && hasTax ? taxId.trim() : undefined,
+          tax_document_url: !isDriver && hasTax ? taxDoc || undefined : undefined,
+          trade_register_number: !isDriver && hasTax ? tradeRegister.trim() || undefined : undefined,
+          trade_register_document_url: !isDriver && hasTax ? tradeDoc || undefined : undefined,
+          covered_cities: [city.trim()],
+        },
+        kyc: { id_type: idType, id_number: idNumber.trim(), id_expiry: idExpiry || undefined, date_of_birth: dateOfBirth },
+        hubs: [{ city: city.trim(), address: address.trim() || city.trim() }],
+        drivers: isDriver
+          ? [{
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+              phone: phone.trim(),
+              whatsapp: whatsapp.trim() || undefined,
+              date_of_birth: dateOfBirth,
+              vehicle_type: license.vehicleType,
+              vehicle_license_plate: license.plate.trim() || undefined,
+              id_type: idType,
+              id_number: idNumber.trim(),
+              id_expiry: idExpiry || undefined,
+              license_number: license.licenseNumber.trim(),
+              license_categories: license.categories,
+              license_expiry: license.licenseExpiry,
+              national_id_photo_url: idPhoto,
+              license_photo_url: license.licensePhoto,
+              selfie_with_id_url: selfie,
+            }]
+          : [],
       });
 
-      if (prechecksPassed) {
-        toast({
-          title: "Dossier transmis ✅",
-          description: "Votre demande est en cours d'examen par l'équipe Ecomfy. Vous serez notifié de la décision."
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Dossier transmis avec réserves",
-          description: `${rejectionReason || "Certaines informations nécessitent une correction."} L'équipe Ecomfy examinera votre dossier.`
-        });
-      }
-
+      toast({
+        title: "Dossier transmis",
+        description: "L'équipe Ecomfy examine vos pièces. Vous serez notifié de la décision.",
+      });
       navigate("/delivery/status");
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      toast({ variant: "destructive", title: "Erreur de soumission", description: e.message });
+      toast({ variant: "destructive", title: "Envoi impossible", description: e instanceof Error ? e.message : "Erreur de soumission." });
     } finally {
       setSubmitting(false);
     }
   };
 
+  const steps = [
+    { num: 1, label: "Profil & identité", icon: Users },
+    { num: 2, label: "Pièce d'identité", icon: FileText },
+    { num: 3, label: isDriver ? "Permis & véhicule" : "Structure & KYB", icon: Truck },
+    { num: 4, label: "Selfie avec la pièce", icon: Camera },
+    { num: 5, label: "Récapitulatif", icon: ShieldCheck },
+  ];
+
+  const inputCls = "bg-slate-950 border-slate-800 text-white text-xs";
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Visual Stepper */}
       <div className="grid grid-cols-5 gap-2 text-center text-xs">
-        {[
-          { num: 1, label: "Profil & Infos", icon: Users },
-          { num: 2, label: "Pièce d'Identité", icon: FileText },
-          { num: 3, label: profileType === 'driver' ? "Permis & Véhicule" : "Boutique / Entrepôt", icon: Truck },
-          { num: 4, label: "Selfie Liveness", icon: Camera },
-          { num: 5, label: "Récapitulatif", icon: ShieldCheck },
-        ].map((s) => {
+        {steps.map((s) => {
           const Icon = s.icon;
           const isActive = step === s.num;
           const isDone = step > s.num;
           return (
-            <div
+            <button
               key={s.num}
+              type="button"
               onClick={() => isDone && setStep(s.num)}
-              className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                isActive
-                  ? "bg-emerald-950 border-emerald-500 text-emerald-400 font-bold shadow-lg"
-                  : isDone
-                  ? "bg-slate-900 border-slate-700 text-slate-300"
-                  : "bg-slate-950/60 border-slate-800 text-slate-600"
+              aria-current={isActive ? "step" : undefined}
+              className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                isActive ? "bg-emerald-950 border-emerald-500 text-emerald-400 font-bold shadow-lg"
+                : isDone ? "bg-slate-900 border-slate-700 text-slate-300 cursor-pointer"
+                : "bg-slate-950/60 border-slate-700 text-slate-400 cursor-default"
               }`}
             >
               <Icon className="w-4 h-4" />
               <span className="text-[10px] hidden sm:block truncate max-w-full">{s.label}</span>
-            </div>
+            </button>
           );
         })}
       </div>
 
       <Card className="bg-slate-900/90 border-slate-800 shadow-2xl backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
-            {step === 1 && <><Users className="w-5 h-5 text-emerald-400" /> Étape 1 : Choix du Profil & Informations Personnelles</>}
-            {step === 2 && <><FileText className="w-5 h-5 text-emerald-400" /> Étape 2 : Importation de la Pièce d'Identité</>}
-            {step === 3 && <><Truck className="w-5 h-5 text-emerald-400" /> Étape 3 : {profileType === 'driver' ? "Permis de Conduire & Véhicule" : "Informations Boutique / Siège"}</>}
-            {step === 4 && <><Camera className="w-5 h-5 text-emerald-400" /> Étape 4 : Selfie Biométrique (Visage & Pièce tenue en hand)</>}
-            {step === 5 && <><ShieldCheck className="w-5 h-5 text-emerald-400" /> Étape 5 : Récapitulatif & Validation Finale</>}
+          <CardTitle className="text-xl font-bold text-white">
+            Étape {step} : {steps[step - 1].label}
           </CardTitle>
           <CardDescription className="text-slate-400 text-xs">
-            {step === 1 && "Sélectionnez votre rôle et saisissez vos informations d'identité officielles."}
-            {step === 2 && "Sélectionnez votre document et assurez-vous qu'il soit net et non expiré."}
-            {step === 3 && "Vérifiez que la catégorie de votre permis correspond au véhicule utilisé."}
-            {step === 4 && "Prenez une photo en direct avec la pièce tenue dans votre hand."}
-            {step === 5 && "Vérifiez la checklist des documents validés avant soumission finale."}
+            {step === 1 && "Saisissez votre identité exactement comme sur votre pièce : l'équipe la compare au document."}
+            {step === 2 && "Importez une photo nette et entière de votre pièce d'identité, non expiré."}
+            {step === 3 && (isDriver ? "Déclarez votre permis : la catégorie doit correspondre au véhicule utilisé." : "Présentez votre structure ; un numéro fiscal ou de registre du commerce renforce votre dossier.")}
+            {step === 4 && "Une photo de vous tenant votre pièce d'identité ouverte, visage et document lisibles."}
+            {step === 5 && "Relisez avant d'envoyer : votre dossier sera examiné par une personne de l'équipe."}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-2">
-          {/* STEP 1: Profile Choice & Personal Data */}
           {step === 1 && (
             <div className="space-y-5">
-              {/* Profile Selector */}
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300 font-bold">Sélectionnez votre profil sur Ecomfy Livraison *</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setProfileType('manager')}
-                    className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${
-                      profileType === 'manager'
-                        ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <Building2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-xs text-white">Gérant / Propriétaire de Boutique</h4>
-                      <p className="text-[11px] mt-0.5 opacity-80">Représente une entreprise ou une boutique utilisant le service de livraison.</p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setProfileType('driver')}
-                    className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${
-                      profileType === 'driver'
-                        ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <Truck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-xs text-white">Livreur Indépendant / Flotte</h4>
-                      <p className="text-[11px] mt-0.5 opacity-80">Effectue les livraisons avec son véhicule motorisé (Moto, Voiture, Van).</p>
-                    </div>
-                  </button>
+                <Label className="text-xs text-slate-300 font-bold">Votre profil sur Ecomfy Livraison *</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([
+                    { v: "manager", icon: Building2, title: "Société de livraison", text: "Vous gérez une structure et ses livreurs (vous pourrez les ajouter après l'inscription)." },
+                    { v: "driver", icon: Truck, title: "Livreur indépendant", text: "Vous livrez vous-même avec votre véhicule : moto, tricycle, voiture ou van." },
+                  ] as const).map(({ v, icon: Icon, title, text }) => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={profileType === v}
+                      onClick={() => setProfileType(v)}
+                      className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                        profileType === v ? "bg-emerald-950/80 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500" : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>
+                        <span className="block font-bold text-xs text-white">{title}</span>
+                        <span className="block text-[11px] mt-0.5 opacity-80">{text}</span>
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Personal Data Inputs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-200">Prénom *</Label>
-                  <Input placeholder="Ex: Jean" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-200">Nom de famille *</Label>
-                  <Input placeholder="Ex: Kouassi" value={lastName} onChange={(e) => setLastName(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                </div>
+                <Field id="w-first" label="Prénom *"><Input id="w-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Ex: Jean" className={inputCls} /></Field>
+                <Field id="w-last" label="Nom de famille *"><Input id="w-last" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ex: Kouassi" className={inputCls} /></Field>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-200">Date de Naissance *</Label>
-                  <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-200">Pays de Résidence *</Label>
-                  <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="w-full h-9 rounded-md bg-slate-950 border border-slate-800 text-white px-2 text-xs">
-                    {COUNTRIES_LIST.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                <Field id="w-dob" label="Date de naissance *"><Input id="w-dob" type="date" max={eighteenYearsAgoIso()} value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={inputCls} /></Field>
+                <Field id="w-country" label="Pays *">
+                  <select id="w-country" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="w-full h-9 rounded-md bg-slate-950 border border-slate-800 text-white px-2 text-xs">
+                    {COUNTRIES_LIST.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
                   </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-200">Ville Principal *</Label>
-                  <Input placeholder="Ex: Abidjan" value={city} onChange={(e) => setCity(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                </div>
+                </Field>
+                <Field id="w-city" label="Ville principale *"><Input id="w-city" value={city} onChange={(e) => setCity(e.target.value)} className={inputCls} /></Field>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-200">Téléphone Direct *</Label>
-                  <Input placeholder="+225 0700000000" value={phone} onChange={(e) => setPhone(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-200">WhatsApp Pro *</Label>
-                  <Input placeholder="+225 0700000000" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: ID Document Upload & Pre-check */}
-          {step === 2 && (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-200 font-bold">Choisissez le type de pièce d'identité officielle à importer *</Label>
-                <div className="flex gap-4">
-                  <label className={`flex-1 p-3 rounded-xl border flex items-center gap-2 cursor-pointer text-xs font-semibold ${selectedDocType === 'cni' ? 'bg-emerald-950 border-emerald-500 text-emerald-300' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
-                    <input type="radio" name="docType" checked={selectedDocType === 'cni'} onChange={() => setSelectedDocType('cni')} className="hidden" />
-                    <FileText className="w-4 h-4 text-emerald-400" /> Carte Nationale d'Identité (CNI)
-                  </label>
-
-                  <label className={`flex-1 p-3 rounded-xl border flex items-center gap-2 cursor-pointer text-xs font-semibold ${selectedDocType === 'passport' ? 'bg-emerald-950 border-emerald-500 text-emerald-300' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
-                    <input type="radio" name="docType" checked={selectedDocType === 'passport'} onChange={() => setSelectedDocType('passport')} className="hidden" />
-                    <FileText className="w-4 h-4 text-emerald-400" /> Passeport International
-                  </label>
-                </div>
+                <Field id="w-phone" label="Téléphone *"><Input id="w-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+225 0700000000" className={inputCls} /></Field>
+                <Field id="w-wa" label="WhatsApp"><Input id="w-wa" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="Identique au téléphone si vide" className={inputCls} /></Field>
               </div>
 
-              {/* Upload Drop Zone */}
-              <div className="p-6 rounded-2xl bg-slate-950 border border-dashed border-slate-800 text-center space-y-3">
-                <Upload className="w-8 h-8 text-emerald-400 mx-auto" />
-                <div>
-                  <h4 className="text-xs font-bold text-white">Importer votre {selectedDocType.toUpperCase()}</h4>
-                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto mt-0.5">
-                    Le document doit être net, entier, non expiré et comporter les filigranes officiels. Les factures et reçus sont automatiquement rejetés.
-                  </p>
-                </div>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleDocUpload(f, selectedDocType);
-                  }}
-                  className="max-w-xs mx-auto bg-slate-900 border-slate-800 text-xs text-slate-300"
-                />
-
-                {idDocAnalysis && (
-                  <div className={`p-3 rounded-xl border text-xs text-left max-w-md mx-auto mt-3 ${idDocAnalysis.valid ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/40 border-rose-500/40 text-rose-300'}`}>
-                    <div className="flex items-center justify-between font-bold">
-                      <span>Analyse IA Document :</span>
-                      {idDocAnalysis.valid ? <Badge className="bg-emerald-500/20 text-emerald-300">Conforme</Badge> : <Badge className="bg-rose-500/20 text-rose-300">Non conforme</Badge>}
-                    </div>
-                    <p className="text-[11px] mt-1">{idDocAnalysis.valid ? "Document reconnu et nom d'identité validé." : idDocAnalysis.rejection_reason}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Driver License & Vehicle OR Store Details */}
-          {step === 3 && (
-            <div className="space-y-5">
-              {profileType === 'driver' ? (
-                <>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-slate-200 font-bold">Quel type de véhicule utilisez-vous pour les livraisons ? *</Label>
-                    <select
-                      value={vehicleType}
-                      onChange={(e) => setVehicleType(e.target.value as any)}
-                      className="w-full h-10 rounded-md bg-slate-950 border border-slate-800 text-white px-3 text-xs"
-                    >
-                      <option value="motorcycle">Moto / Scooter (Catégorie A requise)</option>
-                      <option value="tricycle">Tricycle Motorisé (Catégorie A requise)</option>
-                      <option value="car">Voiture / Véhicule Léger (Catégorie B requise)</option>
-                      <option value="van">Camionnette / Van (Catégorie B/C requise)</option>
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
+                <h4 className="text-xs font-bold text-white flex items-center gap-2"><Lock className="w-3.5 h-3.5 text-emerald-400" /> Pièce d'identité (visible de vous et de l'équipe uniquement)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Field id="w-idtype" label="Type *">
+                    <select id="w-idtype" value={idType} onChange={(e) => setIdType(e.target.value as IdDocumentType)} className="w-full h-9 rounded-md bg-slate-900 border border-slate-800 text-white px-2 text-xs">
+                      <option value="cni">Carte nationale d'identité</option>
+                      <option value="passport">Passeport</option>
                     </select>
-                  </div>
-
-                  <div className="p-6 rounded-2xl bg-slate-950 border border-dashed border-slate-800 text-center space-y-3">
-                    <Truck className="w-8 h-8 text-amber-400 mx-auto" />
-                    <div>
-                      <h4 className="text-xs font-bold text-white">Importer votre Permis de Conduire</h4>
-                      <p className="text-[11px] text-slate-400">
-                        La catégorie du permis doit strictement correspondre au véhicule déclaré ({vehicleType.toUpperCase()}).
-                      </p>
-                    </div>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleDocUpload(f, 'driver_license');
-                      }}
-                      className="max-w-xs mx-auto bg-slate-900 border-slate-800 text-xs text-slate-300"
-                    />
-
-                    {licenseAnalysis && (
-                      <div className={`p-3 rounded-xl border text-xs text-left max-w-md mx-auto mt-3 ${licenseAnalysis.passed ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/40 border-rose-500/40 text-rose-300'}`}>
-                        <span className="font-bold block">Résultat du contrôle de Permis :</span>
-                        <p className="text-[11px] mt-0.5">{licenseAnalysis.passed ? "Catégorie de permis conforme et validée." : licenseAnalysis.reason}</p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-200">Nom de votre Boutique / Société *</Label>
-                    <Input placeholder="Ex: Express Logistics CI" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-200">Adresse du Siège ou Entrepôt Principal *</Label>
-                    <Input placeholder="Ex: Marcory Zone 4, Abidjan" value={address} onChange={(e) => setAddress(e.target.value)} className="bg-slate-950 border-slate-800 text-white text-xs" />
-                  </div>
+                  </Field>
+                  <Field id="w-idnum" label="Numéro *"><Input id="w-idnum" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className="bg-slate-900 border-slate-800 text-white text-xs" /></Field>
+                  <Field id="w-idexp" label="Date d'expiration"><Input id="w-idexp" type="date" value={idExpiry} onChange={(e) => setIdExpiry(e.target.value)} className="bg-slate-900 border-slate-800 text-white text-xs" /></Field>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* STEP 4: Selfie Biométrique & Liveness */}
-          {step === 4 && (
-            <DeliveryIdentityVerificationStep
-              countryCode={countryCode}
-              managerName={`${firstName} ${lastName}`}
-              idPhotoUrl={idDocUrl}
-              licensePhotoUrl={licenseUrl}
-              vehicleType={vehicleType}
-              onVerificationComplete={(res) => {
-                setFaceMatchResult({
-                  passed: res.status === 'approved',
-                  score: res.details.faceCheck.score
-                });
-                if (res.details.selfieUrl) {
-                  setSelfieUrl(res.details.selfieUrl);
-                }
-              }}
+          {step === 2 && (
+            <DeliveryDocUpload
+              label={idType === "passport" ? "Passeport" : "Carte nationale d'identité"}
+              hint="Image nette et entière (JPG, PNG, WEBP) ou PDF. Une facture ou un reçu sera refusé par l'équipe."
+              field="manager_id"
+              category="national_id"
+              required
+              value={idPhoto}
+              onChange={setIdPhoto}
             />
           )}
 
-          {/* STEP 5: Checklist & Final Submission Summary */}
-          {step === 5 && (
+          {step === 3 && isDriver && <DriverLicenseFields value={license} onChange={setLicense} idExpiry={idExpiry} />}
+
+          {step === 3 && !isDriver && (
             <div className="space-y-5">
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                <h4 className="text-xs font-bold text-white flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> Checklist des Documents Soumis & Vérifiés
-                </h4>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="font-semibold text-slate-200">Pièce d'Identité ({selectedDocType.toUpperCase()})</span>
-                    {idDocAnalysis?.valid ? <Badge className="bg-emerald-500/20 text-emerald-300">✓ Conforme</Badge> : <Badge className="bg-rose-500/20 text-rose-300">✕ Non valide</Badge>}
-                  </div>
-
-                  {profileType === 'driver' && (
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                      <span className="font-semibold text-slate-200">Permis de Conduire ({vehicleType.toUpperCase()})</span>
-                      {licenseAnalysis?.passed ? <Badge className="bg-emerald-500/20 text-emerald-300">✓ Catégorie Validée</Badge> : <Badge className="bg-rose-500/20 text-rose-300">✕ Permis non conforme</Badge>}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="font-semibold text-slate-200">Selfie Biométrique Liveness</span>
-                    {faceMatchResult?.passed ? <Badge className="bg-emerald-500/20 text-emerald-300">✓ Match ({faceMatchResult.score}%)</Badge> : <Badge className="bg-rose-500/20 text-rose-300">✕ Non valide</Badge>}
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field id="w-company" label="Nom de la société ou boutique *"><Input id="w-company" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Ex: Express Logistics CI" className={inputCls} /></Field>
+                <Field id="w-addr" label="Adresse du siège ou de l'entrepôt *"><Input id="w-addr" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Ex: Marcory Zone 4, Abidjan" className={inputCls} /></Field>
               </div>
+              <DeliveryDocUpload label="Photo de l'entrepôt principal" hint="Façade ou intérieur, lisible." field="warehouse" category="warehouse_photo" accept="image/*" required value={warehousePhoto} onChange={setWarehousePhoto} />
+
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
+                <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer">
+                  <input type="checkbox" checked={hasTax} onChange={(e) => setHasTax(e.target.checked)} className="accent-emerald-500" />
+                  Ma structure est immatriculée (NIF / RCCM)
+                </label>
+                {hasTax && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Field id="w-nif" label="Numéro fiscal (NIF)"><Input id="w-nif" value={taxId} onChange={(e) => setTaxId(e.target.value)} className="bg-slate-900 border-slate-800 text-white text-xs" /></Field>
+                      <Field id="w-rccm" label="Registre du commerce (RCCM)"><Input id="w-rccm" value={tradeRegister} onChange={(e) => setTradeRegister(e.target.value)} className="bg-slate-900 border-slate-800 text-white text-xs" /></Field>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <DeliveryDocUpload label="Attestation fiscale (facultatif)" field="tax_document" category="tax_document" value={taxDoc} onChange={setTaxDoc} />
+                      <DeliveryDocUpload label="Extrait RCCM (facultatif)" field="trade_register" category="tax_document" value={tradeDoc} onChange={setTradeDoc} />
+                    </div>
+                  </div>
+                )}
+                {!hasTax && <p className="text-[11px] text-slate-500">Sans immatriculation, votre dossier reste examiné sur l'identité du responsable et la photo de l'entrepôt.</p>}
+              </div>
+            </div>
+          )}
+
+          {step === 4 && <DeliverySelfieCapture field="manager_selfie" value={selfie} onChange={setSelfie} />}
+
+          {step === 5 && (
+            <div className="space-y-4">
+              <ul className="space-y-2 text-xs">
+                {[
+                  { ok: !!idPhoto, text: `Pièce d'identité (${idType === "passport" ? "passeport" : "CNI"} n° ${idNumber.trim() || "—"})` },
+                  { ok: !!selfie, text: "Selfie avec la pièce d'identité" },
+                  isDriver
+                    ? { ok: licenseFormProblems(license, idExpiry).length === 0, text: `Permis ${license.categories.join("+") || "—"} pour ${VEHICLE_LICENSE_REQUIREMENTS[license.vehicleType].label}` }
+                    : { ok: !!warehousePhoto && !!companyName.trim(), text: `Structure « ${companyName.trim() || "—"} »${hasTax ? " (immatriculée)" : ""}` },
+                ].map((row) => (
+                  <li key={row.text} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                    <span className="font-semibold text-slate-200">{row.text}</span>
+                    {row.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-400" aria-label="fourni" /> : <XCircle className="w-4 h-4 text-rose-400" aria-label="manquant" />}
+                  </li>
+                ))}
+              </ul>
+              {allProblems.length > 0 && (
+                <div role="alert" className="p-3 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-200 text-xs space-y-1">
+                  {allProblems.map((p) => <p key={p}>• {p}</p>)}
+                </div>
+              )}
+              <p className="text-[11px] text-slate-500">
+                Aucun contrôle n'est automatique : une personne de l'équipe compare votre identité, votre pièce, votre selfie{isDriver ? " et votre permis" : ""}.
+                Vous serez notifié ici et par e-mail.
+              </p>
             </div>
           )}
         </CardContent>
 
         <CardFooter className="flex justify-between border-t border-slate-800 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setStep(prev => Math.max(prev - 1, 1))}
-            disabled={step === 1 || submitting}
-            className="border-slate-800 text-slate-300 hover:bg-slate-800 text-xs"
-          >
+          <Button type="button" variant="outline" onClick={() => setStep((s) => Math.max(s - 1, 1))} disabled={step === 1 || submitting} className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-800 text-xs">
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Précédent
           </Button>
-
           {step < 5 ? (
-            <Button
-              type="button"
-              onClick={() => {
-                if (step === 1 && (!firstName || !lastName || !phone)) {
-                  toast({ variant: "destructive", title: "Champs requis", description: "Veuillez indiquer vos nom, prénom et téléphone." });
-                  return;
-                }
-                setStep(prev => Math.min(prev + 1, 5));
-              }}
-              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs gap-1.5"
-            >
-              Étape Suivante <ArrowRight className="w-4 h-4" />
+            <Button type="button" onClick={goNext} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs gap-1.5">
+              Étape suivante <ArrowRight className="w-4 h-4" />
             </Button>
           ) : (
-            <Button
-              type="button"
-              onClick={handleFinalSubmit}
-              disabled={submitting}
-              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs px-6 py-2 rounded-xl shadow-lg"
-            >
-              {submitting ? "Soumission en cours..." : "Soumettre à la Fondation Ecomfy"}
+            <Button type="button" onClick={handleFinalSubmit} disabled={submitting || allProblems.length > 0} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs px-6 py-2 rounded-xl shadow-lg">
+              {submitting ? "Envoi en cours…" : "Envoyer mon dossier à Ecomfy"}
             </Button>
           )}
         </CardFooter>

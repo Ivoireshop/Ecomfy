@@ -17,9 +17,6 @@ src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
 src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
 src/hooks/useWebPush.ts	TS2322	Type 'string' is not assignable to type 'never'.
 src/hooks/useWebPush.ts	TS2345	Argument of type '"endpoint"' is not assignable to parameter of type 'never'.
-src/hooks/useWebPush.ts	TS2551	Property 'catch' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "14.15"; }, { Tables: { abandoned_carts: { Row: { converted: boolean; created_at: string; customer_address: string; customer_city: string; customer_country: string; customer_email: string; ... 9 more ...; updated_at: string; }; Insert: { ...; }; Update: { ...; }; Relationsh...'. Did you mean 'match'?
-src/hooks/useWebPush.ts	TS2551	Property 'catch' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "14.15"; }, { Tables: { abandoned_carts: { Row: { converted: boolean; created_at: string; customer_address: string; customer_city: string; customer_country: string; customer_email: string; ... 9 more ...; updated_at: string; }; Insert: { ...; }; Update: { ...; }; Relationsh...'. Did you mean 'match'?
-src/hooks/useWebPush.ts	TS2551	Property 'catch' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "14.15"; }, { Tables: { abandoned_carts: { Row: { converted: boolean; created_at: string; customer_address: string; customer_city: string; customer_country: string; customer_email: string; ... 9 more ...; updated_at: string; }; Insert: { ...; }; Update: { ...; }; Relationsh...'. Did you mean 'match'?
 src/hooks/useWebPush.ts	TS2769	No overload matches this call.
 src/hooks/useWebPush.ts	TS2769	No overload matches this call.
 src/hooks/useWebPush.ts	TS2769	No overload matches this call.
@@ -45,9 +42,6 @@ src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
 src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
 src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
 src/lib/ecomfyPay.ts	TS2769	No overload matches this call.
-src/lib/verificationAuditService.ts	TS2339	Property 'company_name' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
-src/lib/verificationAuditService.ts	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
-src/lib/verificationAuditService.ts	TS2339	Property 'manager_name' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
 src/modules/connectus/components/ConnectUsHeader.tsx	TS2345	Argument of type '{ id: string; user_id: string; username: string; full_name: string; avatar_url: null; bio: string; location: string; website_url: null; is_verified: false; is_business: false; followers_count: number; following_count: number; posts_count: number; created_at: string; }' is not assignable to parameter of type 'ConnectUsProfile'.
 src/modules/connectus/components/StoryBar.tsx	TS2339	Property 'length' does not exist on type 'Promise<ConnectUsStory[]>'.
 src/modules/connectus/components/StoryBar.tsx	TS2345	Argument of type 'Promise<ConnectUsStory[]>' is not assignable to parameter of type 'SetStateAction<ConnectUsStory[]>'.
@@ -177,9 +171,6 @@ src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'id' does not exist on typ
 src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
 src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
 src/pages/CorporateOnboardingPage.tsx	TS2339	Property 'onboarding_completed' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type"> | SelectQueryError<"Invalid RelationName cannot infer result type">'.
-src/pages/DeliveryAdminPage.tsx	TS2339	Property 'action_type' does not exist on type 'VerificationAuditLog'.
-src/pages/DeliveryAdminPage.tsx	TS2339	Property 'admin_notes' does not exist on type 'VerificationAuditLog'.
-src/pages/DeliveryAdminPage.tsx	TS2339	Property 'rejection_details' does not exist on type 'VerificationAuditLog'.
 src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'allow_custom_amount' does not exist on type 'ResultOne'.
 src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'amount' does not exist on type 'ResultOne'.
 src/pages/EcomfyPayCheckout.tsx	TS2339	Property 'amount' does not exist on type 'ResultOne'.
@@ -203,12 +194,6 @@ src/pages/EcomfyPayCheckout.tsx	TS2769	No overload matches this call.
 src/pages/GovernanceDocumentPage.tsx	TS2305	Module '"react"' has no exported member 'Link'.
 src/pages/GovernanceDocumentPage.tsx	TS2305	Module '"react"' has no exported member 'useNavigate'.
 src/pages/GovernanceDocumentPage.tsx	TS2305	Module '"react"' has no exported member 'useParams'.
-src/pages/PricingDashboard.tsx	TS2339	Property 'end_date' does not exist on type 'SelectQueryError<"column 'plan' does not exist on 'subscriptions'.">'.
-src/pages/PricingDashboard.tsx	TS2339	Property 'is_subscribed' does not exist on type 'SelectQueryError<"column 'is_subscribed' does not exist on 'shops'.">'.
-src/pages/PricingDashboard.tsx	TS2339	Property 'plan' does not exist on type 'SelectQueryError<"column 'plan' does not exist on 'subscriptions'.">'.
-src/pages/PricingDashboard.tsx	TS2339	Property 'status' does not exist on type 'SelectQueryError<"column 'plan' does not exist on 'subscriptions'.">'.
-src/pages/PricingDashboard.tsx	TS2339	Property 'subscription_active_until' does not exist on type 'SelectQueryError<"column 'is_subscribed' does not exist on 'shops'.">'.
-src/pages/PricingDashboard.tsx	TS2339	Property 'subscription_plan' does not exist on type 'SelectQueryError<"column 'is_subscribed' does not exist on 'shops'.">'.
 src/services/affiliateService.ts	TS2322	Type '"orange_money" | "wave" | "mtn_money" | "moov_money" | "bank_transfer"' is not assignable to type 'never'.
 src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
 src/services/affiliateService.ts	TS2322	Type 'string' is not assignable to type 'never'.
