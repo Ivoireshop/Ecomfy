@@ -1,9 +1,11 @@
--- Test de 20261106120000_shop_assets_restrict_uploads.sql (durcissement du bucket public `shop-assets`).
+-- Test de 20261106120000_shop_assets_restrict_uploads.sql et 20261106130000_avatars_restrict_uploads.sql
+-- (durcissement des buckets publics `shop-assets` et `avatars`).
 --
 -- Base JETABLE uniquement (jamais dev ni prod) :
 --   docker run -d --rm --name ecomfy-shop-assets-test -e POSTGRES_PASSWORD=test postgres:16-alpine
 --   (cat supabase/tests/shop_assets_policies.sql \
 --        supabase/migrations/20261106120000_shop_assets_restrict_uploads.sql \
+--        supabase/migrations/20261106130000_avatars_restrict_uploads.sql \
 --        supabase/tests/shop_assets_policies_cases.sql) \
 --     | docker exec -i ecomfy-shop-assets-test psql -U postgres -v ON_ERROR_STOP=1
 -- Le socle reproduit à l'identique les politiques ouvertes laissées par 20260907140000 et 20260908170000
@@ -44,7 +46,17 @@ CREATE POLICY "someone_added_this" ON storage.objects FOR ALL USING (bucket_id =
 -- politique d'un AUTRE bucket : doit rester intacte
 CREATE POLICY "delivery_kyc_select_stub" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'delivery-kyc');
 
+-- Bucket avatars : bonnes politiques de 20260609133332 + politiques ouvertes de 20260908170000 + une inconnue
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+CREATE POLICY "Avatars are publicly readable" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
+CREATE POLICY "Users can upload their own avatar" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Public Upload for avatars" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'avatars');
+CREATE POLICY "Public Update for avatars" ON storage.objects FOR UPDATE USING (bucket_id = 'avatars');
+CREATE POLICY "avatars_unknown_all" ON storage.objects FOR ALL USING (bucket_id = 'avatars') WITH CHECK (bucket_id = 'avatars');
+
 -- Fichiers existants
+INSERT INTO storage.objects (bucket_id, name) VALUES ('avatars', '00000000-0000-0000-0000-00000000000b/avatar-1.jpg');
 INSERT INTO storage.objects (bucket_id, name) VALUES
   ('shop-assets', 'avatars/00000000-0000-0000-0000-00000000000b/avatar-1.jpg'),
   ('shop-assets', 'parcel-photos/parcel_1.jpg');

@@ -64,6 +64,28 @@ BEGIN
     $q$INSERT INTO storage.objects (bucket_id,name) VALUES ('shop-assets','avatars/noid.jpg')$q$, 'denied');
   PERFORM pg_temp.try(16, 'A ne dépose pas dans un autre bucket via cette règle', 'authenticated', a,
     $q$INSERT INTO storage.objects (bucket_id,name) VALUES ('delivery-kyc','whatever.jpg')$q$, 'denied');
+
+  -- Bucket avatars (dossier = id de l'utilisateur)
+  PERFORM pg_temp.try(17, 'avatars : anon ne dépose pas', 'anon', null,
+    format($q$INSERT INTO storage.objects (bucket_id,name) VALUES ('avatars','%s/x.jpg')$q$, a), 'denied');
+  PERFORM pg_temp.try(18, 'avatars : anon n''écrase rien', 'anon', null,
+    $q$UPDATE storage.objects SET name = name WHERE bucket_id='avatars'$q$, 'denied');
+  PERFORM pg_temp.try(19, 'avatars : A dépose dans son dossier', 'authenticated', a,
+    format($q$INSERT INTO storage.objects (bucket_id,name) VALUES ('avatars','%s/avatar-2.jpg')$q$, a), 'ok');
+  PERFORM pg_temp.try(20, 'avatars : A ne dépose pas dans le dossier de B', 'authenticated', a,
+    format($q$INSERT INTO storage.objects (bucket_id,name) VALUES ('avatars','%s/evil.jpg')$q$, b), 'denied');
+  PERFORM pg_temp.try(21, 'avatars : A remplace son avatar', 'authenticated', a,
+    format($q$UPDATE storage.objects SET name = name WHERE bucket_id='avatars' AND name LIKE '%s/%%'$q$, a), 'ok');
+  PERFORM pg_temp.try(22, 'avatars : A n''écrase pas l''avatar de B', 'authenticated', a,
+    format($q$UPDATE storage.objects SET name = name WHERE bucket_id='avatars' AND name LIKE '%s/%%'$q$, b), 'denied');
+  PERFORM pg_temp.try(23, 'avatars : A ne déplace pas un fichier vers B', 'authenticated', a,
+    format($q$UPDATE storage.objects SET name = '%s/stolen.jpg' WHERE bucket_id='avatars' AND name LIKE '%s/%%'$q$, b, a), 'denied');
+  PERFORM pg_temp.try(24, 'avatars : A ne supprime pas l''avatar de B', 'authenticated', a,
+    format($q$DELETE FROM storage.objects WHERE bucket_id='avatars' AND name LIKE '%s/%%'$q$, b), 'denied');
+  PERFORM pg_temp.try(25, 'avatars : A supprime son propre avatar', 'authenticated', a,
+    format($q$DELETE FROM storage.objects WHERE bucket_id='avatars' AND name LIKE '%s/%%'$q$, a), 'ok');
+  PERFORM pg_temp.try(26, 'avatars : fichier à la racine refusé', 'authenticated', a,
+    $q$INSERT INTO storage.objects (bucket_id,name) VALUES ('avatars','root.jpg')$q$, 'denied');
 END $$;
 
 -- Cas 4 : lecture publique (hors fonction : SELECT simple en rôle anon)
@@ -71,11 +93,18 @@ SET ROLE anon;
 SELECT count(*) AS lisibles_par_anon FROM storage.objects WHERE bucket_id = 'shop-assets' \gset
 RESET ROLE;
 INSERT INTO results VALUES (4, 'anon lit toujours (bucket public)', :lisibles_par_anon >= 2);
+SET ROLE anon;
+SELECT count(*) AS avatars_lisibles FROM storage.objects WHERE bucket_id = 'avatars' \gset
+RESET ROLE;
+INSERT INTO results VALUES (27, 'avatars : anon lit toujours', :avatars_lisibles >= 1);
 
 -- Politiques restantes sur le bucket
 SELECT 'POLITIQUES shop-assets restantes : ' || string_agg(policyname || ' (' || cmd || ')', ', ' ORDER BY policyname)
 FROM pg_policies WHERE schemaname='storage' AND tablename='objects'
   AND (coalesce(qual,'') LIKE '%shop-assets%' OR coalesce(with_check,'') LIKE '%shop-assets%');
+SELECT 'POLITIQUES avatars restantes : ' || string_agg(policyname || ' (' || cmd || ')', ', ' ORDER BY policyname)
+FROM pg_policies WHERE schemaname='storage' AND tablename='objects'
+  AND (coalesce(qual,'') LIKE '%bucket_id = ''avatars''%' OR coalesce(with_check,'') LIKE '%bucket_id = ''avatars''%');
 SELECT 'politique de l''autre bucket conservée : ' || count(*) FROM pg_policies WHERE policyname = 'delivery_kyc_select_stub';
 SELECT 'limites du bucket : ' || file_size_limit || ' octets, ' || array_to_string(allowed_mime_types, ',') FROM storage.buckets WHERE id='shop-assets';
 
