@@ -1271,16 +1271,49 @@ const ProductView = () => {
                   (!isEnabled("city") || !isRequired("city") || !!customerInfo.city) &&
                   (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
                   (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
+                // Le récapitulatif porte déjà le sélecteur de quantité : on ne le double que s'il est masqué.
+                const summaryHidden = themeConfig?.hide_order_summary === true || (product as any)?.hide_order_summary === true;
+                const showQtyControl = summaryHidden && !!product;
                 return (
                   <div className="pt-2">
-                    <Button 
-                      className="w-full h-12 sm:h-14 rounded-xl text-[15px] sm:text-lg font-bold gap-2 text-white shadow-md hover:shadow-lg transition-all"
-                      style={orderButtonStyle}
-                      onClick={placeOrder} 
-                      disabled={orderLoading}
-                    >
-                      {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-5 w-5" /> Confirmer ma commande</>}
-                    </Button>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      {showQtyControl && (
+                        <div
+                          className="flex items-center shrink-0 rounded-xl border overflow-hidden h-12 sm:h-14 px-0.5 transition-colors"
+                          style={{ backgroundColor: checkoutStyles.isDark ? "rgba(255,255,255,0.08)" : "#F8FAFC", borderColor: checkoutStyles.itemBorder }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(product!.id, -1)}
+                            disabled={orderLoading || quantity <= 1}
+                            className="h-10 w-8 sm:w-9 flex items-center justify-center transition-colors hover:bg-black/10 active:scale-95 disabled:opacity-40"
+                            style={{ color: checkoutStyles.textColor }}
+                            aria-label="Réduire la quantité"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-7 sm:w-8 text-center font-black text-sm sm:text-base" style={{ color: checkoutStyles.textColor }}>{quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(product!.id, 1)}
+                            disabled={orderLoading}
+                            className="h-10 w-8 sm:w-9 flex items-center justify-center transition-colors hover:bg-black/10 active:scale-95 disabled:opacity-40"
+                            style={{ color: checkoutStyles.textColor }}
+                            aria-label="Augmenter la quantité"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                      <Button
+                        className="flex-1 min-w-0 h-12 sm:h-14 rounded-xl text-[15px] sm:text-lg font-bold gap-2 text-white shadow-md hover:shadow-lg transition-all"
+                        style={orderButtonStyle}
+                        onClick={placeOrder}
+                        disabled={orderLoading}
+                      >
+                        {orderLoading ? "Traitement en cours..." : <><ShoppingCart className="h-5 w-5 shrink-0" /> <span className="truncate">Confirmer ma commande</span></>}
+                      </Button>
+                    </div>
                     <div className="flex items-center justify-center gap-4 mt-3 text-gray-500">
                       <div className="flex items-center gap-1 text-[11px] font-medium"><Shield className="h-3.5 w-3.5" /> Paiement sécurisé</div>
                       <div className="flex items-center gap-1 text-[11px] font-medium"><CheckCircle2 className="h-3.5 w-3.5" /> Satisfait ou remboursé</div>
