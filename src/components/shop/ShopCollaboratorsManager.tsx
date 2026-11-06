@@ -38,7 +38,7 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
   manage_catalog: "Ajouter, modifier ou supprimer des produits.",
   view_stats: "Accès complet au tableau de bord analytique.",
   manage_customers: "Gérer les avis et contacter les clients.",
-  full_admin: "Contrôle total, incluant la gestion de l'équipe.",
+  full_admin: "Accès à toutes les sections de la boutique. La gestion de l'équipe reste réservée au propriétaire.",
 };
 
 const ROLE_ICONS: Record<Role, any> = {
@@ -105,6 +105,12 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
     "manage_customers",
     "full_admin"
   ];
+
+  const hasAllRoles = (rs: Role[]) => ALL_ROLES.every((x) => rs.includes(x));
+
+  const toggleAllRoles = () => {
+    setRoles((prev) => (hasAllRoles(prev) ? ["view_orders"] : [...ALL_ROLES]));
+  };
 
   const toggleRole = (r: Role) => {
     setRoles((prev) => {
@@ -351,7 +357,19 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold text-foreground">Permissions attribuées</Label>
-                  <span className="text-xs text-muted-foreground font-medium">{roles.length} sélectionnée(s)</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground font-medium">{roles.length} / {ALL_ROLES.length} sélectionnée(s)</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={toggleAllRoles}
+                      className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      {hasAllRoles(roles) ? "Tout décocher" : "Tout cocher (accès total)"}
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="grid sm:grid-cols-2 gap-3">
@@ -446,17 +464,16 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
                 <div className="space-y-2 p-2">
                   {list.map((c) => (
                     <div key={c.id} className="p-4 rounded-xl border border-border/50 bg-background hover:border-border transition-colors">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm text-foreground truncate">{c.invited_email}</p>
-                          <div className="mt-1.5 flex items-center gap-2">
-                            {c.status === "active" && <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 border-0 gap-1 font-semibold"><ShieldCheck className="h-3.5 w-3.5" /> Actif</Badge>}
-                            {c.status === "pending" && <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 gap-1 font-semibold"><Clock className="h-3.5 w-3.5" /> En attente</Badge>}
-                            {c.status === "revoked" && <Badge variant="destructive" className="gap-1 font-semibold"><Ban className="h-3.5 w-3.5" /> Révoqué</Badge>}
+                      <div className="flex flex-col gap-2.5 mb-3">
+                        <p className="font-bold text-sm text-foreground break-all" title={c.invited_email}>{c.invited_email}</p>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
+                            {c.status === "active" && <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 border-0 gap-1 font-semibold whitespace-nowrap"><ShieldCheck className="h-3.5 w-3.5" /> Actif</Badge>}
+                            {c.status === "pending" && <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 gap-1 font-semibold whitespace-nowrap"><Clock className="h-3.5 w-3.5" /> En attente</Badge>}
+                            {c.status === "revoked" && <Badge variant="destructive" className="gap-1 font-semibold whitespace-nowrap"><Ban className="h-3.5 w-3.5" /> Révoqué</Badge>}
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-1 shrink-0">
+
+                        <div className="flex flex-wrap items-center gap-1">
                           {c.status === "pending" && (
                             <>
                               <Button
@@ -491,9 +508,19 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
+                        </div>
                       </div>
 
                       <div className="bg-muted/40 rounded-lg p-2.5 flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => updateRoles(c.id, hasAllRoles(c.roles) ? ["view_orders"] : [...ALL_ROLES])}
+                          className="text-[11px] font-semibold px-2 py-1 rounded-md border border-primary/40 text-primary bg-background hover:bg-primary/5 transition-all flex items-center gap-1.5"
+                          title={hasAllRoles(c.roles) ? "Retirer tous les droits sauf « Voir les commandes »" : "Cocher toutes les permissions (accès total)"}
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                          {hasAllRoles(c.roles) ? "Tout décocher" : "Tout cocher"}
+                        </button>
                         {(Object.keys(ROLE_LABELS) as Role[]).map((r) => {
                           const has = c.roles.includes(r);
                           return (
@@ -520,7 +547,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
                                 }
                                 updateRoles(c.id, next);
                               }}
-                              className={`text-[10px] font-medium px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                              className={`text-[11px] font-medium px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${
                                 has 
                                   ? "bg-primary text-primary-foreground shadow-sm" 
                                   : "bg-background text-muted-foreground border hover:border-primary/50"
