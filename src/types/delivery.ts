@@ -1,21 +1,20 @@
-export type DeliveryVerificationStatus = 
-  | 'draft'
-  | 'documents_required'
+export type DeliveryVerificationStatus =
   | 'pending_verification'
-  | 'processing'
   | 'under_review'
   | 'action_required'
-  | 'manual_review'
   | 'approved'
   | 'rejected'
-  | 'resubmission_required'
   | 'suspended';
+
+export type DriverVerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
 export type DeliveryProfileType = 'manager' | 'driver';
 
 export type DeliveryVehicleType = 'motorcycle' | 'car' | 'tricycle' | 'van' | 'other';
 
 export type LicenseCategory = 'A' | 'B' | 'C' | 'D' | 'E';
+
+export type IdDocumentType = 'cni' | 'passport';
 
 export type DeliveryDispatchStatus =
   | 'pending_assignment'
@@ -64,32 +63,47 @@ export const REJECTION_REASON_LABELS: Record<StructuredRejectionReasonCode, stri
   OTHER: "Autre motif spécifié par l'administrateur",
 };
 
-export interface VerificationDocumentItem {
+/** Ligne du journal d'audit (table delivery_verification_audit, en ajout seul, écrite par la base). */
+export interface DeliveryAuditEntry {
   id: string;
-  type: 'cni' | 'passport' | 'driver_license' | 'selfie_liveness' | 'selfie_with_id' | 'proof_of_residence' | 'tax_document';
-  url: string;
-  status: 'received' | 'processing' | 'verified' | 'rejected' | 'action_required';
-  uploaded_at: string;
-  rejection_reason?: string;
-  ocr_extracted_data?: {
-    first_name?: string;
-    last_name?: string;
-    date_of_birth?: string;
-    document_number?: string;
-    expiry_date?: string;
-    country_code?: string;
-  };
+  company_id: string;
+  driver_id?: string | null;
+  company_name?: string | null;
+  subject: 'company' | 'driver';
+  action: string;
+  from_status?: string | null;
+  to_status?: string | null;
+  reason_code?: StructuredRejectionReasonCode | null;
+  reason?: string | null;
+  note?: string | null;
+  visibility: 'owner' | 'internal';
+  actor_id?: string | null;
+  actor_kind: 'owner' | 'admin' | 'system';
+  details: Record<string, unknown>;
+  created_at: string;
 }
 
-export interface VerificationAuditLog {
+export interface DeliveryNotification {
   id: string;
-  request_id: string;
-  user_id?: string;
-  actor_role: 'system_ai' | 'admin' | 'user';
-  action: 'document_uploaded' | 'ocr_extracted' | 'face_matched' | 'category_verified' | 'auto_approved' | 'auto_rejected' | 'manual_reviewed' | 'resubmission_requested' | 'status_changed';
-  details: string;
-  confidence_score?: number;
+  user_id: string;
+  company_id?: string | null;
+  driver_id?: string | null;
+  kind: string;
+  tone: 'info' | 'success' | 'warning' | 'error';
+  title: string;
+  body?: string | null;
+  link?: string | null;
+  read_at?: string | null;
   created_at: string;
+}
+
+/** Identité du responsable (table delivery_company_kyc, lisible du seul propriétaire et des administrateurs). */
+export interface DeliveryCompanyKyc {
+  company_id: string;
+  id_type: IdDocumentType;
+  id_number: string;
+  id_expiry?: string | null;
+  date_of_birth: string;
 }
 
 export interface DeliveryCompany {
@@ -104,19 +118,20 @@ export interface DeliveryCompany {
   manager_name: string;
   manager_first_name?: string | null;
   manager_last_name?: string | null;
-  manager_dob?: string | null;
   manager_phone: string;
   manager_whatsapp: string;
+  /** Chemins dans le bucket privé « delivery-kyc » (jamais des URL publiques). */
   manager_photo_url?: string | null;
   manager_id_photo_url?: string | null;
   manager_selfie_with_id_url?: string | null;
   owner_photo_url?: string | null;
   warehouse_photo_url?: string | null;
-  
+
   has_tax_registration: boolean;
   tax_id_number?: string | null;
   tax_document_url?: string | null;
   trade_register_number?: string | null;
+  trade_register_document_url?: string | null;
   
   covered_cities: string[];
   total_drivers_count: number;
@@ -125,17 +140,12 @@ export interface DeliveryCompany {
   trust_badge_active: boolean;
   rejection_reason?: string | null;
   rejection_reason_code?: StructuredRejectionReasonCode | null;
-  admin_notes?: string | null;
+  /** Message de l'équipe au candidat (complément demandé). Les notes internes sont dans un registre à part. */
   reviewer_comments?: string | null;
   verification_requested_at?: string;
   verified_at?: string | null;
   verified_by?: string | null;
-  
-  // Verification AI & Audit Scores
-  ai_confidence_score?: number;
-  face_match_score?: number;
-  document_checklist?: VerificationDocumentItem[];
-  
+
   successful_deliveries_count: number;
   total_dispatches_count: number;
   average_payout_delay_hours: number;
@@ -148,6 +158,7 @@ export interface DeliveryCompany {
   // Joins / expanded relations
   hubs?: DeliveryHub[];
   drivers?: DeliveryDriver[];
+  kyc?: DeliveryCompanyKyc | null;
 }
 
 export interface DeliveryHub {
@@ -172,12 +183,22 @@ export interface DeliveryDriver {
   whatsapp?: string | null;
   vehicle_type: DeliveryVehicleType;
   vehicle_license_plate?: string | null;
-  license_categories?: LicenseCategory[];
+  id_type?: IdDocumentType | null;
+  id_number?: string | null;
+  id_expiry?: string | null;
+  license_number?: string | null;
+  license_categories: LicenseCategory[];
+  license_expiry?: string | null;
   photo_url: string;
   national_id_photo_url: string;
   license_photo_url?: string | null;
   selfie_with_id_url?: string | null;
+  /** Actif = approuvé ET permis valable (invariant appliqué par la base). */
   is_active: boolean;
+  verification_status: DriverVerificationStatus;
+  rejection_reason?: string | null;
+  rejection_reason_code?: StructuredRejectionReasonCode | null;
+  verified_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }

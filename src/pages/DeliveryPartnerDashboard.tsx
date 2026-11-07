@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { deliveryService } from "@/lib/deliveryService";
 import { DeliveryCompany, DeliveryDispatch, DeliveryDispatchStatus } from "@/types/delivery";
 import DeliveryCashTracker from "@/components/delivery/DeliveryCashTracker";
+import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotificationBell";
 
 export default function DeliveryPartnerDashboard() {
   const { toast } = useToast();
@@ -102,9 +103,15 @@ export default function DeliveryPartnerDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-extrabold text-white">{company.company_name}</h1>
-                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs">
-                  <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Partenaire Certifié
-                </Badge>
+                {company.verification_status === "approved" && company.trust_badge_active ? (
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs">
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Partenaire Certifié
+                  </Badge>
+                ) : (
+                  <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-xs">
+                    Vérification : {company.verification_status}
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-slate-400 flex items-center gap-2 mt-1">
                 <span>{company.city}, {company.country}</span>
@@ -114,14 +121,17 @@ export default function DeliveryPartnerDashboard() {
             </div>
           </div>
 
-          <Button
-            onClick={loadDashboard}
-            variant="outline"
-            size="sm"
-            className="border-slate-800 text-slate-300 hover:bg-slate-900"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" /> Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            <DeliveryNotificationBell />
+            <Button
+              onClick={loadDashboard}
+              variant="outline"
+              size="sm"
+              className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" /> Actualiser
+            </Button>
+          </div>
         </div>
 
         {/* Overview Stats */}

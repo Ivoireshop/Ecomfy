@@ -1,173 +1,158 @@
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  DeliveryCompany, 
-  DeliveryHub, 
-  DeliveryDriver, 
-  DeliveryDispatch, 
+import {
+  DeliveryAuditEntry,
+  DeliveryCompany,
+  DeliveryCompanyKyc,
+  DeliveryDispatch,
   DeliveryCashTransfer,
+  DeliveryNotification,
   DeliveryVerificationStatus,
   DeliveryDispatchStatus,
-  DeliveryCashStatus
+  DeliveryDriver,
+  DeliveryVehicleType,
+  IdDocumentType,
+  LicenseCategory,
+  StructuredRejectionReasonCode,
 } from "@/types/delivery";
 
-export interface RegisterCompanyPayload {
-  company_name: string;
-  country: string;
-  country_code: string;
-  city: string;
-  headquarters_address: string;
-  manager_name: string;
-  manager_phone: string;
-  manager_whatsapp: string;
-  manager_photo_url: string;
-  manager_id_photo_url: string;
-  owner_photo_url: string;
-  warehouse_photo_url: string;
-  
-  has_tax_registration: boolean;
-  tax_id_number?: string;
-  tax_document_url?: string;
-  trade_register_number?: string;
-  
-  covered_cities: string[];
-  total_drivers_count: number;
-  
-  hubs: Array<{
-    city: string;
-    address: string;
-    hub_name?: string;
-    phone?: string;
-    photo_url?: string;
-  }>;
-  
-  drivers: Array<{
-    full_name: string;
-    phone: string;
-    whatsapp?: string;
-    vehicle_type: string;
-    photo_url: string;
-    national_id_photo_url: string;
-    license_photo_url?: string;
-  }>;
+// Les types générés de Supabase ne connaissent pas encore le module « Ecomfy Livraison » (tables delivery_companies,
+// delivery_drivers… et leurs RPC). Un seul point d'accès non typé, plutôt qu'un `as any` à chaque appel.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
+/** Message lisible d'une erreur renvoyée par une Edge Function (le corps JSON contient « error »). */
+async function functionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: { json?: () => Promise<{ error?: string }> } } | null)?.context;
+  if (context?.json) {
+    try {
+      const body = await context.json();
+      if (body?.error) return String(body.error);
+    } catch {
+      /* corps illisible : message générique */
+    }
+  }
+  return (error as { message?: string } | null)?.message || fallback;
 }
+
+export interface DriverInput {
+  first_name: string;
+  last_name: string;
+  phone: string;
+  whatsapp?: string;
+  date_of_birth: string;
+  vehicle_type: DeliveryVehicleType;
+  vehicle_license_plate?: string;
+  id_type?: IdDocumentType;
+  id_number?: string;
+  id_expiry?: string;
+  license_number: string;
+  license_categories: LicenseCategory[];
+  license_expiry: string;
+  /** Chemins dans le bucket privé delivery-kyc. */
+  photo_url?: string;
+  national_id_photo_url: string;
+  license_photo_url: string;
+  selfie_with_id_url: string;
+}
+
+export interface RegisterApplicationInput {
+  company: {
+    profile_type: "manager" | "driver";
+    company_name: string;
+    country: string;
+    country_code: string;
+    city: string;
+    headquarters_address: string;
+    manager_first_name: string;
+    manager_last_name: string;
+    manager_phone: string;
+    manager_whatsapp?: string;
+    manager_id_photo_url: string;
+    manager_selfie_with_id_url: string;
+    warehouse_photo_url?: string;
+    has_tax_registration: boolean;
+    tax_id_number?: string;
+    tax_document_url?: string;
+    trade_register_number?: string;
+    trade_register_document_url?: string;
+    covered_cities?: string[];
+  };
+  kyc: { id_type: IdDocumentType; id_number: string; id_expiry?: string; date_of_birth: string };
+  hubs: Array<{ city: string; address: string; hub_name?: string; phone?: string }>;
+  drivers: DriverInput[];
+}
+
+export interface DeliveryDecisionInput {
+  companyId?: string;
+  driverId?: string;
+  decision: "approved" | "rejected" | "action_required" | "suspended";
+  reasonCode?: StructuredRejectionReasonCode;
+  reason?: string;
+  /** Message au candidat (complément demandé). */
+  message?: string;
+  /** Note interne, jamais visible du candidat. */
+  note?: string;
+  cascadeDrivers?: boolean;
+}
+
+export interface DeliveryDecisionResult {
+  emailSent: boolean;
+  emailNote?: string;
+  driversApproved: string[];
+  driversBlocked: Array<{ id: string; name: string; issues: string[] }>;
+}
+
+const COMPANY_SELECT = "*, hubs:delivery_hubs(*), drivers:delivery_drivers(*), kyc:delivery_company_kyc(*)";
+
+const normalizeKyc = (value: unknown): DeliveryCompanyKyc | null =>
+  ((Array.isArray(value) ? value[0] : value) as DeliveryCompanyKyc | undefined) ?? null;
+
+const withKyc = (row: Record<string, unknown>): DeliveryCompany =>
+  ({ ...row, kyc: normalizeKyc(row.kyc) }) as unknown as DeliveryCompany;
 
 export const deliveryService = {
   /**
-   * Part 2: Register a new delivery company application
+   * Inscription d'un dossier (structure + identité + hubs + livreurs) en UNE transaction côté serveur.
+   * Le serveur refuse : pièce qui n'est pas un fichier déposé par l'utilisateur, responsable mineur, doublon
+   * de pièce d'identité, permis incompatible avec le véhicule ou expiré.
    */
-  async registerDeliveryCompany(payload: RegisterCompanyPayload): Promise<DeliveryCompany> {
-    console.log("[DeliveryService] Initiating delivery company registration payload:", {
-      company_name: payload.company_name,
-      country: payload.country,
-      city: payload.city,
-      drivers_count: payload.drivers?.length,
-      hubs_count: payload.hubs?.length,
+  async registerApplication(input: RegisterApplicationInput): Promise<string> {
+    const { data, error } = await db.rpc("register_delivery_application", {
+      p_company: input.company,
+      p_kyc: input.kyc,
+      p_hubs: input.hubs,
+      p_drivers: input.drivers,
     });
-
-    // 0. Payload Pre-checks
-    if (!payload.company_name?.trim()) throw new Error("Le nom de la structure de livraison est requis.");
-    if (!payload.manager_name?.trim()) throw new Error("Le nom du responsable est requis.");
-    if (!payload.manager_phone?.trim()) throw new Error("Le téléphone du responsable est requis.");
-    if (!payload.warehouse_photo_url) throw new Error("La photo de l'entrepôt principal est requise.");
-    if (!payload.manager_photo_url) throw new Error("La photo de profil du gérant est requise.");
-    if (!payload.manager_id_photo_url) throw new Error("La pièce d'identité du gérant est requise.");
-
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-
-    // 1. Insert Company
-    const { data: company, error: companyError } = await supabase
-      .from("delivery_companies" as any)
-      .insert({
-        user_id: userId || null,
-        company_name: payload.company_name.trim(),
-        country: payload.country,
-        country_code: payload.country_code || "CI",
-        city: payload.city.trim(),
-        headquarters_address: payload.headquarters_address.trim(),
-        manager_name: payload.manager_name.trim(),
-        manager_phone: payload.manager_phone.trim(),
-        manager_whatsapp: payload.manager_whatsapp.trim(),
-        manager_photo_url: payload.manager_photo_url,
-        manager_id_photo_url: payload.manager_id_photo_url,
-        owner_photo_url: payload.owner_photo_url || payload.manager_photo_url,
-        warehouse_photo_url: payload.warehouse_photo_url,
-        has_tax_registration: payload.has_tax_registration || false,
-        tax_id_number: payload.tax_id_number || null,
-        tax_document_url: payload.tax_document_url || null,
-        trade_register_number: payload.trade_register_number || null,
-        covered_cities: payload.covered_cities || [payload.city],
-        total_drivers_count: payload.drivers?.length || 0,
-        verification_status: "pending_verification",
-        trust_badge_active: false,
-      })
-      .select()
-      .single();
-
-    if (companyError || !company) {
-      console.error("[DeliveryService] Error inserting company:", companyError);
-      const details = companyError?.details || companyError?.hint || companyError?.message;
-      throw new Error(`Échec d'enregistrement de la structure : ${details || "Permission refusée ou contrainte de données."}`);
-    }
-
-    const companyId = (company as any).id;
-
-    // 2. Insert Storage Hubs
-    if (payload.hubs && payload.hubs.length > 0) {
-      const hubsToInsert = payload.hubs.map((hub) => ({
-        company_id: companyId,
-        city: hub.city.trim(),
-        address: hub.address.trim(),
-        hub_name: hub.hub_name?.trim() || `Point de stockage - ${hub.city}`,
-        phone: hub.phone?.trim() || payload.manager_phone,
-        photo_url: hub.photo_url || null,
-      }));
-
-      const { error: hubsError } = await supabase
-        .from("delivery_hubs" as any)
-        .insert(hubsToInsert);
-
-      if (hubsError) {
-        console.error("[DeliveryService] Error saving delivery hubs:", hubsError);
-      }
-    }
-
-    // 3. Insert Drivers
-    if (payload.drivers && payload.drivers.length > 0) {
-      const driversToInsert = payload.drivers.map((driver) => ({
-        company_id: companyId,
-        full_name: driver.full_name.trim(),
-        phone: driver.phone.trim(),
-        whatsapp: driver.whatsapp?.trim() || null,
-        vehicle_type: driver.vehicle_type || "motorcycle",
-        photo_url: driver.photo_url,
-        national_id_photo_url: driver.national_id_photo_url,
-        license_photo_url: driver.license_photo_url || null,
-        is_active: true,
-      }));
-
-      const { error: driversError } = await supabase
-        .from("delivery_drivers" as any)
-        .insert(driversToInsert);
-
-      if (driversError) {
-        console.error("[DeliveryService] Error saving delivery drivers:", driversError);
-      }
-    }
-
-    return (company as unknown) as DeliveryCompany;
+    if (error) throw new Error(error.message);
+    return data as string;
   },
 
-  /**
-   * Get user's own delivery company application
-   */
+  /** Remplace les pièces ou informations demandées puis remet le dossier en file d'attente. */
+  async resubmitApplication(
+    companyId: string,
+    changes: {
+      company?: Record<string, unknown>;
+      kyc?: Partial<RegisterApplicationInput["kyc"]>;
+      drivers?: Array<Partial<DriverInput> & { id: string }>;
+    },
+  ): Promise<void> {
+    const { error } = await db.rpc("resubmit_delivery_application", {
+      p_company_id: companyId,
+      p_company: changes.company ?? {},
+      p_kyc: changes.kyc ?? {},
+      p_drivers: changes.drivers ?? [],
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  /** Le dossier du compte connecté, avec ses hubs, ses livreurs et son identité (KYC). */
   async getMyCompany(): Promise<DeliveryCompany | null> {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) return null;
 
-    const { data, error } = await supabase
-      .from("delivery_companies" as any)
-      .select("*, hubs:delivery_hubs(*), drivers:delivery_drivers(*)")
+    const { data, error } = await db
+      .from("delivery_companies")
+      .select(COMPANY_SELECT)
       .eq("user_id", userData.user.id)
       .maybeSingle();
 
@@ -175,16 +160,14 @@ export const deliveryService = {
       console.error("Error fetching my delivery company:", error);
       return null;
     }
-    return (data as unknown) as DeliveryCompany | null;
+    return data ? withKyc(data) : null;
   },
 
-  /**
-   * Part 1 & 4: Fetch verified delivery companies matching destination city
-   */
+  /** Annuaire des vendeurs : structures approuvées (sans livreurs ni identité, que la base ne leur montre pas). */
   async getVerifiedCompaniesForCity(city: string): Promise<DeliveryCompany[]> {
-    const { data, error } = await supabase
-      .from("delivery_companies" as any)
-      .select("*, hubs:delivery_hubs(*), drivers:delivery_drivers(*)")
+    const { data, error } = await db
+      .from("delivery_companies")
+      .select("*, hubs:delivery_hubs(*)")
       .eq("verification_status", "approved")
       .eq("trust_badge_active", true);
 
@@ -193,10 +176,9 @@ export const deliveryService = {
       return [];
     }
 
-    const list = ((data || []) as unknown) as DeliveryCompany[];
+    const list = (data || []) as DeliveryCompany[];
     if (!city) return list;
 
-    // Filter or prioritize companies covering the city
     return list.sort((a, b) => {
       const aCovers = a.covered_cities?.some((c) => c.toLowerCase().includes(city.toLowerCase()));
       const bCovers = b.covered_cities?.some((c) => c.toLowerCase().includes(city.toLowerCase()));
@@ -206,133 +188,122 @@ export const deliveryService = {
     });
   },
 
-  /**
-   * Part 3: Foundation Admin - Fetch all applications by status filter
-   */
-  async getAdminApplications(statusFilter?: DeliveryVerificationStatus | 'all'): Promise<DeliveryCompany[]> {
-    let query = supabase
-      .from("delivery_companies" as any)
-      .select("*, hubs:delivery_hubs(*), drivers:delivery_drivers(*)")
-      .order("created_at", { ascending: false });
-
-    if (statusFilter && statusFilter !== 'all') {
-      query = query.eq("verification_status", statusFilter);
-    }
+  /** Back-office : dossiers par statut (réservé aux administrateurs par la RLS). */
+  async getAdminApplications(statusFilter?: DeliveryVerificationStatus | "all"): Promise<DeliveryCompany[]> {
+    let query = db.from("delivery_companies").select(COMPANY_SELECT).order("created_at", { ascending: false });
+    if (statusFilter && statusFilter !== "all") query = query.eq("verification_status", statusFilter);
 
     const { data, error } = await query;
-    if (error) {
-      console.error("Error fetching admin delivery applications:", error);
-      return [];
+    if (error) throw new Error(error.message);
+    return ((data || []) as Record<string, unknown>[]).map(withKyc);
+  },
+
+  /** Nombre de dossiers par statut (pastilles du back-office). */
+  async getAdminStatusCounts(): Promise<Record<string, number>> {
+    const { data, error } = await db.from("delivery_companies").select("verification_status");
+    if (error) throw new Error(error.message);
+    const counts: Record<string, number> = {};
+    for (const row of (data || []) as Array<{ verification_status: string }>) {
+      counts[row.verification_status] = (counts[row.verification_status] ?? 0) + 1;
     }
-    return ((data || []) as unknown) as DeliveryCompany[];
+    return counts;
+  },
+
+  /** Journal d'audit d'un dossier. Le candidat ne reçoit que les lignes « owner » (la RLS filtre). */
+  async getAuditLog(companyId: string): Promise<DeliveryAuditEntry[]> {
+    const { data, error } = await db
+      .from("delivery_verification_audit")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryAuditEntry[];
+  },
+
+  /** Note interne (administrateurs seulement). */
+  async getInternalNote(companyId: string): Promise<string> {
+    const { data, error } = await db
+      .from("delivery_company_review_notes")
+      .select("internal_note")
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data?.internal_note as string | undefined) ?? "";
   },
 
   /**
-   * Part 3: Foundation Admin - Update application verification status
+   * Décision d'un administrateur sur une structure ou un livreur. La base applique les règles et journalise ;
+   * l'Edge Function envoie l'e-mail. Lève une erreur au message lisible si la décision est refusée.
    */
-  async updateVerificationStatus(
-    companyId: string,
-    status: DeliveryVerificationStatus,
-    reason?: string,
-    adminNotes?: string
-  ): Promise<boolean> {
-    const { data: userData } = await supabase.auth.getUser();
-
-    const updatePayload: any = {
-      verification_status: status,
-      trust_badge_active: status === "approved",
-      rejection_reason: reason || null,
-      admin_notes: adminNotes || null,
-      updated_at: new Date().toISOString(),
+  async submitDecision(input: DeliveryDecisionInput): Promise<DeliveryDecisionResult> {
+    const { data, error } = await supabase.functions.invoke("verify-delivery-identity", { body: input });
+    if (error) throw new Error(await functionErrorMessage(error, "Décision impossible pour le moment."));
+    return {
+      emailSent: !!data?.emailSent,
+      emailNote: data?.emailNote,
+      driversApproved: data?.driversApproved ?? [],
+      driversBlocked: data?.driversBlocked ?? [],
     };
+  },
 
-    if (status === "approved") {
-      updatePayload.verified_at = new Date().toISOString();
-      updatePayload.verified_by = userData.user?.id || null;
-    }
-
-    const { error } = await supabase
-      .from("delivery_companies" as any)
-      .update(updatePayload)
-      .eq("id", companyId);
-
-    if (error) {
-      console.error("Error updating company status:", error);
-      throw new Error(error.message);
-    }
-    return true;
+  /** Ajoute un livreur à une structure. Il reste inactif jusqu'à son approbation par un administrateur. */
+  async addDriver(companyId: string, input: DriverInput): Promise<void> {
+    const { error } = await db.from("delivery_drivers").insert({
+      company_id: companyId,
+      full_name: `${input.first_name} ${input.last_name}`.trim(),
+      first_name: input.first_name.trim(),
+      last_name: input.last_name.trim(),
+      phone: input.phone.trim(),
+      whatsapp: input.whatsapp?.trim() || null,
+      date_of_birth: input.date_of_birth,
+      vehicle_type: input.vehicle_type,
+      vehicle_license_plate: input.vehicle_license_plate?.trim() || null,
+      id_type: input.id_type ?? "cni",
+      id_number: input.id_number?.trim() || null,
+      id_expiry: input.id_expiry || null,
+      license_number: input.license_number.trim(),
+      license_categories: input.license_categories,
+      license_expiry: input.license_expiry,
+      photo_url: input.photo_url || input.selfie_with_id_url,
+      national_id_photo_url: input.national_id_photo_url,
+      license_photo_url: input.license_photo_url,
+      selfie_with_id_url: input.selfie_with_id_url,
+    });
+    if (error) throw new Error(error.message);
   },
 
   /**
-   * Owner: remet son dossier en file d'attente. Seule cette transition est autorisée à un non-admin
-   * (garde-fou SQL guard_delivery_company_verification) ; les autres champs de vérification restent intacts.
+   * Corrige un livreur (permis, pièces…). Le serveur contrôle la règle permis ↔ véhicule, repasse le livreur
+   * « en attente » et l'inactive jusqu'à nouvelle vérification.
    */
-  async resubmitForVerification(companyId: string): Promise<boolean> {
-    const { error } = await supabase
-      .from("delivery_companies" as any)
-      .update({
-        verification_status: "pending_verification",
-        verification_requested_at: new Date().toISOString(),
-      })
-      .eq("id", companyId);
-    if (error) {
-      console.error("Error resubmitting delivery company:", error);
-      throw new Error(error.message);
+  async updateDriver(driverId: string, changes: Partial<DriverInput>): Promise<void> {
+    const patch: Record<string, unknown> = { ...changes };
+    if (changes.first_name !== undefined || changes.last_name !== undefined) {
+      const { data: current } = await db.from("delivery_drivers").select("first_name, last_name").eq("id", driverId).maybeSingle();
+      patch.full_name = `${changes.first_name ?? current?.first_name ?? ""} ${changes.last_name ?? current?.last_name ?? ""}`.trim();
     }
-    return true;
+    const { data, error } = await db.from("delivery_drivers").update(patch).eq("id", driverId).select("id");
+    if (error) throw new Error(error.message);
+    if (!data?.length) throw new Error("Livreur introuvable ou modification non autorisée.");
   },
 
-  /**
-   * Process identity verification result & trigger automated email notifications.
-   * Réservé aux administrateurs (la fonction Edge répond 403 sinon). Le destinataire est relu côté serveur.
-   */
-  async processIdentityVerification(payload: {
-    companyId?: string;
-    driverId?: string;
-    userEmail?: string;
-    userName?: string;
-    verificationStatus: "approved" | "rejected";
-    rejectionReason?: string;
-    docType?: string;
-    licenseCategory?: string;
-    faceMatchScore?: number;
-  }): Promise<{ success: boolean; message?: string }> {
-    try {
-      console.log("[DeliveryService] Triggering identity verification edge function:", payload);
+  /** Notifications du compte connecté (les plus récentes d'abord). */
+  async listNotifications(limit = 30): Promise<DeliveryNotification[]> {
+    const { data, error } = await db
+      .from("delivery_notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryNotification[];
+  },
 
-      // Invoke Supabase Edge Function verify-delivery-identity
-      const { data, error } = await supabase.functions.invoke("verify-delivery-identity", {
-        body: payload,
-      });
-
-      if (error) {
-        console.warn("[DeliveryService] Edge function invoke warning:", error);
-        // Fallback local status update if edge function is unreachable
-        if (payload.companyId) {
-          await this.updateVerificationStatus(
-            payload.companyId,
-            payload.verificationStatus as any,
-            payload.rejectionReason
-          );
-        }
-      }
-
-      return {
-        success: true,
-        message: data?.message || (payload.verificationStatus === "approved" ? "Compte approuvé !" : "Compte rejeté avec motif.")
-      };
-    } catch (err: any) {
-      console.error("[DeliveryService] Error processing identity verification:", err);
-      // Fallback local update
-      if (payload.companyId) {
-        await this.updateVerificationStatus(
-          payload.companyId,
-          payload.verificationStatus as any,
-          payload.rejectionReason
-        );
-      }
-      return { success: true };
-    }
+  async markNotificationsRead(ids?: string[]): Promise<void> {
+    let query = db.from("delivery_notifications").update({ read_at: new Date().toISOString() }).is("read_at", null);
+    if (ids?.length) query = query.in("id", ids);
+    const { error } = await query;
+    if (error) throw new Error(error.message);
   },
 
   /**

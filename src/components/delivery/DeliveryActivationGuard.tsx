@@ -86,8 +86,8 @@ export function DeliveryActivationGuard({ children }: DeliveryActivationGuardPro
   }
 
   // Case 3: Pending, Processing, Manual Review
-  const isPending = ['pending_verification', 'processing', 'under_review', 'manual_review'].includes(company.verification_status);
-  const isRejected = ['rejected', 'resubmission_required', 'action_required'].includes(company.verification_status);
+  const isPending = ['pending_verification', 'under_review'].includes(company.verification_status);
+  const isRejected = ['rejected', 'action_required', 'suspended'].includes(company.verification_status);
 
   return (
     <div className="min-h-[450px] bg-slate-950 text-slate-100 p-6 flex items-center justify-center">
@@ -128,11 +128,11 @@ export function DeliveryActivationGuard({ children }: DeliveryActivationGuardPro
           )}
         </CardHeader>
 
-        {company.rejection_reason && (
+        {(company.reviewer_comments || company.rejection_reason) && (
           <CardContent className="pt-2">
             <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-900 text-rose-200 text-xs">
               <span className="font-bold text-rose-300 block mb-1">Motif de la demande de correction :</span>
-              <p>{company.rejection_reason}</p>
+              <p>{company.reviewer_comments || company.rejection_reason}</p>
             </div>
           </CardContent>
         )}
@@ -142,7 +142,7 @@ export function DeliveryActivationGuard({ children }: DeliveryActivationGuardPro
             variant="outline"
             onClick={checkStatus}
             size="sm"
-            className="border-slate-800 text-slate-300 hover:bg-slate-800 text-xs"
+            className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-800 text-xs"
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Actualiser le statut
           </Button>

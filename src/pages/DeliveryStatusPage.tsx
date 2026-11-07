@@ -18,6 +18,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { deliveryService } from "@/lib/deliveryService";
 import { DeliveryCompany } from "@/types/delivery";
+import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotificationBell";
+import { DeliveryDriversPanel } from "@/components/delivery/DeliveryDriversPanel";
+import { DeliveryAuditTimeline } from "@/components/delivery/DeliveryAuditTimeline";
 
 export default function DeliveryStatusPage() {
   const navigate = useNavigate();
@@ -81,13 +84,15 @@ export default function DeliveryStatusPage() {
   const isPending = company.verification_status === "pending_verification" || company.verification_status === "under_review";
   const isRejected = company.verification_status === "rejected";
   const isActionReq = company.verification_status === "action_required";
+  const isSuspended = company.verification_status === "suspended";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 relative">
+          <div className="absolute right-0 top-0"><DeliveryNotificationBell /></div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-xs font-semibold">
             <Truck className="w-4 h-4 text-emerald-400" /> Module Ecomfy Livraison
           </div>
@@ -166,11 +171,31 @@ export default function DeliveryStatusPage() {
                 <CardTitle className="text-xl font-bold text-white">
                   Action Requise de votre Part
                 </CardTitle>
-                {company.admin_notes && (
+                {company.reviewer_comments && (
                   <div className="p-3 rounded-lg bg-purple-950/40 border border-purple-900 text-purple-200 text-xs text-left">
-                    <span className="font-semibold">Instructions de la fondation :</span> {company.admin_notes}
+                    <span className="font-semibold">Ce que l'équipe attend de vous :</span> {company.reviewer_comments}
                   </div>
                 )}
+              </div>
+            )}
+
+            {isSuspended && (
+              <div className="space-y-3">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-400">
+                  <XCircle className="w-8 h-8" />
+                </div>
+                <Badge className="bg-red-500/20 text-red-300 border-red-500/40 text-sm px-3 py-1">
+                  Compte Suspendu
+                </Badge>
+                <CardTitle className="text-xl font-bold text-white">
+                  Votre structure ne peut plus recevoir de livraisons
+                </CardTitle>
+                {company.rejection_reason && (
+                  <div className="p-3 rounded-lg bg-red-950/40 border border-red-900 text-red-200 text-xs text-left">
+                    <span className="font-semibold">Motif :</span> {company.rejection_reason}
+                  </div>
+                )}
+                <p className="text-xs text-slate-400">Contactez le support Ecomfy pour demander un réexamen.</p>
               </div>
             )}
           </CardHeader>
@@ -188,7 +213,7 @@ export default function DeliveryStatusPage() {
                 <p className="font-semibold text-emerald-400 mt-1 truncate">
                   {company.covered_cities?.join(", ") || company.city}
                 </p>
-                <p className="text-[11px] text-slate-400">{company.total_drivers_count} livreurs enregistrés</p>
+                <p className="text-[11px] text-slate-400">{company.total_drivers_count} livreur(s) actif(s) sur {company.drivers?.length ?? 0}</p>
               </div>
             </div>
           </CardContent>
@@ -198,7 +223,7 @@ export default function DeliveryStatusPage() {
               variant="outline"
               onClick={fetchStatus}
               size="sm"
-              className="border-slate-800 text-slate-300 hover:bg-slate-800"
+              className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-800"
             >
               <RefreshCw className="w-4 h-4 mr-2" /> Actualiser
             </Button>
@@ -210,18 +235,20 @@ export default function DeliveryStatusPage() {
               >
                 Accéder au Espace Livreur <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            ) : (
+            ) : (isRejected || isActionReq) ? (
               <Button
-                variant="outline"
-                onClick={() => navigate("/delivery/register")}
+                onClick={() => navigate("/delivery/resubmit")}
                 size="sm"
-                className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold"
               >
-                Mettre à jour le Dossier
+                {isActionReq ? "Compléter mon dossier" : "Corriger et resoumettre"}
               </Button>
-            )}
+            ) : null}
           </CardFooter>
         </Card>
+
+        <DeliveryDriversPanel company={company} onChanged={fetchStatus} />
+        <DeliveryAuditTimeline companyId={company.id} />
       </div>
     </div>
   );

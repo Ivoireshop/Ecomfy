@@ -1,3 +1,5 @@
+-- NOTE 06/11/2026 : ce fichier n'a jamais pu s'appliquer (faute de syntaxe « AT BEFORE UPDATE » et politiques lisant profiles.role, colonne inexistante).
+-- Corrigé en place : déclencheurs valides et administrateurs via has_role(). Aucune base ne l'avait reçu (prod : delivery_companies absente).
 -- Migration: Ecomfy Livraison (Ecomfy Delivery) Module Schema
 -- Description: Tables, enums, RLS policies, indexes, and triggers for delivery partner management, drivers, dispatches, COD cash tracking, and reviews.
 
@@ -224,13 +226,7 @@ CREATE POLICY "Owners can update own delivery company"
 -- Admins (Foundation) full access policy
 CREATE POLICY "Admins full access to delivery companies"
   ON public.delivery_companies FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND (profiles.role IN ('admin', 'foundation', 'superadmin') OR profiles.email LIKE '%foundation%')
-    )
-  );
+  USING (public.has_role(auth.uid(), 'admin'::app_role) OR public.has_role(auth.uid(), 'founder'::app_role) OR public.has_role(auth.uid(), 'co_founder'::app_role));
 
 -- Delivery Hubs Policies:
 CREATE POLICY "Public read verified hubs"
@@ -260,9 +256,7 @@ CREATE POLICY "Company owners & admins manage drivers"
     EXISTS (
       SELECT 1 FROM public.delivery_companies
       WHERE delivery_companies.id = delivery_drivers.company_id
-      AND (delivery_companies.user_id = auth.uid() OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'foundation')
-      ))
+      AND (delivery_companies.user_id = auth.uid() OR (public.has_role(auth.uid(), 'admin'::app_role) OR public.has_role(auth.uid(), 'founder'::app_role) OR public.has_role(auth.uid(), 'co_founder'::app_role)))
     )
   );
 
@@ -304,9 +298,7 @@ CREATE POLICY "Sellers & Delivery Companies can update dispatches"
       SELECT 1 FROM public.shops WHERE shops.id = delivery_dispatches.shop_id AND shops.user_id = auth.uid()
     ) OR EXISTS (
       SELECT 1 FROM public.delivery_companies WHERE delivery_companies.id = delivery_dispatches.company_id AND delivery_companies.user_id = auth.uid()
-    ) OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'foundation')
-    )
+    ) OR (public.has_role(auth.uid(), 'admin'::app_role) OR public.has_role(auth.uid(), 'founder'::app_role) OR public.has_role(auth.uid(), 'co_founder'::app_role))
   );
 
 -- Cash Transfers Policies:
@@ -315,7 +307,7 @@ CREATE POLICY "Sellers & Delivery Companies can view cash transfers"
   USING (
     EXISTS (SELECT 1 FROM public.shops WHERE shops.id = delivery_cash_transfers.shop_id AND shops.user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM public.delivery_companies WHERE delivery_companies.id = delivery_cash_transfers.company_id AND delivery_companies.user_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'foundation'))
+    OR (public.has_role(auth.uid(), 'admin'::app_role) OR public.has_role(auth.uid(), 'founder'::app_role) OR public.has_role(auth.uid(), 'co_founder'::app_role))
   );
 
 CREATE POLICY "Delivery companies & Sellers update cash transfers"
@@ -323,7 +315,7 @@ CREATE POLICY "Delivery companies & Sellers update cash transfers"
   USING (
     EXISTS (SELECT 1 FROM public.shops WHERE shops.id = delivery_cash_transfers.shop_id AND shops.user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM public.delivery_companies WHERE delivery_companies.id = delivery_cash_transfers.company_id AND delivery_companies.user_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'foundation'))
+    OR (public.has_role(auth.uid(), 'admin'::app_role) OR public.has_role(auth.uid(), 'founder'::app_role) OR public.has_role(auth.uid(), 'co_founder'::app_role))
   );
 
 CREATE POLICY "System or company creates cash transfers"
@@ -345,7 +337,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER trg_delivery_companies_updated AT BEFORE UPDATE ON public.delivery_companies FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();
-CREATE TRIGGER trg_delivery_drivers_updated AT BEFORE UPDATE ON public.delivery_drivers FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();
-CREATE TRIGGER trg_delivery_dispatches_updated AT BEFORE UPDATE ON public.delivery_dispatches FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();
-CREATE TRIGGER trg_delivery_cash_transfers_updated AT BEFORE UPDATE ON public.delivery_cash_transfers FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();
+CREATE TRIGGER trg_delivery_companies_updated BEFORE UPDATE ON public.delivery_companies FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();
+CREATE TRIGGER trg_delivery_drivers_updated BEFORE UPDATE ON public.delivery_drivers FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();
+CREATE TRIGGER trg_delivery_dispatches_updated BEFORE UPDATE ON public.delivery_dispatches FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();
+CREATE TRIGGER trg_delivery_cash_transfers_updated BEFORE UPDATE ON public.delivery_cash_transfers FOR EACH ROW EXECUTE FUNCTION update_delivery_modified_column();

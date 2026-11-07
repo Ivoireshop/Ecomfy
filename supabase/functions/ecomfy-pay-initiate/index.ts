@@ -212,7 +212,11 @@ serve(async (req) => {
 
     // Le prestataire n'a pas fourni de lien de paiement : ne pas annoncer un succès (le client croirait sa commande payée).
     console.error("[ecomfy-pay-initiate] Provider did not return a checkout URL:", connector.id, result.httpStatus, result.reason);
-    await supabase.from("ecomfy_payments").update({ status: "FAILED", updated_at: new Date().toISOString() }).eq("id", paymentRecord.id);
+    await supabase.from("ecomfy_payments").update({
+      status: "FAILED",
+      metadata: { ...(paymentRecord.metadata || {}), gateway_error: `HTTP ${result.httpStatus ?? "?"} — ${result.reason ?? ""} | ${result.detail ?? ""}`.slice(0, 800) },
+      updated_at: new Date().toISOString(),
+    }).eq("id", paymentRecord.id);
     if (order_id) {
       // Commande en paiement en ligne jamais payable : l'annuler évite une commande fantôme chez le marchand.
       await supabase.from("orders").update({ order_status: "cancelled", updated_at: new Date().toISOString() })
