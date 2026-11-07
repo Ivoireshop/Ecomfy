@@ -1,5 +1,7 @@
 # Suivi du lancement : état réel en production
 
+> **Mise à jour du 07/11/2026 :** depuis le 03/11, la prod a reçu deux déploiements (05/11 : Meta CAPI, Purchase fiable, logistique ; 07/11 : collaborateurs, module Ecomfy Livraison, buckets durcis, correctif GeniusPay d'`ecomfy-pay-initiate`). Les constats « module `delivery_companies` absent en prod » (lignes H5 et §« Constats ») sont **périmés** ; seules les deux lignes de tâches « Logistique » et « Collaborateurs » ont été recalées ci-dessous. Voir [`DEPLOIEMENT-PROD-2026-11-07.md`](DEPLOIEMENT-PROD-2026-11-07.md) et [`DEPLOIEMENT-RESTE-A-FAIRE-2026-11.md`](DEPLOIEMENT-RESTE-A-FAIRE-2026-11.md).
+
 **Date :** 3 novembre 2026 (première version : 30/10) · **Projet prod :** `yfggrceynzcwklbxhgix` · **Source des tâches :** site « Ecomfy — Suivi du lancement » (dev-flow-sight.lovable.app, statuts lus le 29/10/2026 ; le 03/11 le site s'affichait sans session, donc sans statuts)
 
 Le site est une liste cochée à la main : il ne sait pas ce qui est déployé. Ce document compare ses 112 tâches au code (`origin/main`, qui déploie le front par Vercel, et la branche `jeanmarc`), aux journaux de déploiement (13/10, 27/10, 29/10) et aux contrôles faits en production les 30/10 et 03/11.
@@ -97,9 +99,9 @@ Le site est une liste cochée à la main : il ne sait pas ce qui est déployé. 
 | Wave : initiation et statuts · Wave : webhooks signés, erreurs, timeout · Orange Money : initiation et statuts · Orange Money : webhooks, erreurs, annulation | aucun commit dédié | ❌ |
 | Rapprochement ledger / rapports opérateurs | aucun commit dédié ; 20 paiements `PENDING` non rapprochés | ❌ |
 | Meta CAPI : audit en lecture seule · Meta : Purchase fiable (order_id, event_id, déduplication) | aucun commit dédié | ❌ |
-| Logistique : flux commande → affectation → livraison, statuts · Logistique : KYC/KYB, permis A/B, audit log, notifications | module livraison non déployé en prod (voir [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md)) | ❌ |
+| Logistique : flux commande → affectation → livraison, statuts · Logistique : KYC/KYB, permis A/B, audit log, notifications | **mis à jour le 07/11 :** flux commande → livraison déployé le 05/11 ; KYC/KYB, permis A/B, audit, notifications déployés le 07/11 (`DEPLOIEMENT-PROD-2026-11-07.md`) ; recette navigateur en prod non faite | ⚠️ |
 | Fiche produit : affichage en 1 seconde depuis les publicités Facebook, TikTok, Google | aucun commit dédié (`624465c` du 21/10 : retour vers l'accueil seulement) | ❌ |
-| Collaborateurs boutique : pouvoir tout cocher et donner l'accès total | aucun commit dédié | ❌ |
+| Collaborateurs boutique : pouvoir tout cocher et donner l'accès total | **mis à jour le 07/11 :** commit `f30e663`, migration `20261106100000` appliquée en prod le 07/11 (6 collaborateurs, 10 rôles conservés) | ✅ |
 | Revue hebdomadaire (×2) · Démonstration au fondateur : paiement, IA, livraison | | n/a |
 
 **Ne pas cocher les lignes 🟡 tant que la PR vers `main` n'est pas fusionnée et que la migration `20261103100000` n'est pas appliquée en prod.**

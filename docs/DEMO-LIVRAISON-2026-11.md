@@ -12,7 +12,7 @@ Il existe **deux modules de livraison**. Ils ne se parlent pas.
 |---|---|---|
 | Module | ancien (`delivery_providers`, `order_deliveries`) | nouveau « Ecomfy Livraison » (`delivery_companies`…) |
 | Ce qu'on y montre | la boutique expédie, le prestataire affecte, le livreur livre avec signature, la boutique voit la preuve | un livreur ou une société s'inscrit avec ses pièces, un administrateur les vérifie, décision et historique |
-| En production | **oui** (guide `DEPLOIEMENT-LOGISTIQUE-2026-11.md`, déployé le 05/11) | **non** : il n'existe dans aucune base de production, décision du fondateur (`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`, section 4) |
+| En production | **oui** (guide `DEPLOIEMENT-LOGISTIQUE-2026-11.md`, déployé le 05/11) | **oui depuis le 07/11/2026** (`DEPLOIEMENT-PROD-2026-11-07.md`), après décision du fondateur (`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`, section 4). **Jamais vu dans le navigateur en prod** : cette démonstration se joue sur la dev |
 | Testé dans le navigateur | 5 novembre | 6 novembre |
 
 **Ne pas dire** que le circuit B reçoit déjà des commandes : l'écran qui enverrait une commande à une société du nouveau module (`DispatchOrderModal`) n'est branché sur aucune page. Le circuit B se montre comme la **porte d'entrée** (inscription, contrôle, décision), le circuit A comme **le flux réel**.
@@ -113,7 +113,7 @@ Option : refaire B1 avec une **société** (entrepôt, NIF) ; si l'on réutilise
 ## 4. Ce qu'il ne faut pas dire
 
 - « La vérification est automatique » : **faux**. Aucun fournisseur d'identité (OCR, reconnaissance faciale) n'est branché. La comparaison est **humaine**, guidée par quatre cases. L'interface le dit au candidat.
-- « Le circuit B est en production » : faux, ni la base ni l'app de production ne l'ont.
+- « Le circuit B est testé en production » : faux. Il y est déployé depuis le 07/11 (base, fonction, front), mais la recette navigateur en prod n'a pas été jouée ; tout ce qui est dit « testé » l'a été sur la dev.
 - « Le livreur est affecté automatiquement » : pas sans zones, et aucun écran n'en crée.
 - « Les livreurs reçoivent une notification sur téléphone » : non. Les alertes sont **dans l'application ouverte** ; les notifications push de livraison ne sont pas branchées.
 - « Le marchand confirme la réception de l'argent reversé » : non, c'est le prestataire qui marque « Reversé ».
