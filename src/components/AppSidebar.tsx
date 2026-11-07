@@ -190,14 +190,14 @@ export function AppSidebar() {
     { title: "Communauté", url: "/community", icon: Users, badge: communityUnread },
     { title: "Tarifs", url: "/pricing", icon: CreditCard },
     { title: "Bibliothèque", url: "/library", icon: FolderHeart },
+    { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck },
+    { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
   ];
 
   // 2. Grouped "Bientôt disponible" options placed below Bibliothèque
   const comingSoonItems = [
-    { title: "ConnectUs 🌐", url: "/connectus", icon: Globe, comingSoon: true },
     { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard, comingSoon: true },
     { title: "Studio IA", url: "/studio", icon: Image, comingSoon: true },
-    { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck, comingSoon: true },
   ];
 
   const bottomItems = [
