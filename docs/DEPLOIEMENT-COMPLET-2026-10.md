@@ -383,7 +383,7 @@ Dev est le seul projet touché pendant la session de test.
 | H10 (`20261018120000`) | **appliquée le 18/10** |
 | H6 (`20261005160000` + `20261017120000`) | **appliquées le 18/10**, dans une seule transaction |
 | `20261018130000` (wallet, `is_founder_or_cofounder`) | **appliquée le 18/10** |
-| H5 base (`20261016120000`) | **non applicable** : `delivery_companies` absente |
+| H5 base (`20261016120000`) | **non applicable** le 18/10 : `delivery_companies` absente. **Appliquée le 07/11/2026** après la création du module (voir `DEPLOIEMENT-PROD-2026-11-07.md`) |
 | Edge Functions | 14 redéployées le 18/10 : `verify-delivery-identity`, `send-corporate-invite`, `send-domain-ready-notification`, `send-subscription-email`, `verify-domain-dns`, `geniuspay-webhook`, `correct-text`, `generate-ad-visual`, `generate-ai-image`, `shop-ai-assistant-chat`, `shop-chatbot`, `showcase-chat`, `translate-ui`, `ecomfy-pay-initiate`. **Les autres fonctions du lot 1 et du lot 2 ne sont pas alignées** : rejouer les boucles des sections 6 et 8.1 avec `$P = "xfpbpxncserliskrbaim"` |
 | Secrets absents sur dev | `RESEND_API_KEY` (`send-subscription-email` et `send-domain-ready-notification` plantent au démarrage), `GENIUSPAY_*`, `CRON_SECRET`, `LOVABLE_API_KEY` : paiement en ligne réel, e-mails et réponses IA non testables |
 | Données de test présentes | boutique `test-securite-dev` (produit, 8 commandes), profil d'affiliation et wallet de `marchand-test@example.test`, un lien de paiement, un paiement de commission de 300 FCFA, deux comptes jetables |

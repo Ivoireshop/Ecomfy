@@ -4,6 +4,19 @@
 
 Ce document remplace la liste dispersée dans les guides précédents. Il a été établi le 01/11/2026 en comparant `origin/main`, `jeanmarc` et l'état réel de la prod (lecture seule). Il renvoie aux guides détaillés au lieu de les recopier, sauf quand la prod a changé depuis.
 
+## Mise à jour du 07/11/2026 — ce qui est parti depuis ce document
+
+Ce document date du 01–03/11 ; deux déploiements ont eu lieu depuis. **Les sections ci-dessous qui disent « non déployé » ou « n'existe pas en prod » ne sont plus à jour pour les points suivants :**
+
+| Date | Déployé | Détail |
+|---|---|---|
+| 05/11 | Meta CAPI, Purchase Meta fiable, logistique (flux commande → livraison) | 4 migrations (`20261104100000`, `20261105100000`, `20261105110000`, `20261105120000`), 6 Edge Functions (`track-conversion`, `ecomfy-pay-initiate`, `ecomfy-pay-webhook`, `ecomfy-pay-settlement`, `reconcile-tracking`, `sync-ad-spend`), PR #8 (`5187528`) |
+| 07/11 | Collaborateurs (accès total), **module Ecomfy Livraison (§5 : fait)**, durcissement des buckets `shop-assets`/`avatars`, correctif GeniusPay d'`ecomfy-pay-initiate` | 7 migrations (`20260906010000`, `20260907140000`, `20261016120000`, `20261106100000`, `20261106110000`, `20261106120000`, `20261106130000`), `verify-delivery-identity` v2, `ecomfy-pay-initiate` v4, PR #9 (`f138525`). Journal : [`DEPLOIEMENT-PROD-2026-11-07.md`](DEPLOIEMENT-PROD-2026-11-07.md) |
+
+**Toujours à faire, inchangé :** §1 `geniuspay-webhook` (aiguillage) et le rattrapage des paiements `PENDING` ; §2 file d'e-mails ; §3 `expire-stale-ecomfy-payments` ; §4 `verify-domain-dns` ; §7 tests applicatifs ; §8 retraits ; §10 lot Studio IA (migration `20261103100000` + 8 fonctions). Aussi : plans d'abonnement (`20261107100000`, non commité).
+
+**Règle qui reste vraie :** jamais `supabase db push` en prod (l'historique est maintenant à jour pour les migrations du 07/11, mais `20260908170000`, `20261103100000` et `20261107100000` ne doivent pas être rejouées par erreur).
+
 ## Mise à jour du 03/11/2026 — contrôle de la prod en lecture seule (`--read-only`) et écart avec `origin/main`
 
 **Rien de ce document n'a encore été exécuté en prod.** Constaté le 03/11 (requêtes `SELECT` uniquement, `functions list`, `secrets list` pour les noms) :
@@ -259,6 +272,8 @@ Retour arrière : redéployer la version précédente (`git checkout HEAD -- sup
 
 ## 5. Module Ecomfy Livraison (point H5) : ne pas appliquer les migrations telles quelles
 
+> **✅ Fait le 07/11/2026.** Le module est en production : migrations (dont `20260906010000` corrigée en place) appliquées une à une, `verify-delivery-identity` v2, front par la PR #9. Les puces ci-dessous décrivent l'état du 03/11. Détails et résultats : [`DEPLOIEMENT-PROD-2026-11-07.md`](DEPLOIEMENT-PROD-2026-11-07.md). Reste la recette navigateur en prod.
+
 Plan complet : [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md).
 
 - Les tables `delivery_companies`, `delivery_hubs`, `delivery_drivers`, `delivery_dispatches`, `delivery_cash_transfers`, `delivery_company_reviews` **n'existent pas en prod** ; les migrations `20260906010000` et `20260907140000` ne s'y sont jamais appliquées.
@@ -400,8 +415,8 @@ Guide détaillé du Studio IA : [`DEPLOIEMENT-STUDIO-IA-2026-11.md`](DEPLOIEMENT
 - [ ] **2.** Résumé finance du lundi 02/11 parti
 - [ ] **3.** `expire_stale_ecomfy_payments` + tâche planifiée
 - [ ] **4.** `verify-domain-dns` : déployé, 401 sans session, 403 autre compte, assistant DNS OK pour le propriétaire
-- [ ] **5.** Décision sur le module Livraison (routes masquées ou chantier planifié)
-- [ ] **6.** PR `jeanmarc` → `main` fusionnée, Vercel « Ready »
+- [x] **5.** Décision sur le module Livraison : **module déployé le 07/11** (recette navigateur en prod encore à faire)
+- [x] **6.** PR `jeanmarc` → `main` fusionnée (#8 le 05/11, #9 le 07/11) ; déploiement Vercel annoncé terminé par l'utilisateur (statut « Ready » non relu)
 - [ ] **7.** C5, C6, C7, C8 testés ; `secrets:compare` propre ; revue KYC
 - [ ] **8.** Événement de retrait aiguillé et retrait de test clôturé **avant** d'ouvrir `withdrawals_enabled`
 - [ ] **9.** Surveillance 48 h sans anomalie

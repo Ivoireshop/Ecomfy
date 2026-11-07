@@ -32,7 +32,7 @@ Pas de migration, pas de nouveau secret, pas de changement de front. Seules 3 Ed
 | Environnement | État |
 |---|---|
 | Dev (`xfpbpxncserliskrbaim`) | **Déployé le 23/10/2026** (3 fonctions), testé (section suivante) |
-| Production (`yfggrceynzcwklbxhgix`) | **À faire**, après les migrations Ecomfy Pay en attente (voir `DEPLOIEMENT-LEDGER-PAY-2026-10.md`) |
+| Production (`yfggrceynzcwklbxhgix`) | **Mis à jour le 07/11/2026 :** `ecomfy-pay-initiate` v4 (07/11, avec le correctif GeniusPay : en-tête `Accept`, motif réel des refus, liens de paiement sous plusieurs clés) ; `ecomfy-pay-webhook` v3 (05/11) ; `ecomfy-pay-withdraw` v2 (27/10), **pas redéployée** : elle n'a pas l'en-tête `Accept` du connecteur. Voir `DEPLOIEMENT-PROD-2026-11-07.md` |
 
 PowerShell, depuis `C:\dev\Ecomfy` (sous Windows, `--use-api` : le bundling Docker échoue) :
 

@@ -1,6 +1,6 @@
 # H5 : mise en production définitive (module Ecomfy Livraison)
 
-**Date :** 30 octobre 2026 · **Projet prod :** `yfggrceynzcwklbxhgix` · **Statut :** ⚠️ H5 est corrigé dans le code, mais **non applicable en prod** tant que le module « Ecomfy Livraison » n'y est pas déployé.
+**Date :** 30 octobre 2026 (mis à jour le 07/11/2026) · **Projet prod :** `yfggrceynzcwklbxhgix` · **Statut :** ✅ **résolu le 07/11/2026** : le module « Ecomfy Livraison » a été déployé en prod (décision du fondateur), avec le garde H5 (`20261016120000`, trigger `trg_guard_delivery_company_verification` actif). Journal : [`DEPLOIEMENT-PROD-2026-11-07.md`](DEPLOIEMENT-PROD-2026-11-07.md). Le texte ci-dessous décrit l'état **du 30/10**, avant ce déploiement ; recette navigateur en prod encore à faire.
 **Documents liés :** [`SUIVI-LANCEMENT-ETAT-PROD-2026-10.md`](SUIVI-LANCEMENT-ETAT-PROD-2026-10.md), [`SECURITY-HOTFIX-2026-10.md`](SECURITY-HOTFIX-2026-10.md), [`PROCEDURE-ROLLBACK-2026-10.md`](PROCEDURE-ROLLBACK-2026-10.md).
 
 ---

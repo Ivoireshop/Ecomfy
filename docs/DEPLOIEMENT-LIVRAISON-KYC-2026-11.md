@@ -1,8 +1,8 @@
 # Ecomfy Livraison : KYC/KYB, permis A/B, journal d'audit, notifications
 
 **Date :** 6 novembre 2026 · **Périmètre :** le module « sociétés de livraison » (`delivery_companies`, `delivery_drivers`, `delivery_dispatches`…), pas l'ancien module `delivery_providers` / `order_deliveries` (voir [`DEPLOIEMENT-LOGISTIQUE-2026-11.md`](DEPLOIEMENT-LOGISTIQUE-2026-11.md)).
-**État :** code et migration prêts, **testés sur base jetable (122 cas sur 122)** puis **appliqués sur la dev (6 nov.) et testés dans Chrome** (section 4bis). Edge Function déployée sur la dev. **Pas appliqué en prod. Non commité.**
-**Prérequis de décision :** [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md), section 4 : ce module n'existe dans **aucune** base (prod comprise). Le mettre en prod est une décision du fondateur ; ce travail la rend possible, il ne la prend pas.
+**État (mis à jour le 07/11/2026) :** code et migrations **testés sur base jetable (122 cas sur 122)**, **appliqués sur la dev (6 nov.) et testés dans Chrome** (section 4bis), puis **déployés en PRODUCTION le 7 novembre** : 7 migrations appliquées une à une, `verify-delivery-identity` v2, front par la PR #9 (`f138525`). Commité (`08df5e3`, `4a16391`, lint `61ad889`). Journal complet, ordre réel des migrations et résultats des contrôles : [`DEPLOIEMENT-PROD-2026-11-07.md`](DEPLOIEMENT-PROD-2026-11-07.md). **Recette navigateur en prod : non faite** (section 5, étape 6).
+**Décision :** [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md), section 4 : le module n'existait dans aucune base ; le fondateur a décidé le 07/11 qu'il partait en prod.
 
 ## 1. Ce qui était faux ou cassé
 
@@ -99,9 +99,11 @@ Preuve : `supabase/tests/shop_assets_policies.sql` + `shop_assets_policies_cases
 
 À savoir : un visiteur **non connecté** qui téléverserait une photo de colis est maintenant refusé (le composant retombe sur un aperçu local, comme avant quand le bucket n'existait pas). Le bucket `avatars` avait le même défaut : `20260908170000` y ajoute « Public Upload/Update for avatars » sans condition, qui annulent les bonnes politiques (dossier = id) de `20260609133332`, les politiques permissives s'additionnant. Corrigé par `20261106130000_avatars_restrict_uploads.sql` : toutes les politiques d'écriture du bucket sont remplacées par dépôt, remplacement et suppression **dans `<son id>/` seulement**, lecture publique et plafond 10 Mo / images inchangés. Le même test couvre les deux buckets : **8/27 avant, 27/27 après** (anonyme refusé, dossier d'autrui refusé en dépôt, écrasement, déplacement et suppression). Appliquée sur la dev et enregistrée (les bonnes politiques d'origine y étaient déjà, sans politique ouverte) ; non testée dans le navigateur.
 
-## 5. Déploiement (ne rien appliquer sans décision du fondateur)
+## 5. Déploiement
 
-1. **Décider** que le module part (H5 section 4). Sinon, ne rien faire : l'ancien front reste cassé comme avant et l'Edge Function déployée est sans danger.
+> **Fait en prod le 07/11/2026** (voir [`DEPLOIEMENT-PROD-2026-11-07.md`](DEPLOIEMENT-PROD-2026-11-07.md)). Deux écarts avec la liste ci-dessous : (a) l'ordre réel a joué `20261106120000` **juste après** `20260907140000` (et non après `20261106110000`), pour fermer tout de suite le dépôt libre de `shop-assets` créé par cette dernière ; (b) en prod les buckets `shop-assets`, `avatars` et `delivery-kyc` n'existaient pas, donc `20261106130000` n'a eu aucun effet visible, et `20260908170000` n'a volontairement pas été appliquée. Il reste l'étape 6 (recette).
+
+1. **Décider** que le module part (H5 section 4) : **décidé le 07/11**. Sinon, ne rien faire : l'ancien front reste cassé comme avant et l'Edge Function déployée est sans danger.
 2. Pré-contrôle (lecture seule, éditeur SQL) : `to_regclass('public.delivery_companies')` doit être `NULL` ; types `delivery_verification_status`, `delivery_dispatch_status`, `delivery_cash_status` absents ; `pg_cron` actif ; secret `RESEND_API_KEY` présent (sinon les e-mails ne partent pas, les notifications dans l'application fonctionnent).
 3. Appliquer **une migration à la fois dans l'éditeur SQL** (jamais `db push`), dans l'ordre : `20260906010000` (corrigée), `20260907140000`, `20261016120000`, `20261106110000`, puis `20261106120000` et `20261106130000` (durcissement de `shop-assets` et `avatars`, voir 4bis ; à jouer après `20260908170000` si elle l'est). Vérifier après chacune.
 4. Déployer `verify-delivery-identity` (`--use-api --project-ref …`) **avant** le front, puis le front.

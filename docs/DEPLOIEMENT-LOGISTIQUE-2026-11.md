@@ -1,6 +1,6 @@
 # Logistique : flux commande → affectation → livraison, statuts
 
-**Date :** 5 novembre 2026 · **Périmètre :** ancien module `order_deliveries` / `delivery_providers` (celui qui est en prod). Le nouveau module « Ecomfy Livraison » (`delivery_dispatches`…) n'est pas concerné : voir [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md).
+**Date :** 5 novembre 2026 · **Périmètre :** ancien module `order_deliveries` / `delivery_providers` (celui qui est en prod). Le nouveau module « Ecomfy Livraison » (`delivery_dispatches`…) n'est pas concerné : voir [`H5-LIVRAISON-MISE-EN-PROD-2026-10.md`](H5-LIVRAISON-MISE-EN-PROD-2026-10.md) et [`DEPLOIEMENT-LIVRAISON-KYC-2026-11.md`](DEPLOIEMENT-LIVRAISON-KYC-2026-11.md) (déployé en prod le 07/11/2026).
 **État :** corrigé dans le code, testé sur base jetable (142 cas sur 142, deux migrations) **et dans le navigateur sur la dev** (5 nov., section 7bis). Migrations appliquées sur la dev, **pas sur la prod**. Non commité.
 
 ## 1. Flux, tel qu'il fonctionne maintenant
