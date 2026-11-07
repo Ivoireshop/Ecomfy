@@ -69,6 +69,7 @@ Historique enregistré ensuite : `supabase migration repair --status applied 202
 - **Recette navigateur en prod du module Livraison** : non jouée (inscription livreur et société, notification administrateur, décision avec e-mail reçu). À faire avec de vrais comptes ; le parcours est dans [`DEMO-LIVRAISON-2026-11.md`](DEMO-LIVRAISON-2026-11.md) et §5 de [`DEPLOIEMENT-LIVRAISON-KYC-2026-11.md`](DEPLOIEMENT-LIVRAISON-KYC-2026-11.md).
 - **`20260908170000_ensure_avatars_and_shop_assets_buckets` volontairement NON appliquée** : elle crée `shop-assets` et `avatars` avec dépôt ouvert à tous. **Ne jamais lancer `db push` en prod** : il la rejouerait, avec `20261103100000` (Studio IA) et `20261107100000` (plans d'abonnement, non commitée).
 - **Bucket `avatars` absent en prod** : les photos de profil retombent sur une image `data:`. Décision à prendre (créer le bucket avec les politiques de `20261106130000`, sans passer par `20260908170000`).
+- **Ajout du soir** : `20260912150000` (ConnectUs) a été appliquée ensuite, voir §8.
 - **Toujours hors prod** : plans d'abonnement et commission paramétrables (`20261107100000`, non commité, voir [`DEPLOIEMENT-PLANS-ABONNEMENT-2026-11.md`](DEPLOIEMENT-PLANS-ABONNEMENT-2026-11.md)) ; lot Studio IA (`20261103100000` + 8 fonctions, voir [`DEPLOIEMENT-STUDIO-IA-2026-11.md`](DEPLOIEMENT-STUDIO-IA-2026-11.md)) ; aiguillage de `geniuspay-webhook` ; `expire-stale-ecomfy-payments`.
 - **Deux modules de livraison coexistent** (`delivery_providers` / `order_deliveries` et `delivery_companies` / `delivery_dispatches`), chacun avec son circuit d'encaissement. `DispatchOrderModal`, qui enverrait une commande à une société du nouveau module, n'est branché sur aucune page.
 
@@ -79,6 +80,24 @@ Historique enregistré ensuite : `supabase migration repair --status applied 202
 - **Buckets** : les migrations `20261106120000` et `20261106130000` ne créent que des politiques et des plafonds ; les retirer rouvrirait le dépôt sans compte. À éviter.
 - **Fonctions** : redéployer depuis le commit précédent (`git checkout 5187528 -- supabase/functions/<nom>`), puis revenir à `HEAD`.
 
-## 8. Précaution CLI
+## 8. Complément du soir : ConnectUs et menus de la barre latérale
+
+**Contrôles en prod (requêtes collées par l'utilisateur, le CLI en lecture seule étant refusé dans la session) :**
+
+| Contrôle | Résultat |
+|---|---|
+| Tables `connectus_*` et migration `20260912150000` | absentes (`NULL`) avant ; **9 tables, 9 avec RLS** après |
+| Studio IA : table `studio_ai_generation_log`, migration `20261103100000` | absentes : le lot n'est toujours pas en prod |
+| Ecomfy Pay : `ecomfy_payments` (la table s'appelle ainsi, pas `ecomfy_pay_payments`) | 23 paiements, tous `PENDING` (du 21/10 au 06/11), aucun encaissé ni crédité |
+
+**Appliqué :** `20260912150000_create_connectus_social_schema.sql` collée dans l'éditeur SQL (9 tables, index, politiques RLS ; ni trigger, ni fonction, ni bucket ; dépend seulement de `auth.users` et `public.shops`). Historique enregistré : `supabase migration repair --status applied 20260912150000 --project-ref yfggrceynzcwklbxhgix`. Les `CREATE POLICY` n'étant pas idempotents, ne pas la rejouer.
+
+**Front :** commit `aa3b376` (branche `jeanmarc`, **non poussé** au moment de la rédaction) : Ecomfy Livraison et ConnectUs passent de « Bientôt disponible » au menu actif. Ecomfy Pay (paiements jamais finalisés, aiguillage du webhook absent) et Studio IA (lot absent de la prod) restent désactivés. Le lien fondateur « Abonnements & commissions » n'est pas dans ce commit (chantier plans d'abonnement).
+
+**Points de sécurité ConnectUs, non bloquants :** profils lisibles sans connexion ; tout utilisateur connecté peut insérer une notification pour n'importe quel destinataire avec le message de son choix (spam possible) ; les compteurs `likes_count` d'un post ne sont modifiables que par son auteur (le front les recalcule à la lecture).
+
+**À faire :** pousser `jeanmarc`, ouvrir la PR vers `main`, puis recette navigateur sur `/connectus` avec un compte de test (publier, aimer, envoyer un message, recharger : tout doit persister en base et non seulement dans le localStorage). Non jouée à ce jour.
+
+## 9. Précaution CLI
 
 Le lien du CLI Supabase (`supabase/.temp/project-ref`) a changé pendant l'opération : il était sur la **prod** pendant le déploiement, puis revenu sur la **dev** après. Relire le fichier avant d'agir et passer **toujours** `--project-ref` explicitement pour la prod.
