@@ -1272,7 +1272,7 @@ const ProductView = () => {
                   (!isEnabled("city") || !containsDigits(customerInfo.city)) &&
                   (!isEnabled("address") || !isRequired("address") || !!customerInfo.address);
                 // Le récapitulatif porte déjà le sélecteur de quantité : on ne le double que s'il est masqué.
-                const summaryHidden = themeConfig?.hide_order_summary === true || (product as any)?.hide_order_summary === true;
+                const summaryHidden = themeConfig?.hide_order_summary === true || (product as unknown as { hide_order_summary?: boolean } | null)?.hide_order_summary === true;
                 const showQtyControl = summaryHidden && !!product;
                 return (
                   <div className="pt-2">

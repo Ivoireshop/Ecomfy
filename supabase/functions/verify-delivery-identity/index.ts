@@ -188,6 +188,14 @@ function buildEmail(kind: "company" | "driver", decision: CompanyDecision, name:
   }
 }
 
+/** Retour JSON des RPC admin_decide_delivery_company / _driver (seuls les champs lus ici sont décrits). */
+type DecisionResult = {
+  owner_user_id?: string | null;
+  company_id: string;
+  drivers_approved?: unknown[];
+  drivers_blocked?: unknown[];
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "Méthode non autorisée." });
@@ -234,7 +242,7 @@ serve(async (req) => {
 
     console.log(`[verify-delivery-identity] ${adminId} → ${body.driverId ? "driver " + body.driverId : "company " + body.companyId}: ${body.decision}`);
 
-    let result: Record<string, any>;
+    let result: DecisionResult;
     if (body.driverId) {
       const { data, error } = await asCaller.rpc("admin_decide_delivery_driver", {
         p_driver_id: body.driverId,
@@ -244,7 +252,7 @@ serve(async (req) => {
         p_note: note ?? null,
       });
       if (error) return mapDbError(error);
-      result = data as Record<string, any>;
+      result = data as DecisionResult;
     } else {
       const { data, error } = await asCaller.rpc("admin_decide_delivery_company", {
         p_company_id: body.companyId,
@@ -256,7 +264,7 @@ serve(async (req) => {
         p_cascade_drivers: body.cascadeDrivers === true,
       });
       if (error) return mapDbError(error);
-      result = data as Record<string, any>;
+      result = data as DecisionResult;
     }
 
     // E-mail de décision. La décision est déjà enregistrée : un échec d'envoi ne l'annule pas.
@@ -318,7 +326,7 @@ serve(async (req) => {
       driversApproved: result.drivers_approved ?? [],
       driversBlocked: result.drivers_blocked ?? [],
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[verify-delivery-identity] Error:", err);
     return json(500, { error: "Erreur lors de la décision." });
   }
