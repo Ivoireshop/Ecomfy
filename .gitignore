@@ -33,3 +33,6 @@ supabase/.temp/
 backups/
 # Playwright MCP (captures et journaux de test)
 .playwright-mcp/
+
+# Deno (Edge Functions)
+deno.lock
