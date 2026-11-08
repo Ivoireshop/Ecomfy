@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Store, ArrowRight, ArrowLeft, Check, Palette, ShoppingBag, Zap, Globe } from "lucide-react";
+import { ShopCoverageNotice } from "@/components/shop/ShopCoverageNotice";
 
 const THEMES = [
   { id: "modern", name: "Moderne", description: "Design épuré et contemporain", colors: ["#0f172a", "#3b82f6", "#f8fafc"], icon: "✨" },
@@ -165,6 +166,9 @@ const ShopBuilder = () => {
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">{steps[step].title}</h1>
           <p className="text-muted-foreground text-lg">{steps[step].subtitle}</p>
         </div>
+
+        {/* Ce que couvre l'abonnement pour cette nouvelle boutique (information, la création n'est jamais bloquée) */}
+        {step === 0 && <ShopCoverageNotice variant="builder" className="max-w-2xl mx-auto mb-6" />}
 
         {/* Step 0: Method Choice */}
         {step === 0 && (

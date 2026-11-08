@@ -15,17 +15,40 @@ export const CREDIT_PACKS: Readonly<Record<number, number>> = {
   50: 5000,
 };
 
-// Plans payants : prix mensuel et prix annuel (12 mois, -20 %). PricingDashboard.tsx, SubscriptionCard.tsx.
-export const PLAN_PRICES: Readonly<Record<string, { monthly: number; annual?: number }>> = {
+export type PlanPrices = Readonly<Record<string, { monthly: number; annual?: number }>>;
+
+// Plans payants : prix mensuel et prix annuel. Les prix en vigueur sont réglés par le fondateur dans la table
+// `subscription_plans` (menu « Abonnements & commissions ») et passés à checkAmount via `planPrices`.
+// Cette table n'est qu'un REPLI, utilisé tant que la migration 20261107100000 n'est pas appliquée (ordre de
+// déploiement : Edge Functions possibles avant la base). Une fois la migration passée, elle n'est plus lue.
+export const PLAN_PRICES: PlanPrices = {
   starter: { monthly: 12000 },
   pro_monthly: { monthly: 12000, annual: 118800 },
   premium_academy_pro: { monthly: 35000, annual: 342000 },
 };
 
+/** Lignes de `subscription_plans` (plans actifs) -> table de prix. Retourne null si aucune ligne exploitable. */
+export function planPricesFromRows(
+  rows: ReadonlyArray<{ code?: unknown; price_monthly?: unknown; price_annual?: unknown }> | null | undefined,
+): PlanPrices | null {
+  if (!rows || rows.length === 0) return null;
+  const out: Record<string, { monthly: number; annual?: number }> = {};
+  for (const row of rows) {
+    const code = typeof row.code === "string" ? row.code : "";
+    const monthly = Number(row.price_monthly);
+    if (!code || !Number.isFinite(monthly) || monthly <= 0) continue;
+    const annual = row.price_annual === null || row.price_annual === undefined ? NaN : Number(row.price_annual);
+    out[code] = Number.isFinite(annual) && annual > 0 ? { monthly, annual } : { monthly };
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 export type PriceInput = {
   paymentType: string;
   plan?: string | null;
   billingCycle?: string | null;
+  /** Prix des plans actifs lus en base ; absent = repli sur PLAN_PRICES (migration pas encore appliquée). */
+  planPrices?: PlanPrices | null;
   creditsPack?: { size: number; price: number } | null;
   /** Solde de commission dû de la boutique, lu en base (commission_payment uniquement). */
   commissionBalanceDue?: number | null;
@@ -58,7 +81,8 @@ export function checkAmount(input: PriceInput, amount: number): PriceResult {
     case "shop_subscription":
     case "subscription": {
       const plan = input.plan || (input.paymentType === "subscription" ? "pro_monthly" : "starter");
-      const prices = Object.prototype.hasOwnProperty.call(PLAN_PRICES, plan) ? PLAN_PRICES[plan] : undefined;
+      const table = input.planPrices ?? PLAN_PRICES;
+      const prices = Object.prototype.hasOwnProperty.call(table, plan) ? table[plan] : undefined;
       if (!prices) return { ok: false, error: "Plan inconnu." };
       const cycle = input.billingCycle || "monthly";
       if (cycle !== "monthly" && cycle !== "annual") return { ok: false, error: "Période de facturation inconnue." };

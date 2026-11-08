@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Plus, Store, Settings, Package, TrendingUp, ShoppingBag, ArrowUpRight, ExternalLink, Zap, Trash2, Loader2, Copy, Users, LogIn, ArrowLeft, Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuthReady } from "@/hooks/useAuthReady";
+import { ShopCoverageNotice } from "@/components/shop/ShopCoverageNotice";
+import { useBillingSettings, useMyShopCoverage } from "@/hooks/useSubscriptionPlans";
+import { formatFcfa } from "@/lib/subscriptionPlans";
 
 interface Shop {
   id: string;
@@ -117,6 +120,9 @@ const ShopManager = () => {
   const totalRevenue = shops.reduce((sum, s) => sum + (s?.total_sales || 0), 0);
   const totalOrders = shops.reduce((sum, s) => sum + (s?.total_orders || 0), 0);
   const activeShops = shops.filter(s => s?.is_activated).length;
+  const { coverage } = useMyShopCoverage();
+  const { settings: billingSettings } = useBillingSettings();
+  const coverageById = new Map((coverage?.shops ?? []).map((s) => [s.id, s.covered]));
 
   return (
     <div className="min-h-screen bg-[#F5F5F0]">
@@ -150,6 +156,8 @@ const ShopManager = () => {
             Créer une boutique
           </button>
         </div>
+
+        {shops.length > 0 && <ShopCoverageNotice variant="manager" className="mb-6" />}
 
         {/* STATS */}
         {shops.length > 0 && (
@@ -302,7 +310,18 @@ const ShopManager = () => {
 
                   <div className="p-[18px_18px_16px] flex-1 flex flex-col">
                     <h3 className="font-space text-[17px] font-semibold m-0 mb-[5px] text-[#0F1B2C] group-hover:text-[#0E7C66] transition-colors">{shop.business_name}</h3>
-                    
+                    {coverage && (
+                      coverageById.get(shop.id) ? (
+                        <span className="self-start mb-2 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#E3F1EC] text-[#0E7C66]">
+                          Couverte par l'abonnement · 0 commission
+                        </span>
+                      ) : (
+                        <span className="self-start mb-2 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#FFF4E0] text-[#8A5A00]">
+                          Commission {formatFcfa(billingSettings.commission_per_order)} FCFA / commande
+                        </span>
+                      )
+                    )}
+
                     <button
                       type="button"
                       onClick={(e) => {

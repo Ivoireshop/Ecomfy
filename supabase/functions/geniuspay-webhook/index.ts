@@ -491,6 +491,7 @@ serve(async (req) => {
         p_amount: amountPaid,
         p_transaction_reference: reference || null,
         p_payment_method: data?.payment_method || data?.provider || "geniuspay",
+        p_billing_cycle: (metadata?.billing_cycle as string) || null,
       });
       if (subError || subResult?.success === false) {
         console.error("apply_shop_subscription failed:", { subError, subResult });
@@ -537,6 +538,7 @@ serve(async (req) => {
         p_amount: amountPaid,
         p_transaction_reference: reference || null,
         p_payment_method: data?.payment_method || data?.provider || "geniuspay",
+        p_billing_cycle: (metadata?.billing_cycle as string) || null,
       });
       if (subError || subResult?.success === false) {
         console.error("apply_shop_subscription failed:", { subError, subResult });

@@ -11,6 +11,7 @@ import { Loader2, CheckCircle2, CreditCard, Smartphone, LogOut, Receipt, Zap, St
 import { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
+import { useBillingSettings } from "@/hooks/useSubscriptionPlans";
 
 interface Subscription {
   id: string;
@@ -21,6 +22,7 @@ interface Subscription {
 }
 
 const Subscription = () => {
+  const { settings: billingSettings } = useBillingSettings();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
@@ -368,7 +370,7 @@ const Subscription = () => {
               <CardDescription className="text-emerald-900 font-medium">
                 {isFounder
                   ? "Accès complet à toutes les fonctionnalités sans limitation"
-                  : `Votre abonnement est actif jusqu'au ${subscription?.end_date ? new Date(subscription.end_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) : "N/A"}. Aucune commission de 50 FCFA n'est prélevée sur vos commandes.`}
+                  : `Votre abonnement est actif jusqu'au ${subscription?.end_date ? new Date(subscription.end_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) : "N/A"}. Aucune commission de ${billingSettings.commission_per_order} FCFA n'est prélevée sur vos commandes.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">

@@ -4,7 +4,7 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { CREDIT_PACKS, PLAN_PRICES, checkAmount, checkCustomerPayment, orderExpectedTotal, remoteAmountMatches } from "../functions/_shared/pricing.ts";
+import { CREDIT_PACKS, PLAN_PRICES, checkAmount, checkCustomerPayment, orderExpectedTotal, planPricesFromRows, remoteAmountMatches } from "../functions/_shared/pricing.ts";
 import { priceLine } from "../../src/lib/bundlePricing.ts";
 
 const credits = (size: number, price: number, amount = price) =>
@@ -56,6 +56,31 @@ test("plans : mensuel, annuel, plan inconnu, annuel sans formule annuelle", () =
   // type « subscription » sans plan : retombe sur pro_monthly comme le webhook
   assert.equal(sub(null, null, 12000, "subscription"), true);
   assert.equal(sub(null, null, 1, "subscription"), false);
+});
+
+test("plans réglés par le fondateur : les prix de la base remplacent les constantes", () => {
+  const planPrices = planPricesFromRows([
+    { code: "pro_monthly", price_monthly: 10000, price_annual: 60000 },
+    { code: "vip_test", price_monthly: 5000, price_annual: null },
+  ]);
+  assert.deepEqual(planPrices, { pro_monthly: { monthly: 10000, annual: 60000 }, vip_test: { monthly: 5000 } });
+  const sub = (plan: string, billingCycle: string, amount: number) =>
+    checkAmount({ paymentType: "shop_subscription", plan, billingCycle, planPrices }, amount).ok;
+  assert.equal(sub("pro_monthly", "monthly", 10000), true);
+  assert.equal(sub("pro_monthly", "annual", 60000), true);
+  assert.equal(sub("pro_monthly", "monthly", 12000), false); // l'ancien prix n'est plus accepté
+  assert.equal(sub("pro_monthly", "annual", 118800), false);
+  assert.equal(sub("vip_test", "monthly", 5000), true); // plan créé par le fondateur
+  assert.equal(sub("vip_test", "annual", 50000), false); // pas de formule annuelle
+  assert.equal(sub("premium_academy_pro", "monthly", 35000), false); // plan désactivé (absent de la table des plans actifs)
+});
+
+test("plans : sans table (migration pas encore appliquée), repli sur les constantes", () => {
+  assert.equal(planPricesFromRows(null), null);
+  assert.equal(planPricesFromRows([]), null);
+  assert.equal(planPricesFromRows([{ code: "x", price_monthly: 0 }, { code: "", price_monthly: 100 }, { price_monthly: "abc" }]), null);
+  assert.equal(checkAmount({ paymentType: "shop_subscription", plan: "pro_monthly", planPrices: null }, 12000).ok, true);
+  assert.equal(checkAmount({ paymentType: "shop_subscription", plan: "pro_monthly", planPrices: null }, 10000).ok, false);
 });
 
 test("commission : paiement partiel autorisé, jamais au-delà du solde, minimum 100", () => {
@@ -229,11 +254,17 @@ test("ecomfy-pay-webhook transmet le montant encaissé à confirm_ecomfy_payment
 });
 
 test("PricingDashboard.tsx, SubscriptionCard.tsx et ShopEditor.tsx envoient les prix du serveur", () => {
+  // Les prix des plans viennent de la table subscription_plans (menu fondateur) : plus aucun montant de plan en dur
+  // dans les écrans, le montant envoyé est celui du plan choisi et le serveur le revérifie (checkAmount).
   const dash = src("pages/PricingDashboard.tsx");
-  assert.match(dash, /isAnnual \? 9900 : 12000/);
-  assert.match(dash, /isAnnual \? 28500 : 35000/);
+  assert.match(dash, /planChargeAmount\(plan, annual\)/);
+  assert.match(dash, /amount: chargeAmount/);
+  assert.doesNotMatch(dash, /9900|28500|118 ?800|342 ?000/);
+  const card = src("components/shop/SubscriptionCard.tsx");
+  assert.match(card, /planChargeAmount\(target, false\)/);
+  assert.doesNotMatch(card, /amount: 12000/);
+  // Repli (migration pas encore appliquée) : mêmes montants que les anciens écrans
   assert.equal(PLAN_PRICES.pro_monthly.annual, 9900 * 12);
   assert.equal(PLAN_PRICES.premium_academy_pro.annual, 28500 * 12);
-  assert.match(src("components/shop/SubscriptionCard.tsx"), /amount: 12000/);
   assert.match(src("pages/ShopEditor.tsx"), /amount: 1300/);
 });

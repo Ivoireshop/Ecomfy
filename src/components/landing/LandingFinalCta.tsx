@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useSoundIdentity } from "@/hooks/useSoundIdentity";
+import { useBillingSettings } from "@/hooks/useSubscriptionPlans";
 
 export function LandingFinalCta() {
   const navigate = useNavigate();
+  const { settings } = useBillingSettings();
   const { ref, isVisible } = useScrollReveal({ threshold: 0.3, triggerOnce: true });
   const { playHoverSound, playClickSound } = useSoundIdentity();
 
@@ -41,7 +43,7 @@ export function LandingFinalCta() {
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
-          <p className="mt-6 text-sm text-slate-400 relative z-10">Démarrage gratuit • 50 FCFA/commande • Évoluez à votre rythme</p>
+          <p className="mt-6 text-sm text-slate-400 relative z-10">Démarrage gratuit • {settings.commission_per_order} FCFA/commande • Évoluez à votre rythme</p>
         </div>
       </div>
     </section>

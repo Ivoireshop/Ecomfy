@@ -233,6 +233,7 @@ export function AppSidebar() {
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },
     { title: "Fondation Livraison 🛡️", url: "/delivery-admin", icon: Truck },
     { title: "Revue KYC", url: "/founder/kyc-review", icon: ShieldCheck },
+    { title: "Abonnements & commissions", url: "/founder/subscription-plans", icon: CreditCard },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
     { title: "Console API", url: "/api-documentation", icon: Code2 },
     { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },

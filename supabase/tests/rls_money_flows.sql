@@ -106,7 +106,8 @@ BEGIN
   INSERT INTO public.commission_payments (shop_id, amount) VALUES (sA, 5000), (sB, 6000);
   INSERT INTO public.shop_payment_events (shop_id, event_type) VALUES (sA, 'threshold_reached'), (sB, 'threshold_reached');
   INSERT INTO public.payments (user_id, amount, payment_method) VALUES (uA, 5000, 'card'), (uB, 6000, 'card');
-  INSERT INTO public.subscriptions (user_id) VALUES (uA), (uB);
+  -- handle_new_user (déclencheur sur auth.users) crée déjà la ligne subscriptions de chaque nouvel utilisateur
+  INSERT INTO public.subscriptions (user_id) VALUES (uA), (uB) ON CONFLICT (user_id) DO NOTHING;
   INSERT INTO public.ecomfy_payment_links (link_key, shop_id, title, amount) VALUES ('rls-a', sA, 'Lien A', 1000), ('rls-b', sB, 'Lien B', 2000);
 
   INSERT INTO public.affiliates (user_id, affiliate_code) VALUES (uAF1, 'RLSAFF1') RETURNING id INTO af1;
@@ -362,7 +363,11 @@ BEGIN
           AND proname NOT IN ('enforce_shop_payment_state_for', 'founder_reset_shop_payment', 'get_or_create_my_wallet', 'mark_affiliate_payout_paid',
                               'process_referral_signup', 'record_affiliate_referral', 'request_wallet_withdrawal_atomic', 'save_merchant_payout_config',
                               -- liées à auth.uid() ; is_shop_subscription_active accepte n'importe quelle boutique mais ne dit que « abonnement en cours ? »
-                              'get_my_subscription_status', 'enforce_subscription_expiry_for', 'get_or_create_my_affiliate', 'is_shop_subscription_active'));
+                              'get_my_subscription_status', 'enforce_subscription_expiry_for', 'get_or_create_my_affiliate', 'is_shop_subscription_active',
+                              -- 20261107100000 : les trois founder_* et release_shop_to_commission contrôlent auth.uid() (rôle fondateur / propriétaire)
+                              -- avant toute écriture ; billing_setting_numeric ne lit qu'un réglage déjà public (billing_settings est lisible par tous)
+                              'founder_save_subscription_plan', 'founder_save_billing_settings', 'founder_subscription_overview',
+                              'release_shop_to_commission', 'billing_setting_numeric'));
   PERFORM pg_temp.chk('garde-fou : aucune fonction « argent » SECURITY DEFINER inconnue ouverte à authenticated', n IS NULL, COALESCE(n, ''));
 
   -- 4c. Retraits et portefeuille : l'identité vient du jeton, jamais d'un paramètre

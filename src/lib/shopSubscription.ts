@@ -1,16 +1,45 @@
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_BILLING_SETTINGS, FALLBACK_PLANS, fetchBillingSettings, fetchSubscriptionPlans } from "@/lib/subscriptionPlans";
 
-/** Même valeur que public.subscription_grace_interval() côté base : délai entre l'échéance et la fermeture. */
-export const SUBSCRIPTION_GRACE_DAYS = 3;
-/** Rappel de renouvellement affiché à partir de ce nombre de jours avant l'échéance. */
-export const SUBSCRIPTION_REMINDER_DAYS = 5;
+/** Valeurs de repli : délai de grâce (public.subscription_grace_interval()) et rappel avant l'échéance. */
+export const SUBSCRIPTION_GRACE_DAYS = DEFAULT_BILLING_SETTINGS.subscription_grace_days;
+export const SUBSCRIPTION_REMINDER_DAYS = DEFAULT_BILLING_SETTINGS.subscription_reminder_days;
 
-/** Tarifs mensuels de renouvellement (mêmes montants que supabase/functions/_shared/pricing.ts, PLAN_PRICES). */
-const MONTHLY_PRICES: Record<string, number> = {
-  starter: 12000,
-  pro_monthly: 12000,
-  premium_academy_pro: 35000,
+/**
+ * Configuration en vigueur (réglée par le fondateur) : délai de grâce, rappel, tarifs mensuels de renouvellement.
+ * Partie des anciennes valeurs, remplacée par loadBillingRuntimeConfig() (appelée par les écrans marchands) pour que
+ * computeShopSubscription reste synchrone.
+ */
+const runtime = {
+  graceDays: SUBSCRIPTION_GRACE_DAYS,
+  reminderDays: SUBSCRIPTION_REMINDER_DAYS,
+  monthlyPrices: Object.fromEntries(FALLBACK_PLANS.map((p) => [p.code, p.price_monthly])) as Record<string, number>,
+  loadedAt: 0,
+  inflight: null as Promise<void> | null,
 };
+
+export const getSubscriptionGraceDays = () => runtime.graceDays;
+export const getSubscriptionReminderDays = () => runtime.reminderDays;
+
+/** Charge (au plus une fois par minute) délai de grâce, rappel et tarifs depuis la base. N'échoue jamais. */
+export function loadBillingRuntimeConfig(): Promise<void> {
+  if (runtime.inflight) return runtime.inflight;
+  if (Date.now() - runtime.loadedAt < 60_000) return Promise.resolve();
+  runtime.inflight = (async () => {
+    try {
+      const [settings, { plans, fromDb }] = await Promise.all([fetchBillingSettings(), fetchSubscriptionPlans()]);
+      runtime.graceDays = settings.subscription_grace_days;
+      runtime.reminderDays = settings.subscription_reminder_days;
+      if (fromDb) runtime.monthlyPrices = Object.fromEntries(plans.filter((p) => p.is_active).map((p) => [p.code, p.price_monthly]));
+      runtime.loadedAt = Date.now();
+    } catch {
+      /* on garde les valeurs courantes */
+    } finally {
+      runtime.inflight = null;
+    }
+  })();
+  return runtime.inflight;
+}
 
 const DAY_MS = 86_400_000;
 
@@ -41,7 +70,7 @@ export function computeShopSubscription(shop: any): ShopSubscriptionState {
   const now = Date.now();
   const isActive = valid && activeUntil!.getTime() > now;
   const isExpired = hasSubscribed && !isActive;
-  const graceEndsAt = valid ? new Date(activeUntil!.getTime() + SUBSCRIPTION_GRACE_DAYS * DAY_MS) : null;
+  const graceEndsAt = valid ? new Date(activeUntil!.getTime() + runtime.graceDays * DAY_MS) : null;
   const inGrace = isExpired && !!graceEndsAt && graceEndsAt.getTime() > now;
   return {
     plan,
@@ -52,7 +81,7 @@ export function computeShopSubscription(shop: any): ShopSubscriptionState {
     inGrace,
     graceEndsAt: hasSubscribed ? graceEndsAt : null,
     daysLeft: hasSubscribed && isActive ? Math.floor((activeUntil!.getTime() - now) / DAY_MS) : null,
-    renewalAmount: MONTHLY_PRICES[plan] ?? null,
+    renewalAmount: runtime.monthlyPrices[plan] ?? null,
   };
 }
 
@@ -80,8 +109,12 @@ export function pricingPlanIdFromAmount(amount: number | null | undefined): Pric
 
 /** Démarre le paiement d'un mois d'abonnement pour la boutique et retourne l'URL de paiement. */
 export async function startShopSubscriptionPayment(shopId: string, plan: string): Promise<string> {
-  const amount = MONTHLY_PRICES[plan];
-  if (!amount) throw new Error("Formule inconnue : choisissez votre formule depuis la page des tarifs.");
+  // Prix du jour lu en base (le serveur le revérifie) ; repli sur la configuration chargée si la base ne répond pas.
+  const { plans, fromDb } = await fetchSubscriptionPlans();
+  const amount = fromDb
+    ? plans.find((p) => p.code === plan && p.is_active)?.price_monthly
+    : runtime.monthlyPrices[plan];
+  if (!amount) throw new Error("Formule inconnue ou retirée de la vente : choisissez votre formule depuis la page des tarifs.");
   const { data: sess } = await supabase.auth.getUser();
   const userId = sess?.user?.id;
   if (!userId) throw new Error("Connectez-vous d'abord.");
