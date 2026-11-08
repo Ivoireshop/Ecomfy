@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { MessageCircle, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function SupportButton() {
+  // Sur ConnectUs (mobile), la bulle ne doit pas recouvrir la barre de navigation du bas.
+  const onConnectUs = useLocation().pathname.startsWith("/connectus");
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +86,7 @@ export function SupportButton() {
       <DialogTrigger asChild>
         <Button
           size="lg"
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl z-50 p-0"
+          className={`fixed right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl z-50 p-0 ${onConnectUs ? "bottom-24 md:bottom-6" : "bottom-6"}`}
         >
           <MessageCircle className="h-6 w-6" />
           <span className="sr-only">Support client</span>

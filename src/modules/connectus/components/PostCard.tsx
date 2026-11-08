@@ -1,12 +1,22 @@
 import { useState } from "react";
-import { ConnectUsPost, ReactionType } from "../types/connectus.types";
-import { Button } from "@/components/ui/button";
+import { ConnectUsComment, ConnectUsPost, ReactionType } from "../types/connectus.types";
+import { Button } from "./CUButton";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Heart, Flame, PartyPopper, ThumbsUp, MessageSquare, Share2, ShoppingBag,
-  ExternalLink, CheckCircle2, Store, MoreHorizontal, Send, ShieldCheck, Globe, Users, Video, Link2, Trash2, Clock
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Heart, Flame, ThumbsUp, MessageSquare, Share2, ShoppingBag, ExternalLink, CheckCircle2, Store, Send, Globe,
+  Users, Link2, Trash2, Loader2, X,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -18,11 +28,22 @@ interface PostCardProps {
   onToggleReaction: (postId: string, reaction: ReactionType) => void;
   onToggleFollow?: (targetUserId: string) => void;
   onDeletePost?: (postId: string) => void;
-  onAddComment?: (postId: string, text: string) => Promise<any>;
-  onAddCommentReply?: (postId: string, parentCommentId: string, text: string, parentAuthorId?: string) => Promise<any>;
-  onToggleCommentLike?: (postId: string, commentId: string) => Promise<any>;
+  onOpenProfile?: (userId: string) => void;
+  onLoadComments?: (postId: string) => Promise<ConnectUsComment[]>;
+  onAddComment?: (postId: string, text: string, parentId?: string | null) => Promise<ConnectUsComment | null>;
+  onDeleteComment?: (postId: string, commentId: string, removedCount: number) => Promise<boolean>;
+  onToggleCommentLike?: (commentId: string) => Promise<{ likes_count: number; user_liked: boolean } | null>;
   isFollowingAuthor?: boolean;
 }
+
+const timeAgo = (iso?: string): string => {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  return formatDistanceToNow(new Date(t), { addSuffix: true, locale: fr });
+};
+
+const COMMENT_EMOJIS = ["😀", "😍", "🔥", "❤️", "👏", "🚀", "💯", "🙌"];
 
 export function PostCard({
   post,
@@ -30,151 +51,109 @@ export function PostCard({
   onToggleReaction,
   onToggleFollow,
   onDeletePost,
+  onOpenProfile,
+  onLoadComments,
   onAddComment,
-  onAddCommentReply,
+  onDeleteComment,
   onToggleCommentLike,
   isFollowingAuthor = false,
 }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
+  const [comments, setComments] = useState<ConnectUsComment[] | null>(null);
+  const [commentsError, setCommentsError] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [localComments, setLocalComments] = useState<{ id: string; authorName: string; text: string; date: string; parent_id?: string; replies?: any[]; likes_count?: number }[]>([]);
-  const [replyingCommentId, setReplyingCommentId] = useState<string | null>(null);
-  const [replyInputText, setReplyInputText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
   const [videoError, setVideoError] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
-  const allComments = [
-    ...(post?.comments || []),
-    ...localComments
-  ];
+  const author = post.author;
+  const isOwnPost = Boolean(currentUserId && currentUserId === post.user_id);
+  const canComment = Boolean(onAddComment);
 
-  const author = post?.author || {
-    id: post?.user_id || "unknown",
-    user_id: post?.user_id || "unknown",
-    username: "membre_ecomfy",
-    full_name: "Membre Ecomfy",
-    avatar_url: null,
-    cover_url: null,
-    bio: "",
-    location: null,
-    website_url: null,
-    is_verified: true,
-    is_business: false,
-    followers_count: 10,
-    following_count: 5,
-    posts_count: 1,
-    created_at: new Date().toISOString(),
-  };
-
-  const renderFormattedContent = (contentString: string) => {
-    if (!contentString) return null;
-    const parts = contentString.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, idx) => {
-      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-        const boldText = part.slice(2, -2);
-        return <strong key={idx} className="font-extrabold text-slate-900">{boldText}</strong>;
-      }
-      return <span key={idx}>{part}</span>;
-    });
-  };
-
-  const isOwnPost = Boolean(currentUserId && (currentUserId === author.id || currentUserId === post?.user_id));
-
-  let ageInHours = 0;
-  let formattedDate = "À l'instant";
-  try {
-    const postTime = post?.created_at ? new Date(post.created_at).getTime() : Date.now();
-    if (!isNaN(postTime)) {
-      ageInHours = (Date.now() - postTime) / (1000 * 3600);
-      formattedDate = formatDistanceToNow(new Date(postTime), {
-        addSuffix: true,
-        locale: fr,
-      });
-    }
-  } catch (e) {}
-
-  const isDeletable = ageInHours <= 24;
-
-  const handleAddComment = async () => {
-    if (!commentText.trim()) return;
-    const textToSubmit = commentText.trim();
-    setCommentText("");
-
-    if (onAddComment) {
-      const created = await onAddComment(post.id, textToSubmit);
-      if (created) {
-        setLocalComments(prev => [...prev, created]);
-      }
-    } else {
-      setLocalComments(prev => [
-        ...prev,
-        { id: `c-${Date.now()}`, authorName: "Vous", text: textToSubmit, date: "À l'instant", likes_count: 0 }
-      ]);
-    }
-    toast({ title: "Commentaire ajouté ✓" });
-  };
-
-  const handleSendReply = async (parentCommentId: string, parentAuthorName: string) => {
-    if (!replyInputText.trim()) return;
-    const replyTextToSubmit = replyInputText.trim();
-    setReplyInputText("");
-    setReplyingCommentId(null);
-
-    const newReply = {
-      id: `r-${Date.now()}`,
-      parent_id: parentCommentId,
-      authorName: "Vous",
-      text: replyTextToSubmit,
-      date: "À l'instant",
-      likes_count: 0,
-    };
-
-    if (onAddCommentReply) {
-      await onAddCommentReply(post.id, parentCommentId, replyTextToSubmit);
-    }
-
-    setLocalComments(prev => [
-      ...prev,
-      newReply
-    ]);
-
-    toast({ title: `Réponse envoyée à ${parentAuthorName} ✓` });
-  };
-
-  const handleLikeComment = async (commentId: string) => {
-    if (onToggleCommentLike) {
-      await onToggleCommentLike(post.id, commentId);
-    }
-    setLocalComments(prev =>
-      prev.map(c => (c.id === commentId ? { ...c, likes_count: (c.likes_count || 0) + 1 } : c))
+  const renderFormattedContent = (contentString: string) =>
+    contentString.split(/(\*\*.*?\*\*)/g).map((part, idx) =>
+      part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+        <strong key={idx} className="font-extrabold text-slate-900">{part.slice(2, -2)}</strong>
+      ) : (
+        <span key={idx}>{part}</span>
+      )
     );
-    toast({ title: "J'aime ajouté au commentaire ❤️" });
+
+  const toggleComments = async () => {
+    const next = !showComments;
+    setShowComments(next);
+    if (next && comments === null && onLoadComments) {
+      try {
+        setCommentsError(false);
+        setComments(await onLoadComments(post.id));
+      } catch {
+        setCommentsError(true);
+        setComments([]);
+      }
+    }
   };
 
-  const handleShare = () => {
-    const postUrl = window.location.href;
-    navigator.clipboard.writeText(postUrl);
-    toast({
-      title: "Lien de la publication copié ! 🔗",
-      description: "Vous pouvez le partager sur WhatsApp, Facebook ou Instagram."
-    });
+  const submitComment = async (text: string, parentId: string | null) => {
+    if (!onAddComment || !text.trim() || sending) return;
+    setSending(true);
+    const created = await onAddComment(post.id, text, parentId);
+    setSending(false);
+    if (!created) return;
+    setComments((prev) => [...(prev || []), created]);
+    if (parentId) {
+      setReplyText("");
+      setReplyingTo(null);
+    } else {
+      setCommentText("");
+    }
   };
 
-  const parentComments = allComments.filter(c => !c.parent_id);
+  const likeComment = async (commentId: string) => {
+    if (!onToggleCommentLike) return;
+    const res = await onToggleCommentLike(commentId);
+    if (!res) return;
+    setComments((prev) => (prev || []).map((c) => (c.id === commentId ? { ...c, likes_count: res.likes_count, user_liked: res.user_liked } : c)));
+  };
+
+  const removeComment = async (comment: ConnectUsComment) => {
+    if (!onDeleteComment) return;
+    const replies = (comments || []).filter((c) => c.parent_id === comment.id).length;
+    const ok = await onDeleteComment(post.id, comment.id, 1 + replies);
+    if (ok) setComments((prev) => (prev || []).filter((c) => c.id !== comment.id && c.parent_id !== comment.id));
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/connectus`;
+    const text = post.content ? post.content.slice(0, 100) : `Publication de ${author.full_name}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "ConnectUs", text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(`${text} — ${url}`);
+      toast({ title: "Lien copié 🔗", description: "Collez-le dans WhatsApp, Facebook ou Instagram." });
+    } catch {
+      /* partage annulé par le membre */
+    }
+  };
+
+  const topLevel = (comments || []).filter((c) => !c.parent_id);
+  const repliesOf = (id: string) => (comments || []).filter((c) => c.parent_id === id);
+
+  const openAuthor = () => onOpenProfile?.(post.user_id);
 
   return (
-    <Card className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:shadow-sm space-y-4">
+    <Card className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs transition-all hover:shadow-sm space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+        <button type="button" onClick={openAuthor} className="flex items-center gap-3 min-w-0 text-left" aria-label={`Voir le profil de ${author.full_name}`}>
           <div className="relative shrink-0">
             {author.avatar_url ? (
-              <img
-                src={author.avatar_url}
-                alt={author.full_name || ""}
-                className="h-11 w-11 rounded-2xl object-cover border border-slate-100 shadow-2xs"
-              />
+              <img src={author.avatar_url} alt="" className="h-11 w-11 rounded-2xl object-cover border border-slate-100" />
             ) : (
-              <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#0E7C66] to-emerald-400 text-white font-bold text-base flex items-center justify-center shadow-2xs">
+              <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#0E7C66] to-emerald-400 text-white font-bold text-base flex items-center justify-center">
                 {(author.full_name || "U")[0]?.toUpperCase()}
               </div>
             )}
@@ -187,47 +166,45 @@ export function PostCard({
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-sm text-slate-900 truncate">{author.full_name}</span>
-              {author.is_verified && (
-                <CheckCircle2 className="h-4 w-4 text-[#0E7C66] shrink-0" />
-              )}
+              <span className="font-bold text-sm text-slate-900 truncate hover:underline">{author.full_name}</span>
+              {author.is_verified && <CheckCircle2 className="h-4 w-4 text-[#0E7C66] shrink-0" aria-label="Marchand vérifié" />}
               {Boolean(author.show_shop_on_profile) && author.shop_name && (
-                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-0 text-[10px] font-semibold">
-                  🏪 {author.shop_name}
-                </Badge>
+                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-0 text-[10px] font-semibold">🏪 {author.shop_name}</Badge>
               )}
             </div>
-
-            <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
               <span>@{author.username}</span>
-              <span>•</span>
-              <span>{formattedDate}</span>
-              <span>•</span>
-              {post.visibility === "public" ? <Globe className="h-3 w-3" /> : <Users className="h-3 w-3" />}
+              <span aria-hidden>•</span>
+              <span>{timeAgo(post.created_at)}</span>
+              <span aria-hidden>•</span>
+              {post.visibility === "public" ? (
+                <Globe className="h-3 w-3" aria-label="Public" />
+              ) : (
+                <Users className="h-3 w-3" aria-label="Réservé aux abonnés" />
+              )}
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {!isOwnPost && onToggleFollow && (
             <Button
               variant={isFollowingAuthor ? "outline" : "default"}
               size="sm"
-              onClick={() => onToggleFollow(author.id)}
+              onClick={() => onToggleFollow(post.user_id)}
               className={`rounded-full h-8 text-xs font-bold ${
-                isFollowingAuthor
-                  ? "border-slate-300 text-slate-700 hover:bg-slate-100"
-                  : "bg-slate-900 hover:bg-slate-800 text-white"
+                isFollowingAuthor ? "border-slate-300 text-slate-700 hover:bg-slate-100" : "bg-slate-900 hover:bg-slate-800 text-white"
               }`}
             >
               {isFollowingAuthor ? "Abonné ✓" : "+ Suivre"}
             </Button>
           )}
-
           {isOwnPost && onDeletePost && (
             <button
-              onClick={() => onDeletePost(post.id)}
-              className="p-2 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="p-2 rounded-full hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors"
+              aria-label="Supprimer ma publication"
               title="Supprimer ma publication"
             >
               <Trash2 className="h-4 w-4" />
@@ -237,40 +214,25 @@ export function PostCard({
       </div>
 
       {post.content && (
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line font-inter">
-          {renderFormattedContent(post.content)}
-        </p>
+        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line break-words">{renderFormattedContent(post.content)}</p>
       )}
 
       {post.video_url && (
-        <div className="rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center relative shadow-xs">
+        <div className="rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center">
           {videoError ? (
             <div className="p-6 text-center space-y-2 text-white">
-              <p className="text-xs font-semibold text-slate-300">⚡ Vidéo en cours de traitement ou format non lisible</p>
+              <p className="text-xs font-semibold text-slate-300">Cette vidéo ne peut pas être lue ici.</p>
               <a
                 href={post.video_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all"
               >
-                Ouvrir la vidéo directement 🎬
+                Ouvrir la vidéo
               </a>
             </div>
           ) : (
-            <video
-              src={post.video_url.includes("#t=") ? post.video_url : `${post.video_url}#t=0.001`}
-              controls
-              preload="auto"
-              playsInline
-              onLoadedData={(e) => {
-                const el = e.currentTarget;
-                if (el && el.paused && el.currentTime === 0) {
-                  try { el.currentTime = 0.1; } catch (_) {}
-                }
-              }}
-              onError={() => setVideoError(true)}
-              className="h-full w-full object-contain"
-            />
+            <video src={post.video_url} controls preload="metadata" playsInline onError={() => setVideoError(true)} className="h-full w-full object-contain" />
           )}
         </div>
       )}
@@ -280,97 +242,60 @@ export function PostCard({
           href={post.link_preview.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 hover:bg-slate-100/80 transition-all p-3 space-y-2 group"
+          className="block rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 hover:bg-slate-100/80 transition-all p-3 space-y-1.5 group"
         >
           <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            <span className="flex items-center gap-1">
-              <Link2 className="h-3.5 w-3.5 text-[#0E7C66]" /> {post.link_preview.domain}
-            </span>
+            <span className="flex items-center gap-1"><Link2 className="h-3.5 w-3.5 text-[#0E7C66]" /> {post.link_preview.domain}</span>
             <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-[#0E7C66]" />
           </div>
-          <div className="flex gap-3 items-center">
-            {post.link_preview.image && (
-              <img src={post.link_preview.image} alt="" className="h-16 w-20 rounded-xl object-cover shrink-0" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-xs text-slate-900 group-hover:text-[#0E7C66] line-clamp-1">
-                {post.link_preview.title}
-              </p>
-              {post.link_preview.description && (
-                <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">
-                  {post.link_preview.description}
-                </p>
-              )}
-            </div>
-          </div>
+          <p className="font-bold text-xs text-slate-900 group-hover:text-[#0E7C66] line-clamp-1">{post.link_preview.title}</p>
+          {post.link_preview.description && <p className="text-[11px] text-slate-600 line-clamp-2">{post.link_preview.description}</p>}
         </a>
       )}
 
-      {post.media_urls && post.media_urls.length > 0 && (
-        <div className={`grid gap-2 rounded-2xl overflow-hidden ${
-          post.media_urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
-        }`}>
+      {post.media_urls.length > 0 && (
+        <div className={`grid gap-2 rounded-2xl overflow-hidden ${post.media_urls.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
           {post.media_urls.map((url, idx) => (
-            <div key={idx} className="relative aspect-4/3 bg-slate-100 overflow-hidden group">
-              <img
-                src={url}
-                alt=""
-                loading="lazy"
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-            </div>
+            <button
+              type="button"
+              key={`${url}-${idx}`}
+              onClick={() => setLightbox(url)}
+              className="relative aspect-[4/3] bg-slate-100 overflow-hidden group"
+              aria-label="Agrandir la photo"
+            >
+              <img src={url} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            </button>
           ))}
         </div>
       )}
 
       {post.attached_product && (
-        <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-white p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xs overflow-hidden max-w-full">
-          <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-            <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-white overflow-hidden shrink-0 border border-emerald-100 shadow-2xs">
+        <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-white p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 overflow-hidden max-w-full">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-white overflow-hidden shrink-0 border border-emerald-100">
               {post.attached_product.image_url ? (
                 <img src={post.attached_product.image_url} alt="" className="h-full w-full object-cover" />
               ) : (
-                <div className="h-full w-full flex items-center justify-center text-emerald-700 font-bold text-sm">
-                  <ShoppingBag className="h-6 w-6" />
-                </div>
+                <div className="h-full w-full flex items-center justify-center text-emerald-700"><ShoppingBag className="h-6 w-6" /></div>
               )}
             </div>
-
-            <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                <Badge className="bg-emerald-600 text-white text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider border-0 shrink-0">
-                  🛒 PRODUIT ECOMFY
-                </Badge>
-                {post.attached_product.category && (
-                  <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{post.attached_product.category}</span>
-                )}
+                <Badge className="bg-emerald-600 text-white text-[9px] font-extrabold uppercase tracking-wider border-0 shrink-0">Produit Ecomfy</Badge>
+                {post.attached_product.category && <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{post.attached_product.category}</span>}
               </div>
-              <h4 className="font-bold text-xs sm:text-sm text-slate-900 truncate max-w-full">
-                {post.attached_product.name}
-              </h4>
+              <h4 className="font-bold text-xs sm:text-sm text-slate-900 truncate">{post.attached_product.name}</h4>
               <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
-                <span className="text-sm sm:text-base font-extrabold text-[#0E7C66]">
-                  {post.attached_product.price.toLocaleString("fr-FR")} FCFA
-                </span>
+                <span className="text-sm sm:text-base font-extrabold text-[#0E7C66]">{post.attached_product.price.toLocaleString("fr-FR")} FCFA</span>
                 {post.attached_product.compare_at_price && post.attached_product.compare_at_price > post.attached_product.price && (
-                  <span className="text-[11px] text-slate-400 line-through">
-                    {post.attached_product.compare_at_price.toLocaleString("fr-FR")} FCFA
-                  </span>
+                  <span className="text-[11px] text-slate-400 line-through">{post.attached_product.compare_at_price.toLocaleString("fr-FR")} FCFA</span>
                 )}
               </div>
             </div>
           </div>
-
-          <Button
-            asChild
-            className="w-full sm:w-auto rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs h-9 sm:h-10 px-4 sm:px-5 shadow-md shrink-0 gap-1.5"
-          >
+          <Button asChild className="w-full sm:w-auto rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs h-10 px-5 shrink-0 gap-1.5">
             <a
-              href={
-                post.attached_product.shop_slug
-                  ? `/shop/${post.attached_product.shop_slug}/product?product=${post.attached_product.id}`
-                  : `/product-view?id=${post.attached_product.id}`
-              }
+              href={post.attached_product.shop_slug ? `/shop/${post.attached_product.shop_slug}/product?product=${post.attached_product.id}` : `/product-view?id=${post.attached_product.id}`}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -381,46 +306,46 @@ export function PostCard({
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs gap-2">
         <div className="flex items-center gap-1">
           <button
+            type="button"
+            onClick={() => onToggleReaction(post.id, "like")}
+            aria-pressed={post.user_reaction === "like"}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-full font-bold transition-all ${
+              post.user_reaction === "like" ? "bg-emerald-100 text-[#0E7C66]" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <ThumbsUp className={`h-4 w-4 ${post.user_reaction === "like" ? "fill-[#0E7C66]/20" : ""}`} />
+            <span>{post.likes_count}</span>
+            <span className="hidden sm:inline">J'aime</span>
+          </button>
+          <button
+            type="button"
             onClick={() => onToggleReaction(post.id, "love")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-all ${
-              post.user_reaction === "love"
-                ? "bg-rose-100 text-rose-600 shadow-2xs"
-                : "text-slate-600 hover:bg-slate-100"
+            aria-pressed={post.user_reaction === "love"}
+            aria-label="Réagir avec une flamme"
+            className={`flex items-center px-2.5 py-2 rounded-full transition-all ${
+              post.user_reaction === "love" ? "bg-rose-100 text-rose-600" : "text-slate-500 hover:bg-slate-100"
             }`}
           >
             <Flame className={`h-4 w-4 ${post.user_reaction === "love" ? "fill-rose-500 text-rose-500" : ""}`} />
-            <span>{post.likes_count}</span>
-          </button>
-
-          <button
-            onClick={() => onToggleReaction(post.id, "like")}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full font-bold transition-all ${
-              post.user_reaction === "like"
-                ? "bg-emerald-100 text-[#0E7C66]"
-                : "text-slate-500 hover:bg-slate-100"
-            }`}
-          >
-            <ThumbsUp className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => setShowComments(!showComments)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-slate-600 hover:bg-slate-100 transition-all"
+            type="button"
+            onClick={toggleComments}
+            aria-expanded={showComments}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full font-semibold text-slate-600 hover:bg-slate-100 transition-all"
           >
             <MessageSquare className="h-4 w-4" />
-            <span>{allComments.length} commentaires</span>
+            <span>
+              {post.comments_count} commentaire{post.comments_count > 1 ? "s" : ""}
+            </span>
           </button>
-
-          <button
-            onClick={handleShare}
-            className="p-2 rounded-full text-slate-500 hover:bg-slate-100 transition-all"
-            title="Partager la publication"
-          >
+          <button type="button" onClick={handleShare} className="p-2 rounded-full text-slate-500 hover:bg-slate-100 transition-all" aria-label="Partager la publication">
             <Share2 className="h-4 w-4" />
           </button>
         </div>
@@ -428,117 +353,158 @@ export function PostCard({
 
       {showComments && (
         <div className="pt-3 border-t border-slate-100 space-y-3">
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none text-base">
-            <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-wider mr-1">Émojis :</span>
-            {["😀", "😍", "🔥", "❤️", "👏", "🚀", "🎁", "💯", "🌿", "🛍️", "⚡", "👌", "👍", "🙌"].map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => setCommentText(prev => prev + emoji)}
-                className="hover:scale-125 transition-transform p-1 rounded-md hover:bg-slate-100 shrink-0 text-sm"
-                title={`Insérer ${emoji}`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
+          {canComment && (
+            <>
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 text-base" aria-label="Émojis">
+                {COMMENT_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setCommentText((prev) => prev + emoji)}
+                    className="hover:scale-125 transition-transform p-1 rounded-md hover:bg-slate-100 shrink-0 text-sm"
+                    aria-label={`Insérer ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Écrire un commentaire..."
+                  value={commentText}
+                  maxLength={2000}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submitComment(commentText, null)}
+                  className="h-10 text-xs rounded-full bg-slate-100 border-transparent focus:bg-white focus:border-slate-300"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => submitComment(commentText, null)}
+                  disabled={!commentText.trim() || sending}
+                  className="h-10 px-4 rounded-full bg-[#0E7C66] text-white"
+                  aria-label="Envoyer le commentaire"
+                >
+                  {sending && !replyingTo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </>
+          )}
 
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              placeholder="Écrire un commentaire..."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
-              className="h-9 text-xs rounded-full bg-slate-100 border-transparent focus:bg-white focus:border-slate-300"
-            />
-            <Button
-              size="sm"
-              onClick={handleAddComment}
-              disabled={!commentText.trim()}
-              className="h-9 px-3 rounded-full bg-[#0E7C66] text-white"
-            >
-              <Send className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-            {parentComments.map((c: any, idx: number) => {
-              const cId = c.id || `c-${idx}`;
-              const authorName = c.authorName || c.author?.full_name || "Membre";
-              const childReplies = allComments.filter(r => r.parent_id === cId);
-
-              return (
-                <div key={cId} className="space-y-2">
-                  <div className="bg-slate-50 p-3 rounded-2xl text-xs space-y-1.5 border border-slate-100">
-                    <div className="flex items-center justify-between font-bold text-slate-900">
-                      <span className="flex items-center gap-1.5">
-                        {authorName}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-normal">{c.date || "Récemment"}</span>
+          {comments === null ? (
+            <p className="text-center text-xs text-slate-400 py-3">Chargement…</p>
+          ) : commentsError ? (
+            <p className="text-center text-xs text-rose-500 py-3">Impossible de charger les commentaires.</p>
+          ) : topLevel.length === 0 ? (
+            <p className="text-center text-xs text-slate-400 py-3">Aucun commentaire pour le moment. Soyez le premier !</p>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {topLevel.map((c) => {
+                const name = c.author?.full_name || c.authorName || "Membre";
+                return (
+                  <div key={c.id} className="space-y-2">
+                    <div className="bg-slate-50 p-3 rounded-2xl text-xs space-y-1.5 border border-slate-100">
+                      <div className="flex items-center justify-between gap-2 font-bold text-slate-900">
+                        <button type="button" onClick={() => onOpenProfile?.(c.user_id)} className="hover:underline truncate text-left">{name}</button>
+                        <span className="text-[10px] text-slate-400 font-normal shrink-0">{timeAgo(c.created_at)}</span>
+                      </div>
+                      <p className="text-slate-700 break-words">{c.text}</p>
+                      <div className="flex items-center gap-4 pt-1 text-[11px] font-bold text-slate-500">
+                        <button
+                          type="button"
+                          onClick={() => likeComment(c.id)}
+                          aria-pressed={Boolean(c.user_liked)}
+                          className={`flex items-center gap-1 transition-colors ${c.user_liked ? "text-rose-600" : "hover:text-rose-600"}`}
+                        >
+                          <Heart className={`h-3 w-3 ${c.user_liked ? "fill-rose-500" : ""}`} />
+                          <span>J'aime{c.likes_count > 0 ? ` (${c.likes_count})` : ""}</span>
+                        </button>
+                        {canComment && (
+                          <button type="button" onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)} className="hover:text-[#0E7C66] flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3" /> Répondre
+                          </button>
+                        )}
+                        {c.user_id === currentUserId && onDeleteComment && (
+                          <button type="button" onClick={() => removeComment(c)} className="hover:text-rose-600 flex items-center gap-1">
+                            <X className="h-3 w-3" /> Supprimer
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-slate-700">{c.text || c.content}</p>
 
-                    <div className="flex items-center gap-3 pt-1 text-[11px] font-bold text-slate-500">
-                      <button
-                        type="button"
-                        onClick={() => handleLikeComment(cId)}
-                        className="hover:text-rose-600 flex items-center gap-1 transition-colors"
-                      >
-                        <Heart className="h-3 w-3" />
-                        <span>J'aime ({c.likes_count || 0})</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setReplyingCommentId(replyingCommentId === cId ? null : cId)}
-                        className="hover:text-[#0E7C66] flex items-center gap-1 transition-colors"
-                      >
-                        <MessageSquare className="h-3 w-3" />
-                        <span>Répondre</span>
-                      </button>
-                    </div>
-                  </div>
+                    {replyingTo === c.id && (
+                      <div className="pl-6 flex gap-2">
+                        <Input
+                          type="text"
+                          autoFocus
+                          placeholder={`Répondre à ${name}...`}
+                          value={replyText}
+                          maxLength={2000}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && submitComment(replyText, c.id)}
+                          className="h-9 text-[11px] rounded-full bg-emerald-50/60 border-emerald-200 focus:bg-white"
+                        />
+                        <Button size="sm" onClick={() => submitComment(replyText, c.id)} disabled={!replyText.trim() || sending} className="h-9 px-3 rounded-full bg-[#0E7C66] text-white text-xs font-bold">
+                          Répondre
+                        </Button>
+                      </div>
+                    )}
 
-                  {replyingCommentId === cId && (
-                    <div className="pl-6 flex gap-2 pt-1">
-                      <Input
-                        type="text"
-                        placeholder={`Répondre à ${authorName}...`}
-                        value={replyInputText}
-                        onChange={(e) => setReplyInputText(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleSendReply(cId, authorName)}
-                        className="h-8 text-[11px] rounded-full bg-emerald-50/60 border-emerald-200 focus:bg-white"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleSendReply(cId, authorName)}
-                        disabled={!replyInputText.trim()}
-                        className="h-8 px-3 rounded-full bg-[#0E7C66] text-white text-xs font-bold"
-                      >
-                        Répondre
-                      </Button>
-                    </div>
-                  )}
-
-                  {childReplies.length > 0 && (
-                    <div className="pl-6 space-y-2 border-l-2 border-emerald-100 ml-3">
-                      {childReplies.map((r: any, rIdx: number) => (
-                        <div key={r.id || rIdx} className="bg-emerald-50/40 p-2.5 rounded-xl text-xs space-y-1 border border-emerald-100/60">
-                          <div className="flex items-center justify-between font-bold text-slate-900">
-                            <span className="flex items-center gap-1">
-                              {r.authorName || r.author?.full_name || "Membre"}
-                            </span>
-                            <span className="text-[9px] text-slate-400 font-normal">{r.date || "Récemment"}</span>
+                    {repliesOf(c.id).length > 0 && (
+                      <div className="pl-6 space-y-2 border-l-2 border-emerald-100 ml-3">
+                        {repliesOf(c.id).map((r) => (
+                          <div key={r.id} className="bg-emerald-50/40 p-2.5 rounded-xl text-xs space-y-1 border border-emerald-100/60">
+                            <div className="flex items-center justify-between gap-2 font-bold text-slate-900">
+                              <button type="button" onClick={() => onOpenProfile?.(r.user_id)} className="hover:underline truncate text-left">
+                                {r.author?.full_name || r.authorName || "Membre"}
+                              </button>
+                              <span className="text-[10px] text-slate-400 font-normal shrink-0">{timeAgo(r.created_at)}</span>
+                            </div>
+                            <p className="text-slate-700 break-words">{r.text}</p>
+                            <div className="flex items-center gap-4 text-[11px] font-bold text-slate-500">
+                              <button type="button" onClick={() => likeComment(r.id)} aria-pressed={Boolean(r.user_liked)} className={`flex items-center gap-1 ${r.user_liked ? "text-rose-600" : "hover:text-rose-600"}`}>
+                                <Heart className={`h-3 w-3 ${r.user_liked ? "fill-rose-500" : ""}`} />
+                                <span>J'aime{r.likes_count > 0 ? ` (${r.likes_count})` : ""}</span>
+                              </button>
+                              {r.user_id === currentUserId && onDeleteComment && (
+                                <button type="button" onClick={() => removeComment(r)} className="hover:text-rose-600 flex items-center gap-1">
+                                  <X className="h-3 w-3" /> Supprimer
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-slate-700">{r.text || r.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette publication ?</AlertDialogTitle>
+            <AlertDialogDescription>Elle disparaîtra pour tout le monde, avec ses commentaires et ses j'aime. Cette action est définitive.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
+            <AlertDialogAction className="rounded-full bg-rose-600 hover:bg-rose-700" onClick={() => onDeletePost?.(post.id)}>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {lightbox && (
+        <div role="dialog" aria-label="Photo agrandie" onClick={() => setLightbox(null)} className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <button type="button" onClick={() => setLightbox(null)} className="absolute top-4 right-4 bg-white text-slate-900 p-2 rounded-full shadow-lg" aria-label="Fermer">
+            <X className="h-5 w-5" />
+          </button>
+          <img src={lightbox} alt="" className="max-w-full max-h-[90vh] object-contain rounded-2xl" />
         </div>
       )}
     </Card>

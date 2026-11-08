@@ -9,9 +9,7 @@ export interface LinkMetadata {
   ecomfyProductId?: string;
 }
 
-/**
- * Formats external URLs so they always open the real destination site (e.g. eudiasse.com -> https://eudiasse.com)
- */
+/** Ajoute https:// aux liens saisis sans protocole (eudiasse.com -> https://eudiasse.com). */
 export function formatExternalUrl(url?: string | null): string {
   if (!url || !url.trim()) return "#";
   const trimmed = url.trim();
@@ -21,74 +19,54 @@ export function formatExternalUrl(url?: string | null): string {
   return `https://${trimmed}`;
 }
 
-/**
- * Extracts URLs from text content
- */
+// Un lien = http(s)://…, www.… ou un nom de domaine suivi d'une extension courante.
+// (Sans cette liste, « fin.Ensuite » ou « ok.Merci » étaient pris pour des sites.)
+const URL_REGEX =
+  /(?:https?:\/\/[^\s]+|www\.[^\s]+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|ci|fr|app|shop|cloud|store|me|info|biz|africa|dev|xyz)\b(?:\/[^\s]*)?)/gi;
+
 export function extractUrlsFromText(text: string): string[] {
-  const urlRegex = /((?:https?:\/\/|www\.)[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/g;
-  const matches = text.match(urlRegex);
+  const matches = text.match(URL_REGEX);
   if (!matches) return [];
-  return Array.from(new Set(matches)).map(url => formatExternalUrl(url));
+  const cleaned = matches.map((m) => m.replace(/[.,;:!?)\]]+$/, ""));
+  return Array.from(new Set(cleaned)).map((url) => formatExternalUrl(url));
 }
 
 /**
- * Scrapes metadata from a given URL or generates clean OpenGraph preview card data
+ * Carte d'aperçu d'un lien. Le navigateur ne peut pas lire la page d'un autre site (CORS) : on n'affiche donc
+ * que ce qui est connu avec certitude (le domaine et l'adresse), sans image ni description inventées.
  */
-export function parseUrlMetadata(urlInput: string, contentText?: string): LinkMetadata {
+export function parseUrlMetadata(urlInput: string): LinkMetadata {
   const url = formatExternalUrl(urlInput);
   try {
     const parsedUrl = new URL(url);
     const domain = parsedUrl.hostname.replace(/^www\./, "");
-
-    // Check if URL is an Ecomfy shop / product link
-    const isEcomfyDomain = domain.includes("ecomfy") || domain.includes("localhost") || domain.includes("127.0.0.1");
     const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
 
-    let ecomfyShopSlug: string | undefined;
-    let ecomfyProductId: string | undefined;
-
-    if (pathParts.includes("shop")) {
-      const shopIndex = pathParts.indexOf("shop");
-      if (pathParts[shopIndex + 1]) {
-        ecomfyShopSlug = pathParts[shopIndex + 1];
-      }
-    }
-
-    const searchParams = parsedUrl.searchParams;
-    if (searchParams.has("product")) {
-      ecomfyProductId = searchParams.get("product") || undefined;
-    } else if (searchParams.has("id")) {
-      ecomfyProductId = searchParams.get("id") || undefined;
-    }
+    const shopIndex = pathParts.indexOf("shop");
+    const ecomfyShopSlug = shopIndex >= 0 ? pathParts[shopIndex + 1] : undefined;
+    const ecomfyProductId = parsedUrl.searchParams.get("product") || parsedUrl.searchParams.get("id") || undefined;
+    const isEcomfyDomain = domain.includes("ecomfy") || domain === "localhost" || domain === "127.0.0.1";
 
     if (isEcomfyDomain && (ecomfyShopSlug || ecomfyProductId)) {
       return {
         url,
-        domain: "ecomfy.cloud",
-        title: ecomfyShopSlug ? `Boutique Ecomfy : ${ecomfyShopSlug}` : "Produit Ecomfy",
-        description: "Découvrez cet article sur la boutique officielle Ecomfy avec commande rapide WhatsApp et livraison.",
-        image: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=800&auto=format&fit=crop&q=80",
+        domain,
+        title: ecomfyProductId && !ecomfyShopSlug ? "Produit Ecomfy" : `Boutique Ecomfy · ${ecomfyShopSlug}`,
+        description: "Ouvrir la boutique sur Ecomfy",
         isEcomfyLink: true,
         ecomfyShopSlug,
         ecomfyProductId,
       };
     }
 
-    // Default Web Link OpenGraph Metadata
     return {
       url,
       domain,
-      title: contentText ? contentText.slice(0, 60) : `Lien externe sur ${domain}`,
-      description: `Consultez le contenu partagé sur ${domain}`,
-      image: "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=800&auto=format&fit=crop&q=80",
+      title: domain,
+      description: parsedUrl.pathname.length > 1 ? `${domain}${parsedUrl.pathname}`.slice(0, 120) : undefined,
       isEcomfyLink: false,
     };
-  } catch (e) {
-    return {
-      url,
-      domain: "web",
-      title: "Lien partagé",
-      isEcomfyLink: false,
-    };
+  } catch {
+    return { url, domain: "web", title: "Lien partagé", isEcomfyLink: false };
   }
 }

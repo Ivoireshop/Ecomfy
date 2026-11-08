@@ -214,11 +214,6 @@
       "count": 3
     }
   },
-  "src/components/delivery/DeliveryIdentityVerificationStep.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/components/delivery/DeliveryOnboardingWizard.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
@@ -755,11 +750,6 @@
       "count": 1
     }
   },
-  "src/lib/identityVerificationEngine.ts": {
-    "prefer-const": {
-      "count": 1
-    }
-  },
   "src/lib/imageCompress.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -900,82 +890,6 @@
   "src/lib/useDeferredMount.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    }
-  },
-  "src/lib/verificationAuditService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/modules/connectus/components/ConnectUsDirectMessages.tsx": {
-    "no-empty": {
-      "count": 1
-    }
-  },
-  "src/modules/connectus/components/ConnectUsHeader.tsx": {
-    "@typescript-eslint/no-unused-expressions": {
-      "count": 2
-    }
-  },
-  "src/modules/connectus/components/ConnectUsProfileView.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/modules/connectus/components/CreatePostModal.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/modules/connectus/components/NotificationCenter.tsx": {
-    "no-empty": {
-      "count": 1
-    }
-  },
-  "src/modules/connectus/components/PostCard.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "no-empty": {
-      "count": 2
-    }
-  },
-  "src/modules/connectus/components/StoryViewerModal.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "no-empty": {
-      "count": 1
-    }
-  },
-  "src/modules/connectus/hooks/useConnectUs.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "no-empty": {
-      "count": 1
-    }
-  },
-  "src/modules/connectus/services/connectus.service.ts": {
-    "@typescript-eslint/ban-ts-comment": {
-      "count": 34
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
-    },
-    "no-empty": {
-      "count": 24
-    },
-    "prefer-const": {
-      "count": 15
-    }
-  },
-  "src/modules/connectus/utils/fileUploader.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "prefer-const": {
-      "count": 2
     }
   },
   "src/pages/AcceptShopInvite.tsx": {

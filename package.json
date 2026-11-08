@@ -21,8 +21,7 @@
     "preview": "vite preview",
     "native:setup": "bash scripts/setup-native.sh",
     "native:android": "npm run build && npx cap sync android && npx cap run android",
-    "native:ios": "npm run build && npx cap sync ios && npx cap run ios",
-    "seed:connectus": "node scripts/seed_connectus.js"
+    "native:ios": "npm run build && npx cap sync ios && npx cap run ios"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
