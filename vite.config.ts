@@ -29,7 +29,7 @@ export default defineConfig(({ command, mode }) => {
   return {
   server: {
     host: "::",
-    port: 8080,
+    port: 9080,
   },
   plugins: [
     react(),
