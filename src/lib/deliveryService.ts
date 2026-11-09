@@ -3,6 +3,7 @@ import {
   DeliveryAuditEntry,
   DeliveryCompany,
   DeliveryCompanyKyc,
+  DeliveryCompanyLocation,
   DeliveryDispatch,
   DeliveryCashTransfer,
   DeliveryNotification,
@@ -51,7 +52,10 @@ export interface DriverInput {
   /** Chemins dans le bucket privé delivery-kyc. */
   photo_url?: string;
   national_id_photo_url: string;
+  /** Verso : exigé pour une CNI, pas pour un passeport. */
+  national_id_back_photo_url?: string;
   license_photo_url: string;
+  license_back_photo_url: string;
   selfie_with_id_url: string;
 }
 
@@ -68,8 +72,14 @@ export interface RegisterApplicationInput {
     manager_phone: string;
     manager_whatsapp?: string;
     manager_id_photo_url: string;
+    manager_id_back_photo_url?: string;
     manager_selfie_with_id_url: string;
     warehouse_photo_url?: string;
+    /** Position précise de l'entrepôt (exigée d'une société). */
+    warehouse_latitude?: number;
+    warehouse_longitude?: number;
+    warehouse_accuracy_m?: number;
+    warehouse_location_source?: 'gps' | 'map';
     has_tax_registration: boolean;
     tax_id_number?: string;
     tax_document_url?: string;
@@ -102,13 +112,17 @@ export interface DeliveryDecisionResult {
   driversBlocked: Array<{ id: string; name: string; issues: string[] }>;
 }
 
-const COMPANY_SELECT = "*, hubs:delivery_hubs(*), drivers:delivery_drivers(*), kyc:delivery_company_kyc(*)";
+const COMPANY_SELECT =
+  "*, hubs:delivery_hubs(*), drivers:delivery_drivers(*), kyc:delivery_company_kyc(*), location:delivery_company_location(*)";
 
 const normalizeKyc = (value: unknown): DeliveryCompanyKyc | null =>
   ((Array.isArray(value) ? value[0] : value) as DeliveryCompanyKyc | undefined) ?? null;
 
+const normalizeLocation = (value: unknown): DeliveryCompanyLocation | null =>
+  ((Array.isArray(value) ? value[0] : value) as DeliveryCompanyLocation | undefined) ?? null;
+
 const withKyc = (row: Record<string, unknown>): DeliveryCompany =>
-  ({ ...row, kyc: normalizeKyc(row.kyc) }) as unknown as DeliveryCompany;
+  ({ ...row, kyc: normalizeKyc(row.kyc), location: normalizeLocation(row.location) }) as unknown as DeliveryCompany;
 
 export const deliveryService = {
   /**
@@ -267,7 +281,9 @@ export const deliveryService = {
       license_expiry: input.license_expiry,
       photo_url: input.photo_url || input.selfie_with_id_url,
       national_id_photo_url: input.national_id_photo_url,
+      national_id_back_photo_url: input.national_id_back_photo_url || null,
       license_photo_url: input.license_photo_url,
+      license_back_photo_url: input.license_back_photo_url || null,
       selfie_with_id_url: input.selfie_with_id_url,
     });
     if (error) throw new Error(error.message);

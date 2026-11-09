@@ -49,7 +49,7 @@ export function DeliveryDocUpload({ label, hint, field, category = "national_id"
 
   const done = !!value;
   return (
-    <div className={`p-4 rounded-xl border space-y-2 ${done ? "bg-emerald-950/20 border-emerald-500/30" : "bg-slate-950 border-slate-800"}`}>
+    <div className={`p-4 rounded-xl border space-y-2 h-full ${done ? "bg-emerald-950/20 border-emerald-500/30" : "bg-slate-950 border-slate-800"}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <Label className="text-xs font-bold text-white">{label}{required ? " *" : ""}</Label>

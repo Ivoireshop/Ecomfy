@@ -67,8 +67,13 @@ LANGUAGE sql IMMUTABLE AS $$
   SELECT jsonb_build_object(
     'company', jsonb_build_object('profile_type', p_type, 'company_name', p_name, 'city', 'Abidjan', 'country', 'Côte d''Ivoire', 'country_code', 'CI',
       'headquarters_address', 'Marcory', 'manager_first_name', 'Jean', 'manager_last_name', 'Kouassi', 'manager_phone', '+2250700000000',
-      'manager_id_photo_url', COALESCE(p_id_photo, p_uid::text || '/id.jpg'), 'manager_selfie_with_id_url', p_uid::text || '/selfie.jpg',
-      'warehouse_photo_url', CASE WHEN p_type = 'manager' THEN p_uid::text || '/wh.jpg' ELSE NULL END),
+      'manager_id_photo_url', COALESCE(p_id_photo, p_uid::text || '/id.jpg'), 'manager_id_back_photo_url', p_uid::text || '/id_back.jpg',
+      'manager_selfie_with_id_url', p_uid::text || '/selfie.jpg',
+      'warehouse_photo_url', CASE WHEN p_type = 'manager' THEN p_uid::text || '/wh.jpg' ELSE NULL END,
+      'warehouse_latitude', CASE WHEN p_type = 'manager' THEN 5.3364 ELSE NULL END,
+      'warehouse_longitude', CASE WHEN p_type = 'manager' THEN -4.0267 ELSE NULL END,
+      'warehouse_accuracy_m', CASE WHEN p_type = 'manager' THEN 12 ELSE NULL END,
+      'warehouse_location_source', CASE WHEN p_type = 'manager' THEN 'gps' ELSE NULL END),
     'kyc', jsonb_build_object('id_type', 'cni', 'id_number', p_idnum, 'id_expiry', (current_date + 1000)::text, 'date_of_birth', p_dob),
     'hubs', jsonb_build_array(jsonb_build_object('city', 'Abidjan', 'address', 'Marcory')),
     'drivers', p_drivers);
@@ -79,6 +84,7 @@ LANGUAGE sql IMMUTABLE AS $$
   SELECT jsonb_build_object('first_name', 'Koffi', 'last_name', 'Yao', 'phone', '+2250100000000', 'date_of_birth', '1992-02-02',
     'vehicle_type', p_vehicle, 'license_number', p_lic_no, 'license_categories', to_jsonb(p_cats), 'license_expiry', p_lic_exp::text,
     'id_expiry', (current_date + 900)::text, 'national_id_photo_url', p_uid::text || '/d_id.jpg',
+    'national_id_back_photo_url', p_uid::text || '/d_id_back.jpg', 'license_back_photo_url', p_uid::text || '/d_lic_back.jpg',
     'license_photo_url', p_uid::text || '/d_lic.jpg', 'selfie_with_id_url', p_uid::text || '/d_self.jpg');
 $$;
 

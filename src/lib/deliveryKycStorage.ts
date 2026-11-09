@@ -17,13 +17,16 @@ const EXT_BY_MIME: Record<string, string> = {
 
 export type DeliveryDocField =
   | "manager_id"
+  | "manager_id_back"
   | "manager_selfie"
   | "manager_photo"
   | "warehouse"
   | "tax_document"
   | "trade_register"
   | "driver_id"
+  | "driver_id_back"
   | "driver_license"
+  | "driver_license_back"
   | "driver_selfie"
   | "driver_photo";
 

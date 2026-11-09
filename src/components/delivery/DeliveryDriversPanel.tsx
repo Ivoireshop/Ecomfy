@@ -13,6 +13,7 @@ import { DeliveryDocUpload } from "./DeliveryDocUpload";
 import { DeliverySelfieCapture } from "./DeliverySelfieCapture";
 import { DriverLicenseFields } from "./DriverLicenseFields";
 import { emptyLicenseForm, licenseFormProblems, type LicenseFormState } from "@/lib/driverLicenseForm";
+import { driverDossierGaps } from "@/lib/deliveryDossier";
 import type { DeliveryCompany, DeliveryDriver } from "@/types/delivery";
 
 const eighteenYearsAgoIso = () => {
@@ -49,12 +50,13 @@ interface DriverFormState {
   idNumber: string;
   idExpiry: string;
   idPhoto: string;
+  idBackPhoto: string;
   selfie: string;
   license: LicenseFormState;
 }
 
 const blankForm = (): DriverFormState => ({
-  firstName: "", lastName: "", phone: "", dateOfBirth: "", idNumber: "", idExpiry: "", idPhoto: "", selfie: "", license: emptyLicenseForm(),
+  firstName: "", lastName: "", phone: "", dateOfBirth: "", idNumber: "", idExpiry: "", idPhoto: "", idBackPhoto: "", selfie: "", license: emptyLicenseForm(),
 });
 
 const formFromDriver = (d: DeliveryDriver): DriverFormState => ({
@@ -65,6 +67,7 @@ const formFromDriver = (d: DeliveryDriver): DriverFormState => ({
   idNumber: d.id_number ?? "",
   idExpiry: d.id_expiry ?? "",
   idPhoto: d.national_id_photo_url ?? "",
+  idBackPhoto: d.national_id_back_photo_url ?? "",
   selfie: d.selfie_with_id_url ?? "",
   license: {
     vehicleType: d.vehicle_type,
@@ -73,6 +76,7 @@ const formFromDriver = (d: DeliveryDriver): DriverFormState => ({
     categories: d.license_categories ?? [],
     licenseExpiry: d.license_expiry ?? "",
     licensePhoto: d.license_photo_url ?? "",
+    licenseBackPhoto: d.license_back_photo_url ?? "",
   },
 });
 
@@ -82,7 +86,8 @@ function formProblems(f: DriverFormState): string[] {
   if (!f.phone.trim()) out.push("Téléphone du livreur requis.");
   if (!f.dateOfBirth) out.push("Date de naissance requise.");
   else if (f.dateOfBirth > eighteenYearsAgoIso()) out.push("Le livreur doit être majeur.");
-  if (!f.idPhoto) out.push("Photo de la pièce d'identité requise.");
+  if (!f.idPhoto) out.push("Photo de la pièce d'identité (recto) requise.");
+  if (!f.idBackPhoto) out.push("Photo du verso de la pièce d'identité requise.");
   if (!f.selfie) out.push("Selfie avec la pièce d'identité requis.");
   return [...out, ...licenseFormProblems(f.license, f.idExpiry)];
 }
@@ -120,7 +125,9 @@ function DriverEditorDialog({ open, onOpenChange, company, driver, onSaved }: {
       license_categories: form.license.categories,
       license_expiry: form.license.licenseExpiry,
       national_id_photo_url: form.idPhoto,
+      national_id_back_photo_url: form.idBackPhoto,
       license_photo_url: form.license.licensePhoto,
+      license_back_photo_url: form.license.licenseBackPhoto,
       selfie_with_id_url: form.selfie,
     };
     setSaving(true);
@@ -161,7 +168,10 @@ function DriverEditorDialog({ open, onOpenChange, company, driver, onSaved }: {
             <div className="space-y-1.5"><Label htmlFor="d-ide" className="text-xs">Expiration de la pièce</Label><Input id="d-ide" type="date" value={form.idExpiry} onChange={(e) => patch({ idExpiry: e.target.value })} className={inputCls} /></div>
           </div>
 
-          <DeliveryDocUpload label="Pièce d'identité du livreur" field="driver_id" category="national_id" required value={form.idPhoto} onChange={(idPhoto) => patch({ idPhoto })} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <DeliveryDocUpload label="Pièce d'identité du livreur — recto" field="driver_id" category="national_id" required value={form.idPhoto} onChange={(idPhoto) => patch({ idPhoto })} />
+            <DeliveryDocUpload label="Pièce d'identité du livreur — verso" field="driver_id_back" category="national_id" required value={form.idBackPhoto} onChange={(idBackPhoto) => patch({ idBackPhoto })} />
+          </div>
           <DeliverySelfieCapture field="driver_selfie" value={form.selfie} onChange={(selfie) => patch({ selfie })} />
           <DriverLicenseFields value={form.license} onChange={(license) => patch({ license })} idExpiry={form.idExpiry} />
         </div>
@@ -227,6 +237,11 @@ export function DeliveryDriversPanel({ company, onChanged }: { company: Delivery
               </div>
               {(d.verification_status === "rejected" || d.verification_status === "suspended") && d.rejection_reason && (
                 <p className="text-[11px] text-rose-300 bg-rose-950/40 border border-rose-900 rounded-md px-2 py-1.5">Motif : {d.rejection_reason}</p>
+              )}
+              {d.verification_status !== "approved" && driverDossierGaps(d).length > 0 && (
+                <p className="text-[11px] text-amber-300 bg-amber-950/30 border border-amber-500/30 rounded-md px-2 py-1.5">
+                  À ajouter : {driverDossierGaps(d).map((g) => g.label.replace(`${d.full_name} : `, "")).join(", ")}. Utilisez le crayon pour corriger ce livreur.
+                </p>
               )}
               {soon && (
                 <p className="text-[11px] text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Permis : expire dans {left} jour(s). Mettez-le à jour pour éviter la suspension.</p>

@@ -23,7 +23,9 @@ import { VEHICLE_LICENSE_REQUIREMENTS } from "@/lib/vehicleLicenseMatcher";
 import { DeliveryDocUpload } from "./DeliveryDocUpload";
 import { DeliverySelfieCapture } from "./DeliverySelfieCapture";
 import { DriverLicenseFields } from "./DriverLicenseFields";
+import { WarehouseLocationPicker, type WarehouseLocationValue } from "./WarehouseLocationPicker";
 import { emptyLicenseForm, licenseFormProblems, type LicenseFormState } from "@/lib/driverLicenseForm";
+import { idNeedsBackSide } from "@/lib/deliveryDossier";
 import type { DeliveryProfileType, IdDocumentType } from "@/types/delivery";
 
 const COUNTRIES_LIST = [
@@ -77,12 +79,14 @@ export function DeliveryOnboardingWizard() {
 
   // Étape 2 : pièce d'identité (chemin dans le bucket privé)
   const [idPhoto, setIdPhoto] = useState("");
+  const [idPhotoBack, setIdPhotoBack] = useState("");
 
   // Étape 3 : permis + véhicule (livreur) ou structure + KYB (gérant)
   const [license, setLicense] = useState<LicenseFormState>(emptyLicenseForm());
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
   const [warehousePhoto, setWarehousePhoto] = useState("");
+  const [location, setLocation] = useState<WarehouseLocationValue | null>(null);
   const [hasTax, setHasTax] = useState(false);
   const [taxId, setTaxId] = useState("");
   const [taxDoc, setTaxDoc] = useState("");
@@ -93,6 +97,7 @@ export function DeliveryOnboardingWizard() {
   const [selfie, setSelfie] = useState("");
 
   const isDriver = profileType === "driver";
+  const needsBack = idNeedsBackSide(idType);
 
   const problemsFor = (target: number): string[] => {
     const out: string[] = [];
@@ -105,13 +110,17 @@ export function DeliveryOnboardingWizard() {
       if (idNumber.trim().length < 4) out.push("Indiquez le numéro de votre pièce d'identité.");
       if (idExpiry && idExpiry < todayIso()) out.push("Votre pièce d'identité est expirée.");
     }
-    if (target === 2 && !idPhoto) out.push("Importez la photo de votre pièce d'identité.");
+    if (target === 2) {
+      if (!idPhoto) out.push(needsBack ? "Importez la photo du recto de votre pièce d'identité." : "Importez la photo de la page de votre passeport.");
+      if (needsBack && !idPhotoBack) out.push("Importez la photo du verso de votre pièce d'identité.");
+    }
     if (target === 3) {
       if (isDriver) out.push(...licenseFormProblems(license, idExpiry));
       else {
         if (!companyName.trim()) out.push("Indiquez le nom de votre société ou boutique.");
         if (!address.trim()) out.push("Indiquez l'adresse du siège ou de l'entrepôt.");
         if (!warehousePhoto) out.push("Importez la photo de votre entrepôt principal.");
+        if (!location) out.push("Indiquez la localisation de votre entrepôt : utilisez votre position ou placez le point sur la carte.");
         if (hasTax && !taxId.trim() && !tradeRegister.trim()) out.push("Indiquez votre numéro fiscal (NIF) ou de registre du commerce (RCCM).");
       }
     }
@@ -151,8 +160,13 @@ export function DeliveryOnboardingWizard() {
           manager_phone: phone.trim(),
           manager_whatsapp: whatsapp.trim() || phone.trim(),
           manager_id_photo_url: idPhoto,
+          manager_id_back_photo_url: needsBack ? idPhotoBack : undefined,
           manager_selfie_with_id_url: selfie,
           warehouse_photo_url: isDriver ? undefined : warehousePhoto,
+          warehouse_latitude: isDriver ? undefined : location?.latitude,
+          warehouse_longitude: isDriver ? undefined : location?.longitude,
+          warehouse_accuracy_m: isDriver ? undefined : location?.accuracy_m ?? undefined,
+          warehouse_location_source: isDriver ? undefined : location?.source,
           has_tax_registration: !isDriver && hasTax,
           tax_id_number: !isDriver && hasTax ? taxId.trim() : undefined,
           tax_document_url: !isDriver && hasTax ? taxDoc || undefined : undefined,
@@ -178,7 +192,9 @@ export function DeliveryOnboardingWizard() {
               license_categories: license.categories,
               license_expiry: license.licenseExpiry,
               national_id_photo_url: idPhoto,
+              national_id_back_photo_url: needsBack ? idPhotoBack : undefined,
               license_photo_url: license.licensePhoto,
+              license_back_photo_url: license.licenseBackPhoto,
               selfie_with_id_url: selfie,
             }]
           : [],
@@ -240,7 +256,7 @@ export function DeliveryOnboardingWizard() {
           </CardTitle>
           <CardDescription className="text-slate-400 text-xs">
             {step === 1 && "Saisissez votre identité exactement comme sur votre pièce : l'équipe la compare au document."}
-            {step === 2 && "Importez une photo nette et entière de votre pièce d'identité, non expiré."}
+            {step === 2 && (needsBack ? "Importez le recto et le verso de votre pièce d'identité : photos nettes, entières, pièce non expirée." : "Importez la page de votre passeport comportant votre photo : image nette et entière, passeport non expiré.")}
             {step === 3 && (isDriver ? "Déclarez votre permis : la catégorie doit correspondre au véhicule utilisé." : "Présentez votre structure ; un numéro fiscal ou de registre du commerce renforce votre dossier.")}
             {step === 4 && "Une photo de vous tenant votre pièce d'identité ouverte, visage et document lisibles."}
             {step === 5 && "Relisez avant d'envoyer : votre dossier sera examiné par une personne de l'équipe."}
@@ -313,15 +329,28 @@ export function DeliveryOnboardingWizard() {
           )}
 
           {step === 2 && (
-            <DeliveryDocUpload
-              label={idType === "passport" ? "Passeport" : "Carte nationale d'identité"}
-              hint="Image nette et entière (JPG, PNG, WEBP) ou PDF. Une facture ou un reçu sera refusé par l'équipe."
-              field="manager_id"
-              category="national_id"
-              required
-              value={idPhoto}
-              onChange={setIdPhoto}
-            />
+            <div className={`grid grid-cols-1 gap-4 ${needsBack ? "sm:grid-cols-2" : ""}`}>
+              <DeliveryDocUpload
+                label={needsBack ? "Carte nationale d'identité — recto" : "Passeport — page photo"}
+                hint="Image nette et entière (JPG, PNG, WEBP) ou PDF. Une facture ou un reçu sera refusé par l'équipe."
+                field="manager_id"
+                category="national_id"
+                required
+                value={idPhoto}
+                onChange={setIdPhoto}
+              />
+              {needsBack && (
+                <DeliveryDocUpload
+                  label="Carte nationale d'identité — verso"
+                  hint="Le dos de la carte, lisible et entier."
+                  field="manager_id_back"
+                  category="national_id"
+                  required
+                  value={idPhotoBack}
+                  onChange={setIdPhotoBack}
+                />
+              )}
+            </div>
           )}
 
           {step === 3 && isDriver && <DriverLicenseFields value={license} onChange={setLicense} idExpiry={idExpiry} />}
@@ -333,6 +362,7 @@ export function DeliveryOnboardingWizard() {
                 <Field id="w-addr" label="Adresse du siège ou de l'entrepôt *"><Input id="w-addr" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Ex: Marcory Zone 4, Abidjan" className={inputCls} /></Field>
               </div>
               <DeliveryDocUpload label="Photo de l'entrepôt principal" hint="Façade ou intérieur, lisible." field="warehouse" category="warehouse_photo" accept="image/*" required value={warehousePhoto} onChange={setWarehousePhoto} />
+              <WarehouseLocationPicker required value={location} onChange={setLocation} />
 
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
                 <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer">
@@ -362,11 +392,12 @@ export function DeliveryOnboardingWizard() {
             <div className="space-y-4">
               <ul className="space-y-2 text-xs">
                 {[
-                  { ok: !!idPhoto, text: `Pièce d'identité (${idType === "passport" ? "passeport" : "CNI"} n° ${idNumber.trim() || "—"})` },
+                  { ok: !!idPhoto && (!needsBack || !!idPhotoBack), text: `Pièce d'identité (${idType === "passport" ? "passeport" : "CNI recto et verso"}, n° ${idNumber.trim() || "—"})` },
                   { ok: !!selfie, text: "Selfie avec la pièce d'identité" },
                   isDriver
                     ? { ok: licenseFormProblems(license, idExpiry).length === 0, text: `Permis ${license.categories.join("+") || "—"} pour ${VEHICLE_LICENSE_REQUIREMENTS[license.vehicleType].label}` }
                     : { ok: !!warehousePhoto && !!companyName.trim(), text: `Structure « ${companyName.trim() || "—"} »${hasTax ? " (immatriculée)" : ""}` },
+                  ...(isDriver ? [] : [{ ok: !!location, text: location ? `Localisation de l'entrepôt (${location.source === "gps" ? "GPS" : "carte"})` : "Localisation de l'entrepôt" }]),
                 ].map((row) => (
                   <li key={row.text} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
                     <span className="font-semibold text-slate-200">{row.text}</span>

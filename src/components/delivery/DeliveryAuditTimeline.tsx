@@ -9,6 +9,8 @@ const ACTION_LABELS: Record<string, string> = {
   reverification_required: "Nouvelle vérification requise (pièces modifiées)",
   status_changed: "Décision sur le dossier",
   documents_updated: "Documents mis à jour",
+  location_recorded: "Localisation de l'entrepôt enregistrée",
+  location_updated: "Localisation de l'entrepôt modifiée",
   identity_recorded: "Identité du responsable enregistrée",
   identity_updated: "Identité du responsable modifiée",
   note_added: "Note interne",
