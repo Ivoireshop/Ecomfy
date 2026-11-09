@@ -44,7 +44,7 @@ Sans cette ligne, le fondateur serait refusé à l'entrée.
 
 ## Points restants (non traités)
 
-1. **`subscription_plans` absente de la dev** : la migration `20261107100000` n'y est plus (probablement effacée par le miroir prod→dev du 04/11). Le MRR utilise donc les tarifs de repli du code, qui donnent le même résultat aujourd'hui. **En prod, appliquer cette migration avant le front** (voir `DEPLOIEMENT-PLANS-ABONNEMENT-2026-11.md`), sinon les tarifs modifiés par le fondateur ne sont pas pris en compte.
+1. **`subscription_plans` était absente de la dev** (migration `20261107100000` effacée par le miroir prod→dev du 04/11). Elle a été rejouée seule sur la dev le 09/11 pour la recette des plans, sans être enregistrée dans l'historique des migrations ; le MRR (24 000 FCFA) lit maintenant la table. **En prod, appliquer cette migration avant le front** (voir `DEPLOIEMENT-PLANS-ABONNEMENT-2026-11.md`), sinon les tarifs modifiés par le fondateur ne sont pas pris en compte.
 2. **`includes("djateulrich")` restants** : `src/pages/AssociateSpace.tsx` (`isMainFounder`) et `src/pages/CorporateGovernance.tsx` (3 occurrences). Effet d'affichage seulement (un e-mail comme `x.djateulrich@…` y serait traité en fondateur principal à l'écran, sans droit côté serveur). À remplacer par le rôle réel.
 3. **`FOUNDER_EMAILS`** dans `supabase/functions/app-health-monitor/index.ts` : liste d'e-mails destinataires des alertes, pas un contrôle d'accès. À laisser ou à lire depuis `user_roles`.
 4. **Modal « Activer par ID »** : la résolution par **nom** (`ilike`) prend la boutique la plus récente en cas d'homonymes. Préférer l'ID ou le slug.

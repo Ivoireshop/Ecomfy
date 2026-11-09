@@ -379,6 +379,8 @@ export default function SubscriptionPlansAdmin() {
       invalidate();
       await Promise.all([refetchPlans(), refetchSettings(), loadOverview()]);
     } catch (e) {
+      // On referme la confirmation : le brouillon reste affiché et modifiable, le message d'erreur est lisible.
+      setConfirm(null);
       toast({ title: "Enregistrement impossible", description: e instanceof Error ? e.message : "Réessayez dans un instant.", variant: "destructive" });
     } finally {
       setSaving(false);
