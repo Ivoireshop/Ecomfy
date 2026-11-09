@@ -16,7 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, Send, X, Store, Phone, Search, Heart, Star, ChevronRight, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard, ShieldCheck } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, MessageCircle, X, Store, Phone, Search, Star, MapPin, Mail, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, User, Truck, CreditCard, ShieldCheck, Flame } from "lucide-react";
+import {
+  buildCatalogView, categoryCounts, discountPercent, lowStockCount, matchesQuery, pickFeatured,
+  restoreCart, serializeCart, SORT_OPTIONS, type SortKey,
+} from "@/lib/shopCatalog";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
 import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
@@ -85,6 +89,9 @@ const ShopView = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [orderLoading, setOrderLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("relevance");
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [variantChoice, setVariantChoice] = useState<Record<string, string>>({});
   // Produits à stock 0 dont le marchand a désactivé « Autoriser les commandes au-delà du stock » (réglage lu dans
@@ -214,6 +221,39 @@ const ShopView = () => {
   }, [shop?.id, customerInfo.name, customerInfo.phone, customerInfo.email, customerInfo.city, customerInfo.address, customerInfo.paymentMethod, cart]);
 
   useEffect(() => { fetchShop(); }, [slug, id]);
+
+  useEffect(() => { setGalleryIndex(0); }, [selectedProduct?.id]);
+
+  // Panier conservé d'une visite à l'autre (et au retour d'une fiche produit) : seules les lignes sont stockées,
+  // les prix viennent toujours des produits chargés puis du serveur.
+  const [cartHydrated, setCartHydrated] = useState(false);
+  useEffect(() => {
+    if (cartHydrated || !shop?.id || products.length === 0) return;
+    if (!shop._isPreview) {
+      try {
+        const raw = localStorage.getItem(`vp_cart_${shop.id}`);
+        const restored = raw ? restoreCart(JSON.parse(raw), products) : [];
+        if (restored.length > 0) setCart(prev => (prev.length > 0 ? prev : restored));
+      } catch { /* stockage indisponible ou contenu corrompu : on repart d'un panier vide */ }
+    }
+    setCartHydrated(true);
+  }, [shop?.id, shop?._isPreview, products, cartHydrated]);
+  useEffect(() => {
+    if (!cartHydrated || !shop?.id || shop._isPreview) return;
+    try {
+      const key = `vp_cart_${shop.id}`;
+      if (cart.length > 0) localStorage.setItem(key, JSON.stringify(serializeCart(cart)));
+      else localStorage.removeItem(key);
+    } catch { /* navigation privée : le panier reste en mémoire */ }
+  }, [cart, cartHydrated, shop?.id, shop?._isPreview]);
+  // Quand le catalogue est rafraîchi, les lignes du panier reprennent les données à jour (nom, prix, image).
+  useEffect(() => {
+    if (!cartHydrated) return;
+    const byId = new Map(products.map(p => [p.id, p]));
+    setCart(prev => (prev.some(i => byId.has(i.product.id) && byId.get(i.product.id) !== i.product)
+      ? prev.map(i => ({ ...i, product: byId.get(i.product.id) ?? i.product }))
+      : prev));
+  }, [products, cartHydrated]);
 
   // Preload the ProductView chunk as soon as the shop renders so the first
   // tap on a product card is instant on mobile (no hover to trigger prefetch).
@@ -462,16 +502,24 @@ const ShopView = () => {
   const tShop = shop ? mergeShop(shop) : shop;
   const tProducts = products.map((p) => mergeProduct(p as any));
 
-  const categories = ["all", ...new Set(tProducts.map(p => p.category).filter(Boolean))];
-  const filteredProducts = tProducts.filter(p => {
-    const matchCat = selectedCategory === "all" || p.category === selectedCategory;
-    const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
+  const categoryList = categoryCounts(tProducts);
+  const { items: effectiveFeaturedProducts, isCurated: hasCuratedFeatured } = pickFeatured(tProducts);
+  const catalog = buildCatalogView({
+    products: tProducts,
+    featured: effectiveFeaturedProducts,
+    category: selectedCategory,
+    query: searchQuery,
+    sort: sortKey,
+    featuredEnabled: shop?.theme_config?.featured_enabled !== false,
+    showAllOnHome: shop?.theme_config?.show_all_products_on_home === true,
   });
-  const featuredProducts = tProducts.filter(p => p.is_featured);
-  const effectiveFeaturedProducts = featuredProducts.length > 0 ? featuredProducts : tProducts.slice(0, 4);
+  const filteredProducts = catalog.items;
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const hasMore = filteredProducts.length > visibleCount;
+  // Suggestions de la barre de recherche : les 5 premiers résultats, sans attendre l'appui sur Entrée.
+  const suggestions = searchQuery.trim().length >= 2
+    ? tProducts.filter(p => matchesQuery(p, searchQuery)).slice(0, 5)
+    : [];
 
   useEffect(() => {
     const candidates = products
@@ -501,7 +549,23 @@ const ShopView = () => {
   // Reset window whenever the active filter / search changes.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [selectedCategory, searchQuery, products.length]);
+  }, [selectedCategory, searchQuery, sortKey, products.length]);
+
+  // Une recherche ou un filtre doit montrer ses résultats : on amène le catalogue à l'écran à la première saisie.
+  const wasFilteringRef = useRef(false);
+  useEffect(() => {
+    if (catalog.isFiltering && !wasFilteringRef.current) {
+      const t = setTimeout(() => {
+        const el = document.getElementById("products");
+        if (!el) return;
+        const top = el.getBoundingClientRect().top;
+        if (top < 0 || top > window.innerHeight * 0.6) window.scrollTo({ top: window.scrollY + top - 120, behavior: "smooth" });
+      }, 250);
+      wasFilteringRef.current = true;
+      return () => clearTimeout(t);
+    }
+    if (!catalog.isFiltering) wasFilteringRef.current = false;
+  }, [catalog.isFiltering]);
 
   // Auto-load more on scroll using an IntersectionObserver sentinel.
   useEffect(() => {
@@ -774,7 +838,476 @@ const ShopView = () => {
     cacheInvalidate(`orders:${shop.id}`);
   };
 
-  if (homepageConfig?.enabled && Array.isArray(homepageConfig?.sections) && homepageConfig.sections.length > 0 && !classicOptOut) {
+  const useBuilderHomepage = !!(homepageConfig?.enabled && Array.isArray(homepageConfig?.sections) && homepageConfig.sections.length > 0 && !classicOptOut);
+  const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+  const goToProduct = (p: Product) => {
+    const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
+    navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
+  };
+
+  const submitSearch = () => {
+    setSuggestOpen(false);
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const renderSearchBox = (heightClass: string, padClass: string) => (
+    <>
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" aria-hidden="true" />
+      <Input
+        type="search"
+        role="combobox"
+        aria-expanded={suggestOpen && suggestions.length > 0}
+        aria-controls="shop-search-suggestions"
+        aria-label="Rechercher un produit"
+        placeholder="Rechercher un produit..."
+        value={searchQuery}
+        onChange={e => { setSearchQuery(e.target.value); setSuggestOpen(true); }}
+        onFocus={() => setSuggestOpen(true)}
+        onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+        onKeyDown={e => {
+          if (e.key === "Enter") { e.preventDefault(); submitSearch(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === "Escape") setSuggestOpen(false);
+        }}
+        className={`${padClass} ${searchQuery ? "pr-10" : ""} ${heightClass} bg-gray-100/80 border-transparent focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary rounded-full shadow-inner transition-all hover:bg-gray-100 [&::-webkit-search-cancel-button]:hidden`}
+      />
+      {searchQuery && (
+        <button
+          type="button"
+          aria-label="Effacer la recherche"
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => { setSearchQuery(""); setSuggestOpen(false); }}
+          className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full flex items-center justify-center text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+      {suggestOpen && searchQuery.trim().length >= 2 && (
+        <div id="shop-search-suggestions" role="listbox" className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl border border-gray-100 bg-white text-gray-900 shadow-2xl">
+          {suggestions.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-gray-500">Aucun produit pour « {searchQuery.trim()} »</p>
+          ) : (
+            <>
+              {suggestions.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setSuggestOpen(false); goToProduct(p as Product); }}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none"
+                >
+                  <span className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    {p.product_images?.[0] && <img src={thumbUrl(p.product_images[0].image_url, 128)} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{p.name}</span>
+                    {p.category && <span className="block truncate text-[11px] text-gray-500">{p.category}</span>}
+                  </span>
+                  <span className="shrink-0 text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(p.price)} FCFA</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={submitSearch}
+                className="flex w-full items-center justify-between border-t border-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+              >
+                Voir les {filteredProducts.length} résultat{filteredProducts.length > 1 ? "s" : ""} <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  // Fenêtres produit / panier / commande, bouton de panier flottant et widgets différés : communs à l'accueil
+  // classique et à l'accueil personnalisé (sinon « Ajouter au panier » n'avait aucun panier à ouvrir).
+  const overlays = (
+    <>
+    {/* Product Detail Dialog */}
+    <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) { setSelectedProduct(null); setVariantChoice({}); } }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+        {selectedProduct && (
+          <>
+            <div className="aspect-square max-h-[45vh] w-full rounded-xl overflow-hidden bg-muted mb-4">
+              {selectedProduct.product_images?.[galleryIndex] || selectedProduct.product_images?.[0] ? (
+                <img src={thumbUrl((selectedProduct.product_images[galleryIndex] || selectedProduct.product_images[0]).image_url, 1200)} alt={selectedProduct.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center"><Store className="h-16 w-16 text-muted-foreground/30" /></div>
+              )}
+            </div>
+            {selectedProduct.product_images && selectedProduct.product_images.length > 1 && (
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                {selectedProduct.product_images.map((img, i) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => setGalleryIndex(i)}
+                    aria-label={`Voir l'image ${i + 1}`}
+                    aria-current={i === galleryIndex}
+                    className={`shrink-0 rounded-lg border-2 transition-all hover:-translate-y-0.5 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${i === galleryIndex ? "border-primary shadow-sm" : "border-transparent opacity-70 hover:opacity-100"}`}
+                  >
+                    <img src={thumbUrl(img.image_url, 128)} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 rounded-md object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <DialogTitle className="text-2xl font-bold">{selectedProduct.name}</DialogTitle>
+                  <Badge variant="outline" className="mt-1">{selectedProduct.category}</Badge>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold" style={{ color: primaryColor }}>{formatPrice(selectedProduct.price)} FCFA</p>
+                  {selectedProduct.compare_at_price && selectedProduct.compare_at_price > selectedProduct.price && (
+                    <p className="text-sm text-muted-foreground line-through">{formatPrice(selectedProduct.compare_at_price)} FCFA</p>
+                  )}
+                </div>
+              </div>
+              {/* La description complète est du HTML riche : l'afficher telle quelle montrait les balises <p>, <strong>… */}
+              {(selectedProduct.short_description || selectedProduct.description) && (
+                <p className="text-muted-foreground leading-relaxed">
+                  {selectedProduct.short_description || htmlToPlainText(selectedProduct.description, 280)}
+                </p>
+              )}
+              {usableVariantGroups(selectedProduct.variants).length > 0 && (
+                <div className="pt-1">
+                  {/* Même sélecteur que la fiche produit : les options « Blanc (S, M, L) » y sont séparées en couleur + taille.
+                      Avant, le client voyait un seul bouton « Blanc (S, M, L) » sans pouvoir choisir la taille. */}
+                  <SmartVariantSelector
+                    variants={selectedProduct.variants as any}
+                    selectedVariants={variantChoice}
+                    onChange={(key, value) => setVariantChoice(prev => ({ ...prev, [key]: value }))}
+                    primaryColor={primaryColor}
+                    preselect={false}
+                  />
+                </div>
+              )}
+              <div className="flex gap-3 pt-2">
+                {shop._isPreview ? (
+                  <div className="flex-1 rounded-xl border-2 border-dashed px-4 py-3 text-center text-xs text-muted-foreground" style={{ borderColor: primaryColor + "40" }}>
+                    🔒 Commande disponible après activation de la boutique
+                  </div>
+                ) : (
+                  (() => {
+                    const groups = usableVariantGroups(selectedProduct.variants);
+                    const missing = missingVariantGroups(selectedProduct.variants, variantChoice);
+                    const ready = missing.length === 0;
+                    return (
+                      <Button
+                        className="flex-1 rounded-xl gap-2 h-12 text-base"
+                        style={{ backgroundColor: primaryColor, opacity: ready ? 1 : 0.6 }}
+                        disabled={!ready}
+                        onClick={() => { addToCart(selectedProduct, groups.length > 0 ? variantChoice : null); setSelectedProduct(null); setVariantChoice({}); }}
+                      >
+                        <ShoppingCart className="h-5 w-5" />
+                        {ready ? "Ajouter au panier" : `Choisir : ${missing.join(", ")}`}
+                      </Button>
+                    );
+                  })()
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+
+    {/* Checkout Dialog */}
+    <Dialog open={checkoutOpen} onOpenChange={(open) => { setCheckoutOpen(open); if (!open) { setCheckoutStep("cart"); setOrderSuccess(false); } }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl p-0">
+        {orderSuccess ? (
+          <div className="text-center py-12 px-6">
+            <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: primaryColor + "15" }}>
+              <CheckCircle2 className="h-10 w-10" style={{ color: primaryColor }} />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Commande confirmée ! 🎉</h2>
+            <p className="text-muted-foreground mb-6">Le vendeur vous contactera sous peu pour finaliser votre commande.</p>
+            <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); setCheckoutStep("cart"); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
+              Continuer mes achats
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Step Indicator */}
+            <div className="px-6 pt-6 pb-2">
+              <div className="flex items-center justify-between mb-1">
+                {[
+                  { key: "cart", label: "Panier", icon: ShoppingBag },
+                  { key: "info", label: "Livraison", icon: Truck },
+                  { key: "confirm", label: "Paiement", icon: CreditCard },
+                ].map((step, i) => {
+                  const steps = ["cart", "info", "confirm"];
+                  const currentIdx = steps.indexOf(checkoutStep);
+                  const stepIdx = i;
+                  const isActive = stepIdx === currentIdx;
+                  const isDone = stepIdx < currentIdx;
+                  return (
+                    <div key={step.key} className="flex items-center flex-1">
+                      <div className="flex flex-col items-center flex-1">
+                        <div
+                          className={`h-9 w-9 rounded-full flex items-center justify-center mb-1 transition-colors ${!isDone && !isActive ? "bg-muted text-muted-foreground" : "text-primary-foreground"}`}
+                          style={isDone || isActive ? { backgroundColor: primaryColor } : {}}
+                        >
+                          {isDone ? <CheckCircle2 className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
+                        </div>
+                        <span className={`text-[11px] font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{step.label}</span>
+                      </div>
+                      {i < 2 && <div className={`h-0.5 flex-1 mx-1 rounded-full mt-[-14px] ${isDone ? "" : "bg-muted"}`} style={isDone ? { backgroundColor: primaryColor } : {}} />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Step: Cart */}
+            {checkoutStep === "cart" && (
+              <div className="px-6 pb-6">
+                {cart.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+                    <p className="font-medium">Votre panier est vide</p>
+                    <p className="text-sm text-muted-foreground mt-1">Parcourez nos produits et ajoutez vos coups de cœur</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {cart.map(item => (
+                      <div key={cartKey(item.product.id, item.selectedVariants)} className="flex items-start gap-3 p-3 bg-muted/30 rounded-xl">
+                      <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
+                        {item.product.product_images?.[0] && <img src={thumbUrl(item.product.product_images[0].image_url, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold line-clamp-2">{item.product.name}</p>
+                        {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between gap-2 flex-wrap mt-1.5">
+                          <p className="text-sm font-bold whitespace-nowrap" style={{ color: primaryColor }}>{formatPrice(item.product.price * item.quantity)} FCFA</p>
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" aria-label="Retirer une unité" onClick={() => updateQuantity(cartKey(item.product.id, item.selectedVariants), -1)} disabled={item.quantity <= 1}><Minus className="h-3 w-3" /></Button>
+                            <span className="text-sm w-7 text-center font-semibold" aria-live="polite">{item.quantity}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" aria-label="Ajouter une unité" onClick={() => updateQuantity(cartKey(item.product.id, item.selectedVariants), 1)}><Plus className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1 hover:bg-destructive/10" aria-label="Supprimer du panier" onClick={() => removeFromCart(cartKey(item.product.id, item.selectedVariants))}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                    <div className="border-t pt-3 mt-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-lg">Total</span>
+                        <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
+                      </div>
+                    </div>
+                    {themeConfig?.cart_banner_enabled === true && (
+                      <div
+                        className="rounded-xl px-4 py-3 text-center text-sm font-medium"
+                        style={{ backgroundColor: themeConfig.cart_banner_bg || "#FEF3C7", color: themeConfig.cart_banner_text_color || "#92400E" }}
+                      >
+                        {themeConfig.cart_banner_text || "🚚 Livraison gratuite pour les commandes de plus de 10 000 FCFA"}
+                      </div>
+                    )}
+                    <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
+                      Continuer <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step: Info + Paiement + Confirmation (vue compacte) */}
+            {(checkoutStep === "info" || checkoutStep === "confirm") && (() => {
+              const cf: any[] = shop.checkout_fields || [];
+              const enabled = (id: string) => {
+                const f = cf.find((x: any) => x.id === id);
+                return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
+              };
+              const required = (id: string) => {
+                const f = cf.find((x: any) => x.id === id);
+                return f ? !!f.required : ["first_name","phone","city"].includes(id);
+              };
+              const showFullName = enabled("first_name") && enabled("last_name");
+              const showFirstOnly = enabled("first_name") && !enabled("last_name");
+              const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
+              const canSubmit =
+                (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
+                (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
+                (!enabled("city") || !required("city") || !!customerInfo.city) &&
+                (!enabled("city") || !containsDigits(customerInfo.city)) &&
+                (!enabled("address") || !required("address") || !!customerInfo.address);
+              return (
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
+                <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Retour au panier
+                </button>
+                {/* Résumé compact */}
+                <div className="bg-muted/30 rounded-xl p-3 space-y-1 text-xs">
+                  {cart.map(item => (
+                    <div key={cartKey(item.product.id, item.selectedVariants)} className="flex justify-between gap-2">
+                      <span className="text-muted-foreground truncate">
+                        {item.product.name}
+                        {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                          <span className="opacity-70"> ({Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
+                        )}
+                        {" × "}{item.quantity}
+                      </span>
+                      <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
+                    </div>
+                  ))}
+                  {promoDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-medium">
+                      <span>Code {promo?.code}</span>
+                      <span>- {formatPrice(promoDiscount)} FCFA</span>
+                    </div>
+                  )}
+                  <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
+                    <span>Total</span>
+                    <span style={{ color: primaryColor }}>{formatPrice(payableTotal)} FCFA</span>
+                  </div>
+                </div>
+                <PromoCodeField
+                  shopId={shop.id}
+                  subtotal={cartTotal}
+                  customerPhone={customerInfo.phone}
+                  customerEmail={customerInfo.email}
+                  primaryColor={primaryColor}
+                  applied={promo}
+                  onChange={setPromo}
+                />
+                {/* Infos client */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+                    <h4 className="font-bold text-xs">Vos informations</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {enabled("first_name") && (
+                      <div className="space-y-0.5 col-span-2">
+                        <Label className="text-[11px] text-muted-foreground">{nameLabel} {required("first_name") && "*"}</Label>
+                        <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-lg h-10 text-sm" />
+                      </div>
+                    )}
+                    {enabled("phone") && (
+                      <div className="space-y-0.5 col-span-2">
+                        <Label className="text-[11px] text-muted-foreground">Téléphone {required("phone") && "*"}</Label>
+                        <PhoneInput
+                          value={customerInfo.phone}
+                          onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
+                          defaultCountryHint={shop?.country}
+                          required={required("phone")}
+                          hideHint={shop?.theme_config?.hide_phone_format_hint === true}
+                        />
+                      </div>
+                    )}
+                    {enabled("email") && (
+                      <div className="space-y-0.5 col-span-2">
+                        <Label className="text-[11px] text-muted-foreground">Email {required("email") && "*"}</Label>
+                        <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-lg h-10 text-sm" />
+                      </div>
+                    )}
+                    {enabled("city") && (
+                      <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                        <Label className="text-[11px] text-muted-foreground">Ville {required("city") && "*"}</Label>
+                        <Input value={customerInfo.city} onChange={(e) => {
+                          const raw = e.target.value;
+                          const cleaned = stripDigits(raw);
+                          setCustomerInfo({ ...customerInfo, city: cleaned });
+                          if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
+                          else if (cityError) setCityError("");
+                        }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                        {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
+                      </div>
+                    )}
+                    {enabled("address") && (
+                      <div className={`space-y-0.5 col-span-2 ${enabled("city") ? "sm:col-span-1" : ""}`}>
+                        <Label className="text-[11px] text-muted-foreground">Adresse {required("address") && "*"}</Label>
+                        <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-lg h-10 text-sm" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Paiement */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" style={{ color: primaryColor }} />
+                    <h4 className="font-bold text-xs">Mode de paiement</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: "mobile_money", label: "Mobile Money", icon: "📱" },
+                      { value: "cash_on_delivery", label: "À la livraison", icon: "💵" },
+                    ].map(method => (
+                      <button
+                        key={method.value}
+                        onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-muted"}`}
+                        style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
+                      >
+                        <span className="text-lg">{method.icon}</span>
+                        <div>
+                          <p className="font-semibold text-xs">{method.label}</p>
+                          {method.value === "mobile_money" && (
+                            <p className="text-[9px] text-muted-foreground">Orange, MTN, Wave, Moov</p>
+                          )}
+                        </div>
+                        {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto flex-shrink-0" style={{ color: primaryColor }} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Button className="w-full h-11 rounded-xl text-sm font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
+                  {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(payableTotal)} FCFA</>}
+                </Button>
+              </div>
+              );
+            })()}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+
+
+
+    {/* Floating Cart Button - Mobile */}
+    {!shop._isPreview && cartCount > 0 && !checkoutOpen && (
+      <div className={`fixed bottom-6 left-6 right-20 z-40 ${useBuilderHomepage ? "md:right-auto md:w-80" : "md:hidden"}`}>
+        <Button
+          className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2 hover:brightness-110"
+          style={{ backgroundColor: primaryColor }}
+          onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
+        >
+          <ShoppingBag className="h-5 w-5" />
+          Voir le panier · {formatPrice(cartTotal)} FCFA
+          <Badge className="ml-auto bg-primary-foreground/20 text-primary-foreground">{cartCount}</Badge>
+        </Button>
+      </div>
+    )}
+
+    {/* Social Proof Notifications + AI Assistant (deferred for faster LCP) */}
+    {deferredReady && (
+      <Suspense fallback={null}>
+        <SocialProofNotification
+          shopId={shop.id}
+          enabled={shop.social_proof_enabled || false}
+          shopName={shop.business_name}
+        />
+        <ShopAIAssistant
+          shopId={shop.id}
+          shopName={shop.business_name}
+          primaryColor={shop.primary_color}
+          secondaryColor={shop.secondary_color}
+          hideEcomfyBranding={shop.theme_config?.hide_ecomfy_branding === true}
+        />
+      </Suspense>
+    )}
+    </>
+  );
+
+  if (useBuilderHomepage) {
     return (
       <>
         <Helmet>
@@ -782,26 +1315,46 @@ const ShopView = () => {
           <meta name="description" content={shop.seo_description || shop.business_description || `Boutique ${shop.business_name}`} />
           <link rel="canonical" href={window.location.href} />
         </Helmet>
+        {shop._isPreview && (
+          <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium">
+            ⚠️ Mode prévisualisation — Cette boutique n'est pas encore en ligne
+          </div>
+        )}
+        {selectedCategory !== "all" && (
+          <div className="sticky top-0 z-40 flex items-center justify-center gap-3 border-b bg-white/95 px-4 py-2.5 text-sm backdrop-blur">
+            <span className="text-gray-600">Catégorie : <b className="text-gray-900">{selectedCategory}</b></span>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("all")}
+              className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            >
+              <X className="h-3 w-3" /> Tout voir
+            </button>
+          </div>
+        )}
         <HomepageRenderer
           config={homepageConfig}
           shop={shop}
-          products={products}
+          products={selectedCategory === "all" ? products : products.filter(p => p.category === selectedCategory)}
           primaryColor={primaryColor}
           onAddToCart={(p) => addToCart(p)}
-          onViewProduct={(p) => {
-            if (p.slug) navigate(`/shop/${shop.slug}/p/${p.slug}`);
-            else setSelectedProduct(p);
+          onViewProduct={(p) => goToProduct(p)}
+          onSelectCategory={(cat) => {
+            setSelectedCategory(cat);
+            // Les produits de la catégorie s'affichent plus bas : on y amène le visiteur.
+            setTimeout(() => document.querySelector("[data-products-section]")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
           }}
-          onSelectCategory={(cat) => setSelectedCategory(cat)}
           onActionClick={(action, url) => {
             if (action === "checkout") {
-              setCheckoutOpen(true);
+              if (cart.length > 0) { setCheckoutOpen(true); setOrderSuccess(false); }
+              else toast({ title: "Votre panier est vide", description: "Ajoutez un produit pour commander." });
             } else if (url && url.startsWith("/")) {
               navigate(url);
             }
           }}
           onDirectOrder={handleDirectOrderFromHomepage}
         />
+        {overlays}
       </>
     );
   }
@@ -825,8 +1378,6 @@ const ShopView = () => {
       </>
     );
   }
-
-  const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
   // « Nombre de colonnes de produits (Desktop) » du menu Thème : 3, 4 (défaut) ou 5 ; 2 colonnes sur mobile.
   const productsGridCols = themeConfig?.products_per_row === 3
@@ -856,16 +1407,21 @@ const ShopView = () => {
         {shopImage && <meta name="twitter:image" content={shopImage} />}
       </Helmet>
       <div className="min-h-screen bg-background">
-      {/* Top Promo Banner */}
-      <div className="text-white text-center py-2 px-4 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase flex items-center justify-center gap-2 shadow-sm relative z-50" style={{ backgroundColor: primaryColor }}>
-        <span>Livraison gratuite partout</span>
-        <span className="text-base sm:text-lg">🎁</span>
-      </div>
+      {/* Bandeau d'annonce : le texte est celui du marchand (Thème > Bandeau d'annonce). Plus de promesse
+          « Livraison gratuite partout » écrite en dur, fausse pour la plupart des boutiques. */}
+      {themeConfig?.top_banner_enabled === true && (themeConfig?.top_banner_text || "").trim() && (
+        <div
+          className="text-center py-2 px-4 text-[11px] sm:text-xs font-bold tracking-wide shadow-sm relative z-50"
+          style={{ backgroundColor: themeConfig.top_banner_bg || primaryColor, color: themeConfig.top_banner_text_color || readableTextOn(themeConfig.top_banner_bg || primaryColor) }}
+        >
+          {themeConfig.top_banner_text}
+        </div>
+      )}
 
       <ShopReviewBar themeConfig={themeConfig} placement="above" />
       {/* Preview Mode Banner */}
       {shop._isPreview && (
-        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-[60] shadow-sm">
+        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium shadow-sm">
           ⚠️ Mode prévisualisation — Cette boutique n'est pas encore en ligne
         </div>
       )}
@@ -926,15 +1482,9 @@ const ShopView = () => {
             })()}
           </div>
           
-          {/* Search - Desktop */}
-          <div className="hidden md:flex relative flex-1 max-w-xl mx-auto group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[color:var(--shop-header-desktop-btn)] group-focus-within:text-primary transition-colors" />
-            <Input 
-              placeholder="Rechercher un produit..." 
-              value={searchQuery} 
-              onChange={e => setSearchQuery(e.target.value)} 
-              className="pl-12 bg-gray-100/80 border-transparent focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary rounded-full h-12 text-base shadow-inner transition-all hover:bg-gray-100"
-            />
+          {/* Recherche : suggestions en direct, accents ignorés, Entrée = voir tous les résultats */}
+          <div className="hidden md:block relative flex-1 max-w-xl mx-auto">
+            {renderSearchBox("h-12 text-base", "pl-12")}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -949,7 +1499,7 @@ const ShopView = () => {
               </a>
             )}
             <Button 
-              className="gap-2 rounded-full relative h-10 sm:h-12 px-4 sm:px-6 font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5" 
+              className="gap-2 rounded-full relative h-10 sm:h-12 px-4 sm:px-6 font-bold shadow-md hover:shadow-lg hover:brightness-110 transition-all hover:-translate-y-0.5" aria-label={`Ouvrir le panier${cartCount > 0 ? ` (${cartCount} article${cartCount > 1 ? "s" : ""})` : ""}`}
               style={{ backgroundColor: primaryColor, color: "#fff" }}
               onClick={() => {
                 if (shop._isPreview) return;
@@ -967,6 +1517,12 @@ const ShopView = () => {
                 </span>
               )}
             </Button>
+          </div>
+        </div>
+        {/* Recherche mobile : accessible dès l'en-tête, plus seulement dans la section « Tous les produits » */}
+        <div className="md:hidden px-4 pb-3">
+          <div className="relative">
+            {renderSearchBox("h-11 text-base", "pl-11")}
           </div>
         </div>
       </header>
@@ -989,7 +1545,7 @@ const ShopView = () => {
         const overlayOpacity = (themeConfig?.hero_overlay_opacity ?? 65) / 100;
 
         return (
-          <section className="relative overflow-hidden bg-gray-950 w-full min-h-[520px] sm:min-h-[640px] flex items-center justify-center">
+          <section className="relative overflow-hidden bg-gray-950 w-full min-h-[440px] sm:min-h-[560px] flex items-center justify-center">
             {heroBannerUrl ? (
               <div className="absolute inset-0">
                 <img 
@@ -997,7 +1553,7 @@ const ShopView = () => {
                   alt={heroTitle || "Bannière d'accueil"} 
                   loading="eager" 
                   decoding="async" 
-                  fetchPriority="high" 
+                  {...{ fetchpriority: "high" }}
                   className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" 
                 />
                 <div 
@@ -1040,9 +1596,11 @@ const ShopView = () => {
                       </div>
                     )}
 
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-white/10 backdrop-blur-md text-white border border-white/20 mb-4 shadow-sm">
-                      <span>✨ Boutique Officielle</span>
-                    </div>
+                    {(themeConfig?.hero_badge_text || "").trim() && (
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest bg-white/10 backdrop-blur-md text-white border border-white/20 mb-4 shadow-sm">
+                        <span>{themeConfig.hero_badge_text}</span>
+                      </div>
+                    )}
 
                     {showTitle && (
                       <h1 dir={isRtlLang(shopLang) ? "rtl" : undefined} className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tighter drop-shadow-2xl leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-200">
@@ -1062,15 +1620,15 @@ const ShopView = () => {
               <div className="flex gap-4 sm:gap-5 justify-center flex-wrap">
                 <Button 
                   size="lg" 
-                  className="rounded-full gap-2 font-black shadow-2xl h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg hover:scale-105 transition-all active:scale-95" 
+                  className="rounded-full gap-2 font-black shadow-2xl h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg hover:scale-105 hover:brightness-110 transition-all active:scale-95" 
                   style={{ backgroundColor: primaryColor, color: "#fff" }} 
-                  onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}
+                  onClick={() => (document.getElementById("featured") ?? document.getElementById("products"))?.scrollIntoView({ behavior: "smooth" })}
                 >
                   <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" /> {heroCtaText}
                 </Button>
                 {shop.whatsapp_number && (
                   <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                    <Button size="lg" variant="outline" className="rounded-full gap-2 border-white/30 text-white bg-white/10 hover:bg-white/20 backdrop-blur-md h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg shadow-xl transition-all hover:scale-105 active:scale-95">
+                    <Button size="lg" variant="outline" className="rounded-full gap-2 border-white/30 text-white bg-white/10 hover:bg-white/25 hover:text-white hover:border-white/60 backdrop-blur-md h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg shadow-xl transition-all hover:scale-105 active:scale-95">
                       <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" /> Nous contacter
                     </Button>
                   </a>
@@ -1088,173 +1646,191 @@ const ShopView = () => {
         );
       })()}
 
-      {/* Reassurance Bar / Trust Badges (Shopify Style) */}
-      <section className="bg-white border-b border-gray-100 py-6 px-4 shadow-sm">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
-            <div className="p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0 shadow-sm">
-              <Truck className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div className="text-center md:text-left">
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Livraison Rapide</h4>
-              <p className="text-[11px] text-gray-500 hidden sm:block">Expédition sécurisée partout</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0 shadow-sm">
-              <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div className="text-center md:text-left">
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Paiement Sécurisé</h4>
-              <p className="text-[11px] text-gray-500 hidden sm:block">À la livraison ou Mobile Money</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
-            <div className="p-3 rounded-xl bg-purple-50 text-purple-600 shrink-0 shadow-sm">
-              <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div className="text-center md:text-left">
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Support Client 7j/7</h4>
-              <p className="text-[11px] text-gray-500 hidden sm:block">Assistance directe WhatsApp</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
-            <div className="p-3 rounded-xl bg-amber-50 text-amber-600 shrink-0 shadow-sm">
-              <Star className="h-5 w-5 sm:h-6 sm:w-6 fill-amber-400" />
-            </div>
-            <div className="text-center md:text-left">
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">Qualité Garantie</h4>
-              <p className="text-[11px] text-gray-500 hidden sm:block">Produits 100% authentiques</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Products */}
-      {effectiveFeaturedProducts.length > 0 && themeConfig?.featured_enabled !== false && (
-        <section className="max-w-7xl mx-auto px-4 py-12 sm:py-20">
-          <div className="flex flex-col items-center justify-center mb-8 sm:mb-12 text-center">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-3 bg-amber-50 text-amber-700 border border-amber-200">
-              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-              {featuredProducts.length > 0 ? "En vedette" : "Sélection spéciale"}
-            </div>
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-gray-900 mb-2">
-              {themeConfig?.featured_title || "Produits vedettes"}
-            </h2>
-            <p className="text-sm sm:text-base text-gray-500 max-w-xl">
-              Découvrez nos meilleures sélections et offres coup de cœur de la boutique.
-            </p>
-            <div className="w-20 h-1.5 rounded-full mt-4" style={{ backgroundColor: primaryColor }} />
-          </div>
-          <div className={`grid grid-cols-2 ${productsGridCols} gap-4 sm:gap-6 lg:gap-8`}>
-            {effectiveFeaturedProducts.slice(0, 4).map((product, idx) => (
-              <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} onAddToCart={addToCart} eager={idx < 4} onView={(p) => {
-                const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
-                navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
-              }} formatPrice={formatPrice} />
+      {/* Réassurance : uniquement des engagements réels (modes de paiement proposés au checkout, WhatsApp si renseigné).
+          Avant : « Support 7j/7 », « Produits 100% authentiques », « Expédition sécurisée partout » écrits en dur. */}
+      {themeConfig?.trust_bar_enabled !== false && (
+        <section className="bg-white border-b border-gray-100 py-5 px-4 shadow-sm" aria-label="Nos engagements">
+          <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
+            {[
+              { icon: Truck, tone: "bg-blue-50 text-blue-600", title: "Livraison à domicile", sub: shop.city ? `Depuis ${shop.city}` : "Directement chez vous", show: true },
+              { icon: ShieldCheck, tone: "bg-emerald-50 text-emerald-600", title: "Paiement sécurisé", sub: "À la livraison ou Mobile Money", show: true },
+              { icon: MessageCircle, tone: "bg-purple-50 text-purple-600", title: "Support WhatsApp", sub: "Réponse directe du vendeur", show: !!shop.whatsapp_number },
+              { icon: CheckCircle2, tone: "bg-amber-50 text-amber-600", title: "Commande simple", sub: "Sans compte, en 2 minutes", show: true },
+            ].filter(i => i.show).map(item => (
+              <div key={item.title} className="flex flex-col md:flex-row items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50/80 border border-gray-100/80">
+                <div className={`p-3 rounded-xl shrink-0 shadow-sm ${item.tone}`}>
+                  <item.icon className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+                </div>
+                <div className="text-center md:text-left">
+                  <h4 className="font-extrabold text-xs sm:text-sm text-gray-900">{item.title}</h4>
+                  <p className="text-[11px] text-gray-500 hidden sm:block">{item.sub}</p>
+                </div>
+              </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* All Products - Optionnel sur l'accueil si les produits vedettes sont déjà affichés */}
-      {(themeConfig?.show_all_products_on_home === true || effectiveFeaturedProducts.length === 0 || themeConfig?.featured_enabled === false) && (
-        <section id="products" className="max-w-7xl mx-auto px-4 py-12 sm:py-16 pb-24 bg-gray-50/50 rounded-3xl mb-12 border border-gray-100">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-          <div>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Tous les produits</h2>
-            <p className="text-muted-foreground text-lg">Découvrez l'intégralité de notre catalogue</p>
+      {/* Produits vedettes (masqués pendant une recherche ou un filtre : les résultats prennent la place) */}
+      {catalog.showFeatured && (
+        <section id="featured" className="max-w-7xl mx-auto px-4 py-10 sm:py-16 scroll-mt-24">
+          <div className="flex flex-col items-center justify-center mb-8 sm:mb-10 text-center">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider mb-3 bg-amber-50 text-amber-700 border border-amber-200">
+              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+              {hasCuratedFeatured ? "En vedette" : "Sélection spéciale"}
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-gray-900 mb-2">
+              {themeConfig?.featured_title || "Produits vedettes"}
+            </h2>
+            <div className="w-20 h-1.5 rounded-full mt-3" style={{ backgroundColor: primaryColor }} />
           </div>
-          
-          {/* Mobile Search */}
-          <div className="md:hidden relative w-full mt-2">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-12 bg-white border-gray-200 rounded-full h-14 text-base shadow-sm focus-visible:ring-primary" />
+          <div className={`grid grid-cols-2 ${productsGridCols} gap-3 sm:gap-6 lg:gap-8`}>
+            {effectiveFeaturedProducts.map((product, idx) => (
+              <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} onAddToCart={addToCart} eager={idx < 4} onView={goToProduct} formatPrice={formatPrice} />
+            ))}
           </div>
-        </div>
+          {catalog.showCatalog && catalog.items.length > 0 && (
+            <div className="flex justify-center mt-8">
+              <Button
+                variant="outline"
+                className="rounded-full h-12 px-6 font-bold border-2 gap-2 hover:bg-gray-900 hover:text-white hover:border-gray-900"
+                onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                Voir {catalog.excludesFeatured ? `les ${catalog.items.length} autres produits` : "tous les produits"} <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
 
-        {/* Categories Chips */}
-        {categories.length > 1 && (
-          <div className="flex gap-3 overflow-x-auto pb-6 mb-4 scrollbar-hide snap-x">
-            {categories.map(cat => {
-              const isActive = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`snap-start whitespace-nowrap px-6 py-3 rounded-full text-sm sm:text-base font-bold transition-all duration-300 shadow-sm ${isActive ? "text-white shadow-md ring-2 ring-offset-2 ring-offset-gray-50 scale-105" : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"}`}
-                  style={isActive ? ({ backgroundColor: primaryColor, "--tw-ring-color": primaryColor } as React.CSSProperties) : {}}
+      {/* Catalogue : toujours atteignable (avant, avec les réglages par défaut seuls 4 produits étaient visibles) */}
+      {catalog.showCatalog && (
+        <div id="products" className="max-w-7xl mx-auto px-3 sm:px-4 mb-12 scroll-mt-24">
+          <section className="rounded-3xl border border-gray-100 bg-gray-50/50 px-4 sm:px-8 py-8 sm:py-12">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl sm:text-4xl font-black tracking-tight mb-1">
+                  {catalog.isFiltering ? "Résultats" : catalog.excludesFeatured ? "Plus de produits" : "Tous les produits"}
+                </h2>
+                <p className="text-muted-foreground" aria-live="polite">
+                  {filteredProducts.length} produit{filteredProducts.length > 1 ? "s" : ""}
+                  {searchQuery.trim() && <> pour « {searchQuery.trim()} »</>}
+                  {selectedCategory !== "all" && <> dans « {selectedCategory} »</>}
+                  {catalog.isFiltering && (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }}
+                      className="ml-2 font-semibold underline underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      Réinitialiser
+                    </button>
+                  )}
+                </p>
+              </div>
+              {filteredProducts.length > 1 && (
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="shrink-0">Trier par</span>
+                  <select
+                    value={sortKey}
+                    onChange={e => setSortKey(e.target.value as SortKey)}
+                    className="h-10 rounded-full border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:border-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  >
+                    {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+
+            {/* Catégories (avec effectifs) */}
+            {categoryList.length > 2 && (
+              <div className="flex gap-2.5 overflow-x-auto pb-4 mb-2 scrollbar-hide snap-x -mx-1 px-1" role="tablist" aria-label="Catégories">
+                {categoryList.map(cat => {
+                  const isActive = selectedCategory === cat.name;
+                  return (
+                    <button
+                      key={cat.name}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => setSelectedCategory(cat.name)}
+                      className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-200 shadow-sm hover:-translate-y-0.5 ${isActive ? "text-white shadow-md hover:brightness-110" : "bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 border border-gray-200"}`}
+                      style={isActive ? { backgroundColor: primaryColor } : {}}
+                    >
+                      {cat.name === "all" ? "Tout voir" : cat.name}
+                      <span className={`ml-1.5 text-xs font-semibold ${isActive ? "opacity-80" : "text-gray-400"}`}>{cat.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className={`grid grid-cols-2 ${productsGridCols} gap-3 sm:gap-6 lg:gap-8`}>
+              {visibleProducts.map((product, idx) => (
+                <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} eager={idx < 4 && !catalog.showFeatured} onAddToCart={addToCart} onView={goToProduct} formatPrice={formatPrice} />
+              ))}
+            </div>
+            {hasMore && (
+              <div ref={loadMoreRef} className="flex justify-center py-10">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full h-14 px-8 font-bold border-2 hover:bg-gray-900 hover:text-white hover:border-gray-900"
+                  onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
                 >
-                  {cat === "all" ? "Tout voir" : cat}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <div className={`grid grid-cols-2 ${productsGridCols} gap-4 sm:gap-6 lg:gap-8`}>
-          {visibleProducts.map((product, idx) => (
-            <ProductCard key={product.id} product={product} primaryColor={primaryColor} soldOut={soldOutIds.has(product.id)} eager={idx < 4 && featuredProducts.length === 0} onAddToCart={addToCart} onView={(p) => {
-              const base = shop._isPreview ? `/shop-preview/${shop.id}` : `/shop/${shop.slug}`;
-              navigate((p as any).slug ? `${base}/p/${(p as any).slug}` : `${base}/product?product=${p.id}`);
-            }} formatPrice={formatPrice} />
-          ))}
+                  Afficher plus de produits ({filteredProducts.length - visibleCount} restants)
+                </Button>
+              </div>
+            )}
+            {filteredProducts.length === 0 && (
+              <div className="text-center py-16 sm:py-24 bg-white rounded-3xl border border-gray-100 shadow-sm mt-4">
+                <ShoppingBag className="h-16 w-16 sm:h-20 sm:w-20 mx-auto text-gray-200 mb-5" />
+                {products.length === 0 ? (
+                  <>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Les produits arrivent bientôt</p>
+                    <p className="text-gray-500">Cette boutique prépare son catalogue. Revenez très vite.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Aucun produit trouvé</p>
+                    <p className="text-gray-500">Essayez un autre mot ou une autre catégorie.</p>
+                    <Button variant="outline" className="mt-6 rounded-full hover:bg-gray-900 hover:text-white" onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }}>
+                      Réinitialiser la recherche
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+          </section>
         </div>
-        {hasMore && (
-          <div ref={loadMoreRef} className="flex justify-center py-12">
-            <Button
-              variant="outline"
-              size="lg"
-              className="rounded-full h-14 px-8 font-bold border-2 hover:bg-gray-100"
-              onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-            >
-              Afficher plus de produits ({filteredProducts.length - visibleCount} restants)
-            </Button>
-          </div>
-        )}
-        {filteredProducts.length === 0 && (
-          <div className="text-center py-24 bg-white rounded-3xl border border-gray-100 shadow-sm mt-8">
-            <ShoppingBag className="h-20 w-20 mx-auto text-gray-200 mb-6" />
-            <p className="text-2xl font-bold text-gray-800 mb-2">Aucun produit trouvé</p>
-            <p className="text-gray-500 text-lg">Essayez de modifier vos filtres ou votre recherche.</p>
-            <Button variant="outline" className="mt-6 rounded-full" onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }}>
-              Réinitialiser la recherche
-            </Button>
-          </div>
-        )}
-      </section>
       )}
 
       {/* Contact Section */}
-      {themeConfig?.contact_section_enabled !== false && (
-      <section className="bg-gray-900 text-white py-16 sm:py-24">
+      {themeConfig?.contact_section_enabled !== false && (shop.whatsapp_number || shop.phone_number || shop.email) && (
+      <section className="bg-gray-900 text-white py-14 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-3xl sm:text-4xl font-black mb-4">Besoin d'aide ?</h2>
-          <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">Notre équipe est à votre disposition pour répondre à toutes vos questions.</p>
-          <div className="flex flex-wrap gap-4 sm:gap-6 justify-center">
+          <h2 className="text-3xl sm:text-4xl font-black mb-3">Besoin d'aide ?</h2>
+          <p className="text-gray-400 text-base sm:text-lg mb-8 max-w-2xl mx-auto">Posez-nous vos questions avant de commander, nous vous répondons directement.</p>
+          <div className="flex flex-wrap gap-3 sm:gap-5 justify-center">
             {shop.whatsapp_number && (
-              <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" className="rounded-full gap-2 h-14 px-8 text-base font-bold hover:scale-105 transition-transform" style={{ backgroundColor: "#25D366", color: "white" }}>
+              <Button asChild size="lg" className="rounded-full gap-2 h-14 px-8 text-base font-bold text-white hover:scale-105 hover:brightness-110 transition-all" style={{ backgroundColor: "#25D366" }}>
+                <a href={`https://wa.me/${shop.whatsapp_number.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="h-5 w-5" /> Discuter sur WhatsApp
-                </Button>
-              </a>
+                </a>
+              </Button>
             )}
             {shop.phone_number && (
-              <a href={`tel:${shop.phone_number}`}>
-                <Button size="lg" variant="outline" className="rounded-full gap-2 h-14 px-8 text-base font-bold border-gray-700 hover:bg-gray-800 hover:text-white">
+              <Button asChild size="lg" variant="outline" className="rounded-full gap-2 h-14 px-8 text-base font-bold bg-transparent text-white border-white/30 hover:bg-white/15 hover:text-white hover:border-white/60">
+                <a href={`tel:${shop.phone_number}`}>
                   <Phone className="h-5 w-5" /> {shop.phone_number}
-                </Button>
-              </a>
+                </a>
+              </Button>
             )}
             {shop.email && (
-              <a href={`mailto:${shop.email}`}>
-                <Button size="lg" variant="outline" className="rounded-full gap-2 h-14 px-8 text-base font-bold border-gray-700 hover:bg-gray-800 hover:text-white">
+              <Button asChild size="lg" variant="outline" className="rounded-full gap-2 h-14 px-8 text-base font-bold bg-transparent text-white border-white/30 hover:bg-white/15 hover:text-white hover:border-white/60">
+                <a href={`mailto:${shop.email}`}>
                   <Mail className="h-5 w-5" /> Nous écrire
-                </Button>
-              </a>
+                </a>
+              </Button>
             )}
           </div>
         </div>
@@ -1304,374 +1880,7 @@ const ShopView = () => {
         </div>
       </footer>
 
-      {/* Product Detail Dialog */}
-      <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) { setSelectedProduct(null); setVariantChoice({}); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedProduct && (
-            <>
-              <div className="aspect-square rounded-xl overflow-hidden bg-muted mb-4">
-                {selectedProduct.product_images?.[0] ? (
-                  <img src={thumbUrl(selectedProduct.product_images[0].image_url, 1200)} alt={selectedProduct.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><Store className="h-16 w-16 text-muted-foreground/30" /></div>
-                )}
-              </div>
-              {selectedProduct.product_images && selectedProduct.product_images.length > 1 && (
-                <div className="flex gap-2 mb-4 overflow-x-auto">
-                  {selectedProduct.product_images.map((img, i) => (
-                    <img key={img.id} src={thumbUrl(img.image_url, 128)} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 rounded-lg object-cover border-2 border-transparent hover:border-primary cursor-pointer" />
-                  ))}
-                </div>
-              )}
-              <div className="space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedProduct.name}</h2>
-                    <Badge variant="outline" className="mt-1">{selectedProduct.category}</Badge>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold" style={{ color: primaryColor }}>{formatPrice(selectedProduct.price)} FCFA</p>
-                    {selectedProduct.compare_at_price && selectedProduct.compare_at_price > selectedProduct.price && (
-                      <p className="text-sm text-muted-foreground line-through">{formatPrice(selectedProduct.compare_at_price)} FCFA</p>
-                    )}
-                  </div>
-                </div>
-                {/* La description complète est du HTML riche : l'afficher telle quelle montrait les balises <p>, <strong>… */}
-                {(selectedProduct.short_description || selectedProduct.description) && (
-                  <p className="text-muted-foreground leading-relaxed">
-                    {selectedProduct.short_description || htmlToPlainText(selectedProduct.description, 280)}
-                  </p>
-                )}
-                {usableVariantGroups(selectedProduct.variants).length > 0 && (
-                  <div className="pt-1">
-                    {/* Même sélecteur que la fiche produit : les options « Blanc (S, M, L) » y sont séparées en couleur + taille.
-                        Avant, le client voyait un seul bouton « Blanc (S, M, L) » sans pouvoir choisir la taille. */}
-                    <SmartVariantSelector
-                      variants={selectedProduct.variants as any}
-                      selectedVariants={variantChoice}
-                      onChange={(key, value) => setVariantChoice(prev => ({ ...prev, [key]: value }))}
-                      primaryColor={primaryColor}
-                      preselect={false}
-                    />
-                  </div>
-                )}
-                <div className="flex gap-3 pt-2">
-                  {shop._isPreview ? (
-                    <div className="flex-1 rounded-xl border-2 border-dashed px-4 py-3 text-center text-xs text-muted-foreground" style={{ borderColor: primaryColor + "40" }}>
-                      🔒 Commande disponible après activation de la boutique
-                    </div>
-                  ) : (
-                    (() => {
-                      const groups = usableVariantGroups(selectedProduct.variants);
-                      const missing = missingVariantGroups(selectedProduct.variants, variantChoice);
-                      const ready = missing.length === 0;
-                      return (
-                        <Button
-                          className="flex-1 rounded-xl gap-2 h-12 text-base"
-                          style={{ backgroundColor: primaryColor, opacity: ready ? 1 : 0.6 }}
-                          disabled={!ready}
-                          onClick={() => { addToCart(selectedProduct, groups.length > 0 ? variantChoice : null); setSelectedProduct(null); setVariantChoice({}); }}
-                        >
-                          <ShoppingCart className="h-5 w-5" />
-                          {ready ? "Ajouter au panier" : `Choisir : ${missing.join(", ")}`}
-                        </Button>
-                      );
-                    })()
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Checkout Dialog */}
-      <Dialog open={checkoutOpen} onOpenChange={(open) => { setCheckoutOpen(open); if (!open) { setCheckoutStep("cart"); setOrderSuccess(false); } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-0">
-          {orderSuccess ? (
-            <div className="text-center py-12 px-6">
-              <div className="h-20 w-20 mx-auto rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: primaryColor + "15" }}>
-                <CheckCircle2 className="h-10 w-10" style={{ color: primaryColor }} />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Commande confirmée ! 🎉</h2>
-              <p className="text-muted-foreground mb-6">Le vendeur vous contactera sous peu pour finaliser votre commande.</p>
-              <Button onClick={() => { setCheckoutOpen(false); setOrderSuccess(false); setCheckoutStep("cart"); }} className="rounded-xl" style={{ backgroundColor: primaryColor }}>
-                Continuer mes achats
-              </Button>
-            </div>
-          ) : (
-            <>
-              {/* Step Indicator */}
-              <div className="px-6 pt-6 pb-2">
-                <div className="flex items-center justify-between mb-1">
-                  {[
-                    { key: "cart", label: "Panier", icon: ShoppingBag },
-                    { key: "info", label: "Livraison", icon: Truck },
-                    { key: "confirm", label: "Paiement", icon: CreditCard },
-                  ].map((step, i) => {
-                    const steps = ["cart", "info", "confirm"];
-                    const currentIdx = steps.indexOf(checkoutStep);
-                    const stepIdx = i;
-                    const isActive = stepIdx === currentIdx;
-                    const isDone = stepIdx < currentIdx;
-                    return (
-                      <div key={step.key} className="flex items-center flex-1">
-                        <div className="flex flex-col items-center flex-1">
-                          <div
-                            className={`h-9 w-9 rounded-full flex items-center justify-center mb-1 transition-colors ${!isDone && !isActive ? "bg-muted text-muted-foreground" : "text-primary-foreground"}`}
-                            style={isDone || isActive ? { backgroundColor: primaryColor } : {}}
-                          >
-                            {isDone ? <CheckCircle2 className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
-                          </div>
-                          <span className={`text-[11px] font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{step.label}</span>
-                        </div>
-                        {i < 2 && <div className={`h-0.5 flex-1 mx-1 rounded-full mt-[-14px] ${isDone ? "" : "bg-muted"}`} style={isDone ? { backgroundColor: primaryColor } : {}} />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Step: Cart */}
-              {checkoutStep === "cart" && (
-                <div className="px-6 pb-6">
-                  {cart.length === 0 ? (
-                    <div className="text-center py-12">
-                      <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
-                      <p className="font-medium">Votre panier est vide</p>
-                      <p className="text-sm text-muted-foreground mt-1">Parcourez nos produits et ajoutez vos coups de cœur</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {cart.map(item => (
-                        <div key={cartKey(item.product.id, item.selectedVariants)} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
-                          <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden flex-shrink-0">
-                            {item.product.product_images?.[0] && <img src={thumbUrl(item.product.product_images[0].image_url, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{item.product.name}</p>
-                            {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
-                              <p className="text-[11px] text-muted-foreground truncate">
-                                {Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(" · ")}
-                              </p>
-                            )}
-                            <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatPrice(item.product.price)} FCFA</p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(cartKey(item.product.id, item.selectedVariants), -1)}><Minus className="h-3 w-3" /></Button>
-                            <span className="text-sm w-8 text-center font-semibold">{item.quantity}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateQuantity(cartKey(item.product.id, item.selectedVariants), 1)}><Plus className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg ml-1" onClick={() => removeFromCart(cartKey(item.product.id, item.selectedVariants))}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="border-t pt-3 mt-3">
-                        <div className="flex justify-between items-center">
-                          <span className="font-semibold text-lg">Total</span>
-                          <span className="font-bold text-xl" style={{ color: primaryColor }}>{formatPrice(cartTotal)} FCFA</span>
-                        </div>
-                      </div>
-                      {themeConfig?.cart_banner_enabled === true && (
-                        <div
-                          className="rounded-xl px-4 py-3 text-center text-sm font-medium"
-                          style={{ backgroundColor: themeConfig.cart_banner_bg || "#FEF3C7", color: themeConfig.cart_banner_text_color || "#92400E" }}
-                        >
-                          {themeConfig.cart_banner_text || "🚚 Livraison gratuite pour les commandes de plus de 10 000 FCFA"}
-                        </div>
-                      )}
-                      <Button className="w-full h-12 rounded-xl text-base font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={() => setCheckoutStep("info")}>
-                        Continuer <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Step: Info + Paiement + Confirmation (vue compacte) */}
-              {(checkoutStep === "info" || checkoutStep === "confirm") && (() => {
-                const cf: any[] = shop.checkout_fields || [];
-                const enabled = (id: string) => {
-                  const f = cf.find((x: any) => x.id === id);
-                  return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
-                };
-                const required = (id: string) => {
-                  const f = cf.find((x: any) => x.id === id);
-                  return f ? !!f.required : ["first_name","phone","city"].includes(id);
-                };
-                const showFullName = enabled("first_name") && enabled("last_name");
-                const showFirstOnly = enabled("first_name") && !enabled("last_name");
-                const nameLabel = showFullName ? "Nom complet" : showFirstOnly ? "Prénom" : enabled("last_name") ? "Nom" : "Nom";
-                const canSubmit =
-                  (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
-                  (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
-                  (!enabled("city") || !required("city") || !!customerInfo.city) &&
-                  (!enabled("city") || !containsDigits(customerInfo.city)) &&
-                  (!enabled("address") || !required("address") || !!customerInfo.address);
-                return (
-                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
-                  <button onClick={() => setCheckoutStep("cart")} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeft className="h-3.5 w-3.5" /> Retour au panier
-                  </button>
-                  {/* Résumé compact */}
-                  <div className="bg-muted/30 rounded-xl p-3 space-y-1 text-xs">
-                    {cart.map(item => (
-                      <div key={cartKey(item.product.id, item.selectedVariants)} className="flex justify-between gap-2">
-                        <span className="text-muted-foreground truncate">
-                          {item.product.name}
-                          {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
-                            <span className="opacity-70"> ({Object.entries(cleanSelectedVariants(item.selectedVariants) || {}).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>
-                          )}
-                          {" × "}{item.quantity}
-                        </span>
-                        <span className="font-medium">{formatPrice(item.product.price * item.quantity)} FCFA</span>
-                      </div>
-                    ))}
-                    {promoDiscount > 0 && (
-                      <div className="flex justify-between text-emerald-700 font-medium">
-                        <span>Code {promo?.code}</span>
-                        <span>- {formatPrice(promoDiscount)} FCFA</span>
-                      </div>
-                    )}
-                    <div className="border-t pt-1.5 mt-1.5 flex justify-between font-bold text-sm">
-                      <span>Total</span>
-                      <span style={{ color: primaryColor }}>{formatPrice(payableTotal)} FCFA</span>
-                    </div>
-                  </div>
-                  <PromoCodeField
-                    shopId={shop.id}
-                    subtotal={cartTotal}
-                    customerPhone={customerInfo.phone}
-                    customerEmail={customerInfo.email}
-                    primaryColor={primaryColor}
-                    applied={promo}
-                    onChange={setPromo}
-                  />
-                  {/* Infos client */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <User className="h-3.5 w-3.5" style={{ color: primaryColor }} />
-                      <h4 className="font-bold text-xs">Vos informations</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {enabled("first_name") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-muted-foreground">{nameLabel} {required("first_name") && "*"}</Label>
-                          <Input value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} placeholder={showFirstOnly ? "Jean" : "Jean Kouassi"} className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                      {enabled("phone") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-muted-foreground">Téléphone {required("phone") && "*"}</Label>
-                          <PhoneInput
-                            value={customerInfo.phone}
-                            onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
-                            defaultCountryHint={shop?.country}
-                            required={required("phone")}
-                            hideHint={shop?.theme_config?.hide_phone_format_hint === true}
-                          />
-                        </div>
-                      )}
-                      {enabled("email") && (
-                        <div className="space-y-0.5 col-span-2">
-                          <Label className="text-[11px] text-muted-foreground">Email {required("email") && "*"}</Label>
-                          <Input type="email" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} placeholder="jean@email.com" className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                      {enabled("city") && (
-                        <div className="space-y-0.5 col-span-2 sm:col-span-1">
-                          <Label className="text-[11px] text-muted-foreground">Ville {required("city") && "*"}</Label>
-                          <Input value={customerInfo.city} onChange={(e) => {
-                            const raw = e.target.value;
-                            const cleaned = stripDigits(raw);
-                            setCustomerInfo({ ...customerInfo, city: cleaned });
-                            if (containsDigits(raw)) setCityError("La ville ne doit pas contenir de chiffres.");
-                            else if (cityError) setCityError("");
-                          }} placeholder="Abidjan" className={`rounded-lg h-10 text-sm ${cityError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
-                          {cityError && <p className="text-[11px] text-red-500">{cityError}</p>}
-                        </div>
-                      )}
-                      {enabled("address") && (
-                        <div className={`space-y-0.5 col-span-2 ${enabled("city") ? "sm:col-span-1" : ""}`}>
-                          <Label className="text-[11px] text-muted-foreground">Adresse {required("address") && "*"}</Label>
-                          <Input value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} placeholder="Cocody, Riviera 3" className="rounded-lg h-10 text-sm" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* Paiement */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" style={{ color: primaryColor }} />
-                      <h4 className="font-bold text-xs">Mode de paiement</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { value: "mobile_money", label: "Mobile Money", icon: "📱" },
-                        { value: "cash_on_delivery", label: "À la livraison", icon: "💵" },
-                      ].map(method => (
-                        <button
-                          key={method.value}
-                          onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition-all ${customerInfo.paymentMethod === method.value ? "shadow-sm" : "border-muted"}`}
-                          style={customerInfo.paymentMethod === method.value ? { borderColor: primaryColor } : {}}
-                        >
-                          <span className="text-lg">{method.icon}</span>
-                          <div>
-                            <p className="font-semibold text-xs">{method.label}</p>
-                            {method.value === "mobile_money" && (
-                              <p className="text-[9px] text-muted-foreground">Orange, MTN, Wave, Moov</p>
-                            )}
-                          </div>
-                          {customerInfo.paymentMethod === method.value && <CheckCircle2 className="h-4 w-4 ml-auto flex-shrink-0" style={{ color: primaryColor }} />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <Button className="w-full h-11 rounded-xl text-sm font-semibold gap-2" style={{ backgroundColor: primaryColor }} onClick={placeOrder} disabled={orderLoading || !canSubmit}>
-                    {orderLoading ? "Traitement..." : <><ShoppingCart className="h-5 w-5" /> Confirmer · {formatPrice(payableTotal)} FCFA</>}
-                  </Button>
-                </div>
-                );
-              })()}
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-
-
-      {/* Floating Cart Button - Mobile */}
-      {!shop._isPreview && cartCount > 0 && !checkoutOpen && (
-        <div className="fixed bottom-6 left-6 right-20 md:hidden z-40">
-          <Button 
-            className="w-full h-14 rounded-2xl shadow-xl text-base font-semibold gap-2"
-            style={{ backgroundColor: primaryColor }}
-            onClick={() => { setCheckoutOpen(true); setOrderSuccess(false); }}
-          >
-            <ShoppingBag className="h-5 w-5" />
-            Voir le panier · {formatPrice(cartTotal)} FCFA
-            <Badge className="ml-auto bg-primary-foreground/20 text-primary-foreground">{cartCount}</Badge>
-          </Button>
-        </div>
-      )}
-
-      {/* Social Proof Notifications + AI Assistant (deferred for faster LCP) */}
-      {deferredReady && (
-        <Suspense fallback={null}>
-          <SocialProofNotification
-            shopId={shop.id}
-            enabled={shop.social_proof_enabled || false}
-            shopName={shop.business_name}
-          />
-          <ShopAIAssistant
-            shopId={shop.id}
-            shopName={shop.business_name}
-            primaryColor={shop.primary_color}
-            secondaryColor={shop.secondary_color}
-            hideEcomfyBranding={shop.theme_config?.hide_ecomfy_branding === true}
-          />
-        </Suspense>
-      )}
+      {overlays}
     </div>
     </>
   );
@@ -1696,7 +1905,7 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
   };
   return (
     <Card
-      className="overflow-hidden group cursor-pointer border-0 shadow-sm hover:shadow-xl transition-all duration-300"
+      className="overflow-hidden group cursor-pointer border-0 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 h-full flex flex-col"
       onClick={() => onView(product)}
       onMouseEnter={prefetchProduct}
       onTouchStart={prefetchProduct}
@@ -1712,37 +1921,42 @@ function ProductCard({ product, primaryColor, onAddToCart, onView, formatPrice, 
             width={400}
             height={400}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            {...(eager ? { fetchPriority: "high" as any } : {})}
+            {...(eager ? { fetchpriority: "high" } : {})}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center"><Store className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30" /></div>
         )}
-        {product.compare_at_price && product.compare_at_price > product.price && (
-          <Badge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-destructive text-destructive-foreground rounded-lg font-bold text-[10px] sm:text-xs px-1.5 sm:px-2">
-            -{Math.round((1 - product.price / product.compare_at_price) * 100)}%
+        {discountPercent(product) > 0 && (
+          <Badge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-destructive text-destructive-foreground hover:bg-destructive rounded-lg font-bold text-[10px] sm:text-xs px-1.5 sm:px-2">
+            -{discountPercent(product)}%
           </Badge>
         )}
-        {product.is_digital && <Badge className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-purple-600 rounded-lg text-[10px] sm:text-xs">Digital</Badge>}
+        {product.is_digital && <Badge className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-purple-600 hover:bg-purple-600 rounded-lg text-[10px] sm:text-xs">Digital</Badge>}
+        {!soldOut && !product.is_digital && lowStockCount(product) !== null && (
+          <Badge className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 gap-1 bg-white/95 text-red-600 hover:bg-white/95 rounded-lg font-bold text-[10px] sm:text-xs px-1.5 sm:px-2 shadow-sm">
+            <Flame className="h-3 w-3" aria-hidden="true" /> Plus que {lowStockCount(product)}
+          </Badge>
+        )}
         {soldOut && (
           <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
             <Badge className="bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs">Rupture de stock</Badge>
           </div>
         )}
       </div>
-      <div className="p-2.5 sm:p-3 md:p-4">
+      <div className="p-2.5 sm:p-3 md:p-4 flex flex-1 flex-col">
         <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 mb-0.5 sm:mb-1">{product.name}</h3>
         {product.short_description && <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1 mb-1.5 sm:mb-2 hidden sm:block">{product.short_description}</p>}
-        <div className="flex items-end justify-between gap-1 sm:gap-2">
+        <div className="flex items-end justify-between gap-1 sm:gap-2 mt-auto pt-1">
           <div className="min-w-0">
             <span className="font-bold text-sm sm:text-base block truncate" style={{ color: primaryColor }}>{formatPrice(product.price)}</span>
             <span className="text-[10px] sm:text-xs text-muted-foreground">FCFA</span>
-            {product.compare_at_price && product.compare_at_price > product.price && (
+            {discountPercent(product) > 0 && (
               <span className="text-[10px] sm:text-xs text-muted-foreground line-through ml-1 hidden sm:inline">{formatPrice(product.compare_at_price)}</span>
             )}
           </div>
           <Button
             size="icon"
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0"
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex-shrink-0 hover:brightness-110 hover:shadow-md"
             style={{ backgroundColor: primaryColor }}
             disabled={soldOut}
             aria-label={soldOut ? "Rupture de stock" : "Ajouter au panier"}

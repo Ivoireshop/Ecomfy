@@ -861,6 +861,27 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
           )}
 
           {activeThemeSection === "banner" && (
+            <>
+            <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300 mb-4">
+              <h3 className="font-bold">Bandeau d'annonce (haut de la boutique)</h3>
+              <p className="text-xs text-muted-foreground mb-3">Une ligne affichée tout en haut de l'accueil, par exemple votre offre du moment. Désactivé par défaut : n'annoncez que ce que vous tenez (livraison gratuite, remise…).</p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Afficher le bandeau</span>
+                <Switch checked={themeConfig.top_banner_enabled === true} onCheckedChange={v => updateThemeConfig("top_banner_enabled", v)} />
+              </div>
+              {themeConfig.top_banner_enabled === true && (
+                <>
+                  <div className="space-y-1.5 mt-3">
+                    <Label className="text-xs">Texte du bandeau</Label>
+                    <Input maxLength={120} placeholder="Ex : Livraison offerte dès 20 000 FCFA à Abidjan" value={themeConfig.top_banner_text || ""} onChange={e => updateThemeConfig("top_banner_text", e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <ColorField label="Couleur arrière-plan" value={themeConfig.top_banner_bg || shop.primary_color || "#2563eb"} onChange={v => updateThemeConfig("top_banner_bg", v)} />
+                    <ColorField label="Couleur texte" value={themeConfig.top_banner_text_color || "#ffffff"} onChange={v => updateThemeConfig("top_banner_text_color", v)} />
+                  </div>
+                </>
+              )}
+            </Card>
             <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <h3 className="font-bold">Bannière inférieure du panier</h3>
               <div className="flex items-center justify-between">
@@ -880,6 +901,7 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                 </>
               )}
             </Card>
+            </>
           )}
 
           {activeThemeSection === "homepage" && (
@@ -903,6 +925,17 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
 
                 {themeConfig.hero_enabled !== false && (
                   <div className="space-y-4 pt-2 border-t">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold">Petit badge au-dessus du titre (facultatif)</Label>
+                      <Input
+                        maxLength={40}
+                        placeholder="Ex : Nouvelle collection"
+                        value={themeConfig.hero_badge_text || ""}
+                        onChange={e => updateThemeConfig("hero_badge_text", e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                      <p className="text-[11px] text-muted-foreground">Laissez vide pour ne rien afficher.</p>
+                    </div>
                     <div className="space-y-2">
                       <Label className="text-xs font-semibold">Image de bannière (URL)</Label>
                       <div className="flex gap-2">
@@ -1068,6 +1101,17 @@ export function ShopThemeSettings({ shop, setShop }: ShopThemeSettingsProps) {
                     checked={themeConfig.show_all_products_on_home === true} 
                     onCheckedChange={v => updateThemeConfig("show_all_products_on_home", v)} 
                   />
+                </div>
+              </div>
+
+              {/* Barre d'engagements */}
+              <div className="space-y-4 p-5 rounded-2xl bg-muted/20 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-bold">Barre d'engagements sous la bannière</p>
+                    <p className="text-xs text-muted-foreground">Livraison à domicile, paiement à la livraison ou Mobile Money, support WhatsApp (si renseigné) et commande sans compte.</p>
+                  </div>
+                  <Switch checked={themeConfig.trust_bar_enabled !== false} onCheckedChange={v => updateThemeConfig("trust_bar_enabled", v)} />
                 </div>
               </div>
 
