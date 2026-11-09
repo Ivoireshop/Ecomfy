@@ -207,27 +207,28 @@ export function AppSidebar() {
   ];
 
   useEffect(() => {
+    // Seul le rôle en base donne accès au menu fondateur ; une erreur de lecture le masque.
+    let cancelled = false;
     const checkFounderStatus = async () => {
-      if (user?.email?.toLowerCase() === "djateulrich@gmail.com") {
-        setIsFounder(true);
+      if (!user?.id) {
+        setIsFounder(false);
         return;
       }
-      if (user?.id) {
-        const { data } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          // @ts-ignore
-          .in("role", ["founder", "co_founder", "shareholder", "admin"]);
-        
-        setIsFounder(data && data.length > 0);
-      } else {
-        setIsFounder(false);
-      }
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        // @ts-ignore
+        .in("role", ["founder", "co_founder", "shareholder", "admin"]);
+
+      if (!cancelled) setIsFounder(!error && !!data?.length);
     };
-    
+
     if (isReady) checkFounderStatus();
-  }, [isReady, user?.id, user?.email]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, user?.id]);
 
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },

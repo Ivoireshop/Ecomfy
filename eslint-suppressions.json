@@ -955,11 +955,6 @@
       "count": 1
     }
   },
-  "src/pages/Dashboard.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/pages/DeliveryAdminPage.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
@@ -1005,7 +1000,7 @@
       "count": 2
     },
     "@typescript-eslint/no-explicit-any": {
-      "count": 10
+      "count": 8
     }
   },
   "src/pages/FounderTroubleshooting.tsx": {
@@ -1013,7 +1008,7 @@
       "count": 1
     },
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 6
     }
   },
   "src/pages/Generator.tsx": {
@@ -1153,11 +1148,6 @@
     }
   },
   "src/services/affiliateService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "src/services/financialMetricsService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
     }

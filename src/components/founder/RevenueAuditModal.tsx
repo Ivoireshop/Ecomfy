@@ -18,6 +18,7 @@ import {
   ActivatedShopDetail,
   PayingClientDetail,
 } from "@/services/financialMetricsService";
+import { csvCell } from "@/lib/shopFinance";
 import {
   Search,
   Download,
@@ -33,6 +34,14 @@ import {
   ShieldCheck,
   RefreshCw,
 } from "lucide-react";
+
+const TYPE_LABELS: Record<TransactionDetail["type"], string> = {
+  activation: "Activation",
+  subscription: "Abonnement",
+  commission: "Commission",
+  credits: "Crédits IA",
+  payment: "Paiement",
+};
 
 interface RevenueAuditModalProps {
   open: boolean;
@@ -100,7 +109,7 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
       return (
         !q ||
         sub.user_email.toLowerCase().includes(q) ||
-        sub.shop_name.toLowerCase().includes(q) ||
+        (sub.shop_name || "").toLowerCase().includes(q) ||
         sub.plan_name.toLowerCase().includes(q)
       );
     });
@@ -109,6 +118,10 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
   const totalFilteredMRR = useMemo(() => {
     return filteredSubscriptions.reduce((acc, sub) => acc + sub.monthly_amount, 0);
   }, [filteredSubscriptions]);
+
+  // Une donnée absente (erreur de lecture) s'affiche « — », jamais « 0 ».
+  const show = (value: number | null | undefined) =>
+    value === null || value === undefined ? "—" : value.toLocaleString("fr-FR");
 
   // Filtered Activated Shops
   const filteredShops = useMemo(() => {
@@ -120,10 +133,20 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
         shop.name.toLowerCase().includes(q) ||
         shop.slug.toLowerCase().includes(q) ||
         shop.owner_email.toLowerCase().includes(q) ||
-        shop.transaction_reference.toLowerCase().includes(q)
+        (shop.transaction_reference || "").toLowerCase().includes(q)
       );
     });
   }, [financialMetrics?.activatedShops, searchQuery]);
+
+  // Total des frais d'activation réellement encaissés (les boutiques sans paiement enregistré n'y figurent pas).
+  const totalActivationFees = useMemo(
+    () => filteredShops.reduce((acc, shop) => acc + (shop.activation_fee ?? 0), 0),
+    [filteredShops]
+  );
+  const shopsWithoutPayment = useMemo(
+    () => filteredShops.filter(shop => shop.activation_fee === null).length,
+    [filteredShops]
+  );
 
   // Filtered Paying Clients
   const filteredClients = useMemo(() => {
@@ -142,27 +165,28 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
   const exportToCSV = () => {
     if (!filteredTransactions.length) return;
     const headers = ["Date", "Client Email", "ID User", "Type", "Reference", "Methode", "Montant (FCFA)", "Statut"];
+    // csvCell double les guillemets et neutralise les formules (=, +, -, @) que Excel exécuterait.
     const rows = filteredTransactions.map((tx) => [
-      new Date(tx.created_at).toLocaleString("fr-FR"),
-      `"${tx.user_email || "Client"}"`,
-      `"${tx.user_id}"`,
-      `"${tx.type}"`,
-      `"${tx.reference || tx.id}"`,
-      `"${tx.payment_method}"`,
-      tx.amount,
-      `"${tx.status}"`,
+      csvCell(new Date(tx.created_at).toLocaleString("fr-FR")),
+      csvCell(tx.user_email),
+      csvCell(tx.user_id),
+      csvCell(tx.type),
+      csvCell(tx.reference || tx.id),
+      csvCell(tx.payment_method),
+      String(Math.round(tx.amount)),
+      csvCell(tx.status),
     ]);
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
+    // Blob plutôt qu'une URL « data: » : un « # » dans un champ coupait le fichier.
+    const csvContent = [headers.map(csvCell).join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const url = URL.createObjectURL(new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `ecomfy_audit_revenus_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -204,31 +228,31 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3">
             <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Revenus Cumulés</div>
             <div className="text-lg font-space font-extrabold text-emerald-400">
-              {(financialMetrics?.cumulativeRevenue || 0).toLocaleString()} <span className="text-xs">FCFA</span>
+              {show(financialMetrics?.cumulativeRevenue)} <span className="text-xs">FCFA</span>
             </div>
-            <div className="text-[10px] text-slate-500">{financialMetrics?.completedPaymentsCount || 0} paiements validés</div>
+            <div className="text-[10px] text-slate-500">{show(financialMetrics?.completedPaymentsCount)} paiements validés</div>
           </div>
 
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3">
             <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">MRR Récurrent</div>
             <div className="text-lg font-space font-extrabold text-blue-400">
-              {(financialMetrics?.mrr || 0).toLocaleString()} <span className="text-xs">FCFA</span>
+              {show(financialMetrics?.mrr)} <span className="text-xs">FCFA</span>
             </div>
-            <div className="text-[10px] text-slate-500">{financialMetrics?.activeSubscriptionsCount || 0} abonnements actifs</div>
+            <div className="text-[10px] text-slate-500">{show(financialMetrics?.activeSubscriptionsCount)} abonnements actifs</div>
           </div>
 
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3">
             <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Boutiques Activées</div>
             <div className="text-lg font-space font-extrabold text-amber-400">
-              {financialMetrics?.activatedStoresCount || 0}
+              {show(financialMetrics?.activatedStoresCount)}
             </div>
-            <div className="text-[10px] text-slate-500">Activations 1 300 FCFA</div>
+            <div className="text-[10px] text-slate-500">Depuis le lancement</div>
           </div>
 
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3">
             <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Clients Payants</div>
             <div className="text-lg font-space font-extrabold text-purple-400">
-              {financialMetrics?.payingUsersCount || 0}
+              {show(financialMetrics?.payingUsersCount)}
             </div>
             <div className="text-[10px] text-slate-500">Utilisateurs uniques</div>
           </div>
@@ -281,9 +305,11 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
                     <SelectItem value="all">Tous les types</SelectItem>
-                    <SelectItem value="activation">Activation (1300)</SelectItem>
+                    <SelectItem value="activation">Activation de boutique</SelectItem>
                     <SelectItem value="subscription">Abonnement</SelectItem>
-                    <SelectItem value="payment">Paiement direct</SelectItem>
+                    <SelectItem value="commission">Commission</SelectItem>
+                    <SelectItem value="credits">Crédits IA</SelectItem>
+                    <SelectItem value="payment">Autre paiement</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -294,7 +320,6 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
                   <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
                     <SelectItem value="all">Tous statuts</SelectItem>
                     <SelectItem value="completed">Validé / Payé</SelectItem>
-                    <SelectItem value="pending">En attente</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -349,7 +374,7 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
                                 : "border-emerald-500/40 text-emerald-300 bg-emerald-500/10 text-[10px]"
                             }
                           >
-                            {tx.type === "activation" ? "Activation 1300" : "Paiement"}
+                            {TYPE_LABELS[tx.type]}
                           </Badge>
                         </td>
                         <td className="py-2.5 px-3 font-sans text-slate-300 max-w-[200px] truncate" title={tx.description || tx.reference}>
@@ -389,7 +414,12 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
           {/* TAB 2: MRR & ABONNEMENTS */}
           <TabsContent value="mrr" className="flex-1 flex flex-col overflow-hidden space-y-3 m-0">
             <div className="text-xs text-slate-400">
-              Abonnements récurrents actifs générant du revenu mensuel (MRR).
+              Abonnements en cours de validité, un par propriétaire, valorisés au tarif actuel de leur plan (un abonnement annuel compte pour 1/12 de son prix annuel).
+              {(financialMetrics?.unpricedSubscriptionsCount ?? 0) > 0 && (
+                <span className="text-amber-300">
+                  {" "}{financialMetrics?.unpricedSubscriptionsCount} abonnement(s) ont un plan sans tarif connu : ils sont comptés mais non valorisés.
+                </span>
+              )}
             </div>
             <div className="flex-1 overflow-auto border border-slate-800 rounded-2xl bg-slate-900/50">
               <table className="w-full text-xs text-left">
@@ -414,17 +444,17 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
                     filteredSubscriptions.map((sub) => (
                       <tr key={sub.id} className="hover:bg-slate-800/40 transition-colors">
                         <td className="py-2.5 px-3 font-sans font-medium text-white">{sub.user_email}</td>
-                        <td className="py-2.5 px-3 font-sans text-slate-300">{sub.shop_name}</td>
+                        <td className="py-2.5 px-3 font-sans text-slate-300">{sub.shop_name || "—"}</td>
                         <td className="py-2.5 px-3 font-sans">
                           <Badge variant="outline" className="border-blue-500/40 text-blue-300 bg-blue-500/10 text-[10px]">
                             {sub.plan_name}
                           </Badge>
                         </td>
                         <td className="py-2.5 px-3 text-slate-300">
-                          {new Date(sub.start_date).toLocaleDateString("fr-FR")}
+                          {sub.start_date ? new Date(sub.start_date).toLocaleDateString("fr-FR") : "—"}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-blue-400">
-                          {sub.monthly_amount.toLocaleString()} FCFA/mois
+                        <td className={`py-2.5 px-3 text-right font-bold ${sub.priced ? "text-blue-400" : "text-amber-300"}`}>
+                          {sub.priced ? `${sub.monthly_amount.toLocaleString()} FCFA/mois` : "Tarif inconnu"}
                         </td>
                         <td className="py-2.5 px-3 text-center font-sans">
                           <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 text-[10px]">Actif</Badge>
@@ -451,7 +481,12 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
           {/* TAB 3: BOUTIQUES ACTIVÉES */}
           <TabsContent value="shops" className="flex-1 flex flex-col overflow-hidden space-y-3 m-0">
             <div className="text-xs text-slate-400">
-              Liste des boutiques ayant validé les frais d'activation de 1 300 FCFA.
+              Boutiques activées depuis le lancement. Montant, date et référence sont ceux du paiement d'activation de chaque boutique.
+              {shopsWithoutPayment > 0 && (
+                <span className="text-amber-300">
+                  {" "}{shopsWithoutPayment} boutique(s) sont activées sans paiement d'activation enregistré : montant et date inconnus.
+                </span>
+              )}
             </div>
             <div className="flex-1 overflow-auto border border-slate-800 rounded-2xl bg-slate-900/50">
               <table className="w-full text-xs text-left">
@@ -490,13 +525,13 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
                         </td>
                         <td className="py-2.5 px-3 font-sans text-slate-300">{shop.owner_email}</td>
                         <td className="py-2.5 px-3 text-slate-300">
-                          {new Date(shop.activation_date).toLocaleDateString("fr-FR")}
+                          {shop.activation_date ? new Date(shop.activation_date).toLocaleDateString("fr-FR") : "—"}
                         </td>
                         <td className="py-2.5 px-3 text-slate-400 text-[11px] truncate max-w-[150px]">
-                          {shop.transaction_reference}
+                          {shop.transaction_reference || "—"}
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold text-amber-400">
-                          {shop.activation_fee.toLocaleString()} FCFA
+                          {shop.activation_fee === null ? "—" : `${shop.activation_fee.toLocaleString()} FCFA`}
                         </td>
                         <td className="py-2.5 px-3 text-center font-sans">
                           <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px]">
@@ -513,7 +548,7 @@ export const RevenueAuditModal: React.FC<RevenueAuditModalProps> = ({
                       TOTAL BOUTIQUES ACTIVÉES ({filteredShops.length} BOUTIQUES UNIQUES)
                     </td>
                     <td className="py-2.5 px-3 text-right text-amber-400 text-sm font-space font-extrabold">
-                      {(filteredShops.length * 1300).toLocaleString()} FCFA
+                      {totalActivationFees.toLocaleString()} FCFA
                     </td>
                     <td></td>
                   </tr>

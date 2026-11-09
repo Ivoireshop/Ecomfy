@@ -17,21 +17,16 @@ const FounderRoute = ({ children }: { children: React.ReactNode }) => {
     if (!isReady) return;
     if (!user) { setAllowed(false); return; }
 
-    // Master Founder Override
-    if (user.email?.toLowerCase() === "djateulrich@gmail.com") {
-      setAllowed(true);
-      return;
-    }
-
+    // Seul le rôle en base ouvre l'accès (aucun raccourci par e-mail) ; une erreur de lecture ferme l'accès.
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
         // @ts-ignore
         .in("role", ["founder", "co_founder", "shareholder", "admin"]);
-      if (!cancelled) setAllowed(!!data?.length);
+      if (!cancelled) setAllowed(!error && !!data?.length);
     })();
     return () => { cancelled = true; };
   }, [isReady, user]);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { activateShopManually, recordManualCommissionPayment } from "@/lib/founderBilling";
+import { activateShopManually, recordManualCommissionPayment, SHOP_ACTIVATION_FEE_FCFA } from "@/lib/founderBilling";
 import { 
   Loader2, 
   Users, 
@@ -32,7 +32,8 @@ import {
   ExternalLink,
   MessageSquare,
   BarChart3,
-  Crown
+  Crown,
+  AlertTriangle
 } from "lucide-react";
 import PromoCodeManager from "./PromoCodeManager";
 import { FounderManager } from "@/components/founder/FounderManager";
@@ -57,18 +58,6 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-
-interface DashboardStats {
-  totalUsers: number;
-  activeSubscriptions: number;
-  totalPromoCodes: number;
-  usedPromoCodes: number;
-  totalRevenue: number;
-  subscriptionRevenue: number;
-  pendingPayments: number;
-  completedPayments: number;
-  freeGenerationsUsed: number;
-}
 
 interface PromoCodeUsage {
   code: string;
@@ -119,6 +108,8 @@ interface ShopItem {
   whatsapp_number: string | null;
   is_published: boolean | null;
   is_activated: boolean | null;
+  /** Commission restant due ; sert à proposer le montant d'un règlement manuel. */
+  commission_balance_due: number | null;
   total_orders: number | null;
   total_sales: number | null;
   created_at: string;
@@ -169,17 +160,13 @@ const FounderDashboard = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    activeSubscriptions: 0,
-    totalPromoCodes: 0,
-    usedPromoCodes: 0,
-    totalRevenue: 0,
-    subscriptionRevenue: 0,
-    pendingPayments: 0,
-    completedPayments: 0,
-    freeGenerationsUsed: 0,
-  });
+  // Nombre réel d'images + vidéos générées ; null tant qu'il n'est pas lu (on n'affiche pas « 0 » à la place).
+  const [aiGenerationsCount, setAiGenerationsCount] = useState<number | null>(null);
+  // Vrai si les chiffres financiers n'ont pas pu être lus : les cartes affichent « — », jamais des zéros.
+  const [metricsError, setMetricsError] = useState(false);
+  // Les écouteurs temps réel appellent toujours la version courante du rechargement (pas celle du premier rendu,
+  // qui aurait remis la période sur « Depuis le lancement »).
+  const reloadRef = useRef<() => void>(() => {});
   const [topPromoCodes, setTopPromoCodes] = useState<PromoCodeUsage[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
   const [revenueChartData, setRevenueChartData] = useState<ChartDataPoint[]>([]);
@@ -204,16 +191,55 @@ const FounderDashboard = () => {
   // Manual Shop Activation Modal State
   const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
   const [manualShopInput, setManualShopInput] = useState("");
-  const [manualAmount, setManualAmount] = useState(12000);
+  // Montant saisi, en texte. Jamais de montant « par défaut » arbitraire : 1 300 pour une activation (tarif réel),
+  // le solde de commission dû de la boutique pour un règlement, sinon vide (le fondateur doit le saisir).
+  const [manualAmount, setManualAmount] = useState("");
+  const [manualAmountTouched, setManualAmountTouched] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"commission_payment" | "shop_activation">("commission_payment");
   const [manualMethod, setManualMethod] = useState("wave_direct");
   const [manualNotes, setManualNotes] = useState("");
   const [isSubmittingManualPay, setIsSubmittingManualPay] = useState(false);
 
+  // Boutique désignée par l'ID ou le slug saisi (correspondance exacte seulement, pas de devinette sur le nom).
+  const manualShop = (() => {
+    const q = manualShopInput.trim().toLowerCase();
+    if (!q) return null;
+    return allShops.find(s => s.id.toLowerCase() === q || (s.slug || "").toLowerCase() === q) ?? null;
+  })();
+  const manualBalanceDue = manualShop && Number(manualShop.commission_balance_due) > 0
+    ? Math.round(Number(manualShop.commission_balance_due))
+    : null;
+
+  const suggestedManualAmount = (type: "commission_payment" | "shop_activation"): string =>
+    type === "shop_activation"
+      ? String(SHOP_ACTIVATION_FEE_FCFA)
+      : manualBalanceDue !== null ? String(manualBalanceDue) : "";
+
+  // Tant que le fondateur n'a pas saisi de montant, on suit le type de règlement et la boutique désignée.
+  useEffect(() => {
+    if (!isManualPaymentModalOpen || manualAmountTouched) return;
+    setManualAmount(suggestedManualAmount(manualPaymentType));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManualPaymentModalOpen, manualAmountTouched, manualPaymentType, manualShop?.id, manualBalanceDue]);
+
+  const openManualPayment = (shop?: ShopItem) => {
+    setManualShopInput(shop?.id ?? "");
+    // Une boutique non activée a d'abord besoin de ses frais d'activation ; sinon c'est un règlement de commission.
+    setManualPaymentType(shop && !shop.is_activated ? "shop_activation" : "commission_payment");
+    setManualAmountTouched(false);
+    setManualAmount("");
+    setIsManualPaymentModalOpen(true);
+  };
+
   const handleExecuteManualPayment = async () => {
     const query = manualShopInput.trim();
     if (!query) {
       toast({ title: "Champ requis", description: "Saisissez l'ID, le slug ou le nom de la boutique.", variant: "destructive" });
+      return;
+    }
+    const amountNum = Number(manualAmount.replace(/\s/g, "").replace(",", "."));
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      toast({ title: "Montant requis", description: "Saisissez le montant réellement encaissé, en FCFA.", variant: "destructive" });
       return;
     }
 
@@ -249,13 +275,13 @@ const FounderDashboard = () => {
       if (manualPaymentType === "shop_activation") {
         await activateShopManually({
           shopId: targetShop.id,
-          amount: manualAmount,
+          amount: amountNum,
           paymentMethod: manualMethod,
         });
       } else {
         await recordManualCommissionPayment({
           shopId: targetShop.id,
-          amount: manualAmount,
+          amount: amountNum,
           transactionReference: ref,
           paymentMethod: manualMethod,
           notes: manualNotes || `Règlement manuel encaisse via ${manualMethod}`,
@@ -263,13 +289,17 @@ const FounderDashboard = () => {
       }
 
       toast({
-        title: "Paiement Validé & Boutique Réactivée !",
-        description: `Le règlement de ${manualAmount.toLocaleString()} FCFA pour "${targetShop.business_name}" a été enregistré et la boutique est réactivée.`,
+        title: "Paiement enregistré",
+        description: manualPaymentType === "shop_activation"
+          ? `Les frais d'activation de ${amountNum.toLocaleString("fr-FR")} FCFA pour "${targetShop.business_name}" ont été enregistrés.`
+          : `Le règlement de ${amountNum.toLocaleString("fr-FR")} FCFA pour "${targetShop.business_name}" a été enregistré. La boutique est rouverte seulement si son solde dû est entièrement réglé.`,
       });
 
       setIsManualPaymentModalOpen(false);
       setManualShopInput("");
       setManualNotes("");
+      setManualAmount("");
+      setManualAmountTouched(false);
       loadDashboardData();
     } catch (err: any) {
       console.error("Manual payment execution failed:", err);
@@ -285,7 +315,7 @@ const FounderDashboard = () => {
       if (!session) {
         navigate("/auth");
       } else {
-        checkFounderRole(session.user.id, session.user.email);
+        checkFounderRole(session.user.id);
       }
     });
 
@@ -310,7 +340,7 @@ const FounderDashboard = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'subscriptions' },
-        () => { loadDashboardData(); }
+        () => { reloadRef.current(); }
       )
       .subscribe();
 
@@ -319,32 +349,30 @@ const FounderDashboard = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'payments' },
-        () => { loadDashboardData(); }
+        () => { reloadRef.current(); }
       )
       .subscribe();
 
-    const billingChannel = supabase
-      .channel('billing-changes')
+    const commissionChannel = supabase
+      .channel('commission-payments-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'billing_history' },
-        () => { loadDashboardData(); }
+        { event: '*', schema: 'public', table: 'commission_payments' },
+        () => { reloadRef.current(); }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(subscriptionsChannel);
       supabase.removeChannel(paymentsChannel);
-      supabase.removeChannel(billingChannel);
+      supabase.removeChannel(commissionChannel);
     };
   }, [session]);
 
-  const checkFounderRole = async (userId: string, userEmail?: string) => {
-    const email = (userEmail || session?.user?.email || "").toLowerCase();
-    if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
-      loadDashboardData();
-      return;
-    }
+  // Seul le rôle enregistré en base ouvre cette page. Aucun e-mail ne donne d'accès : un raccourci du type
+  // « l'adresse contient … » est contournable par n'importe qui qui crée un compte avec une adresse approchante.
+  // En cas d'échec de la vérification, l'accès reste fermé.
+  const checkFounderRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -368,19 +396,22 @@ const FounderDashboard = () => {
       loadDashboardData();
     } catch (error) {
       console.error("Error checking founder role:", error);
-      if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
-        loadDashboardData();
-      } else {
-        navigate("/");
-      }
+      toast({
+        title: "Vérification impossible",
+        description: "Votre rôle n'a pas pu être vérifié. Réessayez dans un instant.",
+        variant: "destructive",
+      });
+      navigate("/");
     }
   };
 
   const loadDashboardData = async () => {
     setIsRefreshing(true);
+    // Rechargement explicite : on relit la base au lieu de réutiliser la lecture mise en cache.
+    FinancialMetricsService.invalidate();
     try {
       await Promise.all([
-        loadUserStats(),
+        loadAiGenerationsCount(),
         loadPromoStats(),
         loadRevenueStats(),
         loadRecentPayments(),
@@ -403,6 +434,8 @@ const FounderDashboard = () => {
       setIsRefreshing(false);
     }
   };
+
+  reloadRef.current = loadDashboardData;
 
   const loadAllUsers = async () => {
     try {
@@ -430,7 +463,7 @@ const FounderDashboard = () => {
     try {
       const { data, error } = await supabase
         .from("shops")
-        .select("id, business_name, slug, city, country, whatsapp_number, is_published, is_activated, total_orders, total_sales, created_at, user_id")
+        .select("id, business_name, slug, city, country, whatsapp_number, is_published, is_activated, commission_balance_due, total_orders, total_sales, created_at, user_id")
         .order("created_at", { ascending: false });
       if (error) throw error;
       const enriched = await attachOwnerEmails((data || []) as any);
@@ -462,50 +495,21 @@ const FounderDashboard = () => {
     } catch (e) { console.error("Error loading showcases:", e); }
   };
 
-  const loadUserStats = async () => {
+  // Nombre réel de générations IA = images + vidéos enregistrées. Aucune estimation de repli : si la lecture échoue,
+  // on affiche « — ».
+  const loadAiGenerationsCount = async () => {
     try {
-      // Real total registered users count
-      const { data: allProfiles, error: usersError } = await supabase
-        .from("profiles")
-        .select("id, free_generations_remaining");
-
-      if (usersError) throw usersError;
-      const totalUsers = allProfiles?.length || 0;
-
-      // Real active subscriptions & activated shops
-      const { data: activeSubs } = await supabase
-        .from("subscriptions")
-        .select("id, amount")
-        .eq("status", "active");
-
-      const { data: activatedShops } = await supabase
-        .from("shops")
-        .select("id, created_at, is_activated, activation_fee_paid");
-
-      const activeSubscriptions = Math.max(activeSubs?.length || 0, activatedShops?.length || 0);
-
-      // Real AI generations count from generated_images & generated_videos (Ecomfy Gen+ / Afri AI Gen+)
-      const { count: imgCount } = await supabase
-        .from("generated_images" as any)
-        .select("*", { count: "exact", head: true });
-
-      const { count: vidCount } = await supabase
-        .from("generated_videos" as any)
-        .select("*", { count: "exact", head: true });
-
-      const totalMediaCount = (imgCount || 0) + (vidCount || 0);
-      const freeGenerationsUsed = totalMediaCount > 0 
-        ? totalMediaCount 
-        : (allProfiles?.reduce((total, p) => total + Math.max(0, 3 - (p.free_generations_remaining || 0)), 0) || 0);
-
-      setStats(prev => ({
-        ...prev,
-        totalUsers,
-        activeSubscriptions,
-        freeGenerationsUsed,
-      }));
+      const [images, videos] = await Promise.all([
+        supabase.from("generated_images" as any).select("*", { count: "exact", head: true }),
+        supabase.from("generated_videos" as any).select("*", { count: "exact", head: true }),
+      ]);
+      if (images.error || videos.error || images.count === null || videos.count === null) {
+        throw images.error || videos.error || new Error("Comptage indisponible");
+      }
+      setAiGenerationsCount(images.count + videos.count);
     } catch (error) {
-      console.error("Error loading user stats:", error);
+      console.error("Error loading AI generations count:", error);
+      setAiGenerationsCount(null);
     }
   };
 
@@ -519,15 +523,7 @@ const FounderDashboard = () => {
 
       if (error) throw error;
 
-      const totalPromoCodes = promoCodes?.length || 0;
-      const usedPromoCodes = promoCodes?.reduce((acc: number, pc: any) => acc + (pc.current_uses || 0), 0) || 0;
-
       setTopPromoCodes(promoCodes || []);
-      setStats(prev => ({
-        ...prev,
-        totalPromoCodes,
-        usedPromoCodes,
-      }));
     } catch (error) {
       console.error("Error loading promo stats:", error);
     }
@@ -537,17 +533,12 @@ const FounderDashboard = () => {
     try {
       const metrics = await FinancialMetricsService.fetchFinancialMetrics(periodFilter);
       setFinancialMetrics(metrics);
-      setStats(prev => ({
-        ...prev,
-        totalUsers: metrics.totalUsersCount,
-        activeSubscriptions: metrics.activatedStoresCount,
-        totalRevenue: metrics.cumulativeRevenue,
-        subscriptionRevenue: metrics.mrr,
-        completedPayments: metrics.completedPaymentsCount,
-        pendingPayments: metrics.pendingPaymentsCount,
-      }));
+      setMetricsError(false);
     } catch (error) {
       console.error("Error loading revenue stats:", error);
+      // On ne garde pas d'anciens chiffres à côté d'une erreur : les cartes passent sur « — ».
+      setFinancialMetrics(null);
+      setMetricsError(true);
     }
   };
 
@@ -556,13 +547,13 @@ const FounderDashboard = () => {
       const metrics = await FinancialMetricsService.fetchFinancialMetrics("all");
       const recents: RecentPayment[] = (metrics?.validatedTransactions || []).slice(0, 10).map(tx => ({
         id: tx.id,
-        amount: tx.amount || 0,
-        status: tx.status || "completed",
-        payment_method: tx.payment_method || "Mobile Money",
-        created_at: tx.created_at || new Date().toISOString(),
+        amount: tx.amount,
+        status: tx.status,
+        payment_method: tx.payment_method,
+        created_at: tx.created_at,
         user_id: tx.user_id,
-        user_email: tx.user_email || "Client",
-        description: tx.description || "Paiement validé"
+        user_email: tx.user_email || "Compte inconnu",
+        description: tx.description
       }));
       setRecentPayments(recents);
     } catch (error) {
@@ -590,8 +581,7 @@ const FounderDashboard = () => {
       const metrics = await FinancialMetricsService.fetchFinancialMetrics(timeRange as TimeRangeFilter);
       const methodCounts = new Map<string, number>();
       (metrics?.validatedTransactions || []).forEach(tx => {
-        const m = tx.payment_method || "Mobile Money";
-        methodCounts.set(m, (methodCounts.get(m) || 0) + 1);
+        methodCounts.set(tx.payment_method, (methodCounts.get(tx.payment_method) || 0) + 1);
       });
 
       if (methodCounts.size > 0) {
@@ -655,6 +645,13 @@ const FounderDashboard = () => {
     }
   }, [timeRange]);
 
+  // La période du haut pilote les cartes ; le graphique a ses propres onglets (7 / 30 / 90 jours).
+  useEffect(() => {
+    if (!isLoading && session) {
+      loadRevenueStats();
+    }
+  }, [periodFilter]);
+
   const filteredUsers = allUsers.filter(u => {
     if (!userSearchQuery.trim()) return true;
     const q = userSearchQuery.toLowerCase();
@@ -676,6 +673,11 @@ const FounderDashboard = () => {
       (s.city || "").toLowerCase().includes(q)
     );
   });
+
+  // Une donnée absente (erreur de lecture) s'affiche « — », jamais « 0 ».
+  const fm = financialMetrics;
+  const show = (value: number | null | undefined) =>
+    value === null || value === undefined ? "—" : value.toLocaleString("fr-FR");
 
   if (isLoading) {
     return (
@@ -717,14 +719,7 @@ const FounderDashboard = () => {
           <div className="flex flex-wrap items-center gap-3 z-10 shrink-0">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400 font-semibold">Période:</span>
-              <Select value={periodFilter} onValueChange={(val) => {
-                setPeriodFilter(val as TimeRangeFilter);
-                FinancialMetricsService.fetchFinancialMetrics(val as TimeRangeFilter).then(setFinancialMetrics);
-                FinancialMetricsService.fetchChartData(val as TimeRangeFilter).then(pts => {
-                  setRevenueChartData(pts.map(p => ({ date: p.date, value: p.revenue })));
-                  setSignupsChartData(pts.map(p => ({ date: p.date, value: p.signups })));
-                });
-              }}>
+              <Select value={periodFilter} onValueChange={(val) => setPeriodFilter(val as TimeRangeFilter)}>
                 <SelectTrigger className="w-44 h-9 bg-slate-950 border-slate-800 text-xs font-bold text-white rounded-full">
                   <SelectValue placeholder="Sélectionner période" />
                 </SelectTrigger>
@@ -743,7 +738,7 @@ const FounderDashboard = () => {
 
             <Button
               size="sm"
-              onClick={() => setIsManualPaymentModalOpen(true)}
+              onClick={() => openManualPayment()}
               className="rounded-full bg-gradient-to-r from-[#0E7C66] to-emerald-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-bold gap-2 shadow-lg cursor-pointer shrink-0"
             >
               <Zap className="h-3.5 w-3.5 text-amber-300" />
@@ -773,6 +768,24 @@ const FounderDashboard = () => {
           </div>
         </div>
 
+        {metricsError && (
+          <div role="alert" className="flex items-start gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
+            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Impossible de lire les données financières.</p>
+              <p className="text-red-300/90">Les indicateurs sont masqués plutôt que d'afficher des zéros. Cliquez sur « Actualiser » ou réessayez dans un instant.</p>
+            </div>
+          </div>
+        )}
+        {fm && fm.excludedPaymentsCount > 0 && (
+          <div role="status" className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+            <p>
+              {fm.excludedPaymentsCount} paiement(s) validé(s) de la période ne sont pas comptés dans les revenus : devise sans parité fixe avec le FCFA, ou date absente. Aucun taux de change n'est deviné.
+            </p>
+          </div>
+        )}
+
         {/* 6 Key Financial Metrics Cards Grid (Specification Section 16 Structure) */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           
@@ -782,17 +795,17 @@ const FounderDashboard = () => {
             className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 relative overflow-hidden shadow-xl hover:border-emerald-500/50 transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Revenus Cumulés Réels</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Revenus encaissés</span>
               <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-4 space-y-1">
               <div className="text-3xl font-space font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">
-                {(financialMetrics?.cumulativeRevenue || 0).toLocaleString()} <span className="text-lg text-emerald-400">FCFA</span>
+                {show(fm?.cumulativeRevenue)} <span className="text-lg text-emerald-400">FCFA</span>
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>{financialMetrics?.completedPaymentsCount || 0} paiements validés</span>
+                <span>{show(fm?.completedPaymentsCount)} paiements validés sur la période</span>
                 <span className="text-emerald-400 font-semibold group-hover:underline">Voir l'audit ➔</span>
               </div>
             </div>
@@ -811,10 +824,16 @@ const FounderDashboard = () => {
             </div>
             <div className="mt-4 space-y-1">
               <div className="text-3xl font-space font-extrabold text-white">
-                {(financialMetrics?.mrr || 0).toLocaleString()} <span className="text-lg text-blue-400">FCFA</span>
+                {show(fm?.mrr)} <span className="text-lg text-blue-400">FCFA</span>
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Revenus mensuels récurrents</span>
+                {fm && fm.unpricedSubscriptionsCount > 0 ? (
+                  <span className="text-amber-300">
+                    + {fm.unpricedSubscriptionsCount} abonnement(s) sans tarif connu, non valorisé(s)
+                  </span>
+                ) : (
+                  <span>Abonnements en cours, au tarif actuel des plans</span>
+                )}
                 <span className="text-blue-400 font-semibold group-hover:underline">Voir l'audit MRR ➔</span>
               </div>
             </div>
@@ -833,10 +852,10 @@ const FounderDashboard = () => {
             </div>
             <div className="mt-4 space-y-1">
               <div className="text-3xl font-space font-extrabold text-white">
-                {financialMetrics?.activatedStoresCount || 0}
+                {show(fm?.activatedStoresCount)}
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Paiement d'activation (1 300 FCFA)</span>
+                <span>Total depuis le lancement</span>
                 <span className="text-amber-400 font-semibold group-hover:underline">Voir boutiques ➔</span>
               </div>
             </div>
@@ -855,10 +874,10 @@ const FounderDashboard = () => {
             </div>
             <div className="mt-4 space-y-1">
               <div className="text-3xl font-space font-extrabold text-white">
-                {financialMetrics?.payingUsersCount || 0}
+                {show(fm?.payingUsersCount)}
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Utilisateurs avec au moins 1 paiement</span>
+                <span>Au moins 1 paiement sur la période</span>
                 <span className="text-purple-400 font-semibold group-hover:underline">Voir clients ➔</span>
               </div>
             </div>
@@ -877,10 +896,10 @@ const FounderDashboard = () => {
             </div>
             <div className="mt-4 space-y-1">
               <div className="text-3xl font-space font-extrabold text-white">
-                {financialMetrics?.activeSubscriptionsCount || 0}
+                {show(fm?.activeSubscriptionsCount)}
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Abonnements SaaS en cours</span>
+                <span>Propriétaires abonnés en cours de validité</span>
                 <span className="text-teal-400 font-semibold group-hover:underline">Voir abonnés ➔</span>
               </div>
             </div>
@@ -896,11 +915,11 @@ const FounderDashboard = () => {
             </div>
             <div className="mt-4 space-y-1">
               <div className="text-3xl font-space font-extrabold text-white">
-                {financialMetrics?.totalUsersCount || 0}
+                {show(fm?.totalUsersCount)}
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
                 <span>Comptes enregistrés</span>
-                <span className="text-blue-400 font-semibold">{stats.freeGenerationsUsed} générations IA</span>
+                <span className="text-blue-400 font-semibold">{show(aiGenerationsCount)} générations IA</span>
               </div>
             </div>
           </Card>
@@ -1033,7 +1052,7 @@ const FounderDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="payments" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <CreditCard className="h-4 w-4" />
-              <span>Paiements ({recentPayments.length})</span>
+              <span>Paiements</span>
             </TabsTrigger>
             <TabsTrigger value="promos" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <Ticket className="h-4 w-4" />
@@ -1188,11 +1207,7 @@ const FounderDashboard = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            setManualShopInput(shop.id);
-                            setManualAmount(12000);
-                            setIsManualPaymentModalOpen(true);
-                          }}
+                          onClick={() => openManualPayment(shop)}
                           className="mt-1 h-7 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-[11px] font-bold gap-1 rounded-xl"
                         >
                           <Zap className="h-3 w-3 text-amber-300" />
@@ -1211,7 +1226,7 @@ const FounderDashboard = () => {
             <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
               <div className="mb-6">
                 <h3 className="text-lg font-space font-bold text-white">Historique Réel des Transactions</h3>
-                <p className="text-xs text-slate-400">Liste consolidée des règlements enregistrés sur Ecomfy.</p>
+                <p className="text-xs text-slate-400">Les 10 derniers règlements validés enregistrés sur Ecomfy (toutes périodes). Le détail complet est dans « Audit Détail Transactions ».</p>
               </div>
 
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
@@ -1260,7 +1275,7 @@ const FounderDashboard = () => {
                   <span>Centre de Contrôle des Codes Promo Ecomfy (Fondateur)</span>
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Générez et attribuez des réductions pour les abonnements SaaS Ecomfy (Pass VIP 35 000 FCFA, Formations, Crédits IA) ou pour des marchands ciblés.
+                  Générez et attribuez des réductions pour les abonnements SaaS Ecomfy (Pass VIP, Formations, Crédits IA) ou pour des marchands ciblés.
                 </p>
               </div>
 
@@ -1376,14 +1391,18 @@ const FounderDashboard = () => {
               </Label>
               <Select
                 value={manualPaymentType}
-                onValueChange={(val: any) => setManualPaymentType(val)}
+                onValueChange={(val: "commission_payment" | "shop_activation") => {
+                  // Changer de type change de contexte : on repart du montant proposé pour ce type.
+                  setManualPaymentType(val);
+                  setManualAmountTouched(false);
+                }}
               >
                 <SelectTrigger className="mt-1 bg-slate-950 border-slate-800 text-xs text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
-                  <SelectItem value="commission_payment">Règlement Facture / Commission (ex: 12 000 FCFA)</SelectItem>
-                  <SelectItem value="shop_activation">Frais d'Activation Boutique (1 300 FCFA)</SelectItem>
+                  <SelectItem value="commission_payment">Règlement de commission</SelectItem>
+                  <SelectItem value="shop_activation">{`Frais d'activation boutique (${SHOP_ACTIVATION_FEE_FCFA.toLocaleString("fr-FR")} FCFA)`}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1394,10 +1413,34 @@ const FounderDashboard = () => {
               </Label>
               <Input
                 type="number"
+                inputMode="numeric"
+                min={1}
                 value={manualAmount}
-                onChange={(e) => setManualAmount(Number(e.target.value))}
+                placeholder="Montant réellement encaissé"
+                onChange={(e) => { setManualAmount(e.target.value); setManualAmountTouched(true); }}
                 className="mt-1 font-mono text-sm bg-slate-950 border-slate-800 text-emerald-400 font-bold"
               />
+              {manualPaymentType === "commission_payment" && manualShop && (
+                manualBalanceDue !== null ? (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Solde de commission dû : <span className="font-semibold text-slate-200">{manualBalanceDue.toLocaleString("fr-FR")} FCFA</span>
+                    {manualAmount !== String(manualBalanceDue) && (
+                      <button
+                        type="button"
+                        onClick={() => { setManualAmount(String(manualBalanceDue)); setManualAmountTouched(true); }}
+                        className="ml-2 text-emerald-400 hover:underline"
+                      >
+                        Utiliser ce montant
+                      </button>
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mt-1">Cette boutique n'a aucune commission due : saisissez le montant exact reçu.</p>
+                )
+              )}
+              {manualPaymentType === "shop_activation" && manualShop?.is_activated && (
+                <p className="text-[11px] text-amber-300 mt-1">Cette boutique est déjà activée : aucun paiement ne sera enregistré.</p>
+              )}
             </div>
 
             <div>
@@ -1442,7 +1485,7 @@ const FounderDashboard = () => {
             </Button>
             <Button
               onClick={handleExecuteManualPayment}
-              disabled={isSubmittingManualPay || !manualShopInput.trim()}
+              disabled={isSubmittingManualPay || !manualShopInput.trim() || !manualAmount.trim()}
               className="w-2/3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2"
             >
               {isSubmittingManualPay ? (
