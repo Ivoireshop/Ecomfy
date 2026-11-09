@@ -32,6 +32,7 @@ export default function CorporateOnboardingPage() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   // Document reading tracking state (stores doc ID -> version string)
+  const [notFound, setNotFound] = useState(false);
   const [readDocs, setReadDocs] = useState<Map<string, string>>(new Map());
   const [selectedDocToRead, setSelectedDocToRead] = useState<any>(null);
 
@@ -101,42 +102,11 @@ export default function CorporateOnboardingPage() {
         if (data) invData = data;
       }
 
-      if (!invData && emailParam) {
-        const { data: shData } = await supabase
-          .from("corporate_shareholders" as any)
-          .select("*")
-          .eq("email", emailParam.toLowerCase())
-          .maybeSingle();
-
-        if (shData) {
-          invData = {
-            id: `inv-${shData.id}`,
-            invite_token: token || `inv-tok-${shData.id}`,
-            email: shData.email,
-            full_name: shData.full_name,
-            corporate_role: shData.corporate_role,
-            invited_by_name: "ULRICH DJATÉ YAPI (Fondateur)",
-            status: shData.onboarding_completed ? "ACTIVE" : "INVITATION_SENT",
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-            created_at: shData.created_at,
-            shareholder_id: shData.id,
-          };
-        }
-      }
-
+      // Aucune invitation reconstituée ni de démonstration : sans ligne enregistrée pour ce jeton, la page le dit.
       if (!invData) {
-        // Fallback for demo token testing
-        invData = {
-          id: "inv-demo-1",
-          invite_token: token || "demo-token",
-          email: emailParam || "udyshop1@gmail.com",
-          full_name: "Membre Invité",
-          corporate_role: "cofounder",
-          invited_by_name: "ULRICH DJATÉ YAPI (Fondateur)",
-          status: "INVITATION_SENT",
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date().toISOString(),
-        };
+        setInvitation(null);
+        setNotFound(true);
+        return;
       }
 
       setInvitation(invData);
@@ -239,27 +209,28 @@ export default function CorporateOnboardingPage() {
         readVersionsObj[d.id] = readDocs.get(d.id) || d.current_version;
       });
 
-      // 1. Record document acceptances in database (au nom de l'utilisateur connecté, sinon rien à écrire)
+      // 1. Signature de chaque document obligatoire, au nom de l'utilisateur connecté : toute écriture refusée interrompt l'acceptation.
       const actor = await getSessionActor();
-      for (const doc of actor ? mandatoryDocs : []) {
-        try {
-          await supabase.from("corporate_document_acceptances" as any).insert({
-            document_id: doc.id,
-            version: doc.current_version,
-            user_id: actor!.id,
-            email: actor!.email,
-            action: "approved",
-            legal_statement: `Signature électronique par ${signerFullName} le ${new Date().toLocaleDateString('fr-FR')}`,
-            ip_address: "127.0.0.1",
-            user_agent: navigator.userAgent,
-            timestamp,
-          });
-        } catch {}
+      if (!actor) throw new Error("Connectez-vous avec l'adresse invitée pour signer.");
+      if (!invitation?.id) throw new Error("Invitation introuvable : rien n'a été enregistré.");
+      for (const doc of mandatoryDocs) {
+        const { error } = await supabase.from("corporate_document_acceptances" as any).insert({
+          document_id: doc.id,
+          version: doc.current_version,
+          user_id: actor.id,
+          email: actor.email,
+          action: "approved",
+          legal_statement: `Signature électronique par ${signerFullName} le ${new Date().toLocaleDateString('fr-FR')}`,
+          ip_address: null,
+          user_agent: navigator.userAgent,
+          timestamp,
+        });
+        if (error) throw new Error(`Signature de « ${doc.title} » non enregistrée : ${error.message}`);
       }
 
-      // 2. Update invitation status to ACCEPTED
-      if (invitation?.id && invitation.id !== "inv-demo-1") {
-        await supabase
+      // 2. Invitation passée à ACCEPTED seulement après les signatures
+      {
+        const { error } = await supabase
           .from("corporate_invitations" as any)
           .update({
             status: "ACCEPTED",
@@ -271,6 +242,7 @@ export default function CorporateOnboardingPage() {
             updated_at: timestamp,
           })
           .eq("id", invitation.id);
+        if (error) throw new Error(`Invitation non mise à jour : ${error.message}`);
       }
 
       // 3. Log NOMINATION_ACCEPTED in audit logs
@@ -278,7 +250,7 @@ export default function CorporateOnboardingPage() {
         await recordAudit({
           action: "NOMINATION_ACCEPTED",
           target_entity: "corporate_invitations",
-          entity_id: invitation?.id || "demo",
+          entity_id: invitation?.id ?? null,
           new_values: {
             role: invitation?.corporate_role,
             signer: signerFullName.trim(),
@@ -324,6 +296,20 @@ export default function CorporateOnboardingPage() {
           <Sparkles className="w-8 h-8 animate-spin text-[#0E7C66] mx-auto" />
           <p className="text-xs text-slate-400">Chargement de votre invitation Ecomfy Governance...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (notFound || !invitation) {
+    return (
+      <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter">
+        <Header />
+        <main className="max-w-xl mx-auto px-4 pt-20 text-center space-y-3">
+          <h1 className="text-2xl font-space font-extrabold text-white">Invitation introuvable</h1>
+          <p className="text-sm text-slate-400">
+            Ce lien ne correspond à aucune invitation enregistrée, ou vous n'êtes pas connecté avec l'adresse invitée. Demandez un nouveau lien à l'équipe fondatrice.
+          </p>
+        </main>
       </div>
     );
   }

@@ -36,7 +36,7 @@ export function CreateDocumentModal({ isOpen, onClose, onCreate }: CreateDocumen
 
     setIsSubmitting(true);
     try {
-      await onCreate({
+      const created = await onCreate({
         title,
         category,
         legal_status: legalStatus,
@@ -44,6 +44,8 @@ export function CreateDocumentModal({ isOpen, onClose, onCreate }: CreateDocumen
         content_markdown: contentMarkdown,
         is_mandatory: isMandatory,
       });
+      // Création refusée : on garde la fenêtre ouverte pour ne pas perdre la saisie.
+      if (!created) return;
 
       setTitle("");
       setSummary("");
