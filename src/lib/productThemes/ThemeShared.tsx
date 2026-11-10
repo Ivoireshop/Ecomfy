@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { ThemeData } from "./types";
 import { formatPrice } from "./dataAdapter";
-import { thumbUrl, heroImageWidth } from "@/lib/imageUrl";
+import { thumbUrl, heroImageWidth, HERO_IMAGE_QUALITY } from "@/lib/imageUrl";
 
 // Les GIF animés et les SVG ne passent pas par le redimensionnement du stockage.
 const resizable = (url: string) => !/\.(gif|svg)($|\?)/i.test(url);
@@ -99,7 +99,7 @@ export function HeroImage({
   }
   return (
     <img
-      src={resizable(src) ? thumbUrl(src, heroImageWidth()) : src}
+      src={resizable(src) ? thumbUrl(src, heroImageWidth(), HERO_IMAGE_QUALITY) : src}
       alt={alt}
       loading={priority ? "eager" : "lazy"}
       // @ts-ignore — fetchpriority is a valid HTML attribute

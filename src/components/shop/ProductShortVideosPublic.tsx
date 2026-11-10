@@ -87,6 +87,9 @@ export function ProductShortVideosPublic({
             const isPlaying = playingId === vid.id;
             const isMuted = mutedStates[vid.id] ?? false;
             const videoSrc = vid.url ? (vid.url.includes("#t=") ? vid.url : `${vid.url}#t=0.001`) : "";
+            // Vignette éventuelle : le type ProductVideo ne déclare pas ces deux champs, la base peut les fournir.
+            const { thumbnail_url, poster } = vid as { thumbnail_url?: string | null; poster?: string | null };
+            const posterSrc = thumbnail_url || poster || undefined;
 
             return (
               <div
@@ -97,12 +100,15 @@ export function ProductShortVideosPublic({
                 <video
                   ref={(el) => (videoRefs.current[vid.id] = el)}
                   src={videoSrc}
-                  poster={(vid as any).thumbnail_url || (vid as any).poster || undefined}
+                  poster={posterSrc}
                   className="w-full h-full object-cover"
                   playsInline
                   loop
                   muted={isMuted || !isPlaying}
-                  preload="auto"
+                  // « auto » téléchargeait chaque vidéo en entier dès l'ouverture de la fiche (mesuré : ~110 Ko en
+                  // plus avant même le premier scroll, au détriment de l'image principale). Avec une vignette, on
+                  // ne charge rien avant le toucher ; sans vignette, seules les métadonnées (première image).
+                  preload={posterSrc ? "none" : "metadata"}
                   onLoadedData={(e) => {
                     const el = e.currentTarget;
                     if (el && el.paused && el.currentTime === 0) {

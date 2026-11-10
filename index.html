@@ -20,6 +20,29 @@
       ProductView / ShopView récupèrent ces promesses au montage (window.__vpProductPreload / __vpShopPreload).
       Aucune erreur ici ne doit bloquer la page : en cas d'échec l'application refait ses requêtes normalement.
     -->
+    <!--
+      Squelette de la fiche produit, en CSS pur : sans lui l'écran reste blanc jusqu'au premier rendu de React
+      (≈ 5 s sur un téléphone d'entrée de gamme en 4G lente). Il n'existe que si le script ci-dessous a reconnu une
+      fiche produit (classe vp-product), et disparaît tout seul dès que React écrit dans #root (:empty).
+      Mêmes dimensions que src/components/shop/ProductSkeleton.tsx : à modifier ensemble.
+    -->
+    <style>
+      html.vp-product #root:empty { display: block; min-height: 100vh; background: #fff; }
+      html.vp-product #root:empty::before {
+        content: ""; display: block; height: 57px; box-sizing: border-box; border-bottom: 1px solid #e5e7eb;
+        background:
+          linear-gradient(#e5e7eb, #e5e7eb) 12px 12px / 32px 32px no-repeat,
+          linear-gradient(#e5e7eb, #e5e7eb) 56px 20px / 128px 16px no-repeat,
+          linear-gradient(#e5e7eb, #e5e7eb) calc(100% - 12px) 10px / 80px 36px no-repeat;
+        animation: vp-pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
+      }
+      html.vp-product #root:empty::after {
+        content: ""; display: block; aspect-ratio: 1; width: calc(100% - 24px); max-width: 560px; margin: 24px 12px;
+        border-radius: 12px; background: #f3f4f6; animation: vp-pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
+      }
+      @media (min-width: 640px) { html.vp-product #root:empty::after { margin: 40px 24px; } }
+      @keyframes vp-pulse { 50% { opacity: .5; } }
+    </style>
     <script>
       (function () {
         try {
@@ -41,13 +64,14 @@
             return w <= 640 ? 800 : w <= 1024 ? 1000 : 1200;
           }
           // Même règle que thumbUrl() dans src/lib/imageUrl.ts.
+          // Qualité 75 comme HERO_IMAGE_QUALITY (seule l'image principale est préchargée ici).
           function thumb(url, width) {
             if (!url || url.indexOf("/storage/v1/object/public/") === -1) return url || "";
             try {
               var u = new URL(url);
               u.pathname = u.pathname.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/");
               u.searchParams.set("width", String(width));
-              u.searchParams.set("quality", "85");
+              u.searchParams.set("quality", "75");
               u.searchParams.set("resize", "contain");
               return u.toString();
             } catch (e) { return url; }
@@ -73,6 +97,8 @@
           if (mProd) {
             var slug = decodeURIComponent(mProd[1]);
             var pslug = decodeURIComponent(mProd[2]);
+            // Active le squelette en CSS pur ci-dessous (visible avant même que React soit téléchargé).
+            document.documentElement.className += " vp-product";
             var pre = { slug: slug, productSlug: pslug, extras: null, promise: null };
             pre.promise = fetch(SUPABASE_URL + "/rest/v1/rpc/get_public_product_page", {
               method: "POST",
